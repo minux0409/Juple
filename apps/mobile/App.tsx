@@ -6,6 +6,7 @@
 
 import {
   ActivityIndicator,
+  Pressable,
   StatusBar,
   StyleSheet,
   Text,
@@ -50,6 +51,8 @@ function AuthGate() {
 
 /** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
 function AuthenticatedPlaceholder() {
+  const { signOut } = useAuth();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Juple</Text>
@@ -57,6 +60,12 @@ function AuthenticatedPlaceholder() {
       <Text style={styles.subMessage}>
         인증 연결이 정상적으로 완료되었습니다.
       </Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={signOut}
+        style={styles.signOutButton}>
+        <Text style={styles.signOutLabel}>로그아웃</Text>
+      </Pressable>
     </View>
   );
 }
@@ -82,6 +91,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     textAlign: 'center',
+  },
+  signOutButton: {
+    marginTop: 24,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderWidth: 1,
+    borderColor: '#111111',
+  },
+  signOutLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111111',
   },
 });
 

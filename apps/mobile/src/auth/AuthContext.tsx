@@ -7,7 +7,17 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
-import { authorizeWithEntra } from './entraAuthClient';
+import {
+  authorizeWithEntra,
+  isEntraSessionInvalidError,
+  refreshEntraSession,
+  EntraAuthError,
+} from './entraAuthClient';
+import {
+  clearAuthSession,
+  loadAuthSession,
+  saveAuthSession,
+} from './session/authSessionStorage';
 import type { AuthContextValue, AuthState } from './types';
 
 const INITIAL_STATE: AuthState = {
@@ -35,8 +45,62 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
   useEffect(() => {
-    // No persisted session to restore yet; secure storage arrives in a later step.
-    setState(previous => ({ ...previous, isInitializing: false }));
+    let isMounted = true;
+
+    (async () => {
+      const session = await loadAuthSession();
+      if (!session) {
+        if (isMounted) {
+          setState(previous => ({ ...previous, isInitializing: false }));
+        }
+        return;
+      }
+
+      try {
+        const result = await refreshEntraSession(session.refreshToken);
+        if (!result.accessToken) {
+          throw new Error('Entra refresh completed without an access token.');
+        }
+
+        if (result.refreshToken) {
+          await saveAuthSession({
+            refreshToken: result.refreshToken,
+            idToken: result.idToken ?? session.idToken,
+          });
+        }
+
+        if (isMounted) {
+          setState({
+            isInitializing: false,
+            isSigningIn: false,
+            isAuthenticated: true,
+            error: null,
+          });
+        }
+      } catch (caughtError) {
+        // A transient network failure should not discard a still-valid session.
+        const cause =
+          caughtError instanceof EntraAuthError
+            ? caughtError.cause
+            : caughtError;
+        if (isEntraSessionInvalidError(cause)) {
+          await clearAuthSession();
+        }
+
+        if (isMounted) {
+          setState({
+            isInitializing: false,
+            isSigningIn: false,
+            isAuthenticated: false,
+            error: null,
+          });
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const signIn = useCallback(async () => {
@@ -53,6 +117,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
           'Entra authorization completed without an access token.',
         );
       }
+      if (!result.refreshToken) {
+        throw new Error(
+          'Entra authorization did not include a refresh token required for session persistence.',
+        );
+      }
+
+      await saveAuthSession({
+        refreshToken: result.refreshToken,
+        idToken: result.idToken,
+      });
 
       setState({
         isInitializing: false,
@@ -70,9 +144,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, []);
 
+  const signOut = useCallback(async () => {
+    await clearAuthSession().catch(() => undefined);
+    setState({
+      isInitializing: false,
+      isSigningIn: false,
+      isAuthenticated: false,
+      error: null,
+    });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn }),
-    [state, signIn],
+    () => ({ ...state, signIn, signOut }),
+    [state, signIn, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
