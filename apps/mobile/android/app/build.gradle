@@ -84,6 +84,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Captures the Microsoft Entra External ID OAuth redirect (react-native-app-auth)
+        manifestPlaceholders = [
+            appAuthRedirectScheme: "com.juple.app.auth"
+        ]
     }
     signingConfigs {
         debug {

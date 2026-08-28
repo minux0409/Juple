@@ -4,11 +4,14 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, RNAppAuthAuthorizationFlowManager {
   var window: UIWindow?
 
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
+
+  // Required by RNAppAuthAuthorizationFlowManager protocol
+  public weak var authorizationFlowManagerDelegate: RNAppAuthAuthorizationFlowManagerDelegate?
 
   func application(
     _ application: UIApplication,
@@ -30,6 +33,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
+  }
+
+  // Resumes the Microsoft Entra External ID OAuth redirect (react-native-app-auth)
+  func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if let authorizationFlowManagerDelegate = self.authorizationFlowManagerDelegate,
+      authorizationFlowManagerDelegate.resumeExternalUserAgentFlow(with: url)
+    {
+      return true
+    }
+    return RCTLinkingManager.application(app, open: url, options: options)
   }
 }
 
