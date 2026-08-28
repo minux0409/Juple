@@ -1,16 +1,20 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
+ * Juple Mobile
  *
  * @format
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+  ActivityIndicator,
+  StatusBar,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View,
+} from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { SignInScreen } from './src/screens/SignInScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -18,20 +22,41 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
+/** Renders the screen matching the current authentication state. */
+function AuthGate() {
+  const { isInitializing, isAuthenticated } = useAuth();
 
+  if (isInitializing) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <AuthenticatedPlaceholder />;
+  }
+
+  return <SignInScreen />;
+}
+
+/** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
+function AuthenticatedPlaceholder() {
   return (
     <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
+      <Text style={styles.title}>Juple</Text>
+      <Text style={styles.message}>로그인되었습니다.</Text>
+      <Text style={styles.subMessage}>
+        인증 연결이 정상적으로 완료되었습니다.
+      </Text>
     </View>
   );
 }
@@ -39,6 +64,24 @@ function AppContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  message: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  subMessage: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
   },
 });
 
