@@ -33,5 +33,5 @@ export const entraDevAuthConfig: EntraAuthConfig = {
     'https://jupledev.ciamlogin.com/d2e79a05-cf5f-43ab-86d2-717e025a74b1/oauth2/v2.0/logout',
   clientId: 'c516017f-437c-43f5-966c-c2f0014cd185',
   redirectUrl: 'com.juple.app.auth://oauthredirect',
-  scopes: ['openid', 'offline_access', JUPLE_API_SCOPE],
+  scopes: ['openid', 'profile', 'offline_access', JUPLE_API_SCOPE],
 };
