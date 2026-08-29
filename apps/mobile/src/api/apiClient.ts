@@ -1,0 +1,49 @@
+import { ApiError } from './ApiError';
+import { apiConfig } from './apiConfig';
+
+interface ApiRequest {
+  readonly method: 'GET';
+  readonly path: string;
+  readonly accessToken?: string;
+}
+
+interface ApiResponse {
+  readonly status: number;
+}
+
+export async function requestApi({
+  method,
+  path,
+  accessToken,
+}: ApiRequest): Promise<ApiResponse> {
+  const baseUrl = apiConfig.baseUrl;
+  if (!baseUrl) {
+    throw new ApiError('unavailable');
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
+    });
+  } catch {
+    throw new ApiError('unavailable');
+  }
+
+  if (response.status === 204) {
+    return { status: response.status };
+  }
+
+  if (response.status === 401) {
+    throw new ApiError('unauthorized', response.status);
+  }
+
+  if (response.status === 403) {
+    throw new ApiError('forbidden', response.status);
+  }
+
+  throw new ApiError('unavailable', response.status);
+}

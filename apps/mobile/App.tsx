@@ -16,6 +16,16 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { SignInScreen } from './src/screens/SignInScreen';
+import type { BackendAuthStatus } from './src/auth/types';
+
+const backendAuthMessages: Record<BackendAuthStatus, string | null> = {
+  notChecked: null,
+  checking: '서버 인증 확인 중...',
+  valid: 'Juple API 인증도 정상적으로 완료되었습니다.',
+  unauthorized: '서버에서 인증을 확인하지 못했습니다.',
+  forbidden: '서버 접근 권한을 확인하지 못했습니다.',
+  unavailable: '서버에 연결할 수 없습니다.',
+};
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -51,7 +61,8 @@ function AuthGate() {
 
 /** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
 function AuthenticatedPlaceholder() {
-  const { signOut } = useAuth();
+  const { signOut, backendAuthStatus } = useAuth();
+  const backendAuthMessage = backendAuthMessages[backendAuthStatus];
 
   return (
     <View style={styles.container}>
@@ -60,6 +71,9 @@ function AuthenticatedPlaceholder() {
       <Text style={styles.subMessage}>
         인증 연결이 정상적으로 완료되었습니다.
       </Text>
+      {backendAuthMessage ? (
+        <Text style={styles.backendAuthMessage}>{backendAuthMessage}</Text>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         onPress={signOut}
@@ -88,6 +102,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   subMessage: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  backendAuthMessage: {
+    marginTop: 8,
     fontSize: 14,
     color: '#666666',
     textAlign: 'center',

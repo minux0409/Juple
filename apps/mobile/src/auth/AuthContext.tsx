@@ -18,6 +18,7 @@ import {
   loadAuthSession,
   saveAuthSession,
 } from './session/authSessionStorage';
+import { validateBackendSession } from './authSessionApi';
 import type { AuthContextValue, AuthState } from './types';
 
 const INITIAL_STATE: AuthState = {
@@ -25,6 +26,7 @@ const INITIAL_STATE: AuthState = {
   isSigningIn: false,
   isAuthenticated: false,
   error: null,
+  backendAuthStatus: 'notChecked',
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -75,7 +77,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
             isSigningIn: false,
             isAuthenticated: true,
             error: null,
+            backendAuthStatus: 'checking',
           });
+        }
+
+        const backendAuthStatus = await validateBackendSession(
+          result.accessToken,
+        );
+        if (isMounted) {
+          setState(previous =>
+            previous.isAuthenticated
+              ? { ...previous, backendAuthStatus }
+              : previous,
+          );
         }
       } catch (caughtError) {
         // A transient network failure should not discard a still-valid session.
@@ -93,6 +107,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             isSigningIn: false,
             isAuthenticated: false,
             error: null,
+            backendAuthStatus: 'notChecked',
           });
         }
       }
@@ -133,13 +148,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isSigningIn: false,
         isAuthenticated: true,
         error: null,
+        backendAuthStatus: 'checking',
       });
+
+      const backendAuthStatus = await validateBackendSession(
+        result.accessToken,
+      );
+      setState(previous =>
+        previous.isAuthenticated
+          ? { ...previous, backendAuthStatus }
+          : previous,
+      );
     } catch (caughtError) {
       setState({
         isInitializing: false,
         isSigningIn: false,
         isAuthenticated: false,
         error: toSafeAuthErrorMessage(caughtError),
+        backendAuthStatus: 'notChecked',
       });
     }
   }, []);
@@ -151,6 +177,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isSigningIn: false,
       isAuthenticated: false,
       error: null,
+      backendAuthStatus: 'notChecked',
     });
   }, []);
 
