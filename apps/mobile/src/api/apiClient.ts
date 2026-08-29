@@ -2,9 +2,10 @@ import { ApiError } from './ApiError';
 import { apiConfig } from './apiConfig';
 
 interface ApiRequest {
-  readonly method: 'GET';
+  readonly method: 'GET' | 'POST';
   readonly path: string;
   readonly accessToken?: string;
+  readonly body?: object;
 }
 
 interface ApiResponse {
@@ -15,6 +16,7 @@ export async function requestApi({
   method,
   path,
   accessToken,
+  body,
 }: ApiRequest): Promise<ApiResponse> {
   const baseUrl = apiConfig.baseUrl;
   if (!baseUrl) {
@@ -25,9 +27,11 @@ export async function requestApi({
   try {
     response = await fetch(`${baseUrl}${path}`, {
       method,
-      headers: accessToken
-        ? { Authorization: `Bearer ${accessToken}` }
-        : undefined,
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError('unavailable');
@@ -35,6 +39,10 @@ export async function requestApi({
 
   if (response.status === 204) {
     return { status: response.status };
+  }
+
+  if (response.status === 400) {
+    throw new ApiError('badRequest', response.status);
   }
 
   if (response.status === 401) {

@@ -1,4 +1,8 @@
-export type ApiErrorKind = 'unauthorized' | 'forbidden' | 'unavailable';
+export type ApiErrorKind =
+  | 'badRequest'
+  | 'unauthorized'
+  | 'forbidden'
+  | 'unavailable';
 
 export class ApiError extends Error {
   constructor(readonly kind: ApiErrorKind, readonly status?: number) {

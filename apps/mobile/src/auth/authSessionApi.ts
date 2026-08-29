@@ -14,7 +14,7 @@ export async function validateBackendSession(
     return 'valid';
   } catch (error) {
     if (error instanceof ApiError) {
-      return error.kind;
+      return error.kind === 'badRequest' ? 'unavailable' : error.kind;
     }
 
     return 'unavailable';

@@ -16,7 +16,7 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { SignInScreen } from './src/screens/SignInScreen';
-import type { BackendAuthStatus } from './src/auth/types';
+import type { BackendAuthStatus, UserBootstrapStatus } from './src/auth/types';
 
 const backendAuthMessages: Record<BackendAuthStatus, string | null> = {
   notChecked: null,
@@ -25,6 +25,14 @@ const backendAuthMessages: Record<BackendAuthStatus, string | null> = {
   unauthorized: '서버에서 인증을 확인하지 못했습니다.',
   forbidden: '서버 접근 권한을 확인하지 못했습니다.',
   unavailable: '서버에 연결할 수 없습니다.',
+};
+
+const userBootstrapMessages: Record<UserBootstrapStatus, string | null> = {
+  notStarted: null,
+  checking: 'Juple 계정을 준비하고 있습니다...',
+  ready: 'Juple 계정 준비도 완료되었습니다.',
+  invalidDeviceSettings: '기기 지역 설정을 확인할 수 없습니다.',
+  unavailable: 'Juple 계정을 준비할 수 없습니다.',
 };
 
 function App() {
@@ -61,8 +69,9 @@ function AuthGate() {
 
 /** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
 function AuthenticatedPlaceholder() {
-  const { signOut, backendAuthStatus } = useAuth();
+  const { signOut, backendAuthStatus, userBootstrapStatus } = useAuth();
   const backendAuthMessage = backendAuthMessages[backendAuthStatus];
+  const userBootstrapMessage = userBootstrapMessages[userBootstrapStatus];
 
   return (
     <View style={styles.container}>
@@ -73,6 +82,9 @@ function AuthenticatedPlaceholder() {
       </Text>
       {backendAuthMessage ? (
         <Text style={styles.backendAuthMessage}>{backendAuthMessage}</Text>
+      ) : null}
+      {userBootstrapMessage ? (
+        <Text style={styles.userBootstrapMessage}>{userBootstrapMessage}</Text>
       ) : null}
       <Pressable
         accessibilityRole="button"
@@ -107,6 +119,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   backendAuthMessage: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  userBootstrapMessage: {
     marginTop: 8,
     fontSize: 14,
     color: '#666666',

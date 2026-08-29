@@ -19,7 +19,9 @@ import {
   saveAuthSession,
 } from './session/authSessionStorage';
 import { validateBackendSession } from './authSessionApi';
-import type { AuthContextValue, AuthState } from './types';
+import { bootstrapCurrentUser } from './userBootstrapApi';
+import { getDeviceRegionalSettings } from '../device/regionalSettings';
+import type { AuthContextValue, AuthState, UserBootstrapStatus } from './types';
 
 const INITIAL_STATE: AuthState = {
   isInitializing: true,
@@ -27,6 +29,7 @@ const INITIAL_STATE: AuthState = {
   isAuthenticated: false,
   error: null,
   backendAuthStatus: 'notChecked',
+  userBootstrapStatus: 'notStarted',
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -41,6 +44,16 @@ function toSafeAuthErrorMessage(caughtError: unknown): string {
   }
 
   return '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+}
+
+async function bootstrapUserAccount(
+  accessToken: string,
+): Promise<UserBootstrapStatus> {
+  try {
+    return await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
+  } catch {
+    return 'invalidDeviceSettings';
+  }
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -78,6 +91,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             isAuthenticated: true,
             error: null,
             backendAuthStatus: 'checking',
+            userBootstrapStatus: 'notStarted',
           });
         }
 
@@ -90,6 +104,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
               ? { ...previous, backendAuthStatus }
               : previous,
           );
+        }
+
+        if (backendAuthStatus === 'valid') {
+          if (isMounted) {
+            setState(previous =>
+              previous.isAuthenticated
+                ? { ...previous, userBootstrapStatus: 'checking' }
+                : previous,
+            );
+          }
+
+          const userBootstrapStatus = await bootstrapUserAccount(
+            result.accessToken,
+          );
+          if (isMounted) {
+            setState(previous =>
+              previous.isAuthenticated
+                ? { ...previous, userBootstrapStatus }
+                : previous,
+            );
+          }
         }
       } catch (caughtError) {
         // A transient network failure should not discard a still-valid session.
@@ -108,6 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             isAuthenticated: false,
             error: null,
             backendAuthStatus: 'notChecked',
+            userBootstrapStatus: 'notStarted',
           });
         }
       }
@@ -149,6 +185,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isAuthenticated: true,
         error: null,
         backendAuthStatus: 'checking',
+        userBootstrapStatus: 'notStarted',
       });
 
       const backendAuthStatus = await validateBackendSession(
@@ -159,6 +196,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
           ? { ...previous, backendAuthStatus }
           : previous,
       );
+
+      if (backendAuthStatus === 'valid') {
+        setState(previous =>
+          previous.isAuthenticated
+            ? { ...previous, userBootstrapStatus: 'checking' }
+            : previous,
+        );
+        const userBootstrapStatus = await bootstrapUserAccount(
+          result.accessToken,
+        );
+        setState(previous =>
+          previous.isAuthenticated
+            ? { ...previous, userBootstrapStatus }
+            : previous,
+        );
+      }
     } catch (caughtError) {
       setState({
         isInitializing: false,
@@ -166,6 +219,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isAuthenticated: false,
         error: toSafeAuthErrorMessage(caughtError),
         backendAuthStatus: 'notChecked',
+        userBootstrapStatus: 'notStarted',
       });
     }
   }, []);
@@ -178,6 +232,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isAuthenticated: false,
       error: null,
       backendAuthStatus: 'notChecked',
+      userBootstrapStatus: 'notStarted',
     });
   }, []);
 
