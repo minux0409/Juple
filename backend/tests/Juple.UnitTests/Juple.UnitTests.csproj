@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Juple.Domain\Juple.Domain.csproj" />
     <ProjectReference Include="..\..\src\Juple.Application\Juple.Application.csproj" />
+    <ProjectReference Include="..\..\src\Juple.Infrastructure\Juple.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,6 +1,7 @@
 using Juple.Infrastructure;
 using Juple.Api.Authentication;
 using Juple.Application.Identity;
+using Juple.Application.Users.BootstrapCurrentUser;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 
@@ -12,6 +13,8 @@ var requiredScope = builder.Configuration["Authentication:EntraExternalId:Requir
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IExternalIdentityAccessor, HttpContextExternalIdentityAccessor>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(

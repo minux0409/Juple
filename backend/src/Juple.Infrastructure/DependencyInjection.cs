@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Persistence;
+using Juple.Infrastructure.Users.BootstrapCurrentUser;
 
 namespace Juple.Infrastructure;
 
@@ -20,6 +22,7 @@ public static class DependencyInjection
 
         services.AddDbContext<JupleDbContext>(options =>
             options.UseSqlServer(connectionString));
+        services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
 
         return services;
     }
