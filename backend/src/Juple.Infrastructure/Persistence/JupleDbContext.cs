@@ -1,4 +1,5 @@
 using Juple.Domain.Identity;
+using Juple.Domain.Inbox;
 using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<User> Users => Set<User>();
 
     public DbSet<ExternalIdentity> ExternalIdentities => Set<ExternalIdentity>();
+
+    public DbSet<InboxEntry> InboxEntries => Set<InboxEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
