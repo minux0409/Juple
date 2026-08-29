@@ -22,7 +22,14 @@ export interface AuthState {
   readonly userBootstrapStatus: UserBootstrapStatus;
 }
 
+export interface GetValidAccessTokenOptions {
+  readonly forceRefresh?: boolean;
+}
+
 export interface AuthContextValue extends AuthState {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  getValidAccessToken: (
+    options?: GetValidAccessTokenOptions,
+  ) => Promise<string>;
 }

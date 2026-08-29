@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PropsWithChildren,
 } from 'react';
@@ -21,7 +22,12 @@ import {
 import { validateBackendSession } from './authSessionApi';
 import { bootstrapCurrentUser } from './userBootstrapApi';
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
-import type { AuthContextValue, AuthState, UserBootstrapStatus } from './types';
+import type {
+  AuthContextValue,
+  AuthState,
+  GetValidAccessTokenOptions,
+  UserBootstrapStatus,
+} from './types';
 
 const INITIAL_STATE: AuthState = {
   isInitializing: true,
@@ -33,6 +39,7 @@ const INITIAL_STATE: AuthState = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
 
 /** Maps a caught authorization error to a message safe to show without exposing tokens. */
 function toSafeAuthErrorMessage(caughtError: unknown): string {
@@ -56,19 +63,46 @@ async function bootstrapUserAccount(
   }
 }
 
+function isAccessTokenUsable(expirationDate: string | null): boolean {
+  if (!expirationDate) {
+    return false;
+  }
+
+  const expirationMs = Date.parse(expirationDate);
+  return (
+    Number.isFinite(expirationMs) &&
+    expirationMs > Date.now() + ACCESS_TOKEN_REFRESH_SKEW_MS
+  );
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
+  const accessTokenRef = useRef<string | null>(null);
+  const accessTokenExpirationDateRef = useRef<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<string> | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
+  const setAccessToken = (
+    accessToken: string,
+    accessTokenExpirationDate: string,
+  ) => {
+    accessTokenRef.current = accessToken;
+    accessTokenExpirationDateRef.current = accessTokenExpirationDate;
+  };
 
-    (async () => {
+  const clearAccessToken = () => {
+    accessTokenRef.current = null;
+    accessTokenExpirationDateRef.current = null;
+  };
+
+  const refreshAccessToken = useCallback(async (): Promise<string> => {
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
+    }
+
+    const refreshPromise = (async () => {
       const session = await loadAuthSession();
       if (!session) {
-        if (isMounted) {
-          setState(previous => ({ ...previous, isInitializing: false }));
-        }
-        return;
+        throw new Error('An Entra refresh token is required.');
       }
 
       try {
@@ -84,6 +118,70 @@ export function AuthProvider({ children }: PropsWithChildren) {
           });
         }
 
+        setAccessToken(result.accessToken, result.accessTokenExpirationDate);
+        return result.accessToken;
+      } catch (caughtError) {
+        const cause =
+          caughtError instanceof EntraAuthError
+            ? caughtError.cause
+            : caughtError;
+        if (isEntraSessionInvalidError(cause)) {
+          await clearAuthSession();
+          clearAccessToken();
+          setState({
+            isInitializing: false,
+            isSigningIn: false,
+            isAuthenticated: false,
+            error: null,
+            backendAuthStatus: 'notChecked',
+            userBootstrapStatus: 'notStarted',
+          });
+        }
+
+        throw caughtError;
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+    try {
+      return await refreshPromise;
+    } finally {
+      if (refreshInFlightRef.current === refreshPromise) {
+        refreshInFlightRef.current = null;
+      }
+    }
+  }, []);
+
+  const getValidAccessToken = useCallback(
+    async (options: GetValidAccessTokenOptions = {}): Promise<string> => {
+      if (
+        !options.forceRefresh &&
+        accessTokenRef.current &&
+        isAccessTokenUsable(accessTokenExpirationDateRef.current)
+      ) {
+        return accessTokenRef.current;
+      }
+
+      return refreshAccessToken();
+    },
+    [refreshAccessToken],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      const session = await loadAuthSession();
+      if (!session) {
+        if (isMounted) {
+          setState(previous => ({ ...previous, isInitializing: false }));
+        }
+        return;
+      }
+
+      try {
+        const accessToken = await refreshAccessToken();
+
         if (isMounted) {
           setState({
             isInitializing: false,
@@ -95,9 +193,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           });
         }
 
-        const backendAuthStatus = await validateBackendSession(
-          result.accessToken,
-        );
+        const backendAuthStatus = await validateBackendSession(accessToken);
         if (isMounted) {
           setState(previous =>
             previous.isAuthenticated
@@ -115,9 +211,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             );
           }
 
-          const userBootstrapStatus = await bootstrapUserAccount(
-            result.accessToken,
-          );
+          const userBootstrapStatus = await bootstrapUserAccount(accessToken);
           if (isMounted) {
             setState(previous =>
               previous.isAuthenticated
@@ -126,16 +220,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             );
           }
         }
-      } catch (caughtError) {
+      } catch {
         // A transient network failure should not discard a still-valid session.
-        const cause =
-          caughtError instanceof EntraAuthError
-            ? caughtError.cause
-            : caughtError;
-        if (isEntraSessionInvalidError(cause)) {
-          await clearAuthSession();
-        }
-
         if (isMounted) {
           setState({
             isInitializing: false,
@@ -152,7 +238,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [refreshAccessToken]);
 
   const signIn = useCallback(async () => {
     setState(previous =>
@@ -173,6 +259,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           'Entra authorization did not include a refresh token required for session persistence.',
         );
       }
+
+      setAccessToken(result.accessToken, result.accessTokenExpirationDate);
 
       await saveAuthSession({
         refreshToken: result.refreshToken,
@@ -226,6 +314,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     await clearAuthSession().catch(() => undefined);
+    clearAccessToken();
     setState({
       isInitializing: false,
       isSigningIn: false,
@@ -237,8 +326,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn, signOut }),
-    [state, signIn, signOut],
+    () => ({ ...state, signIn, signOut, getValidAccessToken }),
+    [state, signIn, signOut, getValidAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

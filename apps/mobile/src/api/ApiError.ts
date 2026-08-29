@@ -2,6 +2,7 @@ export type ApiErrorKind =
   | 'badRequest'
   | 'unauthorized'
   | 'forbidden'
+  | 'conflict'
   | 'unavailable';
 
 export class ApiError extends Error {
