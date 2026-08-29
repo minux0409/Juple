@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { DailyInboxScreen } from './src/screens/DailyInboxScreen';
 import { SignInScreen } from './src/screens/SignInScreen';
 import type { BackendAuthStatus, UserBootstrapStatus } from './src/auth/types';
 
@@ -50,7 +51,12 @@ function App() {
 
 /** Renders the screen matching the current authentication state. */
 function AuthGate() {
-  const { isInitializing, isAuthenticated } = useAuth();
+  const {
+    isInitializing,
+    isAuthenticated,
+    backendAuthStatus,
+    userBootstrapStatus,
+  } = useAuth();
 
   if (isInitializing) {
     return (
@@ -58,6 +64,14 @@ function AuthGate() {
         <ActivityIndicator />
       </View>
     );
+  }
+
+  if (
+    isAuthenticated &&
+    backendAuthStatus === 'valid' &&
+    userBootstrapStatus === 'ready'
+  ) {
+    return <DailyInboxScreen />;
   }
 
   if (isAuthenticated) {
@@ -94,8 +108,7 @@ function AuthenticatedPlaceholder() {
       </Pressable>
     </View>
   );
-}
-
+        style={styles.signOutButton}>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
