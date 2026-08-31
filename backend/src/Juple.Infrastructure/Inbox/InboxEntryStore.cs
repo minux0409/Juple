@@ -1,8 +1,7 @@
 using Juple.Application.Inbox;
 using Juple.Domain.Inbox;
 using Juple.Infrastructure.Persistence;
-using Juple.Infrastructure.Users.BootstrapCurrentUser;
-using Microsoft.Data.SqlClient;
+using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Inbox;
@@ -36,7 +35,7 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
         {
             return await InboxEntrySaveRaceRecovery.RecoverOrRethrowAsync(
                 exception,
-                IsUniqueConstraintViolation(exception),
+                SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception),
                 url,
                 dbContext.ChangeTracker.Clear,
                 lookupCancellationToken => FindByClientRequestIdAsync(
@@ -83,8 +82,4 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
             .Where(entry => entry.UserId == userId && entry.ClientRequestId == clientRequestId)
             .Select(entry => new InboxEntryDto(entry.Id, entry.Url, entry.SavedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
-
-    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
-        exception.InnerException is SqlException sqlException
-        && ExternalIdentityRaceRecovery.IsSqlServerUniqueConstraintViolation(sqlException.Number);
 }

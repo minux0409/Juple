@@ -5,21 +5,6 @@ namespace Juple.UnitTests.Users.BootstrapCurrentUser;
 
 public sealed class ExternalIdentityRaceRecoveryTests
 {
-    [Theory]
-    [InlineData(2601)]
-    [InlineData(2627)]
-    public void IsSqlServerUniqueConstraintViolation_WhenUniqueConstraintError_ReturnsTrue(
-        int errorNumber)
-    {
-        Assert.True(ExternalIdentityRaceRecovery.IsSqlServerUniqueConstraintViolation(errorNumber));
-    }
-
-    [Fact]
-    public void IsSqlServerUniqueConstraintViolation_WhenOtherSqlServerError_ReturnsFalse()
-    {
-        Assert.False(ExternalIdentityRaceRecovery.IsSqlServerUniqueConstraintViolation(50000));
-    }
-
     [Fact]
     public async Task RecoverOrRethrowAsync_WhenDuplicateIdentityExists_CompletesRecovery()
     {

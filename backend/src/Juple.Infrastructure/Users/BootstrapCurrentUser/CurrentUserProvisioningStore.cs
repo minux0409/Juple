@@ -3,7 +3,7 @@ using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Domain.Identity;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Persistence;
-using Microsoft.Data.SqlClient;
+using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
@@ -48,7 +48,7 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
         {
             await ExternalIdentityRaceRecovery.RecoverOrRethrowAsync(
                 exception,
-                IsUniqueConstraintViolation(exception),
+                SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception),
                 transaction.RollbackAsync,
                 dbContext.ChangeTracker.Clear,
                 cancellationToken => ExternalIdentityExistsAsync(data.ExternalIdentity, cancellationToken),
@@ -56,8 +56,4 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
             return;
         }
     }
-
-    private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
-        exception.InnerException is SqlException sqlException
-        && ExternalIdentityRaceRecovery.IsSqlServerUniqueConstraintViolation(sqlException.Number);
 }

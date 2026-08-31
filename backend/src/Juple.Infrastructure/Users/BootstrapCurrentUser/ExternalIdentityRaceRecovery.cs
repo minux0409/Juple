@@ -5,9 +5,6 @@ namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
 
 internal static class ExternalIdentityRaceRecovery
 {
-    internal static bool IsSqlServerUniqueConstraintViolation(int errorNumber) =>
-        errorNumber is 2601 or 2627;
-
     internal static async Task RecoverOrRethrowAsync(
         DbUpdateException exception,
         bool isUniqueConstraintViolation,
