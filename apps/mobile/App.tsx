@@ -103,12 +103,14 @@ function AuthenticatedPlaceholder() {
       <Pressable
         accessibilityRole="button"
         onPress={signOut}
-        style={styles.signOutButton}>
+        style={styles.signOutButton}
+      >
         <Text style={styles.signOutLabel}>로그아웃</Text>
       </Pressable>
     </View>
   );
-        style={styles.signOutButton}>
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

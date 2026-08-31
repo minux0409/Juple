@@ -18,6 +18,8 @@ import {
   type InboxEntry,
 } from '../inbox/api/inboxApi';
 import { useAuth } from '../auth/AuthContext';
+import { parseSharedText } from '../share/sharedTextParser';
+import { useIncomingShare } from '../share/useIncomingShare';
 
 function getInboxErrorMessage(error: unknown, isSave: boolean): string {
   if (error instanceof ApiError) {
@@ -53,12 +55,14 @@ function formatSavedTime(savedAtUtc: string): string {
 export function DailyInboxScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   const { signOut } = useAuth();
+  const { pendingShare, acknowledgePendingShare } = useIncomingShare();
   const [dailyInbox, setDailyInbox] = useState<DailyInbox | null>(null);
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const loadTodayInbox = useCallback(
     async (isPullToRefresh = false) => {
@@ -85,6 +89,20 @@ export function DailyInboxScreen() {
     loadTodayInbox();
   }, [loadTodayInbox]);
 
+  useEffect(() => {
+    if (!pendingShare) {
+      return;
+    }
+
+    const parsedShare = parseSharedText(pendingShare.text);
+    setUrl(parsedShare.text);
+    setShareMessage(
+      parsedShare.kind === 'exactUrl'
+        ? '공유된 링크를 확인해 주세요.'
+        : '공유된 내용을 확인해 주세요.',
+    );
+  }, [pendingShare]);
+
   const saveUrl = async () => {
     const trimmedUrl = url.trim();
     if (!trimmedUrl || isSaving) {
@@ -95,13 +113,27 @@ export function DailyInboxScreen() {
     setError(null);
     try {
       await saveInboxEntry(authenticatedRequest, trimmedUrl);
+      if (pendingShare) {
+        await acknowledgePendingShare(pendingShare.id);
+      }
       setUrl('');
+      setShareMessage(null);
       await loadTodayInbox();
     } catch (caughtError) {
       setError(getInboxErrorMessage(caughtError, true));
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const cancelPendingShare = async () => {
+    if (!pendingShare) {
+      return;
+    }
+
+    await acknowledgePendingShare(pendingShare.id);
+    setUrl('');
+    setShareMessage(null);
   };
 
   if (isLoading && !dailyInbox) {
@@ -155,6 +187,20 @@ export function DailyInboxScreen() {
               {isSaving ? '저장 중...' : '저장'}
             </Text>
           </Pressable>
+          {shareMessage ? (
+            <View style={styles.shareReview}>
+              <Text style={styles.shareMessage}>{shareMessage}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  cancelPendingShare();
+                }}
+                style={styles.cancelShareButton}
+              >
+                <Text style={styles.cancelShareLabel}>공유 내용 취소</Text>
+              </Pressable>
+            </View>
+          ) : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Text style={styles.recentTitle}>최근 저장</Text>
         </View>
@@ -241,6 +287,22 @@ const styles = StyleSheet.create({
     color: '#B42318',
     fontSize: 14,
     marginTop: 12,
+  },
+  shareReview: {
+    marginTop: 12,
+  },
+  shareMessage: {
+    color: '#666666',
+    fontSize: 14,
+  },
+  cancelShareButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  cancelShareLabel: {
+    color: '#666666',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   recentTitle: {
     fontSize: 16,
