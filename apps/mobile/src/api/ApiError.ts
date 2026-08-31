@@ -3,6 +3,7 @@ export type ApiErrorKind =
   | 'unauthorized'
   | 'forbidden'
   | 'conflict'
+  | 'timeout'
   | 'unavailable';
 
 export class ApiError extends Error {

@@ -1,11 +1,14 @@
 import { ApiError } from './ApiError';
 import { apiConfig } from './apiConfig';
 
+export const DEFAULT_API_TIMEOUT_MS = 15_000;
+
 export interface ApiRequest {
   readonly method: 'GET' | 'POST';
   readonly path: string;
   readonly accessToken?: string;
   readonly body?: object;
+  readonly timeoutMs?: number;
 }
 
 export interface ApiResponse<T> {
@@ -18,11 +21,19 @@ export async function requestApi<T>({
   path,
   accessToken,
   body,
+  timeoutMs = DEFAULT_API_TIMEOUT_MS,
 }: ApiRequest): Promise<ApiResponse<T>> {
   const baseUrl = apiConfig.baseUrl;
   if (!baseUrl) {
     throw new ApiError('unavailable');
   }
+
+  const abortController = new AbortController();
+  let didRequestTimeOut = false;
+  const timeoutId = setTimeout(() => {
+    didRequestTimeOut = true;
+    abortController.abort();
+  }, timeoutMs);
 
   let response: Response;
   try {
@@ -33,9 +44,12 @@ export async function requestApi<T>({
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,
+      signal: abortController.signal,
     });
   } catch {
-    throw new ApiError('unavailable');
+    throw new ApiError(didRequestTimeOut ? 'timeout' : 'unavailable');
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (response.status === 204) {

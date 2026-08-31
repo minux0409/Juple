@@ -14,9 +14,13 @@ export async function validateBackendSession(
     return 'valid';
   } catch (error) {
     if (error instanceof ApiError) {
-      return error.kind === 'badRequest' || error.kind === 'conflict'
-        ? 'unavailable'
-        : error.kind;
+      if (
+        error.kind === 'unauthorized' ||
+        error.kind === 'forbidden'
+      ) {
+        return error.kind;
+      }
+      return 'unavailable';
     }
 
     return 'unavailable';
