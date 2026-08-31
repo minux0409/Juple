@@ -4,7 +4,7 @@ public sealed class InboxEntrySaveService(
     IInboxEntryStore inboxEntryStore,
     TimeProvider timeProvider) : IInboxEntrySaveService
 {
-    public Task<InboxEntryDto> SaveAsync(
+    public Task<InboxEntrySaveResult> SaveAsync(
         long userId,
         SaveInboxEntryCommand command,
         CancellationToken cancellationToken = default)
@@ -13,6 +13,7 @@ public sealed class InboxEntrySaveService(
         return inboxEntryStore.SaveAsync(
             userId,
             url,
+            command.ClientRequestId,
             timeProvider.GetUtcNow(),
             cancellationToken);
     }

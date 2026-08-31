@@ -72,6 +72,81 @@ public sealed class DailyInboxServicesTests
     }
 
     [Fact]
+    public async Task SaveAsync_WhenClientRequestIdIsAbsent_AllowsSameUrlTwice()
+    {
+        const string url = "https://shop.example/item";
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+
+        var first = await service.SaveAsync(17, new SaveInboxEntryCommand(url));
+        var second = await service.SaveAsync(17, new SaveInboxEntryCommand(url));
+
+        Assert.True(first.Created);
+        Assert.True(second.Created);
+        Assert.NotEqual(first.Entry.Id, second.Entry.Id);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenClientRequestIdIsNew_ReturnsCreatedTrue()
+    {
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+
+        var result = await service.SaveAsync(
+            17,
+            new SaveInboxEntryCommand("https://shop.example/item", Guid.NewGuid()));
+
+        Assert.True(result.Created);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenSameUserAndClientRequestIdAndUrlRepeat_ReplaysExistingEntryWithoutNewSave()
+    {
+        const string url = "https://shop.example/item";
+        var clientRequestId = Guid.NewGuid();
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+
+        var first = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
+        var replay = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
+
+        Assert.True(first.Created);
+        Assert.False(replay.Created);
+        Assert.Equal(first.Entry.Id, replay.Entry.Id);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenSameUserAndClientRequestIdButDifferentUrl_ThrowsConflict()
+    {
+        var clientRequestId = Guid.NewGuid();
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+
+        await service.SaveAsync(
+            17, new SaveInboxEntryCommand("https://shop.example/item-a", clientRequestId));
+
+        await Assert.ThrowsAsync<InboxEntryClientRequestConflictException>(() =>
+            service.SaveAsync(
+                17, new SaveInboxEntryCommand("https://shop.example/item-b", clientRequestId)));
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenDifferentUsersShareSameClientRequestId_BothCreateSeparateEntries()
+    {
+        const string url = "https://shop.example/item";
+        var clientRequestId = Guid.NewGuid();
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+
+        var userOneResult = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
+        var userTwoResult = await service.SaveAsync(23, new SaveInboxEntryCommand(url, clientRequestId));
+
+        Assert.True(userOneResult.Created);
+        Assert.True(userTwoResult.Created);
+        Assert.NotEqual(userOneResult.Entry.Id, userTwoResult.Entry.Id);
+    }
+
+    [Fact]
     public async Task GetAsync_FiltersUsingCurrentUserAndPreservesStoreOrder()
     {
         var expectedItems = new List<InboxEntryDto>
@@ -114,6 +189,9 @@ public sealed class DailyInboxServicesTests
 
     private sealed class FakeInboxEntryStore : IInboxEntryStore
     {
+        private readonly Dictionary<(long UserId, Guid ClientRequestId), InboxEntryDto> _byClientRequestId = [];
+        private long _nextId = 1;
+
         public long? SavedUserId { get; private set; }
 
         public string? SavedUrl { get; private set; }
@@ -122,15 +200,36 @@ public sealed class DailyInboxServicesTests
 
         public IReadOnlyList<InboxEntryDto> DailyItems { get; init; } = [];
 
-        public Task<InboxEntryDto> SaveAsync(
+        public Task<InboxEntrySaveResult> SaveAsync(
             long userId,
             string url,
+            Guid? clientRequestId,
             DateTimeOffset savedAtUtc,
             CancellationToken cancellationToken = default)
         {
             SavedUserId = userId;
             SavedUrl = url;
-            return Task.FromResult(new InboxEntryDto(1, url, savedAtUtc));
+
+            if (clientRequestId is { } requestId)
+            {
+                var key = (userId, requestId);
+                if (_byClientRequestId.TryGetValue(key, out var existing))
+                {
+                    if (existing.Url != url)
+                    {
+                        throw new InboxEntryClientRequestConflictException();
+                    }
+
+                    return Task.FromResult(new InboxEntrySaveResult(existing, Created: false));
+                }
+
+                var created = new InboxEntryDto(_nextId++, url, savedAtUtc);
+                _byClientRequestId[key] = created;
+                return Task.FromResult(new InboxEntrySaveResult(created, Created: true));
+            }
+
+            return Task.FromResult(new InboxEntrySaveResult(
+                new InboxEntryDto(_nextId++, url, savedAtUtc), Created: true));
         }
 
         public Task<IReadOnlyList<InboxEntryDto>> GetDailyAsync(

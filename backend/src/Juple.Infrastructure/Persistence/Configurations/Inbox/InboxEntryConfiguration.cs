@@ -28,12 +28,20 @@ public sealed class InboxEntryConfiguration : IEntityTypeConfiguration<InboxEntr
             .HasMaxLength(4096)
             .IsRequired();
 
+        builder.Property(entry => entry.ClientRequestId)
+            .HasColumnType("uniqueidentifier");
+
         builder.Property(entry => entry.SavedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();
 
         builder.HasIndex(entry => new { entry.UserId, entry.SavedAtUtc, entry.Id })
             .HasDatabaseName("IX_InboxEntries_UserId_SavedAtUtc_Id");
+
+        builder.HasIndex(entry => new { entry.UserId, entry.ClientRequestId })
+            .IsUnique()
+            .HasDatabaseName("UX_InboxEntries_UserId_ClientRequestId")
+            .HasFilter("[ClientRequestId] IS NOT NULL");
 
         builder.HasOne<User>()
             .WithMany()

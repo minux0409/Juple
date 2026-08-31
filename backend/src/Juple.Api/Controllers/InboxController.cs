@@ -27,12 +27,14 @@ public sealed class InboxController : ControllerBase
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var entry = await inboxEntrySaveService.SaveAsync(
+            var result = await inboxEntrySaveService.SaveAsync(
                 currentUser.UserId,
-                new SaveInboxEntryCommand(request.Url),
+                new SaveInboxEntryCommand(request.Url, request.ClientRequestId),
                 cancellationToken);
 
-            return Created($"/api/v1/inbox/{entry.Id}", entry);
+            return result.Created
+                ? Created($"/api/v1/inbox/{result.Entry.Id}", result.Entry)
+                : Ok(result.Entry);
         }
         catch (InvalidInboxRequestException exception)
         {
@@ -46,6 +48,12 @@ public sealed class InboxController : ControllerBase
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Juple user bootstrap is required.");
+        }
+        catch (InboxEntryClientRequestConflictException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The request conflicts with a prior request using the same clientRequestId.");
         }
     }
 
@@ -106,5 +114,5 @@ public sealed class InboxController : ControllerBase
         return false;
     }
 
-    public sealed record SaveInboxEntryRequest(string? Url);
+    public sealed record SaveInboxEntryRequest(string? Url, Guid? ClientRequestId);
 }

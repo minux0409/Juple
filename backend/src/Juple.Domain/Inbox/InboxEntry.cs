@@ -6,10 +6,11 @@ public sealed class InboxEntry
     {
     }
 
-    public InboxEntry(long userId, string url, DateTimeOffset savedAtUtc)
+    public InboxEntry(long userId, string url, Guid? clientRequestId, DateTimeOffset savedAtUtc)
     {
         UserId = userId;
         Url = url;
+        ClientRequestId = clientRequestId;
         SavedAtUtc = savedAtUtc;
     }
 
@@ -18,6 +19,8 @@ public sealed class InboxEntry
     public long UserId { get; private set; }
 
     public string Url { get; private set; } = null!;
+
+    public Guid? ClientRequestId { get; private set; }
 
     public DateTimeOffset SavedAtUtc { get; private set; }
 }
