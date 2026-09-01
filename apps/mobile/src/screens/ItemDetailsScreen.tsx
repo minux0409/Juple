@@ -17,7 +17,9 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   createCategory,
+  deleteCategory,
   getCategories,
+  renameCategory,
   type Category,
   type ItemCategory,
 } from '../categories/api/categoriesApi';
@@ -64,7 +66,7 @@ function getCategoryAssignErrorMessage(error: unknown): string {
   return '카테고리를 변경할 수 없습니다.';
 }
 
-function getCategoryCreateErrorMessage(error: unknown): string {
+function getCategoryNameSaveErrorMessage(error: unknown, isRename: boolean): string {
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
       return '이미 같은 이름의 카테고리가 있습니다.';
@@ -76,7 +78,26 @@ function getCategoryCreateErrorMessage(error: unknown): string {
       return '인증 상태를 다시 확인할 수 없습니다.';
     }
   }
-  return '카테고리를 생성할 수 없습니다.';
+  return isRename ? '카테고리 이름을 변경할 수 없습니다.' : '카테고리를 생성할 수 없습니다.';
+}
+
+function getCategoryDeleteErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return '카테고리를 삭제할 수 없습니다.';
+}
+
+/** Mirrors the backend's CategoryNameNormalizer: trim, required, 100-character limit. */
+function getCategoryNameValidationError(name: string): string | null {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return '카테고리 이름을 입력해 주세요.';
+  }
+  if (trimmedName.length > 100) {
+    return '카테고리 이름은 100자 이하로 입력해 주세요.';
+  }
+  return null;
 }
 
 export function ItemDetailsScreen({ route, navigation }: Props) {
@@ -95,11 +116,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [justSaved, setJustSaved] = useState(false);
 
   const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState<'select' | 'manage'>('select');
   const [categoryOptions, setCategoryOptions] = useState<readonly Category[]>([]);
   const [isLoadingCategoryOptions, setIsLoadingCategoryOptions] = useState(false);
   const [categoryModalError, setCategoryModalError] = useState<string | null>(null);
   const [isCategoryActionInFlight, setIsCategoryActionInFlight] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [renamingCategoryId, setRenamingCategoryId] = useState<number | null>(null);
+  const [renameDraftName, setRenameDraftName] = useState('');
 
   const isSavingRef = useRef(isSaving);
   useEffect(() => {
@@ -110,6 +134,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   useEffect(() => {
     isCategoryActionInFlightRef.current = isCategoryActionInFlight;
   }, [isCategoryActionInFlight]);
+
+  const isCategoryDeleteConfirmOpenRef = useRef(false);
 
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
@@ -135,8 +161,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   const openCategoryModal = async () => {
     setIsCategoryModalVisible(true);
+    setModalMode('select');
     setCategoryModalError(null);
     setNewCategoryName('');
+    setRenamingCategoryId(null);
+    setRenameDraftName('');
     setIsLoadingCategoryOptions(true);
     try {
       const categories = await getCategories(authenticatedRequest);
@@ -153,6 +182,24 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
     setIsCategoryModalVisible(false);
+  };
+
+  const openCategoryManage = () => {
+    if (isCategoryActionInFlightRef.current) {
+      return;
+    }
+    setModalMode('manage');
+    setCategoryModalError(null);
+  };
+
+  const closeCategoryManage = () => {
+    if (isCategoryActionInFlightRef.current) {
+      return;
+    }
+    setModalMode('select');
+    setRenamingCategoryId(null);
+    setRenameDraftName('');
+    setCategoryModalError(null);
   };
 
   const selectCategory = async (selected: ItemCategory | null) => {
@@ -174,10 +221,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   const submitNewCategory = async () => {
-    const trimmedName = newCategoryName.trim();
-    if (!trimmedName || isCategoryActionInFlightRef.current) {
+    if (isCategoryActionInFlightRef.current) {
       return;
     }
+
+    const validationError = getCategoryNameValidationError(newCategoryName);
+    if (validationError) {
+      setCategoryModalError(validationError);
+      return;
+    }
+    const trimmedName = newCategoryName.trim();
 
     setIsCategoryActionInFlight(true);
     setCategoryModalError(null);
@@ -186,10 +239,112 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setCategoryOptions(previous => [...previous, created]);
       setNewCategoryName('');
     } catch (caughtError) {
-      setCategoryModalError(getCategoryCreateErrorMessage(caughtError));
+      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, false));
     } finally {
       setIsCategoryActionInFlight(false);
     }
+  };
+
+  const startRename = (option: Category) => {
+    if (isCategoryActionInFlightRef.current) {
+      return;
+    }
+    setRenamingCategoryId(option.id);
+    setRenameDraftName(option.name);
+    setCategoryModalError(null);
+  };
+
+  const cancelRename = () => {
+    if (isCategoryActionInFlightRef.current) {
+      return;
+    }
+    setRenamingCategoryId(null);
+    setRenameDraftName('');
+    setCategoryModalError(null);
+  };
+
+  const submitRename = async () => {
+    if (renamingCategoryId === null || isCategoryActionInFlightRef.current) {
+      return;
+    }
+
+    const validationError = getCategoryNameValidationError(renameDraftName);
+    if (validationError) {
+      setCategoryModalError(validationError);
+      return;
+    }
+    const trimmedName = renameDraftName.trim();
+    const categoryId = renamingCategoryId;
+
+    setIsCategoryActionInFlight(true);
+    setCategoryModalError(null);
+    try {
+      await renameCategory(authenticatedRequest, categoryId, trimmedName);
+      setCategoryOptions(previous =>
+        previous.map(option =>
+          option.id === categoryId ? { ...option, name: trimmedName } : option,
+        ),
+      );
+      setCategory(previous =>
+        previous && previous.id === categoryId ? { ...previous, name: trimmedName } : previous,
+      );
+      setRenamingCategoryId(null);
+      setRenameDraftName('');
+    } catch (caughtError) {
+      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, true));
+    } finally {
+      setIsCategoryActionInFlight(false);
+    }
+  };
+
+  const deleteCategoryAction = async (categoryId: number) => {
+    if (isCategoryActionInFlightRef.current) {
+      return;
+    }
+
+    setIsCategoryActionInFlight(true);
+    setCategoryModalError(null);
+    try {
+      await deleteCategory(authenticatedRequest, categoryId);
+      setCategoryOptions(previous => previous.filter(option => option.id !== categoryId));
+      setCategory(previous => (previous && previous.id === categoryId ? null : previous));
+      if (renamingCategoryId === categoryId) {
+        setRenamingCategoryId(null);
+        setRenameDraftName('');
+      }
+    } catch (caughtError) {
+      setCategoryModalError(getCategoryDeleteErrorMessage(caughtError));
+    } finally {
+      setIsCategoryActionInFlight(false);
+    }
+  };
+
+  const confirmDeleteCategory = (option: Category) => {
+    if (isCategoryDeleteConfirmOpenRef.current || isCategoryActionInFlightRef.current) {
+      return;
+    }
+    isCategoryDeleteConfirmOpenRef.current = true;
+
+    const closeConfirmation = () => {
+      isCategoryDeleteConfirmOpenRef.current = false;
+    };
+
+    Alert.alert(
+      '카테고리를 삭제할까요?',
+      '이 카테고리가 지정된 항목은 카테고리 없음으로 변경됩니다.',
+      [
+        { text: '취소', style: 'cancel', onPress: closeConfirmation },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            closeConfirmation();
+            deleteCategoryAction(option.id);
+          },
+        },
+      ],
+      { cancelable: true, onDismiss: closeConfirmation },
+    );
   };
 
   const isDirty = title !== baselineTitle || memo !== baselineMemo;
@@ -308,73 +463,170 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>카테고리 선택</Text>
+            {modalMode === 'select' ? (
+              <>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.modalTitle}>카테고리 선택</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isCategoryActionInFlight}
+                    onPress={openCategoryManage}
+                  >
+                    <Text style={styles.modalHeaderLinkLabel}>카테고리 관리</Text>
+                  </Pressable>
+                </View>
 
-            {isLoadingCategoryOptions ? (
-              <ActivityIndicator style={styles.modalLoading} />
-            ) : (
-              <FlatList
-                ListHeaderComponent={
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isCategoryActionInFlight}
-                    onPress={() => selectCategory(null)}
-                    style={[
-                      styles.categoryOptionRow,
-                      isCategoryActionInFlight && styles.disabledButton,
-                    ]}
-                  >
-                    <Text style={styles.categoryOptionLabel}>카테고리 없음</Text>
-                  </Pressable>
-                }
-                data={categoryOptions}
-                keyExtractor={option => option.id.toString()}
-                renderItem={({ item: option }) => (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isCategoryActionInFlight}
-                    onPress={() => selectCategory({ id: option.id, name: option.name })}
-                    style={[
-                      styles.categoryOptionRow,
-                      isCategoryActionInFlight && styles.disabledButton,
-                    ]}
-                  >
-                    <Text style={styles.categoryOptionLabel}>{option.name}</Text>
-                  </Pressable>
+                {isLoadingCategoryOptions ? (
+                  <ActivityIndicator style={styles.modalLoading} />
+                ) : (
+                  <FlatList
+                    ListHeaderComponent={
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={isCategoryActionInFlight}
+                        onPress={() => selectCategory(null)}
+                        style={[
+                          styles.categoryOptionRow,
+                          isCategoryActionInFlight && styles.disabledButton,
+                        ]}
+                      >
+                        <Text style={styles.categoryOptionLabel}>카테고리 없음</Text>
+                      </Pressable>
+                    }
+                    data={categoryOptions}
+                    keyExtractor={option => option.id.toString()}
+                    renderItem={({ item: option }) => (
+                      <Pressable
+                        accessibilityRole="button"
+                        disabled={isCategoryActionInFlight}
+                        onPress={() => selectCategory({ id: option.id, name: option.name })}
+                        style={[
+                          styles.categoryOptionRow,
+                          isCategoryActionInFlight && styles.disabledButton,
+                        ]}
+                      >
+                        <Text style={styles.categoryOptionLabel}>{option.name}</Text>
+                      </Pressable>
+                    )}
+                    style={styles.categoryOptionList}
+                  />
                 )}
-                style={styles.categoryOptionList}
-              />
+
+                {categoryModalError ? (
+                  <Text style={styles.error}>{categoryModalError}</Text>
+                ) : null}
+
+                <Text style={styles.label}>새 카테고리</Text>
+                <View style={styles.newCategoryRow}>
+                  <TextInput
+                    editable={!isCategoryActionInFlight}
+                    onChangeText={setNewCategoryName}
+                    placeholder="카테고리 이름"
+                    style={styles.newCategoryInput}
+                    value={newCategoryName}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      disabled: !newCategoryName.trim() || isCategoryActionInFlight,
+                      busy: isCategoryActionInFlight,
+                    }}
+                    disabled={!newCategoryName.trim() || isCategoryActionInFlight}
+                    onPress={submitNewCategory}
+                    style={[
+                      styles.newCategoryButton,
+                      (!newCategoryName.trim() || isCategoryActionInFlight) &&
+                        styles.disabledButton,
+                    ]}
+                  >
+                    <Text style={styles.newCategoryButtonLabel}>생성</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.modalTitle}>카테고리 관리</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isCategoryActionInFlight}
+                    onPress={closeCategoryManage}
+                  >
+                    <Text style={styles.modalHeaderLinkLabel}>선택으로</Text>
+                  </Pressable>
+                </View>
+
+                {categoryModalError ? (
+                  <Text style={styles.error}>{categoryModalError}</Text>
+                ) : null}
+
+                <FlatList
+                  data={categoryOptions}
+                  keyExtractor={option => option.id.toString()}
+                  ListEmptyComponent={
+                    <Text style={styles.manageEmpty}>카테고리가 없습니다.</Text>
+                  }
+                  renderItem={({ item: option }) =>
+                    renamingCategoryId === option.id ? (
+                      <View style={styles.manageRow}>
+                        <TextInput
+                          autoFocus
+                          editable={!isCategoryActionInFlight}
+                          onChangeText={setRenameDraftName}
+                          style={styles.renameInput}
+                          value={renameDraftName}
+                        />
+                        <View style={styles.manageRowActions}>
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={isCategoryActionInFlight}
+                            onPress={submitRename}
+                            style={styles.manageActionButton}
+                          >
+                            <Text style={styles.manageActionLabel}>저장</Text>
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={isCategoryActionInFlight}
+                            onPress={cancelRename}
+                            style={styles.manageActionButton}
+                          >
+                            <Text style={styles.manageActionLabel}>취소</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.manageRow}>
+                        <Text numberOfLines={1} style={styles.categoryOptionLabel}>
+                          {option.name}
+                        </Text>
+                        <View style={styles.manageRowActions}>
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={isCategoryActionInFlight}
+                            onPress={() => startRename(option)}
+                            style={styles.manageActionButton}
+                          >
+                            <Text style={styles.manageActionLabel}>이름변경</Text>
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={isCategoryActionInFlight}
+                            onPress={() => confirmDeleteCategory(option)}
+                            style={styles.manageActionButton}
+                          >
+                            <Text style={[styles.manageActionLabel, styles.manageDeleteLabel]}>
+                              삭제
+                            </Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    )
+                  }
+                  style={styles.categoryOptionList}
+                />
+              </>
             )}
-
-            {categoryModalError ? (
-              <Text style={styles.error}>{categoryModalError}</Text>
-            ) : null}
-
-            <Text style={styles.label}>새 카테고리</Text>
-            <View style={styles.newCategoryRow}>
-              <TextInput
-                editable={!isCategoryActionInFlight}
-                onChangeText={setNewCategoryName}
-                placeholder="카테고리 이름"
-                style={styles.newCategoryInput}
-                value={newCategoryName}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: !newCategoryName.trim() || isCategoryActionInFlight,
-                  busy: isCategoryActionInFlight,
-                }}
-                disabled={!newCategoryName.trim() || isCategoryActionInFlight}
-                onPress={submitNewCategory}
-                style={[
-                  styles.newCategoryButton,
-                  (!newCategoryName.trim() || isCategoryActionInFlight) && styles.disabledButton,
-                ]}
-              >
-                <Text style={styles.newCategoryButtonLabel}>생성</Text>
-              </Pressable>
-            </View>
 
             <Pressable
               accessibilityRole="button"
@@ -489,10 +741,21 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     padding: 24,
   },
+  modalHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 12,
+  },
+  modalHeaderLinkLabel: {
+    color: '#666666',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   modalLoading: {
     marginVertical: 20,
@@ -533,6 +796,43 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  manageEmpty: {
+    color: '#666666',
+    fontSize: 14,
+    paddingVertical: 16,
+  },
+  manageRow: {
+    alignItems: 'center',
+    borderTopColor: '#E0E0E0',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  manageRowActions: {
+    flexDirection: 'row',
+  },
+  manageActionButton: {
+    marginLeft: 14,
+  },
+  manageActionLabel: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  manageDeleteLabel: {
+    color: '#B42318',
+  },
+  renameInput: {
+    borderColor: '#9A9A9A',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    fontSize: 15,
+    marginRight: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   modalCloseButton: {
     alignItems: 'center',

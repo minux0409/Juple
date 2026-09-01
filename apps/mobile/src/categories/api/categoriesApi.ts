@@ -45,3 +45,27 @@ export async function createCategory(
 
   return response.body;
 }
+
+/** PUTs a Category's new name; resolves on 204 (409 on a duplicate name). */
+export async function renameCategory(
+  request: AuthenticatedApiRequest,
+  categoryId: number,
+  name: string,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/categories/${categoryId}`,
+    body: { name },
+  });
+}
+
+/** DELETEs a Category; resolves on 204. Items using it are set to no Category server-side. */
+export async function deleteCategory(
+  request: AuthenticatedApiRequest,
+  categoryId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/categories/${categoryId}`,
+  });
+}
