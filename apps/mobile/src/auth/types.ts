@@ -1,3 +1,5 @@
+import type { GetValidAccessTokenOptions } from './session/authSessionManager';
+
 export type BackendAuthStatus =
   | 'notChecked'
   | 'checking'
@@ -22,9 +24,7 @@ export interface AuthState {
   readonly userBootstrapStatus: UserBootstrapStatus;
 }
 
-export interface GetValidAccessTokenOptions {
-  readonly forceRefresh?: boolean;
-}
+export type { GetValidAccessTokenOptions };
 
 export interface AuthContextValue extends AuthState {
   signIn: () => Promise<void>;
