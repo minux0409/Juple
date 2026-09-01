@@ -18,25 +18,28 @@ object PendingShareQueue {
   private const val QueueKey = "entries"
   private val lock = Any()
 
-  fun capture(context: Context, intent: Intent?) {
+  /** Captures an ACTION_SEND text/plain intent and returns the new pending share's id, or null if not applicable. */
+  fun capture(context: Context, intent: Intent?): String? {
     if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") {
-      return
+      return null
     }
 
     val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
       ?: getClipText(intent.clipData)
-      ?: return
+      ?: return null
 
+    val id = UUID.randomUUID().toString()
     synchronized(lock) {
       val entries = readEntries(context)
       entries.put(
         JSONObject()
-          .put("id", UUID.randomUUID().toString())
+          .put("id", id)
           .put("text", text)
           .put("receivedAtEpochMs", System.currentTimeMillis()),
       )
       writeEntries(context, entries)
     }
+    return id
   }
 
   fun getPendingShares(context: Context): List<PendingShare> = synchronized(lock) {
