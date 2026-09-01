@@ -1,7 +1,10 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
@@ -9,6 +12,7 @@ import {
 } from 'react-native';
 import type { ItemListEntry, ItemListState } from '../items/api/itemsApi';
 import { useItemStateList } from '../items/useItemStateList';
+import type { RootStackParamList } from '../navigation/RootStack';
 
 function formatStateChangedTime(stateChangedAtUtc: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -28,21 +32,38 @@ export function ItemStateListScreen({
   title,
   emptyMessage,
 }: ItemStateListScreenProps) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
     useItemStateList(state);
 
   const renderItem = useCallback(
     ({ item }: { item: ItemListEntry }) => (
-      <View style={styles.row}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => {
+          navigation.navigate('ItemDetails', { itemId: item.id });
+        }}
+        style={styles.row}
+      >
         <Text numberOfLines={2} style={styles.url}>
-          {item.url}
+          {item.title ?? item.url}
         </Text>
+        {item.title ? (
+          <Text numberOfLines={1} style={styles.secondaryUrl}>
+            {item.url}
+          </Text>
+        ) : null}
+        {item.memo ? (
+          <Text numberOfLines={2} style={styles.memoPreview}>
+            {item.memo}
+          </Text>
+        ) : null}
         <Text style={styles.stateChangedTime}>
           {formatStateChangedTime(item.stateChangedAtUtc)}
         </Text>
-      </View>
+      </Pressable>
     ),
-    [],
+    [navigation],
   );
 
   if (isLoading && items.length === 0 && !error) {
@@ -117,6 +138,16 @@ const styles = StyleSheet.create({
   url: {
     color: '#111111',
     fontSize: 15,
+  },
+  secondaryUrl: {
+    color: '#666666',
+    fontSize: 13,
+    marginTop: 3,
+  },
+  memoPreview: {
+    color: '#666666',
+    fontSize: 13,
+    marginTop: 5,
   },
   stateChangedTime: {
     color: '#666666',

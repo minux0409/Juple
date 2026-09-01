@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
-import { MainTabs } from './src/navigation/MainTabs';
+import { RootStack } from './src/navigation/RootStack';
 import { SignInScreen } from './src/screens/SignInScreen';
 import type { BackendAuthStatus, UserBootstrapStatus } from './src/auth/types';
 
@@ -74,7 +74,7 @@ function AuthGate() {
   ) {
     return (
       <NavigationContainer>
-        <MainTabs />
+        <RootStack />
       </NavigationContainer>
     );
   }

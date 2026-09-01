@@ -3,7 +3,21 @@ import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 export interface ItemListEntry {
   readonly id: number;
   readonly url: string;
+  readonly title: string | null;
+  readonly memo: string | null;
   readonly savedAtUtc: string;
+  readonly stateChangedAtUtc: string;
+}
+
+export type ItemDetailState = 'inbox' | 'wishlist' | 'archived';
+
+export interface ItemDetails {
+  readonly id: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly memo: string | null;
+  readonly savedAtUtc: string;
+  readonly state: ItemDetailState;
   readonly stateChangedAtUtc: string;
 }
 
@@ -75,5 +89,39 @@ export async function deleteItem(
   await request<void>({
     method: 'DELETE',
     path: `/api/v1/items/${itemId}`,
+  });
+}
+
+export async function getItemDetails(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+): Promise<ItemDetails> {
+  const response = await request<ItemDetails>({
+    method: 'GET',
+    path: `/api/v1/items/${itemId}`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Item detail body.');
+  }
+
+  return response.body;
+}
+
+export interface UpdateItemDetailsInput {
+  readonly title: string;
+  readonly memo: string;
+}
+
+/** PUTs the Item's Title/Memo as a full replacement; resolves on 204. */
+export async function updateItemDetails(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  details: UpdateItemDetailsInput,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/items/${itemId}/details`,
+    body: details,
   });
 }

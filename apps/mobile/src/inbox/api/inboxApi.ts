@@ -3,12 +3,21 @@ import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 export interface InboxEntry {
   readonly id: number;
   readonly url: string;
+  readonly title: string | null;
+  readonly memo: string | null;
   readonly savedAtUtc: string;
 }
 
 export interface DailyInbox {
   readonly date: string;
   readonly items: readonly InboxEntry[];
+}
+
+/** POST /api/v1/inbox's create/replay response - a fixed creation-time snapshot with no Title/Memo. */
+export interface SavedInboxEntry {
+  readonly id: number;
+  readonly url: string;
+  readonly savedAtUtc: string;
 }
 
 export async function getTodayInbox(
@@ -30,8 +39,8 @@ export async function saveInboxEntry(
   request: AuthenticatedApiRequest,
   url: string,
   clientRequestId?: string,
-): Promise<InboxEntry> {
-  const response = await request<InboxEntry>({
+): Promise<SavedInboxEntry> {
+  const response = await request<SavedInboxEntry>({
     method: 'POST',
     path: '/api/v1/inbox',
     body: { url, clientRequestId },

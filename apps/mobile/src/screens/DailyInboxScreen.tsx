@@ -1,3 +1,5 @@
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,6 +23,7 @@ import {
 } from '../inbox/api/inboxApi';
 import { deleteItem, moveItemToArchive, moveItemToWishlist } from '../items/api/itemsApi';
 import { useAuth } from '../auth/AuthContext';
+import type { RootStackParamList } from '../navigation/RootStack';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
 
@@ -64,6 +67,7 @@ function formatSavedTime(savedAtUtc: string): string {
 
 export function DailyInboxScreen() {
   const authenticatedRequest = useAuthenticatedApi();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const { pendingShare, acknowledgePendingShare } = useIncomingShare();
   const [dailyInbox, setDailyInbox] = useState<DailyInbox | null>(null);
@@ -82,6 +86,11 @@ export function DailyInboxScreen() {
   const actionInFlightItemIdRef = useRef(actionInFlightItemId);
   const isRefreshingRef = useRef(isRefreshing);
   const isDeleteConfirmationOpenRef = useRef(false);
+  // Discards a stale in-flight load's result if a newer one has since started (e.g. rapid focus
+  // changes), and lets the first focus use the full-screen spinner while later focuses (such as
+  // returning from ItemDetails after an edit) use the lighter refresh indicator instead.
+  const loadRequestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
     dailyInboxRef.current = dailyInbox;
@@ -97,6 +106,7 @@ export function DailyInboxScreen() {
 
   const loadTodayInbox = useCallback(
     async (isPullToRefresh = false) => {
+      const requestId = ++loadRequestIdRef.current;
       if (isPullToRefresh) {
         setIsRefreshing(true);
       } else {
@@ -105,20 +115,34 @@ export function DailyInboxScreen() {
       setError(null);
 
       try {
-        setDailyInbox(await getTodayInbox(authenticatedRequest));
+        const inbox = await getTodayInbox(authenticatedRequest);
+        if (loadRequestIdRef.current !== requestId) {
+          return;
+        }
+        setDailyInbox(inbox);
       } catch (caughtError) {
+        if (loadRequestIdRef.current !== requestId) {
+          return;
+        }
         setError(getInboxErrorMessage(caughtError, false));
       } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        if (loadRequestIdRef.current === requestId) {
+          hasLoadedOnceRef.current = true;
+          setIsLoading(false);
+          setIsRefreshing(false);
+        }
       }
     },
     [authenticatedRequest],
   );
 
-  useEffect(() => {
-    loadTodayInbox();
-  }, [loadTodayInbox]);
+  // Refetches every time the Inbox tab regains focus (including returning from ItemDetails after
+  // an edit), matching the same focus-driven refresh already used for Wishlist/Archive.
+  useFocusEffect(
+    useCallback(() => {
+      loadTodayInbox(hasLoadedOnceRef.current);
+    }, [loadTodayInbox]),
+  );
 
   useEffect(() => {
     if (!pendingShare) {
@@ -310,6 +334,9 @@ export function DailyInboxScreen() {
           onDelete={() => {
             confirmDelete(item.id);
           }}
+          onPress={() => {
+            navigation.navigate('ItemDetails', { itemId: item.id });
+          }}
           onWishlist={() => {
             runItemAction(item.id, moveItemToWishlist);
           }}
@@ -337,6 +364,7 @@ interface InboxRowProps {
   readonly onWishlist: () => void;
   readonly onArchive: () => void;
   readonly onDelete: () => void;
+  readonly onPress: () => void;
 }
 
 function InboxRow({
@@ -346,13 +374,26 @@ function InboxRow({
   onWishlist,
   onArchive,
   onDelete,
+  onPress,
 }: InboxRowProps) {
   return (
     <View style={styles.row}>
-      <Text numberOfLines={2} style={styles.url}>
-        {item.url}
-      </Text>
-      <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
+      <Pressable accessibilityRole="button" onPress={onPress}>
+        <Text numberOfLines={2} style={styles.url}>
+          {item.title ?? item.url}
+        </Text>
+        {item.title ? (
+          <Text numberOfLines={1} style={styles.secondaryUrl}>
+            {item.url}
+          </Text>
+        ) : null}
+        {item.memo ? (
+          <Text numberOfLines={2} style={styles.memoPreview}>
+            {item.memo}
+          </Text>
+        ) : null}
+        <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
+      </Pressable>
       <View style={styles.itemActions}>
         <Pressable
           accessibilityRole="button"
@@ -484,6 +525,16 @@ const styles = StyleSheet.create({
   url: {
     color: '#111111',
     fontSize: 15,
+  },
+  secondaryUrl: {
+    color: '#666666',
+    fontSize: 13,
+    marginTop: 3,
+  },
+  memoPreview: {
+    color: '#666666',
+    fontSize: 13,
+    marginTop: 5,
   },
   savedTime: {
     color: '#666666',
