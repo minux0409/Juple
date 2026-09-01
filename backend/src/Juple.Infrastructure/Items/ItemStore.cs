@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Juple.Infrastructure.Items;
 
 public sealed class ItemStore(JupleDbContext dbContext) :
-    IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore
+    IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore, IItemDetailQueryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -186,6 +186,17 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             // conflict.
         }
     }
+
+    public async Task<ItemDetailsDto?> GetDetailsAsync(
+        long userId,
+        long itemId,
+        CancellationToken cancellationToken = default) =>
+        await dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.Id == itemId && item.UserId == userId)
+            .Select(item => new ItemDetailsDto(
+                item.Id, item.Url, item.Title, item.Memo, item.SavedAtUtc, item.State, item.StateChangedAtUtc))
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<ItemPage> GetByStateAsync(
         long userId,

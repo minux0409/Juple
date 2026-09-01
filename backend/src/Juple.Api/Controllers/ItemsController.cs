@@ -3,6 +3,7 @@ using Juple.Api.Items;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Items.DeleteItem;
+using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemsByState;
 using Juple.Application.Items.ItemStateTransition;
 using Juple.Application.Items.UpdateItemDetails;
@@ -21,7 +22,8 @@ public sealed class ItemsController(
     IItemStateTransitionService itemStateTransitionService,
     IGetItemsByStateService getItemsByStateService,
     IDeleteItemService deleteItemService,
-    IUpdateItemDetailsService updateItemDetailsService) : ControllerBase
+    IUpdateItemDetailsService updateItemDetailsService,
+    IGetItemDetailService getItemDetailService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetByStateAsync(
@@ -73,6 +75,36 @@ public sealed class ItemsController(
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Juple user bootstrap is required.");
+        }
+    }
+
+    [HttpGet("{id:long}")]
+    public async Task<IActionResult> GetDetailAsync(long id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var details = await getItemDetailService.GetAsync(currentUser.UserId, id, cancellationToken);
+
+            return Ok(new ItemDetailResponse(
+                details.Id,
+                details.Url,
+                details.Title,
+                details.Memo,
+                details.SavedAtUtc,
+                ItemStateWireFormat.ToWireValue(details.State),
+                details.StateChangedAtUtc));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (ItemNotFoundException)
+        {
+            return NotFound();
         }
     }
 
@@ -143,4 +175,13 @@ public sealed class ItemsController(
     public sealed record ItemsPageResponse(IReadOnlyList<ItemListEntryDto> Items, string? NextCursor);
 
     public sealed record UpdateItemDetailsRequest(string? Title, string? Memo);
+
+    public sealed record ItemDetailResponse(
+        long Id,
+        string Url,
+        string? Title,
+        string? Memo,
+        DateTimeOffset SavedAtUtc,
+        string State,
+        DateTimeOffset StateChangedAtUtc);
 }
