@@ -60,6 +60,17 @@ npm run android
 
 현재 개발용 Android AVD 이름은 `Juple_Pixel_API36`이다. iOS 빌드와 배포는 Mac + Xcode 환경에서 수행한다.
 
+### Android에서 로컬 Backend 연결
+
+Mobile 개발용 API 주소는 `http://localhost:5092`로 고정되어 있으며, Android emulator와 physical device 모두 다음 명령으로 PC의 Backend에 연결한다.
+
+```powershell
+adb reverse tcp:5092 tcp:5092
+adb reverse --list
+```
+
+`10.0.2.2`(emulator 전용 host alias)에 의존하지 않는 이유는 physical device에서는 사용할 수 없기 때문이다. 이 port forwarding은 device/emulator가 PC와 연결된 동안만 유지되는 development 전용 설정이며, device 재연결·emulator 재시작·adb server 재시작·PC 재시작 후에는 다시 실행해야 할 수 있다.
+
 ## Documentation
 
 - [Product Overview](docs/product-overview.md)
