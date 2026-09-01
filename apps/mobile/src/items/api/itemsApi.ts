@@ -66,3 +66,14 @@ export async function moveItemToArchive(
     path: `/api/v1/items/${itemId}/archive`,
   });
 }
+
+/** DELETEs the Item; resolves on 204 (idempotent - missing/already-deleted/other-user's Item all succeed too). */
+export async function deleteItem(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/items/${itemId}`,
+  });
+}

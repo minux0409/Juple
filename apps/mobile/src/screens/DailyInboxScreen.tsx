@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -18,7 +19,7 @@ import {
   type DailyInbox,
   type InboxEntry,
 } from '../inbox/api/inboxApi';
-import { moveItemToArchive, moveItemToWishlist } from '../items/api/itemsApi';
+import { deleteItem, moveItemToArchive, moveItemToWishlist } from '../items/api/itemsApi';
 import { useAuth } from '../auth/AuthContext';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
@@ -47,11 +48,11 @@ function getInboxErrorMessage(error: unknown, isSave: boolean): string {
     : '오늘의 Inbox를 불러올 수 없습니다.';
 }
 
-function getItemActionErrorMessage(error: unknown): string {
+function getItemActionErrorMessage(error: unknown, isDelete: boolean): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return '인증 상태를 다시 확인할 수 없습니다.';
   }
-  return '항목을 이동할 수 없습니다.';
+  return isDelete ? '항목을 삭제할 수 없습니다.' : '항목을 이동할 수 없습니다.';
 }
 
 function formatSavedTime(savedAtUtc: string): string {
@@ -73,6 +74,26 @@ export function DailyInboxScreen() {
   const [error, setError] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
+
+  // Mirrors of the latest state/refs for use inside the Delete confirmation Alert's callbacks,
+  // which are constructed once when the Alert opens and must not read stale values captured at
+  // that moment - a Wishlist/Archive action can complete while the Alert is still on screen.
+  const dailyInboxRef = useRef(dailyInbox);
+  const actionInFlightItemIdRef = useRef(actionInFlightItemId);
+  const isRefreshingRef = useRef(isRefreshing);
+  const isDeleteConfirmationOpenRef = useRef(false);
+
+  useEffect(() => {
+    dailyInboxRef.current = dailyInbox;
+  }, [dailyInbox]);
+
+  useEffect(() => {
+    actionInFlightItemIdRef.current = actionInFlightItemId;
+  }, [actionInFlightItemId]);
+
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
 
   const loadTodayInbox = useCallback(
     async (isPullToRefresh = false) => {
@@ -146,28 +167,61 @@ export function DailyInboxScreen() {
     setShareMessage(null);
   };
 
-  const moveItem = async (
+  const runItemAction = async (
     itemId: number,
-    transition: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
+    action: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
+    isDelete = false,
   ) => {
-    if (actionInFlightItemId !== null || isRefreshing) {
+    if (
+      actionInFlightItemIdRef.current !== null ||
+      isRefreshingRef.current ||
+      !dailyInboxRef.current?.items.some(entry => entry.id === itemId)
+    ) {
       return;
     }
 
     setActionInFlightItemId(itemId);
     setError(null);
     try {
-      await transition(authenticatedRequest, itemId);
+      await action(authenticatedRequest, itemId);
       setDailyInbox(previous =>
         previous
           ? { ...previous, items: previous.items.filter(item => item.id !== itemId) }
           : previous,
       );
     } catch (caughtError) {
-      setError(getItemActionErrorMessage(caughtError));
+      setError(getItemActionErrorMessage(caughtError, isDelete));
     } finally {
       setActionInFlightItemId(null);
     }
+  };
+
+  const confirmDelete = (itemId: number) => {
+    if (isDeleteConfirmationOpenRef.current) {
+      return;
+    }
+    isDeleteConfirmationOpenRef.current = true;
+
+    const closeConfirmation = () => {
+      isDeleteConfirmationOpenRef.current = false;
+    };
+
+    Alert.alert(
+      '항목 삭제',
+      '이 항목을 삭제할까요? 삭제 후 되돌릴 수 없습니다.',
+      [
+        { text: '취소', style: 'cancel', onPress: closeConfirmation },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: () => {
+            closeConfirmation();
+            runItemAction(itemId, deleteItem, true);
+          },
+        },
+      ],
+      { cancelable: true, onDismiss: closeConfirmation },
+    );
   };
 
   if (isLoading && !dailyInbox) {
@@ -251,10 +305,13 @@ export function DailyInboxScreen() {
           isActionInFlight={actionInFlightItemId === item.id}
           item={item}
           onArchive={() => {
-            moveItem(item.id, moveItemToArchive);
+            runItemAction(item.id, moveItemToArchive);
+          }}
+          onDelete={() => {
+            confirmDelete(item.id);
           }}
           onWishlist={() => {
-            moveItem(item.id, moveItemToWishlist);
+            runItemAction(item.id, moveItemToWishlist);
           }}
         />
       )}
@@ -279,6 +336,7 @@ interface InboxRowProps {
   readonly isActionInFlight: boolean;
   readonly onWishlist: () => void;
   readonly onArchive: () => void;
+  readonly onDelete: () => void;
 }
 
 function InboxRow({
@@ -287,6 +345,7 @@ function InboxRow({
   isActionInFlight,
   onWishlist,
   onArchive,
+  onDelete,
 }: InboxRowProps) {
   return (
     <View style={styles.row}>
@@ -315,6 +374,21 @@ function InboxRow({
         >
           <Text style={styles.itemActionLabel}>
             {isActionInFlight ? '처리 중...' : '보관'}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
+          disabled={isActionDisabled}
+          onPress={onDelete}
+          style={[
+            styles.itemActionButton,
+            styles.deleteActionButton,
+            isActionDisabled && styles.disabledButton,
+          ]}
+        >
+          <Text style={[styles.itemActionLabel, styles.deleteActionLabel]}>
+            {isActionInFlight ? '처리 중...' : '삭제'}
           </Text>
         </Pressable>
       </View>
@@ -432,6 +506,12 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 13,
     fontWeight: '600',
+  },
+  deleteActionButton: {
+    borderColor: '#B42318',
+  },
+  deleteActionLabel: {
+    color: '#B42318',
   },
   signOutButton: {
     alignItems: 'center',

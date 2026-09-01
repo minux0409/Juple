@@ -4,7 +4,7 @@ import { apiConfig } from './apiConfig';
 export const DEFAULT_API_TIMEOUT_MS = 15_000;
 
 export interface ApiRequest {
-  readonly method: 'GET' | 'POST';
+  readonly method: 'GET' | 'POST' | 'DELETE';
   readonly path: string;
   readonly accessToken?: string;
   readonly body?: object;
