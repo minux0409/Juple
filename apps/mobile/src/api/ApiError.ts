@@ -2,6 +2,7 @@ export type ApiErrorKind =
   | 'badRequest'
   | 'unauthorized'
   | 'forbidden'
+  | 'notFound'
   | 'conflict'
   | 'timeout'
   | 'unavailable';

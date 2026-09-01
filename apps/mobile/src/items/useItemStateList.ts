@@ -30,6 +30,9 @@ export interface UseItemStateListResult {
   readonly error: string | null;
   readonly refresh: () => void;
   readonly loadMore: () => void;
+  /** null means no Category filter (all Items in this state). */
+  readonly filterCategoryId: number | null;
+  readonly setFilterCategoryId: (categoryId: number | null) => void;
 }
 
 /**
@@ -49,12 +52,17 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filterCategoryId, setFilterCategoryIdState] = useState<number | null>(null);
 
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
-  // Discards a stale in-flight initial/refresh load's result if a newer one has since started.
+  // Discards a stale in-flight initial/refresh load's result if a newer one has since started
+  // (including one superseded by a Category filter change).
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
+  // Mirrors filterCategoryId for synchronous reads inside load()/loadMore() without adding it
+  // to their dependency arrays (same idiom as the other in-flight refs above).
+  const filterCategoryIdRef = useRef<number | null>(null);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -69,6 +77,7 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
       try {
         const page = await getItemsByState(authenticatedRequest, state, {
           limit: PAGE_LIMIT,
+          categoryId: filterCategoryIdRef.current,
         });
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -77,6 +86,18 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
+          return;
+        }
+        // The selected filter Category was deleted (or never belonged to this user) - recover
+        // to the unfiltered list instead of surfacing an error.
+        if (
+          caughtError instanceof ApiError &&
+          caughtError.kind === 'notFound' &&
+          filterCategoryIdRef.current !== null
+        ) {
+          filterCategoryIdRef.current = null;
+          setFilterCategoryIdState(null);
+          await load(mode);
           return;
         }
         setError(getItemListErrorMessage(caughtError));
@@ -109,6 +130,9 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
       return;
     }
 
+    // Snapshots the current load "generation" so a Category filter change that resets the list
+    // while this request is in flight can discard its result instead of appending it.
+    const requestId = loadRequestIdRef.current;
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
 
@@ -117,7 +141,11 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
         const page = await getItemsByState(authenticatedRequest, state, {
           limit: PAGE_LIMIT,
           cursor: nextCursor,
+          categoryId: filterCategoryIdRef.current,
         });
+        if (loadRequestIdRef.current !== requestId) {
+          return;
+        }
         setItems(previousItems => {
           const seenIds = new Set(previousItems.map(item => item.id));
           const additionalItems = page.items.filter(item => !seenIds.has(item.id));
@@ -125,7 +153,9 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
         });
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
-        setError(getItemListErrorMessage(caughtError));
+        if (loadRequestIdRef.current === requestId) {
+          setError(getItemListErrorMessage(caughtError));
+        }
       } finally {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
@@ -133,5 +163,31 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
     })();
   }, [authenticatedRequest, state, nextCursor, isLoading, isRefreshing]);
 
-  return { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore };
+  const setFilterCategoryId = useCallback(
+    (categoryId: number | null) => {
+      if (filterCategoryIdRef.current === categoryId) {
+        return;
+      }
+      filterCategoryIdRef.current = categoryId;
+      setFilterCategoryIdState(categoryId);
+      setItems([]);
+      setNextCursor(null);
+      loadingMoreRef.current = false;
+      setIsLoadingMore(false);
+      load('initial');
+    },
+    [load],
+  );
+
+  return {
+    items,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    error,
+    refresh,
+    loadMore,
+    filterCategoryId,
+    setFilterCategoryId,
+  };
 }

@@ -265,13 +265,32 @@ public sealed class ItemStore(JupleDbContext dbContext) :
     public async Task<ItemPage> GetByStateAsync(
         long userId,
         ItemState state,
+        long? categoryId,
         ItemPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default)
     {
+        if (categoryId is { } requestedCategoryId)
+        {
+            var categoryIsOwnedByUser = await dbContext.Categories
+                .AsNoTracking()
+                .AnyAsync(
+                    category => category.Id == requestedCategoryId && category.UserId == userId,
+                    cancellationToken);
+            if (!categoryIsOwnedByUser)
+            {
+                throw new CategoryNotFoundException();
+            }
+        }
+
         var itemsQuery = dbContext.Items
             .AsNoTracking()
             .Where(item => item.UserId == userId && item.State == state);
+
+        if (categoryId is not null)
+        {
+            itemsQuery = itemsQuery.Where(item => item.CategoryId == categoryId);
+        }
 
         if (cursor is not null)
         {

@@ -33,6 +33,7 @@ public sealed class ItemsController(
         [FromQuery] string? state,
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
+        [FromQuery] string? categoryId,
         CancellationToken cancellationToken)
     {
         if (!ItemsQueryParameters.TryParseState(state, out var itemState))
@@ -62,12 +63,20 @@ public sealed class ItemsController(
             }));
         }
 
+        if (!ItemsQueryParameters.TryParseCategoryId(categoryId, out var typedCategoryId))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["categoryId"] = ["categoryId must be a positive integer."],
+            }));
+        }
+
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = await getItemsByStateService.GetAsync(
-                currentUser.UserId, itemState, typedCursor, resolvedLimit, cancellationToken);
+                currentUser.UserId, itemState, typedCategoryId, typedCursor, resolvedLimit, cancellationToken);
 
             return Ok(new ItemsPageResponse(
                 page.Items,
@@ -78,6 +87,10 @@ public sealed class ItemsController(
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Juple user bootstrap is required.");
+        }
+        catch (CategoryNotFoundException)
+        {
+            return NotFound();
         }
     }
 

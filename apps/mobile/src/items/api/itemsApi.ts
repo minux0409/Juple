@@ -35,6 +35,8 @@ export interface GetItemsByStateOptions {
   readonly limit?: number;
   /** Opaque value from a previous ItemPage.nextCursor; never parsed or modified. */
   readonly cursor?: string;
+  /** When set (non-null), restricts the page to Items in that Category. */
+  readonly categoryId?: number | null;
 }
 
 export async function getItemsByState(
@@ -48,6 +50,9 @@ export async function getItemsByState(
   }
   if (options.cursor) {
     query.set('cursor', options.cursor);
+  }
+  if (options.categoryId !== undefined && options.categoryId !== null) {
+    query.set('categoryId', String(options.categoryId));
   }
 
   const response = await request<ItemPage>({

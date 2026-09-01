@@ -101,7 +101,7 @@ public sealed class ItemDetailsIntegrationTests : IAsyncLifetime
         await store.MoveToWishlistAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, cursor: null, limit: 50);
+        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
         var entry = Assert.Single(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal("My Title", entry.Title);
         Assert.Equal("My memo", entry.Memo);
@@ -119,7 +119,7 @@ public sealed class ItemDetailsIntegrationTests : IAsyncLifetime
         await store.MoveToArchiveAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Archived, cursor: null, limit: 50);
+        var page = await store.GetByStateAsync(_userId, ItemState.Archived, categoryId: null, cursor: null, limit: 50);
         var entry = Assert.Single(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal("My Title", entry.Title);
         Assert.Equal("My memo", entry.Memo);

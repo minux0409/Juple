@@ -68,4 +68,38 @@ public sealed class ItemsQueryParametersTests
 
         Assert.False(parsed);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void TryParseCategoryId_WhenAbsent_ReturnsNull(string? value)
+    {
+        var parsed = ItemsQueryParameters.TryParseCategoryId(value, out var categoryId);
+
+        Assert.True(parsed);
+        Assert.Null(categoryId);
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("42")]
+    public void TryParseCategoryId_WhenPositiveInteger_ReturnsThatId(string value)
+    {
+        var parsed = ItemsQueryParameters.TryParseCategoryId(value, out var categoryId);
+
+        Assert.True(parsed);
+        Assert.Equal(long.Parse(value), categoryId);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("abc")]
+    [InlineData("1.5")]
+    public void TryParseCategoryId_WhenInvalid_ReturnsFalse(string value)
+    {
+        var parsed = ItemsQueryParameters.TryParseCategoryId(value, out _);
+
+        Assert.False(parsed);
+    }
 }

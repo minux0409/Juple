@@ -46,4 +46,22 @@ public static class ItemsQueryParameters
         limit = value.Value;
         return true;
     }
+
+    public static bool TryParseCategoryId(string? value, out long? categoryId)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            categoryId = null;
+            return true;
+        }
+
+        if (long.TryParse(value, out var parsedCategoryId) && parsedCategoryId > 0)
+        {
+            categoryId = parsedCategoryId;
+            return true;
+        }
+
+        categoryId = null;
+        return false;
+    }
 }

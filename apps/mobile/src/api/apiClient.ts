@@ -76,6 +76,10 @@ export async function requestApi<T>({
     throw new ApiError('forbidden', response.status);
   }
 
+  if (response.status === 404) {
+    throw new ApiError('notFound', response.status);
+  }
+
   if (response.status === 409) {
     throw new ApiError('conflict', response.status);
   }

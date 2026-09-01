@@ -75,7 +75,7 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
         await store.DeleteAsync(_userId, saved.Entry.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, cursor: null, limit: 50);
+        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
 
         Assert.DoesNotContain(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
@@ -94,7 +94,7 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
         await store.DeleteAsync(_userId, saved.Entry.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Archived, cursor: null, limit: 50);
+        var page = await store.GetByStateAsync(_userId, ItemState.Archived, categoryId: null, cursor: null, limit: 50);
 
         Assert.DoesNotContain(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
