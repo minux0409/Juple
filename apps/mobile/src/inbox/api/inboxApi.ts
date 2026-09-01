@@ -29,11 +29,12 @@ export async function getTodayInbox(
 export async function saveInboxEntry(
   request: AuthenticatedApiRequest,
   url: string,
+  clientRequestId?: string,
 ): Promise<InboxEntry> {
   const response = await request<InboxEntry>({
     method: 'POST',
     path: '/api/v1/inbox',
-    body: { url },
+    body: { url, clientRequestId },
   });
 
   if (!response.body) {

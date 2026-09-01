@@ -112,7 +112,7 @@ export function DailyInboxScreen() {
     setIsSaving(true);
     setError(null);
     try {
-      await saveInboxEntry(authenticatedRequest, trimmedUrl);
+      await saveInboxEntry(authenticatedRequest, trimmedUrl, pendingShare?.id);
       if (pendingShare) {
         await acknowledgePendingShare(pendingShare.id);
       }
