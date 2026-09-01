@@ -1,3 +1,4 @@
+using Juple.Domain.Categories;
 using Juple.Domain.Identity;
 using Juple.Domain.Items;
 using Juple.Domain.Users;
@@ -14,6 +15,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<Item> Items => Set<Item>();
 
     public DbSet<ItemSaveRequest> ItemSaveRequests => Set<ItemSaveRequest>();
+
+    public DbSet<Category> Categories => Set<Category>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

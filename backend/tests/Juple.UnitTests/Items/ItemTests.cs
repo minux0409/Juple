@@ -191,4 +191,55 @@ public sealed class ItemTests
 
         Assert.Equal(SavedAt.AddHours(1), item.StateChangedAtUtc);
     }
+
+    [Fact]
+    public void Constructor_SetsCategoryIdToNull()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+
+        Assert.Null(item.CategoryId);
+    }
+
+    [Fact]
+    public void AssignCategory_SetsCategoryId()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+
+        item.AssignCategory(9);
+
+        Assert.Equal(9, item.CategoryId);
+    }
+
+    [Fact]
+    public void AssignCategory_WithNull_ClearsCategoryId()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+        item.AssignCategory(9);
+
+        item.AssignCategory(null);
+
+        Assert.Null(item.CategoryId);
+    }
+
+    [Fact]
+    public void AssignCategory_WithSameValue_IsNoOp()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+        item.AssignCategory(9);
+
+        item.AssignCategory(9);
+
+        Assert.Equal(9, item.CategoryId);
+    }
+
+    [Fact]
+    public void MoveToWishlist_PreservesCategoryId()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+        item.AssignCategory(9);
+
+        item.MoveToWishlist(SavedAt.AddHours(1));
+
+        Assert.Equal(9, item.CategoryId);
+    }
 }

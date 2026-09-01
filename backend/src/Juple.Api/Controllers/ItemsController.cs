@@ -1,7 +1,9 @@
 using Juple.Api.Authentication;
 using Juple.Api.Items;
+using Juple.Application.Categories;
 using Juple.Application.Identity;
 using Juple.Application.Items;
+using Juple.Application.Items.AssignItemCategory;
 using Juple.Application.Items.DeleteItem;
 using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemsByState;
@@ -23,7 +25,8 @@ public sealed class ItemsController(
     IGetItemsByStateService getItemsByStateService,
     IDeleteItemService deleteItemService,
     IUpdateItemDetailsService updateItemDetailsService,
-    IGetItemDetailService getItemDetailService) : ControllerBase
+    IGetItemDetailService getItemDetailService,
+    IAssignItemCategoryService assignItemCategoryService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetByStateAsync(
@@ -94,7 +97,8 @@ public sealed class ItemsController(
                 details.Memo,
                 details.SavedAtUtc,
                 ItemStateWireFormat.ToWireValue(details.State),
-                details.StateChangedAtUtc));
+                details.StateChangedAtUtc,
+                details.Category));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -136,6 +140,16 @@ public sealed class ItemsController(
                 userId, id, new UpdateItemDetailsCommand(request.Title, request.Memo), cancellationToken),
             cancellationToken);
 
+    [HttpPut("{id:long}/category")]
+    public Task<IActionResult> AssignCategoryAsync(
+        long id,
+        AssignItemCategoryRequest request,
+        CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => assignItemCategoryService.AssignAsync(
+                userId, id, request.CategoryId, cancellationToken),
+            cancellationToken);
+
     private async Task<IActionResult> TransitionAsync(
         Func<long, Task> transition,
         CancellationToken cancellationToken)
@@ -164,6 +178,10 @@ public sealed class ItemsController(
         {
             return NotFound();
         }
+        catch (CategoryNotFoundException)
+        {
+            return NotFound();
+        }
         catch (ItemConcurrencyException)
         {
             return Problem(
@@ -176,6 +194,8 @@ public sealed class ItemsController(
 
     public sealed record UpdateItemDetailsRequest(string? Title, string? Memo);
 
+    public sealed record AssignItemCategoryRequest(long? CategoryId);
+
     public sealed record ItemDetailResponse(
         long Id,
         string Url,
@@ -183,5 +203,6 @@ public sealed class ItemsController(
         string? Memo,
         DateTimeOffset SavedAtUtc,
         string State,
-        DateTimeOffset StateChangedAtUtc);
+        DateTimeOffset StateChangedAtUtc,
+        ItemCategoryDto? Category);
 }

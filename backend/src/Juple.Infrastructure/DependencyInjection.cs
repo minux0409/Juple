@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Juple.Application.Categories;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
+using Juple.Infrastructure.Categories;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
@@ -34,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<IItemQueryStore, ItemStore>();
         services.AddScoped<IItemDetailsStore, ItemStore>();
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
+        services.AddScoped<IItemCategoryStore, ItemStore>();
+        services.AddScoped<ICategoryStore, CategoryStore>();
 
         return services;
     }

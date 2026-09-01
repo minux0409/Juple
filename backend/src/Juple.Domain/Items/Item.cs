@@ -33,6 +33,8 @@ public sealed class Item
 
     public string? Memo { get; private set; }
 
+    public long? CategoryId { get; private set; }
+
     /// <summary>
     /// Replaces the user-owned Title/Memo. Callers must pass already-normalized values (trimmed,
     /// empty collapsed to null) - this method only applies them and is a no-op when both are
@@ -48,6 +50,20 @@ public sealed class Item
 
         Title = title;
         Memo = memo;
+    }
+
+    /// <summary>
+    /// Sets or clears (null) the owning Category. Callers are responsible for verifying the
+    /// Category, when non-null, is owned by this Item's UserId - this method only applies the id.
+    /// </summary>
+    public void AssignCategory(long? categoryId)
+    {
+        if (CategoryId == categoryId)
+        {
+            return;
+        }
+
+        CategoryId = categoryId;
     }
 
     public void MoveToWishlist(DateTimeOffset changedAtUtc)

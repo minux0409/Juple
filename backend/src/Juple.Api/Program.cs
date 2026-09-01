@@ -1,8 +1,13 @@
 using Juple.Infrastructure;
 using Juple.Api.Authentication;
+using Juple.Application.Categories.CreateCategory;
+using Juple.Application.Categories.DeleteCategory;
+using Juple.Application.Categories.ListCategories;
+using Juple.Application.Categories.RenameCategory;
 using Juple.Application.Identity;
 using Juple.Application.Inbox.GetDailyInbox;
 using Juple.Application.Inbox.SaveInboxEntry;
+using Juple.Application.Items.AssignItemCategory;
 using Juple.Application.Items.DeleteItem;
 using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemsByState;
@@ -29,6 +34,11 @@ builder.Services.AddScoped<IGetItemsByStateService, GetItemsByStateService>();
 builder.Services.AddScoped<IDeleteItemService, DeleteItemService>();
 builder.Services.AddScoped<IUpdateItemDetailsService, UpdateItemDetailsService>();
 builder.Services.AddScoped<IGetItemDetailService, GetItemDetailService>();
+builder.Services.AddScoped<IAssignItemCategoryService, AssignItemCategoryService>();
+builder.Services.AddScoped<IListCategoriesService, ListCategoriesService>();
+builder.Services.AddScoped<ICreateCategoryService, CreateCategoryService>();
+builder.Services.AddScoped<IRenameCategoryService, RenameCategoryService>();
+builder.Services.AddScoped<IDeleteCategoryService, DeleteCategoryService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(

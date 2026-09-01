@@ -151,8 +151,8 @@ public sealed class DailyInboxServicesTests
     {
         var expectedItems = new List<DailyInboxEntryDto>
         {
-            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero)),
-            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero)),
+            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero), null),
+            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero), null),
         };
         var store = new FakeInboxEntryStore { DailyItems = expectedItems };
         var service = new GetDailyInboxService(store, new FixedTimeProvider());

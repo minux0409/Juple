@@ -9,4 +9,5 @@ public sealed record ItemDetailsDto(
     string? Memo,
     DateTimeOffset SavedAtUtc,
     ItemState State,
-    DateTimeOffset StateChangedAtUtc);
+    DateTimeOffset StateChangedAtUtc,
+    ItemCategoryDto? Category);

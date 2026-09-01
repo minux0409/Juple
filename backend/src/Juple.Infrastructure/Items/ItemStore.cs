@@ -1,3 +1,4 @@
+using Juple.Application.Categories;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Domain.Items;
@@ -8,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Juple.Infrastructure.Items;
 
 public sealed class ItemStore(JupleDbContext dbContext) :
-    IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore, IItemDetailQueryStore
+    IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore, IItemDetailQueryStore,
+    IItemCategoryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -71,17 +73,28 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
-        CancellationToken cancellationToken = default) =>
-        await dbContext.Items
-            .AsNoTracking()
-            .Where(item => item.UserId == userId
+        CancellationToken cancellationToken = default)
+    {
+        var query =
+            from item in dbContext.Items.AsNoTracking()
+            where item.UserId == userId
                 && item.State == ItemState.Inbox
                 && item.SavedAtUtc >= fromUtc
-                && item.SavedAtUtc < toUtc)
-            .OrderByDescending(item => item.SavedAtUtc)
-            .ThenByDescending(item => item.Id)
-            .Select(item => new DailyInboxEntryDto(item.Id, item.Url, item.Title, item.Memo, item.SavedAtUtc))
-            .ToListAsync(cancellationToken);
+                && item.SavedAtUtc < toUtc
+            join category in dbContext.Categories.AsNoTracking()
+                on item.CategoryId equals category.Id into categoryJoin
+            from category in categoryJoin.DefaultIfEmpty()
+            orderby item.SavedAtUtc descending, item.Id descending
+            select new DailyInboxEntryDto(
+                item.Id,
+                item.Url,
+                item.Title,
+                item.Memo,
+                item.SavedAtUtc,
+                category == null ? null : new ItemCategoryDto(category.Id, category.Name));
+
+        return await query.ToListAsync(cancellationToken);
+    }
 
     private static InboxEntrySaveResult BuildReplayResult(InboxEntryDto existing, string requestedUrl)
     {
@@ -150,6 +163,44 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         CancellationToken cancellationToken = default) =>
         TransitionAsync(userId, itemId, item => item.UpdateDetails(title, memo), cancellationToken);
 
+    public async Task AssignCategoryAsync(
+        long userId,
+        long itemId,
+        long? categoryId,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
+        if (item is null)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        if (categoryId is { } requestedCategoryId)
+        {
+            var categoryIsOwnedByUser = await dbContext.Categories
+                .AsNoTracking()
+                .AnyAsync(
+                    category => category.Id == requestedCategoryId && category.UserId == userId,
+                    cancellationToken);
+            if (!categoryIsOwnedByUser)
+            {
+                throw new CategoryNotFoundException();
+            }
+        }
+
+        item.AssignCategory(categoryId);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ItemConcurrencyException(exception);
+        }
+    }
+
     public async Task DeleteAsync(
         long userId,
         long itemId,
@@ -190,13 +241,26 @@ public sealed class ItemStore(JupleDbContext dbContext) :
     public async Task<ItemDetailsDto?> GetDetailsAsync(
         long userId,
         long itemId,
-        CancellationToken cancellationToken = default) =>
-        await dbContext.Items
-            .AsNoTracking()
-            .Where(item => item.Id == itemId && item.UserId == userId)
-            .Select(item => new ItemDetailsDto(
-                item.Id, item.Url, item.Title, item.Memo, item.SavedAtUtc, item.State, item.StateChangedAtUtc))
-            .FirstOrDefaultAsync(cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var query =
+            from item in dbContext.Items.AsNoTracking()
+            where item.Id == itemId && item.UserId == userId
+            join category in dbContext.Categories.AsNoTracking()
+                on item.CategoryId equals category.Id into categoryJoin
+            from category in categoryJoin.DefaultIfEmpty()
+            select new ItemDetailsDto(
+                item.Id,
+                item.Url,
+                item.Title,
+                item.Memo,
+                item.SavedAtUtc,
+                item.State,
+                item.StateChangedAtUtc,
+                category == null ? null : new ItemCategoryDto(category.Id, category.Name));
+
+        return await query.FirstOrDefaultAsync(cancellationToken);
+    }
 
     public async Task<ItemPage> GetByStateAsync(
         long userId,
@@ -205,24 +269,33 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var query = dbContext.Items
+        var itemsQuery = dbContext.Items
             .AsNoTracking()
             .Where(item => item.UserId == userId && item.State == state);
 
         if (cursor is not null)
         {
-            query = query.Where(item =>
+            itemsQuery = itemsQuery.Where(item =>
                 item.StateChangedAtUtc < cursor.StateChangedAtUtc
                 || (item.StateChangedAtUtc == cursor.StateChangedAtUtc && item.Id < cursor.Id));
         }
 
-        var page = await query
-            .OrderByDescending(item => item.StateChangedAtUtc)
-            .ThenByDescending(item => item.Id)
-            .Take(limit + 1)
-            .Select(item => new ItemListEntryDto(
-                item.Id, item.Url, item.Title, item.Memo, item.SavedAtUtc, item.StateChangedAtUtc))
-            .ToListAsync(cancellationToken);
+        var pagedQuery =
+            from item in itemsQuery
+            join category in dbContext.Categories.AsNoTracking()
+                on item.CategoryId equals category.Id into categoryJoin
+            from category in categoryJoin.DefaultIfEmpty()
+            orderby item.StateChangedAtUtc descending, item.Id descending
+            select new ItemListEntryDto(
+                item.Id,
+                item.Url,
+                item.Title,
+                item.Memo,
+                item.SavedAtUtc,
+                item.StateChangedAtUtc,
+                category == null ? null : new ItemCategoryDto(category.Id, category.Name));
+
+        var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
         var items = hasMore ? page.GetRange(0, limit) : page;

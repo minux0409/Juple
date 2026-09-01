@@ -11,7 +11,7 @@ public sealed class GetItemDetailServiceTests
     {
         var expected = new ItemDetailsDto(
             41, "https://shop.example/item", "My Title", "My memo", DateTimeOffset.UtcNow,
-            ItemState.Wishlist, DateTimeOffset.UtcNow);
+            ItemState.Wishlist, DateTimeOffset.UtcNow, new ItemCategoryDto(9, "Electronics"));
         var store = new FakeItemDetailQueryStore { Details = expected };
         var service = new GetItemDetailService(store);
 
