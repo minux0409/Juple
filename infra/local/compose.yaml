@@ -22,6 +22,25 @@ services:
       retries: 30
       start_period: 30s
 
+  azurite:
+    # Blob-only mode (azurite-blob), since Item images only need Blob Storage - no Queue/Table.
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: juple-azurite
+    restart: unless-stopped
+    command: "azurite-blob --blobHost 0.0.0.0 --blobPort 10000 --location /data"
+    ports:
+      - "10000:10000"
+    volumes:
+      - juple_azurite_data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(10000,'127.0.0.1').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
 volumes:
   juple_sql_data:
     name: juple_sql_data
+  juple_azurite_data:
+    name: juple_azurite_data

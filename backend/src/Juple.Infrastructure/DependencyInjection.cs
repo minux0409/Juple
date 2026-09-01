@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Categories;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
+using Juple.Infrastructure.Storage;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
 
@@ -38,6 +40,18 @@ public static class DependencyInjection
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
         services.AddScoped<IItemCategoryStore, ItemStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
+
+        // Registered for future Blob consumers; construction itself makes no network call, so
+        // this does not require a live Blob endpoint at app startup - only whichever caller first
+        // resolves BlobServiceClient/BlobContainerClient (none yet) needs BlobStorage configured.
+        services.AddSingleton(_ => BlobServiceClientFactory.Create(configuration));
+        services.AddSingleton(serviceProvider =>
+        {
+            var containerName = configuration["BlobStorage:ContainerName"]
+                ?? throw new InvalidOperationException("BlobStorage:ContainerName is required.");
+            return serviceProvider.GetRequiredService<BlobServiceClient>()
+                .GetBlobContainerClient(containerName);
+        });
 
         return services;
     }
