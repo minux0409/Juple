@@ -4,6 +4,7 @@
  * @format
  */
 
+import { NavigationContainer } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
-import { DailyInboxScreen } from './src/screens/DailyInboxScreen';
+import { MainTabs } from './src/navigation/MainTabs';
 import { SignInScreen } from './src/screens/SignInScreen';
 import type { BackendAuthStatus, UserBootstrapStatus } from './src/auth/types';
 
@@ -71,7 +72,11 @@ function AuthGate() {
     backendAuthStatus === 'valid' &&
     userBootstrapStatus === 'ready'
   ) {
-    return <DailyInboxScreen />;
+    return (
+      <NavigationContainer>
+        <MainTabs />
+      </NavigationContainer>
+    );
   }
 
   if (isAuthenticated) {
