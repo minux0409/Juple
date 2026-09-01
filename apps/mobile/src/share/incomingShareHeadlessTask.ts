@@ -4,6 +4,7 @@ import { parseSharedText } from './sharedTextParser';
 import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
 import { ApiError } from '../api/ApiError';
 import { EntraAuthError, isEntraSessionInvalidError } from '../auth/entraAuthClient';
+import { AuthSessionError } from '../auth/session/authSessionErrors';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 
 /** Must match IncomingShareHeadlessService.TaskKey exactly. */
@@ -24,12 +25,10 @@ type AttemptOutcome =
   | 'retryableFailure'
   | 'permanentFailure';
 
-/** The exact message authSessionManager throws when no session is stored at all. */
-const NO_STORED_SESSION_ERROR_MESSAGE = 'An Entra refresh token is required.';
-
 /**
  * Classifies a failed saveInboxEntry attempt using only the current, real error types
- * (ApiError, EntraAuthError) - never raw exception details are reported further than this.
+ * (ApiError, EntraAuthError, AuthSessionError) - never raw exception details are reported
+ * further than this.
  */
 function classifySaveFailure(error: unknown): AttemptOutcome {
   if (error instanceof ApiError) {
@@ -53,7 +52,7 @@ function classifySaveFailure(error: unknown): AttemptOutcome {
       : 'retryableFailure';
   }
 
-  if (error instanceof Error && error.message === NO_STORED_SESSION_ERROR_MESSAGE) {
+  if (error instanceof AuthSessionError) {
     return 'authenticationRequired';
   }
 

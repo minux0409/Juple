@@ -3,6 +3,7 @@ import {
   isEntraSessionInvalidError,
   EntraAuthError,
 } from '../entraAuthClient';
+import { AuthSessionError } from './authSessionErrors';
 import { clearAuthSession, loadAuthSession, saveAuthSession } from './authSessionStorage';
 
 /**
@@ -95,7 +96,7 @@ async function refreshAccessToken(): Promise<string> {
   const refreshPromise = (async () => {
     const session = await loadAuthSession();
     if (!session) {
-      throw new Error('An Entra refresh token is required.');
+      throw new AuthSessionError('sessionUnavailable');
     }
 
     try {
