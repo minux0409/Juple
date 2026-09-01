@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { ApiError } from '../api/ApiError';
+import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   getTodayInbox,
@@ -17,6 +18,7 @@ import {
   type DailyInbox,
   type InboxEntry,
 } from '../inbox/api/inboxApi';
+import { moveItemToArchive, moveItemToWishlist } from '../items/api/itemsApi';
 import { useAuth } from '../auth/AuthContext';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
@@ -45,6 +47,13 @@ function getInboxErrorMessage(error: unknown, isSave: boolean): string {
     : '오늘의 Inbox를 불러올 수 없습니다.';
 }
 
+function getItemActionErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return '항목을 이동할 수 없습니다.';
+}
+
 function formatSavedTime(savedAtUtc: string): string {
   return new Intl.DateTimeFormat(undefined, {
     hour: 'numeric',
@@ -63,6 +72,7 @@ export function DailyInboxScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
 
   const loadTodayInbox = useCallback(
     async (isPullToRefresh = false) => {
@@ -136,6 +146,30 @@ export function DailyInboxScreen() {
     setShareMessage(null);
   };
 
+  const moveItem = async (
+    itemId: number,
+    transition: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
+  ) => {
+    if (actionInFlightItemId !== null || isRefreshing) {
+      return;
+    }
+
+    setActionInFlightItemId(itemId);
+    setError(null);
+    try {
+      await transition(authenticatedRequest, itemId);
+      setDailyInbox(previous =>
+        previous
+          ? { ...previous, items: previous.items.filter(item => item.id !== itemId) }
+          : previous,
+      );
+    } catch (caughtError) {
+      setError(getItemActionErrorMessage(caughtError));
+    } finally {
+      setActionInFlightItemId(null);
+    }
+  };
+
   if (isLoading && !dailyInbox) {
     return (
       <View style={styles.loadingContainer}>
@@ -155,6 +189,9 @@ export function DailyInboxScreen() {
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={() => {
+            if (actionInFlightItemId !== null) {
+              return;
+            }
             loadTodayInbox(true);
           }}
         />
@@ -208,7 +245,19 @@ export function DailyInboxScreen() {
       ListEmptyComponent={
         <Text style={styles.empty}>오늘 저장한 링크가 아직 없습니다.</Text>
       }
-      renderItem={({ item }) => <InboxRow item={item} />}
+      renderItem={({ item }) => (
+        <InboxRow
+          isActionDisabled={actionInFlightItemId !== null || isRefreshing}
+          isActionInFlight={actionInFlightItemId === item.id}
+          item={item}
+          onArchive={() => {
+            moveItem(item.id, moveItemToArchive);
+          }}
+          onWishlist={() => {
+            moveItem(item.id, moveItemToWishlist);
+          }}
+        />
+      )}
       ListFooterComponent={
         <Pressable
           accessibilityRole="button"
@@ -224,13 +273,51 @@ export function DailyInboxScreen() {
   );
 }
 
-function InboxRow({ item }: { readonly item: InboxEntry }) {
+interface InboxRowProps {
+  readonly item: InboxEntry;
+  readonly isActionDisabled: boolean;
+  readonly isActionInFlight: boolean;
+  readonly onWishlist: () => void;
+  readonly onArchive: () => void;
+}
+
+function InboxRow({
+  item,
+  isActionDisabled,
+  isActionInFlight,
+  onWishlist,
+  onArchive,
+}: InboxRowProps) {
   return (
     <View style={styles.row}>
       <Text numberOfLines={2} style={styles.url}>
         {item.url}
       </Text>
       <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
+      <View style={styles.itemActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
+          disabled={isActionDisabled}
+          onPress={onWishlist}
+          style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
+        >
+          <Text style={styles.itemActionLabel}>
+            {isActionInFlight ? '처리 중...' : '위시리스트'}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
+          disabled={isActionDisabled}
+          onPress={onArchive}
+          style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
+        >
+          <Text style={styles.itemActionLabel}>
+            {isActionInFlight ? '처리 중...' : '보관'}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -328,6 +415,23 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 13,
     marginTop: 5,
+  },
+  itemActions: {
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+  itemActionButton: {
+    borderColor: '#9A9A9A',
+    borderRadius: 6,
+    borderWidth: 1,
+    marginRight: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  itemActionLabel: {
+    color: '#111111',
+    fontSize: 13,
+    fontWeight: '600',
   },
   signOutButton: {
     alignItems: 'center',

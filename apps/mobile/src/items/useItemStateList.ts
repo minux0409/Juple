@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useRef, useState } from 'react';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getItemsByState, type ItemListEntry, type ItemListState } from './api/itemsApi';
@@ -31,7 +32,15 @@ export interface UseItemStateListResult {
   readonly loadMore: () => void;
 }
 
-/** Loads and paginates the Item list for a single lifecycle state (Wishlist or Archive). */
+/**
+ * Loads and paginates the Item list for a single lifecycle state (Wishlist or Archive).
+ * Loading is driven entirely by focus: the first time the screen is focused (including its
+ * initial mount) uses the full-screen loading state, and every later focus (e.g. returning from
+ * another tab after an Item moved into this state) replaces the list with a fresh first page -
+ * this is the only way an Item that just transitioned into this state appears without the user
+ * having to pull-to-refresh. There is no separate mount effect, so exactly one GET fires per
+ * focus, never two.
+ */
 export function useItemStateList(state: ItemListState): UseItemStateListResult {
   const authenticatedRequest = useAuthenticatedApi();
   const [items, setItems] = useState<readonly ItemListEntry[]>([]);
@@ -45,6 +54,7 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
   const loadingMoreRef = useRef(false);
   // Discards a stale in-flight initial/refresh load's result if a newer one has since started.
   const loadRequestIdRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -72,6 +82,7 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
         setError(getItemListErrorMessage(caughtError));
       } finally {
         if (loadRequestIdRef.current === requestId) {
+          hasLoadedOnceRef.current = true;
           setIsLoading(false);
           setIsRefreshing(false);
         }
@@ -80,9 +91,11 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
     [authenticatedRequest, state],
   );
 
-  useEffect(() => {
-    load('initial');
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
+    }, [load]),
+  );
 
   const refresh = useCallback(() => {
     if (isRefreshing) {

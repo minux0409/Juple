@@ -44,3 +44,25 @@ export async function getItemsByState(
 
   return response.body;
 }
+
+/** POSTs to the Wishlist transition endpoint; resolves on 204 (idempotent - already-Wishlist succeeds too). */
+export async function moveItemToWishlist(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/items/${itemId}/wishlist`,
+  });
+}
+
+/** POSTs to the Archive transition endpoint; resolves on 204 (idempotent - already-Archived succeeds too). */
+export async function moveItemToArchive(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/items/${itemId}/archive`,
+  });
+}
