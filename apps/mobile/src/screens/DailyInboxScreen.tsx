@@ -392,6 +392,11 @@ function InboxRow({
             {item.memo}
           </Text>
         ) : null}
+        {item.category ? (
+          <Text numberOfLines={1} style={styles.categoryLabel}>
+            {item.category.name}
+          </Text>
+        ) : null}
         <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
       </Pressable>
       <View style={styles.itemActions}>
@@ -534,6 +539,12 @@ const styles = StyleSheet.create({
   memoPreview: {
     color: '#666666',
     fontSize: 13,
+    marginTop: 5,
+  },
+  categoryLabel: {
+    color: '#666666',
+    fontSize: 11,
+    fontWeight: '600',
     marginTop: 5,
   },
   savedTime: {

@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { ItemCategory } from '../../categories/api/categoriesApi';
 
 export interface InboxEntry {
   readonly id: number;
@@ -6,6 +7,7 @@ export interface InboxEntry {
   readonly title: string | null;
   readonly memo: string | null;
   readonly savedAtUtc: string;
+  readonly category: ItemCategory | null;
 }
 
 export interface DailyInbox {

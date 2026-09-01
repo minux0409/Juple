@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { ItemCategory } from '../../categories/api/categoriesApi';
 
 export interface ItemListEntry {
   readonly id: number;
@@ -7,6 +8,7 @@ export interface ItemListEntry {
   readonly memo: string | null;
   readonly savedAtUtc: string;
   readonly stateChangedAtUtc: string;
+  readonly category: ItemCategory | null;
 }
 
 export type ItemDetailState = 'inbox' | 'wishlist' | 'archived';
@@ -19,6 +21,7 @@ export interface ItemDetails {
   readonly savedAtUtc: string;
   readonly state: ItemDetailState;
   readonly stateChangedAtUtc: string;
+  readonly category: ItemCategory | null;
 }
 
 export interface ItemPage {
@@ -123,5 +126,18 @@ export async function updateItemDetails(
     method: 'PUT',
     path: `/api/v1/items/${itemId}/details`,
     body: details,
+  });
+}
+
+/** PUTs the Item's Category (or clears it with null); resolves on 204. */
+export async function setItemCategory(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  categoryId: number | null,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/items/${itemId}/category`,
+    body: { categoryId },
   });
 }
