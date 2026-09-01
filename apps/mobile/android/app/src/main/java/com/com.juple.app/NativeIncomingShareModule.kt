@@ -32,6 +32,11 @@ class NativeIncomingShareModule(
     promise.resolve(null)
   }
 
+  override fun reportAttemptOutcome(pendingShareId: String, outcome: String, promise: Promise) {
+    IncomingShareAttemptResultStore.report(reactContext, pendingShareId, outcome)
+    promise.resolve(null)
+  }
+
   companion object {
     const val Name = "NativeIncomingShare"
   }
