@@ -1,12 +1,12 @@
 using Juple.Application.Inbox;
-using Juple.Domain.Inbox;
+using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
 
-namespace Juple.Infrastructure.Inbox;
+namespace Juple.Infrastructure.Items;
 
-public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
+public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -24,8 +24,8 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
             }
         }
 
-        var entry = new InboxEntry(userId, url, clientRequestId, savedAtUtc);
-        dbContext.InboxEntries.Add(entry);
+        var item = new Item(userId, url, clientRequestId, savedAtUtc);
+        dbContext.Items.Add(item);
 
         try
         {
@@ -33,7 +33,7 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
         }
         catch (DbUpdateException exception) when (clientRequestId is not null)
         {
-            return await InboxEntrySaveRaceRecovery.RecoverOrRethrowAsync(
+            return await ItemSaveRaceRecovery.RecoverOrRethrowAsync(
                 exception,
                 SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception),
                 url,
@@ -44,7 +44,7 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
         }
 
         return new InboxEntrySaveResult(
-            new InboxEntryDto(entry.Id, entry.Url, entry.SavedAtUtc),
+            new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc),
             Created: true);
     }
 
@@ -53,14 +53,15 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
         CancellationToken cancellationToken = default) =>
-        await dbContext.InboxEntries
+        await dbContext.Items
             .AsNoTracking()
-            .Where(entry => entry.UserId == userId
-                && entry.SavedAtUtc >= fromUtc
-                && entry.SavedAtUtc < toUtc)
-            .OrderByDescending(entry => entry.SavedAtUtc)
-            .ThenByDescending(entry => entry.Id)
-            .Select(entry => new InboxEntryDto(entry.Id, entry.Url, entry.SavedAtUtc))
+            .Where(item => item.UserId == userId
+                && item.State == ItemState.Inbox
+                && item.SavedAtUtc >= fromUtc
+                && item.SavedAtUtc < toUtc)
+            .OrderByDescending(item => item.SavedAtUtc)
+            .ThenByDescending(item => item.Id)
+            .Select(item => new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc))
             .ToListAsync(cancellationToken);
 
     private static InboxEntrySaveResult BuildReplayResult(InboxEntryDto existing, string requestedUrl)
@@ -77,9 +78,9 @@ public sealed class InboxEntryStore(JupleDbContext dbContext) : IInboxEntryStore
         long userId,
         Guid clientRequestId,
         CancellationToken cancellationToken) =>
-        dbContext.InboxEntries
+        dbContext.Items
             .AsNoTracking()
-            .Where(entry => entry.UserId == userId && entry.ClientRequestId == clientRequestId)
-            .Select(entry => new InboxEntryDto(entry.Id, entry.Url, entry.SavedAtUtc))
+            .Where(item => item.UserId == userId && item.ClientRequestId == clientRequestId)
+            .Select(item => new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 }

@@ -1,10 +1,10 @@
 using Juple.Application.Inbox;
-using Juple.Infrastructure.Inbox;
+using Juple.Infrastructure.Items;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.UnitTests.Inbox;
 
-public sealed class InboxEntrySaveRaceRecoveryTests
+public sealed class ItemSaveRaceRecoveryTests
 {
     [Fact]
     public async Task RecoverOrRethrowAsync_WhenUniqueViolationAndExistingUrlMatches_ReplaysExistingEntry()
@@ -12,7 +12,7 @@ public sealed class InboxEntrySaveRaceRecoveryTests
         var existing = new InboxEntryDto(41, "https://shop.example/item", DateTimeOffset.UtcNow);
         var probe = new RecoveryProbe(existing);
 
-        var result = await InboxEntrySaveRaceRecovery.RecoverOrRethrowAsync(
+        var result = await ItemSaveRaceRecovery.RecoverOrRethrowAsync(
             new DbUpdateException("Unique inbox entry conflict."),
             isUniqueConstraintViolation: true,
             requestedUrl: existing.Url,
@@ -33,7 +33,7 @@ public sealed class InboxEntrySaveRaceRecoveryTests
         var probe = new RecoveryProbe(existing);
 
         await Assert.ThrowsAsync<InboxEntryClientRequestConflictException>(() =>
-            InboxEntrySaveRaceRecovery.RecoverOrRethrowAsync(
+            ItemSaveRaceRecovery.RecoverOrRethrowAsync(
                 new DbUpdateException("Unique inbox entry conflict."),
                 isUniqueConstraintViolation: true,
                 requestedUrl: "https://shop.example/item-b",
@@ -51,7 +51,7 @@ public sealed class InboxEntrySaveRaceRecoveryTests
         var expected = new DbUpdateException("Unique inbox entry conflict.");
 
         var actual = await Assert.ThrowsAsync<DbUpdateException>(() =>
-            InboxEntrySaveRaceRecovery.RecoverOrRethrowAsync(
+            ItemSaveRaceRecovery.RecoverOrRethrowAsync(
                 expected,
                 isUniqueConstraintViolation: true,
                 requestedUrl: "https://shop.example/item",
@@ -72,7 +72,7 @@ public sealed class InboxEntrySaveRaceRecoveryTests
         var expected = new DbUpdateException("Unexpected SQL Server error.");
 
         var actual = await Assert.ThrowsAsync<DbUpdateException>(() =>
-            InboxEntrySaveRaceRecovery.RecoverOrRethrowAsync(
+            ItemSaveRaceRecovery.RecoverOrRethrowAsync(
                 expected,
                 isUniqueConstraintViolation: false,
                 requestedUrl: existing.Url,

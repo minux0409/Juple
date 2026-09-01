@@ -2,9 +2,9 @@ using System.Runtime.ExceptionServices;
 using Juple.Application.Inbox;
 using Microsoft.EntityFrameworkCore;
 
-namespace Juple.Infrastructure.Inbox;
+namespace Juple.Infrastructure.Items;
 
-internal static class InboxEntrySaveRaceRecovery
+internal static class ItemSaveRaceRecovery
 {
     internal static async Task<InboxEntrySaveResult> RecoverOrRethrowAsync(
         DbUpdateException exception,

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Juple.Application.Inbox;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
-using Juple.Infrastructure.Inbox;
+using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
@@ -28,7 +28,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
-        services.AddScoped<IInboxEntryStore, InboxEntryStore>();
+        services.AddScoped<IInboxEntryStore, ItemStore>();
 
         return services;
     }

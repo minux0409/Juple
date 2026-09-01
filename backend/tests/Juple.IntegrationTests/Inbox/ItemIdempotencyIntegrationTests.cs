@@ -1,12 +1,12 @@
 using Juple.Application.Inbox;
 using Juple.Domain.Users;
-using Juple.Infrastructure.Inbox;
+using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.IntegrationTests.Inbox;
 
-public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
+public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
 {
     private JupleDbContext _dbContext = null!;
     private long _userId;
@@ -32,7 +32,7 @@ public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"DELETE FROM inbox.InboxEntries WHERE UserId = {_userId}");
+            $"DELETE FROM items.Items WHERE UserId = {_userId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM users.Users WHERE Id = {_userId}");
         await _dbContext.DisposeAsync();
@@ -41,7 +41,7 @@ public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SaveAsync_FirstRequestWithClientRequestId_CreatesEntry()
     {
-        var store = new InboxEntryStore(_dbContext);
+        var store = new ItemStore(_dbContext);
         var clientRequestId = Guid.NewGuid();
 
         var result = await store.SaveAsync(
@@ -54,7 +54,7 @@ public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SaveAsync_ReplayWithSameUrl_DoesNotCreateSecondRow()
     {
-        var store = new InboxEntryStore(_dbContext);
+        var store = new ItemStore(_dbContext);
         var clientRequestId = Guid.NewGuid();
         const string url = "https://shop.example/idempotency-b";
 
@@ -71,7 +71,7 @@ public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SaveAsync_ReplayWithDifferentUrl_ThrowsConflictAndDoesNotCreateRow()
     {
-        var store = new InboxEntryStore(_dbContext);
+        var store = new ItemStore(_dbContext);
         var clientRequestId = Guid.NewGuid();
 
         await store.SaveAsync(
@@ -88,7 +88,7 @@ public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SaveAsync_WithoutClientRequestId_AllowsSameUrlTwice()
     {
-        var store = new InboxEntryStore(_dbContext);
+        var store = new ItemStore(_dbContext);
         const string url = "https://shop.example/idempotency-d";
 
         var first = await store.SaveAsync(_userId, url, null, DateTimeOffset.UtcNow);
@@ -100,7 +100,7 @@ public sealed class InboxEntryIdempotencyIntegrationTests : IAsyncLifetime
     }
 
     private async Task<int> CountEntriesAsync(Guid clientRequestId) =>
-        await _dbContext.InboxEntries
-            .Where(entry => entry.UserId == _userId && entry.ClientRequestId == clientRequestId)
+        await _dbContext.Items
+            .Where(item => item.UserId == _userId && item.ClientRequestId == clientRequestId)
             .CountAsync();
 }
