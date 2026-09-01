@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\Juple.Domain\Juple.Domain.csproj" />
     <ProjectReference Include="..\..\src\Juple.Application\Juple.Application.csproj" />
     <ProjectReference Include="..\..\src\Juple.Infrastructure\Juple.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Juple.Api\Juple.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

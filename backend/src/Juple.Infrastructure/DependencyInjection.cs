@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
         services.AddScoped<IInboxEntryStore, ItemStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();
+        services.AddScoped<IItemQueryStore, ItemStore>();
 
         return services;
     }

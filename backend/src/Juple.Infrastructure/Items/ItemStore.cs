@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Items;
 
-public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IItemLifecycleStore
+public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IItemLifecycleStore, IItemQueryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -122,5 +122,39 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
         {
             throw new ItemConcurrencyException(exception);
         }
+    }
+
+    public async Task<ItemPage> GetByStateAsync(
+        long userId,
+        ItemState state,
+        ItemPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.UserId == userId && item.State == state);
+
+        if (cursor is not null)
+        {
+            query = query.Where(item =>
+                item.StateChangedAtUtc < cursor.StateChangedAtUtc
+                || (item.StateChangedAtUtc == cursor.StateChangedAtUtc && item.Id < cursor.Id));
+        }
+
+        var page = await query
+            .OrderByDescending(item => item.StateChangedAtUtc)
+            .ThenByDescending(item => item.Id)
+            .Take(limit + 1)
+            .Select(item => new ItemListEntryDto(item.Id, item.Url, item.SavedAtUtc, item.StateChangedAtUtc))
+            .ToListAsync(cancellationToken);
+
+        var hasMore = page.Count > limit;
+        var items = hasMore ? page.GetRange(0, limit) : page;
+        var nextCursor = hasMore
+            ? new ItemPageCursor(items[^1].StateChangedAtUtc, items[^1].Id)
+            : null;
+
+        return new ItemPage(items, nextCursor);
     }
 }
