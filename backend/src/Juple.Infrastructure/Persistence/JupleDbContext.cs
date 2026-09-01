@@ -1,5 +1,6 @@
 using Juple.Domain.Categories;
 using Juple.Domain.Identity;
+using Juple.Domain.Images;
 using Juple.Domain.Items;
 using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<ItemSaveRequest> ItemSaveRequests => Set<ItemSaveRequest>();
 
     public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<ItemImage> ItemImages => Set<ItemImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
