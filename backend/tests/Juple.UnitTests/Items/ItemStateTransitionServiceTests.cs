@@ -88,6 +88,12 @@ public sealed class ItemStateTransitionServiceTests
             return Task.CompletedTask;
         }
 
+        public Task DeleteAsync(long userId, long itemId, CancellationToken cancellationToken = default)
+        {
+            ThrowIfConfigured();
+            return Task.CompletedTask;
+        }
+
         private void ThrowIfConfigured()
         {
             if (ThrowNotFound)

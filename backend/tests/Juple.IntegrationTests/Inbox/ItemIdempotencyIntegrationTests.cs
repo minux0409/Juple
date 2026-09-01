@@ -125,11 +125,11 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
         var first = await store.SaveAsync(_userId, url, clientRequestId, savedAt);
         _dbContext.ChangeTracker.Clear();
 
-        // No DELETE API exists yet; simulate a future hard-delete directly to prove the ledger
-        // is fully independent of the Item's own lifecycle - this is the core success criterion
-        // of the idempotency-ledger refactor.
-        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"DELETE FROM items.Items WHERE Id = {first.Entry.Id}");
+        // Uses the real Item.DeleteAsync path (not a raw SQL simulation) to prove the ledger is
+        // fully independent of the Item's own lifecycle - this is the core success criterion of
+        // the idempotency-ledger refactor.
+        await store.DeleteAsync(_userId, first.Entry.Id);
+        _dbContext.ChangeTracker.Clear();
 
         var replay = await store.SaveAsync(_userId, url, clientRequestId, DateTimeOffset.UtcNow);
 
@@ -150,8 +150,8 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
             _userId, "https://shop.example/idempotency-deleted-c1", clientRequestId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"DELETE FROM items.Items WHERE Id = {first.Entry.Id}");
+        await store.DeleteAsync(_userId, first.Entry.Id);
+        _dbContext.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<InboxEntryClientRequestConflictException>(() =>
             store.SaveAsync(

@@ -141,6 +141,43 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
         }
     }
 
+    public async Task DeleteAsync(
+        long userId,
+        long itemId,
+        CancellationToken cancellationToken = default)
+    {
+        // Deliberately does not touch ItemSaveRequests: that ledger is independent of the
+        // Item's lifecycle and must survive this delete (see ItemSaveRequestConfiguration).
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
+        if (item is null)
+        {
+            return;
+        }
+
+        dbContext.Items.Remove(item);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            dbContext.ChangeTracker.Clear();
+            var stillExists = await dbContext.Items
+                .AsNoTracking()
+                .AnyAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
+            if (stillExists)
+            {
+                throw new ItemConcurrencyException(exception);
+            }
+
+            // The Item was gone by the time the DELETE ran (a concurrent delete of the same
+            // Item) - the desired end state (absent) was already reached, so this is not a
+            // conflict.
+        }
+    }
+
     public async Task<ItemPage> GetByStateAsync(
         long userId,
         ItemState state,

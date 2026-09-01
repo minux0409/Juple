@@ -2,6 +2,7 @@ using Juple.Api.Authentication;
 using Juple.Api.Items;
 using Juple.Application.Identity;
 using Juple.Application.Items;
+using Juple.Application.Items.DeleteItem;
 using Juple.Application.Items.GetItemsByState;
 using Juple.Application.Items.ItemStateTransition;
 using Juple.Application.Users.CurrentUser;
@@ -17,7 +18,8 @@ public sealed class ItemsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
     IItemStateTransitionService itemStateTransitionService,
-    IGetItemsByStateService getItemsByStateService) : ControllerBase
+    IGetItemsByStateService getItemsByStateService,
+    IDeleteItemService deleteItemService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetByStateAsync(
@@ -82,6 +84,12 @@ public sealed class ItemsController(
     public Task<IActionResult> MoveToArchiveAsync(long id, CancellationToken cancellationToken) =>
         TransitionAsync(
             userId => itemStateTransitionService.MoveToArchiveAsync(userId, id, cancellationToken),
+            cancellationToken);
+
+    [HttpDelete("{id:long}")]
+    public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => deleteItemService.DeleteAsync(userId, id, cancellationToken),
             cancellationToken);
 
     private async Task<IActionResult> TransitionAsync(
