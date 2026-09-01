@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IInboxEntryStore, ItemStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();
         services.AddScoped<IItemQueryStore, ItemStore>();
+        services.AddScoped<IItemDetailsStore, ItemStore>();
 
         return services;
     }

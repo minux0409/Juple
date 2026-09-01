@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Items;
 
-public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IItemLifecycleStore, IItemQueryStore
+public sealed class ItemStore(JupleDbContext dbContext) :
+    IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -66,7 +67,7 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
         return new InboxEntrySaveResult(new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc), Created: true);
     }
 
-    public async Task<IReadOnlyList<InboxEntryDto>> GetDailyAsync(
+    public async Task<IReadOnlyList<DailyInboxEntryDto>> GetDailyAsync(
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
@@ -79,7 +80,7 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
                 && item.SavedAtUtc < toUtc)
             .OrderByDescending(item => item.SavedAtUtc)
             .ThenByDescending(item => item.Id)
-            .Select(item => new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc))
+            .Select(item => new DailyInboxEntryDto(item.Id, item.Url, item.Title, item.Memo, item.SavedAtUtc))
             .ToListAsync(cancellationToken);
 
     private static InboxEntrySaveResult BuildReplayResult(InboxEntryDto existing, string requestedUrl)
@@ -141,6 +142,14 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
         }
     }
 
+    public Task UpdateDetailsAsync(
+        long userId,
+        long itemId,
+        string? title,
+        string? memo,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(userId, itemId, item => item.UpdateDetails(title, memo), cancellationToken);
+
     public async Task DeleteAsync(
         long userId,
         long itemId,
@@ -200,7 +209,8 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
             .OrderByDescending(item => item.StateChangedAtUtc)
             .ThenByDescending(item => item.Id)
             .Take(limit + 1)
-            .Select(item => new ItemListEntryDto(item.Id, item.Url, item.SavedAtUtc, item.StateChangedAtUtc))
+            .Select(item => new ItemListEntryDto(
+                item.Id, item.Url, item.Title, item.Memo, item.SavedAtUtc, item.StateChangedAtUtc))
             .ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;

@@ -149,10 +149,10 @@ public sealed class DailyInboxServicesTests
     [Fact]
     public async Task GetAsync_FiltersUsingCurrentUserAndPreservesStoreOrder()
     {
-        var expectedItems = new List<InboxEntryDto>
+        var expectedItems = new List<DailyInboxEntryDto>
         {
-            new(12, "https://example.test/newer", new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero)),
-            new(11, "https://example.test/older", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero)),
+            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero)),
+            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero)),
         };
         var store = new FakeInboxEntryStore { DailyItems = expectedItems };
         var service = new GetDailyInboxService(store, new FixedTimeProvider());
@@ -198,7 +198,7 @@ public sealed class DailyInboxServicesTests
 
         public long? DailyUserId { get; private set; }
 
-        public IReadOnlyList<InboxEntryDto> DailyItems { get; init; } = [];
+        public IReadOnlyList<DailyInboxEntryDto> DailyItems { get; init; } = [];
 
         public Task<InboxEntrySaveResult> SaveAsync(
             long userId,
@@ -232,7 +232,7 @@ public sealed class DailyInboxServicesTests
                 new InboxEntryDto(_nextId++, url, savedAtUtc), Created: true));
         }
 
-        public Task<IReadOnlyList<InboxEntryDto>> GetDailyAsync(
+        public Task<IReadOnlyList<DailyInboxEntryDto>> GetDailyAsync(
             long userId,
             DateTimeOffset fromUtc,
             DateTimeOffset toUtc,

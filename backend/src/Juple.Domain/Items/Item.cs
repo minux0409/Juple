@@ -29,6 +29,27 @@ public sealed class Item
 
     public byte[] RowVersion { get; private set; } = [];
 
+    public string? Title { get; private set; }
+
+    public string? Memo { get; private set; }
+
+    /// <summary>
+    /// Replaces the user-owned Title/Memo. Callers must pass already-normalized values (trimmed,
+    /// empty collapsed to null) - this method only applies them and is a no-op when both are
+    /// already at the requested values, so an unchanged edit does not touch RowVersion. Does not
+    /// affect State or StateChangedAtUtc.
+    /// </summary>
+    public void UpdateDetails(string? title, string? memo)
+    {
+        if (Title == title && Memo == memo)
+        {
+            return;
+        }
+
+        Title = title;
+        Memo = memo;
+    }
+
     public void MoveToWishlist(DateTimeOffset changedAtUtc)
     {
         if (State == ItemState.Wishlist)

@@ -6,6 +6,7 @@ using Juple.Application.Inbox.SaveInboxEntry;
 using Juple.Application.Items.DeleteItem;
 using Juple.Application.Items.GetItemsByState;
 using Juple.Application.Items.ItemStateTransition;
+using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
@@ -25,6 +26,7 @@ builder.Services.AddScoped<IGetDailyInboxService, GetDailyInboxService>();
 builder.Services.AddScoped<IItemStateTransitionService, ItemStateTransitionService>();
 builder.Services.AddScoped<IGetItemsByStateService, GetItemsByStateService>();
 builder.Services.AddScoped<IDeleteItemService, DeleteItemService>();
+builder.Services.AddScoped<IUpdateItemDetailsService, UpdateItemDetailsService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(

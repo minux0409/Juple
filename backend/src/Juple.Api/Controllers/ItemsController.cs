@@ -5,6 +5,7 @@ using Juple.Application.Items;
 using Juple.Application.Items.DeleteItem;
 using Juple.Application.Items.GetItemsByState;
 using Juple.Application.Items.ItemStateTransition;
+using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +20,8 @@ public sealed class ItemsController(
     ICurrentJupleUserAccessor currentUserAccessor,
     IItemStateTransitionService itemStateTransitionService,
     IGetItemsByStateService getItemsByStateService,
-    IDeleteItemService deleteItemService) : ControllerBase
+    IDeleteItemService deleteItemService,
+    IUpdateItemDetailsService updateItemDetailsService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetByStateAsync(
@@ -92,6 +94,16 @@ public sealed class ItemsController(
             userId => deleteItemService.DeleteAsync(userId, id, cancellationToken),
             cancellationToken);
 
+    [HttpPut("{id:long}/details")]
+    public Task<IActionResult> UpdateDetailsAsync(
+        long id,
+        UpdateItemDetailsRequest request,
+        CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => updateItemDetailsService.UpdateAsync(
+                userId, id, new UpdateItemDetailsCommand(request.Title, request.Memo), cancellationToken),
+            cancellationToken);
+
     private async Task<IActionResult> TransitionAsync(
         Func<long, Task> transition,
         CancellationToken cancellationToken)
@@ -102,6 +114,13 @@ public sealed class ItemsController(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             await transition(currentUser.UserId);
             return NoContent();
+        }
+        catch (InvalidItemDetailsException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -122,4 +141,6 @@ public sealed class ItemsController(
     }
 
     public sealed record ItemsPageResponse(IReadOnlyList<ItemListEntryDto> Items, string? NextCursor);
+
+    public sealed record UpdateItemDetailsRequest(string? Title, string? Memo);
 }

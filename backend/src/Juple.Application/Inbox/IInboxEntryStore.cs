@@ -9,7 +9,7 @@ public interface IInboxEntryStore
         DateTimeOffset savedAtUtc,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<InboxEntryDto>> GetDailyAsync(
+    Task<IReadOnlyList<DailyInboxEntryDto>> GetDailyAsync(
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,

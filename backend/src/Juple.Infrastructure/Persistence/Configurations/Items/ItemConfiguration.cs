@@ -44,6 +44,14 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
             .IsRowVersion()
             .IsConcurrencyToken();
 
+        builder.Property(item => item.Title)
+            .HasColumnType("nvarchar(500)")
+            .HasMaxLength(500);
+
+        builder.Property(item => item.Memo)
+            .HasColumnType("nvarchar(4000)")
+            .HasMaxLength(4000);
+
         builder.HasIndex(item => new { item.UserId, item.SavedAtUtc, item.Id })
             .HasDatabaseName("IX_Items_UserId_SavedAtUtc_Id");
 
