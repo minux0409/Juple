@@ -3,6 +3,7 @@ using Juple.Api.Authentication;
 using Juple.Application.Identity;
 using Juple.Application.Inbox.GetDailyInbox;
 using Juple.Application.Inbox.SaveInboxEntry;
+using Juple.Application.Items.ItemStateTransition;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
@@ -19,6 +20,7 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
 builder.Services.AddScoped<IGetDailyInboxService, GetDailyInboxService>();
+builder.Services.AddScoped<IItemStateTransitionService, ItemStateTransitionService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(

@@ -1,4 +1,5 @@
 using Juple.Application.Inbox;
+using Juple.Application.Items;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Items;
 
-public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore
+public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IItemLifecycleStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -83,4 +84,43 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore
             .Where(item => item.UserId == userId && item.ClientRequestId == clientRequestId)
             .Select(item => new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
+
+    public Task MoveToWishlistAsync(
+        long userId,
+        long itemId,
+        DateTimeOffset changedAtUtc,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(userId, itemId, item => item.MoveToWishlist(changedAtUtc), cancellationToken);
+
+    public Task MoveToArchiveAsync(
+        long userId,
+        long itemId,
+        DateTimeOffset changedAtUtc,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(userId, itemId, item => item.MoveToArchive(changedAtUtc), cancellationToken);
+
+    private async Task TransitionAsync(
+        long userId,
+        long itemId,
+        Action<Item> applyTransition,
+        CancellationToken cancellationToken)
+    {
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
+        if (item is null)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        applyTransition(item);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ItemConcurrencyException(exception);
+        }
+    }
 }

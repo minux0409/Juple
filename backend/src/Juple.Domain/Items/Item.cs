@@ -31,4 +31,26 @@ public sealed class Item
     public DateTimeOffset StateChangedAtUtc { get; private set; }
 
     public byte[] RowVersion { get; private set; } = [];
+
+    public void MoveToWishlist(DateTimeOffset changedAtUtc)
+    {
+        if (State == ItemState.Wishlist)
+        {
+            return;
+        }
+
+        State = ItemState.Wishlist;
+        StateChangedAtUtc = changedAtUtc;
+    }
+
+    public void MoveToArchive(DateTimeOffset changedAtUtc)
+    {
+        if (State == ItemState.Archived)
+        {
+            return;
+        }
+
+        State = ItemState.Archived;
+        StateChangedAtUtc = changedAtUtc;
+    }
 }

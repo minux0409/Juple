@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Juple.Application.Inbox;
+using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Items;
@@ -29,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
         services.AddScoped<IInboxEntryStore, ItemStore>();
+        services.AddScoped<IItemLifecycleStore, ItemStore>();
 
         return services;
     }
