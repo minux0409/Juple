@@ -13,6 +13,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Item> Items => Set<Item>();
 
+    public DbSet<ItemSaveRequest> ItemSaveRequests => Set<ItemSaveRequest>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

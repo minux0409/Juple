@@ -9,17 +9,18 @@ namespace Juple.IntegrationTests.Inbox;
 public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
 {
     private JupleDbContext _dbContext = null!;
+    private string _connectionString = null!;
     private long _userId;
 
     public async Task InitializeAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")
+        _connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")
             ?? throw new InvalidOperationException(
                 "ConnectionStrings__JupleDatabase must be set to run inbox idempotency integration tests " +
                 "against a local SQL Server instance.");
 
         var options = new DbContextOptionsBuilder<JupleDbContext>()
-            .UseSqlServer(connectionString)
+            .UseSqlServer(_connectionString)
             .Options;
         _dbContext = new JupleDbContext(options);
 
@@ -31,6 +32,8 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM items.ItemSaveRequests WHERE UserId = {_userId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM items.Items WHERE UserId = {_userId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
@@ -48,7 +51,7 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
             _userId, "https://shop.example/idempotency-a", clientRequestId, DateTimeOffset.UtcNow);
 
         Assert.True(result.Created);
-        Assert.Equal(1, await CountEntriesAsync(clientRequestId));
+        Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
     }
 
     [Fact]
@@ -65,7 +68,8 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
         Assert.True(first.Created);
         Assert.False(replay.Created);
         Assert.Equal(first.Entry.Id, replay.Entry.Id);
-        Assert.Equal(1, await CountEntriesAsync(clientRequestId));
+        Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
+        Assert.Equal(1, await CountItemsAsync());
     }
 
     [Fact]
@@ -82,7 +86,8 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
             store.SaveAsync(
                 _userId, "https://shop.example/idempotency-c2", clientRequestId, DateTimeOffset.UtcNow));
 
-        Assert.Equal(1, await CountEntriesAsync(clientRequestId));
+        Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
+        Assert.Equal(1, await CountItemsAsync());
     }
 
     [Fact]
@@ -99,8 +104,93 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
         Assert.NotEqual(first.Entry.Id, second.Entry.Id);
     }
 
-    private async Task<int> CountEntriesAsync(Guid clientRequestId) =>
-        await _dbContext.Items
-            .Where(item => item.UserId == _userId && item.ClientRequestId == clientRequestId)
+    [Fact]
+    public async Task SaveAsync_WithoutClientRequestId_CreatesNoSaveRequestRow()
+    {
+        var store = new ItemStore(_dbContext);
+
+        await store.SaveAsync(_userId, "https://shop.example/idempotency-manual", null, DateTimeOffset.UtcNow);
+
+        Assert.Equal(0, await _dbContext.ItemSaveRequests.Where(request => request.UserId == _userId).CountAsync());
+    }
+
+    [Fact]
+    public async Task SaveAsync_ReplayAfterItemHardDeleted_DoesNotRecreateItemAndReturnsOriginalSnapshot()
+    {
+        var store = new ItemStore(_dbContext);
+        var clientRequestId = Guid.NewGuid();
+        const string url = "https://shop.example/idempotency-deleted";
+        var savedAt = DateTimeOffset.UtcNow;
+
+        var first = await store.SaveAsync(_userId, url, clientRequestId, savedAt);
+        _dbContext.ChangeTracker.Clear();
+
+        // No DELETE API exists yet; simulate a future hard-delete directly to prove the ledger
+        // is fully independent of the Item's own lifecycle - this is the core success criterion
+        // of the idempotency-ledger refactor.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM items.Items WHERE Id = {first.Entry.Id}");
+
+        var replay = await store.SaveAsync(_userId, url, clientRequestId, DateTimeOffset.UtcNow);
+
+        Assert.False(replay.Created);
+        Assert.Equal(first.Entry.Id, replay.Entry.Id);
+        Assert.Equal(url, replay.Entry.Url);
+        Assert.Equal(first.Entry.SavedAtUtc, replay.Entry.SavedAtUtc);
+        Assert.Equal(0, await CountItemsAsync());
+    }
+
+    [Fact]
+    public async Task SaveAsync_ReplayWithDifferentUrlAfterItemHardDeleted_StillThrowsConflict()
+    {
+        var store = new ItemStore(_dbContext);
+        var clientRequestId = Guid.NewGuid();
+
+        var first = await store.SaveAsync(
+            _userId, "https://shop.example/idempotency-deleted-c1", clientRequestId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM items.Items WHERE Id = {first.Entry.Id}");
+
+        await Assert.ThrowsAsync<InboxEntryClientRequestConflictException>(() =>
+            store.SaveAsync(
+                _userId, "https://shop.example/idempotency-deleted-c2", clientRequestId, DateTimeOffset.UtcNow));
+
+        Assert.Equal(0, await CountItemsAsync());
+    }
+
+    [Fact]
+    public async Task SaveAsync_ConcurrentSameClientRequestId_CreatesExactlyOneItemAndOneSaveRequest()
+    {
+        var clientRequestId = Guid.NewGuid();
+        const string url = "https://shop.example/idempotency-race";
+        var savedAt = DateTimeOffset.UtcNow;
+
+        var options = new DbContextOptionsBuilder<JupleDbContext>()
+            .UseSqlServer(_connectionString)
+            .Options;
+        await using var dbContextA = new JupleDbContext(options);
+        await using var dbContextB = new JupleDbContext(options);
+        var storeA = new ItemStore(dbContextA);
+        var storeB = new ItemStore(dbContextB);
+
+        var results = await Task.WhenAll(
+            storeA.SaveAsync(_userId, url, clientRequestId, savedAt),
+            storeB.SaveAsync(_userId, url, clientRequestId, savedAt));
+
+        Assert.Single(results, result => result.Created);
+        Assert.Single(results, result => !result.Created);
+        Assert.Equal(results[0].Entry.Id, results[1].Entry.Id);
+        Assert.Equal(1, await CountItemsAsync());
+        Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
+    }
+
+    private async Task<int> CountSaveRequestsAsync(Guid clientRequestId) =>
+        await _dbContext.ItemSaveRequests
+            .Where(request => request.UserId == _userId && request.ClientRequestId == clientRequestId)
             .CountAsync();
+
+    private async Task<int> CountItemsAsync() =>
+        await _dbContext.Items.Where(item => item.UserId == _userId).CountAsync();
 }

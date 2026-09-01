@@ -28,9 +28,6 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasMaxLength(4096)
             .IsRequired();
 
-        builder.Property(item => item.ClientRequestId)
-            .HasColumnType("uniqueidentifier");
-
         builder.Property(item => item.SavedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();
@@ -52,11 +49,6 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
 
         builder.HasIndex(item => new { item.UserId, item.State, item.StateChangedAtUtc, item.Id })
             .HasDatabaseName("IX_Items_UserId_State_StateChangedAtUtc_Id");
-
-        builder.HasIndex(item => new { item.UserId, item.ClientRequestId })
-            .IsUnique()
-            .HasDatabaseName("UX_Items_UserId_ClientRequestId")
-            .HasFilter("[ClientRequestId] IS NOT NULL");
 
         builder.HasOne<User>()
             .WithMany()

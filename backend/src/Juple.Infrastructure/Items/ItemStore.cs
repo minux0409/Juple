@@ -18,35 +18,52 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
     {
         if (clientRequestId is { } requestId)
         {
-            var existing = await FindByClientRequestIdAsync(userId, requestId, cancellationToken);
-            if (existing is not null)
+            var existingRequest = await FindSaveRequestAsync(userId, requestId, cancellationToken);
+            if (existingRequest is not null)
             {
-                return BuildReplayResult(existing, url);
+                return BuildReplayResult(existingRequest, url);
             }
         }
 
-        var item = new Item(userId, url, clientRequestId, savedAtUtc);
+        var item = new Item(userId, url, savedAtUtc);
         dbContext.Items.Add(item);
+
+        if (clientRequestId is null)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return new InboxEntrySaveResult(new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc), Created: true);
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        // Flush the Item insert first so its generated Id is available for the ledger row below.
+        // ItemSaveRequest.ItemId is deliberately not a foreign key (see ItemSaveRequestConfiguration),
+        // so EF cannot fix it up automatically via a navigation - it must be assigned explicitly.
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var saveRequest = new ItemSaveRequest(userId, clientRequestId.Value, item.Id, url, savedAtUtc);
+        dbContext.ItemSaveRequests.Add(saveRequest);
 
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (clientRequestId is not null)
+        catch (DbUpdateException exception)
         {
-            return await ItemSaveRaceRecovery.RecoverOrRethrowAsync(
+            return await ItemSaveRequestRaceRecovery.RecoverOrRethrowAsync(
                 exception,
                 SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception),
                 url,
+                transaction.RollbackAsync,
                 dbContext.ChangeTracker.Clear,
-                lookupCancellationToken => FindByClientRequestIdAsync(
-                    userId, clientRequestId.Value, lookupCancellationToken),
+                lookupCancellationToken =>
+                    FindSaveRequestAsync(userId, clientRequestId.Value, lookupCancellationToken),
                 cancellationToken);
         }
 
-        return new InboxEntrySaveResult(
-            new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc),
-            Created: true);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new InboxEntrySaveResult(new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc), Created: true);
     }
 
     public async Task<IReadOnlyList<InboxEntryDto>> GetDailyAsync(
@@ -75,14 +92,14 @@ public sealed class ItemStore(JupleDbContext dbContext) : IInboxEntryStore, IIte
         return new InboxEntrySaveResult(existing, Created: false);
     }
 
-    private Task<InboxEntryDto?> FindByClientRequestIdAsync(
+    private Task<InboxEntryDto?> FindSaveRequestAsync(
         long userId,
         Guid clientRequestId,
         CancellationToken cancellationToken) =>
-        dbContext.Items
+        dbContext.ItemSaveRequests
             .AsNoTracking()
-            .Where(item => item.UserId == userId && item.ClientRequestId == clientRequestId)
-            .Select(item => new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc))
+            .Where(request => request.UserId == userId && request.ClientRequestId == clientRequestId)
+            .Select(request => new InboxEntryDto(request.ItemId, request.Url, request.SavedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
 
     public Task MoveToWishlistAsync(

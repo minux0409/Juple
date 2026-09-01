@@ -9,7 +9,7 @@ public sealed class ItemTests
     [Fact]
     public void Constructor_SetsInboxStateAndStateChangedAtUtcToSavedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
 
         Assert.Equal(ItemState.Inbox, item.State);
         Assert.Equal(SavedAt, item.StateChangedAtUtc);
@@ -18,7 +18,7 @@ public sealed class ItemTests
     [Fact]
     public void MoveToWishlist_FromInbox_ChangesStateAndStateChangedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
         var changedAt = SavedAt.AddHours(1);
 
         item.MoveToWishlist(changedAt);
@@ -30,7 +30,7 @@ public sealed class ItemTests
     [Fact]
     public void MoveToArchive_FromInbox_ChangesStateAndStateChangedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
         var changedAt = SavedAt.AddHours(1);
 
         item.MoveToArchive(changedAt);
@@ -42,7 +42,7 @@ public sealed class ItemTests
     [Fact]
     public void MoveToArchive_FromWishlist_ChangesStateAndStateChangedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
         item.MoveToWishlist(SavedAt.AddHours(1));
         var changedAt = SavedAt.AddHours(2);
 
@@ -55,7 +55,7 @@ public sealed class ItemTests
     [Fact]
     public void MoveToWishlist_FromArchived_ChangesStateAndStateChangedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
         item.MoveToArchive(SavedAt.AddHours(1));
         var changedAt = SavedAt.AddHours(2);
 
@@ -68,7 +68,7 @@ public sealed class ItemTests
     [Fact]
     public void MoveToWishlist_WhenAlreadyWishlist_IsNoOpAndKeepsStateChangedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
         var firstChange = SavedAt.AddHours(1);
         item.MoveToWishlist(firstChange);
 
@@ -81,7 +81,7 @@ public sealed class ItemTests
     [Fact]
     public void MoveToArchive_WhenAlreadyArchived_IsNoOpAndKeepsStateChangedAtUtc()
     {
-        var item = new Item(17, "https://shop.example/item", null, SavedAt);
+        var item = new Item(17, "https://shop.example/item", SavedAt);
         var firstChange = SavedAt.AddHours(1);
         item.MoveToArchive(firstChange);
 

@@ -6,11 +6,10 @@ public sealed class Item
     {
     }
 
-    public Item(long userId, string url, Guid? clientRequestId, DateTimeOffset savedAtUtc)
+    public Item(long userId, string url, DateTimeOffset savedAtUtc)
     {
         UserId = userId;
         Url = url;
-        ClientRequestId = clientRequestId;
         SavedAtUtc = savedAtUtc;
         State = ItemState.Inbox;
         StateChangedAtUtc = savedAtUtc;
@@ -21,8 +20,6 @@ public sealed class Item
     public long UserId { get; private set; }
 
     public string Url { get; private set; } = null!;
-
-    public Guid? ClientRequestId { get; private set; }
 
     public DateTimeOffset SavedAtUtc { get; private set; }
 

@@ -32,6 +32,8 @@ public sealed class ItemStateTransitionIntegrationTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM items.ItemSaveRequests WHERE UserId = {_userId}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM items.Items WHERE UserId = {_userId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM users.Users WHERE Id = {_userId}");
@@ -89,7 +91,7 @@ public sealed class ItemStateTransitionIntegrationTests : IAsyncLifetime
 
         Assert.False(replay.Created);
         Assert.Equal(first.Entry.Id, replay.Entry.Id);
-        Assert.Equal(1, await CountItemsAsync(clientRequestId));
+        Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
 
         var state = await _dbContext.Items
             .AsNoTracking()
@@ -122,8 +124,8 @@ public sealed class ItemStateTransitionIntegrationTests : IAsyncLifetime
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => otherDbContext.SaveChangesAsync());
     }
 
-    private async Task<int> CountItemsAsync(Guid clientRequestId) =>
-        await _dbContext.Items
-            .Where(item => item.UserId == _userId && item.ClientRequestId == clientRequestId)
+    private async Task<int> CountSaveRequestsAsync(Guid clientRequestId) =>
+        await _dbContext.ItemSaveRequests
+            .Where(request => request.UserId == _userId && request.ClientRequestId == clientRequestId)
             .CountAsync();
 }

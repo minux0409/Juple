@@ -4,12 +4,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Items;
 
-internal static class ItemSaveRaceRecovery
+internal static class ItemSaveRequestRaceRecovery
 {
     internal static async Task<InboxEntrySaveResult> RecoverOrRethrowAsync(
         DbUpdateException exception,
         bool isUniqueConstraintViolation,
         string requestedUrl,
+        Func<CancellationToken, Task> rollbackTransactionAsync,
         Action clearChangeTracker,
         Func<CancellationToken, Task<InboxEntryDto?>> findExistingAsync,
         CancellationToken cancellationToken)
@@ -19,6 +20,7 @@ internal static class ItemSaveRaceRecovery
             Rethrow(exception);
         }
 
+        await rollbackTransactionAsync(cancellationToken);
         clearChangeTracker();
 
         var existing = await findExistingAsync(cancellationToken);
