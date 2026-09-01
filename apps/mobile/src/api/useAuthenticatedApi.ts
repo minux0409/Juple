@@ -1,34 +1,11 @@
-import { useCallback } from 'react';
-import { useAuth } from '../auth/AuthContext';
-import { ApiError } from './ApiError';
-import { requestApi, type ApiRequest, type ApiResponse } from './apiClient';
+import {
+  requestAuthenticatedApi,
+  type AuthenticatedApiRequest,
+} from './authenticatedApiClient';
 
-export type AuthenticatedApiRequest = <T>(
-  request: Omit<ApiRequest, 'accessToken'>,
-) => Promise<ApiResponse<T>>;
+export type { AuthenticatedApiRequest };
 
+/** Thin React adapter over the plain authenticated API client; no retry logic lives here. */
 export function useAuthenticatedApi(): AuthenticatedApiRequest {
-  const { getValidAccessToken } = useAuth();
-
-  return useCallback(
-    async <T>(
-      request: Omit<ApiRequest, 'accessToken'>,
-    ): Promise<ApiResponse<T>> => {
-      const accessToken = await getValidAccessToken();
-
-      try {
-        return await requestApi<T>({ ...request, accessToken });
-      } catch (error) {
-        if (!(error instanceof ApiError) || error.kind !== 'unauthorized') {
-          throw error;
-        }
-      }
-
-      const refreshedAccessToken = await getValidAccessToken({
-        forceRefresh: true,
-      });
-      return requestApi<T>({ ...request, accessToken: refreshedAccessToken });
-    },
-    [getValidAccessToken],
-  );
+  return requestAuthenticatedApi;
 }
