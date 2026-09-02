@@ -93,3 +93,47 @@ export async function createPurchase(
 
   return response.body;
 }
+
+/** GETs a single Purchase by id; the caller decides how a 404 (`ApiError.kind === 'notFound'`) is shown. */
+export async function getPurchase(
+  request: AuthenticatedApiRequest,
+  id: number,
+): Promise<Purchase> {
+  const response = await request<Purchase>({
+    method: 'GET',
+    path: `/api/v1/purchases/${id}`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Purchase body.');
+  }
+
+  return response.body;
+}
+
+/** Same wire shape as CreatePurchaseInput - PUT is a full replacement, so every field is required. */
+export type UpdatePurchaseInput = CreatePurchaseInput;
+
+/** PUTs a full replacement of a Purchase; resolves on 204 (mirrors PurchasesController.UpdateAsync). */
+export async function updatePurchase(
+  request: AuthenticatedApiRequest,
+  id: number,
+  input: UpdatePurchaseInput,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/purchases/${id}`,
+    body: input,
+  });
+}
+
+/**
+ * DELETEs a Purchase; resolves on 204. The Backend's DeleteAsync is idempotent (a missing/already
+ * deleted id still returns 204), so there is no notFound case to special-case here.
+ */
+export async function deletePurchase(request: AuthenticatedApiRequest, id: number): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/purchases/${id}`,
+  });
+}

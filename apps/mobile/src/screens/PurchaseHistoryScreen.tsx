@@ -20,33 +20,40 @@ export function PurchaseHistoryScreen() {
   const { purchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
     usePurchaseList();
 
-  const renderItem = useCallback(({ item }: { item: Purchase }) => {
-    const secondaryParts = [item.store, item.variant].filter(
-      (part): part is string => Boolean(part && part.length > 0),
-    );
+  const renderItem = useCallback(
+    ({ item }: { item: Purchase }) => {
+      const secondaryParts = [item.store, item.variant].filter(
+        (part): part is string => Boolean(part && part.length > 0),
+      );
 
-    return (
-      <View style={styles.row}>
-        <Text numberOfLines={2} style={styles.productName}>
-          {item.productName}
-        </Text>
-        <Text style={styles.purchaseDate}>{formatDateOnlyForDisplay(item.purchaseDate)}</Text>
-        {item.amount !== null && item.currencyCode ? (
-          // The raw decimal string from the API, shown verbatim - no Number()/Intl.NumberFormat
-          // conversion, since a value like "999999999999999.9999" is not exactly representable as
-          // a JS Number. Locale-aware money formatting is a later, precision-preserving iteration.
-          <Text style={styles.amount}>
-            {item.amount} {item.currencyCode}
+      return (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('PurchaseDetails', { purchaseId: item.id })}
+          style={styles.row}
+        >
+          <Text numberOfLines={2} style={styles.productName}>
+            {item.productName}
           </Text>
-        ) : null}
-        {secondaryParts.length > 0 ? (
-          <Text numberOfLines={1} style={styles.secondary}>
-            {secondaryParts.join(' · ')}
-          </Text>
-        ) : null}
-      </View>
-    );
-  }, []);
+          <Text style={styles.purchaseDate}>{formatDateOnlyForDisplay(item.purchaseDate)}</Text>
+          {item.amount !== null && item.currencyCode ? (
+            // The raw decimal string from the API, shown verbatim - no Number()/Intl.NumberFormat
+            // conversion, since a value like "999999999999999.9999" is not exactly representable as
+            // a JS Number. Locale-aware money formatting is a later, precision-preserving iteration.
+            <Text style={styles.amount}>
+              {item.amount} {item.currencyCode}
+            </Text>
+          ) : null}
+          {secondaryParts.length > 0 ? (
+            <Text numberOfLines={1} style={styles.secondary}>
+              {secondaryParts.join(' · ')}
+            </Text>
+          ) : null}
+        </Pressable>
+      );
+    },
+    [navigation],
+  );
 
   if (isLoading && purchases.length === 0 && !error) {
     return (

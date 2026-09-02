@@ -1,17 +1,28 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
+import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
+import type { Purchase } from '../purchases/api/purchasesApi';
 import { MainTabs } from './MainTabs';
 
 export type RootStackParamList = {
   MainTabs: undefined;
   ItemDetails: { itemId: number };
   /**
-   * Create-only for now (see PurchaseEditorScreen). itemId/initialProductName are both optional -
-   * present when reached from ItemDetailsScreen (a suggested initial value only, never confirmed
-   * automatically), absent when reached standalone from the Purchase History tab.
+   * Create mode: itemId/initialProductName are both optional - present when reached from
+   * ItemDetailsScreen (a suggested initial value only, never confirmed automatically), absent when
+   * reached standalone from the Purchase History tab.
+   * Edit mode: purchaseId + initialPurchase are both present (set together by PurchaseDetailsScreen)
+   * and prefill the form; itemId/initialProductName are unused in this mode.
    */
-  PurchaseEditor: { itemId?: number; initialProductName?: string };
+  PurchaseEditor: {
+    itemId?: number;
+    initialProductName?: string;
+    purchaseId?: number;
+    initialPurchase?: Purchase;
+  };
+  /** purchaseId only - the screen fetches the current Purchase itself via GET. */
+  PurchaseDetails: { purchaseId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -24,7 +35,14 @@ export function RootStack() {
       <Stack.Screen
         component={PurchaseEditorScreen}
         name="PurchaseEditor"
-        options={{ title: '구매 기록 추가' }}
+        options={({ route }) => ({
+          title: route.params.purchaseId !== undefined ? '구매 기록 수정' : '구매 기록 추가',
+        })}
+      />
+      <Stack.Screen
+        component={PurchaseDetailsScreen}
+        name="PurchaseDetails"
+        options={{ title: '구매 기록 상세' }}
       />
     </Stack.Navigator>
   );

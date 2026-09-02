@@ -12,8 +12,8 @@ import {
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { createPurchase } from '../purchases/api/purchasesApi';
-import { formatDateOnly, formatDateOnlyForDisplay } from '../purchases/dateOnly';
+import { createPurchase, updatePurchase } from '../purchases/api/purchasesApi';
+import { formatDateOnly, formatDateOnlyForDisplay, parseDateOnly } from '../purchases/dateOnly';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PurchaseEditor'>;
 
@@ -79,18 +79,25 @@ function isZeroDecimalText(text: string): boolean {
 }
 
 export function PurchaseEditorScreen({ route, navigation }: Props) {
-  const { itemId, initialProductName } = route.params;
+  const { itemId, initialProductName, purchaseId, initialPurchase } = route.params;
+  // Edit mode is set by PurchaseDetailsScreen, which always passes purchaseId and
+  // initialPurchase together (see RootStackParamList) - create mode otherwise.
+  const isEditMode = purchaseId !== undefined && initialPurchase !== undefined;
   const authenticatedRequest = useAuthenticatedApi();
 
-  const [productName, setProductName] = useState(initialProductName ?? '');
-  const [purchaseDate, setPurchaseDate] = useState(() => new Date());
+  const [productName, setProductName] = useState(
+    initialPurchase?.productName ?? initialProductName ?? '',
+  );
+  const [purchaseDate, setPurchaseDate] = useState(() =>
+    initialPurchase ? parseDateOnly(initialPurchase.purchaseDate) : new Date(),
+  );
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
-  const [amountText, setAmountText] = useState('');
-  const [currencyCode, setCurrencyCode] = useState('');
-  const [store, setStore] = useState('');
-  const [variant, setVariant] = useState('');
-  const [quantityText, setQuantityText] = useState('');
-  const [memo, setMemo] = useState('');
+  const [amountText, setAmountText] = useState(initialPurchase?.amount ?? '');
+  const [currencyCode, setCurrencyCode] = useState(initialPurchase?.currencyCode ?? '');
+  const [store, setStore] = useState(initialPurchase?.store ?? '');
+  const [variant, setVariant] = useState(initialPurchase?.variant ?? '');
+  const [quantityText, setQuantityText] = useState(initialPurchase?.quantity ?? '');
+  const [memo, setMemo] = useState(initialPurchase?.memo ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -163,8 +170,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
     setIsSaving(true);
     setError(null);
     try {
-      await createPurchase(authenticatedRequest, {
-        itemId: itemId ?? null,
+      const fields = {
         productName: trimmedProductName,
         purchaseDate: formatDateOnly(purchaseDate),
         amount: validatedAmount,
@@ -175,7 +181,18 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
         // Only a genuinely empty Memo collapses to null - otherwise preserved verbatim, matching
         // the backend's Memo convention (whitespace/linebreaks are a deliberate user entry).
         memo: memo || null,
-      });
+      };
+
+      if (isEditMode) {
+        // ItemId is never re-derived here - it stays whatever the Purchase already had (including
+        // null), since this screen has no Item picker/search (out of scope for this iteration).
+        await updatePurchase(authenticatedRequest, purchaseId, {
+          itemId: initialPurchase.itemId,
+          ...fields,
+        });
+      } else {
+        await createPurchase(authenticatedRequest, { itemId: itemId ?? null, ...fields });
+      }
       navigation.goBack();
     } catch (caughtError) {
       setError(getSaveErrorMessage(caughtError));
