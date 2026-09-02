@@ -2,6 +2,7 @@ using Juple.Domain.Categories;
 using Juple.Domain.Identity;
 using Juple.Domain.Images;
 using Juple.Domain.Items;
+using Juple.Domain.Purchases;
 using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +21,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<ItemImage> ItemImages => Set<ItemImage>();
+
+    public DbSet<Purchase> Purchases => Set<Purchase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
