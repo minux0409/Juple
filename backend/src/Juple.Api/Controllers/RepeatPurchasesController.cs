@@ -2,11 +2,13 @@ using Juple.Api.Authentication;
 using Juple.Api.RepeatPurchases;
 using Juple.Application.Identity;
 using Juple.Application.Items;
+using Juple.Application.Purchases;
 using Juple.Application.RepeatPurchases;
 using Juple.Application.RepeatPurchases.CreateRepeatPurchase;
 using Juple.Application.RepeatPurchases.DeleteRepeatPurchase;
 using Juple.Application.RepeatPurchases.GetRepeatPurchaseDetail;
 using Juple.Application.RepeatPurchases.ListRepeatPurchases;
+using Juple.Application.RepeatPurchases.LogPurchase;
 using Juple.Application.RepeatPurchases.RepeatPurchaseStateTransition;
 using Juple.Application.RepeatPurchases.UpdateRepeatPurchase;
 using Juple.Application.Users.CurrentUser;
@@ -26,7 +28,8 @@ public sealed class RepeatPurchasesController(
     ICreateRepeatPurchaseService createRepeatPurchaseService,
     IUpdateRepeatPurchaseService updateRepeatPurchaseService,
     IRepeatPurchaseStateTransitionService repeatPurchaseStateTransitionService,
-    IDeleteRepeatPurchaseService deleteRepeatPurchaseService) : ControllerBase
+    IDeleteRepeatPurchaseService deleteRepeatPurchaseService,
+    ILogPurchaseService logPurchaseService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> ListAsync(
@@ -255,6 +258,80 @@ public sealed class RepeatPurchasesController(
             userId => deleteRepeatPurchaseService.DeleteAsync(userId, id, cancellationToken),
             cancellationToken);
 
+    [HttpPost("{id:long}/log-purchase")]
+    public async Task<IActionResult> LogPurchaseAsync(
+        long id,
+        LogPurchaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(request.Version) ||
+            !RepeatPurchaseVersionCodec.TryDecode(request.Version, out var expectedVersion))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["version"] = ["version is required and must be a valid version token."],
+            }));
+        }
+
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var result = await logPurchaseService.LogAsync(
+                currentUser.UserId,
+                id,
+                new LogPurchaseCommand(
+                    request.PurchaseDate,
+                    request.Amount,
+                    request.CurrencyCode,
+                    request.Store,
+                    request.Variant,
+                    request.Quantity,
+                    request.Memo),
+                expectedVersion!,
+                cancellationToken);
+
+            // Both the newly-logged Purchase and the RepeatPurchase's advanced schedule reflect the
+            // same committed transaction - never a partial result (see ILogPurchaseStore.LogAsync).
+            return Ok(new LogPurchaseResponse(
+                PurchasesController.ToResponse(result.Purchase), ToResponse(result.RepeatPurchase)));
+        }
+        catch (InvalidPurchaseException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
+        }
+        catch (InvalidRepeatPurchaseException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (RepeatPurchaseNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ItemNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (RepeatPurchaseConcurrencyException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The RepeatPurchase was modified concurrently.");
+        }
+    }
+
     // Enable/Disable change RowVersion/UpdatedAtUtc (except on an idempotent no-op call, where
     // both stay exactly as they were), so - like Update - they return 200 with the current DTO
     // instead of 204: the client never ends up holding a version that went stale the instant its
@@ -366,4 +443,19 @@ public sealed class RepeatPurchasesController(
         DateOnly? NextPurchaseDate,
         bool IsReminderEnabled,
         int ReminderLeadDays);
+
+    // No ItemId/ProductName/RepeatPurchaseId fields - the client never supplies them for
+    // log-purchase, only the Purchase-specific fields (see LogPurchaseCommand).
+    public sealed record LogPurchaseRequest(
+        string? Version,
+        DateOnly? PurchaseDate,
+        string? Amount,
+        string? CurrencyCode,
+        string? Store,
+        string? Variant,
+        string? Quantity,
+        string? Memo);
+
+    public sealed record LogPurchaseResponse(
+        PurchasesController.PurchaseResponse Purchase, RepeatPurchaseResponse RepeatPurchase);
 }

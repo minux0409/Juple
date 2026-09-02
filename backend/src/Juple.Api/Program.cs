@@ -25,6 +25,7 @@ using Juple.Application.RepeatPurchases.CreateRepeatPurchase;
 using Juple.Application.RepeatPurchases.DeleteRepeatPurchase;
 using Juple.Application.RepeatPurchases.GetRepeatPurchaseDetail;
 using Juple.Application.RepeatPurchases.ListRepeatPurchases;
+using Juple.Application.RepeatPurchases.LogPurchase;
 using Juple.Application.RepeatPurchases.RepeatPurchaseStateTransition;
 using Juple.Application.RepeatPurchases.UpdateRepeatPurchase;
 using Juple.Application.Users.BootstrapCurrentUser;
@@ -64,6 +65,7 @@ builder.Services.AddScoped<ICreateRepeatPurchaseService, CreateRepeatPurchaseSer
 builder.Services.AddScoped<IUpdateRepeatPurchaseService, UpdateRepeatPurchaseService>();
 builder.Services.AddScoped<IRepeatPurchaseStateTransitionService, RepeatPurchaseStateTransitionService>();
 builder.Services.AddScoped<IDeleteRepeatPurchaseService, DeleteRepeatPurchaseService>();
+builder.Services.AddScoped<ILogPurchaseService, LogPurchaseService>();
 builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();

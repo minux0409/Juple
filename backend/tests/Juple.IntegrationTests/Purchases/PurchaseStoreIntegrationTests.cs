@@ -1,10 +1,13 @@
 using System.Data.Common;
 using Juple.Application.Items;
 using Juple.Application.Purchases;
+using Juple.Application.RepeatPurchases;
 using Juple.Domain.Items;
+using Juple.Domain.Purchases;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Purchases;
+using Juple.Infrastructure.RepeatPurchases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -49,6 +52,8 @@ public sealed class PurchaseStoreIntegrationTests : IAsyncLifetime
     {
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM purchases.Purchases WHERE UserId = {_userId} OR UserId = {_otherUserId}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM purchases.RepeatPurchases WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM items.Items WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
@@ -256,6 +261,36 @@ public sealed class PurchaseStoreIntegrationTests : IAsyncLifetime
         Assert.Equal(3m, reloaded.Quantity);
         Assert.Equal("New Memo", reloaded.Memo);
         Assert.Equal(created.CreatedAtUtc, reloaded.CreatedAtUtc);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LeavesRepeatPurchaseIdUntouched()
+    {
+        // The general Update() contract has no RepeatPurchaseId parameter at all (see
+        // Purchase.Update's remarks) - only the dedicated log-purchase use case's
+        // AssignRepeatPurchase may ever set it. This proves a full-replacement PUT genuinely cannot
+        // clear or change an existing link, not just that the wire contract omits the field.
+        var store = new PurchaseStore(_dbContext);
+        var repeatPurchaseStore = new RepeatPurchaseStore(_dbContext);
+        var repeatPurchase = await repeatPurchaseStore.CreateAsync(
+            _userId,
+            new RepeatPurchaseFields(
+                _itemId, "Repeat Product", 30, IntervalUnit.Day, new DateOnly(2026, 9, 30), false, 0),
+            DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, Fields(_itemId, "Original"), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var purchase = await _dbContext.Purchases.SingleAsync(p => p.Id == created.Id);
+        purchase.AssignRepeatPurchase(repeatPurchase.Id);
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        await store.UpdateAsync(_userId, created.Id, Fields(null, "Updated", new DateOnly(2026, 8, 20)));
+        _dbContext.ChangeTracker.Clear();
+
+        var reloaded = await _dbContext.Purchases.AsNoTracking().SingleAsync(p => p.Id == created.Id);
+        Assert.Equal(repeatPurchase.Id, reloaded.RepeatPurchaseId);
+        Assert.Equal("Updated", reloaded.ProductName);
     }
 
     [Fact]

@@ -8,6 +8,7 @@ using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Purchases;
 using Juple.Application.RepeatPurchases;
+using Juple.Application.RepeatPurchases.LogPurchase;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Categories;
@@ -48,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<IPurchaseStore, PurchaseStore>();
         services.AddScoped<IRepeatPurchaseStore, RepeatPurchaseStore>();
+        services.AddScoped<ILogPurchaseStore, LogPurchaseStore>();
         services.AddScoped<IItemImageStore, ItemImageStore>();
         services.AddScoped<IItemImageStorage, ItemImageStore>();
 

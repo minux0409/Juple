@@ -212,7 +212,9 @@ public sealed class PurchasesController(
         }
     }
 
-    private static PurchaseResponse ToResponse(PurchaseDto purchase) => new(
+    // internal (not private) so RepeatPurchasesController's log-purchase endpoint can reuse the
+    // exact same decimal-format/wire-shape mapping instead of duplicating it.
+    internal static PurchaseResponse ToResponse(PurchaseDto purchase) => new(
         purchase.Id,
         purchase.ItemId,
         purchase.ProductName,

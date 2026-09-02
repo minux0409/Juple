@@ -120,4 +120,18 @@ public sealed class RepeatPurchase
         IsEnabled = false;
         UpdatedAtUtc = updatedAtUtc;
     }
+
+    /// <summary>
+    /// Advances the schedule after an actual purchase was logged against this RepeatPurchase -
+    /// NextPurchaseDate is replaced with the newly computed date (deliberately overwriting any
+    /// earlier value, including a manual override - a real purchase is more authoritative than a
+    /// guess; see RepeatPurchaseIntervalCalculator). IsEnabled is left untouched: logging a
+    /// purchase is not the same action as resuming tracking, so a disabled RepeatPurchase stays
+    /// disabled (see Enable/Disable).
+    /// </summary>
+    public void RecordPurchase(DateOnly nextPurchaseDate, DateTimeOffset updatedAtUtc)
+    {
+        NextPurchaseDate = nextPurchaseDate;
+        UpdatedAtUtc = updatedAtUtc;
+    }
 }

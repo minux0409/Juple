@@ -98,4 +98,16 @@ public sealed class Purchase
         Quantity = quantity;
         Memo = memo;
     }
+
+    /// <summary>
+    /// Links this Purchase to the RepeatPurchase it fulfills - called only by the "log a purchase
+    /// for this RepeatPurchase" use case, immediately after construction and before the row is ever
+    /// persisted. Deliberately not a constructor parameter or part of Update(): the general
+    /// Create/Update contract must never set or change this relationship (see RepeatPurchaseId's
+    /// own remarks) - only this dedicated, narrowly-scoped method may.
+    /// </summary>
+    public void AssignRepeatPurchase(long repeatPurchaseId)
+    {
+        RepeatPurchaseId = repeatPurchaseId;
+    }
 }
