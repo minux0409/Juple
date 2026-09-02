@@ -64,4 +64,31 @@ public sealed class Purchase
     public string? Memo { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
+
+    /// <summary>
+    /// Full replacement of every user-editable field. Callers must pass already-normalized values,
+    /// and must have already verified ownership of a non-null itemId. CreatedAtUtc is deliberately
+    /// not a parameter here - it is set once at creation and never changes.
+    /// </summary>
+    public void Update(
+        long? itemId,
+        DateOnly purchaseDate,
+        string productName,
+        decimal? amount,
+        string? currencyCode,
+        string? store,
+        string? variant,
+        decimal? quantity,
+        string? memo)
+    {
+        ItemId = itemId;
+        PurchaseDate = purchaseDate;
+        ProductName = productName;
+        Amount = amount;
+        CurrencyCode = currencyCode;
+        Store = store;
+        Variant = variant;
+        Quantity = quantity;
+        Memo = memo;
+    }
 }
