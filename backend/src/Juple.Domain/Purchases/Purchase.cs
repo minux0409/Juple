@@ -47,6 +47,13 @@ public sealed class Purchase
 
     public long? ItemId { get; private set; }
 
+    /// <summary>
+    /// Set only by the future "log a purchase for this RepeatPurchase" use case - not a constructor
+    /// or Update() parameter in this commit, so every Purchase created through the existing
+    /// create/update contract still has this null, exactly like an already-persisted row.
+    /// </summary>
+    public long? RepeatPurchaseId { get; private set; }
+
     public DateOnly PurchaseDate { get; private set; }
 
     public string ProductName { get; private set; } = null!;

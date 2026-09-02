@@ -24,6 +24,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Purchase> Purchases => Set<Purchase>();
 
+    public DbSet<RepeatPurchase> RepeatPurchases => Set<RepeatPurchase>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

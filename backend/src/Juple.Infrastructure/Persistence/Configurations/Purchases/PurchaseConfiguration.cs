@@ -43,6 +43,9 @@ public sealed class PurchaseConfiguration : IEntityTypeConfiguration<Purchase>
         builder.Property(purchase => purchase.ItemId)
             .HasColumnType("bigint");
 
+        builder.Property(purchase => purchase.RepeatPurchaseId)
+            .HasColumnType("bigint");
+
         builder.Property(purchase => purchase.PurchaseDate)
             .HasColumnType("date")
             .IsRequired();
@@ -87,6 +90,12 @@ public sealed class PurchaseConfiguration : IEntityTypeConfiguration<Purchase>
         builder.HasIndex(purchase => purchase.ItemId)
             .HasDatabaseName("IX_Purchases_ItemId");
 
+        // Same rationale as IX_Purchases_ItemId - a RepeatPurchase-scoped lookup ("purchases logged
+        // against this repeat setting") needs its own index since SQL Server does not add one for
+        // an FK column automatically.
+        builder.HasIndex(purchase => purchase.RepeatPurchaseId)
+            .HasDatabaseName("IX_Purchases_RepeatPurchaseId");
+
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(purchase => purchase.UserId)
@@ -99,6 +108,13 @@ public sealed class PurchaseConfiguration : IEntityTypeConfiguration<Purchase>
         builder.HasOne<Item>()
             .WithMany()
             .HasForeignKey(purchase => purchase.ItemId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Deleting a RepeatPurchase must never delete the Purchase history logged against it - only
+        // detach the reference, mirroring the ItemId SET NULL behavior directly above.
+        builder.HasOne<RepeatPurchase>()
+            .WithMany()
+            .HasForeignKey(purchase => purchase.RepeatPurchaseId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }
