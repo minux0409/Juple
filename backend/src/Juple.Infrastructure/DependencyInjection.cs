@@ -7,6 +7,7 @@ using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Purchases;
+using Juple.Application.RepeatPurchases;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Categories;
@@ -14,6 +15,7 @@ using Juple.Infrastructure.Images;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Purchases;
+using Juple.Infrastructure.RepeatPurchases;
 using Juple.Infrastructure.Storage;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
@@ -45,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<IItemCategoryStore, ItemStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<IPurchaseStore, PurchaseStore>();
+        services.AddScoped<IRepeatPurchaseStore, RepeatPurchaseStore>();
         services.AddScoped<IItemImageStore, ItemImageStore>();
         services.AddScoped<IItemImageStorage, ItemImageStore>();
 
