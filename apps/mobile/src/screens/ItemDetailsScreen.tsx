@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { ApiError } from '../api/ApiError';
-import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { useAuthenticatedApi, type AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import {
   createCategory,
   deleteCategory,
@@ -32,7 +32,10 @@ import {
   type ItemImage,
 } from '../images/api/imagesApi';
 import {
+  deleteItem,
   getItemDetails,
+  moveItemToArchive,
+  moveItemToWishlist,
   setItemCategory,
   updateItemDetails,
   type ItemDetails,
@@ -131,6 +134,13 @@ function getImageDeleteErrorMessage(error: unknown): string {
   return '사진을 삭제할 수 없습니다.';
 }
 
+function getItemLifecycleErrorMessage(error: unknown, isDelete: boolean): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return isDelete ? '항목을 삭제할 수 없습니다.' : '항목 상태를 변경할 수 없습니다.';
+}
+
 /** picker/permission failures never reach the server, so this maps react-native-image-picker's own errorCode only. */
 function getImagePickerErrorMessage(errorCode: string | undefined): string {
   if (errorCode === 'permission') {
@@ -196,6 +206,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }, [isCategoryActionInFlight]);
 
   const isCategoryDeleteConfirmOpenRef = useRef(false);
+
+  const [isItemActionInFlight, setIsItemActionInFlight] = useState(false);
+  const [isDeletingItem, setIsDeletingItem] = useState(false);
+  const [itemActionError, setItemActionError] = useState<string | null>(null);
+  const itemActionInFlightRef = useRef(false);
+  const isItemDeleteConfirmOpenRef = useRef(false);
 
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
@@ -506,6 +522,75 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     );
   };
 
+  const runItemStateTransition = async (
+    action: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
+    targetState: ItemDetails['state'],
+  ) => {
+    if (itemActionInFlightRef.current) {
+      return;
+    }
+
+    itemActionInFlightRef.current = true;
+    setIsItemActionInFlight(true);
+    setItemActionError(null);
+    try {
+      await action(authenticatedRequest, itemId);
+      setItem(previous => (previous ? { ...previous, state: targetState } : previous));
+    } catch (caughtError) {
+      setItemActionError(getItemLifecycleErrorMessage(caughtError, false));
+    } finally {
+      itemActionInFlightRef.current = false;
+      setIsItemActionInFlight(false);
+    }
+  };
+
+  const moveToWishlistAction = () => runItemStateTransition(moveItemToWishlist, 'wishlist');
+  const moveToArchiveAction = () => runItemStateTransition(moveItemToArchive, 'archived');
+
+  const deleteItemAction = async () => {
+    if (itemActionInFlightRef.current) {
+      return;
+    }
+
+    itemActionInFlightRef.current = true;
+    setIsItemActionInFlight(true);
+    setIsDeletingItem(true);
+    setItemActionError(null);
+    try {
+      await deleteItem(authenticatedRequest, itemId);
+      navigation.goBack();
+    } catch (caughtError) {
+      setItemActionError(getItemLifecycleErrorMessage(caughtError, true));
+    } finally {
+      itemActionInFlightRef.current = false;
+      setIsItemActionInFlight(false);
+      setIsDeletingItem(false);
+    }
+  };
+
+  const confirmDeleteItem = () => {
+    if (isItemDeleteConfirmOpenRef.current || itemActionInFlightRef.current) {
+      return;
+    }
+    isItemDeleteConfirmOpenRef.current = true;
+
+    const closeConfirmation = () => {
+      isItemDeleteConfirmOpenRef.current = false;
+    };
+
+    Alert.alert('항목을 삭제할까요?', '삭제한 항목은 복구할 수 없습니다.', [
+      { text: '취소', style: 'cancel', onPress: closeConfirmation },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          closeConfirmation();
+          deleteItemAction();
+        },
+      },
+    ], { cancelable: true, onDismiss: closeConfirmation });
+  };
+
   const isDirty = title !== baselineTitle || memo !== baselineMemo;
 
   usePreventRemove(isDirty, ({ data }) => {
@@ -690,6 +775,57 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         style={[styles.saveButton, (!isDirty || isSaving) && styles.disabledButton]}
       >
         <Text style={styles.saveButtonLabel}>{isSaving ? '저장 중...' : '저장'}</Text>
+      </Pressable>
+
+      <Text style={styles.label}>상태 관리</Text>
+      <View style={styles.itemActionRow}>
+        {item.state === 'inbox' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isItemActionInFlight }}
+            disabled={isItemActionInFlight}
+            onPress={moveToWishlistAction}
+            style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
+          >
+            <Text style={styles.itemActionButtonLabel}>위시리스트로</Text>
+          </Pressable>
+        ) : null}
+        {item.state === 'archived' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isItemActionInFlight }}
+            disabled={isItemActionInFlight}
+            onPress={moveToWishlistAction}
+            style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
+          >
+            <Text style={styles.itemActionButtonLabel}>위시리스트로</Text>
+          </Pressable>
+        ) : null}
+        {item.state === 'inbox' || item.state === 'wishlist' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isItemActionInFlight }}
+            disabled={isItemActionInFlight}
+            onPress={moveToArchiveAction}
+            style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
+          >
+            <Text style={styles.itemActionButtonLabel}>보관</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
+        disabled={isItemActionInFlight}
+        onPress={confirmDeleteItem}
+        style={[styles.itemDeleteButton, isItemActionInFlight && styles.disabledButton]}
+      >
+        <Text style={styles.itemDeleteButtonLabel}>
+          {isDeletingItem ? '삭제 중...' : '삭제'}
+        </Text>
       </Pressable>
 
       <Modal
@@ -939,6 +1075,35 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  itemActionRow: {
+    flexDirection: 'row',
+  },
+  itemActionButton: {
+    alignItems: 'center',
+    borderColor: '#9A9A9A',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    marginRight: 10,
+    paddingVertical: 10,
+  },
+  itemActionButtonLabel: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  itemDeleteButton: {
+    alignItems: 'center',
+    backgroundColor: '#B42318',
+    borderRadius: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+  },
+  itemDeleteButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   imagesHeaderRow: {
     marginTop: 20,
