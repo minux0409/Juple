@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Juple.Application.Categories;
+using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Categories;
+using Juple.Infrastructure.Images;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Storage;
@@ -40,10 +42,12 @@ public static class DependencyInjection
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
         services.AddScoped<IItemCategoryStore, ItemStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
+        services.AddScoped<IItemImageStore, ItemImageStore>();
+        services.AddScoped<IItemImageStorage, ItemImageStore>();
 
-        // Registered for future Blob consumers; construction itself makes no network call, so
-        // this does not require a live Blob endpoint at app startup - only whichever caller first
-        // resolves BlobServiceClient/BlobContainerClient (none yet) needs BlobStorage configured.
+        // Construction itself makes no network call, so this does not require a live Blob
+        // endpoint at app startup - only whichever caller first resolves
+        // BlobServiceClient/BlobContainerClient needs BlobStorage configured.
         services.AddSingleton(_ => BlobServiceClientFactory.Create(configuration));
         services.AddSingleton(serviceProvider =>
         {

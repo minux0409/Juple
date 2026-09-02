@@ -5,6 +5,9 @@ using Juple.Application.Categories.DeleteCategory;
 using Juple.Application.Categories.ListCategories;
 using Juple.Application.Categories.RenameCategory;
 using Juple.Application.Identity;
+using Juple.Application.Images.DeleteItemImage;
+using Juple.Application.Images.ListItemImages;
+using Juple.Application.Images.UploadItemImage;
 using Juple.Application.Inbox.GetDailyInbox;
 using Juple.Application.Inbox.SaveInboxEntry;
 using Juple.Application.Items.AssignItemCategory;
@@ -39,6 +42,9 @@ builder.Services.AddScoped<IListCategoriesService, ListCategoriesService>();
 builder.Services.AddScoped<ICreateCategoryService, CreateCategoryService>();
 builder.Services.AddScoped<IRenameCategoryService, RenameCategoryService>();
 builder.Services.AddScoped<IDeleteCategoryService, DeleteCategoryService>();
+builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
+builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
+builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(
