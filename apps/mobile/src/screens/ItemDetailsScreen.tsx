@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
   Pressable,
   View,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
@@ -24,12 +26,20 @@ import {
   type ItemCategory,
 } from '../categories/api/categoriesApi';
 import {
+  deleteItemImage,
+  getItemImages,
+  uploadItemImage,
+  type ItemImage,
+} from '../images/api/imagesApi';
+import {
   getItemDetails,
   setItemCategory,
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+
+const MAX_ITEM_IMAGES = 10;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
@@ -88,6 +98,47 @@ function getCategoryDeleteErrorMessage(error: unknown): string {
   return '카테고리를 삭제할 수 없습니다.';
 }
 
+function getImageListErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return '사진 목록을 불러올 수 없습니다.';
+}
+
+/** Never surfaces raw server/credential/token detail - only a short, actionable Korean message. */
+function getImageUploadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.kind === 'badRequest') {
+      return '지원하지 않는 사진 형식이거나 파일 용량이 너무 큽니다.';
+    }
+    if (error.kind === 'conflict') {
+      return `사진은 최대 ${MAX_ITEM_IMAGES}장까지 추가할 수 있습니다.`;
+    }
+    if (error.kind === 'unauthorized') {
+      return '인증 상태를 다시 확인할 수 없습니다.';
+    }
+    if (error.kind === 'timeout' || error.kind === 'unavailable') {
+      return '네트워크 상태를 확인한 뒤 다시 시도해 주세요.';
+    }
+  }
+  return '사진을 업로드할 수 없습니다.';
+}
+
+function getImageDeleteErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return '사진을 삭제할 수 없습니다.';
+}
+
+/** picker/permission failures never reach the server, so this maps react-native-image-picker's own errorCode only. */
+function getImagePickerErrorMessage(errorCode: string | undefined): string {
+  if (errorCode === 'permission') {
+    return '사진 보관함 접근 권한이 필요합니다.';
+  }
+  return '사진을 선택할 수 없습니다.';
+}
+
 /** Mirrors the backend's CategoryNameNormalizer: trim, required, 100-character limit. */
 function getCategoryNameValidationError(name: string): string | null {
   const trimmedName = name.trim();
@@ -114,6 +165,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+
+  const [images, setImages] = useState<readonly ItemImage[]>([]);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [deletingImageIds, setDeletingImageIds] = useState<ReadonlySet<number>>(new Set());
+  const [imagesError, setImagesError] = useState<string | null>(null);
+
+  const isUploadingImageRef = useRef(false);
+  const deletingImageIdsRef = useRef<Set<number>>(new Set());
 
   const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'select' | 'manage'>('select');
@@ -158,6 +218,105 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   useEffect(() => {
     loadDetails();
   }, [loadDetails]);
+
+  const loadImages = useCallback(async () => {
+    setIsLoadingImages(true);
+    setImagesError(null);
+    try {
+      const fetchedImages = await getItemImages(authenticatedRequest, itemId);
+      setImages(fetchedImages);
+    } catch (caughtError) {
+      setImagesError(getImageListErrorMessage(caughtError));
+    } finally {
+      setIsLoadingImages(false);
+    }
+  }, [authenticatedRequest, itemId]);
+
+  useEffect(() => {
+    loadImages();
+  }, [loadImages]);
+
+  const pickAndUploadImage = async () => {
+    if (isUploadingImageRef.current || images.length >= MAX_ITEM_IMAGES) {
+      return;
+    }
+
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+      includeBase64: false,
+      // Converts HEIC/HEIF to a JPEG-compatible representation on supported platforms rather
+      // than passing through the device's native format, which the server would reject.
+      assetRepresentationMode: 'compatible',
+    });
+
+    if (result.didCancel) {
+      return;
+    }
+
+    const asset = result.assets?.[0];
+    if (result.errorCode || !asset?.uri) {
+      setImagesError(getImagePickerErrorMessage(result.errorCode));
+      return;
+    }
+
+    isUploadingImageRef.current = true;
+    setIsUploadingImage(true);
+    setImagesError(null);
+    try {
+      // asset.type is whatever the picker actually reports post-conversion - never assumed or
+      // overridden to 'image/jpeg' here. The server independently verifies the real format via
+      // magic bytes regardless of what this claims.
+      const uploaded = await uploadItemImage(authenticatedRequest, itemId, {
+        uri: asset.uri,
+        type: asset.type,
+        fileName: asset.fileName,
+      });
+      // A fresh upload always receives SortOrder = current max + 1 (server-assigned), so
+      // appending preserves the SortOrder ASC, Id ASC order without needing to re-sort.
+      setImages(previous => [...previous, uploaded]);
+    } catch (caughtError) {
+      setImagesError(getImageUploadErrorMessage(caughtError));
+    } finally {
+      isUploadingImageRef.current = false;
+      setIsUploadingImage(false);
+    }
+  };
+
+  const deleteImageAction = async (imageId: number) => {
+    if (deletingImageIdsRef.current.has(imageId)) {
+      return;
+    }
+
+    deletingImageIdsRef.current.add(imageId);
+    setDeletingImageIds(new Set(deletingImageIdsRef.current));
+    setImagesError(null);
+    try {
+      await deleteItemImage(authenticatedRequest, itemId, imageId);
+      setImages(previous => previous.filter(image => image.id !== imageId));
+    } catch (caughtError) {
+      // Failure leaves the existing UI (the image stays in the list) unchanged.
+      setImagesError(getImageDeleteErrorMessage(caughtError));
+    } finally {
+      deletingImageIdsRef.current.delete(imageId);
+      setDeletingImageIds(new Set(deletingImageIdsRef.current));
+    }
+  };
+
+  const confirmDeleteImage = (image: ItemImage) => {
+    if (deletingImageIdsRef.current.has(image.id)) {
+      return;
+    }
+
+    Alert.alert('사진을 삭제할까요?', '삭제한 사진은 복구할 수 없습니다.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => deleteImageAction(image.id),
+      },
+    ]);
+  };
 
   const openCategoryModal = async () => {
     setIsCategoryModalVisible(true);
@@ -442,6 +601,69 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
+      <View style={styles.imagesHeaderRow}>
+        <Text style={styles.label}>사진 ({images.length}/{MAX_ITEM_IMAGES})</Text>
+      </View>
+
+      {isLoadingImages ? (
+        <ActivityIndicator style={styles.imagesLoading} />
+      ) : (
+        <FlatList
+          contentContainerStyle={styles.imageListContent}
+          data={images}
+          horizontal
+          keyExtractor={image => image.id.toString()}
+          renderItem={({ item: image }) => (
+            <View style={styles.imageThumbnailWrapper}>
+              {image.readUrl ? (
+                <Image source={{ uri: image.readUrl }} style={styles.imageThumbnail} />
+              ) : (
+                <View style={[styles.imageThumbnail, styles.imageThumbnailFallback]} />
+              )}
+              <Pressable
+                accessibilityLabel="사진 삭제"
+                accessibilityRole="button"
+                accessibilityState={{ disabled: deletingImageIds.has(image.id) }}
+                disabled={deletingImageIds.has(image.id)}
+                onPress={() => confirmDeleteImage(image)}
+                style={styles.imageDeleteButton}
+              >
+                {deletingImageIds.has(image.id) ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.imageDeleteButtonLabel}>×</Text>
+                )}
+              </Pressable>
+            </View>
+          )}
+          showsHorizontalScrollIndicator={false}
+        />
+      )}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{
+          disabled: isUploadingImage || images.length >= MAX_ITEM_IMAGES,
+          busy: isUploadingImage,
+        }}
+        disabled={isUploadingImage || images.length >= MAX_ITEM_IMAGES}
+        onPress={pickAndUploadImage}
+        style={[
+          styles.addImageButton,
+          (isUploadingImage || images.length >= MAX_ITEM_IMAGES) && styles.disabledButton,
+        ]}
+      >
+        <Text style={styles.addImageButtonLabel}>
+          {isUploadingImage
+            ? '업로드 중...'
+            : images.length >= MAX_ITEM_IMAGES
+              ? `사진은 최대 ${MAX_ITEM_IMAGES}장까지 추가할 수 있습니다`
+              : '사진 추가'}
+        </Text>
+      </Pressable>
+
+      {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {justSaved && !isDirty ? <Text style={styles.savedMessage}>저장되었습니다.</Text> : null}
 
@@ -702,6 +924,57 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  imagesHeaderRow: {
+    marginTop: 20,
+  },
+  imagesLoading: {
+    marginTop: 12,
+  },
+  imageListContent: {
+    paddingVertical: 4,
+  },
+  imageThumbnailWrapper: {
+    marginRight: 10,
+    position: 'relative',
+  },
+  imageThumbnail: {
+    borderRadius: 8,
+    height: 88,
+    width: 88,
+  },
+  imageThumbnailFallback: {
+    backgroundColor: '#E0E0E0',
+  },
+  imageDeleteButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 11,
+    height: 22,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -6,
+    top: -6,
+    width: 22,
+  },
+  imageDeleteButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  addImageButton: {
+    alignItems: 'center',
+    borderColor: '#9A9A9A',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingVertical: 10,
+  },
+  addImageButtonLabel: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '600',
   },
   saveButtonLabel: {
     color: '#FFFFFF',

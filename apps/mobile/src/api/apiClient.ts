@@ -8,6 +8,13 @@ export interface ApiRequest {
   readonly path: string;
   readonly accessToken?: string;
   readonly body?: object;
+  /**
+   * Multipart body (e.g. an image upload). Mutually exclusive with `body` - when set, no
+   * Content-Type header is set here, so fetch/React Native fills in
+   * `multipart/form-data; boundary=...` itself. Setting Content-Type manually for a FormData
+   * body would omit that boundary and break parsing server-side.
+   */
+  readonly formData?: FormData;
   readonly timeoutMs?: number;
 }
 
@@ -21,6 +28,7 @@ export async function requestApi<T>({
   path,
   accessToken,
   body,
+  formData,
   timeoutMs = DEFAULT_API_TIMEOUT_MS,
 }: ApiRequest): Promise<ApiResponse<T>> {
   const baseUrl = apiConfig.baseUrl;
@@ -43,7 +51,7 @@ export async function requestApi<T>({
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: formData ?? (body ? JSON.stringify(body) : undefined),
       signal: abortController.signal,
     });
   } catch {
