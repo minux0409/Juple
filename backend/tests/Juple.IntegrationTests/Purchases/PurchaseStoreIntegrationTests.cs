@@ -453,6 +453,78 @@ public sealed class PurchaseStoreIntegrationTests : IAsyncLifetime
         Assert.Null(page.NextCursor);
     }
 
+    [Fact]
+    public async Task ListAsync_WithItemId_ReturnsOnlyThatItemsPurchasesInDescendingOrder()
+    {
+        var store = new PurchaseStore(_dbContext);
+        var secondItem = new Item(_userId, "https://shop.example/purchase-store-second-item-list", DateTimeOffset.UtcNow);
+        _dbContext.Items.Add(secondItem);
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        var older = await store.CreateAsync(
+            _userId, Fields(_itemId, purchaseDate: new DateOnly(2026, 8, 1)), DateTimeOffset.UtcNow);
+        var newer = await store.CreateAsync(
+            _userId, Fields(_itemId, purchaseDate: new DateOnly(2026, 8, 10)), DateTimeOffset.UtcNow);
+        // Noise: a different owned Item and an Item-less Purchase must never appear in the page.
+        await store.CreateAsync(_userId, Fields(secondItem.Id), DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, Fields(itemId: null), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var page = await store.ListAsync(_userId, cursor: null, limit: 50, itemId: _itemId);
+
+        Assert.Equal([newer.Id, older.Id], page.Purchases.Select(p => p.Id));
+    }
+
+    [Fact]
+    public async Task ListAsync_WithItemIdBelongingToAnotherUser_ThrowsItemNotFound()
+    {
+        var store = new PurchaseStore(_dbContext);
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(
+            () => store.ListAsync(_userId, cursor: null, limit: 50, itemId: _otherUsersItemId));
+    }
+
+    [Fact]
+    public async Task ListAsync_WithItemIdThatDoesNotExist_ThrowsItemNotFound()
+    {
+        var store = new PurchaseStore(_dbContext);
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(
+            () => store.ListAsync(_userId, cursor: null, limit: 50, itemId: -1));
+    }
+
+    [Fact]
+    public async Task ListAsync_WithItemId_PagesViaCursorWithoutDuplicateOrMissingRows()
+    {
+        var store = new PurchaseStore(_dbContext);
+        var created = new List<PurchaseDto>();
+        for (var day = 1; day <= 5; day++)
+        {
+            created.Add(await store.CreateAsync(
+                _userId, Fields(_itemId, purchaseDate: new DateOnly(2026, 8, day)), DateTimeOffset.UtcNow));
+        }
+        // Noise on a different Item, dated in the middle of the range - must never leak into the page.
+        await store.CreateAsync(
+            _userId, Fields(itemId: null, purchaseDate: new DateOnly(2026, 8, 3)), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var expectedOrder = created.OrderByDescending(p => p.PurchaseDate).ThenByDescending(p => p.Id)
+            .Select(p => p.Id).ToList();
+
+        var firstPage = await store.ListAsync(_userId, cursor: null, limit: 2, itemId: _itemId);
+        Assert.Equal(expectedOrder.Take(2), firstPage.Purchases.Select(p => p.Id));
+        Assert.NotNull(firstPage.NextCursor);
+
+        var secondPage = await store.ListAsync(_userId, firstPage.NextCursor, limit: 2, itemId: _itemId);
+        Assert.Equal(expectedOrder.Skip(2).Take(2), secondPage.Purchases.Select(p => p.Id));
+        Assert.NotNull(secondPage.NextCursor);
+
+        var thirdPage = await store.ListAsync(_userId, secondPage.NextCursor, limit: 2, itemId: _itemId);
+        Assert.Equal(expectedOrder.Skip(4).Take(2), thirdPage.Purchases.Select(p => p.Id));
+        Assert.Null(thirdPage.NextCursor);
+    }
+
     // Deterministically reproduces "Item deleted concurrently, between the ownership check and the
     // write" without relying on real thread timing: a DbCommandInterceptor hooks the exact moment
     // the ownership check's SELECT against items.Items finishes, and deletes that Item - for real,

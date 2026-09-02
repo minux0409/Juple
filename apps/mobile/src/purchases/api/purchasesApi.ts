@@ -31,6 +31,8 @@ export interface GetPurchasesOptions {
   readonly limit?: number;
   /** Opaque value from a previous PurchasePage.nextCursor; never parsed or modified. */
   readonly cursor?: string;
+  /** When set, restricts the page to this Item's Purchases (404 on a missing/other-user Item). */
+  readonly itemId?: number;
 }
 
 export async function getPurchases(
@@ -43,6 +45,9 @@ export async function getPurchases(
   }
   if (options.cursor) {
     query.set('cursor', options.cursor);
+  }
+  if (options.itemId !== undefined) {
+    query.set('itemId', String(options.itemId));
   }
 
   const queryString = query.toString();

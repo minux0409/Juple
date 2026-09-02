@@ -6,5 +6,6 @@ public interface IListPurchasesService
         long userId,
         PurchasePageCursor? cursor,
         int limit,
+        long? itemId = null,
         CancellationToken cancellationToken = default);
 }

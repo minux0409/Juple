@@ -30,6 +30,7 @@ public sealed class PurchasesController(
     public async Task<IActionResult> ListAsync(
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
+        [FromQuery] long? itemId,
         CancellationToken cancellationToken)
     {
         if (!PurchasesQueryParameters.TryParseLimit(limit, out var resolvedLimit))
@@ -51,12 +52,20 @@ public sealed class PurchasesController(
             }));
         }
 
+        if (!PurchasesQueryParameters.TryParseItemId(itemId, out var resolvedItemId))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["itemId"] = ["itemId must be a positive number."],
+            }));
+        }
+
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = await listPurchasesService.ListAsync(
-                currentUser.UserId, typedCursor, resolvedLimit, cancellationToken);
+                currentUser.UserId, typedCursor, resolvedLimit, resolvedItemId, cancellationToken);
 
             return Ok(new PurchasesPageResponse(
                 page.Purchases.Select(ToResponse).ToList(),
@@ -67,6 +76,10 @@ public sealed class PurchasesController(
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Juple user bootstrap is required.");
+        }
+        catch (ItemNotFoundException)
+        {
+            return NotFound();
         }
     }
 

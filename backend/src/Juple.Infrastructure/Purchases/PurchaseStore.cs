@@ -23,11 +23,19 @@ public sealed class PurchaseStore(JupleDbContext dbContext) : IPurchaseStore
         long userId,
         PurchasePageCursor? cursor,
         int limit,
+        long? itemId = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureItemOwnedIfProvidedAsync(userId, itemId, cancellationToken);
+
         var purchasesQuery = dbContext.Purchases
             .AsNoTracking()
             .Where(purchase => purchase.UserId == userId);
+
+        if (itemId is not null)
+        {
+            purchasesQuery = purchasesQuery.Where(purchase => purchase.ItemId == itemId);
+        }
 
         if (cursor is not null)
         {

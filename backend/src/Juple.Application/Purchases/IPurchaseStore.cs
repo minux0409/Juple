@@ -2,10 +2,16 @@ namespace Juple.Application.Purchases;
 
 public interface IPurchaseStore
 {
+    /// <summary>
+    /// When itemId is not null, restricts the page to that Item's Purchases and throws
+    /// Juple.Application.Items.ItemNotFoundException unless the Item is owned by userId - mirrors
+    /// CreateAsync/UpdateAsync's identical ItemId ownership check.
+    /// </summary>
     Task<PurchasePage> ListAsync(
         long userId,
         PurchasePageCursor? cursor,
         int limit,
+        long? itemId = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Returns null when no Purchase with this Id is owned by this UserId.</summary>

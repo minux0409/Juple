@@ -39,7 +39,7 @@ public sealed class GetPurchaseDetailServiceTests
         public long? LastPurchaseId { get; private set; }
 
         public Task<PurchasePage> ListAsync(
-            long userId, PurchasePageCursor? cursor, int limit, CancellationToken cancellationToken = default) =>
+            long userId, PurchasePageCursor? cursor, int limit, long? itemId = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(new PurchasePage([], null));
 
         public Task<PurchaseDto?> GetAsync(

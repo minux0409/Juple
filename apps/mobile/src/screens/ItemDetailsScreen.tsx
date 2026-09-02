@@ -1,4 +1,4 @@
-import { usePreventRemove } from '@react-navigation/native';
+import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -41,8 +41,11 @@ import {
   type ItemDetails,
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { getPurchases, type Purchase } from '../purchases/api/purchasesApi';
+import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
 
 const MAX_ITEM_IMAGES = 10;
+const RECENT_PURCHASES_LIMIT = 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
@@ -134,6 +137,13 @@ function getImageDeleteErrorMessage(error: unknown): string {
   return '사진을 삭제할 수 없습니다.';
 }
 
+function getRecentPurchasesErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return '구매 기록을 불러올 수 없습니다.';
+}
+
 function getItemLifecycleErrorMessage(error: unknown, isDelete: boolean): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return '인증 상태를 다시 확인할 수 없습니다.';
@@ -213,6 +223,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const itemActionInFlightRef = useRef(false);
   const isItemDeleteConfirmOpenRef = useRef(false);
 
+  const [recentPurchases, setRecentPurchases] = useState<readonly Purchase[]>([]);
+  const [isLoadingPurchases, setIsLoadingPurchases] = useState(true);
+  const [purchasesError, setPurchasesError] = useState<string | null>(null);
+  // Discards a stale in-flight load's result if a newer one (e.g. a rapid re-focus) has since started.
+  const purchasesRequestIdRef = useRef(0);
+
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -251,6 +267,40 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   useEffect(() => {
     loadImages();
   }, [loadImages]);
+
+  const loadRecentPurchases = useCallback(async () => {
+    const requestId = ++purchasesRequestIdRef.current;
+    setIsLoadingPurchases(true);
+    setPurchasesError(null);
+    try {
+      const page = await getPurchases(authenticatedRequest, {
+        itemId,
+        limit: RECENT_PURCHASES_LIMIT,
+      });
+      if (purchasesRequestIdRef.current !== requestId) {
+        return;
+      }
+      setRecentPurchases(page.purchases);
+    } catch (caughtError) {
+      if (purchasesRequestIdRef.current !== requestId) {
+        return;
+      }
+      // Failure keeps whatever Purchases are already shown - only the error text changes.
+      setPurchasesError(getRecentPurchasesErrorMessage(caughtError));
+    } finally {
+      if (purchasesRequestIdRef.current === requestId) {
+        setIsLoadingPurchases(false);
+      }
+    }
+  }, [authenticatedRequest, itemId]);
+
+  // Refetches on every focus (not just mount), so returning from PurchaseEditor after a
+  // create/edit, or from PurchaseDetails after a delete, shows the current Purchases immediately.
+  useFocusEffect(
+    useCallback(() => {
+      loadRecentPurchases();
+    }, [loadRecentPurchases]),
+  );
 
   const pickAndUploadImage = async () => {
     if (isUploadingImageRef.current || images.length >= MAX_ITEM_IMAGES) {
@@ -700,6 +750,37 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       >
         <Text style={styles.addPurchaseButtonLabel}>구매 기록 추가</Text>
       </Pressable>
+
+      <Text style={styles.label}>구매 기록</Text>
+      {isLoadingPurchases ? (
+        <ActivityIndicator style={styles.purchasesLoading} />
+      ) : recentPurchases.length > 0 ? (
+        recentPurchases.map(purchase => (
+          <Pressable
+            accessibilityRole="button"
+            key={purchase.id}
+            onPress={() => navigation.navigate('PurchaseDetails', { purchaseId: purchase.id })}
+            style={styles.purchaseRow}
+          >
+            <Text numberOfLines={1} style={styles.purchaseRowProductName}>
+              {purchase.productName}
+            </Text>
+            <Text style={styles.purchaseRowDate}>
+              {formatDateOnlyForDisplay(purchase.purchaseDate)}
+            </Text>
+            {purchase.amount !== null && purchase.currencyCode ? (
+              // Verbatim decimal string from the API - no Number()/Intl.NumberFormat conversion,
+              // since a value like "999999999999999.9999" is not exactly representable as a JS Number.
+              <Text style={styles.purchaseRowAmount}>
+                {purchase.amount} {purchase.currencyCode}
+              </Text>
+            ) : null}
+          </Pressable>
+        ))
+      ) : !purchasesError ? (
+        <Text style={styles.purchasesEmpty}>구매 기록이 없습니다.</Text>
+      ) : null}
+      {purchasesError ? <Text style={styles.error}>{purchasesError}</Text> : null}
 
       <View style={styles.imagesHeaderRow}>
         <Text style={styles.label}>사진 ({images.length}/{MAX_ITEM_IMAGES})</Text>
@@ -1194,6 +1275,33 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 14,
     fontWeight: '600',
+  },
+  purchasesLoading: {
+    marginTop: 8,
+  },
+  purchasesEmpty: {
+    color: '#666666',
+    fontSize: 14,
+  },
+  purchaseRow: {
+    borderTopColor: '#E0E0E0',
+    borderTopWidth: 1,
+    paddingVertical: 10,
+  },
+  purchaseRowProductName: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  purchaseRowDate: {
+    color: '#666666',
+    fontSize: 13,
+    marginTop: 3,
+  },
+  purchaseRowAmount: {
+    color: '#111111',
+    fontSize: 13,
+    marginTop: 3,
   },
   modalOverlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',

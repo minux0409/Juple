@@ -24,4 +24,23 @@ public static class PurchasesQueryParameters
         limit = value.Value;
         return true;
     }
+
+    /// <summary>A missing `itemId` is valid (no filter) and returns null; a present one must be positive.</summary>
+    public static bool TryParseItemId(long? value, out long? itemId)
+    {
+        if (value is null)
+        {
+            itemId = null;
+            return true;
+        }
+
+        if (value <= 0)
+        {
+            itemId = null;
+            return false;
+        }
+
+        itemId = value;
+        return true;
+    }
 }
