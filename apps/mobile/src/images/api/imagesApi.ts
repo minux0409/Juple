@@ -19,6 +19,16 @@ interface ItemImagesResponse {
 }
 
 /**
+ * The Item's first image by SortOrder ASC, Id ASC, embedded on Inbox/Wishlist/Archive list
+ * entries and Item detail. readUrl is a short-TTL SAS URL - never persisted/cached as a source of
+ * truth; the server hands back a fresh one on every list/detail fetch.
+ */
+export interface RepresentativeImage {
+  readonly id: number;
+  readonly readUrl: string;
+}
+
+/**
  * Longer than DEFAULT_API_TIMEOUT_MS (15s) - a multipart image upload legitimately takes longer
  * on a slow connection than a small JSON request does, but is still bounded (never infinite).
  */

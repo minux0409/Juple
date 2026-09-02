@@ -15,6 +15,7 @@ import {
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import {
   getTodayInbox,
   saveInboxEntry,
@@ -378,26 +379,29 @@ function InboxRow({
 }: InboxRowProps) {
   return (
     <View style={styles.row}>
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <Text numberOfLines={2} style={styles.url}>
-          {item.title ?? item.url}
-        </Text>
-        {item.title ? (
-          <Text numberOfLines={1} style={styles.secondaryUrl}>
-            {item.url}
+      <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
+        <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
+        <View style={styles.rowTextColumn}>
+          <Text numberOfLines={2} style={styles.url}>
+            {item.title ?? item.url}
           </Text>
-        ) : null}
-        {item.memo ? (
-          <Text numberOfLines={2} style={styles.memoPreview}>
-            {item.memo}
-          </Text>
-        ) : null}
-        {item.category ? (
-          <Text numberOfLines={1} style={styles.categoryLabel}>
-            {item.category.name}
-          </Text>
-        ) : null}
-        <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
+          {item.title ? (
+            <Text numberOfLines={1} style={styles.secondaryUrl}>
+              {item.url}
+            </Text>
+          ) : null}
+          {item.memo ? (
+            <Text numberOfLines={2} style={styles.memoPreview}>
+              {item.memo}
+            </Text>
+          ) : null}
+          {item.category ? (
+            <Text numberOfLines={1} style={styles.categoryLabel}>
+              {item.category.name}
+            </Text>
+          ) : null}
+          <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
+        </View>
       </Pressable>
       <View style={styles.itemActions}>
         <Pressable
@@ -526,6 +530,12 @@ const styles = StyleSheet.create({
     borderTopColor: '#E0E0E0',
     borderTopWidth: 1,
     paddingVertical: 14,
+  },
+  rowPressable: {
+    flexDirection: 'row',
+  },
+  rowTextColumn: {
+    flex: 1,
   },
   url: {
     color: '#111111',

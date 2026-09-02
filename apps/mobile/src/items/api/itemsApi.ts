@@ -1,5 +1,6 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { ItemCategory } from '../../categories/api/categoriesApi';
+import type { RepresentativeImage } from '../../images/api/imagesApi';
 
 export interface ItemListEntry {
   readonly id: number;
@@ -9,6 +10,7 @@ export interface ItemListEntry {
   readonly savedAtUtc: string;
   readonly stateChangedAtUtc: string;
   readonly category: ItemCategory | null;
+  readonly representativeImage: RepresentativeImage | null;
 }
 
 export type ItemDetailState = 'inbox' | 'wishlist' | 'archived';

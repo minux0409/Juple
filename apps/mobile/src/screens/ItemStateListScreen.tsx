@@ -14,6 +14,7 @@ import {
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCategories, type Category } from '../categories/api/categoriesApi';
+import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemListEntry, ItemListState } from '../items/api/itemsApi';
 import { useItemStateList } from '../items/useItemStateList';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -95,27 +96,30 @@ export function ItemStateListScreen({
         }}
         style={styles.row}
       >
-        <Text numberOfLines={2} style={styles.url}>
-          {item.title ?? item.url}
-        </Text>
-        {item.title ? (
-          <Text numberOfLines={1} style={styles.secondaryUrl}>
-            {item.url}
+        <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
+        <View style={styles.rowTextColumn}>
+          <Text numberOfLines={2} style={styles.url}>
+            {item.title ?? item.url}
           </Text>
-        ) : null}
-        {item.memo ? (
-          <Text numberOfLines={2} style={styles.memoPreview}>
-            {item.memo}
+          {item.title ? (
+            <Text numberOfLines={1} style={styles.secondaryUrl}>
+              {item.url}
+            </Text>
+          ) : null}
+          {item.memo ? (
+            <Text numberOfLines={2} style={styles.memoPreview}>
+              {item.memo}
+            </Text>
+          ) : null}
+          {item.category ? (
+            <Text numberOfLines={1} style={styles.categoryLabel}>
+              {item.category.name}
+            </Text>
+          ) : null}
+          <Text style={styles.stateChangedTime}>
+            {formatStateChangedTime(item.stateChangedAtUtc)}
           </Text>
-        ) : null}
-        {item.category ? (
-          <Text numberOfLines={1} style={styles.categoryLabel}>
-            {item.category.name}
-          </Text>
-        ) : null}
-        <Text style={styles.stateChangedTime}>
-          {formatStateChangedTime(item.stateChangedAtUtc)}
-        </Text>
+        </View>
       </Pressable>
     ),
     [navigation],
@@ -320,7 +324,11 @@ const styles = StyleSheet.create({
   row: {
     borderTopColor: '#E0E0E0',
     borderTopWidth: 1,
+    flexDirection: 'row',
     paddingVertical: 14,
+  },
+  rowTextColumn: {
+    flex: 1,
   },
   url: {
     color: '#111111',
