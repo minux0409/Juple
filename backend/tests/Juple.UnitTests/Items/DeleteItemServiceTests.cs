@@ -115,5 +115,8 @@ public sealed class DeleteItemServiceTests
             LastDeleteItemBlobsCall = (userId, itemId);
             return Task.CompletedTask;
         }
+
+        public Task<Uri?> CreateReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Uri?>(null);
     }
 }

@@ -1,4 +1,5 @@
 using Juple.Application.Categories;
+using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Domain.Items;
@@ -69,7 +70,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         return new InboxEntrySaveResult(new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc), Created: true);
     }
 
-    public async Task<IReadOnlyList<DailyInboxEntryDto>> GetDailyAsync(
+    public async Task<(IReadOnlyList<DailyInboxEntryDto> Items, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetDailyAsync(
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
@@ -85,15 +86,40 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 on item.CategoryId equals category.Id into categoryJoin
             from category in categoryJoin.DefaultIfEmpty()
             orderby item.SavedAtUtc descending, item.Id descending
-            select new DailyInboxEntryDto(
+            select new
+            {
                 item.Id,
                 item.Url,
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
-                category == null ? null : new ItemCategoryDto(category.Id, category.Name));
+                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
+                // SortOrder ASC, Id ASC first image, translated as a correlated subquery (OUTER
+                // APPLY on SQL Server) - one round trip for the whole page, not one per Item.
+                RepresentativeImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id)
+                    .OrderBy(image => image.SortOrder)
+                    .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+            };
 
-        return await query.ToListAsync(cancellationToken);
+        var rows = await query.ToListAsync(cancellationToken);
+
+        var items = new List<DailyInboxEntryDto>(rows.Count);
+        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        foreach (var row in rows)
+        {
+            items.Add(new DailyInboxEntryDto(
+                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.Category, RepresentativeImage: null));
+            if (row.RepresentativeImage is not null)
+            {
+                representativeImages[row.Id] =
+                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+        }
+
+        return (items, representativeImages);
     }
 
     private static InboxEntrySaveResult BuildReplayResult(InboxEntryDto existing, string requestedUrl)
@@ -238,7 +264,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         }
     }
 
-    public async Task<ItemDetailsDto?> GetDetailsAsync(
+    public async Task<(ItemDetailsDto? Details, ItemRepresentativeImageRef? RepresentativeImage)> GetDetailsAsync(
         long userId,
         long itemId,
         CancellationToken cancellationToken = default)
@@ -249,7 +275,8 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             join category in dbContext.Categories.AsNoTracking()
                 on item.CategoryId equals category.Id into categoryJoin
             from category in categoryJoin.DefaultIfEmpty()
-            select new ItemDetailsDto(
+            select new
+            {
                 item.Id,
                 item.Url,
                 item.Title,
@@ -257,12 +284,32 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.SavedAtUtc,
                 item.State,
                 item.StateChangedAtUtc,
-                category == null ? null : new ItemCategoryDto(category.Id, category.Name));
+                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
+                RepresentativeImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id)
+                    .OrderBy(image => image.SortOrder)
+                    .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+            };
 
-        return await query.FirstOrDefaultAsync(cancellationToken);
+        var row = await query.FirstOrDefaultAsync(cancellationToken);
+        if (row is null)
+        {
+            return (null, null);
+        }
+
+        var details = new ItemDetailsDto(
+            row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.State, row.StateChangedAtUtc, row.Category,
+            RepresentativeImage: null);
+        var representativeImage = row.RepresentativeImage is null
+            ? null
+            : new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+
+        return (details, representativeImage);
     }
 
-    public async Task<ItemPage> GetByStateAsync(
+    public async Task<(ItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByStateAsync(
         long userId,
         ItemState state,
         long? categoryId,
@@ -305,23 +352,46 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 on item.CategoryId equals category.Id into categoryJoin
             from category in categoryJoin.DefaultIfEmpty()
             orderby item.StateChangedAtUtc descending, item.Id descending
-            select new ItemListEntryDto(
+            select new
+            {
                 item.Id,
                 item.Url,
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
                 item.StateChangedAtUtc,
-                category == null ? null : new ItemCategoryDto(category.Id, category.Name));
+                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
+                RepresentativeImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id)
+                    .OrderBy(image => image.SortOrder)
+                    .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+            };
 
         var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
-        var items = hasMore ? page.GetRange(0, limit) : page;
+        var pageRows = hasMore ? page.GetRange(0, limit) : page;
+
+        var items = new List<ItemListEntryDto>(pageRows.Count);
+        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        foreach (var row in pageRows)
+        {
+            items.Add(new ItemListEntryDto(
+                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.StateChangedAtUtc, row.Category,
+                RepresentativeImage: null));
+            if (row.RepresentativeImage is not null)
+            {
+                representativeImages[row.Id] =
+                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+        }
+
         var nextCursor = hasMore
-            ? new ItemPageCursor(items[^1].StateChangedAtUtc, items[^1].Id)
+            ? new ItemPageCursor(pageRows[^1].StateChangedAtUtc, pageRows[^1].Id)
             : null;
 
-        return new ItemPage(items, nextCursor);
+        return (new ItemPage(items, nextCursor), representativeImages);
     }
 }

@@ -73,7 +73,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task UploadAsync_UploadsBlobAndPersistsRow()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         var image = await store.UploadAsync(
             _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
@@ -94,7 +94,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // A PNG's real magic bytes, exercising the full Application -> Store -> Blob path - the
         // client never gets a chance to declare a Content-Type/filename in this call shape at all.
         byte[] pngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01];
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var service = new UploadItemImageService(store, TimeProvider.System);
 
         var image = await service.UploadAsync(_userId, _itemId, pngBytes);
@@ -107,7 +107,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task UploadAsync_SecondImage_IncrementsSortOrder()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         var first = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var second = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
@@ -119,7 +119,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task UploadAsync_OnAnotherUsersItem_ThrowsItemNotFound()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         await Assert.ThrowsAsync<ItemNotFoundException>(
             () => store.UploadAsync(_otherUserId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
@@ -128,7 +128,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task UploadAsync_WhenItemAlreadyHas10Images_ThrowsItemImageLimitExceeded()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         for (var i = 0; i < 10; i++)
         {
             await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
@@ -144,7 +144,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task UploadAsync_WhenDbInsertFails_DeletesTheJustUploadedBlobBestEffort()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         // Deliberately bypasses Application-layer validation (which would reject empty content)
         // to force the DB's CK_ItemImages_ByteLength_Positive check constraint to fail after a
@@ -169,7 +169,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ListAsync_ReturnsImagesOrderedBySortOrderThenId()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var first = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var second = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
 
@@ -181,7 +181,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ListAsync_OnAnotherUsersItem_ThrowsItemNotFound()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         await Assert.ThrowsAsync<ItemNotFoundException>(() => store.ListAsync(_otherUserId, _itemId));
     }
@@ -189,7 +189,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task DeleteAsync_RemovesRowAndBlob()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var image = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var blobName = (await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id)).BlobName;
         _dbContext.ChangeTracker.Clear();
@@ -203,7 +203,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task DeleteAsync_WhenImageDoesNotExist_CompletesWithoutException()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         await store.DeleteAsync(_userId, _itemId, imageId: -1);
     }
@@ -211,7 +211,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task DeleteAsync_OnAnotherUsersItem_DoesNotDeleteAndCompletesWithoutException()
     {
-        var store = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var image = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
@@ -227,7 +227,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // nothing about Blob Storage - DeleteItemService deletes the Item via IItemLifecycleStore,
         // then hands userId/itemId to IItemImageStorage, which cleans up by listing the Item's own
         // Blob prefix rather than trusting any pre-delete snapshot of names.
-        var imageStore = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
         var deleteItemService = new DeleteItemService(itemStore, imageStore);
 
@@ -259,7 +259,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // ("items/{otherUserId}/{itemId}/") - since the real Blob lives under
         // "items/{userId}/{itemId}/", a call with the wrong userId can never reach it, with no
         // separate ownership check needed to guarantee that.
-        var imageStore = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
         var deleteItemService = new DeleteItemService(itemStore, imageStore);
 
@@ -280,7 +280,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // Item's prefix with no corresponding ItemImages row (e.g. an upload whose DB insert
         // hadn't committed yet when a snapshot was taken). Prefix-based cleanup must remove it
         // even though no DB row ever pointed at it.
-        var imageStore = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
         var deleteItemService = new DeleteItemService(itemStore, imageStore);
 
@@ -309,7 +309,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // fails. This must not propagate: the caller (DeleteItemService, and ultimately DELETE
         // /items/{id}) must never fail just because best-effort cleanup couldn't even start.
         var missingContainerClient = TestBlobContainerClientFactory.CreateForMissingContainer();
-        var store = new ItemImageStore(_dbContext, missingContainerClient, NullLogger<ItemImageStore>.Instance);
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, missingContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         await store.DeleteItemBlobsAsync(_userId, _itemId);
     }
@@ -321,7 +321,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // succeed and DeleteItemService.DeleteAsync must not throw, even though the Blob cleanup
         // step it triggers afterward cannot reach Storage at all.
         var missingContainerClient = TestBlobContainerClientFactory.CreateForMissingContainer();
-        var imageStore = new ItemImageStore(_dbContext, missingContainerClient, NullLogger<ItemImageStore>.Instance);
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, missingContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
         var deleteItemService = new DeleteItemService(itemStore, imageStore);
 
@@ -342,8 +342,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(connectionString).Options);
         await using var deleteDbContext = new JupleDbContext(
             new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(connectionString).Options);
-        var uploadStore = new ItemImageStore(uploadDbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
-        var deleteImageStore = new ItemImageStore(deleteDbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var uploadStore = new ItemImageStore(uploadDbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var deleteImageStore = new ItemImageStore(deleteDbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var deleteItemStore = new ItemStore(deleteDbContext);
         var deleteItemService = new DeleteItemService(deleteItemStore, deleteImageStore);
 
@@ -392,7 +392,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     {
         for (var i = 0; i < 9; i++)
         {
-            var seedStore = new ItemImageStore(_dbContext, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+            var seedStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
             await seedStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         }
         _dbContext.ChangeTracker.Clear();
@@ -402,8 +402,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(connectionString).Options);
         await using var dbContextB = new JupleDbContext(
             new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(connectionString).Options);
-        var storeA = new ItemImageStore(dbContextA, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
-        var storeB = new ItemImageStore(dbContextB, _blobContainerClient, NullLogger<ItemImageStore>.Instance);
+        var storeA = new ItemImageStore(dbContextA, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var storeB = new ItemImageStore(dbContextB, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         var uploadA = storeA.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var uploadB = storeB.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);

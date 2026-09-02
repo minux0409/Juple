@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Domain.Images;
@@ -11,10 +12,14 @@ namespace Juple.Infrastructure.Images;
 
 public sealed class ItemImageStore(
     JupleDbContext dbContext,
+    BlobServiceClient blobServiceClient,
     BlobContainerClient blobContainerClient,
+    UserDelegationKeyCache userDelegationKeyCache,
     ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage
 {
     private const int MaxImagesPerItem = 10;
+    private static readonly TimeSpan ReadUrlTtl = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan ClockSkewBuffer = TimeSpan.FromMinutes(5);
 
     public async Task<IReadOnlyList<ItemImageDto>> ListAsync(
         long userId,
@@ -23,14 +28,26 @@ public sealed class ItemImageStore(
     {
         await RequireOwnedItemAsync(userId, itemId, cancellationToken);
 
-        return await dbContext.ItemImages
+        var rows = await dbContext.ItemImages
             .AsNoTracking()
             .Where(image => image.ItemId == itemId)
             .OrderBy(image => image.SortOrder)
             .ThenBy(image => image.Id)
-            .Select(image => new ItemImageDto(
-                image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc))
+            .Select(image => new
+            {
+                image.Id, image.BlobName, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc,
+            })
             .ToListAsync(cancellationToken);
+
+        // One DB query above for the whole list - each read URL below is a Storage-side signing
+        // operation (or, on Production, reuses an already-cached delegation key), never a DB call.
+        var results = new List<ItemImageDto>(rows.Count);
+        foreach (var row in rows)
+        {
+            var readUrl = await CreateReadUrlAsync(userId, row.BlobName, cancellationToken);
+            results.Add(new ItemImageDto(row.Id, row.ContentType, row.ByteLength, row.SortOrder, row.CreatedAtUtc, readUrl));
+        }
+        return results;
     }
 
     public async Task<ItemImageDto> UploadAsync(
@@ -59,9 +76,10 @@ public sealed class ItemImageStore(
                 cancellationToken);
         }
 
+        ItemImageDto image;
         try
         {
-            return await InsertRowForLockedItemAsync(
+            image = await InsertRowForLockedItemAsync(
                 itemId, blobName, contentType, content.LongLength, createdAtUtc, cancellationToken);
         }
         catch
@@ -72,6 +90,13 @@ public sealed class ItemImageStore(
             await DeleteBlobBestEffortAsync(blobName);
             throw;
         }
+
+        // Deliberately outside the try/catch above: the DB row is already committed by this
+        // point, so a failure here must never be mistaken for an insert failure and trigger a
+        // compensating Blob delete. CreateReadUrlAsync itself already degrades to null rather
+        // than throwing on failure (see its own try/catch), so this is purely best-effort.
+        var readUrl = await CreateReadUrlAsync(userId, blobName, cancellationToken);
+        return image with { ReadUrl = readUrl };
     }
 
     /// <summary>
@@ -116,7 +141,9 @@ public sealed class ItemImageStore(
 
         await transaction.CommitAsync(cancellationToken);
 
-        return new ItemImageDto(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc);
+        // ReadUrl is filled in by the caller (UploadAsync) after this method returns - by design,
+        // never inside the try/catch that treats a failure here as an insert failure.
+        return new ItemImageDto(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc, ReadUrl: null);
     }
 
     public async Task DeleteAsync(
@@ -177,6 +204,62 @@ public sealed class ItemImageStore(
                 exception,
                 "Failed to enumerate Blobs under prefix {BlobPrefix} during best-effort Item cleanup.",
                 prefix);
+        }
+    }
+
+    public async Task<Uri?> CreateReadUrlAsync(
+        long userId,
+        string blobName,
+        CancellationToken cancellationToken = default)
+    {
+        if (!blobName.StartsWith($"items/{userId}/", StringComparison.Ordinal))
+        {
+            // Every BlobName is created under exactly this prefix (see UploadAsync) - a mismatch
+            // means a caller passed a BlobName it never verified ownership of, which must never
+            // happen. Fail loudly instead of ever signing a URL for another user's Blob.
+            throw new InvalidOperationException(
+                "Refusing to create a read URL for a Blob outside the caller's own userId prefix.");
+        }
+
+        try
+        {
+            var blobClient = blobContainerClient.GetBlobClient(blobName);
+            var sasBuilder = new BlobSasBuilder
+            {
+                BlobContainerName = blobContainerClient.Name,
+                BlobName = blobName,
+                Resource = "b",
+                StartsOn = DateTimeOffset.UtcNow.Subtract(ClockSkewBuffer),
+                ExpiresOn = DateTimeOffset.UtcNow.Add(ReadUrlTtl),
+            };
+            sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+            if (blobClient.CanGenerateSasUri)
+            {
+                // Local/Azurite: the client holds a Shared Key credential, so it can sign
+                // directly - no extra network call, no User Delegation Key involved. Protocol is
+                // left at its default (HttpsAndHttp): local Azurite runs over plain HTTP (see
+                // infra/local/compose.yaml), and restricting to HTTPS-only here would break it.
+                return blobClient.GenerateSasUri(sasBuilder);
+            }
+
+            // Production: the client is Managed-Identity-authenticated (no account key held by
+            // this app at all) - sign with a cached User Delegation Key instead, and require
+            // HTTPS, since a real Storage Account is always reachable over HTTPS.
+            sasBuilder.Protocol = SasProtocol.Https;
+            var userDelegationKey = await userDelegationKeyCache.GetOrRefreshAsync(cancellationToken);
+            var uriBuilder = new BlobUriBuilder(blobClient.Uri)
+            {
+                Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobServiceClient.AccountName),
+            };
+            return uriBuilder.ToUri();
+        }
+        catch (Exception exception)
+        {
+            // Sanitized: only the Blob's own (non-secret) path is logged - never the generated
+            // URL/SAS query string, and never the storage account key or delegation key.
+            logger.LogWarning(exception, "Failed to create a read URL for Blob {BlobName}.", blobName);
+            return null;
         }
     }
 

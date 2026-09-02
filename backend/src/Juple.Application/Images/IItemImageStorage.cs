@@ -20,4 +20,17 @@ public interface IItemImageStorage
         long userId,
         long itemId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A read-only, short-lived URL for the Blob at blobName - a SAS in Production (Managed
+    /// Identity + User Delegation Key) and on Azurite locally (Shared Key). Verifies blobName is
+    /// scoped to userId's own path before signing, so a caller can never obtain a URL for another
+    /// user's Blob even by mistake. Never persisted; generated fresh on every call. Returns null
+    /// rather than throwing when the URL could not be generated - the caller decides how to
+    /// degrade (see callers for the chosen failure policy).
+    /// </summary>
+    Task<Uri?> CreateReadUrlAsync(
+        long userId,
+        string blobName,
+        CancellationToken cancellationToken = default);
 }

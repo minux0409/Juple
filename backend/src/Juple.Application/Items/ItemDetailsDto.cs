@@ -1,3 +1,4 @@
+using Juple.Application.Images;
 using Juple.Domain.Items;
 
 namespace Juple.Application.Items;
@@ -10,4 +11,5 @@ public sealed record ItemDetailsDto(
     DateTimeOffset SavedAtUtc,
     ItemState State,
     DateTimeOffset StateChangedAtUtc,
-    ItemCategoryDto? Category);
+    ItemCategoryDto? Category,
+    RepresentativeImageDto? RepresentativeImage);

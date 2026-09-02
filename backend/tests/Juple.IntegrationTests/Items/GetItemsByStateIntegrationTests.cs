@@ -56,7 +56,7 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
         await store.MoveToWishlistAsync(_userId, wishlistItem, DateTimeOffset.UtcNow);
         await store.MoveToArchiveAsync(_userId, archivedItem, DateTimeOffset.UtcNow);
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(wishlistItem, page.Items[0].Id);
@@ -72,7 +72,7 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
         await store.MoveToWishlistAsync(_userId, wishlistItem, DateTimeOffset.UtcNow);
         await store.MoveToArchiveAsync(_userId, archivedItem, DateTimeOffset.UtcNow);
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Archived, categoryId: null, cursor: null, limit: 50);
+        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Archived, categoryId: null, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(archivedItem, page.Items[0].Id);
@@ -90,7 +90,7 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         await store.MoveToWishlistAsync(_otherUserId, otherSaved.Entry.Id, DateTimeOffset.UtcNow);
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(myItem, page.Items[0].Id);
@@ -110,7 +110,7 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
         await store.MoveToWishlistAsync(_userId, second, baseTime.AddMinutes(1));
         await store.MoveToWishlistAsync(_userId, third, baseTime.AddMinutes(2));
 
-        var page = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
 
         Assert.Equal(new[] { third, second, first }, page.Items.Select(item => item.Id));
     }
@@ -128,17 +128,17 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
             ids.Add(id);
         }
 
-        var firstPage = await store.GetByStateAsync(
+        var (firstPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var secondPage = await store.GetByStateAsync(
+        var (secondPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: null, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.NotNull(secondPage.NextCursor);
 
-        var thirdPage = await store.GetByStateAsync(
+        var (thirdPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: null, cursor: secondPage.NextCursor, limit: 2);
         Assert.Single(thirdPage.Items);
         Assert.Null(thirdPage.NextCursor);
@@ -163,12 +163,12 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
             ids.Add(id);
         }
 
-        var firstPage = await store.GetByStateAsync(
+        var (firstPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var secondPage = await store.GetByStateAsync(
+        var (secondPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: null, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.Null(secondPage.NextCursor);
@@ -198,7 +198,7 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
         await store.AssignCategoryAsync(_userId, itemInB, categoryB.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.GetByStateAsync(
+        var (page, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: categoryA.Id, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
@@ -250,17 +250,17 @@ public sealed class GetItemsByStateIntegrationTests : IAsyncLifetime
         var uncategorizedItem = await SaveAsync(store, "https://shop.example/filter-paging-other");
         await store.MoveToWishlistAsync(_userId, uncategorizedItem, baseTime.AddMinutes(2.5));
 
-        var firstPage = await store.GetByStateAsync(
+        var (firstPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: category.Id, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var secondPage = await store.GetByStateAsync(
+        var (secondPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: category.Id, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.NotNull(secondPage.NextCursor);
 
-        var thirdPage = await store.GetByStateAsync(
+        var (thirdPage, _) = await store.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: category.Id, cursor: secondPage.NextCursor, limit: 2);
         Assert.Single(thirdPage.Items);
         Assert.Null(thirdPage.NextCursor);

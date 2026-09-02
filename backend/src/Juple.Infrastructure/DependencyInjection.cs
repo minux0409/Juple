@@ -56,6 +56,10 @@ public static class DependencyInjection
             return serviceProvider.GetRequiredService<BlobServiceClient>()
                 .GetBlobContainerClient(containerName);
         });
+        // Caches the Production User Delegation Key across requests - must be a Singleton (not
+        // Scoped, like ItemImageStore itself) so the key is actually reused instead of being
+        // re-fetched from Azure AD/Storage on every request.
+        services.AddSingleton<UserDelegationKeyCache>();
 
         return services;
     }

@@ -51,7 +51,7 @@ public sealed class ItemStateTransitionIntegrationTests : IAsyncLifetime
         await store.MoveToWishlistAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var dailyItems = await store.GetDailyAsync(
+        var (dailyItems, _) = await store.GetDailyAsync(
             _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         Assert.DoesNotContain(dailyItems, item => item.Id == saved.Entry.Id);
@@ -68,7 +68,7 @@ public sealed class ItemStateTransitionIntegrationTests : IAsyncLifetime
         await store.MoveToArchiveAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var dailyItems = await store.GetDailyAsync(
+        var (dailyItems, _) = await store.GetDailyAsync(
             _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         Assert.DoesNotContain(dailyItems, item => item.Id == saved.Entry.Id);

@@ -151,7 +151,7 @@ public sealed class UploadItemImageServiceTests
                 throw new ItemImageLimitExceededException();
             }
 
-            return Task.FromResult(new ItemImageDto(1, "image/jpeg", content.LongLength, 0, createdAtUtc));
+            return Task.FromResult(new ItemImageDto(1, "image/jpeg", content.LongLength, 0, createdAtUtc, ReadUrl: null));
         }
 
         public Task DeleteAsync(

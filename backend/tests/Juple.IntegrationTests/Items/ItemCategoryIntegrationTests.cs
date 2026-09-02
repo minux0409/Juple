@@ -58,7 +58,7 @@ public sealed class ItemCategoryIntegrationTests : IAsyncLifetime
         await itemStore.AssignCategoryAsync(_userId, saved.Entry.Id, category.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var details = await itemStore.GetDetailsAsync(_userId, saved.Entry.Id);
+        var (details, _) = await itemStore.GetDetailsAsync(_userId, saved.Entry.Id);
         Assert.NotNull(details!.Category);
         Assert.Equal(category.Id, details.Category!.Id);
         Assert.Equal("Groceries", details.Category.Name);
@@ -78,7 +78,7 @@ public sealed class ItemCategoryIntegrationTests : IAsyncLifetime
         await itemStore.AssignCategoryAsync(_userId, saved.Entry.Id, null);
         _dbContext.ChangeTracker.Clear();
 
-        var details = await itemStore.GetDetailsAsync(_userId, saved.Entry.Id);
+        var (details, _) = await itemStore.GetDetailsAsync(_userId, saved.Entry.Id);
         Assert.Null(details!.Category);
     }
 
@@ -106,7 +106,7 @@ public sealed class ItemCategoryIntegrationTests : IAsyncLifetime
         await Assert.ThrowsAsync<CategoryNotFoundException>(
             () => itemStore.AssignCategoryAsync(_userId, saved.Entry.Id, othersCategory.Id));
 
-        var details = await itemStore.GetDetailsAsync(_userId, saved.Entry.Id);
+        var (details, _) = await itemStore.GetDetailsAsync(_userId, saved.Entry.Id);
         Assert.Null(details!.Category);
     }
 
@@ -153,7 +153,7 @@ public sealed class ItemCategoryIntegrationTests : IAsyncLifetime
         await itemStore.AssignCategoryAsync(_userId, saved.Entry.Id, category.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var dailyItems = await itemStore.GetDailyAsync(
+        var (dailyItems, _) = await itemStore.GetDailyAsync(
             _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         var entry = Assert.Single(dailyItems, item => item.Id == saved.Entry.Id);
@@ -168,7 +168,7 @@ public sealed class ItemCategoryIntegrationTests : IAsyncLifetime
         var saved = await itemStore.SaveAsync(_userId, "https://shop.example/cat-g", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var dailyItems = await itemStore.GetDailyAsync(
+        var (dailyItems, _) = await itemStore.GetDailyAsync(
             _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         var entry = Assert.Single(dailyItems, item => item.Id == saved.Entry.Id);
@@ -189,7 +189,7 @@ public sealed class ItemCategoryIntegrationTests : IAsyncLifetime
         await itemStore.MoveToWishlistAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await itemStore.GetByStateAsync(
+        var (page, _) = await itemStore.GetByStateAsync(
             _userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
         var entry = Assert.Single(page.Items, item => item.Id == saved.Entry.Id);
         Assert.NotNull(entry.Category);

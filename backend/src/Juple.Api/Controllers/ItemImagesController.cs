@@ -117,7 +117,7 @@ public sealed class ItemImagesController(
     }
 
     private static ItemImageResponse ToResponse(ItemImageDto image) =>
-        new(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc);
+        new(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc, image.ReadUrl);
 
     public sealed record ItemImagesResponse(IReadOnlyList<ItemImageResponse> Images);
 
@@ -126,5 +126,6 @@ public sealed class ItemImagesController(
         string ContentType,
         long ByteLength,
         int SortOrder,
-        DateTimeOffset CreatedAtUtc);
+        DateTimeOffset CreatedAtUtc,
+        Uri? ReadUrl);
 }

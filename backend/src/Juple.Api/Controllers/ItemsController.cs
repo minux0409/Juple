@@ -2,6 +2,7 @@ using Juple.Api.Authentication;
 using Juple.Api.Items;
 using Juple.Application.Categories;
 using Juple.Application.Identity;
+using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Items.AssignItemCategory;
 using Juple.Application.Items.DeleteItem;
@@ -111,7 +112,8 @@ public sealed class ItemsController(
                 details.SavedAtUtc,
                 ItemStateWireFormat.ToWireValue(details.State),
                 details.StateChangedAtUtc,
-                details.Category));
+                details.Category,
+                details.RepresentativeImage));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -217,5 +219,6 @@ public sealed class ItemsController(
         DateTimeOffset SavedAtUtc,
         string State,
         DateTimeOffset StateChangedAtUtc,
-        ItemCategoryDto? Category);
+        ItemCategoryDto? Category,
+        RepresentativeImageDto? RepresentativeImage);
 }

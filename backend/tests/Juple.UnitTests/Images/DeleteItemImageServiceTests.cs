@@ -45,7 +45,7 @@ public sealed class DeleteItemImageServiceTests
             byte[] content,
             DateTimeOffset createdAtUtc,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ItemImageDto(1, "image/jpeg", content.LongLength, 0, createdAtUtc));
+            Task.FromResult(new ItemImageDto(1, "image/jpeg", content.LongLength, 0, createdAtUtc, ReadUrl: null));
 
         public Task DeleteAsync(long userId, long itemId, long imageId, CancellationToken cancellationToken = default)
         {

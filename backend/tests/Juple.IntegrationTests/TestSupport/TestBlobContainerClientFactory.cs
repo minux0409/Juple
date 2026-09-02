@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Juple.Infrastructure.Images;
 using Juple.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 
@@ -18,6 +19,12 @@ internal static class TestBlobContainerClientFactory
     private static readonly Lazy<BlobContainerClient> LazyClient = new(CreateAndEnsureContainer);
 
     internal static BlobContainerClient Create() => LazyClient.Value;
+
+    /// <summary>The BlobServiceClient backing Create()'s container - needed alongside it to construct ItemImageStore.</summary>
+    internal static BlobServiceClient Service { get; } = CreateBlobServiceClient();
+
+    /// <summary>A fresh cache per call - tests don't need to share delegation-key state across cases.</summary>
+    internal static UserDelegationKeyCache CreateUserDelegationKeyCache() => new(Service);
 
     /// <summary>
     /// A real BlobContainerClient pointed at a container that is never created - a deterministic
