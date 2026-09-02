@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 namespace Juple.Application.Purchases;
 
 /// <summary>
@@ -9,14 +12,13 @@ namespace Juple.Application.Purchases;
 /// Memo follows Item.Memo's convention verbatim: only null/"" collapses to null, all other user
 /// whitespace/linebreaks are preserved as-is. CurrencyCode is trimmed, uppercased, and validated as
 /// an ASCII 3-letter code shape only - no ISO 4217 hardcoded list this round (see
-/// product-overview.md). Amount/Quantity are rejected - never silently rounded or truncated - both
+/// product-overview.md). Amount/Quantity arrive on the wire as plain decimal strings (never
+/// decimal/double) precisely so a value like 999999999999999.9999 - valid in decimal(19,4) but not
+/// exactly representable as an IEEE 754 double/JS Number - can never lose precision in transit; see
+/// ParseDecimalField. Once parsed, they are rejected - never silently rounded or truncated - both
 /// when they carry more decimal places than the DB column scale allows, and when their magnitude
-/// exceeds what the column's total precision can hold; both checks are pure decimal comparisons
-/// (no string/locale-dependent parsing), so a value that fits C#'s much larger decimal range but not
-/// SQL Server's decimal(19,4)/decimal(18,3) columns is rejected here as a 400 instead of surfacing
-/// as a raw arithmetic-overflow SqlException/DbUpdateException (500) from SaveChangesAsync. The
-/// exact bounds were verified against a real SQL Server instance, not assumed (see
-/// PurchaseStoreIntegrationTests race/precision coverage).
+/// exceeds what the column's total precision can hold. The exact bounds were verified against a
+/// real SQL Server instance, not assumed (see PurchaseStoreIntegrationTests race/precision coverage).
 /// </summary>
 internal static class PurchaseFieldsNormalizer
 {
@@ -29,22 +31,31 @@ internal static class PurchaseFieldsNormalizer
     // decimal(18,3): precision 18, scale 3 -> 15 integer digits + 3 fractional digits.
     private const decimal QuantityMax = 999_999_999_999_999.999m;
 
+    // Optional leading '-' (so a negative value reaches the range check below and gets a precise
+    // "must be zero or greater" message instead of a generic format error), digits, and at most one
+    // '.'. No exponent marker, no thousands separator, no leading/trailing whitespace (already
+    // trimmed before this runs) - deliberately stricter than decimal.TryParse's own NumberStyles
+    // would allow on its own.
+    private static readonly Regex DecimalTextPattern = new(@"^-?\d+(\.\d+)?$", RegexOptions.Compiled);
+
     internal static PurchaseFields Normalize(
         long? itemId,
         string? productName,
         DateOnly? purchaseDate,
-        decimal? amount,
+        string? amount,
         string? currencyCode,
         string? store,
         string? variant,
-        decimal? quantity,
+        string? quantity,
         string? memo)
     {
         var normalizedProductName = NormalizeProductName(productName);
         var normalizedPurchaseDate = purchaseDate
             ?? throw new InvalidPurchaseException("purchaseDate", "purchaseDate is required.");
-        var normalizedCurrencyCode = NormalizeAmountAndCurrency(amount, currencyCode);
-        NormalizeQuantity(quantity);
+        var parsedAmount = ParseDecimalField(amount, "amount");
+        var normalizedCurrencyCode = NormalizeAmountAndCurrency(parsedAmount, currencyCode);
+        var parsedQuantity = ParseDecimalField(quantity, "quantity");
+        NormalizeQuantity(parsedQuantity);
         var normalizedStore = NormalizeDisplayString(store, "store", 200);
         var normalizedVariant = NormalizeDisplayString(variant, "variant", 200);
         var normalizedMemo = NormalizeMemo(memo);
@@ -53,12 +64,47 @@ internal static class PurchaseFieldsNormalizer
             itemId,
             normalizedProductName,
             normalizedPurchaseDate,
-            amount,
+            parsedAmount,
             normalizedCurrencyCode,
             normalizedStore,
             normalizedVariant,
-            quantity,
+            parsedQuantity,
             normalizedMemo);
+    }
+
+    /// <summary>
+    /// Parses a wire decimal string exactly - never via decimal->double->decimal or any other lossy
+    /// intermediate representation. A missing/empty/whitespace-only value means "not provided" and
+    /// returns null; anything else must match DecimalTextPattern (plain digits and at most one '.',
+    /// optional leading '-') or this throws, rather than trying to be lenient about exponents,
+    /// thousands separators, or culture-specific separators.
+    /// </summary>
+    private static decimal? ParseDecimalField(string? text, string field)
+    {
+        var trimmed = text?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+
+        if (!DecimalTextPattern.IsMatch(trimmed))
+        {
+            throw new InvalidPurchaseException(
+                field,
+                $"{field} must be a plain decimal number - no thousands separators or scientific notation.");
+        }
+
+        try
+        {
+            return decimal.Parse(
+                trimmed,
+                NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture);
+        }
+        catch (OverflowException)
+        {
+            throw new InvalidPurchaseException(field, $"{field} is too large.");
+        }
     }
 
     private static string NormalizeProductName(string? productName)

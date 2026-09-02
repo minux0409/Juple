@@ -93,11 +93,11 @@ public sealed class UpdatePurchaseServiceTests
         long? itemId = null,
         string? productName = "Product",
         DateOnly? purchaseDate = null,
-        decimal? amount = null,
+        string? amount = null,
         string? currencyCode = null,
         string? store = null,
         string? variant = null,
-        decimal? quantity = null,
+        string? quantity = null,
         string? memo = null) =>
         new(
             itemId,

@@ -4,9 +4,9 @@ public sealed record CreatePurchaseCommand(
     long? ItemId,
     string? ProductName,
     DateOnly? PurchaseDate,
-    decimal? Amount,
+    string? Amount,
     string? CurrencyCode,
     string? Store,
     string? Variant,
-    decimal? Quantity,
+    string? Quantity,
     string? Memo);

@@ -204,24 +204,28 @@ public sealed class PurchasesController(
         purchase.ItemId,
         purchase.ProductName,
         purchase.PurchaseDate,
-        purchase.Amount,
+        PurchaseDecimalFormat.Format(purchase.Amount),
         purchase.CurrencyCode,
         purchase.Store,
         purchase.Variant,
-        purchase.Quantity,
+        PurchaseDecimalFormat.Format(purchase.Quantity),
         purchase.Memo,
         purchase.CreatedAtUtc);
 
+    // Amount/Quantity are wire strings, never decimal/double, so a value like
+    // 999999999999999.9999 - valid in decimal(19,4) but not exactly representable as a JS Number -
+    // never loses precision crossing the JSON boundary in either direction. See
+    // PurchaseFieldsNormalizer (request parsing) and PurchaseDecimalFormat (response formatting).
     public sealed record PurchaseResponse(
         long Id,
         long? ItemId,
         string ProductName,
         DateOnly PurchaseDate,
-        decimal? Amount,
+        string? Amount,
         string? CurrencyCode,
         string? Store,
         string? Variant,
-        decimal? Quantity,
+        string? Quantity,
         string? Memo,
         DateTimeOffset CreatedAtUtc);
 
@@ -231,21 +235,21 @@ public sealed class PurchasesController(
         long? ItemId,
         string? ProductName,
         DateOnly? PurchaseDate,
-        decimal? Amount,
+        string? Amount,
         string? CurrencyCode,
         string? Store,
         string? Variant,
-        decimal? Quantity,
+        string? Quantity,
         string? Memo);
 
     public sealed record UpdatePurchaseRequest(
         long? ItemId,
         string? ProductName,
         DateOnly? PurchaseDate,
-        decimal? Amount,
+        string? Amount,
         string? CurrencyCode,
         string? Store,
         string? Variant,
-        decimal? Quantity,
+        string? Quantity,
         string? Memo);
 }

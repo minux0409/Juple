@@ -169,7 +169,7 @@ public sealed class CreatePurchaseServiceTests
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(amount: 1000m, currencyCode: null)));
+            () => service.CreateAsync(17, Command(amount: "1000", currencyCode: null)));
 
         Assert.Equal("currencyCode", exception.Field);
     }
@@ -193,7 +193,7 @@ public sealed class CreatePurchaseServiceTests
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(amount: -0.01m, currencyCode: "KRW")));
+            () => service.CreateAsync(17, Command(amount: "-0.01", currencyCode: "KRW")));
 
         Assert.Equal("amount", exception.Field);
     }
@@ -204,7 +204,7 @@ public sealed class CreatePurchaseServiceTests
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
-        await service.CreateAsync(17, Command(amount: 0m, currencyCode: "KRW"));
+        await service.CreateAsync(17, Command(amount: "0", currencyCode: "KRW"));
 
         Assert.Equal(0m, store.LastFields!.Amount);
     }
@@ -216,7 +216,7 @@ public sealed class CreatePurchaseServiceTests
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(amount: 1.23456m, currencyCode: "KRW")));
+            () => service.CreateAsync(17, Command(amount: "1.23456", currencyCode: "KRW")));
 
         Assert.Equal("amount", exception.Field);
     }
@@ -227,20 +227,24 @@ public sealed class CreatePurchaseServiceTests
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
-        await service.CreateAsync(17, Command(amount: 19900.1234m, currencyCode: "KRW"));
+        await service.CreateAsync(17, Command(amount: "19900.1234", currencyCode: "KRW"));
 
         Assert.Equal(19900.1234m, store.LastFields!.Amount);
     }
 
     [Fact]
-    public async Task CreateAsync_WhenAmountIsAtTheDecimal19_4Maximum_Succeeds()
+    public async Task CreateAsync_WhenAmountIsAtTheDecimal19_4Maximum_ParsesWithNoPrecisionLoss()
     {
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
-        var max = 999_999_999_999_999.9999m;
+        const string maxText = "999999999999999.9999";
+        const decimal max = 999_999_999_999_999.9999m;
 
-        await service.CreateAsync(17, Command(amount: max, currencyCode: "KRW"));
+        await service.CreateAsync(17, Command(amount: maxText, currencyCode: "KRW"));
 
+        // Exact decimal equality - a value this large would lose precision if it were ever routed
+        // through double/JS Number, so proving it parses to exactly `max` (not a rounded
+        // neighbour) is the point of this test, not just that it "succeeds".
         Assert.Equal(max, store.LastFields!.Amount);
     }
 
@@ -249,13 +253,73 @@ public sealed class CreatePurchaseServiceTests
     {
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
-        var overMax = 1_000_000_000_000_000.0000m;
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(amount: overMax, currencyCode: "KRW")));
+            () => service.CreateAsync(17, Command(amount: "1000000000000000.0000", currencyCode: "KRW")));
 
         Assert.Equal("amount", exception.Field);
         Assert.False(store.WasCreateCalled);
+    }
+
+    [Theory]
+    [InlineData("1e3")]
+    [InlineData("1E3")]
+    [InlineData("1.5e2")]
+    public async Task CreateAsync_WhenAmountUsesScientificNotation_ThrowsInvalidPurchase(string amount)
+    {
+        var store = new FakePurchaseStore();
+        var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
+
+        var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
+            () => service.CreateAsync(17, Command(amount: amount, currencyCode: "KRW")));
+
+        Assert.Equal("amount", exception.Field);
+        Assert.False(store.WasCreateCalled);
+    }
+
+    [Theory]
+    [InlineData("1,000")]
+    [InlineData("1,000.50")]
+    public async Task CreateAsync_WhenAmountHasThousandsSeparator_ThrowsInvalidPurchase(string amount)
+    {
+        var store = new FakePurchaseStore();
+        var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
+
+        var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
+            () => service.CreateAsync(17, Command(amount: amount, currencyCode: "KRW")));
+
+        Assert.Equal("amount", exception.Field);
+        Assert.False(store.WasCreateCalled);
+    }
+
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("19.9.9")]
+    [InlineData("19,9")]
+    [InlineData("$19.9")]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    public async Task CreateAsync_WhenAmountIsNotAPlainDecimalString_ThrowsInvalidPurchase(string amount)
+    {
+        var store = new FakePurchaseStore();
+        var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
+
+        var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
+            () => service.CreateAsync(17, Command(amount: amount, currencyCode: "KRW")));
+
+        Assert.Equal("amount", exception.Field);
+        Assert.False(store.WasCreateCalled);
+    }
+
+    [Fact]
+    public async Task CreateAsync_TrimsAmountOuterWhitespace()
+    {
+        var store = new FakePurchaseStore();
+        var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
+
+        await service.CreateAsync(17, Command(amount: "  100  ", currencyCode: "KRW"));
+
+        Assert.Equal(100m, store.LastFields!.Amount);
     }
 
     [Theory]
@@ -267,7 +331,7 @@ public sealed class CreatePurchaseServiceTests
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
-        await service.CreateAsync(17, Command(amount: 100m, currencyCode: input));
+        await service.CreateAsync(17, Command(amount: "100", currencyCode: input));
 
         Assert.Equal(expected, store.LastFields!.CurrencyCode);
     }
@@ -283,7 +347,7 @@ public sealed class CreatePurchaseServiceTests
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(amount: 100m, currencyCode: currencyCode)));
+            () => service.CreateAsync(17, Command(amount: "100", currencyCode: currencyCode)));
 
         Assert.Equal("currencyCode", exception.Field);
     }
@@ -300,9 +364,9 @@ public sealed class CreatePurchaseServiceTests
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public async Task CreateAsync_WhenQuantityIsZeroOrNegative_ThrowsInvalidPurchase(int quantity)
+    [InlineData("0")]
+    [InlineData("-1")]
+    public async Task CreateAsync_WhenQuantityIsZeroOrNegative_ThrowsInvalidPurchase(string quantity)
     {
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
@@ -320,7 +384,7 @@ public sealed class CreatePurchaseServiceTests
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(quantity: 1.2345m)));
+            () => service.CreateAsync(17, Command(quantity: "1.2345")));
 
         Assert.Equal("quantity", exception.Field);
     }
@@ -331,19 +395,20 @@ public sealed class CreatePurchaseServiceTests
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
 
-        await service.CreateAsync(17, Command(quantity: 2.5m));
+        await service.CreateAsync(17, Command(quantity: "2.5"));
 
         Assert.Equal(2.5m, store.LastFields!.Quantity);
     }
 
     [Fact]
-    public async Task CreateAsync_WhenQuantityIsAtTheDecimal18_3Maximum_Succeeds()
+    public async Task CreateAsync_WhenQuantityIsAtTheDecimal18_3Maximum_ParsesWithNoPrecisionLoss()
     {
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
-        var max = 999_999_999_999_999.999m;
+        const string maxText = "999999999999999.999";
+        const decimal max = 999_999_999_999_999.999m;
 
-        await service.CreateAsync(17, Command(quantity: max));
+        await service.CreateAsync(17, Command(quantity: maxText));
 
         Assert.Equal(max, store.LastFields!.Quantity);
     }
@@ -353,10 +418,25 @@ public sealed class CreatePurchaseServiceTests
     {
         var store = new FakePurchaseStore();
         var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
-        var overMax = 1_000_000_000_000_000.000m;
 
         var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
-            () => service.CreateAsync(17, Command(quantity: overMax)));
+            () => service.CreateAsync(17, Command(quantity: "1000000000000000.000")));
+
+        Assert.Equal("quantity", exception.Field);
+        Assert.False(store.WasCreateCalled);
+    }
+
+    [Theory]
+    [InlineData("1e2")]
+    [InlineData("1,000")]
+    [InlineData("abc")]
+    public async Task CreateAsync_WhenQuantityIsNotAPlainDecimalString_ThrowsInvalidPurchase(string quantity)
+    {
+        var store = new FakePurchaseStore();
+        var service = new CreatePurchaseService(store, new FakeTimeProvider(FixedNow));
+
+        var exception = await Assert.ThrowsAsync<InvalidPurchaseException>(
+            () => service.CreateAsync(17, Command(quantity: quantity)));
 
         Assert.Equal("quantity", exception.Field);
         Assert.False(store.WasCreateCalled);
@@ -409,11 +489,11 @@ public sealed class CreatePurchaseServiceTests
         long? itemId = null,
         string? productName = "Product",
         DateOnly? purchaseDate = null,
-        decimal? amount = null,
+        string? amount = null,
         string? currencyCode = null,
         string? store = null,
         string? variant = null,
-        decimal? quantity = null,
+        string? quantity = null,
         string? memo = null) =>
         new(
             itemId,

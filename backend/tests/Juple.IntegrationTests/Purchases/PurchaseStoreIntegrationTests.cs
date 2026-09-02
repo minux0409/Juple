@@ -101,6 +101,63 @@ public sealed class PurchaseStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CreateAsync_WithMaximumAmountAndQuantity_PersistsExactValueThroughGetDetailRoundTrip()
+    {
+        var store = new PurchaseStore(_dbContext);
+        const decimal maxAmount = 999_999_999_999_999.9999m;
+        const decimal maxQuantity = 999_999_999_999_999.999m;
+
+        var created = await store.CreateAsync(
+            _userId, Fields(amount: maxAmount, currencyCode: "KRW", quantity: maxQuantity), DateTimeOffset.UtcNow);
+
+        // Exact decimal equality through the real DB round trip - not just "some value survived".
+        Assert.Equal(maxAmount, created.Amount);
+        Assert.Equal(maxQuantity, created.Quantity);
+
+        _dbContext.ChangeTracker.Clear();
+        var reloaded = await store.GetAsync(_userId, created.Id);
+        Assert.Equal(maxAmount, reloaded!.Amount);
+        Assert.Equal(maxQuantity, reloaded.Quantity);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithMaximumAmountAndQuantity_PersistsExactValueThroughListRoundTrip()
+    {
+        var store = new PurchaseStore(_dbContext);
+        const decimal maxAmount = 999_999_999_999_999.9999m;
+        const decimal maxQuantity = 999_999_999_999_999.999m;
+
+        var created = await store.CreateAsync(
+            _userId, Fields(amount: maxAmount, currencyCode: "USD", quantity: maxQuantity), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var page = await store.ListAsync(_userId, cursor: null, limit: 50);
+
+        var listed = Assert.Single(page.Purchases, p => p.Id == created.Id);
+        Assert.Equal(maxAmount, listed.Amount);
+        Assert.Equal(maxQuantity, listed.Quantity);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ToMaximumAmountAndQuantity_PersistsExactValueThroughGetDetailRoundTrip()
+    {
+        var store = new PurchaseStore(_dbContext);
+        const decimal maxAmount = 999_999_999_999_999.9999m;
+        const decimal maxQuantity = 999_999_999_999_999.999m;
+        var created = await store.CreateAsync(
+            _userId, Fields(amount: 100m, currencyCode: "KRW", quantity: 1m), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.UpdateAsync(
+            _userId, created.Id, Fields(amount: maxAmount, currencyCode: "KRW", quantity: maxQuantity));
+        _dbContext.ChangeTracker.Clear();
+
+        var reloaded = await store.GetAsync(_userId, created.Id);
+        Assert.Equal(maxAmount, reloaded!.Amount);
+        Assert.Equal(maxQuantity, reloaded.Quantity);
+    }
+
+    [Fact]
     public async Task CreateAsync_WithMinimalFields_Succeeds()
     {
         var store = new PurchaseStore(_dbContext);
