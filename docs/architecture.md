@@ -2,20 +2,20 @@
 
 ## 현재 상태
 
-현재 실제로 생성된 것은 `apps/mobile`뿐이다. React Native CLI + TypeScript로 Android와 iOS 네이티브 프로젝트를 함께 관리하며 Expo는 사용하지 않는다.
+`apps/mobile`(React Native CLI + TypeScript, Android/iOS 네이티브 프로젝트, Expo 미사용)과 `backend`(.NET 10 / ASP.NET Core / EF Core, Modular Monolith)가 실제로 생성되어 있다. `infra/local`에 local SQL Server + Azurite(Blob Storage emulator) 개발 인프라도 존재한다.
 
 ```text
 Juple/
 ├─ apps/
 │  ├─ mobile/       # current: React Native app
 │  └─ web/          # planned
-├─ backend/         # planned
-├─ infra/           # planned
+├─ backend/         # current: .NET 10 Backend
+├─ infra/           # current: local dev infra (SQL Server, Azurite)
 ├─ docs/
 └─ .github/
 ```
 
-문서의 예정 구성은 현재 구현되었다는 의미가 아니다.
+`apps/web`은 아직 구현되지 않았고, Azure production infrastructure도 아직 구성·배포되지 않았다. 이 섹션 외의 "예정" 표기(Azure 구성 방향 등)는 여전히 계획 단계이며 구현되었다는 의미가 아니다.
 
 ## 목표 플랫폼과 기술
 
