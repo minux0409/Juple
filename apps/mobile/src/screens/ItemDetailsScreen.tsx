@@ -601,6 +601,21 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          navigation.navigate('PurchaseEditor', {
+            itemId,
+            // A suggested initial value only - the user can freely change it, and neither the
+            // client nor the server ever confirms it automatically (see PurchaseEditorScreen).
+            initialProductName: item.title ?? undefined,
+          })
+        }
+        style={styles.addPurchaseButton}
+      >
+        <Text style={styles.addPurchaseButtonLabel}>구매 기록 추가</Text>
+      </Pressable>
+
       <View style={styles.imagesHeaderRow}>
         <Text style={styles.label}>사진 ({images.length}/{MAX_ITEM_IMAGES})</Text>
       </View>
@@ -1000,6 +1015,19 @@ const styles = StyleSheet.create({
   categoryChangeLabel: {
     color: '#111111',
     fontSize: 13,
+    fontWeight: '600',
+  },
+  addPurchaseButton: {
+    alignItems: 'center',
+    borderColor: '#9A9A9A',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 20,
+    paddingVertical: 10,
+  },
+  addPurchaseButtonLabel: {
+    color: '#111111',
+    fontSize: 14,
     fontWeight: '600',
   },
   modalOverlay: {
