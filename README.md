@@ -4,7 +4,7 @@ Juple은 발견한 상품과 콘텐츠를 빠르게 저장하고, 나중에 검�
 
 ## 현재 상태
 
-현재 저장소에는 React Native CLI 기반 모바일 앱만 존재한다.
+현재 저장소에는 React Native CLI 기반 모바일 앱과 .NET 기반 Backend, local 개발 인프라가 존재한다.
 
 - React Native `0.87.0`
 - React `19.2.3`
@@ -12,7 +12,10 @@ Juple은 발견한 상품과 콘텐츠를 빠르게 저장하고, 나중에 검�
 - Android / iOS 네이티브 프로젝트 포함
 - Android 기본 빌드 및 API 36 에뮬레이터 실행 확인
 - Android applicationId / iOS Bundle Identifier: `com.juple.app`
-- Web, Backend, Azure 인프라는 아직 생성되지 않음
+- Backend: .NET 10 / ASP.NET Core / EF Core (Modular Monolith)
+- Local 개발 인프라: SQL Server, Azurite(Blob Storage emulator) — `infra/local/compose.yaml`
+- Azure production 인프라는 아직 구성되지 않음
+- Web은 아직 구현되지 않음
 
 Juple은 Google Play Store, Apple App Store, Web 출시와 장기 운영을 전제로 하는 Production-oriented 프로젝트다.
 
@@ -22,9 +25,9 @@ Juple은 Google Play Store, Apple App Store, Web 출시와 장기 운영을 전�
 | ------------ | ---------------------------------------------------- |
 | Mobile       | React Native CLI, TypeScript                         |
 | Web          | Next.js, TypeScript (예정)                           |
-| Backend      | .NET 10 LTS, ASP.NET Core Web API, EF Core 10 (예정) |
-| Architecture | Modular Monolith (예정)                              |
-| Database     | Azure SQL Database (예정)                            |
+| Backend      | .NET 10 LTS, ASP.NET Core Web API, EF Core 10         |
+| Architecture | Modular Monolith                                      |
+| Database     | Azure SQL Database (예정, local dev는 SQL Server)     |
 | Cloud        | Microsoft Azure (예정)                               |
 | Push         | FCM, APNs, Azure Notification Hubs (예정)            |
 
@@ -35,8 +38,8 @@ Juple/
 ├─ apps/
 │  ├─ mobile/       # current: React Native app
 │  └─ web/          # planned
-├─ backend/         # planned
-├─ infra/           # planned
+├─ backend/         # current: .NET 10 Backend
+├─ infra/           # current: local dev infra (SQL Server, Azurite)
 ├─ docs/
 └─ .github/
 ```

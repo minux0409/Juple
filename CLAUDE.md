@@ -1,39 +1,151 @@
-# Juple Claude Instructions
+# Juple - Claude Development Instructions
 
-작업 전에 다음 문서를 먼저 읽는다.
+Juple is a production application intended for real Android, iOS, and Web service.
+Treat changes as production code, not disposable prototype code.
 
-- `docs/product-overview.md`
-- `docs/architecture.md`
-- `docs/development-principles.md`
+## Project context
 
-## 프로젝트 기준
+Before making architectural or domain changes, use these as the source of truth:
 
-- Juple은 Google Play Store, Apple App Store, Web 출시를 목표로 하는 Production-oriented 글로벌 서비스다.
-- 현재 실제 프로젝트는 `apps/mobile`뿐이다. Web, Backend, Azure 인프라는 아직 생성되지 않았다.
-- Mobile은 React Native CLI + TypeScript이며 Expo를 사용하지 않는다.
-- Android와 iOS를 동등한 정식 플랫폼으로 고려한다.
-- 기존 architecture, package, 식별자, 플랫폼 동작을 임의로 변경하지 않는다.
+@README.md
+@docs/product-overview.md
+@docs/architecture.md
+@docs/development-principles.md
+@docs/database-conventions.md
 
-## 구현 규칙
+Do not duplicate or reinvent documented decisions without a concrete reason.
 
-- 작업 범위를 벗어난 프로젝트, 파일, framework, library를 추가하지 않는다.
-- 새 dependency가 필요하면 이유와 대안을 먼저 설명한다.
-- 변경 전 관련 문서와 현재 구현, 영향 범위를 확인한다.
-- 작은 변경 후 가장 가까운 검증을 실행한다.
-- 임시 mock이나 불확실한 AI·Metadata 결과를 Production 사실처럼 저장하지 않는다.
-- AI는 보조 기능이며 사용자가 확인하기 전 확정 데이터로 저장하지 않는다.
+## Working principles
 
-## 데이터와 보안
+- Inspect the existing implementation before changing it.
+- Prefer the smallest change that fits the existing architecture.
+- Do not introduce a new framework, package, service, abstraction, or architectural pattern unless the task requires it.
+- Do not create temporary implementations that are expected to require a rewrite for production.
+- Do not refactor unrelated code while implementing a requested feature.
+- Preserve existing API contracts unless the task explicitly changes them.
+- Preserve existing database data when creating migrations.
+- Never modify generated/build files as a source fix.
+- If an issue is environment-specific, distinguish it from a source-code issue before changing code.
 
-- 사용자별 데이터 격리는 서버에서 강제한다.
-- 외부 입력(URL, text 등)을 신뢰하지 않는다.
-- Identity Provider UID와 내부 UserId를 분리한다.
-- 시간은 UTC로 저장하고 사용자 TimeZone으로 표현한다.
-- 금액은 `Amount`와 `CurrencyCode`를 함께 관리한다.
-- UI 문자열, 날짜·시간, 통화를 특정 언어·국가에 하드코딩하지 않는다.
-- Password, Token, Secret을 source code나 로그에 남기지 않는다.
-- DB schema 변경은 EF Core Migration으로 추적하고 API versioning을 고려한다.
+## Data and product trust
 
-## 작업 제한
+User-entered data is the source of truth.
 
-요청하지 않은 설치, 업데이트, 삭제, 프로젝트 생성, commit, push를 수행하지 않는다. 실패나 불확실성은 숨기지 말고 원인과 남은 위험을 보고한다.
+Do not:
+- guess product prices, variants, quantities, names, or purchase information;
+- store unverified AI/metadata output as fact;
+- implement scraping or bot-protection bypasses;
+- infer external purchases.
+
+Metadata or AI may only assist when explicitly requested and must remain user-confirmed.
+
+## Backend
+
+Backend:
+- .NET 10 / ASP.NET Core / EF Core
+- Modular Monolith
+- Azure SQL production
+- SQL Server local development
+
+Rules:
+- User-owned data must always enforce ownership server-side.
+- External identity IDs are not Juple domain UserIds.
+- Use UTC/DateTimeOffset according to existing conventions.
+- Follow existing EF configurations and migration conventions.
+- Avoid unnecessary indexes; add them for demonstrated query patterns.
+- Azure SDK types should stay in Infrastructure unless there is a strong reason otherwise.
+- Do not put binary image data or base64 data in SQL.
+- Keep the existing `/api/v1/...` convention and a versionable structure when changing Backend APIs.
+
+## Mobile
+
+Mobile:
+- React Native CLI
+- TypeScript
+- Android and iOS
+- No Expo
+
+Rules:
+- Do not add Expo packages.
+- Do not add native/package dependencies unless required.
+- Keep Android and iOS implications in mind when modifying Mobile code.
+- Do not hardcode locale, timezone, currency, or date assumptions.
+
+## Security
+
+- Never commit secrets, tokens, passwords, connection strings, signing keys, or credentials.
+- Never print or request raw bearer/access/refresh tokens for debugging.
+- Do not weaken authentication or ownership checks to make a test pass.
+- Treat all client input as untrusted.
+
+## Git safety
+
+At the beginning of a task that changes files:
+1. Check `git status`.
+2. If unexpected local changes exist, stop and report them before overwriting anything.
+
+Do not:
+- commit,
+- push,
+- reset,
+- force-push,
+- discard user changes,
+- delete important files,
+- install, update, or remove packages/dependencies
+
+unless the user's current task explicitly requires or authorizes it.
+
+If a task says to implement but says nothing about commit/push, leave the changes uncommitted and report them.
+
+## Validation
+
+Validate the scope that actually changed.
+
+Typical checks:
+
+Backend:
+- `dotnet build`
+- relevant tests, then full `dotnet test` when appropriate
+
+Mobile:
+- `npx tsc --noEmit`
+- `npm run lint`
+- Android build when native/runtime behavior is affected
+
+Database changes:
+- review migration SQL
+- verify `dotnet ef migrations has-pending-model-changes`
+- protect existing data
+
+Do not repeatedly run expensive or unrelated validation without a reason.
+
+Never claim a runtime scenario was tested unless it was actually exercised.
+
+If part of the result failed, is uncertain, or was not verified, report the cause and remaining risk clearly instead of hiding it.
+
+## Decision making
+
+When multiple implementations are possible:
+1. Prefer correctness and data integrity.
+2. Prefer existing Juple patterns.
+3. Prefer lower operational complexity.
+4. Prefer production extensibility.
+5. Avoid speculative abstraction and premature optimization.
+
+If the requested approach creates a meaningful correctness, security,
+data-loss, scalability, or maintenance problem, stop and explain the issue
+instead of blindly implementing it.
+
+## Communication
+
+Keep progress and final reports concise.
+
+For completed implementation work, normally report only:
+- what changed;
+- important design decisions;
+- tests/build results;
+- files changed;
+- migration/package changes, if any;
+- git status / commit hash when relevant.
+
+Do not produce long explanations of unchanged project background.
