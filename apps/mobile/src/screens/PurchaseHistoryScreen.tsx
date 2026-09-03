@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,10 +12,66 @@ import {
 } from 'react-native';
 import type { RootStackParamList } from '../navigation/RootStack';
 import type { Purchase } from '../purchases/api/purchasesApi';
+import type { IntervalUnit, RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
 import { usePurchaseList } from '../purchases/usePurchaseList';
+import { useRepeatPurchaseList } from '../purchases/useRepeatPurchaseList';
+
+type Segment = 'purchases' | 'repeatPurchases';
+
+function formatIntervalDescription(intervalValue: number, intervalUnit: IntervalUnit): string {
+  const unitLabel: Record<IntervalUnit, string> = {
+    day: '일마다',
+    week: '주마다',
+    month: '개월마다',
+  };
+  return `${intervalValue}${unitLabel[intervalUnit]}`;
+}
 
 export function PurchaseHistoryScreen() {
+  const [segment, setSegment] = useState<Segment>('purchases');
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.segmentRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: segment === 'purchases' }}
+          onPress={() => setSegment('purchases')}
+          style={[styles.segmentButton, segment === 'purchases' && styles.segmentButtonActive]}
+        >
+          <Text
+            style={[styles.segmentLabel, segment === 'purchases' && styles.segmentLabelActive]}
+          >
+            구매내역
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: segment === 'repeatPurchases' }}
+          onPress={() => setSegment('repeatPurchases')}
+          style={[
+            styles.segmentButton,
+            segment === 'repeatPurchases' && styles.segmentButtonActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.segmentLabel,
+              segment === 'repeatPurchases' && styles.segmentLabelActive,
+            ]}
+          >
+            반복구매
+          </Text>
+        </Pressable>
+      </View>
+
+      {segment === 'purchases' ? <PurchaseListSection /> : <RepeatPurchaseListSection />}
+    </View>
+  );
+}
+
+function PurchaseListSection() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { purchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
     usePurchaseList();
@@ -74,16 +130,13 @@ export function PurchaseHistoryScreen() {
       renderItem={renderItem}
       ListHeaderComponent={
         <View>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>구매내역</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigation.navigate('PurchaseEditor', {})}
-              style={styles.addButton}
-            >
-              <Text style={styles.addButtonLabel}>구매 기록 추가</Text>
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('PurchaseEditor', {})}
+            style={styles.addButton}
+          >
+            <Text style={styles.addButtonLabel}>구매 기록 추가</Text>
+          </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       }
@@ -101,29 +154,101 @@ export function PurchaseHistoryScreen() {
   );
 }
 
+function RepeatPurchaseListSection() {
+  const { repeatPurchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
+    useRepeatPurchaseList();
+
+  const renderItem = useCallback(({ item }: { item: RepeatPurchase }) => (
+    <View style={styles.row}>
+      <Text numberOfLines={2} style={styles.productName}>
+        {item.productName}
+      </Text>
+      <Text style={styles.purchaseDate}>
+        다음 예상 구매일 {formatDateOnlyForDisplay(item.nextPurchaseDate)}
+      </Text>
+      <Text style={styles.secondary}>
+        {formatIntervalDescription(item.intervalValue, item.intervalUnit)}
+      </Text>
+    </View>
+  ), []);
+
+  if (isLoading && repeatPurchases.length === 0 && !error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      contentContainerStyle={styles.content}
+      data={repeatPurchases}
+      keyExtractor={item => item.id.toString()}
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      refreshControl={<RefreshControl onRefresh={refresh} refreshing={isRefreshing} />}
+      renderItem={renderItem}
+      ListHeaderComponent={error ? <Text style={styles.error}>{error}</Text> : undefined}
+      ListEmptyComponent={
+        !error ? <Text style={styles.empty}>반복 구매가 없습니다.</Text> : undefined
+      }
+      ListFooterComponent={
+        isLoadingMore ? (
+          <View style={styles.footerLoading}>
+            <ActivityIndicator />
+          </View>
+        ) : undefined
+      }
+    />
+  );
+}
+
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  segmentRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  segmentButton: {
+    alignItems: 'center',
+    borderColor: '#9A9A9A',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    marginRight: 8,
+    paddingVertical: 10,
+  },
+  segmentButtonActive: {
+    backgroundColor: '#111111',
+    borderColor: '#111111',
+  },
+  segmentLabel: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  segmentLabelActive: {
+    color: '#FFFFFF',
+  },
   content: {
     flexGrow: 1,
     padding: 24,
   },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
   addButton: {
+    alignSelf: 'flex-end',
     backgroundColor: '#111111',
     borderRadius: 8,
+    marginBottom: 16,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
