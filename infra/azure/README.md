@@ -56,6 +56,7 @@ az deployment group create `
     imageTag=<tag> `
     containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
     managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
+    managedIdentityClientId=$foundation.managedIdentityClientId.value `
     storageBlobServiceUri=$foundation.storageBlobServiceUri.value `
     sqlConnectionString=$env:SQL_CONNECTION_STRING
 ```

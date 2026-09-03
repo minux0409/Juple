@@ -25,6 +25,9 @@ param containerAppsEnvironmentId string
 @description('User Assigned Managed Identity resource ID - Foundation output "managedIdentityResourceId". Used both for ACR pull and for the running app to reach Blob Storage via DefaultAzureCredential.')
 param managedIdentityResourceId string
 
+@description('User Assigned Managed Identity client ID - Foundation output "managedIdentityClientId". Not a secret (an identifier, not a credential). Passed through as AZURE_CLIENT_ID so the container\'s DefaultAzureCredential() - which takes no options in code (see BlobServiceClientFactory.cs) - resolves this specific identity rather than probing ambiguously; AZURE_CLIENT_ID is one of the environment variables DefaultAzureCredential\'s ManagedIdentityCredential reads on its own, so this requires no C# change.')
+param managedIdentityClientId string
+
 @description('Full ASP.NET Core SQL connection string, credentials included. Never put a real value in a checked-in parameter file - supply it at deploy time (e.g. from a local environment variable the deploy command reads). Stored only as a Container Apps secret; never exposed as a plain env var or a template output. Foundation deliberately does not hand this back as an output either - the deployer assembles it from Foundation\'s sqlServerFqdn output plus whatever admin credentials they supplied to that deployment.')
 @secure()
 param sqlConnectionString string
@@ -119,6 +122,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               // (Managed Identity) path instead of a Shared Key connection string.
               name: 'BlobStorage__ServiceUri'
               value: storageBlobServiceUri
+            }
+            {
+              // Not a secret - a public identifier (see managedIdentityClientId's description
+              // above). Never pair this with AZURE_TENANT_ID/AZURE_CLIENT_SECRET - those belong to
+              // Service Principal auth, which this app does not use.
+              name: 'AZURE_CLIENT_ID'
+              value: managedIdentityClientId
             }
             {
               name: 'BlobStorage__ContainerName'
