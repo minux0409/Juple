@@ -14,8 +14,15 @@ Container App이 아직 존재하지 않는 이미지 태그를 참조해 Founda
 1. **Foundation** (`foundation/`) — Resource Group, User Assigned Managed Identity, Azure
    Container Registry(Basic), Storage Account(+ `item-images` Blob container), Azure SQL 논리
    서버/Database, Log Analytics Workspace, Container Apps Environment, RBAC(AcrPull, Storage Blob
-   Data Contributor/Delegator)를 생성한다. `Microsoft.App/containerApps`는 이 단계에서 전혀
-   만들지 않는다 — Foundation은 이미지 존재 여부와 완전히 무관하게 성공해야 한다.
+   Data Contributor)를 생성한다. `Microsoft.App/containerApps`는 이 단계에서 전혀 만들지 않는다
+   — Foundation은 이미지 존재 여부와 완전히 무관하게 성공해야 한다.
+
+   Storage Blob Data Contributor 하나만 부여한다 — 이 역할의 Actions에 이미
+   `Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action`이 포함되어
+   있어(`az role definition list`로 확인), 동일 Storage Account scope에 Storage Blob Delegator를
+   별도로 추가하는 것은 중복이다. 다만 향후 이 Managed Identity의 Data Contributor 권한을 계정
+   전체가 아니라 특정 container 단위로 좁히면서도 user delegation key 발급은 계정 단위로 계속
+   필요해지는 경우에는 Storage Blob Delegator가 다시 필요할 수 있다.
 
 2. **이미지 빌드 & push** — `backend/src/Juple.Api/Dockerfile`로 빌드한 이미지를 Foundation이
    만든 ACR에 push한다.

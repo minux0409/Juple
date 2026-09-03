@@ -31,8 +31,16 @@ var containerAppsEnvironmentName = 'cae-juple-${environmentName}'
 // Azure built-in role definition GUIDs - identical in every tenant; only the resourceId's scope
 // prefix differs per assignment below.
 var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull
+// Storage Blob Data Contributor's own Actions already include
+// Microsoft.Storage/storageAccounts/blobServices/generateUserDelegationKey/action (confirmed via
+// `az role definition list --name "Storage Blob Data Contributor"`), on top of its DataActions
+// covering blob read/write/delete - so this single role, at this same Storage Account scope, is
+// everything ItemImageStore.cs/UserDelegationKeyCache.cs need. A separate Storage Blob Delegator
+// assignment at the same scope would only be redundant. That role would earn its place again if
+// this identity's Data Contributor grant were ever narrowed to a single container (ACLs at the
+// container level, not the whole account) while user delegation key issuance still needs to stay
+// account-wide - not the case today.
 var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
-var storageBlobDelegatorRoleId = 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a' // Storage Blob Delegator
 
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: managedIdentityName
@@ -70,8 +78,8 @@ resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
 // path at all - only Azure AD (the Managed Identity below, via DefaultAzureCredential) can
 // authenticate. This matches BlobServiceClientFactory.cs's Production path exactly, and is the
 // same path ItemImageStore.cs's User Delegation SAS signing already expects (see
-// UserDelegationKeyCache.cs) - Storage Blob Delegator exists specifically for this Shared-Key-off
-// scenario.
+// UserDelegationKeyCache.cs) - the Storage Blob Data Contributor role assignment below already
+// covers user delegation key issuance, not just blob read/write/delete.
 // -----------------------------------------------------------------------------------------------
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
@@ -107,16 +115,6 @@ resource storageBlobDataContributorRoleAssignment 'Microsoft.Authorization/roleA
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDataContributorRoleId)
-    principalId: managedIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource storageBlobDelegatorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, managedIdentity.id, storageBlobDelegatorRoleId)
-  scope: storageAccount
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', storageBlobDelegatorRoleId)
     principalId: managedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
