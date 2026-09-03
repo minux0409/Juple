@@ -4,6 +4,7 @@ import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
 import { RepeatPurchaseDetailsScreen } from '../screens/RepeatPurchaseDetailsScreen';
 import { RepeatPurchaseEditorScreen } from '../screens/RepeatPurchaseEditorScreen';
+import { RepeatPurchaseLogPurchaseScreen } from '../screens/RepeatPurchaseLogPurchaseScreen';
 import type { Purchase } from '../purchases/api/purchasesApi';
 import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { MainTabs } from './MainTabs';
@@ -27,19 +28,28 @@ export type RootStackParamList = {
   /** purchaseId only - the screen fetches the current Purchase itself via GET. */
   PurchaseDetails: { purchaseId: number };
   /**
-   * Create mode: itemId is optional - always absent this round (no Item picker/connection yet, so
-   * a standalone create is always itemId=null; see RepeatPurchaseEditorScreen).
+   * Create mode: itemId/initialProductName are both optional - present when reached from
+   * ItemDetailsScreen (a suggested initial value only, never confirmed automatically, never
+   * synced with Item.Title after this point; see RepeatPurchaseEditorScreen), absent when reached
+   * standalone from the Repeat Purchase list (itemId=null).
    * Edit mode: repeatPurchaseId + initialRepeatPurchase are both present (set together by
    * RepeatPurchaseDetailsScreen) and prefill the form, including the hidden Reminder fields, which
    * must round-trip unchanged - see RepeatPurchaseEditorScreen.
    */
   RepeatPurchaseEditor: {
     itemId?: number;
+    initialProductName?: string;
     repeatPurchaseId?: number;
     initialRepeatPurchase?: RepeatPurchase;
   };
   /** repeatPurchaseId only - the screen fetches the current RepeatPurchase itself via GET. */
   RepeatPurchaseDetails: { repeatPurchaseId: number };
+  /**
+   * initialRepeatPurchase is always passed by RepeatPurchaseDetailsScreen (its own just-loaded
+   * state), supplying the current opaque version and the read-only ProductName to show - never
+   * re-fetched here.
+   */
+  RepeatPurchaseLogPurchase: { repeatPurchaseId: number; initialRepeatPurchase: RepeatPurchase };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -72,6 +82,11 @@ export function RootStack() {
         component={RepeatPurchaseDetailsScreen}
         name="RepeatPurchaseDetails"
         options={{ title: '반복 구매 상세' }}
+      />
+      <Stack.Screen
+        component={RepeatPurchaseLogPurchaseScreen}
+        name="RepeatPurchaseLogPurchase"
+        options={{ title: '구매 완료' }}
       />
     </Stack.Navigator>
   );

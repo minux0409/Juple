@@ -1,77 +1,55 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-} from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { createPurchase, updatePurchase } from '../purchases/api/purchasesApi';
-import { formatDateOnly, formatDateOnlyForDisplay, parseDateOnly } from '../purchases/dateOnly';
+import { logRepeatPurchase } from '../purchases/api/repeatPurchasesApi';
+import { formatDateOnly, formatDateOnlyForDisplay } from '../purchases/dateOnly';
 import {
   getLengthValidationError,
   isZeroDecimalText,
   validateOptionalDecimalText,
 } from '../purchases/purchaseFieldValidation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'PurchaseEditor'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'RepeatPurchaseLogPurchase'>;
 
-function getSaveErrorMessage(error: unknown): string {
+function getLogPurchaseErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return '입력한 내용을 확인해 주세요.';
     }
     if (error.kind === 'notFound') {
-      return '연결된 항목을 찾을 수 없습니다.';
+      return '이미 삭제되었거나 찾을 수 없는 반복 구매입니다.';
     }
     if (error.kind === 'conflict') {
-      return 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      // Same principle as RepeatPurchase Edit's stale-version 409: never silently retried or
+      // overwritten, and never assume the Purchase was created - the user must go back and reopen
+      // with the latest data.
+      return '다른 변경 사항이 반영되어 최신 정보를 다시 불러와야 합니다.';
     }
     if (error.kind === 'unauthorized') {
       return '인증 상태를 다시 확인할 수 없습니다.';
     }
   }
-  return '구매 기록을 저장할 수 없습니다.';
+  return '구매를 기록할 수 없습니다.';
 }
 
-/** Mirrors the backend's PurchaseFieldsNormalizer: required, trimmed, 500-character limit. */
-function getProductNameValidationError(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '상품명을 입력해 주세요.';
-  }
-  if (trimmed.length > 500) {
-    return '상품명은 500자 이하로 입력해 주세요.';
-  }
-  return null;
-}
-
-export function PurchaseEditorScreen({ route, navigation }: Props) {
-  const { itemId, initialProductName, purchaseId, initialPurchase } = route.params;
-  // Edit mode is set by PurchaseDetailsScreen, which always passes purchaseId and
-  // initialPurchase together (see RootStackParamList) - create mode otherwise.
-  const isEditMode = purchaseId !== undefined && initialPurchase !== undefined;
+export function RepeatPurchaseLogPurchaseScreen({ route, navigation }: Props) {
+  const { repeatPurchaseId, initialRepeatPurchase } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
 
-  const [productName, setProductName] = useState(
-    initialPurchase?.productName ?? initialProductName ?? '',
-  );
-  const [purchaseDate, setPurchaseDate] = useState(() =>
-    initialPurchase ? parseDateOnly(initialPurchase.purchaseDate) : new Date(),
-  );
+  // Device-local today, via the same DateOnly utility as PurchaseEditor - never
+  // toISOString()/new Date("YYYY-MM-DD") (UTC parsing).
+  const [purchaseDate, setPurchaseDate] = useState(() => new Date());
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
-  const [amountText, setAmountText] = useState(initialPurchase?.amount ?? '');
-  const [currencyCode, setCurrencyCode] = useState(initialPurchase?.currencyCode ?? '');
-  const [store, setStore] = useState(initialPurchase?.store ?? '');
-  const [variant, setVariant] = useState(initialPurchase?.variant ?? '');
-  const [quantityText, setQuantityText] = useState(initialPurchase?.quantity ?? '');
-  const [memo, setMemo] = useState(initialPurchase?.memo ?? '');
+  const [amountText, setAmountText] = useState('');
+  const [currencyCode, setCurrencyCode] = useState('');
+  const [store, setStore] = useState('');
+  const [variant, setVariant] = useState('');
+  const [quantityText, setQuantityText] = useState('');
+  const [memo, setMemo] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,13 +69,6 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
     if (isSavingRef.current) {
       return;
     }
-
-    const productNameError = getProductNameValidationError(productName);
-    if (productNameError) {
-      setError(productNameError);
-      return;
-    }
-    const trimmedProductName = productName.trim();
 
     const validatedAmount = validateOptionalDecimalText(amountText);
     if (validatedAmount === 'invalid') {
@@ -144,32 +115,26 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
     setIsSaving(true);
     setError(null);
     try {
-      const fields = {
-        productName: trimmedProductName,
+      // No productName/itemId sent - the Backend derives them from the RepeatPurchase itself (see
+      // repeatPurchasesApi.LogRepeatPurchaseInput). Only the just-loaded RepeatPurchaseDetails
+      // version is round-tripped; a stale value 409s rather than silently overwriting.
+      await logRepeatPurchase(authenticatedRequest, repeatPurchaseId, {
+        version: initialRepeatPurchase.version,
         purchaseDate: formatDateOnly(purchaseDate),
         amount: validatedAmount,
         currencyCode: validatedAmount !== null ? trimmedCurrencyCode : null,
         store: store.trim() || null,
         variant: variant.trim() || null,
         quantity: validatedQuantity,
-        // Only a genuinely empty Memo collapses to null - otherwise preserved verbatim, matching
-        // the backend's Memo convention (whitespace/linebreaks are a deliberate user entry).
         memo: memo || null,
-      };
-
-      if (isEditMode) {
-        // ItemId is never re-derived here - it stays whatever the Purchase already had (including
-        // null), since this screen has no Item picker/search (out of scope for this iteration).
-        await updatePurchase(authenticatedRequest, purchaseId, {
-          itemId: initialPurchase.itemId,
-          ...fields,
-        });
-      } else {
-        await createPurchase(authenticatedRequest, { itemId: itemId ?? null, ...fields });
-      }
+      });
+      // RepeatPurchaseDetailsScreen already refetches on every focus (see its useFocusEffect), so
+      // popping back here reflects the new NextPurchaseDate/version without any extra plumbing -
+      // the same mechanism already used by RepeatPurchaseEditor's own save-and-return flow.
       navigation.goBack();
     } catch (caughtError) {
-      setError(getSaveErrorMessage(caughtError));
+      // Failure leaves every field exactly as typed - never cleared, never navigated away.
+      setError(getLogPurchaseErrorMessage(caughtError));
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -179,12 +144,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.label}>상품명</Text>
-      <TextInput
-        onChangeText={setProductName}
-        placeholder="상품명을 입력해 주세요"
-        style={styles.input}
-        value={productName}
-      />
+      <Text style={styles.productName}>{initialRepeatPurchase.productName}</Text>
 
       <Text style={styles.label}>구매일</Text>
       <Pressable
@@ -262,7 +222,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
         onPress={submit}
         style={[styles.saveButton, isSaving && styles.disabledButton]}
       >
-        <Text style={styles.saveButtonLabel}>{isSaving ? '저장 중...' : '저장'}</Text>
+        <Text style={styles.saveButtonLabel}>{isSaving ? '저장 중...' : '구매 완료'}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -279,6 +239,11 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginTop: 20,
     marginBottom: 6,
+  },
+  productName: {
+    color: '#111111',
+    fontSize: 16,
+    fontWeight: '600',
   },
   input: {
     borderColor: '#9A9A9A',

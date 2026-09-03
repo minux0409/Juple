@@ -73,13 +73,15 @@ function validateIntervalValueText(text: string): number | 'invalid' {
 }
 
 export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
-  const { itemId, repeatPurchaseId, initialRepeatPurchase } = route.params;
+  const { itemId, initialProductName, repeatPurchaseId, initialRepeatPurchase } = route.params;
   // Edit mode is set by RepeatPurchaseDetailsScreen, which always passes repeatPurchaseId and
   // initialRepeatPurchase together (see RootStackParamList) - create mode otherwise.
   const isEditMode = repeatPurchaseId !== undefined && initialRepeatPurchase !== undefined;
   const authenticatedRequest = useAuthenticatedApi();
 
-  const [productName, setProductName] = useState(initialRepeatPurchase?.productName ?? '');
+  const [productName, setProductName] = useState(
+    initialRepeatPurchase?.productName ?? initialProductName ?? '',
+  );
   const [intervalValueText, setIntervalValueText] = useState(
     initialRepeatPurchase ? String(initialRepeatPurchase.intervalValue) : '',
   );

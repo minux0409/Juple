@@ -213,6 +213,21 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         accessibilityState={{ disabled: isBusy }}
         disabled={isBusy}
         onPress={() =>
+          navigation.navigate('RepeatPurchaseLogPurchase', {
+            repeatPurchaseId: repeatPurchase.id,
+            initialRepeatPurchase: repeatPurchase,
+          })
+        }
+        style={[styles.logPurchaseButton, isBusy && styles.disabledButton]}
+      >
+        <Text style={styles.logPurchaseButtonLabel}>구매 완료</Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isBusy }}
+        disabled={isBusy}
+        onPress={() =>
           navigation.navigate('RepeatPurchaseEditor', {
             repeatPurchaseId: repeatPurchase.id,
             initialRepeatPurchase: repeatPurchase,
@@ -285,12 +300,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 16,
   },
+  logPurchaseButton: {
+    alignItems: 'center',
+    backgroundColor: '#111111',
+    borderRadius: 8,
+    marginTop: 24,
+    paddingVertical: 12,
+  },
+  logPurchaseButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   editButton: {
     alignItems: 'center',
     borderColor: '#9A9A9A',
     borderRadius: 8,
     borderWidth: 1,
-    marginTop: 24,
+    marginTop: 12,
     paddingVertical: 12,
   },
   editButtonLabel: {

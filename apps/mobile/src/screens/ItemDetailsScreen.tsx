@@ -42,7 +42,9 @@ import {
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { getPurchases, type Purchase } from '../purchases/api/purchasesApi';
+import { getRepeatPurchases, type RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
+import { formatIntervalDescription } from '../purchases/repeatPurchaseFormat';
 
 const MAX_ITEM_IMAGES = 10;
 const RECENT_PURCHASES_LIMIT = 3;
@@ -144,6 +146,13 @@ function getRecentPurchasesErrorMessage(error: unknown): string {
   return '구매 기록을 불러올 수 없습니다.';
 }
 
+function getLinkedRepeatPurchasesErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return '인증 상태를 다시 확인할 수 없습니다.';
+  }
+  return '반복 구매 목록을 불러올 수 없습니다.';
+}
+
 function getItemLifecycleErrorMessage(error: unknown, isDelete: boolean): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return '인증 상태를 다시 확인할 수 없습니다.';
@@ -229,6 +238,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // Discards a stale in-flight load's result if a newer one (e.g. a rapid re-focus) has since started.
   const purchasesRequestIdRef = useRef(0);
 
+  // Entirely independent state from item/Purchase History above - a RepeatPurchase load failure
+  // never affects the rest of ItemDetails, and vice versa.
+  const [linkedRepeatPurchases, setLinkedRepeatPurchases] = useState<readonly RepeatPurchase[]>([]);
+  const [isLoadingRepeatPurchases, setIsLoadingRepeatPurchases] = useState(true);
+  const [repeatPurchasesError, setRepeatPurchasesError] = useState<string | null>(null);
+  const repeatPurchasesRequestIdRef = useRef(0);
+
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -294,12 +310,40 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   }, [authenticatedRequest, itemId]);
 
-  // Refetches on every focus (not just mount), so returning from PurchaseEditor after a
-  // create/edit, or from PurchaseDetails after a delete, shows the current Purchases immediately.
+  const loadLinkedRepeatPurchases = useCallback(async () => {
+    const requestId = ++repeatPurchasesRequestIdRef.current;
+    setIsLoadingRepeatPurchases(true);
+    setRepeatPurchasesError(null);
+    try {
+      // includeDisabled=true so a paused RepeatPurchase (see RepeatPurchaseDetailsScreen's
+      // pause/resume) stays visible here too - this is the recovery path for an Item-linked one,
+      // same as the Repeat Purchase tab's own "일시중지 포함" toggle.
+      const page = await getRepeatPurchases(authenticatedRequest, { itemId, includeDisabled: true });
+      if (repeatPurchasesRequestIdRef.current !== requestId) {
+        return;
+      }
+      setLinkedRepeatPurchases(page.repeatPurchases);
+    } catch (caughtError) {
+      if (repeatPurchasesRequestIdRef.current !== requestId) {
+        return;
+      }
+      // Failure keeps whatever RepeatPurchases are already shown - only the error text changes.
+      setRepeatPurchasesError(getLinkedRepeatPurchasesErrorMessage(caughtError));
+    } finally {
+      if (repeatPurchasesRequestIdRef.current === requestId) {
+        setIsLoadingRepeatPurchases(false);
+      }
+    }
+  }, [authenticatedRequest, itemId]);
+
+  // Refetches on every focus (not just mount), so returning from PurchaseEditor/RepeatPurchaseEditor
+  // after a create/edit, from PurchaseDetails after a delete, or from RepeatPurchaseDetails after a
+  // state change, shows the current Purchases and linked RepeatPurchases immediately.
   useFocusEffect(
     useCallback(() => {
       loadRecentPurchases();
-    }, [loadRecentPurchases]),
+      loadLinkedRepeatPurchases();
+    }, [loadRecentPurchases, loadLinkedRepeatPurchases]),
   );
 
   const pickAndUploadImage = async () => {
@@ -781,6 +825,52 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         <Text style={styles.purchasesEmpty}>구매 기록이 없습니다.</Text>
       ) : null}
       {purchasesError ? <Text style={styles.error}>{purchasesError}</Text> : null}
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          navigation.navigate('RepeatPurchaseEditor', {
+            itemId,
+            // A suggested initial value only - the user can freely change it, and it is never
+            // synced back to Item.Title (see RepeatPurchaseEditorScreen).
+            initialProductName: item.title ?? undefined,
+          })
+        }
+        style={styles.addPurchaseButton}
+      >
+        <Text style={styles.addPurchaseButtonLabel}>반복 구매 추가</Text>
+      </Pressable>
+
+      <Text style={styles.label}>반복 구매</Text>
+      {isLoadingRepeatPurchases ? (
+        <ActivityIndicator style={styles.purchasesLoading} />
+      ) : linkedRepeatPurchases.length > 0 ? (
+        linkedRepeatPurchases.map(repeatPurchase => (
+          <Pressable
+            accessibilityRole="button"
+            key={repeatPurchase.id}
+            onPress={() =>
+              navigation.navigate('RepeatPurchaseDetails', { repeatPurchaseId: repeatPurchase.id })
+            }
+            style={styles.purchaseRow}
+          >
+            <Text numberOfLines={2} style={styles.purchaseRowProductName}>
+              {repeatPurchase.productName}
+            </Text>
+            <Text style={styles.purchaseRowDate}>
+              {formatIntervalDescription(repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
+              {' · 다음 예상 구매일 '}
+              {formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate)}
+            </Text>
+            {!repeatPurchase.isEnabled ? (
+              <Text style={styles.repeatPurchasePausedLabel}>일시중지</Text>
+            ) : null}
+          </Pressable>
+        ))
+      ) : !repeatPurchasesError ? (
+        <Text style={styles.purchasesEmpty}>반복 구매가 없습니다.</Text>
+      ) : null}
+      {repeatPurchasesError ? <Text style={styles.error}>{repeatPurchasesError}</Text> : null}
 
       <View style={styles.imagesHeaderRow}>
         <Text style={styles.label}>사진 ({images.length}/{MAX_ITEM_IMAGES})</Text>
@@ -1302,6 +1392,12 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 13,
     marginTop: 3,
+  },
+  repeatPurchasePausedLabel: {
+    color: '#9A9A9A',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   modalOverlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',

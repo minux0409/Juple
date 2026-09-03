@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { Purchase } from './purchasesApi';
 
 export type IntervalUnit = 'day' | 'week' | 'month';
 
@@ -203,4 +204,49 @@ export async function deleteRepeatPurchase(
     method: 'DELETE',
     path: `/api/v1/repeat-purchases/${id}`,
   });
+}
+
+/**
+ * Mirrors RepeatPurchasesController.LogPurchaseRequest. Deliberately has no productName/itemId -
+ * the Backend derives Purchase.ProductName/ItemId/RepeatPurchaseId from the RepeatPurchase itself
+ * (see LogPurchaseCommand); the client never guesses or duplicates them. Amount/Quantity stay
+ * opaque decimal strings, matching CreatePurchaseInput's contract exactly (same backend
+ * PurchaseFieldsNormalizer). version is the opaque token last read from this RepeatPurchase - a
+ * mismatch means someone else changed it first, and the Backend rejects with 409 rather than
+ * silently overwriting.
+ */
+export interface LogRepeatPurchaseInput {
+  readonly version: string;
+  readonly purchaseDate: string;
+  readonly amount: string | null;
+  readonly currencyCode: string | null;
+  readonly store: string | null;
+  readonly variant: string | null;
+  readonly quantity: string | null;
+  readonly memo: string | null;
+}
+
+/** Both DTOs reflect the row state after the same committed backend transaction - never a partial result. */
+export interface LogRepeatPurchaseResult {
+  readonly purchase: Purchase;
+  readonly repeatPurchase: RepeatPurchase;
+}
+
+/** POSTs .../log-purchase; resolves with the newly-created Purchase and the RepeatPurchase's advanced schedule/version on 200. */
+export async function logRepeatPurchase(
+  request: AuthenticatedApiRequest,
+  id: number,
+  input: LogRepeatPurchaseInput,
+): Promise<LogRepeatPurchaseResult> {
+  const response = await request<LogRepeatPurchaseResult>({
+    method: 'POST',
+    path: `/api/v1/repeat-purchases/${id}/log-purchase`,
+    body: input,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no log-purchase result body.');
+  }
+
+  return response.body;
 }
