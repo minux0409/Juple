@@ -52,6 +52,20 @@ react {
 
     /* Autolinking */
     autolinkLibrariesWithApp()
+
+    //   "dogfood" and "release" each need their own Metro config (debug is untouched - it never
+    //   bundles at all, see debuggableVariants above):
+    //   - metro.dogfood.config.js sets JUPLE_API_ENV='dogfood' so
+    //     babel-plugin-transform-inline-environment-variables inlines it into
+    //     src/api/apiConfig.ts, which then resolves to the Azure Dev Backend.
+    //   - metro.release.config.js refuses to bundle at all (build-time failure) unless a real
+    //     JUPLE_API_BASE_URL is provided - there is no Production Backend yet, and a release
+    //     build must never silently ship without one. See both files for details.
+    if (gradle.startParameter.taskNames.any { it.contains("Dogfood") }) {
+        bundleConfig = file("../../metro.dogfood.config.js")
+    } else if (gradle.startParameter.taskNames.any { it.contains("Release") }) {
+        bundleConfig = file("../../metro.release.config.js")
+    }
 }
 
 /**
@@ -107,6 +121,27 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+        dogfood {
+            // Real, standalone-runnable build for on-device dogfooding without a PC/Metro - not
+            // in the react{} block's debuggableVariants default ("debug", "debugOptimized"), so
+            // the React Native Gradle Plugin bundles JS into the APK for this buildType exactly
+            // like release. Talks to the Azure Development Backend instead of Production (see
+            // src/api/apiConfig.ts and this file's react{} block above). applicationId is left
+            // unchanged for now (installing over the same com.juple.app as debug/release builds
+            // is the deliberate choice for this round) - a suffixed id can be revisited later if
+            // running both side by side ever becomes necessary.
+            initWith release
+            // Prebuilt AAR dependencies (react-android, hermes-android, ...) only publish
+            // debug/release variants - without this, Gradle can't resolve them for a buildType
+            // it doesn't recognize by name.
+            matchingFallbacks = ['release']
+            // The React Native Gradle Plugin only auto-fills this manifest placeholder for
+            // buildTypes literally named "debug"/"release"/"debugOptimized" (see
+            // AgpConfiguratorUtils.configureBuildTypesForApp) - dogfood needs it set explicitly,
+            // and false is the correct value regardless: dogfood only ever talks to the Azure Dev
+            // Backend over HTTPS (see src/api/apiConfig.ts), so cleartext HTTP is never needed.
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
     }
 }
