@@ -12,21 +12,13 @@ import {
 } from 'react-native';
 import type { RootStackParamList } from '../navigation/RootStack';
 import type { Purchase } from '../purchases/api/purchasesApi';
-import type { IntervalUnit, RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
+import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
+import { formatIntervalDescription } from '../purchases/repeatPurchaseFormat';
 import { usePurchaseList } from '../purchases/usePurchaseList';
 import { useRepeatPurchaseList } from '../purchases/useRepeatPurchaseList';
 
 type Segment = 'purchases' | 'repeatPurchases';
-
-function formatIntervalDescription(intervalValue: number, intervalUnit: IntervalUnit): string {
-  const unitLabel: Record<IntervalUnit, string> = {
-    day: '일마다',
-    week: '주마다',
-    month: '개월마다',
-  };
-  return `${intervalValue}${unitLabel[intervalUnit]}`;
-}
 
 export function PurchaseHistoryScreen() {
   const [segment, setSegment] = useState<Segment>('purchases');
@@ -155,22 +147,30 @@ function PurchaseListSection() {
 }
 
 function RepeatPurchaseListSection() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { repeatPurchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
     useRepeatPurchaseList();
 
-  const renderItem = useCallback(({ item }: { item: RepeatPurchase }) => (
-    <View style={styles.row}>
-      <Text numberOfLines={2} style={styles.productName}>
-        {item.productName}
-      </Text>
-      <Text style={styles.purchaseDate}>
-        다음 예상 구매일 {formatDateOnlyForDisplay(item.nextPurchaseDate)}
-      </Text>
-      <Text style={styles.secondary}>
-        {formatIntervalDescription(item.intervalValue, item.intervalUnit)}
-      </Text>
-    </View>
-  ), []);
+  const renderItem = useCallback(
+    ({ item }: { item: RepeatPurchase }) => (
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => navigation.navigate('RepeatPurchaseDetails', { repeatPurchaseId: item.id })}
+        style={styles.row}
+      >
+        <Text numberOfLines={2} style={styles.productName}>
+          {item.productName}
+        </Text>
+        <Text style={styles.purchaseDate}>
+          다음 예상 구매일 {formatDateOnlyForDisplay(item.nextPurchaseDate)}
+        </Text>
+        <Text style={styles.secondary}>
+          {formatIntervalDescription(item.intervalValue, item.intervalUnit)}
+        </Text>
+      </Pressable>
+    ),
+    [navigation],
+  );
 
   if (isLoading && repeatPurchases.length === 0 && !error) {
     return (
@@ -189,7 +189,18 @@ function RepeatPurchaseListSection() {
       onEndReachedThreshold={0.5}
       refreshControl={<RefreshControl onRefresh={refresh} refreshing={isRefreshing} />}
       renderItem={renderItem}
-      ListHeaderComponent={error ? <Text style={styles.error}>{error}</Text> : undefined}
+      ListHeaderComponent={
+        <View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('RepeatPurchaseEditor', {})}
+            style={styles.addButton}
+          >
+            <Text style={styles.addButtonLabel}>반복 구매 추가</Text>
+          </Pressable>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+        </View>
+      }
       ListEmptyComponent={
         !error ? <Text style={styles.empty}>반복 구매가 없습니다.</Text> : undefined
       }

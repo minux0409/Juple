@@ -2,7 +2,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
+import { RepeatPurchaseDetailsScreen } from '../screens/RepeatPurchaseDetailsScreen';
+import { RepeatPurchaseEditorScreen } from '../screens/RepeatPurchaseEditorScreen';
 import type { Purchase } from '../purchases/api/purchasesApi';
+import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { MainTabs } from './MainTabs';
 
 export type RootStackParamList = {
@@ -23,6 +26,20 @@ export type RootStackParamList = {
   };
   /** purchaseId only - the screen fetches the current Purchase itself via GET. */
   PurchaseDetails: { purchaseId: number };
+  /**
+   * Create mode: itemId is optional - always absent this round (no Item picker/connection yet, so
+   * a standalone create is always itemId=null; see RepeatPurchaseEditorScreen).
+   * Edit mode: repeatPurchaseId + initialRepeatPurchase are both present (set together by
+   * RepeatPurchaseDetailsScreen) and prefill the form, including the hidden Reminder fields, which
+   * must round-trip unchanged - see RepeatPurchaseEditorScreen.
+   */
+  RepeatPurchaseEditor: {
+    itemId?: number;
+    repeatPurchaseId?: number;
+    initialRepeatPurchase?: RepeatPurchase;
+  };
+  /** repeatPurchaseId only - the screen fetches the current RepeatPurchase itself via GET. */
+  RepeatPurchaseDetails: { repeatPurchaseId: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,6 +60,18 @@ export function RootStack() {
         component={PurchaseDetailsScreen}
         name="PurchaseDetails"
         options={{ title: '구매 기록 상세' }}
+      />
+      <Stack.Screen
+        component={RepeatPurchaseEditorScreen}
+        name="RepeatPurchaseEditor"
+        options={({ route }) => ({
+          title: route.params.repeatPurchaseId !== undefined ? '반복 구매 수정' : '반복 구매 추가',
+        })}
+      />
+      <Stack.Screen
+        component={RepeatPurchaseDetailsScreen}
+        name="RepeatPurchaseDetails"
+        options={{ title: '반복 구매 상세' }}
       />
     </Stack.Navigator>
   );
