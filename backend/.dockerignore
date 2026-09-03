@@ -1,0 +1,22 @@
+# Build context is backend/ (see src/Juple.Api/Dockerfile). Only what the Dockerfile actually
+# COPYs needs to reach the daemon - everything else here just slows the build and risks leaking
+# local-only files into an image layer.
+
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/*.user
+**/*.suo
+
+# Local-only secret overrides (see backend/.gitignore) - never belong in an image layer.
+appsettings.*.local.json
+
+# Not part of this repo's git history, but excluded defensively in case a local checkout has one
+# nested under backend/ (e.g. a git worktree).
+.git/
+.gitignore
+
+Dockerfile
+.dockerignore
+*.md
