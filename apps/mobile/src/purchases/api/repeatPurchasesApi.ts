@@ -4,8 +4,7 @@ export type IntervalUnit = 'day' | 'week' | 'month';
 
 /**
  * Mirrors RepeatPurchasesController.RepeatPurchaseResponse (Backend, /api/v1/repeat-purchases).
- * List/detail/create/update are wired up - enable/disable/delete/log-purchase are not yet, so
- * IsEnabled is read-only informational text for now (see RepeatPurchaseDetailsScreen) and
+ * List/detail/create/update/enable/disable/delete are wired up - log-purchase is not yet.
  * Reminder fields are never shown/edited in any UI (see RepeatPurchaseEditorScreen).
  */
 export interface RepeatPurchase {
@@ -148,4 +147,60 @@ export async function updateRepeatPurchase(
   }
 
   return response.body;
+}
+
+/**
+ * POSTs .../enable; idempotent (enabling an already-enabled RepeatPurchase still succeeds).
+ * Resolves with the updated RepeatPurchase - callers apply this returned DTO directly (it is the
+ * only source of truth for the new state/version) rather than flipping IsEnabled optimistically or
+ * following up with an extra GET. Unlike Update, this call takes no client-supplied version - the
+ * Backend does not accept one for enable/disable - but can still 409 on a genuine same-instant
+ * server-side race.
+ */
+export async function enableRepeatPurchase(
+  request: AuthenticatedApiRequest,
+  id: number,
+): Promise<RepeatPurchase> {
+  const response = await request<RepeatPurchase>({
+    method: 'POST',
+    path: `/api/v1/repeat-purchases/${id}/enable`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no RepeatPurchase body.');
+  }
+
+  return response.body;
+}
+
+/** POSTs .../disable; idempotent, same contract as enableRepeatPurchase. */
+export async function disableRepeatPurchase(
+  request: AuthenticatedApiRequest,
+  id: number,
+): Promise<RepeatPurchase> {
+  const response = await request<RepeatPurchase>({
+    method: 'POST',
+    path: `/api/v1/repeat-purchases/${id}/disable`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no RepeatPurchase body.');
+  }
+
+  return response.body;
+}
+
+/**
+ * DELETEs a RepeatPurchase; resolves on 204. The Backend's DeleteAsync is idempotent (a
+ * missing/already-deleted id still returns 204, treated as success here), and never touches the
+ * Purchases this RepeatPurchase previously logged.
+ */
+export async function deleteRepeatPurchase(
+  request: AuthenticatedApiRequest,
+  id: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/repeat-purchases/${id}`,
+  });
 }

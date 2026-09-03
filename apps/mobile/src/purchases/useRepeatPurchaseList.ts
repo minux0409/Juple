@@ -26,15 +26,20 @@ export interface UseRepeatPurchaseListResult {
   readonly error: string | null;
   readonly refresh: () => void;
   readonly loadMore: () => void;
+  /** false (default) loads only enabled RepeatPurchases; true also includes paused (disabled) ones. */
+  readonly includeDisabled: boolean;
+  readonly setIncludeDisabled: (includeDisabled: boolean) => void;
 }
 
 /**
- * Loads and paginates the enabled RepeatPurchase list (includeDisabled is never set - this first
- * slice only shows enabled ones). Mirrors usePurchaseList/useItemStateList exactly: loading is
- * driven entirely by focus (first focus = full-screen spinner, every later focus = a fresh first
- * page), a monotonic request generation discards stale in-flight results, and onEndReached is
- * guarded against firing more than once per page. Entirely independent state from
- * usePurchaseList - a failure here never touches the Purchase History segment's state.
+ * Loads and paginates the RepeatPurchase list, enabled-only by default. Mirrors
+ * usePurchaseList/useItemStateList exactly: loading is driven entirely by focus (first focus =
+ * full-screen spinner, every later focus = a fresh first page), a monotonic request generation
+ * discards stale in-flight results, and onEndReached is guarded against firing more than once per
+ * page. Toggling includeDisabled follows useItemStateList's Category-filter-change pattern
+ * precisely (setFilterCategoryId): the existing page/cursor is cleared and the first page is
+ * reloaded, so enabled/disabled results are never left mixed mid-list. Entirely independent state
+ * from usePurchaseList - a failure here never touches the Purchase History segment's state.
  */
 export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
   const authenticatedRequest = useAuthenticatedApi();
@@ -44,10 +49,17 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [includeDisabled, setIncludeDisabledState] = useState(false);
 
+  // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
+  // Discards a stale in-flight initial/refresh load's result if a newer one has since started
+  // (including one superseded by an includeDisabled toggle).
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
+  // Mirrors includeDisabled for synchronous reads inside load()/loadMore() without adding it to
+  // their dependency arrays (same idiom as useItemStateList's filterCategoryIdRef).
+  const includeDisabledRef = useRef(false);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -60,7 +72,10 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
       setError(null);
 
       try {
-        const page = await getRepeatPurchases(authenticatedRequest, { limit: PAGE_LIMIT });
+        const page = await getRepeatPurchases(authenticatedRequest, {
+          limit: PAGE_LIMIT,
+          includeDisabled: includeDisabledRef.current,
+        });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
@@ -109,6 +124,7 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
         const page = await getRepeatPurchases(authenticatedRequest, {
           limit: PAGE_LIMIT,
           cursor: nextCursor,
+          includeDisabled: includeDisabledRef.current,
         });
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -132,5 +148,34 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
     })();
   }, [authenticatedRequest, nextCursor, isLoading, isRefreshing]);
 
-  return { repeatPurchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore };
+  const setIncludeDisabled = useCallback(
+    (value: boolean) => {
+      if (includeDisabledRef.current === value) {
+        return;
+      }
+      includeDisabledRef.current = value;
+      setIncludeDisabledState(value);
+      // Clears the previous (enabled-only or includeDisabled) page/cursor entirely before
+      // reloading from the first page, so results from the old filter value are never left mixed
+      // in with the new one.
+      setRepeatPurchases([]);
+      setNextCursor(null);
+      loadingMoreRef.current = false;
+      setIsLoadingMore(false);
+      load('initial');
+    },
+    [load],
+  );
+
+  return {
+    repeatPurchases,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    error,
+    refresh,
+    loadMore,
+    includeDisabled,
+    setIncludeDisabled,
+  };
 }

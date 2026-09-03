@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -148,8 +149,17 @@ function PurchaseListSection() {
 
 function RepeatPurchaseListSection() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { repeatPurchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
-    useRepeatPurchaseList();
+  const {
+    repeatPurchases,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    error,
+    refresh,
+    loadMore,
+    includeDisabled,
+    setIncludeDisabled,
+  } = useRepeatPurchaseList();
 
   const renderItem = useCallback(
     ({ item }: { item: RepeatPurchase }) => (
@@ -167,6 +177,8 @@ function RepeatPurchaseListSection() {
         <Text style={styles.secondary}>
           {formatIntervalDescription(item.intervalValue, item.intervalUnit)}
         </Text>
+        {/* Only a status hint - re-enabling still only happens from RepeatPurchaseDetails' own button. */}
+        {!item.isEnabled ? <Text style={styles.pausedLabel}>일시중지</Text> : null}
       </Pressable>
     ),
     [navigation],
@@ -198,6 +210,10 @@ function RepeatPurchaseListSection() {
           >
             <Text style={styles.addButtonLabel}>반복 구매 추가</Text>
           </Pressable>
+          <View style={styles.includeDisabledRow}>
+            <Text style={styles.includeDisabledLabel}>일시중지 포함</Text>
+            <Switch onValueChange={setIncludeDisabled} value={includeDisabled} />
+          </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       }
@@ -267,6 +283,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
+  },
+  includeDisabledRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  includeDisabledLabel: {
+    color: '#111111',
+    fontSize: 14,
+  },
+  pausedLabel: {
+    color: '#9A9A9A',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   error: {
     color: '#B42318',
