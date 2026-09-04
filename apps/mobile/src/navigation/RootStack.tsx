@@ -1,10 +1,13 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ArchiveScreen } from '../screens/ArchiveScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
+import { PurchaseHistoryScreen } from '../screens/PurchaseHistoryScreen';
 import { RepeatPurchaseDetailsScreen } from '../screens/RepeatPurchaseDetailsScreen';
 import { RepeatPurchaseEditorScreen } from '../screens/RepeatPurchaseEditorScreen';
 import { RepeatPurchaseLogPurchaseScreen } from '../screens/RepeatPurchaseLogPurchaseScreen';
+import { WishlistScreen } from '../screens/WishlistScreen';
 import type { Purchase } from '../purchases/api/purchasesApi';
 import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { MainTabs } from './MainTabs';
@@ -12,6 +15,15 @@ import { MainTabs } from './MainTabs';
 export type RootStackParamList = {
   MainTabs: undefined;
   ItemDetails: { itemId: number };
+  /**
+   * Not in the Bottom Tabs (see MainTabs) since the new 홈/기록/보관함/내 페이지 IA - kept reachable
+   * here as a temporary, explicitly-labeled path (see CollectionsScreen/MyPageScreen) while
+   * Wishlist/Archive/PurchaseHistory's own eventual Collection/Item-detail migration is still
+   * only a future direction, not implemented in this pass.
+   */
+  Wishlist: undefined;
+  Archive: undefined;
+  PurchaseHistory: undefined;
   /**
    * Create mode: itemId/initialProductName are both optional - present when reached from
    * ItemDetailsScreen (a suggested initial value only, never confirmed automatically), absent when
@@ -59,6 +71,13 @@ export function RootStack() {
     <Stack.Navigator>
       <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
       <Stack.Screen component={ItemDetailsScreen} name="ItemDetails" options={{ title: '상세' }} />
+      <Stack.Screen component={WishlistScreen} name="Wishlist" options={{ title: '위시리스트' }} />
+      <Stack.Screen component={ArchiveScreen} name="Archive" options={{ title: '보관' }} />
+      <Stack.Screen
+        component={PurchaseHistoryScreen}
+        name="PurchaseHistory"
+        options={{ title: '구매내역' }}
+      />
       <Stack.Screen
         component={PurchaseEditorScreen}
         name="PurchaseEditor"

@@ -25,7 +25,6 @@ import {
   type InboxEntry,
 } from '../inbox/api/inboxApi';
 import { deleteItem, moveItemToArchive, moveItemToWishlist } from '../items/api/itemsApi';
-import { useAuth } from '../auth/AuthContext';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
@@ -71,7 +70,6 @@ function formatSavedTime(savedAtUtc: string): string {
 export function DailyInboxScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { signOut } = useAuth();
   const { pendingShare, acknowledgePendingShare } = useIncomingShare();
   const [dailyInbox, setDailyInbox] = useState<DailyInbox | null>(null);
   const [url, setUrl] = useState('');
@@ -365,17 +363,6 @@ export function DailyInboxScreen() {
             }}
           />
         )}
-        ListFooterComponent={
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              signOut();
-            }}
-            style={styles.signOutButton}
-          >
-            <Text style={styles.signOutLabel}>로그아웃</Text>
-          </Pressable>
-        }
       />
     </SafeAreaView>
   );
@@ -610,18 +597,5 @@ const styles = StyleSheet.create({
   },
   deleteActionLabel: {
     color: '#B42318',
-  },
-  signOutButton: {
-    alignItems: 'center',
-    borderColor: '#111111',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 28,
-    paddingVertical: 12,
-  },
-  signOutLabel: {
-    color: '#111111',
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

@@ -1,14 +1,14 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ArchiveScreen } from '../screens/ArchiveScreen';
+import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
-import { PurchaseHistoryScreen } from '../screens/PurchaseHistoryScreen';
-import { WishlistScreen } from '../screens/WishlistScreen';
+import { DateHistoryScreen } from '../screens/DateHistoryScreen';
+import { MyPageScreen } from '../screens/MyPageScreen';
 
 export type MainTabParamList = {
-  Inbox: undefined;
-  Wishlist: undefined;
-  Archive: undefined;
-  PurchaseHistory: undefined;
+  Home: undefined;
+  History: undefined;
+  Collections: undefined;
+  MyPage: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -16,14 +16,14 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 export function MainTabs() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false, tabBarIcon: () => null }}>
-      <Tab.Screen component={DailyInboxScreen} name="Inbox" />
-      <Tab.Screen component={WishlistScreen} name="Wishlist" />
-      <Tab.Screen component={ArchiveScreen} name="Archive" />
+      <Tab.Screen component={DailyInboxScreen} name="Home" options={{ tabBarLabel: '홈' }} />
+      <Tab.Screen component={DateHistoryScreen} name="History" options={{ tabBarLabel: '기록' }} />
       <Tab.Screen
-        component={PurchaseHistoryScreen}
-        name="PurchaseHistory"
-        options={{ tabBarLabel: '구매내역' }}
+        component={CollectionsScreen}
+        name="Collections"
+        options={{ tabBarLabel: '보관함' }}
       />
+      <Tab.Screen component={MyPageScreen} name="MyPage" options={{ tabBarLabel: '내 페이지' }} />
     </Tab.Navigator>
   );
 }
