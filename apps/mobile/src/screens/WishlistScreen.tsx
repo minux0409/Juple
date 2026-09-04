@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { ItemStateListScreen } from './ItemStateListScreen';
 
 export function WishlistScreen() {
+  const { t } = useTranslation();
+
   return (
     <ItemStateListScreen
-      emptyMessage="아직 위시리스트에 저장한 항목이 없습니다."
+      emptyMessage={t('itemList.wishlistEmpty')}
       state="wishlist"
-      title="Wishlist"
+      title={t('itemList.wishlistTitle')}
     />
   );
 }

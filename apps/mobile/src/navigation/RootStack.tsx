@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { ArchiveScreen } from '../screens/ArchiveScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
@@ -67,45 +68,65 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootStack() {
+  const { t } = useTranslation();
+
   return (
     <Stack.Navigator>
       <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
-      <Stack.Screen component={ItemDetailsScreen} name="ItemDetails" options={{ title: '상세' }} />
-      <Stack.Screen component={WishlistScreen} name="Wishlist" options={{ title: '위시리스트' }} />
-      <Stack.Screen component={ArchiveScreen} name="Archive" options={{ title: '보관' }} />
+      <Stack.Screen
+        component={ItemDetailsScreen}
+        name="ItemDetails"
+        options={{ title: t('nav.itemDetails') }}
+      />
+      <Stack.Screen
+        component={WishlistScreen}
+        name="Wishlist"
+        options={{ title: t('nav.wishlist') }}
+      />
+      <Stack.Screen
+        component={ArchiveScreen}
+        name="Archive"
+        options={{ title: t('nav.archive') }}
+      />
       <Stack.Screen
         component={PurchaseHistoryScreen}
         name="PurchaseHistory"
-        options={{ title: '구매내역' }}
+        options={{ title: t('nav.purchaseHistory') }}
       />
       <Stack.Screen
         component={PurchaseEditorScreen}
         name="PurchaseEditor"
         options={({ route }) => ({
-          title: route.params.purchaseId !== undefined ? '구매 기록 수정' : '구매 기록 추가',
+          title:
+            route.params.purchaseId !== undefined
+              ? t('nav.purchaseEditorEdit')
+              : t('nav.purchaseEditorCreate'),
         })}
       />
       <Stack.Screen
         component={PurchaseDetailsScreen}
         name="PurchaseDetails"
-        options={{ title: '구매 기록 상세' }}
+        options={{ title: t('nav.purchaseDetails') }}
       />
       <Stack.Screen
         component={RepeatPurchaseEditorScreen}
         name="RepeatPurchaseEditor"
         options={({ route }) => ({
-          title: route.params.repeatPurchaseId !== undefined ? '반복 구매 수정' : '반복 구매 추가',
+          title:
+            route.params.repeatPurchaseId !== undefined
+              ? t('nav.repeatPurchaseEditorEdit')
+              : t('nav.repeatPurchaseEditorCreate'),
         })}
       />
       <Stack.Screen
         component={RepeatPurchaseDetailsScreen}
         name="RepeatPurchaseDetails"
-        options={{ title: '반복 구매 상세' }}
+        options={{ title: t('nav.repeatPurchaseDetails') }}
       />
       <Stack.Screen
         component={RepeatPurchaseLogPurchaseScreen}
         name="RepeatPurchaseLogPurchase"
-        options={{ title: '구매 완료' }}
+        options={{ title: t('nav.repeatPurchaseLogPurchase') }}
       />
     </Stack.Navigator>
   );

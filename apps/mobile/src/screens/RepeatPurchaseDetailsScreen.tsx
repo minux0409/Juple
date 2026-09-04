@@ -1,6 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -18,35 +20,35 @@ import { formatIntervalDescription } from '../purchases/repeatPurchaseFormat';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RepeatPurchaseDetails'>;
 
-function getLoadErrorMessage(error: unknown): string {
+function getLoadErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
-      return '이미 삭제되었거나 찾을 수 없는 반복 구매입니다.';
+      return t('repeatPurchase.notFound');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '반복 구매를 불러올 수 없습니다.';
+  return t('repeatPurchase.loadErrorFallback');
 }
 
-function getTransitionErrorMessage(error: unknown): string {
+function getTransitionErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
-      return '다른 변경 사항이 반영되어 최신 정보를 다시 불러와야 합니다.';
+      return t('repeatPurchase.conflictReload');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '상태를 변경할 수 없습니다.';
+  return t('repeatPurchase.transitionErrorFallback');
 }
 
-function getDeleteErrorMessage(error: unknown): string {
+function getDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '반복 구매를 삭제할 수 없습니다.';
+  return t('repeatPurchase.deleteErrorFallback');
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -59,6 +61,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { repeatPurchaseId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
@@ -99,14 +102,14 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         return;
       }
       // Failure keeps whatever RepeatPurchase data is already on screen - only the error text changes.
-      setError(getLoadErrorMessage(caughtError));
+      setError(getLoadErrorMessage(caughtError, t));
     } finally {
       if (requestIdRef.current === requestId) {
         hasLoadedOnceRef.current = true;
         setIsLoading(false);
       }
     }
-  }, [authenticatedRequest, repeatPurchaseId]);
+  }, [authenticatedRequest, repeatPurchaseId, t]);
 
   // Refetches every time this screen regains focus, so a save from RepeatPurchaseEditor (which
   // pops back here) is reflected without a manual refresh step.
@@ -135,7 +138,7 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
     } catch (caughtError) {
       // Failure leaves the existing state/version exactly as they were - never toggled locally,
       // never silently retried.
-      setError(getTransitionErrorMessage(caughtError));
+      setError(getTransitionErrorMessage(caughtError, t));
     } finally {
       isBusyRef.current = false;
       setIsTransitioning(false);
@@ -154,7 +157,7 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
       await deleteRepeatPurchase(authenticatedRequest, repeatPurchaseId);
       navigation.goBack();
     } catch (caughtError) {
-      setError(getDeleteErrorMessage(caughtError));
+      setError(getDeleteErrorMessage(caughtError, t));
     } finally {
       isBusyRef.current = false;
       setIsDeleting(false);
@@ -167,11 +170,11 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
     }
 
     Alert.alert(
-      '반복 구매를 삭제할까요?',
-      '삭제한 반복 구매는 복구할 수 없습니다. 이미 기록된 구매 이력은 삭제되지 않습니다.',
+      t('repeatPurchase.deleteConfirmTitle'),
+      t('repeatPurchase.deleteConfirmMessage'),
       [
-        { text: '취소', style: 'cancel' },
-        { text: '삭제', style: 'destructive', onPress: deleteAction },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: deleteAction },
       ],
     );
   };
@@ -199,14 +202,17 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
       <Text style={styles.productName}>{repeatPurchase.productName}</Text>
 
       <DetailRow
-        label="주기"
-        value={formatIntervalDescription(repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
+        label={t('repeatPurchase.interval')}
+        value={formatIntervalDescription(t, repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
       />
       <DetailRow
-        label="다음 예상 구매일"
+        label={t('repeatPurchase.nextPurchaseDate')}
         value={formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate)}
       />
-      <DetailRow label="상태" value={repeatPurchase.isEnabled ? '활성' : '일시중지'} />
+      <DetailRow
+        label={t('repeatPurchase.status')}
+        value={repeatPurchase.isEnabled ? t('repeatPurchase.active') : t('repeatPurchase.paused')}
+      />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -222,7 +228,7 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         }
         style={[styles.logPurchaseButton, isBusy && styles.disabledButton]}
       >
-        <Text style={styles.logPurchaseButtonLabel}>구매 완료</Text>
+        <Text style={styles.logPurchaseButtonLabel}>{t('nav.repeatPurchaseLogPurchase')}</Text>
       </Pressable>
 
       <Pressable
@@ -237,7 +243,7 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         }
         style={[styles.editButton, isBusy && styles.disabledButton]}
       >
-        <Text style={styles.editButtonLabel}>수정</Text>
+        <Text style={styles.editButtonLabel}>{t('common.edit')}</Text>
       </Pressable>
 
       <Pressable
@@ -248,7 +254,11 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         style={[styles.toggleButton, isBusy && styles.disabledButton]}
       >
         <Text style={styles.toggleButtonLabel}>
-          {isTransitioning ? '처리 중...' : repeatPurchase.isEnabled ? '일시중지' : '다시 시작'}
+          {isTransitioning
+            ? t('common.processing')
+            : repeatPurchase.isEnabled
+              ? t('repeatPurchase.paused')
+              : t('repeatPurchase.resume')}
         </Text>
       </Pressable>
 
@@ -259,7 +269,9 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         onPress={confirmDelete}
         style={[styles.deleteButton, isBusy && styles.disabledButton]}
       >
-        <Text style={styles.deleteButtonLabel}>{isDeleting ? '삭제 중...' : '삭제'}</Text>
+        <Text style={styles.deleteButtonLabel}>
+          {isDeleting ? t('common.deleting') : t('common.delete')}
+        </Text>
       </Pressable>
     </ScrollView>
   );

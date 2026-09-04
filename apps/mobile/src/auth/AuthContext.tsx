@@ -7,6 +7,8 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { authorizeWithEntra } from './entraAuthClient';
 import {
   clearSession,
@@ -40,15 +42,15 @@ const SIGNED_OUT_STATE: AuthState = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 /** Maps a caught authorization error to a message safe to show without exposing tokens. */
-function toSafeAuthErrorMessage(caughtError: unknown): string {
+function toSafeAuthErrorMessage(caughtError: unknown, t: TFunction): string {
   const message =
     caughtError instanceof Error ? caughtError.message : undefined;
 
   if (message && /cancel/i.test(message)) {
-    return '로그인이 취소되었습니다.';
+    return t('auth.cancelled');
   }
 
-  return '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
+  return t('auth.failed');
 }
 
 async function bootstrapUserAccount(
@@ -62,6 +64,7 @@ async function bootstrapUserAccount(
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const { t } = useTranslation();
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
   const setSignedOut = useCallback(() => {
@@ -193,12 +196,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isInitializing: false,
         isSigningIn: false,
         isAuthenticated: false,
-        error: toSafeAuthErrorMessage(caughtError),
+        error: toSafeAuthErrorMessage(caughtError, t),
         backendAuthStatus: 'notChecked',
         userBootstrapStatus: 'notStarted',
       });
     }
-  }, []);
+  }, [t]);
 
   const signOut = useCallback(async () => {
     await clearSession();

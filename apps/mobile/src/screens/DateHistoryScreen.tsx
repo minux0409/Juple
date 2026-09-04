@@ -1,6 +1,8 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   FlatList,
@@ -11,21 +13,22 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import { getTodayInbox, type DailyInbox, type InboxEntry } from '../inbox/api/inboxApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 
-function getLoadErrorMessage(error: unknown): string {
+function getLoadErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '기록을 불러올 수 없습니다.';
+  return t('history.errorLoadFallback');
 }
 
 function formatSavedTime(savedAtUtc: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(i18n.language, {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(savedAtUtc));
@@ -37,6 +40,7 @@ function formatSavedTime(savedAtUtc: string): string {
  * earlier dates, so this deliberately shows just today rather than inventing fake history rows.
  */
 export function DateHistoryScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const [dailyInbox, setDailyInbox] = useState<DailyInbox | null>(null);
@@ -68,7 +72,7 @@ export function DateHistoryScreen() {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setError(getLoadErrorMessage(caughtError));
+        setError(getLoadErrorMessage(caughtError, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
           hasLoadedOnceRef.current = true;
@@ -77,7 +81,7 @@ export function DateHistoryScreen() {
         }
       }
     },
-    [authenticatedRequest],
+    [authenticatedRequest, t],
   );
 
   useFocusEffect(
@@ -107,17 +111,17 @@ export function DateHistoryScreen() {
         }
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>기록</Text>
+            <Text style={styles.title}>{t('history.title')}</Text>
             {dailyInbox ? (
               <Text style={styles.dateHeader}>
-                {dailyInbox.date} {entries.length}개
+                {t('inbox.dateCount', { date: dailyInbox.date, count: entries.length })}
               </Text>
             ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
         ListEmptyComponent={
-          !error ? <Text style={styles.empty}>오늘 저장한 링크가 아직 없습니다.</Text> : undefined
+          !error ? <Text style={styles.empty}>{t('history.empty')}</Text> : undefined
         }
         renderItem={({ item }) => (
           <HistoryRow

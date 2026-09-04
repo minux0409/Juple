@@ -1,6 +1,8 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -15,45 +17,35 @@ import { formatDateOnly, formatDateOnlyForDisplay, parseDateOnly } from '../purc
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RepeatPurchaseEditor'>;
 
-const INTERVAL_UNIT_OPTIONS: ReadonlyArray<{ value: IntervalUnit; label: string }> = [
-  { value: 'day', label: '일' },
-  { value: 'week', label: '주' },
-  { value: 'month', label: '개월' },
-];
-
-function getSaveErrorMessage(error: unknown, isEditMode: boolean): string {
+function getSaveErrorMessage(error: unknown, isEditMode: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
-      return '입력한 내용을 확인해 주세요.';
+      return t('errors.invalidInput');
     }
     if (error.kind === 'notFound') {
-      return isEditMode
-        ? '이미 삭제되었거나 찾을 수 없는 반복 구매입니다.'
-        : '연결된 항목을 찾을 수 없습니다.';
+      return isEditMode ? t('repeatPurchase.notFound') : t('purchase.itemNotFound');
     }
     if (error.kind === 'conflict') {
       // Update's only realistic 409 cause is a stale RowVersion (bootstrap-incomplete would
       // already have surfaced when this screen's initial data loaded) - never silently retried or
       // overwritten, the user must go back and reopen with the latest data.
-      return isEditMode
-        ? '다른 변경 사항이 반영되어 최신 정보를 다시 불러와야 합니다. 뒤로 가서 다시 시도해 주세요.'
-        : 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      return isEditMode ? t('repeatPurchase.conflictReloadEdit') : t('errors.accountNotReady');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '반복 구매를 저장할 수 없습니다.';
+  return t('repeatPurchase.saveErrorFallback');
 }
 
 /** Mirrors the backend's RepeatPurchaseFieldsNormalizer: required, trimmed, 500-character limit. */
-function getProductNameValidationError(value: string): string | null {
+function getProductNameValidationError(value: string, t: TFunction): string | null {
   const trimmed = value.trim();
   if (!trimmed) {
-    return '상품명을 입력해 주세요.';
+    return t('purchase.productNameRequired');
   }
   if (trimmed.length > 500) {
-    return '상품명은 500자 이하로 입력해 주세요.';
+    return t('purchase.productNameTooLong');
   }
   return null;
 }
@@ -74,12 +66,19 @@ function validateIntervalValueText(text: string): number | 'invalid' {
 }
 
 export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { itemId, initialProductName, repeatPurchaseId, initialRepeatPurchase } = route.params;
   // Edit mode is set by RepeatPurchaseDetailsScreen, which always passes repeatPurchaseId and
   // initialRepeatPurchase together (see RootStackParamList) - create mode otherwise.
   const isEditMode = repeatPurchaseId !== undefined && initialRepeatPurchase !== undefined;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
+
+  const intervalUnitOptions: ReadonlyArray<{ value: IntervalUnit; label: string }> = [
+    { value: 'day', label: t('repeatPurchase.unitDayLabel') },
+    { value: 'week', label: t('repeatPurchase.unitWeekLabel') },
+    { value: 'month', label: t('repeatPurchase.unitMonthLabel') },
+  ];
 
   const [productName, setProductName] = useState(
     initialRepeatPurchase?.productName ?? initialProductName ?? '',
@@ -114,7 +113,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
       return;
     }
 
-    const productNameError = getProductNameValidationError(productName);
+    const productNameError = getProductNameValidationError(productName, t);
     if (productNameError) {
       setError(productNameError);
       return;
@@ -123,7 +122,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
 
     const validatedIntervalValue = validateIntervalValueText(intervalValueText);
     if (validatedIntervalValue === 'invalid') {
-      setError('주기는 1 이상의 정수로 입력해 주세요.');
+      setError(t('repeatPurchase.intervalInvalid'));
       return;
     }
 
@@ -161,7 +160,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
       }
       navigation.goBack();
     } catch (caughtError) {
-      setError(getSaveErrorMessage(caughtError, isEditMode));
+      setError(getSaveErrorMessage(caughtError, isEditMode, t));
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -173,25 +172,25 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
       contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.label}>상품명</Text>
+      <Text style={styles.label}>{t('purchase.productName')}</Text>
       <TextInput
         onChangeText={setProductName}
-        placeholder="상품명을 입력해 주세요"
+        placeholder={t('purchase.productNamePlaceholder')}
         style={styles.input}
         value={productName}
       />
 
-      <Text style={styles.label}>주기</Text>
+      <Text style={styles.label}>{t('repeatPurchase.interval')}</Text>
       <View style={styles.intervalRow}>
         <TextInput
           keyboardType="number-pad"
           onChangeText={setIntervalValueText}
-          placeholder="예: 30"
+          placeholder={t('repeatPurchase.intervalPlaceholder')}
           style={[styles.input, styles.intervalValueInput]}
           value={intervalValueText}
         />
         <View style={styles.intervalUnitRow}>
-          {INTERVAL_UNIT_OPTIONS.map(option => (
+          {intervalUnitOptions.map(option => (
             <Pressable
               key={option.value}
               accessibilityRole="button"
@@ -215,7 +214,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      <Text style={styles.label}>다음 예상 구매일</Text>
+      <Text style={styles.label}>{t('repeatPurchase.nextPurchaseDate')}</Text>
       <Pressable
         accessibilityRole="button"
         onPress={() => setIsDatePickerVisible(true)}
@@ -238,7 +237,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
         onPress={submit}
         style={[styles.saveButton, isSaving && styles.disabledButton]}
       >
-        <Text style={styles.saveButtonLabel}>{isSaving ? '저장 중...' : '저장'}</Text>
+        <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
       </Pressable>
     </ScrollView>
   );
@@ -269,7 +268,7 @@ const styles = StyleSheet.create({
   },
   intervalValueInput: {
     flex: 1,
-    marginRight: 8,
+    marginEnd: 8,
   },
   intervalUnitRow: {
     flexDirection: 'row',
@@ -280,7 +279,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     justifyContent: 'center',
-    marginLeft: 8,
+    marginStart: 8,
     paddingHorizontal: 14,
   },
   intervalUnitButtonActive: {

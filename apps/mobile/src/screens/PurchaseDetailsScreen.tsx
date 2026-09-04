@@ -1,6 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -11,23 +13,23 @@ import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PurchaseDetails'>;
 
-function getLoadErrorMessage(error: unknown): string {
+function getLoadErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
-      return '이미 삭제되었거나 찾을 수 없는 구매 기록입니다.';
+      return t('purchase.notFound');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '구매 기록을 불러올 수 없습니다.';
+  return t('purchase.loadErrorFallback');
 }
 
-function getDeleteErrorMessage(error: unknown): string {
+function getDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '구매 기록을 삭제할 수 없습니다.';
+  return t('purchase.deleteErrorFallback');
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -40,6 +42,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 export function PurchaseDetailsScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { purchaseId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
@@ -77,14 +80,14 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
         return;
       }
       // Failure keeps whatever Purchase data is already on screen - only the error text changes.
-      setError(getLoadErrorMessage(caughtError));
+      setError(getLoadErrorMessage(caughtError, t));
     } finally {
       if (requestIdRef.current === requestId) {
         hasLoadedOnceRef.current = true;
         setIsLoading(false);
       }
     }
-  }, [authenticatedRequest, purchaseId]);
+  }, [authenticatedRequest, purchaseId, t]);
 
   // Refetches every time this screen regains focus, so a save from PurchaseEditor (which pops
   // back here) is reflected without a manual refresh step.
@@ -106,7 +109,7 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
       await deletePurchase(authenticatedRequest, purchaseId);
       navigation.goBack();
     } catch (caughtError) {
-      setError(getDeleteErrorMessage(caughtError));
+      setError(getDeleteErrorMessage(caughtError, t));
     } finally {
       isDeletingRef.current = false;
       setIsDeleting(false);
@@ -118,9 +121,9 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    Alert.alert('구매 기록을 삭제할까요?', '삭제한 기록은 복구할 수 없습니다.', [
-      { text: '취소', style: 'cancel' },
-      { text: '삭제', style: 'destructive', onPress: deletePurchaseAction },
+    Alert.alert(t('purchase.deleteConfirmTitle'), t('purchase.deleteConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: deletePurchaseAction },
     ]);
   };
 
@@ -146,19 +149,21 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}>
       <Text style={styles.productName}>{purchase.productName}</Text>
 
-      <DetailRow label="구매일" value={formatDateOnlyForDisplay(purchase.purchaseDate)} />
+      <DetailRow label={t('purchase.purchaseDate')} value={formatDateOnlyForDisplay(purchase.purchaseDate)} />
       {purchase.amount !== null ? (
         // Verbatim decimal string from the API - no Number()/Intl.NumberFormat conversion, since a
         // value like "999999999999999.9999" is not exactly representable as a JS Number.
         <DetailRow
-          label="금액"
+          label={t('purchase.amount')}
           value={purchase.currencyCode ? `${purchase.amount} ${purchase.currencyCode}` : purchase.amount}
         />
       ) : null}
-      {purchase.store ? <DetailRow label="구매처" value={purchase.store} /> : null}
-      {purchase.variant ? <DetailRow label="옵션" value={purchase.variant} /> : null}
-      {purchase.quantity !== null ? <DetailRow label="수량" value={purchase.quantity} /> : null}
-      {purchase.memo ? <DetailRow label="메모" value={purchase.memo} /> : null}
+      {purchase.store ? <DetailRow label={t('purchase.store')} value={purchase.store} /> : null}
+      {purchase.variant ? <DetailRow label={t('purchase.variant')} value={purchase.variant} /> : null}
+      {purchase.quantity !== null ? (
+        <DetailRow label={t('purchase.quantity')} value={purchase.quantity} />
+      ) : null}
+      {purchase.memo ? <DetailRow label={t('item.memo')} value={purchase.memo} /> : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -171,7 +176,7 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
         }
         style={[styles.editButton, isBusy && styles.disabledButton]}
       >
-        <Text style={styles.editButtonLabel}>수정</Text>
+        <Text style={styles.editButtonLabel}>{t('common.edit')}</Text>
       </Pressable>
 
       <Pressable
@@ -181,7 +186,9 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
         onPress={confirmDelete}
         style={[styles.deleteButton, isBusy && styles.disabledButton]}
       >
-        <Text style={styles.deleteButtonLabel}>{isDeleting ? '삭제 중...' : '삭제'}</Text>
+        <Text style={styles.deleteButtonLabel}>
+          {isDeleting ? t('common.deleting') : t('common.delete')}
+        </Text>
       </Pressable>
     </ScrollView>
   );

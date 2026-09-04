@@ -1,14 +1,18 @@
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 
 export function SignInScreen() {
+  const { t } = useTranslation();
   const { signIn, isSigningIn, error } = useAuth();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Juple</Text>
       <Text style={styles.tagline}>
-        발견한 것들을 모아두고,{'\n'}나중에 다시 꺼내보세요.
+        {t('auth.taglineLine1')}
+        {'\n'}
+        {t('auth.taglineLine2')}
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -17,7 +21,7 @@ export function SignInScreen() {
         style={[styles.button, isSigningIn && styles.buttonDisabled]}
       >
         <Text style={styles.buttonLabel}>
-          {isSigningIn ? '로그인 중...' : '로그인 / 회원가입'}
+          {isSigningIn ? t('auth.signingIn') : t('auth.signIn')}
         </Text>
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}

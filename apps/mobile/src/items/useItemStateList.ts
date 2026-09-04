@@ -1,25 +1,27 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getItemsByState, type ItemListEntry, type ItemListState } from './api/itemsApi';
 
 const PAGE_LIMIT = 50;
 
-function getItemListErrorMessage(error: unknown): string {
+function getItemListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'forbidden') {
-      return '이 목록을 볼 권한을 확인하지 못했습니다.';
+      return t('itemList.errorForbidden');
     }
     if (error.kind === 'conflict') {
-      return 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      return t('errors.accountNotReady');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
 
-  return '목록을 불러올 수 없습니다.';
+  return t('itemList.errorListFallback');
 }
 
 export interface UseItemStateListResult {
@@ -45,6 +47,7 @@ export interface UseItemStateListResult {
  * focus, never two.
  */
 export function useItemStateList(state: ItemListState): UseItemStateListResult {
+  const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [items, setItems] = useState<readonly ItemListEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -100,7 +103,7 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
           await load(mode);
           return;
         }
-        setError(getItemListErrorMessage(caughtError));
+        setError(getItemListErrorMessage(caughtError, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
           hasLoadedOnceRef.current = true;
@@ -109,7 +112,7 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
         }
       }
     },
-    [authenticatedRequest, state],
+    [authenticatedRequest, state, t],
   );
 
   useFocusEffect(
@@ -154,14 +157,14 @@ export function useItemStateList(state: ItemListState): UseItemStateListResult {
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
-          setError(getItemListErrorMessage(caughtError));
+          setError(getItemListErrorMessage(caughtError, t));
         }
       } finally {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, state, nextCursor, isLoading, isRefreshing]);
+  }, [authenticatedRequest, state, nextCursor, isLoading, isRefreshing, t]);
 
   const setFilterCategoryId = useCallback(
     (categoryId: number | null) => {

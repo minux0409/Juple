@@ -1,21 +1,23 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getRepeatPurchases, type RepeatPurchase } from './api/repeatPurchasesApi';
 
 const PAGE_LIMIT = 50;
 
-function getRepeatPurchaseListErrorMessage(error: unknown): string {
+function getRepeatPurchaseListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
-      return 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      return t('errors.accountNotReady');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '반복 구매 목록을 불러올 수 없습니다.';
+  return t('repeatPurchase.listErrorFallback');
 }
 
 export interface UseRepeatPurchaseListResult {
@@ -42,6 +44,7 @@ export interface UseRepeatPurchaseListResult {
  * from usePurchaseList - a failure here never touches the Purchase History segment's state.
  */
 export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
+  const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [repeatPurchases, setRepeatPurchases] = useState<readonly RepeatPurchase[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -85,7 +88,7 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setError(getRepeatPurchaseListErrorMessage(caughtError));
+        setError(getRepeatPurchaseListErrorMessage(caughtError, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
           hasLoadedOnceRef.current = true;
@@ -94,7 +97,7 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
         }
       }
     },
-    [authenticatedRequest],
+    [authenticatedRequest, t],
   );
 
   useFocusEffect(
@@ -139,14 +142,14 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
-          setError(getRepeatPurchaseListErrorMessage(caughtError));
+          setError(getRepeatPurchaseListErrorMessage(caughtError, t));
         }
       } finally {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, nextCursor, isLoading, isRefreshing]);
+  }, [authenticatedRequest, nextCursor, isLoading, isRefreshing, t]);
 
   const setIncludeDisabled = useCallback(
     (value: boolean) => {

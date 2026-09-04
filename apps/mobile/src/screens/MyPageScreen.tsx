@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
@@ -13,26 +14,27 @@ import type { RootStackParamList } from '../navigation/RootStack';
  * for the same "no dead-end button" reason Collections keeps 새 보관함 out.
  */
 export function MyPageScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.content}>
-        <Text style={styles.title}>내 페이지</Text>
+        <Text style={styles.title}>{t('myPage.title')}</Text>
 
-        <Text style={styles.sectionTitle}>계정</Text>
-        <Text style={styles.accountStatus}>Juple 계정으로 로그인되어 있습니다.</Text>
+        <Text style={styles.sectionTitle}>{t('myPage.account')}</Text>
+        <Text style={styles.accountStatus}>{t('myPage.loggedInAs')}</Text>
 
-        <Text style={styles.sectionTitle}>설정</Text>
+        <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
 
-        <Text style={styles.sectionTitle}>기존 기능</Text>
+        <Text style={styles.sectionTitle}>{t('myPage.existingFeatures')}</Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => navigation.navigate('PurchaseHistory')}
           style={styles.linkButton}
         >
-          <Text style={styles.linkButtonLabel}>구매내역 보기</Text>
+          <Text style={styles.linkButtonLabel}>{t('myPage.viewPurchaseHistory')}</Text>
         </Pressable>
 
         <Pressable
@@ -42,7 +44,7 @@ export function MyPageScreen() {
           }}
           style={styles.signOutButton}
         >
-          <Text style={styles.signOutLabel}>로그아웃</Text>
+          <Text style={styles.signOutLabel}>{t('auth.logout')}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

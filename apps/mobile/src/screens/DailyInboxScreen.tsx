@@ -1,6 +1,8 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -29,45 +32,44 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
 
-function getInboxErrorMessage(error: unknown, isSave: boolean): string {
+function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
-      return '올바른 http 또는 https 주소를 입력해 주세요.';
+      return t('inbox.errorBadRequest');
     }
 
     if (error.kind === 'forbidden') {
-      return '이 요청을 수행할 권한을 확인하지 못했습니다.';
+      return t('inbox.errorForbidden');
     }
 
     if (error.kind === 'conflict') {
-      return 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      return t('errors.accountNotReady');
     }
 
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
 
-  return isSave
-    ? '링크를 저장할 수 없습니다.'
-    : '오늘의 Inbox를 불러올 수 없습니다.';
+  return isSave ? t('inbox.errorSaveFallback') : t('inbox.errorLoadFallback');
 }
 
-function getItemActionErrorMessage(error: unknown, isDelete: boolean): string {
+function getItemActionErrorMessage(error: unknown, isDelete: boolean, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return isDelete ? '항목을 삭제할 수 없습니다.' : '항목을 이동할 수 없습니다.';
+  return isDelete ? t('inbox.errorDeleteFallback') : t('inbox.errorMoveFallback');
 }
 
 function formatSavedTime(savedAtUtc: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(i18n.language, {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(savedAtUtc));
 }
 
 export function DailyInboxScreen() {
+  const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { pendingShare, acknowledgePendingShare } = useIncomingShare();
@@ -125,7 +127,7 @@ export function DailyInboxScreen() {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setError(getInboxErrorMessage(caughtError, false));
+        setError(getInboxErrorMessage(caughtError, false, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
           hasLoadedOnceRef.current = true;
@@ -134,7 +136,7 @@ export function DailyInboxScreen() {
         }
       }
     },
-    [authenticatedRequest],
+    [authenticatedRequest, t],
   );
 
   // Refetches every time the Inbox tab regains focus (including returning from ItemDetails after
@@ -172,11 +174,9 @@ export function DailyInboxScreen() {
     const parsedShare = parseSharedText(pendingShare.text);
     setUrl(parsedShare.text);
     setShareMessage(
-      parsedShare.kind === 'exactUrl'
-        ? '공유된 링크를 확인해 주세요.'
-        : '공유된 내용을 확인해 주세요.',
+      parsedShare.kind === 'exactUrl' ? t('inbox.shareReviewExactUrl') : t('inbox.shareReviewOther'),
     );
-  }, [pendingShare]);
+  }, [pendingShare, t]);
 
   const saveUrl = async () => {
     const trimmedUrl = url.trim();
@@ -195,7 +195,7 @@ export function DailyInboxScreen() {
       setShareMessage(null);
       await loadTodayInbox();
     } catch (caughtError) {
-      setError(getInboxErrorMessage(caughtError, true));
+      setError(getInboxErrorMessage(caughtError, true, t));
     } finally {
       setIsSaving(false);
     }
@@ -234,7 +234,7 @@ export function DailyInboxScreen() {
           : previous,
       );
     } catch (caughtError) {
-      setError(getItemActionErrorMessage(caughtError, isDelete));
+      setError(getItemActionErrorMessage(caughtError, isDelete, t));
     } finally {
       setActionInFlightItemId(null);
     }
@@ -251,12 +251,12 @@ export function DailyInboxScreen() {
     };
 
     Alert.alert(
-      '항목 삭제',
-      '이 항목을 삭제할까요? 삭제 후 되돌릴 수 없습니다.',
+      t('inbox.deleteConfirmTitle'),
+      t('inbox.deleteConfirmMessage'),
       [
-        { text: '취소', style: 'cancel', onPress: closeConfirmation },
+        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
         {
-          text: '삭제',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
             closeConfirmation();
@@ -298,16 +298,16 @@ export function DailyInboxScreen() {
         ListHeaderComponent={
           <View>
             <Text style={styles.brand}>Juple</Text>
-            <Text style={styles.title}>오늘의 Inbox</Text>
+            <Text style={styles.title}>{t('inbox.title')}</Text>
             <Text style={styles.date}>
-              {dailyInbox?.date} {entries.length}개
+              {t('inbox.dateCount', { date: dailyInbox?.date, count: entries.length })}
             </Text>
             <TextInput
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="url"
               onChangeText={setUrl}
-              placeholder="URL을 붙여넣어 주세요"
+              placeholder={t('inbox.urlPlaceholder')}
               style={styles.input}
               value={url}
             />
@@ -320,7 +320,7 @@ export function DailyInboxScreen() {
               style={[styles.saveButton, isSaving ? styles.disabledButton : null]}
             >
               <Text style={styles.saveButtonLabel}>
-                {isSaving ? '저장 중...' : '저장'}
+                {isSaving ? t('common.saving') : t('common.save')}
               </Text>
             </Pressable>
             {shareMessage ? (
@@ -333,17 +333,15 @@ export function DailyInboxScreen() {
                   }}
                   style={styles.cancelShareButton}
                 >
-                  <Text style={styles.cancelShareLabel}>공유 내용 취소</Text>
+                  <Text style={styles.cancelShareLabel}>{t('inbox.cancelShare')}</Text>
                 </Pressable>
               </View>
             ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Text style={styles.recentTitle}>최근 저장</Text>
+            <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
           </View>
         }
-        ListEmptyComponent={
-          <Text style={styles.empty}>오늘 저장한 링크가 아직 없습니다.</Text>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>{t('inbox.empty')}</Text>}
         renderItem={({ item }) => (
           <InboxRow
             isActionDisabled={actionInFlightItemId !== null || isRefreshing}
@@ -387,6 +385,8 @@ function InboxRow({
   onDelete,
   onPress,
 }: InboxRowProps) {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.row}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
@@ -422,7 +422,7 @@ function InboxRow({
           style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
         >
           <Text style={styles.itemActionLabel}>
-            {isActionInFlight ? '처리 중...' : '위시리스트'}
+            {isActionInFlight ? t('common.processing') : t('inbox.moveToWishlist')}
           </Text>
         </Pressable>
         <Pressable
@@ -433,7 +433,7 @@ function InboxRow({
           style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
         >
           <Text style={styles.itemActionLabel}>
-            {isActionInFlight ? '처리 중...' : '보관'}
+            {isActionInFlight ? t('common.processing') : t('inbox.moveToArchive')}
           </Text>
         </Pressable>
         <Pressable
@@ -448,7 +448,7 @@ function InboxRow({
           ]}
         >
           <Text style={[styles.itemActionLabel, styles.deleteActionLabel]}>
-            {isActionInFlight ? '처리 중...' : '삭제'}
+            {isActionInFlight ? t('common.processing') : t('common.delete')}
           </Text>
         </Pressable>
       </View>
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     borderColor: '#9A9A9A',
     borderRadius: 6,
     borderWidth: 1,
-    marginRight: 10,
+    marginEnd: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },

@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   FlatList,
@@ -23,6 +24,7 @@ import { useRepeatPurchaseList } from '../purchases/useRepeatPurchaseList';
 type Segment = 'purchases' | 'repeatPurchases';
 
 export function PurchaseHistoryScreen() {
+  const { t } = useTranslation();
   const [segment, setSegment] = useState<Segment>('purchases');
 
   return (
@@ -37,7 +39,7 @@ export function PurchaseHistoryScreen() {
           <Text
             style={[styles.segmentLabel, segment === 'purchases' && styles.segmentLabelActive]}
           >
-            구매내역
+            {t('purchaseHistory.purchasesTab')}
           </Text>
         </Pressable>
         <Pressable
@@ -55,7 +57,7 @@ export function PurchaseHistoryScreen() {
               segment === 'repeatPurchases' && styles.segmentLabelActive,
             ]}
           >
-            반복구매
+            {t('purchaseHistory.repeatPurchasesTab')}
           </Text>
         </Pressable>
       </View>
@@ -66,6 +68,7 @@ export function PurchaseHistoryScreen() {
 }
 
 function PurchaseListSection() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { purchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
     usePurchaseList();
@@ -129,13 +132,13 @@ function PurchaseListSection() {
             onPress={() => navigation.navigate('PurchaseEditor', {})}
             style={styles.addButton}
           >
-            <Text style={styles.addButtonLabel}>구매 기록 추가</Text>
+            <Text style={styles.addButtonLabel}>{t('item.addPurchase')}</Text>
           </Pressable>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       }
       ListEmptyComponent={
-        !error ? <Text style={styles.empty}>아직 등록된 구매 기록이 없습니다.</Text> : undefined
+        !error ? <Text style={styles.empty}>{t('purchaseHistory.empty')}</Text> : undefined
       }
       ListFooterComponent={
         isLoadingMore ? (
@@ -149,6 +152,7 @@ function PurchaseListSection() {
 }
 
 function RepeatPurchaseListSection() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {
     repeatPurchases,
@@ -173,16 +177,18 @@ function RepeatPurchaseListSection() {
           {item.productName}
         </Text>
         <Text style={styles.purchaseDate}>
-          다음 예상 구매일 {formatDateOnlyForDisplay(item.nextPurchaseDate)}
+          {t('repeatPurchase.nextPurchaseDateLabel', {
+            date: formatDateOnlyForDisplay(item.nextPurchaseDate),
+          })}
         </Text>
         <Text style={styles.secondary}>
-          {formatIntervalDescription(item.intervalValue, item.intervalUnit)}
+          {formatIntervalDescription(t, item.intervalValue, item.intervalUnit)}
         </Text>
         {/* Only a status hint - re-enabling still only happens from RepeatPurchaseDetails' own button. */}
-        {!item.isEnabled ? <Text style={styles.pausedLabel}>일시중지</Text> : null}
+        {!item.isEnabled ? <Text style={styles.pausedLabel}>{t('repeatPurchase.paused')}</Text> : null}
       </Pressable>
     ),
-    [navigation],
+    [navigation, t],
   );
 
   if (isLoading && repeatPurchases.length === 0 && !error) {
@@ -209,17 +215,17 @@ function RepeatPurchaseListSection() {
             onPress={() => navigation.navigate('RepeatPurchaseEditor', {})}
             style={styles.addButton}
           >
-            <Text style={styles.addButtonLabel}>반복 구매 추가</Text>
+            <Text style={styles.addButtonLabel}>{t('item.addRepeatPurchase')}</Text>
           </Pressable>
           <View style={styles.includeDisabledRow}>
-            <Text style={styles.includeDisabledLabel}>일시중지 포함</Text>
+            <Text style={styles.includeDisabledLabel}>{t('purchaseHistory.includeDisabled')}</Text>
             <Switch onValueChange={setIncludeDisabled} value={includeDisabled} />
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
       }
       ListEmptyComponent={
-        !error ? <Text style={styles.empty}>반복 구매가 없습니다.</Text> : undefined
+        !error ? <Text style={styles.empty}>{t('item.noRepeatPurchases')}</Text> : undefined
       }
       ListFooterComponent={
         isLoadingMore ? (
@@ -253,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
-    marginRight: 8,
+    marginEnd: 8,
     paddingVertical: 10,
   },
   segmentButtonActive: {

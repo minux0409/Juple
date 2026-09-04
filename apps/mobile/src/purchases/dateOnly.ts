@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 /**
  * YYYY-MM-DD <-> Date conversions that only ever read/write local calendar fields - never through
  * UTC (`toISOString`, or `new Date("YYYY-MM-DD")` which parses as UTC midnight). A Purchase's
@@ -19,7 +21,14 @@ export function parseDateOnly(value: string): Date {
   return new Date(year, month - 1, day);
 }
 
-/** Displays a "YYYY-MM-DD" value using the current locale's date formatting. */
+/**
+ * Displays a "YYYY-MM-DD" value using the app's current UI language (i18n.language - ko/en, see
+ * src/i18n/index.ts), not the device's raw default locale - so date formatting follows the same
+ * language the rest of the UI is showing, and updates correctly if the language is ever changed
+ * at runtime.
+ */
 export function formatDateOnlyForDisplay(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(parseDateOnly(value));
+  return new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(
+    parseDateOnly(value),
+  );
 }

@@ -5,6 +5,7 @@
  */
 
 import { NavigationContainer } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
@@ -16,25 +17,28 @@ import {
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+// Runs i18next.init() at module load, before AuthGate/RootStack ever render, so there is no
+// untranslated first frame - see src/i18n/index.ts.
+import './src/i18n';
 import { RootStack } from './src/navigation/RootStack';
 import { SignInScreen } from './src/screens/SignInScreen';
 import type { BackendAuthStatus, UserBootstrapStatus } from './src/auth/types';
 
-const backendAuthMessages: Record<BackendAuthStatus, string | null> = {
+const backendAuthMessageKeys: Record<BackendAuthStatus, string | null> = {
   notChecked: null,
-  checking: '서버 인증 확인 중...',
-  valid: 'Juple API 인증도 정상적으로 완료되었습니다.',
-  unauthorized: '서버에서 인증을 확인하지 못했습니다.',
-  forbidden: '서버 접근 권한을 확인하지 못했습니다.',
-  unavailable: '서버에 연결할 수 없습니다.',
+  checking: 'auth.backendChecking',
+  valid: 'auth.backendValid',
+  unauthorized: 'auth.backendUnauthorized',
+  forbidden: 'auth.backendForbidden',
+  unavailable: 'auth.backendUnavailable',
 };
 
-const userBootstrapMessages: Record<UserBootstrapStatus, string | null> = {
+const userBootstrapMessageKeys: Record<UserBootstrapStatus, string | null> = {
   notStarted: null,
-  checking: 'Juple 계정을 준비하고 있습니다...',
-  ready: 'Juple 계정 준비도 완료되었습니다.',
-  invalidDeviceSettings: '기기 지역 설정을 확인할 수 없습니다.',
-  unavailable: 'Juple 계정을 준비할 수 없습니다.',
+  checking: 'auth.bootstrapChecking',
+  ready: 'auth.bootstrapReady',
+  invalidDeviceSettings: 'auth.bootstrapInvalidDeviceSettings',
+  unavailable: 'auth.bootstrapUnavailable',
 };
 
 function App() {
@@ -88,29 +92,28 @@ function AuthGate() {
 
 /** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
 function AuthenticatedPlaceholder() {
+  const { t } = useTranslation();
   const { signOut, backendAuthStatus, userBootstrapStatus } = useAuth();
-  const backendAuthMessage = backendAuthMessages[backendAuthStatus];
-  const userBootstrapMessage = userBootstrapMessages[userBootstrapStatus];
+  const backendAuthMessageKey = backendAuthMessageKeys[backendAuthStatus];
+  const userBootstrapMessageKey = userBootstrapMessageKeys[userBootstrapStatus];
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Juple</Text>
-      <Text style={styles.message}>로그인되었습니다.</Text>
-      <Text style={styles.subMessage}>
-        인증 연결이 정상적으로 완료되었습니다.
-      </Text>
-      {backendAuthMessage ? (
-        <Text style={styles.backendAuthMessage}>{backendAuthMessage}</Text>
+      <Text style={styles.message}>{t('auth.loggedIn')}</Text>
+      <Text style={styles.subMessage}>{t('auth.authConnected')}</Text>
+      {backendAuthMessageKey ? (
+        <Text style={styles.backendAuthMessage}>{t(backendAuthMessageKey)}</Text>
       ) : null}
-      {userBootstrapMessage ? (
-        <Text style={styles.userBootstrapMessage}>{userBootstrapMessage}</Text>
+      {userBootstrapMessageKey ? (
+        <Text style={styles.userBootstrapMessage}>{t(userBootstrapMessageKey)}</Text>
       ) : null}
       <Pressable
         accessibilityRole="button"
         onPress={signOut}
         style={styles.signOutButton}
       >
-        <Text style={styles.signOutLabel}>로그아웃</Text>
+        <Text style={styles.signOutLabel}>{t('auth.logout')}</Text>
       </Pressable>
     </View>
   );

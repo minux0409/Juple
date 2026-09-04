@@ -1,5 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -11,28 +12,29 @@ import type { RootStackParamList } from '../navigation/RootStack';
  * links to the existing screens while they remain reachable outside the Bottom Tabs.
  */
 export function CollectionsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.content}>
-        <Text style={styles.title}>보관함</Text>
-        <Text style={styles.empty}>보관함이 아직 없습니다.</Text>
+        <Text style={styles.title}>{t('collections.title')}</Text>
+        <Text style={styles.empty}>{t('collections.empty')}</Text>
 
-        <Text style={styles.sectionTitle}>기존 화면</Text>
+        <Text style={styles.sectionTitle}>{t('collections.existingScreens')}</Text>
         <Pressable
           accessibilityRole="button"
           onPress={() => navigation.navigate('Wishlist')}
           style={styles.linkButton}
         >
-          <Text style={styles.linkButtonLabel}>위시리스트 보기</Text>
+          <Text style={styles.linkButtonLabel}>{t('collections.viewWishlist')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => navigation.navigate('Archive')}
           style={styles.linkButton}
         >
-          <Text style={styles.linkButtonLabel}>보관 보기</Text>
+          <Text style={styles.linkButtonLabel}>{t('collections.viewArchive')}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

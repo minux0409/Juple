@@ -1,21 +1,23 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getPurchases, type Purchase } from './api/purchasesApi';
 
 const PAGE_LIMIT = 50;
 
-function getPurchaseListErrorMessage(error: unknown): string {
+function getPurchaseListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
-      return 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      return t('errors.accountNotReady');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '구매 이력을 불러올 수 없습니다.';
+  return t('purchase.listErrorFallback');
 }
 
 export interface UsePurchaseListResult {
@@ -35,6 +37,7 @@ export interface UsePurchaseListResult {
  * user having to pull-to-refresh, and there is still only ever one GET in flight per focus.
  */
 export function usePurchaseList(): UsePurchaseListResult {
+  const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [purchases, setPurchases] = useState<readonly Purchase[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -70,7 +73,7 @@ export function usePurchaseList(): UsePurchaseListResult {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setError(getPurchaseListErrorMessage(caughtError));
+        setError(getPurchaseListErrorMessage(caughtError, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
           hasLoadedOnceRef.current = true;
@@ -79,7 +82,7 @@ export function usePurchaseList(): UsePurchaseListResult {
         }
       }
     },
-    [authenticatedRequest],
+    [authenticatedRequest, t],
   );
 
   useFocusEffect(
@@ -121,14 +124,14 @@ export function usePurchaseList(): UsePurchaseListResult {
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
-          setError(getPurchaseListErrorMessage(caughtError));
+          setError(getPurchaseListErrorMessage(caughtError, t));
         }
       } finally {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, nextCursor, isLoading, isRefreshing]);
+  }, [authenticatedRequest, nextCursor, isLoading, isRefreshing, t]);
 
   return { purchases, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore };
 }

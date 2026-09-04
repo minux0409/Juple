@@ -16,6 +16,8 @@ import {
   View,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi, type AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
@@ -53,136 +55,137 @@ const RECENT_PURCHASES_LIMIT = 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
-function getLoadErrorMessage(error: unknown): string {
+function getLoadErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '항목을 불러올 수 없습니다.';
+  return t('item.errorLoadFallback');
 }
 
-function getSaveErrorMessage(error: unknown): string {
+function getSaveErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
-      return '입력한 내용을 확인해 주세요.';
+      return t('errors.invalidInput');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '변경 사항을 저장할 수 없습니다.';
+  return t('item.errorSaveFallback');
 }
 
-function getCategoryListErrorMessage(error: unknown): string {
+function getCategoryListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '카테고리 목록을 불러올 수 없습니다.';
+  return t('category.errorListFallback');
 }
 
-function getCategoryAssignErrorMessage(error: unknown): string {
+function getCategoryAssignErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '카테고리를 변경할 수 없습니다.';
+  return t('category.errorAssignFallback');
 }
 
-function getCategoryNameSaveErrorMessage(error: unknown, isRename: boolean): string {
+function getCategoryNameSaveErrorMessage(error: unknown, isRename: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
-      return '이미 같은 이름의 카테고리가 있습니다.';
+      return t('category.errorNameConflict');
     }
     if (error.kind === 'badRequest') {
-      return '카테고리 이름을 확인해 주세요.';
+      return t('category.errorNameInvalid');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return isRename ? '카테고리 이름을 변경할 수 없습니다.' : '카테고리를 생성할 수 없습니다.';
+  return isRename ? t('category.errorRenameFallback') : t('category.errorCreateFallback');
 }
 
-function getCategoryDeleteErrorMessage(error: unknown): string {
+function getCategoryDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '카테고리를 삭제할 수 없습니다.';
+  return t('category.errorDeleteFallback');
 }
 
-function getImageListErrorMessage(error: unknown): string {
+function getImageListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '사진 목록을 불러올 수 없습니다.';
+  return t('item.errorImageListFallback');
 }
 
-/** Never surfaces raw server/credential/token detail - only a short, actionable Korean message. */
-function getImageUploadErrorMessage(error: unknown): string {
+/** Never surfaces raw server/credential/token detail - only a short, actionable localized message. */
+function getImageUploadErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
-      return '지원하지 않는 사진 형식이거나 파일 용량이 너무 큽니다.';
+      return t('item.errorImageUploadInvalid');
     }
     if (error.kind === 'conflict') {
-      return `사진은 최대 ${MAX_ITEM_IMAGES}장까지 추가할 수 있습니다.`;
+      return t('item.photoLimitError', { max: MAX_ITEM_IMAGES });
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
     if (error.kind === 'timeout' || error.kind === 'unavailable') {
-      return '네트워크 상태를 확인한 뒤 다시 시도해 주세요.';
+      return t('item.errorImageUploadNetwork');
     }
   }
-  return '사진을 업로드할 수 없습니다.';
+  return t('item.errorImageUploadFallback');
 }
 
-function getImageDeleteErrorMessage(error: unknown): string {
+function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '사진을 삭제할 수 없습니다.';
+  return t('item.errorImageDeleteFallback');
 }
 
-function getRecentPurchasesErrorMessage(error: unknown): string {
+function getRecentPurchasesErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '구매 기록을 불러올 수 없습니다.';
+  return t('item.errorRecentPurchasesFallback');
 }
 
-function getLinkedRepeatPurchasesErrorMessage(error: unknown): string {
+function getLinkedRepeatPurchasesErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '반복 구매 목록을 불러올 수 없습니다.';
+  return t('repeatPurchase.listErrorFallback');
 }
 
-function getItemLifecycleErrorMessage(error: unknown, isDelete: boolean): string {
+function getItemLifecycleErrorMessage(error: unknown, isDelete: boolean, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return isDelete ? '항목을 삭제할 수 없습니다.' : '항목 상태를 변경할 수 없습니다.';
+  return isDelete ? t('item.errorItemDeleteFallback') : t('item.errorItemStateFallback');
 }
 
 /** picker/permission failures never reach the server, so this maps react-native-image-picker's own errorCode only. */
-function getImagePickerErrorMessage(errorCode: string | undefined): string {
+function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction): string {
   if (errorCode === 'permission') {
-    return '사진 보관함 접근 권한이 필요합니다.';
+    return t('item.errorImagePickerPermission');
   }
-  return '사진을 선택할 수 없습니다.';
+  return t('item.errorImagePickerFallback');
 }
 
 /** Mirrors the backend's CategoryNameNormalizer: trim, required, 100-character limit. */
-function getCategoryNameValidationError(name: string): string | null {
+function getCategoryNameValidationError(name: string, t: TFunction): string | null {
   const trimmedName = name.trim();
   if (!trimmedName) {
-    return '카테고리 이름을 입력해 주세요.';
+    return t('category.errorNameRequired');
   }
   if (trimmedName.length > 100) {
-    return '카테고리 이름은 100자 이하로 입력해 주세요.';
+    return t('category.errorNameTooLong');
   }
   return null;
 }
 
 export function ItemDetailsScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { itemId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
@@ -261,11 +264,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setBaselineMemo(details.memo ?? '');
       setCategory(details.category);
     } catch (caughtError) {
-      setError(getLoadErrorMessage(caughtError));
+      setError(getLoadErrorMessage(caughtError, t));
     } finally {
       setIsLoading(false);
     }
-  }, [authenticatedRequest, itemId]);
+  }, [authenticatedRequest, itemId, t]);
 
   useEffect(() => {
     loadDetails();
@@ -278,11 +281,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       const fetchedImages = await getItemImages(authenticatedRequest, itemId);
       setImages(fetchedImages);
     } catch (caughtError) {
-      setImagesError(getImageListErrorMessage(caughtError));
+      setImagesError(getImageListErrorMessage(caughtError, t));
     } finally {
       setIsLoadingImages(false);
     }
-  }, [authenticatedRequest, itemId]);
+  }, [authenticatedRequest, itemId, t]);
 
   useEffect(() => {
     loadImages();
@@ -306,13 +309,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         return;
       }
       // Failure keeps whatever Purchases are already shown - only the error text changes.
-      setPurchasesError(getRecentPurchasesErrorMessage(caughtError));
+      setPurchasesError(getRecentPurchasesErrorMessage(caughtError, t));
     } finally {
       if (purchasesRequestIdRef.current === requestId) {
         setIsLoadingPurchases(false);
       }
     }
-  }, [authenticatedRequest, itemId]);
+  }, [authenticatedRequest, itemId, t]);
 
   const loadLinkedRepeatPurchases = useCallback(async () => {
     const requestId = ++repeatPurchasesRequestIdRef.current;
@@ -332,13 +335,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         return;
       }
       // Failure keeps whatever RepeatPurchases are already shown - only the error text changes.
-      setRepeatPurchasesError(getLinkedRepeatPurchasesErrorMessage(caughtError));
+      setRepeatPurchasesError(getLinkedRepeatPurchasesErrorMessage(caughtError, t));
     } finally {
       if (repeatPurchasesRequestIdRef.current === requestId) {
         setIsLoadingRepeatPurchases(false);
       }
     }
-  }, [authenticatedRequest, itemId]);
+  }, [authenticatedRequest, itemId, t]);
 
   // Refetches on every focus (not just mount), so returning from PurchaseEditor/RepeatPurchaseEditor
   // after a create/edit, from PurchaseDetails after a delete, or from RepeatPurchaseDetails after a
@@ -370,7 +373,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
     const asset = result.assets?.[0];
     if (result.errorCode || !asset?.uri) {
-      setImagesError(getImagePickerErrorMessage(result.errorCode));
+      setImagesError(getImagePickerErrorMessage(result.errorCode, t));
       return;
     }
 
@@ -390,7 +393,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       // appending preserves the SortOrder ASC, Id ASC order without needing to re-sort.
       setImages(previous => [...previous, uploaded]);
     } catch (caughtError) {
-      setImagesError(getImageUploadErrorMessage(caughtError));
+      setImagesError(getImageUploadErrorMessage(caughtError, t));
     } finally {
       isUploadingImageRef.current = false;
       setIsUploadingImage(false);
@@ -410,7 +413,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setImages(previous => previous.filter(image => image.id !== imageId));
     } catch (caughtError) {
       // Failure leaves the existing UI (the image stays in the list) unchanged.
-      setImagesError(getImageDeleteErrorMessage(caughtError));
+      setImagesError(getImageDeleteErrorMessage(caughtError, t));
     } finally {
       deletingImageIdsRef.current.delete(imageId);
       setDeletingImageIds(new Set(deletingImageIdsRef.current));
@@ -422,10 +425,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    Alert.alert('사진을 삭제할까요?', '삭제한 사진은 복구할 수 없습니다.', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('item.deletePhotoConfirmTitle'), t('item.deletePhotoConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: '삭제',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => deleteImageAction(image.id),
       },
@@ -444,7 +447,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       const categories = await getCategories(authenticatedRequest);
       setCategoryOptions(categories);
     } catch (caughtError) {
-      setCategoryModalError(getCategoryListErrorMessage(caughtError));
+      setCategoryModalError(getCategoryListErrorMessage(caughtError, t));
     } finally {
       setIsLoadingCategoryOptions(false);
     }
@@ -487,7 +490,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setCategory(selected);
       setIsCategoryModalVisible(false);
     } catch (caughtError) {
-      setCategoryModalError(getCategoryAssignErrorMessage(caughtError));
+      setCategoryModalError(getCategoryAssignErrorMessage(caughtError, t));
     } finally {
       setIsCategoryActionInFlight(false);
     }
@@ -498,7 +501,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    const validationError = getCategoryNameValidationError(newCategoryName);
+    const validationError = getCategoryNameValidationError(newCategoryName, t);
     if (validationError) {
       setCategoryModalError(validationError);
       return;
@@ -512,7 +515,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setCategoryOptions(previous => [...previous, created]);
       setNewCategoryName('');
     } catch (caughtError) {
-      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, false));
+      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, false, t));
     } finally {
       setIsCategoryActionInFlight(false);
     }
@@ -541,7 +544,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    const validationError = getCategoryNameValidationError(renameDraftName);
+    const validationError = getCategoryNameValidationError(renameDraftName, t);
     if (validationError) {
       setCategoryModalError(validationError);
       return;
@@ -564,7 +567,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setRenamingCategoryId(null);
       setRenameDraftName('');
     } catch (caughtError) {
-      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, true));
+      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, true, t));
     } finally {
       setIsCategoryActionInFlight(false);
     }
@@ -586,7 +589,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         setRenameDraftName('');
       }
     } catch (caughtError) {
-      setCategoryModalError(getCategoryDeleteErrorMessage(caughtError));
+      setCategoryModalError(getCategoryDeleteErrorMessage(caughtError, t));
     } finally {
       setIsCategoryActionInFlight(false);
     }
@@ -603,12 +606,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     };
 
     Alert.alert(
-      '카테고리를 삭제할까요?',
-      '이 카테고리가 지정된 항목은 카테고리 없음으로 변경됩니다.',
+      t('category.deleteConfirmTitle'),
+      t('category.deleteConfirmMessage'),
       [
-        { text: '취소', style: 'cancel', onPress: closeConfirmation },
+        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
         {
-          text: '삭제',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: () => {
             closeConfirmation();
@@ -635,7 +638,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       await action(authenticatedRequest, itemId);
       setItem(previous => (previous ? { ...previous, state: targetState } : previous));
     } catch (caughtError) {
-      setItemActionError(getItemLifecycleErrorMessage(caughtError, false));
+      setItemActionError(getItemLifecycleErrorMessage(caughtError, false, t));
     } finally {
       itemActionInFlightRef.current = false;
       setIsItemActionInFlight(false);
@@ -658,7 +661,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       await deleteItem(authenticatedRequest, itemId);
       navigation.goBack();
     } catch (caughtError) {
-      setItemActionError(getItemLifecycleErrorMessage(caughtError, true));
+      setItemActionError(getItemLifecycleErrorMessage(caughtError, true, t));
     } finally {
       itemActionInFlightRef.current = false;
       setIsItemActionInFlight(false);
@@ -676,10 +679,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       isItemDeleteConfirmOpenRef.current = false;
     };
 
-    Alert.alert('항목을 삭제할까요?', '삭제한 항목은 복구할 수 없습니다.', [
-      { text: '취소', style: 'cancel', onPress: closeConfirmation },
+    Alert.alert(t('item.deleteItemConfirmTitle'), t('item.deleteItemConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
       {
-        text: '삭제',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
           closeConfirmation();
@@ -693,12 +696,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   usePreventRemove(isDirty, ({ data }) => {
     Alert.alert(
-      '저장하지 않은 변경 사항',
-      '저장하지 않고 나가면 변경 사항이 사라집니다.',
+      t('item.unsavedChangesTitle'),
+      t('item.unsavedChangesMessage'),
       [
-        { text: '계속 편집', style: 'cancel' },
+        { text: t('item.continueEditing'), style: 'cancel' },
         {
-          text: '나가기',
+          text: t('item.leave'),
           style: 'destructive',
           onPress: () => navigation.dispatch(data.action),
         },
@@ -720,7 +723,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setBaselineMemo(memo);
       setJustSaved(true);
     } catch (caughtError) {
-      setError(getSaveErrorMessage(caughtError));
+      setError(getSaveErrorMessage(caughtError, t));
     } finally {
       setIsSaving(false);
     }
@@ -735,12 +738,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     try {
       const canOpen = await Linking.canOpenURL(item.url);
       if (!canOpen) {
-        setUrlOpenError('이 링크를 열 수 있는 앱을 찾을 수 없습니다.');
+        setUrlOpenError(t('item.urlOpenUnsupported'));
         return;
       }
       await Linking.openURL(item.url);
     } catch {
-      setUrlOpenError('원본 링크를 열 수 없습니다.');
+      setUrlOpenError(t('item.urlOpenFailed'));
     }
   };
 
@@ -765,18 +768,18 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.label}>제목</Text>
+      <Text style={styles.label}>{t('item.titleLabel')}</Text>
       <TextInput
         onChangeText={text => {
           setTitle(text);
           setJustSaved(false);
         }}
-        placeholder="제목을 입력해 주세요"
+        placeholder={t('item.titlePlaceholder')}
         style={styles.titleInput}
         value={title}
       />
 
-      <Text style={styles.label}>URL</Text>
+      <Text style={styles.label}>{t('item.url')}</Text>
       <Text selectable style={styles.url}>
         {item.url}
       </Text>
@@ -787,31 +790,31 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         }}
         style={styles.openUrlButton}
       >
-        <Text style={styles.openUrlButtonLabel}>원본 보기 ↗</Text>
+        <Text style={styles.openUrlButtonLabel}>{t('item.openOriginal')}</Text>
       </Pressable>
       {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
 
-      <Text style={styles.label}>메모</Text>
+      <Text style={styles.label}>{t('item.memo')}</Text>
       <TextInput
         multiline
         onChangeText={text => {
           setMemo(text);
           setJustSaved(false);
         }}
-        placeholder="메모를 입력해 주세요"
+        placeholder={t('item.memoPlaceholder')}
         style={styles.memoInput}
         value={memo}
       />
 
-      <Text style={styles.label}>카테고리</Text>
+      <Text style={styles.label}>{t('item.category')}</Text>
       <View style={styles.categoryRow}>
-        <Text style={styles.categoryValue}>{category?.name ?? '없음'}</Text>
+        <Text style={styles.categoryValue}>{category?.name ?? t('common.none')}</Text>
         <Pressable
           accessibilityRole="button"
           onPress={openCategoryModal}
           style={styles.categoryChangeButton}
         >
-          <Text style={styles.categoryChangeLabel}>변경</Text>
+          <Text style={styles.categoryChangeLabel}>{t('common.change')}</Text>
         </Pressable>
       </View>
 
@@ -827,10 +830,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         }
         style={styles.addPurchaseButton}
       >
-        <Text style={styles.addPurchaseButtonLabel}>구매 기록 추가</Text>
+        <Text style={styles.addPurchaseButtonLabel}>{t('item.addPurchase')}</Text>
       </Pressable>
 
-      <Text style={styles.label}>구매 기록</Text>
+      <Text style={styles.label}>{t('item.purchasesSection')}</Text>
       {isLoadingPurchases ? (
         <ActivityIndicator style={styles.purchasesLoading} />
       ) : recentPurchases.length > 0 ? (
@@ -857,7 +860,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </Pressable>
         ))
       ) : !purchasesError ? (
-        <Text style={styles.purchasesEmpty}>구매 기록이 없습니다.</Text>
+        <Text style={styles.purchasesEmpty}>{t('item.noPurchases')}</Text>
       ) : null}
       {purchasesError ? <Text style={styles.error}>{purchasesError}</Text> : null}
 
@@ -873,10 +876,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         }
         style={styles.addPurchaseButton}
       >
-        <Text style={styles.addPurchaseButtonLabel}>반복 구매 추가</Text>
+        <Text style={styles.addPurchaseButtonLabel}>{t('item.addRepeatPurchase')}</Text>
       </Pressable>
 
-      <Text style={styles.label}>반복 구매</Text>
+      <Text style={styles.label}>{t('item.repeatPurchasesSection')}</Text>
       {isLoadingRepeatPurchases ? (
         <ActivityIndicator style={styles.purchasesLoading} />
       ) : linkedRepeatPurchases.length > 0 ? (
@@ -893,22 +896,26 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               {repeatPurchase.productName}
             </Text>
             <Text style={styles.purchaseRowDate}>
-              {formatIntervalDescription(repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
-              {' · 다음 예상 구매일 '}
-              {formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate)}
+              {formatIntervalDescription(t, repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
+              {' · '}
+              {t('repeatPurchase.nextPurchaseDateLabel', {
+                date: formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate),
+              })}
             </Text>
             {!repeatPurchase.isEnabled ? (
-              <Text style={styles.repeatPurchasePausedLabel}>일시중지</Text>
+              <Text style={styles.repeatPurchasePausedLabel}>{t('repeatPurchase.paused')}</Text>
             ) : null}
           </Pressable>
         ))
       ) : !repeatPurchasesError ? (
-        <Text style={styles.purchasesEmpty}>반복 구매가 없습니다.</Text>
+        <Text style={styles.purchasesEmpty}>{t('item.noRepeatPurchases')}</Text>
       ) : null}
       {repeatPurchasesError ? <Text style={styles.error}>{repeatPurchasesError}</Text> : null}
 
       <View style={styles.imagesHeaderRow}>
-        <Text style={styles.label}>사진 ({images.length}/{MAX_ITEM_IMAGES})</Text>
+        <Text style={styles.label}>
+          {t('item.photosHeader', { count: images.length, max: MAX_ITEM_IMAGES })}
+        </Text>
       </View>
 
       {isLoadingImages ? (
@@ -927,7 +934,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                 <View style={[styles.imageThumbnail, styles.imageThumbnailFallback]} />
               )}
               <Pressable
-                accessibilityLabel="사진 삭제"
+                accessibilityLabel={t('item.deletePhotoA11y')}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: deletingImageIds.has(image.id) }}
                 disabled={deletingImageIds.has(image.id)}
@@ -961,17 +968,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       >
         <Text style={styles.addImageButtonLabel}>
           {isUploadingImage
-            ? '업로드 중...'
+            ? t('item.uploading')
             : images.length >= MAX_ITEM_IMAGES
-              ? `사진은 최대 ${MAX_ITEM_IMAGES}장까지 추가할 수 있습니다`
-              : '사진 추가'}
+              ? t('item.photoLimitButton', { max: MAX_ITEM_IMAGES })
+              : t('item.addPhoto')}
         </Text>
       </Pressable>
 
       {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {justSaved && !isDirty ? <Text style={styles.savedMessage}>저장되었습니다.</Text> : null}
+      {justSaved && !isDirty ? <Text style={styles.savedMessage}>{t('item.saved')}</Text> : null}
 
       <Pressable
         accessibilityRole="button"
@@ -980,10 +987,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         onPress={save}
         style={[styles.saveButton, (!isDirty || isSaving) && styles.disabledButton]}
       >
-        <Text style={styles.saveButtonLabel}>{isSaving ? '저장 중...' : '저장'}</Text>
+        <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
       </Pressable>
 
-      <Text style={styles.label}>상태 관리</Text>
+      <Text style={styles.label}>{t('item.stateManagement')}</Text>
       <View style={styles.itemActionRow}>
         {item.state === 'inbox' ? (
           <Pressable
@@ -993,7 +1000,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             onPress={moveToWishlistAction}
             style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
           >
-            <Text style={styles.itemActionButtonLabel}>위시리스트로</Text>
+            <Text style={styles.itemActionButtonLabel}>{t('item.moveToWishlist')}</Text>
           </Pressable>
         ) : null}
         {item.state === 'archived' ? (
@@ -1004,7 +1011,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             onPress={moveToWishlistAction}
             style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
           >
-            <Text style={styles.itemActionButtonLabel}>위시리스트로</Text>
+            <Text style={styles.itemActionButtonLabel}>{t('item.moveToWishlist')}</Text>
           </Pressable>
         ) : null}
         {item.state === 'inbox' || item.state === 'wishlist' ? (
@@ -1015,7 +1022,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             onPress={moveToArchiveAction}
             style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
           >
-            <Text style={styles.itemActionButtonLabel}>보관</Text>
+            <Text style={styles.itemActionButtonLabel}>{t('item.moveToArchive')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -1030,7 +1037,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         style={[styles.itemDeleteButton, isItemActionInFlight && styles.disabledButton]}
       >
         <Text style={styles.itemDeleteButtonLabel}>
-          {isDeletingItem ? '삭제 중...' : '삭제'}
+          {isDeletingItem ? t('common.deleting') : t('common.delete')}
         </Text>
       </Pressable>
 
@@ -1045,13 +1052,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             {modalMode === 'select' ? (
               <>
                 <View style={styles.modalHeaderRow}>
-                  <Text style={styles.modalTitle}>카테고리 선택</Text>
+                  <Text style={styles.modalTitle}>{t('category.selectTitle')}</Text>
                   <Pressable
                     accessibilityRole="button"
                     disabled={isCategoryActionInFlight}
                     onPress={openCategoryManage}
                   >
-                    <Text style={styles.modalHeaderLinkLabel}>카테고리 관리</Text>
+                    <Text style={styles.modalHeaderLinkLabel}>{t('category.manage')}</Text>
                   </Pressable>
                 </View>
 
@@ -1069,7 +1076,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                           isCategoryActionInFlight && styles.disabledButton,
                         ]}
                       >
-                        <Text style={styles.categoryOptionLabel}>카테고리 없음</Text>
+                        <Text style={styles.categoryOptionLabel}>{t('category.none')}</Text>
                       </Pressable>
                     }
                     data={categoryOptions}
@@ -1095,12 +1102,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                   <Text style={styles.error}>{categoryModalError}</Text>
                 ) : null}
 
-                <Text style={styles.label}>새 카테고리</Text>
+                <Text style={styles.label}>{t('category.newCategory')}</Text>
                 <View style={styles.newCategoryRow}>
                   <TextInput
                     editable={!isCategoryActionInFlight}
                     onChangeText={setNewCategoryName}
-                    placeholder="카테고리 이름"
+                    placeholder={t('category.namePlaceholder')}
                     style={styles.newCategoryInput}
                     value={newCategoryName}
                   />
@@ -1118,20 +1125,20 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                         styles.disabledButton,
                     ]}
                   >
-                    <Text style={styles.newCategoryButtonLabel}>생성</Text>
+                    <Text style={styles.newCategoryButtonLabel}>{t('category.create')}</Text>
                   </Pressable>
                 </View>
               </>
             ) : (
               <>
                 <View style={styles.modalHeaderRow}>
-                  <Text style={styles.modalTitle}>카테고리 관리</Text>
+                  <Text style={styles.modalTitle}>{t('category.manage')}</Text>
                   <Pressable
                     accessibilityRole="button"
                     disabled={isCategoryActionInFlight}
                     onPress={closeCategoryManage}
                   >
-                    <Text style={styles.modalHeaderLinkLabel}>선택으로</Text>
+                    <Text style={styles.modalHeaderLinkLabel}>{t('category.backToSelect')}</Text>
                   </Pressable>
                 </View>
 
@@ -1143,7 +1150,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                   data={categoryOptions}
                   keyExtractor={option => option.id.toString()}
                   ListEmptyComponent={
-                    <Text style={styles.manageEmpty}>카테고리가 없습니다.</Text>
+                    <Text style={styles.manageEmpty}>{t('category.empty')}</Text>
                   }
                   renderItem={({ item: option }) =>
                     renamingCategoryId === option.id ? (
@@ -1162,7 +1169,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                             onPress={submitRename}
                             style={styles.manageActionButton}
                           >
-                            <Text style={styles.manageActionLabel}>저장</Text>
+                            <Text style={styles.manageActionLabel}>{t('common.save')}</Text>
                           </Pressable>
                           <Pressable
                             accessibilityRole="button"
@@ -1170,7 +1177,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                             onPress={cancelRename}
                             style={styles.manageActionButton}
                           >
-                            <Text style={styles.manageActionLabel}>취소</Text>
+                            <Text style={styles.manageActionLabel}>{t('common.cancel')}</Text>
                           </Pressable>
                         </View>
                       </View>
@@ -1186,7 +1193,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                             onPress={() => startRename(option)}
                             style={styles.manageActionButton}
                           >
-                            <Text style={styles.manageActionLabel}>이름변경</Text>
+                            <Text style={styles.manageActionLabel}>{t('category.rename')}</Text>
                           </Pressable>
                           <Pressable
                             accessibilityRole="button"
@@ -1195,7 +1202,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                             style={styles.manageActionButton}
                           >
                             <Text style={[styles.manageActionLabel, styles.manageDeleteLabel]}>
-                              삭제
+                              {t('common.delete')}
                             </Text>
                           </Pressable>
                         </View>
@@ -1213,7 +1220,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               onPress={closeCategoryModal}
               style={styles.modalCloseButton}
             >
-              <Text style={styles.modalCloseLabel}>닫기</Text>
+              <Text style={styles.modalCloseLabel}>{t('common.close')}</Text>
             </Pressable>
           </View>
         </View>
@@ -1300,7 +1307,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     flex: 1,
-    marginRight: 10,
+    marginEnd: 10,
     paddingVertical: 10,
   },
   itemActionButtonLabel: {
@@ -1330,7 +1337,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   imageThumbnailWrapper: {
-    marginRight: 10,
+    marginEnd: 10,
     position: 'relative',
   },
   imageThumbnail: {
@@ -1495,7 +1502,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     fontSize: 15,
-    marginRight: 10,
+    marginEnd: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
@@ -1528,7 +1535,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   manageActionButton: {
-    marginLeft: 14,
+    marginStart: 14,
   },
   manageActionLabel: {
     color: '#111111',
@@ -1544,7 +1551,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flex: 1,
     fontSize: 15,
-    marginRight: 10,
+    marginEnd: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },

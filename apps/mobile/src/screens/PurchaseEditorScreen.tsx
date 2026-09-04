@@ -1,6 +1,8 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Platform,
   Pressable,
@@ -23,37 +25,38 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PurchaseEditor'>;
 
-function getSaveErrorMessage(error: unknown): string {
+function getSaveErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
-      return '입력한 내용을 확인해 주세요.';
+      return t('errors.invalidInput');
     }
     if (error.kind === 'notFound') {
-      return '연결된 항목을 찾을 수 없습니다.';
+      return t('purchase.itemNotFound');
     }
     if (error.kind === 'conflict') {
-      return 'Juple 계정 준비 상태를 확인할 수 없습니다.';
+      return t('errors.accountNotReady');
     }
     if (error.kind === 'unauthorized') {
-      return '인증 상태를 다시 확인할 수 없습니다.';
+      return t('errors.unauthorized');
     }
   }
-  return '구매 기록을 저장할 수 없습니다.';
+  return t('purchase.saveErrorFallback');
 }
 
 /** Mirrors the backend's PurchaseFieldsNormalizer: required, trimmed, 500-character limit. */
-function getProductNameValidationError(value: string): string | null {
+function getProductNameValidationError(value: string, t: TFunction): string | null {
   const trimmed = value.trim();
   if (!trimmed) {
-    return '상품명을 입력해 주세요.';
+    return t('purchase.productNameRequired');
   }
   if (trimmed.length > 500) {
-    return '상품명은 500자 이하로 입력해 주세요.';
+    return t('purchase.productNameTooLong');
   }
   return null;
 }
 
 export function PurchaseEditorScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { itemId, initialProductName, purchaseId, initialPurchase } = route.params;
   // Edit mode is set by PurchaseDetailsScreen, which always passes purchaseId and
   // initialPurchase together (see RootStackParamList) - create mode otherwise.
@@ -94,7 +97,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
       return;
     }
 
-    const productNameError = getProductNameValidationError(productName);
+    const productNameError = getProductNameValidationError(productName, t);
     if (productNameError) {
       setError(productNameError);
       return;
@@ -103,42 +106,42 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
 
     const validatedAmount = validateOptionalDecimalText(amountText);
     if (validatedAmount === 'invalid') {
-      setError('금액을 올바르게 입력해 주세요.');
+      setError(t('purchase.amountInvalid'));
       return;
     }
 
     const trimmedCurrencyCode = currencyCode.trim().toUpperCase();
     if (validatedAmount !== null && !/^[A-Z]{3}$/.test(trimmedCurrencyCode)) {
-      setError('통화 코드는 알파벳 3자리로 입력해 주세요 (예: KRW).');
+      setError(t('purchase.currencyCodeInvalid'));
       return;
     }
     if (validatedAmount === null && trimmedCurrencyCode) {
-      setError('통화 코드를 입력하려면 금액도 함께 입력해 주세요.');
+      setError(t('purchase.currencyCodeRequiresAmount'));
       return;
     }
 
     const validatedQuantity = validateOptionalDecimalText(quantityText);
     if (validatedQuantity === 'invalid') {
-      setError('수량을 올바르게 입력해 주세요.');
+      setError(t('purchase.quantityInvalid'));
       return;
     }
     if (validatedQuantity !== null && isZeroDecimalText(validatedQuantity)) {
-      setError('수량은 0보다 커야 합니다.');
+      setError(t('purchase.quantityMustBePositive'));
       return;
     }
 
-    const storeError = getLengthValidationError(store, '구매처', 200);
+    const storeError = getLengthValidationError(store, t('purchase.store'), 200, t);
     if (storeError) {
       setError(storeError);
       return;
     }
-    const variantError = getLengthValidationError(variant, '옵션', 200);
+    const variantError = getLengthValidationError(variant, t('purchase.variant'), 200, t);
     if (variantError) {
       setError(variantError);
       return;
     }
     if (memo.length > 4000) {
-      setError('메모는 4000자 이하로 입력해 주세요.');
+      setError(t('purchase.memoTooLong'));
       return;
     }
 
@@ -171,7 +174,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
       }
       navigation.goBack();
     } catch (caughtError) {
-      setError(getSaveErrorMessage(caughtError));
+      setError(getSaveErrorMessage(caughtError, t));
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
@@ -183,15 +186,15 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
       contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.label}>상품명</Text>
+      <Text style={styles.label}>{t('purchase.productName')}</Text>
       <TextInput
         onChangeText={setProductName}
-        placeholder="상품명을 입력해 주세요"
+        placeholder={t('purchase.productNamePlaceholder')}
         style={styles.input}
         value={productName}
       />
 
-      <Text style={styles.label}>구매일</Text>
+      <Text style={styles.label}>{t('purchase.purchaseDate')}</Text>
       <Pressable
         accessibilityRole="button"
         onPress={() => setIsDatePickerVisible(true)}
@@ -205,55 +208,55 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
         <DateTimePicker mode="date" onChange={onChangeDate} value={purchaseDate} />
       ) : null}
 
-      <Text style={styles.label}>금액</Text>
+      <Text style={styles.label}>{t('purchase.amount')}</Text>
       <TextInput
         keyboardType="decimal-pad"
         onChangeText={setAmountText}
-        placeholder="예: 19900"
+        placeholder={t('purchase.amountPlaceholder')}
         style={styles.input}
         value={amountText}
       />
 
-      <Text style={styles.label}>통화 코드</Text>
+      <Text style={styles.label}>{t('purchase.currencyCode')}</Text>
       <TextInput
         autoCapitalize="characters"
         maxLength={3}
         onChangeText={text => setCurrencyCode(text.toUpperCase())}
-        placeholder="예: KRW"
+        placeholder={t('purchase.currencyCodePlaceholder')}
         style={styles.input}
         value={currencyCode}
       />
 
-      <Text style={styles.label}>구매처</Text>
+      <Text style={styles.label}>{t('purchase.store')}</Text>
       <TextInput
         onChangeText={setStore}
-        placeholder="예: Coupang"
+        placeholder={t('purchase.storePlaceholder')}
         style={styles.input}
         value={store}
       />
 
-      <Text style={styles.label}>옵션</Text>
+      <Text style={styles.label}>{t('purchase.variant')}</Text>
       <TextInput
         onChangeText={setVariant}
-        placeholder="예: 250ml / Blue"
+        placeholder={t('purchase.variantPlaceholder')}
         style={styles.input}
         value={variant}
       />
 
-      <Text style={styles.label}>수량</Text>
+      <Text style={styles.label}>{t('purchase.quantity')}</Text>
       <TextInput
         keyboardType="decimal-pad"
         onChangeText={setQuantityText}
-        placeholder="예: 1"
+        placeholder={t('purchase.quantityPlaceholder')}
         style={styles.input}
         value={quantityText}
       />
 
-      <Text style={styles.label}>메모</Text>
+      <Text style={styles.label}>{t('item.memo')}</Text>
       <TextInput
         multiline
         onChangeText={setMemo}
-        placeholder="메모를 입력해 주세요"
+        placeholder={t('item.memoPlaceholder')}
         style={styles.memoInput}
         value={memo}
       />
@@ -267,7 +270,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
         onPress={submit}
         style={[styles.saveButton, isSaving && styles.disabledButton]}
       >
-        <Text style={styles.saveButtonLabel}>{isSaving ? '저장 중...' : '저장'}</Text>
+        <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
       </Pressable>
     </ScrollView>
   );

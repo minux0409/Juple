@@ -1,11 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import { ItemStateListScreen } from './ItemStateListScreen';
 
 export function ArchiveScreen() {
+  const { t } = useTranslation();
+
   return (
     <ItemStateListScreen
-      emptyMessage="보관한 항목이 없습니다."
+      emptyMessage={t('itemList.archiveEmpty')}
       state="archived"
-      title="Archive"
+      title={t('itemList.archiveTitle')}
     />
   );
 }

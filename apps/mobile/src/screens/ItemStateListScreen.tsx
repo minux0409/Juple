@@ -1,6 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCategories, type Category } from '../categories/api/categoriesApi';
@@ -20,15 +23,15 @@ import type { ItemListEntry, ItemListState } from '../items/api/itemsApi';
 import { useItemStateList } from '../items/useItemStateList';
 import type { RootStackParamList } from '../navigation/RootStack';
 
-function getCategoryListErrorMessage(error: unknown): string {
+function getCategoryListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return '인증 상태를 다시 확인할 수 없습니다.';
+    return t('errors.unauthorized');
   }
-  return '카테고리 목록을 불러올 수 없습니다.';
+  return t('category.errorListFallback');
 }
 
 function formatStateChangedTime(stateChangedAtUtc: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(i18n.language, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(stateChangedAtUtc));
@@ -45,6 +48,7 @@ export function ItemStateListScreen({
   title,
   emptyMessage,
 }: ItemStateListScreenProps) {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
@@ -67,8 +71,8 @@ export function ItemStateListScreen({
 
   const filterCategoryName =
     filterCategoryId === null
-      ? '전체'
-      : categoryOptions.find(option => option.id === filterCategoryId)?.name ?? '전체';
+      ? t('common.all')
+      : categoryOptions.find(option => option.id === filterCategoryId)?.name ?? t('common.all');
 
   const openFilterModal = async () => {
     setIsFilterModalVisible(true);
@@ -78,7 +82,7 @@ export function ItemStateListScreen({
       const categories = await getCategories(authenticatedRequest);
       setCategoryOptions(categories);
     } catch (caughtError) {
-      setFilterModalError(getCategoryListErrorMessage(caughtError));
+      setFilterModalError(getCategoryListErrorMessage(caughtError, t));
     } finally {
       setIsLoadingCategoryOptions(false);
     }
@@ -151,13 +155,15 @@ export function ItemStateListScreen({
           <View>
             <Text style={styles.title}>{title}</Text>
             <View style={styles.filterRow}>
-              <Text style={styles.filterLabel}>카테고리: {filterCategoryName}</Text>
+              <Text style={styles.filterLabel}>
+                {t('category.filterLabel', { name: filterCategoryName })}
+              </Text>
               <Pressable
                 accessibilityRole="button"
                 onPress={openFilterModal}
                 style={styles.filterChangeButton}
               >
-                <Text style={styles.filterChangeLabel}>변경</Text>
+                <Text style={styles.filterChangeLabel}>{t('common.change')}</Text>
               </Pressable>
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -183,7 +189,7 @@ export function ItemStateListScreen({
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
-            <Text style={styles.modalTitle}>카테고리 필터</Text>
+            <Text style={styles.modalTitle}>{t('category.filterTitle')}</Text>
 
             {isLoadingCategoryOptions ? (
               <ActivityIndicator style={styles.modalLoading} />
@@ -195,7 +201,7 @@ export function ItemStateListScreen({
                     onPress={() => selectFilterCategory(null)}
                     style={styles.categoryOptionRow}
                   >
-                    <Text style={styles.categoryOptionLabel}>전체</Text>
+                    <Text style={styles.categoryOptionLabel}>{t('common.all')}</Text>
                   </Pressable>
                 }
                 data={categoryOptions}
@@ -222,7 +228,7 @@ export function ItemStateListScreen({
               onPress={() => setIsFilterModalVisible(false)}
               style={styles.modalCloseButton}
             >
-              <Text style={styles.modalCloseLabel}>닫기</Text>
+              <Text style={styles.modalCloseLabel}>{t('common.close')}</Text>
             </Pressable>
           </View>
         </View>

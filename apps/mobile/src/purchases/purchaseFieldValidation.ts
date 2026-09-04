@@ -1,3 +1,5 @@
+import type { TFunction } from 'i18next';
+
 /**
  * Shared by PurchaseEditorScreen and RepeatPurchaseLogPurchaseScreen, since log-purchase's
  * Amount/Store/Variant/Quantity/Memo fields go through the same backend PurchaseFieldsNormalizer as
@@ -26,9 +28,15 @@ export function isZeroDecimalText(text: string): boolean {
   return /^0+(\.0+)?$/.test(text);
 }
 
-export function getLengthValidationError(value: string, field: string, maxLength: number): string | null {
+/** `field` is the already-translated field name (e.g. `t('purchase.store')`), not a raw key. */
+export function getLengthValidationError(
+  value: string,
+  field: string,
+  maxLength: number,
+  t: TFunction,
+): string | null {
   if (value.trim().length > maxLength) {
-    return `${field}은(는) ${maxLength}자 이하로 입력해 주세요.`;
+    return t('validation.maxLength', { field, maxLength });
   }
   return null;
 }
