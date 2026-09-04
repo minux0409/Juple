@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { ArchiveScreen } from '../screens/ArchiveScreen';
+import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
@@ -16,6 +17,8 @@ import { MainTabs } from './MainTabs';
 export type RootStackParamList = {
   MainTabs: undefined;
   ItemDetails: { itemId: number };
+  /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
+  CollectionDetails: { collectionId: number };
   /**
    * Not in the Bottom Tabs (see MainTabs) since the new 홈/기록/보관함/내 페이지 IA - kept reachable
    * here as a temporary, explicitly-labeled path (see CollectionsScreen/MyPageScreen) while
@@ -77,6 +80,11 @@ export function RootStack() {
         component={ItemDetailsScreen}
         name="ItemDetails"
         options={{ title: t('nav.itemDetails') }}
+      />
+      <Stack.Screen
+        component={CollectionDetailsScreen}
+        name="CollectionDetails"
+        options={{ title: t('nav.collectionDetails') }}
       />
       <Stack.Screen
         component={WishlistScreen}

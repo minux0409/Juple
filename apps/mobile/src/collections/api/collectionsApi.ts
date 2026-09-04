@@ -1,0 +1,192 @@
+import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { ItemCategory } from '../../categories/api/categoriesApi';
+import type { RepresentativeImage } from '../../images/api/imagesApi';
+
+/** A named 보관함 - an Item can belong to any number of Collections at once (unlike Category). */
+export interface Collection {
+  readonly id: number;
+  readonly name: string;
+  readonly itemCount: number;
+  readonly createdAtUtc: string;
+  readonly updatedAtUtc: string;
+}
+
+/** One Item inside a Collection - no state field, since Collection membership is independent of Inbox/Wishlist/Archived. */
+export interface CollectionItemEntry {
+  readonly itemId: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly memo: string | null;
+  readonly addedAtUtc: string;
+  readonly category: ItemCategory | null;
+  readonly representativeImage: RepresentativeImage | null;
+}
+
+export interface CollectionItemsPage {
+  readonly items: readonly CollectionItemEntry[];
+  readonly nextCursor: string | null;
+}
+
+export interface CollectionsPage {
+  readonly items: readonly Collection[];
+  readonly nextCursor: string | null;
+}
+
+export interface GetCollectionsOptions {
+  readonly limit?: number;
+  /** Opaque value from a previous CollectionsPage.nextCursor; never parsed or modified. */
+  readonly cursor?: string;
+  /** Restricts the list to Collections that already contain this Item (see ItemDetailsScreen's membership chip list) - composes with limit/cursor, not a separate contract. Mutually exclusive with excludeItemId. */
+  readonly itemId?: number;
+  /** Restricts the list to Collections that do NOT yet contain this Item (see the "add to collection" modal) - the server excludes them, so a Collection the Item already belongs to can never resurface as a candidate on any page. Mutually exclusive with itemId. */
+  readonly excludeItemId?: number;
+}
+
+/** Collection is a growing user data set - always cursor-paginated, never returns everything in one response. */
+export async function getCollections(
+  request: AuthenticatedApiRequest,
+  options: GetCollectionsOptions = {},
+): Promise<CollectionsPage> {
+  const query = new URLSearchParams();
+  if (options.itemId !== undefined) {
+    query.set('itemId', String(options.itemId));
+  }
+  if (options.excludeItemId !== undefined) {
+    query.set('excludeItemId', String(options.excludeItemId));
+  }
+  if (options.limit !== undefined) {
+    query.set('limit', String(options.limit));
+  }
+  if (options.cursor) {
+    query.set('cursor', options.cursor);
+  }
+  const queryString = query.toString();
+
+  const response = await request<CollectionsPage>({
+    method: 'GET',
+    path: queryString ? `/api/v1/collections?${queryString}` : '/api/v1/collections',
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collections page body.');
+  }
+
+  return response.body;
+}
+
+/** POSTs a new Collection; resolves with the created Collection on 201 (409 on a duplicate name). */
+export async function createCollection(
+  request: AuthenticatedApiRequest,
+  name: string,
+): Promise<Collection> {
+  const response = await request<Collection>({
+    method: 'POST',
+    path: '/api/v1/collections',
+    body: { name },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
+}
+
+export async function getCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<Collection> {
+  const response = await request<Collection>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
+}
+
+/** PUTs a Collection's new name; resolves on 204 (409 on a duplicate name). */
+export async function renameCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  name: string,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}`,
+    body: { name },
+  });
+}
+
+/** DELETEs a Collection; resolves on 204. Items inside it are never deleted, only the membership. */
+export async function deleteCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}`,
+  });
+}
+
+export interface GetCollectionItemsOptions {
+  readonly limit?: number;
+  /** Opaque value from a previous CollectionItemsPage.nextCursor; never parsed or modified. */
+  readonly cursor?: string;
+}
+
+/** A Collection's Item list, newest-added-first - always paginated, a Collection's size is unbounded. */
+export async function getCollectionItems(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  options: GetCollectionItemsOptions = {},
+): Promise<CollectionItemsPage> {
+  const query = new URLSearchParams();
+  if (options.limit !== undefined) {
+    query.set('limit', String(options.limit));
+  }
+  if (options.cursor) {
+    query.set('cursor', options.cursor);
+  }
+  const queryString = query.toString();
+
+  const response = await request<CollectionItemsPage>({
+    method: 'GET',
+    path: queryString
+      ? `/api/v1/collections/${collectionId}/items?${queryString}`
+      : `/api/v1/collections/${collectionId}/items`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection Items page body.');
+  }
+
+  return response.body;
+}
+
+/** PUTs the Item into the Collection; resolves on 204 (idempotent - already-a-member succeeds too). */
+export async function addItemToCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/items/${itemId}`,
+  });
+}
+
+/** DELETEs the Item from the Collection; resolves on 204 (idempotent - not-a-member succeeds too). Never deletes the Item itself. */
+export async function removeItemFromCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}/items/${itemId}`,
+  });
+}

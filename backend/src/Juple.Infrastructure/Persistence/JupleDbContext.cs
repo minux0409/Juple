@@ -1,4 +1,5 @@
 using Juple.Domain.Categories;
+using Juple.Domain.Collections;
 using Juple.Domain.Identity;
 using Juple.Domain.Images;
 using Juple.Domain.Items;
@@ -25,6 +26,10 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<Purchase> Purchases => Set<Purchase>();
 
     public DbSet<RepeatPurchase> RepeatPurchases => Set<RepeatPurchase>();
+
+    public DbSet<Collection> Collections => Set<Collection>();
+
+    public DbSet<CollectionItem> CollectionItems => Set<CollectionItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

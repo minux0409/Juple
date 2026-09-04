@@ -30,6 +30,13 @@ import {
   type ItemCategory,
 } from '../categories/api/categoriesApi';
 import {
+  addItemToCollection,
+  createCollection,
+  getCollections,
+  removeItemFromCollection,
+  type Collection,
+} from '../collections/api/collectionsApi';
+import {
   deleteItemImage,
   getItemImages,
   uploadItemImage,
@@ -52,6 +59,7 @@ import { formatIntervalDescription } from '../purchases/repeatPurchaseFormat';
 
 const MAX_ITEM_IMAGES = 10;
 const RECENT_PURCHASES_LIMIT = 3;
+const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
@@ -108,6 +116,47 @@ function getCategoryDeleteErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('category.errorDeleteFallback');
+}
+
+function getItemCollectionsListErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('collections.errorListFallback');
+}
+
+function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('collections.errorMembershipFallback');
+}
+
+function getCollectionCreateErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError) {
+    if (error.kind === 'conflict') {
+      return t('collections.errorNameConflict');
+    }
+    if (error.kind === 'badRequest') {
+      return t('collections.errorNameInvalid');
+    }
+    if (error.kind === 'unauthorized') {
+      return t('errors.unauthorized');
+    }
+  }
+  return t('collections.errorCreateFallback');
+}
+
+/** Mirrors the backend's CollectionNameNormalizer: trim, required, 100-character limit. */
+function getCollectionNameValidationError(name: string, t: TFunction): string | null {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return t('collections.errorNameRequired');
+  }
+  if (trimmedName.length > 100) {
+    return t('collections.errorNameTooLong');
+  }
+  return null;
 }
 
 function getImageListErrorMessage(error: unknown, t: TFunction): string {
@@ -220,6 +269,37 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [renamingCategoryId, setRenamingCategoryId] = useState<number | null>(null);
   const [renameDraftName, setRenameDraftName] = useState('');
+
+  // Independent from Category above - an Item can belong to any number of Collections at once
+  // (unlike the single-select Category), so membership is its own list rather than one value.
+  // There is no cap on how many Collections an Item can belong to, so this is genuinely paginated
+  // (see loadMoreItemCollections below) rather than assumed to fit in one page.
+  const [itemCollections, setItemCollections] = useState<readonly Collection[]>([]);
+  const [itemCollectionsNextCursor, setItemCollectionsNextCursor] = useState<string | null>(null);
+  const [isLoadingItemCollections, setIsLoadingItemCollections] = useState(true);
+  const [isLoadingMoreItemCollections, setIsLoadingMoreItemCollections] = useState(false);
+  const loadingMoreItemCollectionsRef = useRef(false);
+  const [itemCollectionsError, setItemCollectionsError] = useState<string | null>(null);
+  const itemCollectionsRequestIdRef = useRef(0);
+  const [removingCollectionId, setRemovingCollectionId] = useState<number | null>(null);
+
+  const [isCollectionModalVisible, setIsCollectionModalVisible] = useState(false);
+  // The server excludes Collections the Item already belongs to (excludeItemId - see
+  // collectionsApi.ts), so this is exactly the addable set on every page, regardless of how much
+  // of itemCollections above has itself been loaded - unlike filtering client-side against a
+  // separately-paginated membership list, which could resurface an already-added Collection while
+  // its own membership page hadn't loaded yet.
+  const [addableCollectionOptions, setAddableCollectionOptions] = useState<readonly Collection[]>([]);
+  const [isLoadingCollectionOptions, setIsLoadingCollectionOptions] = useState(false);
+  // The user's full Collection list is unbounded (production API, always paginated) - this modal
+  // must scroll-loadMore through it rather than assume one page has everything.
+  const [collectionOptionsNextCursor, setCollectionOptionsNextCursor] = useState<string | null>(null);
+  const [isLoadingMoreCollectionOptions, setIsLoadingMoreCollectionOptions] = useState(false);
+  const loadingMoreCollectionOptionsRef = useRef(false);
+  const [collectionModalError, setCollectionModalError] = useState<string | null>(null);
+  const [addingCollectionId, setAddingCollectionId] = useState<number | null>(null);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
 
   const isSavingRef = useRef(isSaving);
   useEffect(() => {
@@ -343,14 +423,78 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   }, [authenticatedRequest, itemId, t]);
 
+  const loadItemCollections = useCallback(async () => {
+    const requestId = ++itemCollectionsRequestIdRef.current;
+    setIsLoadingItemCollections(true);
+    setItemCollectionsError(null);
+    try {
+      // There is no cap on how many Collections an Item can belong to - "100 is enough" was a
+      // false assumption, so this loads one page and exposes loadMoreItemCollections rather than
+      // ever silently truncating a large membership list.
+      const page = await getCollections(authenticatedRequest, { itemId, limit: COLLECTION_OPTIONS_PAGE_LIMIT });
+      if (itemCollectionsRequestIdRef.current !== requestId) {
+        return;
+      }
+      setItemCollections(page.items);
+      setItemCollectionsNextCursor(page.nextCursor);
+    } catch (caughtError) {
+      if (itemCollectionsRequestIdRef.current !== requestId) {
+        return;
+      }
+      setItemCollectionsError(getItemCollectionsListErrorMessage(caughtError, t));
+    } finally {
+      if (itemCollectionsRequestIdRef.current === requestId) {
+        setIsLoadingItemCollections(false);
+      }
+    }
+  }, [authenticatedRequest, itemId, t]);
+
+  const loadMoreItemCollections = () => {
+    if (loadingMoreItemCollectionsRef.current || isLoadingItemCollections || !itemCollectionsNextCursor) {
+      return;
+    }
+
+    const requestId = itemCollectionsRequestIdRef.current;
+    loadingMoreItemCollectionsRef.current = true;
+    setIsLoadingMoreItemCollections(true);
+
+    (async () => {
+      try {
+        const page = await getCollections(authenticatedRequest, {
+          itemId,
+          limit: COLLECTION_OPTIONS_PAGE_LIMIT,
+          cursor: itemCollectionsNextCursor,
+        });
+        if (itemCollectionsRequestIdRef.current !== requestId) {
+          return;
+        }
+        setItemCollections(previous => {
+          const seenIds = new Set(previous.map(option => option.id));
+          const additional = page.items.filter(option => !seenIds.has(option.id));
+          return [...previous, ...additional];
+        });
+        setItemCollectionsNextCursor(page.nextCursor);
+      } catch (caughtError) {
+        if (itemCollectionsRequestIdRef.current === requestId) {
+          setItemCollectionsError(getItemCollectionsListErrorMessage(caughtError, t));
+        }
+      } finally {
+        loadingMoreItemCollectionsRef.current = false;
+        setIsLoadingMoreItemCollections(false);
+      }
+    })();
+  };
+
   // Refetches on every focus (not just mount), so returning from PurchaseEditor/RepeatPurchaseEditor
   // after a create/edit, from PurchaseDetails after a delete, or from RepeatPurchaseDetails after a
-  // state change, shows the current Purchases and linked RepeatPurchases immediately.
+  // state change, shows the current Purchases and linked RepeatPurchases immediately - and now also
+  // the current Collection membership, entirely independent of Purchases/RepeatPurchases.
   useFocusEffect(
     useCallback(() => {
       loadRecentPurchases();
       loadLinkedRepeatPurchases();
-    }, [loadRecentPurchases, loadLinkedRepeatPurchases]),
+      loadItemCollections();
+    }, [loadRecentPurchases, loadLinkedRepeatPurchases, loadItemCollections]),
   );
 
   const pickAndUploadImage = async () => {
@@ -623,6 +767,130 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     );
   };
 
+  const removeFromCollection = async (collectionId: number) => {
+    if (removingCollectionId !== null) {
+      return;
+    }
+
+    setRemovingCollectionId(collectionId);
+    setItemCollectionsError(null);
+    try {
+      await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
+      setItemCollections(previous => previous.filter(option => option.id !== collectionId));
+    } catch (caughtError) {
+      setItemCollectionsError(getCollectionMembershipErrorMessage(caughtError, t));
+    } finally {
+      setRemovingCollectionId(null);
+    }
+  };
+
+  const openCollectionModal = async () => {
+    setIsCollectionModalVisible(true);
+    setCollectionModalError(null);
+    setNewCollectionName('');
+    setIsLoadingCollectionOptions(true);
+    try {
+      // excludeItemId is server-side, so every page returned here is already guaranteed to
+      // exclude Collections the Item belongs to - no client-side filtering against
+      // itemCollections needed (and it would be unreliable anyway: itemCollections can itself
+      // still be mid-pagination).
+      const page = await getCollections(authenticatedRequest, {
+        excludeItemId: itemId,
+        limit: COLLECTION_OPTIONS_PAGE_LIMIT,
+      });
+      setAddableCollectionOptions(page.items);
+      setCollectionOptionsNextCursor(page.nextCursor);
+    } catch (caughtError) {
+      setCollectionModalError(getItemCollectionsListErrorMessage(caughtError, t));
+    } finally {
+      setIsLoadingCollectionOptions(false);
+    }
+  };
+
+  const closeCollectionModal = () => {
+    if (addingCollectionId !== null || isCreatingCollection) {
+      return;
+    }
+    setIsCollectionModalVisible(false);
+  };
+
+  const loadMoreCollectionOptions = () => {
+    if (
+      loadingMoreCollectionOptionsRef.current ||
+      isLoadingCollectionOptions ||
+      !collectionOptionsNextCursor
+    ) {
+      return;
+    }
+
+    loadingMoreCollectionOptionsRef.current = true;
+    setIsLoadingMoreCollectionOptions(true);
+
+    (async () => {
+      try {
+        const page = await getCollections(authenticatedRequest, {
+          excludeItemId: itemId,
+          limit: COLLECTION_OPTIONS_PAGE_LIMIT,
+          cursor: collectionOptionsNextCursor,
+        });
+        setAddableCollectionOptions(previous => {
+          const seenIds = new Set(previous.map(option => option.id));
+          const additional = page.items.filter(option => !seenIds.has(option.id));
+          return [...previous, ...additional];
+        });
+        setCollectionOptionsNextCursor(page.nextCursor);
+      } catch (caughtError) {
+        setCollectionModalError(getItemCollectionsListErrorMessage(caughtError, t));
+      } finally {
+        loadingMoreCollectionOptionsRef.current = false;
+        setIsLoadingMoreCollectionOptions(false);
+      }
+    })();
+  };
+
+  const addToCollection = async (option: Collection) => {
+    if (addingCollectionId !== null) {
+      return;
+    }
+
+    setAddingCollectionId(option.id);
+    setCollectionModalError(null);
+    try {
+      await addItemToCollection(authenticatedRequest, option.id, itemId);
+      setItemCollections(previous => [...previous, option]);
+      setAddableCollectionOptions(previous => previous.filter(remaining => remaining.id !== option.id));
+    } catch (caughtError) {
+      setCollectionModalError(getCollectionMembershipErrorMessage(caughtError, t));
+    } finally {
+      setAddingCollectionId(null);
+    }
+  };
+
+  const submitNewCollection = async () => {
+    if (addingCollectionId !== null || isCreatingCollection) {
+      return;
+    }
+
+    const validationError = getCollectionNameValidationError(newCollectionName, t);
+    if (validationError) {
+      setCollectionModalError(validationError);
+      return;
+    }
+    const trimmedName = newCollectionName.trim();
+
+    setIsCreatingCollection(true);
+    setCollectionModalError(null);
+    try {
+      const created = await createCollection(authenticatedRequest, trimmedName);
+      setAddableCollectionOptions(previous => [...previous, created]);
+      setNewCollectionName('');
+    } catch (caughtError) {
+      setCollectionModalError(getCollectionCreateErrorMessage(caughtError, t));
+    } finally {
+      setIsCreatingCollection(false);
+    }
+  };
+
   const runItemStateTransition = async (
     action: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
     targetState: ItemDetails['state'],
@@ -817,6 +1085,58 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           <Text style={styles.categoryChangeLabel}>{t('common.change')}</Text>
         </Pressable>
       </View>
+
+      <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
+      {isLoadingItemCollections ? (
+        <ActivityIndicator style={styles.purchasesLoading} />
+      ) : itemCollections.length > 0 ? (
+        itemCollections.map(option => (
+          <View key={option.id} style={styles.collectionChipRow}>
+            <Text numberOfLines={1} style={styles.collectionChipLabel}>
+              {option.name}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled: removingCollectionId !== null,
+                busy: removingCollectionId === option.id,
+              }}
+              disabled={removingCollectionId !== null}
+              onPress={() => removeFromCollection(option.id)}
+              style={styles.collectionChipRemoveButton}
+            >
+              <Text style={styles.collectionChipRemoveLabel}>
+                {removingCollectionId === option.id
+                  ? t('common.processing')
+                  : t('collections.removeItem')}
+              </Text>
+            </Pressable>
+          </View>
+        ))
+      ) : (
+        <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
+      )}
+      {itemCollectionsNextCursor ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isLoadingMoreItemCollections, busy: isLoadingMoreItemCollections }}
+          disabled={isLoadingMoreItemCollections}
+          onPress={loadMoreItemCollections}
+          style={styles.loadMoreButton}
+        >
+          <Text style={styles.loadMoreButtonLabel}>
+            {isLoadingMoreItemCollections ? t('common.processing') : t('collections.loadMore')}
+          </Text>
+        </Pressable>
+      ) : null}
+      {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={openCollectionModal}
+        style={styles.addPurchaseButton}
+      >
+        <Text style={styles.addPurchaseButtonLabel}>{t('collections.addItem')}</Text>
+      </Pressable>
 
       <Pressable
         accessibilityRole="button"
@@ -1225,6 +1545,97 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={closeCollectionModal}
+        transparent
+        visible={isCollectionModalVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
+            <Text style={styles.modalTitle}>{t('collections.addItem')}</Text>
+
+            {isLoadingCollectionOptions ? (
+              <ActivityIndicator style={styles.modalLoading} />
+            ) : (
+              <FlatList
+                data={addableCollectionOptions}
+                keyExtractor={option => option.id.toString()}
+                onEndReached={loadMoreCollectionOptions}
+                onEndReachedThreshold={0.5}
+                ListEmptyComponent={
+                  <Text style={styles.manageEmpty}>{t('collections.addModalEmpty')}</Text>
+                }
+                renderItem={({ item: option }) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      disabled: addingCollectionId !== null,
+                      busy: addingCollectionId === option.id,
+                    }}
+                    disabled={addingCollectionId !== null}
+                    onPress={() => addToCollection(option)}
+                    style={[
+                      styles.categoryOptionRow,
+                      addingCollectionId !== null && styles.disabledButton,
+                    ]}
+                  >
+                    <Text style={styles.categoryOptionLabel}>
+                      {addingCollectionId === option.id ? t('common.processing') : option.name}
+                    </Text>
+                  </Pressable>
+                )}
+                ListFooterComponent={
+                  isLoadingMoreCollectionOptions ? (
+                    <View style={styles.modalFooterLoading}>
+                      <ActivityIndicator />
+                    </View>
+                  ) : undefined
+                }
+                style={styles.categoryOptionList}
+              />
+            )}
+
+            {collectionModalError ? <Text style={styles.error}>{collectionModalError}</Text> : null}
+
+            <Text style={styles.label}>{t('collections.create')}</Text>
+            <View style={styles.newCategoryRow}>
+              <TextInput
+                editable={!isCreatingCollection}
+                onChangeText={setNewCollectionName}
+                placeholder={t('collections.namePlaceholder')}
+                style={styles.newCategoryInput}
+                value={newCollectionName}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{
+                  disabled: !newCollectionName.trim() || isCreatingCollection,
+                  busy: isCreatingCollection,
+                }}
+                disabled={!newCollectionName.trim() || isCreatingCollection}
+                onPress={submitNewCollection}
+                style={[
+                  styles.newCategoryButton,
+                  (!newCollectionName.trim() || isCreatingCollection) && styles.disabledButton,
+                ]}
+              >
+                <Text style={styles.newCategoryButtonLabel}>{t('collections.create')}</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={addingCollectionId !== null || isCreatingCollection}
+              onPress={closeCollectionModal}
+              style={styles.modalCloseButton}
+            >
+              <Text style={styles.modalCloseLabel}>{t('common.close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1404,6 +1815,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  collectionChipRow: {
+    alignItems: 'center',
+    borderTopColor: '#E0E0E0',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  collectionChipLabel: {
+    color: '#111111',
+    fontSize: 15,
+    flex: 1,
+    marginEnd: 12,
+  },
+  collectionChipRemoveButton: {
+    borderColor: '#9A9A9A',
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  collectionChipRemoveLabel: {
+    color: '#111111',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  loadMoreButton: {
+    alignSelf: 'flex-start',
+    marginTop: 10,
+  },
+  loadMoreButtonLabel: {
+    color: '#666666',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   addPurchaseButton: {
     alignItems: 'center',
     borderColor: '#9A9A9A',
@@ -1480,6 +1927,9 @@ const styles = StyleSheet.create({
   },
   modalLoading: {
     marginVertical: 20,
+  },
+  modalFooterLoading: {
+    paddingVertical: 12,
   },
   categoryOptionList: {
     maxHeight: 260,
