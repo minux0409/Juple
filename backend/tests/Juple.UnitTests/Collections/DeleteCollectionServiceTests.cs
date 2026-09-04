@@ -35,7 +35,7 @@ public sealed class DeleteCollectionServiceTests
         public (long UserId, long CollectionId)? LastDeleteCall { get; private set; }
 
         public Task<CollectionPage> ListAsync(
-            long userId, long? itemId, long? excludeItemId, CollectionPageCursor? cursor, int limit,
+            long userId, long? itemId, long? excludeItemId, bool? isFavorite, CollectionPageCursor? cursor, int limit,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new CollectionPage([], null));
 
@@ -45,7 +45,7 @@ public sealed class DeleteCollectionServiceTests
             string nameNormalized,
             DateTimeOffset createdAtUtc,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new CollectionDto(1, name, 0, createdAtUtc, createdAtUtc));
+            Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc));
 
         public Task<CollectionDto> GetAsync(
             long userId, long collectionId, CancellationToken cancellationToken = default) =>
@@ -59,6 +59,11 @@ public sealed class DeleteCollectionServiceTests
             DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task<CollectionDto> SetFavoriteAsync(
+            long userId, long collectionId, bool isFavorite, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by DeleteCollectionService tests.");
 
         public Task DeleteAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
         {

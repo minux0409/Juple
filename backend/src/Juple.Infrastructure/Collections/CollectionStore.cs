@@ -14,6 +14,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         long userId,
         long? itemId,
         long? excludeItemId,
+        bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default)
@@ -21,6 +22,11 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var query = dbContext.Collections
             .AsNoTracking()
             .Where(collection => collection.UserId == userId);
+
+        if (isFavorite is { } requestedIsFavorite)
+        {
+            query = query.Where(collection => collection.IsFavorite == requestedIsFavorite);
+        }
 
         // A filter on the caller's own Collections, not a lookup of the Item itself - a
         // missing/other-user's itemId simply matches no Collections rather than throwing (mirrors
@@ -60,6 +66,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             .Select(collection => new CollectionDto(
                 collection.Id,
                 collection.Name,
+                collection.IsFavorite,
                 dbContext.CollectionItems.Count(membership => membership.CollectionId == collection.Id),
                 collection.CreatedAtUtc,
                 collection.UpdatedAtUtc))
@@ -96,7 +103,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             throw new CollectionNameConflictException();
         }
 
-        return new CollectionDto(collection.Id, collection.Name, 0, collection.CreatedAtUtc, collection.UpdatedAtUtc);
+        return new CollectionDto(
+            collection.Id, collection.Name, collection.IsFavorite, 0, collection.CreatedAtUtc, collection.UpdatedAtUtc);
     }
 
     public async Task<CollectionDto> GetAsync(
@@ -116,7 +124,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var itemCount = await dbContext.CollectionItems
             .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
 
-        return new CollectionDto(collection.Id, collection.Name, itemCount, collection.CreatedAtUtc, collection.UpdatedAtUtc);
+        return new CollectionDto(
+            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc, collection.UpdatedAtUtc);
     }
 
     public async Task RenameAsync(
@@ -150,6 +159,39 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         {
             throw new CollectionConcurrencyException(exception);
         }
+    }
+
+    public async Task<CollectionDto> SetFavoriteAsync(
+        long userId,
+        long collectionId,
+        bool isFavorite,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var collection = await dbContext.Collections
+            .FirstOrDefaultAsync(
+                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+        if (collection is null)
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        collection.SetFavorite(isFavorite, updatedAtUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+
+        var itemCount = await dbContext.CollectionItems
+            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+
+        return new CollectionDto(
+            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc, collection.UpdatedAtUtc);
     }
 
     public async Task DeleteAsync(

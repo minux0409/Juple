@@ -9,6 +9,7 @@ using Juple.Application.Collections.GetCollectionItems;
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
+using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
@@ -27,6 +28,7 @@ public sealed class CollectionsController(
     ICreateCollectionService createCollectionService,
     IGetCollectionDetailService getCollectionDetailService,
     IRenameCollectionService renameCollectionService,
+    ISetCollectionFavoriteService setCollectionFavoriteService,
     IDeleteCollectionService deleteCollectionService,
     IGetCollectionItemsService getCollectionItemsService,
     IAddItemToCollectionService addItemToCollectionService,
@@ -48,11 +50,15 @@ public sealed class CollectionsController(
     /// WHERE [c0].[CollectionId] = [c].[Id]), [c].[CreatedAtUtc], [c].[UpdatedAtUtc]
     /// FROM [collections].[Collections] AS [c] WHERE [c].[UserId] = @userId ...
     /// excludeItemId composes the same way (a NOT EXISTS predicate, also a single query).
+    /// isFavorite is a third, independent filter (the Collections list's "즐겨찾는 보관함" section) -
+    /// unlike itemId/excludeItemId it has no mutual-exclusivity rule and freely composes with
+    /// either of them.
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> ListAsync(
         [FromQuery] long? itemId,
         [FromQuery] long? excludeItemId,
+        [FromQuery] bool? isFavorite,
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
         CancellationToken cancellationToken)
@@ -105,7 +111,7 @@ public sealed class CollectionsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = await listCollectionsService.ListAsync(
-                currentUser.UserId, resolvedItemId, resolvedExcludeItemId, typedCursor, resolvedLimit, cancellationToken);
+                currentUser.UserId, resolvedItemId, resolvedExcludeItemId, isFavorite, typedCursor, resolvedLimit, cancellationToken);
 
             return Ok(new CollectionsResponse(
                 page.Items,
@@ -184,6 +190,46 @@ public sealed class CollectionsController(
             userId => renameCollectionService.RenameAsync(
                 userId, id, new RenameCollectionCommand(request.Name), cancellationToken),
             cancellationToken);
+
+    /// <summary>
+    /// No client-supplied version, same as RenameAsync above - EF's own RowVersion concurrency
+    /// check on the store's read-then-save covers a concurrent Rename/SetFavorite race on the same
+    /// Collection (whichever save lands second gets 409, never a silent lost update). Returns the
+    /// latest CollectionDto (not 204 like Rename/Delete) so the caller can reconcile its optimistic
+    /// UI state - e.g. ItemCount/UpdatedAtUtc - against the server's actual result in one round trip.
+    /// </summary>
+    [HttpPut("{id:long}/favorite")]
+    public async Task<IActionResult> SetFavoriteAsync(
+        long id,
+        SetCollectionFavoriteRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var collection = await setCollectionFavoriteService.SetFavoriteAsync(
+                currentUser.UserId, id, new SetCollectionFavoriteCommand(request.IsFavorite), cancellationToken);
+
+            return Ok(collection);
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionConcurrencyException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The Collection was modified concurrently.");
+        }
+    }
 
     [HttpDelete("{id:long}")]
     public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
@@ -308,6 +354,8 @@ public sealed class CollectionsController(
     public sealed record CreateCollectionRequest(string? Name);
 
     public sealed record RenameCollectionRequest(string? Name);
+
+    public sealed record SetCollectionFavoriteRequest(bool IsFavorite);
 
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 

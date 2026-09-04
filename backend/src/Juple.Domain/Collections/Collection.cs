@@ -39,6 +39,12 @@ public sealed class Collection
 
     public byte[] RowVersion { get; private set; } = [];
 
+    /// <summary>
+    /// A user preference on this Collection (quick-access pinning in the Collections list), not a
+    /// separate resource - defaults to false for every newly-created Collection.
+    /// </summary>
+    public bool IsFavorite { get; private set; }
+
     /// <summary>Callers must pass an already-normalized (trimmed, non-empty) name/nameNormalized pair.</summary>
     public void Rename(string name, string nameNormalized, DateTimeOffset updatedAtUtc)
     {
@@ -49,6 +55,17 @@ public sealed class Collection
 
         Name = name;
         NameNormalized = nameNormalized;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
+    public void SetFavorite(bool isFavorite, DateTimeOffset updatedAtUtc)
+    {
+        if (IsFavorite == isFavorite)
+        {
+            return;
+        }
+
+        IsFavorite = isFavorite;
         UpdatedAtUtc = updatedAtUtc;
     }
 }

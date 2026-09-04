@@ -6,8 +6,9 @@ public sealed class ListCollectionsService(ICollectionStore collectionStore) : I
         long userId,
         long? itemId,
         long? excludeItemId,
+        bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default) =>
-        collectionStore.ListAsync(userId, itemId, excludeItemId, cursor, limit, cancellationToken);
+        collectionStore.ListAsync(userId, itemId, excludeItemId, isFavorite, cursor, limit, cancellationToken);
 }

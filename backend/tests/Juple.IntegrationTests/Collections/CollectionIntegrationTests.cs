@@ -76,7 +76,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         await store.CreateAsync(_userId, nameB, normalizedB, baseTime.AddMinutes(1));
         await store.CreateAsync(_userId, nameC, normalizedC, baseTime.AddMinutes(2));
 
-        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, cursor: null, limit: 50);
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Equal(["Recipes", "Electronics", "Books"], page.Items.Select(c => c.Name));
     }
@@ -90,7 +90,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         await store.CreateAsync(_userId, mineName, mineNormalized, DateTimeOffset.UtcNow);
         await store.CreateAsync(_otherUserId, theirsName, theirsNormalized, DateTimeOffset.UtcNow);
 
-        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, cursor: null, limit: 50);
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal("Mine", page.Items[0].Name);
@@ -111,7 +111,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collection.Id, itemB.Entry.Id, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, cursor: null, limit: 50);
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Equal(2, Assert.Single(page.Items).ItemCount);
     }
@@ -129,15 +129,17 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
             ids.Add(created.Id);
         }
 
-        var firstPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, cursor: null, limit: 2);
+        var firstPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var secondPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, firstPage.NextCursor, limit: 2);
+        var secondPage = await store.ListAsync(
+            _userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.NotNull(secondPage.NextCursor);
 
-        var thirdPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, secondPage.NextCursor, limit: 2);
+        var thirdPage = await store.ListAsync(
+            _userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: secondPage.NextCursor, limit: 2);
         Assert.Single(thirdPage.Items);
         Assert.Null(thirdPage.NextCursor);
 
@@ -161,11 +163,12 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
             ids.Add(created.Id);
         }
 
-        var firstPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, cursor: null, limit: 2);
+        var firstPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var secondPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, firstPage.NextCursor, limit: 2);
+        var secondPage = await store.ListAsync(
+            _userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.Null(secondPage.NextCursor);
 
@@ -317,7 +320,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
 
         await store.DeleteAsync(_userId, created.Id);
 
-        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, cursor: null, limit: 50);
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
         Assert.Empty(page.Items);
     }
 
@@ -339,7 +342,8 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
 
         await store.DeleteAsync(_userId, theirs.Id);
 
-        var stillOwnedPage = await store.ListAsync(_otherUserId, itemId: null, excludeItemId: null, cursor: null, limit: 50);
+        var stillOwnedPage = await store.ListAsync(
+            _otherUserId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
         Assert.Single(stillOwnedPage.Items);
     }
 
@@ -383,5 +387,242 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var (raceName, raceNormalized) = Normalize("Wishlist ideas");
         await Assert.ThrowsAsync<CollectionConcurrencyException>(
             () => otherStore.RenameAsync(_userId, created.Id, raceName, raceNormalized, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public async Task CreateAsync_DefaultsIsFavoriteToFalse()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+
+        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+
+        Assert.False(created.IsFavorite);
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_PersistsIsFavoriteAndUpdatesUpdatedAtUtc()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var favoritedAt = DateTimeOffset.UtcNow.AddMinutes(5);
+        var result = await store.SetFavoriteAsync(_userId, created.Id, true, favoritedAt);
+
+        Assert.True(result.IsFavorite);
+        Assert.Equal(favoritedAt, result.UpdatedAtUtc);
+
+        _dbContext.ChangeTracker.Clear();
+        var fetched = await store.GetAsync(_userId, created.Id);
+        Assert.True(fetched.IsFavorite);
+        Assert.Equal(favoritedAt, fetched.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_ToFalse_PersistsChange()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var result = await store.SetFavoriteAsync(_userId, created.Id, false, DateTimeOffset.UtcNow);
+
+        Assert.False(result.IsFavorite);
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_WhenCollectionDoesNotExist_ThrowsCollectionNotFound()
+    {
+        var store = new CollectionStore(_dbContext);
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.SetFavoriteAsync(_userId, collectionId: -1, true, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_OnOtherUsersCollection_ThrowsCollectionNotFoundAndDoesNotChangeIt()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Groceries");
+        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.SetFavoriteAsync(_userId, theirs.Id, true, DateTimeOffset.UtcNow));
+
+        var stillTheirs = await store.GetAsync(_otherUserId, theirs.Id);
+        Assert.False(stillTheirs.IsFavorite);
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_WhenConcurrentWriteConflicts_ThrowsCollectionConcurrency()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var options = new DbContextOptionsBuilder<JupleDbContext>()
+            .UseSqlServer(_connectionString)
+            .Options;
+        await using var otherDbContext = new JupleDbContext(options);
+        var otherStore = new CollectionStore(otherDbContext);
+
+        // Same staleness setup as RenameAsync's concurrency test above.
+        await otherDbContext.Collections.FirstAsync(c => c.Id == created.Id);
+
+        var concurrentLoad = await _dbContext.Collections.FirstAsync(c => c.Id == created.Id);
+        concurrentLoad.SetFavorite(true, DateTimeOffset.UtcNow);
+        await _dbContext.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<CollectionConcurrencyException>(
+            () => otherStore.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>
+    /// A Rename and a SetFavorite racing on the same Collection must not silently overwrite each
+    /// other's field - whichever save lands second sees a stale RowVersion and gets 409, rather
+    /// than blindly persisting its own view of the row (which would otherwise revert the other
+    /// request's change).
+    /// </summary>
+    [Fact]
+    public async Task RenameAndSetFavorite_WhenRacingOnSameCollection_SecondSaveThrowsCollectionConcurrency()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var options = new DbContextOptionsBuilder<JupleDbContext>()
+            .UseSqlServer(_connectionString)
+            .Options;
+        await using var otherDbContext = new JupleDbContext(options);
+        var otherStore = new CollectionStore(otherDbContext);
+
+        await otherDbContext.Collections.FirstAsync(c => c.Id == created.Id);
+
+        var concurrentLoad = await _dbContext.Collections.FirstAsync(c => c.Id == created.Id);
+        var (renamedName, renamedNormalized) = Normalize("Reading list");
+        concurrentLoad.Rename(renamedName, renamedNormalized, DateTimeOffset.UtcNow);
+        await _dbContext.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<CollectionConcurrencyException>(
+            () => otherStore.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow));
+
+        _dbContext.ChangeTracker.Clear();
+        var stillRenamed = await store.GetAsync(_userId, created.Id);
+        Assert.Equal("Reading list", stillRenamed.Name);
+        Assert.False(stillRenamed.IsFavorite);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithIsFavoriteTrueFilter_ReturnsOnlyFavorites()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (favoriteName, favoriteNormalized) = Normalize("Favorite one");
+        var (otherName, otherNormalized) = Normalize("Not a favorite");
+        var favorite = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, otherName, otherNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.SetFavoriteAsync(_userId, favorite.Id, true, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: true, cursor: null, limit: 50);
+
+        Assert.Single(page.Items);
+        Assert.Equal(favorite.Id, page.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithIsFavoriteFalseFilter_ExcludesFavorites()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (favoriteName, favoriteNormalized) = Normalize("Favorite one");
+        var (otherName, otherNormalized) = Normalize("Not a favorite");
+        var favorite = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, DateTimeOffset.UtcNow);
+        var other = await store.CreateAsync(_userId, otherName, otherNormalized, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.SetFavoriteAsync(_userId, favorite.Id, true, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: false, cursor: null, limit: 50);
+
+        Assert.Single(page.Items);
+        Assert.Equal(other.Id, page.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task ListAsync_WithIsFavoriteFilter_ComposesWithItemIdFilter()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
+        var (favoriteName, favoriteNormalized) = Normalize("Favorite with item");
+        var (otherFavoriteName, otherFavoriteNormalized) = Normalize("Favorite without item");
+        var favoriteWithItem = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, DateTimeOffset.UtcNow);
+        var favoriteWithoutItem = await store.CreateAsync(_userId, otherFavoriteName, otherFavoriteNormalized, DateTimeOffset.UtcNow);
+        var item = await itemStore.SaveAsync(_userId, "https://shop.example/coll-favorite-itemid", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, favoriteWithItem.Id, item.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.SetFavoriteAsync(_userId, favoriteWithItem.Id, true, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.SetFavoriteAsync(_userId, favoriteWithoutItem.Id, true, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var page = await store.ListAsync(
+            _userId, itemId: item.Entry.Id, excludeItemId: null, isFavorite: true, cursor: null, limit: 50);
+
+        Assert.Single(page.Items);
+        Assert.Equal(favoriteWithItem.Id, page.Items[0].Id);
+    }
+
+    /// <summary>
+    /// Favorites must never be silently truncated by pagination - a caller building the "즐겨찾는
+    /// 보관함" quick-access section has to be able to walk every favorite page-by-page just like the
+    /// main list, not assume a single default-limit page covers them all.
+    /// </summary>
+    [Fact]
+    public async Task ListAsync_WithIsFavoriteFilter_ComposesWithPaginationWithoutDuplicateOrMissing()
+    {
+        var store = new CollectionStore(_dbContext);
+        var baseTime = DateTimeOffset.UtcNow;
+        var favoriteIds = new List<long>();
+        for (var i = 0; i < 5; i++)
+        {
+            var (name, nameNormalized) = Normalize($"Favorite {i}");
+            var created = await store.CreateAsync(_userId, name, nameNormalized, baseTime.AddMinutes(i));
+            _dbContext.ChangeTracker.Clear();
+            await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow);
+            _dbContext.ChangeTracker.Clear();
+            favoriteIds.Add(created.Id);
+        }
+        var (unfavoritedName, unfavoritedNormalized) = Normalize("Not a favorite");
+        await store.CreateAsync(_userId, unfavoritedName, unfavoritedNormalized, baseTime.AddMinutes(10));
+        _dbContext.ChangeTracker.Clear();
+
+        var firstPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: true, cursor: null, limit: 2);
+        Assert.Equal(2, firstPage.Items.Count);
+        Assert.NotNull(firstPage.NextCursor);
+
+        var secondPage = await store.ListAsync(
+            _userId, itemId: null, excludeItemId: null, isFavorite: true, cursor: firstPage.NextCursor, limit: 2);
+        Assert.Equal(2, secondPage.Items.Count);
+        Assert.NotNull(secondPage.NextCursor);
+
+        var thirdPage = await store.ListAsync(
+            _userId, itemId: null, excludeItemId: null, isFavorite: true, cursor: secondPage.NextCursor, limit: 2);
+        Assert.Single(thirdPage.Items);
+        Assert.Null(thirdPage.NextCursor);
+
+        var allReturnedIds = firstPage.Items.Concat(secondPage.Items).Concat(thirdPage.Items)
+            .Select(c => c.Id)
+            .ToList();
+        Assert.Equal(5, allReturnedIds.Distinct().Count());
+        Assert.Equal(favoriteIds.OrderByDescending(id => id), allReturnedIds);
     }
 }

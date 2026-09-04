@@ -403,7 +403,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collectionA, item, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var filtered = await store.ListAsync(_userId, item, excludeItemId: null, cursor: null, limit: 50);
+        var filtered = await store.ListAsync(_userId, item, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Single(filtered.Items);
         Assert.Equal(collectionA, filtered.Items[0].Id);
@@ -416,7 +416,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         await CreateCollectionAsync(store, _userId, "Books");
 
-        var filtered = await store.ListAsync(_userId, itemId: -1, excludeItemId: null, cursor: null, limit: 50);
+        var filtered = await store.ListAsync(_userId, itemId: -1, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Empty(filtered.Items);
     }
@@ -442,11 +442,12 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         // filtered+paginated result no matter how pages are walked.
         await CreateCollectionAsync(store, _userId, "Unrelated");
 
-        var firstPage = await store.ListAsync(_userId, item, excludeItemId: null, cursor: null, limit: 2);
+        var firstPage = await store.ListAsync(_userId, item, excludeItemId: null, isFavorite: null, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var secondPage = await store.ListAsync(_userId, item, excludeItemId: null, firstPage.NextCursor, limit: 2);
+        var secondPage = await store.ListAsync(
+            _userId, item, excludeItemId: null, isFavorite: null, cursor: firstPage.NextCursor, limit: 2);
         Assert.Single(secondPage.Items);
         Assert.Null(secondPage.NextCursor);
 
@@ -466,7 +467,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, containing, item, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var page = await store.ListAsync(_userId, itemId: null, item, cursor: null, limit: 50);
+        var page = await store.ListAsync(_userId, itemId: null, item, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(notContaining, page.Items[0].Id);
@@ -479,7 +480,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var collectionId = await CreateCollectionAsync(store, _userId, "Books");
 
-        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: -1, cursor: null, limit: 50);
+        var page = await store.ListAsync(_userId, itemId: null, excludeItemId: -1, isFavorite: null, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(collectionId, page.Items[0].Id);
@@ -506,12 +507,13 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
             addableIds.Add(collectionId);
         }
 
-        var firstPage = await store.ListAsync(_userId, itemId: null, item, cursor: null, limit: 2);
+        var firstPage = await store.ListAsync(_userId, itemId: null, item, isFavorite: null, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
         Assert.DoesNotContain(firstPage.Items, c => c.Id == alreadyContaining);
 
-        var secondPage = await store.ListAsync(_userId, itemId: null, item, firstPage.NextCursor, limit: 2);
+        var secondPage = await store.ListAsync(
+            _userId, itemId: null, item, isFavorite: null, cursor: firstPage.NextCursor, limit: 2);
         Assert.Single(secondPage.Items);
         Assert.Null(secondPage.NextCursor);
         Assert.DoesNotContain(secondPage.Items, c => c.Id == alreadyContaining);

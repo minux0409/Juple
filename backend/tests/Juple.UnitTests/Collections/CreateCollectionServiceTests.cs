@@ -107,7 +107,7 @@ public sealed class CreateCollectionServiceTests
         public DateTimeOffset? LastCreatedAtUtc { get; private set; }
 
         public Task<CollectionPage> ListAsync(
-            long userId, long? itemId, long? excludeItemId, CollectionPageCursor? cursor, int limit,
+            long userId, long? itemId, long? excludeItemId, bool? isFavorite, CollectionPageCursor? cursor, int limit,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new CollectionPage([], null));
 
@@ -129,7 +129,7 @@ public sealed class CreateCollectionServiceTests
                 throw new CollectionNameConflictException();
             }
 
-            return Task.FromResult(new CollectionDto(1, name, 0, createdAtUtc, createdAtUtc));
+            return Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc));
         }
 
         public Task<CollectionDto> GetAsync(
@@ -144,6 +144,11 @@ public sealed class CreateCollectionServiceTests
             DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+
+        public Task<CollectionDto> SetFavoriteAsync(
+            long userId, long collectionId, bool isFavorite, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by CreateCollectionService tests.");
 
         public Task DeleteAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

@@ -47,6 +47,11 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
             .IsRowVersion()
             .IsConcurrencyToken();
 
+        builder.Property(collection => collection.IsFavorite)
+            .HasColumnType("bit")
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
 

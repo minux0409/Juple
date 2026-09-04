@@ -6,6 +6,8 @@ import type { RepresentativeImage } from '../../images/api/imagesApi';
 export interface Collection {
   readonly id: number;
   readonly name: string;
+  /** A user preference on the Collection itself (quick-access pinning), not a separate resource. */
+  readonly isFavorite: boolean;
   readonly itemCount: number;
   readonly createdAtUtc: string;
   readonly updatedAtUtc: string;
@@ -40,6 +42,8 @@ export interface GetCollectionsOptions {
   readonly itemId?: number;
   /** Restricts the list to Collections that do NOT yet contain this Item (see the "add to collection" modal) - the server excludes them, so a Collection the Item already belongs to can never resurface as a candidate on any page. Mutually exclusive with itemId. */
   readonly excludeItemId?: number;
+  /** Restricts the list to favorited (or, if false, non-favorited) Collections - an independent filter that composes with itemId/excludeItemId, not mutually exclusive with either. */
+  readonly isFavorite?: boolean;
 }
 
 /** Collection is a growing user data set - always cursor-paginated, never returns everything in one response. */
@@ -53,6 +57,9 @@ export async function getCollections(
   }
   if (options.excludeItemId !== undefined) {
     query.set('excludeItemId', String(options.excludeItemId));
+  }
+  if (options.isFavorite !== undefined) {
+    query.set('isFavorite', String(options.isFavorite));
   }
   if (options.limit !== undefined) {
     query.set('limit', String(options.limit));
@@ -119,6 +126,25 @@ export async function renameCollection(
     path: `/api/v1/collections/${collectionId}`,
     body: { name },
   });
+}
+
+/** PUTs a Collection's favorite preference; resolves with the updated Collection (409 on a concurrent modification). */
+export async function setCollectionFavorite(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  isFavorite: boolean,
+): Promise<Collection> {
+  const response = await request<Collection>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/favorite`,
+    body: { isFavorite },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
 }
 
 /** DELETEs a Collection; resolves on 204. Items inside it are never deleted, only the membership. */

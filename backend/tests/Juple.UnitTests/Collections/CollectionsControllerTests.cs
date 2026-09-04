@@ -16,10 +16,10 @@ public sealed class CollectionsControllerTests
     public async Task ListAsync_WhenItemIdAndExcludeItemIdBothSpecified_ReturnsBadRequest()
     {
         var controller = new CollectionsController(
-            null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
+            null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
 
         var result = await controller.ListAsync(
-            itemId: 1, excludeItemId: 2, limit: null, cursor: null, CancellationToken.None);
+            itemId: 1, excludeItemId: 2, isFavorite: null, limit: null, cursor: null, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         var problem = Assert.IsType<ValidationProblemDetails>(badRequest.Value);
@@ -30,10 +30,10 @@ public sealed class CollectionsControllerTests
     public async Task ListAsync_WhenExcludeItemIdNotPositive_ReturnsBadRequest()
     {
         var controller = new CollectionsController(
-            null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
+            null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
 
         var result = await controller.ListAsync(
-            itemId: null, excludeItemId: -1, limit: null, cursor: null, CancellationToken.None);
+            itemId: null, excludeItemId: -1, isFavorite: null, limit: null, cursor: null, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         var problem = Assert.IsType<ValidationProblemDetails>(badRequest.Value);
@@ -44,10 +44,10 @@ public sealed class CollectionsControllerTests
     public async Task ListAsync_WhenItemIdNotPositive_ReturnsBadRequest()
     {
         var controller = new CollectionsController(
-            null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
+            null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!);
 
         var result = await controller.ListAsync(
-            itemId: -1, excludeItemId: null, limit: null, cursor: null, CancellationToken.None);
+            itemId: -1, excludeItemId: null, isFavorite: null, limit: null, cursor: null, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         var problem = Assert.IsType<ValidationProblemDetails>(badRequest.Value);

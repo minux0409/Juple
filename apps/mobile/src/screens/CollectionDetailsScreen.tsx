@@ -23,6 +23,7 @@ import {
   getCollection,
   removeItemFromCollection,
   renameCollection,
+  setCollectionFavorite,
   type Collection,
   type CollectionItemEntry,
 } from '../collections/api/collectionsApi';
@@ -73,6 +74,13 @@ function getRemoveItemErrorMessage(error: unknown, t: TFunction): string {
   return t('collections.errorRemoveItemFallback');
 }
 
+function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('collections.errorFavoriteToggleFallback');
+}
+
 /** Mirrors the backend's CollectionNameNormalizer: trim, required, 100-character limit. */
 function getNameValidationError(name: string, t: TFunction): string | null {
   const trimmedName = name.trim();
@@ -118,6 +126,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [removingItemId, setRemovingItemId] = useState<number | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
   const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeLocally } =
     useCollectionItems(collectionId);
@@ -251,6 +262,27 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  const toggleFavoriteAction = async () => {
+    if (!collection || isTogglingFavorite) {
+      return;
+    }
+    const desiredIsFavorite = !collection.isFavorite;
+
+    setIsTogglingFavorite(true);
+    setFavoriteToggleError(null);
+    setCollection(previous => (previous ? { ...previous, isFavorite: desiredIsFavorite } : previous));
+    try {
+      const updated = await setCollectionFavorite(authenticatedRequest, collectionId, desiredIsFavorite);
+      setCollection(updated);
+    } catch (caughtError) {
+      // Roll back the optimistic flip - never trust it once the request has failed.
+      setCollection(previous => (previous ? { ...previous, isFavorite: !desiredIsFavorite } : previous));
+      setFavoriteToggleError(getFavoriteToggleErrorMessage(caughtError, t));
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
   if (isLoadingCollection && !collection) {
     return (
       <SafeAreaView edges={['top']} style={styles.loadingContainer}>
@@ -313,12 +345,30 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 <Text numberOfLines={2} style={styles.title}>
                   {collection.name}
                 </Text>
+                <Pressable
+                  accessibilityLabel={
+                    collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
+                  }
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
+                  disabled={isTogglingFavorite}
+                  hitSlop={8}
+                  onPress={toggleFavoriteAction}
+                  style={styles.favoriteButton}
+                >
+                  <Text
+                    style={[styles.favoriteButtonLabel, collection.isFavorite && styles.favoriteButtonLabelActive]}
+                  >
+                    {collection.isFavorite ? '★' : '☆'}
+                  </Text>
+                </Pressable>
                 <Pressable accessibilityRole="button" onPress={startEditName} style={styles.editButton}>
                   <Text style={styles.editButtonLabel}>{t('common.edit')}</Text>
                 </Pressable>
               </View>
             )}
             {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
+            {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
 
             <Text style={styles.itemCount}>
               {t('collections.itemCount', { count: collection.itemCount })}
@@ -447,6 +497,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flex: 1,
     marginEnd: 12,
+  },
+  favoriteButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: 8,
+    minHeight: 32,
+    minWidth: 32,
+  },
+  favoriteButtonLabel: {
+    color: '#9A9A9A',
+    fontSize: 24,
+  },
+  favoriteButtonLabelActive: {
+    color: '#F5A623',
   },
   editButton: {
     borderColor: '#9A9A9A',

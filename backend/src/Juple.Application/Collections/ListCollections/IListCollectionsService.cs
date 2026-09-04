@@ -6,6 +6,7 @@ public interface IListCollectionsService
         long userId,
         long? itemId,
         long? excludeItemId,
+        bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default);

@@ -16,7 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { createCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
+import {
+  createCollection,
+  getCollections,
+  setCollectionFavorite,
+  type Collection,
+} from '../collections/api/collectionsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 
 const PAGE_LIMIT = 50;
@@ -26,6 +31,22 @@ function getListErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('collections.errorListFallback');
+}
+
+function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('collections.errorFavoriteToggleFallback');
+}
+
+function sortByCreatedAtUtcDescending(collections: readonly Collection[]): Collection[] {
+  return [...collections].sort((a, b) => {
+    if (a.createdAtUtc !== b.createdAtUtc) {
+      return a.createdAtUtc < b.createdAtUtc ? 1 : -1;
+    }
+    return b.id - a.id;
+  });
 }
 
 function getCreateErrorMessage(error: unknown, t: TFunction): string {
@@ -76,10 +97,44 @@ export function CollectionsScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  // Favorites are a small quick-access section, loaded independently of the main paginated list -
+  // fully walked page-by-page (never just the first page) so a favorite count past one page is
+  // never silently dropped from the section.
+  const [favorites, setFavorites] = useState<readonly Collection[]>([]);
+  const [favoritesError, setFavoritesError] = useState<string | null>(null);
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
+  const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
+  const favoritesRequestIdRef = useRef(0);
+
   const hasLoadedOnceRef = useRef(false);
   const loadRequestIdRef = useRef(0);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
+
+  const loadFavorites = useCallback(async () => {
+    const requestId = ++favoritesRequestIdRef.current;
+    setFavoritesError(null);
+
+    try {
+      const collected: Collection[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await getCollections(authenticatedRequest, { isFavorite: true, limit: PAGE_LIMIT, cursor });
+        collected.push(...page.items);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+
+      if (favoritesRequestIdRef.current !== requestId) {
+        return;
+      }
+      setFavorites(collected);
+    } catch (caughtError) {
+      if (favoritesRequestIdRef.current !== requestId) {
+        return;
+      }
+      setFavoritesError(getListErrorMessage(caughtError, t));
+    }
+  }, [authenticatedRequest, t]);
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
@@ -117,11 +172,13 @@ export function CollectionsScreen() {
 
   // Refetches every time the Collections tab regains focus, so a Collection created/renamed/
   // deleted on CollectionDetailsScreen shows up immediately on return, matching the
-  // Home/History/Wishlist/Archive precedent.
+  // Home/History/Wishlist/Archive precedent. Favorites are refetched independently of the main
+  // paginated list, same as ItemDetailsScreen's Purchases/RepeatPurchases independence.
   useFocusEffect(
     useCallback(() => {
       load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
-    }, [load]),
+      loadFavorites();
+    }, [load, loadFavorites]),
   );
 
   const loadMore = useCallback(() => {
@@ -184,6 +241,53 @@ export function CollectionsScreen() {
     }
   };
 
+  /**
+   * Toggles the star on either the favorites section or the main list - both render the same
+   * Collection rows, so a single handler keeps both in sync. Optimistic (flips immediately, no
+   * disabling of the whole screen), but only one toggle may be in flight at a time; on failure the
+   * pre-toggle Collection is restored in both lists rather than trusting the flipped local state.
+   */
+  const toggleFavoriteAction = async (collection: Collection) => {
+    if (togglingFavoriteId !== null) {
+      return;
+    }
+    const desiredIsFavorite = !collection.isFavorite;
+
+    setTogglingFavoriteId(collection.id);
+    setFavoriteToggleError(null);
+    setCollections(previous =>
+      previous.map(existing =>
+        existing.id === collection.id ? { ...existing, isFavorite: desiredIsFavorite } : existing,
+      ),
+    );
+    setFavorites(previous =>
+      desiredIsFavorite
+        ? sortByCreatedAtUtcDescending([...previous, { ...collection, isFavorite: true }])
+        : previous.filter(existing => existing.id !== collection.id),
+    );
+
+    try {
+      const updated = await setCollectionFavorite(authenticatedRequest, collection.id, desiredIsFavorite);
+      setCollections(previous => previous.map(existing => (existing.id === updated.id ? updated : existing)));
+      setFavorites(previous => {
+        const withoutStale = previous.filter(existing => existing.id !== updated.id);
+        return updated.isFavorite ? sortByCreatedAtUtcDescending([...withoutStale, updated]) : withoutStale;
+      });
+    } catch (caughtError) {
+      // Roll back to the pre-toggle Collection in both lists - never trust the optimistic flip.
+      setCollections(previous =>
+        previous.map(existing => (existing.id === collection.id ? collection : existing)),
+      );
+      setFavorites(previous => {
+        const withoutStale = previous.filter(existing => existing.id !== collection.id);
+        return collection.isFavorite ? sortByCreatedAtUtcDescending([...withoutStale, collection]) : withoutStale;
+      });
+      setFavoriteToggleError(getFavoriteToggleErrorMessage(caughtError, t));
+    } finally {
+      setTogglingFavoriteId(null);
+    }
+  };
+
   if (isLoading && collections.length === 0 && !error) {
     return (
       <SafeAreaView edges={['top']} style={styles.loadingContainer}>
@@ -204,6 +308,26 @@ export function CollectionsScreen() {
         ListHeaderComponent={
           <View>
             <Text style={styles.title}>{t('collections.title')}</Text>
+
+            {favorites.length > 0 || favoritesError ? (
+              <View style={styles.favoritesSection}>
+                <Text style={styles.sectionTitle}>{t('collections.favoritesTitle')}</Text>
+                {favorites.map(favorite => (
+                  <CollectionRow
+                    key={favorite.id}
+                    collection={favorite}
+                    isFavoriteToggleDisabled={togglingFavoriteId !== null}
+                    isTogglingFavorite={togglingFavoriteId === favorite.id}
+                    onPress={() => navigation.navigate('CollectionDetails', { collectionId: favorite.id })}
+                    onToggleFavorite={() => toggleFavoriteAction(favorite)}
+                  />
+                ))}
+                {favoritesError ? <Text style={styles.error}>{favoritesError}</Text> : null}
+                {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
+              </View>
+            ) : null}
+
+            <Text style={styles.sectionTitle}>{t('collections.allCollectionsTitle')}</Text>
 
             <TextInput
               editable={!isCreating}
@@ -229,18 +353,13 @@ export function CollectionsScreen() {
         }
         ListEmptyComponent={!error ? <Text style={styles.empty}>{t('collections.empty')}</Text> : undefined}
         renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
+          <CollectionRow
+            collection={item}
+            isFavoriteToggleDisabled={togglingFavoriteId !== null}
+            isTogglingFavorite={togglingFavoriteId === item.id}
             onPress={() => navigation.navigate('CollectionDetails', { collectionId: item.id })}
-            style={styles.row}
-          >
-            <Text numberOfLines={1} style={styles.rowName}>
-              {item.name}
-            </Text>
-            <Text style={styles.rowItemCount}>
-              {t('collections.itemCount', { count: item.itemCount })}
-            </Text>
-          </Pressable>
+            onToggleFavorite={() => toggleFavoriteAction(item)}
+          />
         )}
         ListFooterComponent={
           <View style={styles.legacySection}>
@@ -268,6 +387,52 @@ export function CollectionsScreen() {
         }
       />
     </SafeAreaView>
+  );
+}
+
+interface CollectionRowProps {
+  readonly collection: Collection;
+  readonly isFavoriteToggleDisabled: boolean;
+  readonly isTogglingFavorite: boolean;
+  readonly onPress: () => void;
+  readonly onToggleFavorite: () => void;
+}
+
+function CollectionRow({
+  collection,
+  isFavoriteToggleDisabled,
+  isTogglingFavorite,
+  onPress,
+  onToggleFavorite,
+}: CollectionRowProps) {
+  const { t } = useTranslation();
+
+  return (
+    <View style={styles.row}>
+      <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
+        <Text numberOfLines={1} style={styles.rowName}>
+          {collection.name}
+        </Text>
+        <Text style={styles.rowItemCount}>
+          {t('collections.itemCount', { count: collection.itemCount })}
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityLabel={
+          collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
+        }
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }}
+        disabled={isFavoriteToggleDisabled}
+        hitSlop={8}
+        onPress={onToggleFavorite}
+        style={styles.favoriteButton}
+      >
+        <Text style={[styles.favoriteButtonLabel, collection.isFavorite && styles.favoriteButtonLabelActive]}>
+          {collection.isFavorite ? '★' : '☆'}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -322,14 +487,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 16,
   },
+  favoritesSection: {
+    marginBottom: 12,
+  },
   row: {
     borderTopColor: '#E0E0E0',
     borderTopWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
     marginTop: 24,
+  },
+  rowPressable: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginEnd: 12,
   },
   rowName: {
     color: '#111111',
@@ -341,6 +515,19 @@ const styles = StyleSheet.create({
   rowItemCount: {
     color: '#666666',
     fontSize: 13,
+  },
+  favoriteButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 32,
+    minWidth: 32,
+  },
+  favoriteButtonLabel: {
+    color: '#9A9A9A',
+    fontSize: 22,
+  },
+  favoriteButtonLabelActive: {
+    color: '#F5A623',
   },
   legacySection: {
     marginTop: 40,

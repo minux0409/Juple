@@ -14,13 +14,16 @@ public interface ICollectionStore
     /// membership list, which can miss pages). Either filter is a filter on the caller's own
     /// Collections, not a primary resource lookup - the same style as GetPurchases' itemId query
     /// param (see PurchasesQueryParameters): a missing/other-user's Item simply matches
-    /// everything/nothing rather than throwing. Both filters compose with the same cursor-paginated
-    /// CreatedAtUtc DESC, Id DESC ordering, never a separate contract.
+    /// everything/nothing rather than throwing. isFavorite is an independent filter (the
+    /// Collections list's "즐겨찾는 보관함" section) that freely composes with itemId/excludeItemId -
+    /// unlike those two, it has no mutual-exclusivity rule. All filters compose with the same
+    /// cursor-paginated CreatedAtUtc DESC, Id DESC ordering, never a separate contract.
     /// </summary>
     Task<CollectionPage> ListAsync(
         long userId,
         long? itemId,
         long? excludeItemId,
+        bool? isFavorite,
         CollectionPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default);
@@ -39,6 +42,18 @@ public interface ICollectionStore
         long collectionId,
         string name,
         string nameNormalized,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Same lost-update protection as RenameAsync: no client-supplied version, EF's own RowVersion
+    /// concurrency check on this read-then-save covers a concurrent Rename/SetFavorite race on the
+    /// same Collection (whichever save lands second throws CollectionConcurrencyException).
+    /// </summary>
+    Task<CollectionDto> SetFavoriteAsync(
+        long userId,
+        long collectionId,
+        bool isFavorite,
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default);
 
