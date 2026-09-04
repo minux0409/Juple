@@ -49,6 +49,7 @@
   "nav": {
     "itemDetails": "상세",
     "collectionDetails": "보관함",
+    "languageSettings": "언어",
     "wishlist": "위시리스트",
     "archive": "보관",
     "purchaseHistory": "구매내역",
@@ -125,6 +126,14 @@
     "settings": "설정",
     "existingFeatures": "기존 기능",
     "viewPurchaseHistory": "구매내역 보기"
+  },
+  "settings": {
+    "language": "언어"
+  },
+  "language": {
+    "system": "시스템 설정 사용",
+    "korean": "한국어",
+    "english": "English"
   },
   "item": {
     "titleLabel": "제목",

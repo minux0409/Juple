@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ArchiveScreen } from '../screens/ArchiveScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
+import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
 import { PurchaseHistoryScreen } from '../screens/PurchaseHistoryScreen';
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   ItemDetails: { itemId: number };
   /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
   CollectionDetails: { collectionId: number };
+  LanguageSettings: undefined;
   /**
    * Not in the Bottom Tabs (see MainTabs) since the new 홈/기록/보관함/내 페이지 IA - kept reachable
    * here as a temporary, explicitly-labeled path (see CollectionsScreen/MyPageScreen) while
@@ -85,6 +87,11 @@ export function RootStack() {
         component={CollectionDetailsScreen}
         name="CollectionDetails"
         options={{ title: t('nav.collectionDetails') }}
+      />
+      <Stack.Screen
+        component={LanguageSettingsScreen}
+        name="LanguageSettings"
+        options={{ title: t('nav.languageSettings') }}
       />
       <Stack.Screen
         component={WishlistScreen}

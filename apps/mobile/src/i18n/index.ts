@@ -15,9 +15,11 @@ function isSupportedLanguage(value: string): value is SupportedLanguage {
 
 /**
  * ko-KR -> ko, en-US/en-GB -> en, anything else -> the global-service default (English) - never a
- * silent fallback to whichever language happens to be first in resources.
+ * silent fallback to whichever language happens to be first in resources. Exported so
+ * languagePreference.ts can re-resolve the same "system" meaning after a later explicit
+ * re-selection, without duplicating this logic.
  */
-function resolveInitialLanguage(): SupportedLanguage {
+export function resolveSystemLanguage(): SupportedLanguage {
   for (const locale of getLocales()) {
     if (isSupportedLanguage(locale.languageCode)) {
       return locale.languageCode;
@@ -33,7 +35,7 @@ i18n.use(initReactI18next).init({
     ko: { translation: ko },
     en: { translation: en },
   },
-  lng: resolveInitialLanguage(),
+  lng: resolveSystemLanguage(),
   fallbackLng: FALLBACK_LANGUAGE,
   interpolation: {
     // React (and RN's Text) already escapes rendered values - avoids double-escaping.

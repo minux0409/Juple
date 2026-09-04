@@ -49,6 +49,7 @@
   "nav": {
     "itemDetails": "Details",
     "collectionDetails": "Collection",
+    "languageSettings": "Language",
     "wishlist": "Wishlist",
     "archive": "Archive",
     "purchaseHistory": "Purchase History",
@@ -125,6 +126,14 @@
     "settings": "Settings",
     "existingFeatures": "Existing features",
     "viewPurchaseHistory": "View Purchase History"
+  },
+  "settings": {
+    "language": "Language"
+  },
+  "language": {
+    "system": "Use system setting",
+    "korean": "한국어",
+    "english": "English"
   },
   "item": {
     "titleLabel": "Title",

@@ -10,8 +10,7 @@ import type { RootStackParamList } from '../navigation/RootStack';
  * First-pass shell for the 내 페이지 tab. There is no per-user profile endpoint yet (no
  * email/name is exposed to the client anywhere in this app), so the account section only shows
  * the one thing already safely known here - that the session is authenticated - rather than
- * inventing or decoding token claims for display. 설정 is a bare entry point (no fake destination)
- * for the same "no dead-end button" reason Collections keeps 새 보관함 out.
+ * inventing or decoding token claims for display. 설정 currently only has 언어 (LanguageSettingsScreen).
  */
 export function MyPageScreen() {
   const { t } = useTranslation();
@@ -27,6 +26,13 @@ export function MyPageScreen() {
         <Text style={styles.accountStatus}>{t('myPage.loggedInAs')}</Text>
 
         <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('LanguageSettings')}
+          style={styles.linkButton}
+        >
+          <Text style={styles.linkButtonLabel}>{t('settings.language')}</Text>
+        </Pressable>
 
         <Text style={styles.sectionTitle}>{t('myPage.existingFeatures')}</Text>
         <Pressable

@@ -5,6 +5,7 @@
  */
 
 import { NavigationContainer } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 // Runs i18next.init() at module load, before AuthGate/RootStack ever render, so there is no
 // untranslated first frame - see src/i18n/index.ts.
 import './src/i18n';
+import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
 import { RootStack } from './src/navigation/RootStack';
 import { SignInScreen } from './src/screens/SignInScreen';
 import type { BackendAuthStatus, UserBootstrapStatus } from './src/auth/types';
@@ -43,13 +45,35 @@ const userBootstrapMessageKeys: Record<UserBootstrapStatus, string | null> = {
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+  // i18n/index.ts's synchronous init already resolves the device locale, so the very first frame
+  // is never untranslated - this only waits on the persisted ko/en override (if any) before
+  // AuthGate/RootStack mount, so an already-rendered screen never jumps language mid-frame.
+  const [isLanguageReady, setIsLanguageReady] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    applyStoredLanguagePreference().finally(() => {
+      if (isMounted) {
+        setIsLanguageReady(true);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AuthProvider>
-        <AuthGate />
-      </AuthProvider>
+      {isLanguageReady ? (
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
+      ) : (
+        <View style={styles.container}>
+          <ActivityIndicator />
+        </View>
+      )}
     </SafeAreaProvider>
   );
 }
