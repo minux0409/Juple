@@ -29,6 +29,7 @@ import {
 } from '../collections/api/collectionsApi';
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
@@ -81,6 +82,11 @@ function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
   return t('collections.errorFavoriteToggleFallback');
 }
 
+/** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
+function getShareErrorMessage(t: TFunction): string {
+  return t('item.shareError');
+}
+
 /** Mirrors the backend's CollectionNameNormalizer: trim, required, 100-character limit. */
 function getNameValidationError(name: string, t: TFunction): string | null {
   const trimmedName = name.trim();
@@ -126,6 +132,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [removingItemId, setRemovingItemId] = useState<number | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const [sharingItemId, setSharingItemId] = useState<number | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
@@ -262,6 +271,23 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  /** Shares the Item's original URL as-is via the OS Share Sheet - never a Juple-branded link. */
+  const shareItemAction = async (item: CollectionItemEntry) => {
+    if (sharingItemId !== null) {
+      return;
+    }
+
+    setSharingItemId(item.itemId);
+    setShareError(null);
+    try {
+      await shareItem(item.url, item.title);
+    } catch {
+      setShareError(getShareErrorMessage(t));
+    } finally {
+      setSharingItemId(null);
+    }
+  };
+
   const toggleFavoriteAction = async () => {
     if (!collection || isTogglingFavorite) {
       return;
@@ -376,6 +402,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
             {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
             {removeError ? <Text style={styles.error}>{removeError}</Text> : null}
+            {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
@@ -384,14 +411,18 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }
         renderItem={({ item }) => (
           <CollectionItemRow
-            isRemoving={removingItemId === item.itemId}
             isRemoveDisabled={removingItemId !== null}
+            isRemoving={removingItemId === item.itemId}
+            isShareDisabled={sharingItemId !== null}
             item={item}
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.itemId });
             }}
             onRemove={() => {
               removeItemAction(item.itemId);
+            }}
+            onShare={() => {
+              shareItemAction(item);
             }}
           />
         )}
@@ -425,11 +456,21 @@ interface CollectionItemRowProps {
   readonly item: CollectionItemEntry;
   readonly isRemoving: boolean;
   readonly isRemoveDisabled: boolean;
+  readonly isShareDisabled: boolean;
   readonly onPress: () => void;
   readonly onRemove: () => void;
+  readonly onShare: () => void;
 }
 
-function CollectionItemRow({ item, isRemoving, isRemoveDisabled, onPress, onRemove }: CollectionItemRowProps) {
+function CollectionItemRow({
+  item,
+  isRemoving,
+  isRemoveDisabled,
+  isShareDisabled,
+  onPress,
+  onRemove,
+  onShare,
+}: CollectionItemRowProps) {
   const { t } = useTranslation();
 
   return (
@@ -458,17 +499,28 @@ function CollectionItemRow({ item, isRemoving, isRemoveDisabled, onPress, onRemo
           <Text style={styles.addedTime}>{formatAddedTime(item.addedAtUtc)}</Text>
         </View>
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isRemoveDisabled, busy: isRemoving }}
-        disabled={isRemoveDisabled}
-        onPress={onRemove}
-        style={[styles.removeButton, isRemoveDisabled && styles.disabledButton]}
-      >
-        <Text style={styles.removeButtonLabel}>
-          {isRemoving ? t('common.processing') : t('collections.removeItem')}
-        </Text>
-      </Pressable>
+      <View style={styles.rowActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isShareDisabled }}
+          disabled={isShareDisabled}
+          onPress={onShare}
+          style={[styles.shareButton, isShareDisabled && styles.disabledButton]}
+        >
+          <Text style={styles.shareButtonLabel}>{t('item.share')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isRemoveDisabled, busy: isRemoving }}
+          disabled={isRemoveDisabled}
+          onPress={onRemove}
+          style={[styles.removeButton, isRemoveDisabled && styles.disabledButton]}
+        >
+          <Text style={styles.removeButtonLabel}>
+            {isRemoving ? t('common.processing') : t('collections.removeItem')}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -602,12 +654,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 5,
   },
+  rowActions: {
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+  shareButton: {
+    alignSelf: 'flex-start',
+    borderColor: '#9A9A9A',
+    borderRadius: 6,
+    borderWidth: 1,
+    marginEnd: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  shareButtonLabel: {
+    color: '#111111',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   removeButton: {
     alignSelf: 'flex-start',
     borderColor: '#9A9A9A',
     borderRadius: 6,
     borderWidth: 1,
-    marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },

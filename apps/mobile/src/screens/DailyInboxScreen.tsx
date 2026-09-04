@@ -26,6 +26,7 @@ import {
   getItemHistoryByDate,
   type ItemHistoryEntry,
 } from '../items/api/itemsApi';
+import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { formatDateOnly } from '../purchases/dateOnly';
 import { parseSharedText } from '../share/sharedTextParser';
@@ -60,6 +61,11 @@ function getDeleteErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('inbox.errorDeleteFallback');
+}
+
+/** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
+function getShareErrorMessage(t: TFunction): string {
+  return t('item.shareError');
 }
 
 function formatSavedTime(savedAtUtc: string): string {
@@ -292,6 +298,22 @@ export function DailyInboxScreen() {
     }
   };
 
+  const runShare = async (item: ItemHistoryEntry) => {
+    if (actionInFlightItemIdRef.current !== null || isRefreshingRef.current) {
+      return;
+    }
+
+    setActionInFlightItemId(item.id);
+    setError(null);
+    try {
+      await shareItem(item.url, item.title);
+    } catch {
+      setError(getShareErrorMessage(t));
+    } finally {
+      setActionInFlightItemId(null);
+    }
+  };
+
   const confirmDelete = (itemId: number) => {
     if (isDeleteConfirmationOpenRef.current) {
       return;
@@ -405,6 +427,9 @@ export function DailyInboxScreen() {
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.id });
             }}
+            onShare={() => {
+              runShare(item);
+            }}
           />
         )}
         ListFooterComponent={
@@ -425,9 +450,10 @@ interface InboxRowProps {
   readonly isActionInFlight: boolean;
   readonly onDelete: () => void;
   readonly onPress: () => void;
+  readonly onShare: () => void;
 }
 
-function InboxRow({ item, isActionDisabled, isActionInFlight, onDelete, onPress }: InboxRowProps) {
+function InboxRow({ item, isActionDisabled, isActionInFlight, onDelete, onPress, onShare }: InboxRowProps) {
   const { t } = useTranslation();
 
   return (
@@ -457,6 +483,15 @@ function InboxRow({ item, isActionDisabled, isActionInFlight, onDelete, onPress 
         </View>
       </Pressable>
       <View style={styles.itemActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isActionDisabled }}
+          disabled={isActionDisabled}
+          onPress={onShare}
+          style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
+        >
+          <Text style={styles.itemActionLabel}>{t('item.share')}</Text>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}

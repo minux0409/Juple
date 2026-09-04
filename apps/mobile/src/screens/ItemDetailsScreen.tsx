@@ -51,6 +51,7 @@ import {
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
+import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { getPurchases, type Purchase } from '../purchases/api/purchasesApi';
 import { getRepeatPurchases, type RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
@@ -130,6 +131,11 @@ function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): stri
     return t('errors.unauthorized');
   }
   return t('collections.errorMembershipFallback');
+}
+
+/** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
+function getShareErrorMessage(t: TFunction): string {
+  return t('item.shareError');
 }
 
 function getCollectionCreateErrorMessage(error: unknown, t: TFunction): string {
@@ -239,6 +245,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
   const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [title, setTitle] = useState('');
@@ -997,6 +1005,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Deliberately skips Linking.canOpenURL as a pre-check: on Android 11+ that query is subject to
+   * package visibility restrictions and can return false for a URL that Linking.openURL would
+   * actually open just fine (Juple declares no <queries> entries, and shouldn't need to just to
+   * probe "can a browser open http/https" - see AndroidManifest.xml). Item.url is always an
+   * absolute http/https URL (enforced at save time - see InboxEntrySaveService), so there's no
+   * other scheme to defensively check for here; a real failure (no app can open it at all) still
+   * surfaces via this catch.
+   */
   const openOriginalUrl = async () => {
     if (!item) {
       return;
@@ -1004,14 +1021,26 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
     setUrlOpenError(null);
     try {
-      const canOpen = await Linking.canOpenURL(item.url);
-      if (!canOpen) {
-        setUrlOpenError(t('item.urlOpenUnsupported'));
-        return;
-      }
       await Linking.openURL(item.url);
     } catch {
       setUrlOpenError(t('item.urlOpenFailed'));
+    }
+  };
+
+  /** Shares the Item's original URL as-is via the OS Share Sheet - never a Juple-branded link. */
+  const shareItemAction = async () => {
+    if (!item || isSharing) {
+      return;
+    }
+
+    setIsSharing(true);
+    setShareError(null);
+    try {
+      await shareItem(item.url, title.trim() || null);
+    } catch {
+      setShareError(getShareErrorMessage(t));
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -1051,16 +1080,28 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       <Text selectable style={styles.url}>
         {item.url}
       </Text>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => {
-          openOriginalUrl();
-        }}
-        style={styles.openUrlButton}
-      >
-        <Text style={styles.openUrlButtonLabel}>{t('item.openOriginal')}</Text>
-      </Pressable>
+      <View style={styles.urlActionsRow}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => {
+            openOriginalUrl();
+          }}
+          style={styles.openUrlButton}
+        >
+          <Text style={styles.openUrlButtonLabel}>{t('item.openOriginal')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isSharing, busy: isSharing }}
+          disabled={isSharing}
+          onPress={shareItemAction}
+          style={[styles.shareButton, isSharing && styles.disabledButton]}
+        >
+          <Text style={styles.shareButtonLabel}>{t('item.share')}</Text>
+        </Pressable>
+      </View>
       {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
+      {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
 
       <Text style={styles.label}>{t('item.memo')}</Text>
       <TextInput
@@ -1670,13 +1711,31 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 14,
   },
+  urlActionsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginTop: 8,
+  },
   openUrlButton: {
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginEnd: 16,
   },
   openUrlButtonLabel: {
     color: '#3366CC',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  shareButton: {
+    alignSelf: 'flex-start',
+    borderColor: '#9A9A9A',
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  shareButtonLabel: {
+    color: '#111111',
+    fontSize: 13,
     fontWeight: '600',
   },
   memoInput: {
