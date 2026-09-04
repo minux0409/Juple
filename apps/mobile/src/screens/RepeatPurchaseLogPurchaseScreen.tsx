@@ -2,6 +2,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -39,6 +40,7 @@ function getLogPurchaseErrorMessage(error: unknown): string {
 export function RepeatPurchaseLogPurchaseScreen({ route, navigation }: Props) {
   const { repeatPurchaseId, initialRepeatPurchase } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
 
   // Device-local today, via the same DateOnly utility as PurchaseEditor - never
   // toISOString()/new Date("YYYY-MM-DD") (UTC parsing).
@@ -142,7 +144,10 @@ export function RepeatPurchaseLogPurchaseScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.label}>상품명</Text>
       <Text style={styles.productName}>{initialRepeatPurchase.productName}</Text>
 

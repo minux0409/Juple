@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -60,6 +61,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
   const { repeatPurchaseId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
 
   const [repeatPurchase, setRepeatPurchase] = useState<RepeatPurchase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -193,7 +195,7 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
   const isBusy = isTransitioning || isDeleting;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}>
       <Text style={styles.productName}>{repeatPurchase.productName}</Text>
 
       <DetailRow

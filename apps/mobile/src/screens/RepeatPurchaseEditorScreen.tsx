@@ -2,6 +2,7 @@ import DateTimePicker, { type DateTimePickerEvent } from '@react-native-communit
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -78,6 +79,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
   // initialRepeatPurchase together (see RootStackParamList) - create mode otherwise.
   const isEditMode = repeatPurchaseId !== undefined && initialRepeatPurchase !== undefined;
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
 
   const [productName, setProductName] = useState(
     initialRepeatPurchase?.productName ?? initialProductName ?? '',
@@ -167,7 +169,10 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.label}>상품명</Text>
       <TextInput
         onChangeText={setProductName}

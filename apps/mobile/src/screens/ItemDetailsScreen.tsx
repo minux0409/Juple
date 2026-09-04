@@ -6,6 +6,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi, type AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import {
@@ -183,6 +185,8 @@ function getCategoryNameValidationError(name: string): string | null {
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { itemId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
+  const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [title, setTitle] = useState('');
@@ -722,6 +726,24 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  const openOriginalUrl = async () => {
+    if (!item) {
+      return;
+    }
+
+    setUrlOpenError(null);
+    try {
+      const canOpen = await Linking.canOpenURL(item.url);
+      if (!canOpen) {
+        setUrlOpenError('이 링크를 열 수 있는 앱을 찾을 수 없습니다.');
+        return;
+      }
+      await Linking.openURL(item.url);
+    } catch {
+      setUrlOpenError('원본 링크를 열 수 없습니다.');
+    }
+  };
+
   if (isLoading && !item) {
     return (
       <View style={styles.loadingContainer}>
@@ -739,7 +761,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.label}>제목</Text>
       <TextInput
         onChangeText={text => {
@@ -755,6 +780,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       <Text selectable style={styles.url}>
         {item.url}
       </Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => {
+          openOriginalUrl();
+        }}
+        style={styles.openUrlButton}
+      >
+        <Text style={styles.openUrlButtonLabel}>원본 보기 ↗</Text>
+      </Pressable>
+      {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
 
       <Text style={styles.label}>메모</Text>
       <TextInput
@@ -1006,7 +1041,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         visible={isCategoryModalVisible}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
             {modalMode === 'select' ? (
               <>
                 <View style={styles.modalHeaderRow}>
@@ -1216,6 +1251,15 @@ const styles = StyleSheet.create({
   url: {
     color: '#111111',
     fontSize: 14,
+  },
+  openUrlButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  openUrlButtonLabel: {
+    color: '#3366CC',
+    fontSize: 14,
+    fontWeight: '600',
   },
   memoInput: {
     borderColor: '#9A9A9A',

@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -58,6 +59,7 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
   // initialPurchase together (see RootStackParamList) - create mode otherwise.
   const isEditMode = purchaseId !== undefined && initialPurchase !== undefined;
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
 
   const [productName, setProductName] = useState(
     initialPurchase?.productName ?? initialProductName ?? '',
@@ -177,7 +179,10 @@ export function PurchaseEditorScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.label}>상품명</Text>
       <TextInput
         onChangeText={setProductName}

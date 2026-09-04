@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation/RootStack';
 import type { Purchase } from '../purchases/api/purchasesApi';
 import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
@@ -25,7 +26,7 @@ export function PurchaseHistoryScreen() {
   const [segment, setSegment] = useState<Segment>('purchases');
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView edges={['top']} style={styles.screen}>
       <View style={styles.segmentRow}>
         <Pressable
           accessibilityRole="button"
@@ -60,7 +61,7 @@ export function PurchaseHistoryScreen() {
       </View>
 
       {segment === 'purchases' ? <PurchaseListSection /> : <RepeatPurchaseListSection />}
-    </View>
+    </SafeAreaView>
   );
 }
 

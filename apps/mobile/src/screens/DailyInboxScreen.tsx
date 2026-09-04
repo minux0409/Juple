@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -145,6 +147,25 @@ export function DailyInboxScreen() {
     }, [loadTodayInbox]),
   );
 
+  // Refetches when the app itself comes back from the background/inactive (e.g. the user shared a
+  // URL to Juple from another app, then switched back) - useFocusEffect alone only catches
+  // in-app navigation, not the app being backgrounded while the Inbox tab stays focused. Only
+  // fires on an actual background/inactive -> active transition (mirrors the same AppState
+  // precedent in useIncomingShare.ts), never on initial mount, so it never duplicates the
+  // useFocusEffect load above. loadTodayInbox's own request-generation guard (loadRequestIdRef)
+  // already discards whichever of the two concurrent calls resolves second.
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (appStateRef.current?.match(/inactive|background/) && nextAppState === 'active') {
+        loadTodayInbox(true);
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [loadTodayInbox]);
+
   useEffect(() => {
     if (!pendingShare) {
       return;
@@ -251,110 +272,112 @@ export function DailyInboxScreen() {
 
   if (isLoading && !dailyInbox) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView edges={['top']} style={styles.loadingContainer}>
         <ActivityIndicator />
-      </View>
+      </SafeAreaView>
     );
   }
 
   const entries = dailyInbox?.items ?? [];
 
   return (
-    <FlatList
-      contentContainerStyle={styles.content}
-      data={entries}
-      keyExtractor={entry => entry.id.toString()}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={() => {
-            if (actionInFlightItemId !== null) {
-              return;
-            }
-            loadTodayInbox(true);
-          }}
-        />
-      }
-      ListHeaderComponent={
-        <View>
-          <Text style={styles.brand}>Juple</Text>
-          <Text style={styles.title}>오늘의 Inbox</Text>
-          <Text style={styles.date}>
-            {dailyInbox?.date} {entries.length}개
-          </Text>
-          <TextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            onChangeText={setUrl}
-            placeholder="URL을 붙여넣어 주세요"
-            style={styles.input}
-            value={url}
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <FlatList
+        contentContainerStyle={styles.content}
+        data={entries}
+        keyExtractor={entry => entry.id.toString()}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => {
+              if (actionInFlightItemId !== null) {
+                return;
+              }
+              loadTodayInbox(true);
+            }}
           />
+        }
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.brand}>Juple</Text>
+            <Text style={styles.title}>오늘의 Inbox</Text>
+            <Text style={styles.date}>
+              {dailyInbox?.date} {entries.length}개
+            </Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              onChangeText={setUrl}
+              placeholder="URL을 붙여넣어 주세요"
+              style={styles.input}
+              value={url}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSaving}
+              onPress={() => {
+                saveUrl();
+              }}
+              style={[styles.saveButton, isSaving ? styles.disabledButton : null]}
+            >
+              <Text style={styles.saveButtonLabel}>
+                {isSaving ? '저장 중...' : '저장'}
+              </Text>
+            </Pressable>
+            {shareMessage ? (
+              <View style={styles.shareReview}>
+                <Text style={styles.shareMessage}>{shareMessage}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    cancelPendingShare();
+                  }}
+                  style={styles.cancelShareButton}
+                >
+                  <Text style={styles.cancelShareLabel}>공유 내용 취소</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <Text style={styles.recentTitle}>최근 저장</Text>
+          </View>
+        }
+        ListEmptyComponent={
+          <Text style={styles.empty}>오늘 저장한 링크가 아직 없습니다.</Text>
+        }
+        renderItem={({ item }) => (
+          <InboxRow
+            isActionDisabled={actionInFlightItemId !== null || isRefreshing}
+            isActionInFlight={actionInFlightItemId === item.id}
+            item={item}
+            onArchive={() => {
+              runItemAction(item.id, moveItemToArchive);
+            }}
+            onDelete={() => {
+              confirmDelete(item.id);
+            }}
+            onPress={() => {
+              navigation.navigate('ItemDetails', { itemId: item.id });
+            }}
+            onWishlist={() => {
+              runItemAction(item.id, moveItemToWishlist);
+            }}
+          />
+        )}
+        ListFooterComponent={
           <Pressable
             accessibilityRole="button"
-            disabled={isSaving}
             onPress={() => {
-              saveUrl();
+              signOut();
             }}
-            style={[styles.saveButton, isSaving ? styles.disabledButton : null]}
+            style={styles.signOutButton}
           >
-            <Text style={styles.saveButtonLabel}>
-              {isSaving ? '저장 중...' : '저장'}
-            </Text>
+            <Text style={styles.signOutLabel}>로그아웃</Text>
           </Pressable>
-          {shareMessage ? (
-            <View style={styles.shareReview}>
-              <Text style={styles.shareMessage}>{shareMessage}</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  cancelPendingShare();
-                }}
-                style={styles.cancelShareButton}
-              >
-                <Text style={styles.cancelShareLabel}>공유 내용 취소</Text>
-              </Pressable>
-            </View>
-          ) : null}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Text style={styles.recentTitle}>최근 저장</Text>
-        </View>
-      }
-      ListEmptyComponent={
-        <Text style={styles.empty}>오늘 저장한 링크가 아직 없습니다.</Text>
-      }
-      renderItem={({ item }) => (
-        <InboxRow
-          isActionDisabled={actionInFlightItemId !== null || isRefreshing}
-          isActionInFlight={actionInFlightItemId === item.id}
-          item={item}
-          onArchive={() => {
-            runItemAction(item.id, moveItemToArchive);
-          }}
-          onDelete={() => {
-            confirmDelete(item.id);
-          }}
-          onPress={() => {
-            navigation.navigate('ItemDetails', { itemId: item.id });
-          }}
-          onWishlist={() => {
-            runItemAction(item.id, moveItemToWishlist);
-          }}
-        />
-      )}
-      ListFooterComponent={
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            signOut();
-          }}
-          style={styles.signOutButton}
-        >
-          <Text style={styles.signOutLabel}>로그아웃</Text>
-        </Pressable>
-      }
-    />
+        }
+      />
+    </SafeAreaView>
   );
 }
 
@@ -447,6 +470,9 @@ function InboxRow({
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',

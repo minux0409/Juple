@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -41,6 +42,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 export function PurchaseDetailsScreen({ route, navigation }: Props) {
   const { purchaseId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
 
   const [purchase, setPurchase] = useState<Purchase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,7 +143,7 @@ export function PurchaseDetailsScreen({ route, navigation }: Props) {
   const isBusy = isDeleting;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}>
       <Text style={styles.productName}>{purchase.productName}</Text>
 
       <DetailRow label="구매일" value={formatDateOnlyForDisplay(purchase.purchaseDate)} />

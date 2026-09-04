@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCategories, type Category } from '../categories/api/categoriesApi';
@@ -46,6 +47,7 @@ export function ItemStateListScreen({
 }: ItemStateListScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
+  const insets = useSafeAreaInsets();
   const {
     items,
     isLoading,
@@ -127,14 +129,14 @@ export function ItemStateListScreen({
 
   if (isLoading && items.length === 0 && !error) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView edges={['top']} style={styles.loadingContainer}>
         <ActivityIndicator />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
         contentContainerStyle={styles.content}
         data={items}
@@ -180,7 +182,7 @@ export function ItemStateListScreen({
         visible={isFilterModalVisible}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
             <Text style={styles.modalTitle}>카테고리 필터</Text>
 
             {isLoadingCategoryOptions ? (
@@ -225,11 +227,14 @@ export function ItemStateListScreen({
           </View>
         </View>
       </Modal>
-    </>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
