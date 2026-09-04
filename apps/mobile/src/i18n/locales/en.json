@@ -60,7 +60,7 @@
     "repeatPurchaseLogPurchase": "Log Purchase"
   },
   "inbox": {
-    "title": "Today's Inbox",
+    "title": "Links saved today",
     "dateCount": "{{date}} · {{count}} saved",
     "urlPlaceholder": "Paste a URL",
     "recentSaved": "Recently saved",
@@ -68,21 +68,21 @@
     "shareReviewExactUrl": "Please review the shared link.",
     "shareReviewOther": "Please review the shared content.",
     "cancelShare": "Discard shared content",
-    "moveToWishlist": "Wishlist",
-    "moveToArchive": "Archive",
     "deleteConfirmTitle": "Delete item",
     "deleteConfirmMessage": "Delete this item? This can't be undone.",
     "errorBadRequest": "Please enter a valid http or https address.",
     "errorForbidden": "We couldn't confirm permission for this action.",
     "errorSaveFallback": "Couldn't save the link.",
-    "errorLoadFallback": "Couldn't load today's Inbox.",
-    "errorDeleteFallback": "Couldn't delete the item.",
-    "errorMoveFallback": "Couldn't move the item."
+    "errorLoadFallback": "Couldn't load today's saved links.",
+    "errorDeleteFallback": "Couldn't delete the item."
   },
   "history": {
     "title": "History",
-    "empty": "No links saved today yet.",
-    "errorLoadFallback": "Couldn't load your history."
+    "empty": "No links saved yet.",
+    "errorLoadFallback": "Couldn't load your history.",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "sectionHeader": "{{label}} · {{count}}"
   },
   "collections": {
     "title": "Collections",

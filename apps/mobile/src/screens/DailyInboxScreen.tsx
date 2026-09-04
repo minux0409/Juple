@@ -18,19 +18,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
-import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
-  getTodayInbox,
-  saveInboxEntry,
-  type DailyInbox,
-  type InboxEntry,
-} from '../inbox/api/inboxApi';
-import { deleteItem, moveItemToArchive, moveItemToWishlist } from '../items/api/itemsApi';
+  deleteItem,
+  getItemHistoryByDate,
+  type ItemHistoryEntry,
+} from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { formatDateOnly } from '../purchases/dateOnly';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
+
+const PAGE_LIMIT = 50;
 
 function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
@@ -54,11 +55,11 @@ function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): st
   return isSave ? t('inbox.errorSaveFallback') : t('inbox.errorLoadFallback');
 }
 
-function getItemActionErrorMessage(error: unknown, isDelete: boolean, t: TFunction): string {
+function getDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
-  return isDelete ? t('inbox.errorDeleteFallback') : t('inbox.errorMoveFallback');
+  return t('inbox.errorDeleteFallback');
 }
 
 function formatSavedTime(savedAtUtc: string): string {
@@ -68,15 +69,30 @@ function formatSavedTime(savedAtUtc: string): string {
   }).format(new Date(savedAtUtc));
 }
 
+/**
+ * Home ("오늘 저장한 링크"): every URL the user saved today (SavedAtUtc, local calendar date),
+ * regardless of current Inbox/Wishlist/Archived state - not a state-based triage view. A save that
+ * is later moved to Wishlist or Archived stays visible here for the rest of the day, matching
+ * History's own "오늘" section exactly (both derive from the same SavedAtUtc-local-date concept -
+ * see GET /api/v1/items/history/date). Wishlist/Archive-moving actions are therefore not offered
+ * from this screen; only viewing (tap -> ItemDetails) and deleting remain.
+ *
+ * A day's worth of saves is unbounded, so - mirroring useItemHistory.ts's verified
+ * pagination/refresh pattern exactly - only one page loads up front and the rest is fetched via
+ * onEndReached/loadMore, never all at once.
+ */
 export function DailyInboxScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { pendingShare, acknowledgePendingShare } = useIncomingShare();
-  const [dailyInbox, setDailyInbox] = useState<DailyInbox | null>(null);
+  const [date, setDate] = useState<string | null>(null);
+  const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
@@ -84,20 +100,22 @@ export function DailyInboxScreen() {
 
   // Mirrors of the latest state/refs for use inside the Delete confirmation Alert's callbacks,
   // which are constructed once when the Alert opens and must not read stale values captured at
-  // that moment - a Wishlist/Archive action can complete while the Alert is still on screen.
-  const dailyInboxRef = useRef(dailyInbox);
+  // that moment - a delete can be re-attempted while the Alert is still on screen.
+  const itemsRef = useRef(items);
   const actionInFlightItemIdRef = useRef(actionInFlightItemId);
   const isRefreshingRef = useRef(isRefreshing);
   const isDeleteConfirmationOpenRef = useRef(false);
-  // Discards a stale in-flight load's result if a newer one has since started (e.g. rapid focus
-  // changes), and lets the first focus use the full-screen spinner while later focuses (such as
-  // returning from ItemDetails after an edit) use the lighter refresh indicator instead.
+  // Guards onEndReached firing multiple times before state updates are visible to new calls.
+  const loadingMoreRef = useRef(false);
+  // Discards a stale in-flight initial/refresh load's result if a newer one has since started
+  // (e.g. rapid focus changes), and lets the first focus use the full-screen spinner while later
+  // focuses (such as returning from ItemDetails after an edit) use the lighter refresh indicator.
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
-    dailyInboxRef.current = dailyInbox;
-  }, [dailyInbox]);
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
     actionInFlightItemIdRef.current = actionInFlightItemId;
@@ -107,10 +125,10 @@ export function DailyInboxScreen() {
     isRefreshingRef.current = isRefreshing;
   }, [isRefreshing]);
 
-  const loadTodayInbox = useCallback(
-    async (isPullToRefresh = false) => {
+  const loadToday = useCallback(
+    async (mode: 'initial' | 'refresh') => {
       const requestId = ++loadRequestIdRef.current;
-      if (isPullToRefresh) {
+      if (mode === 'refresh') {
         setIsRefreshing(true);
       } else {
         setIsLoading(true);
@@ -118,15 +136,22 @@ export function DailyInboxScreen() {
       setError(null);
 
       try {
-        const inbox = await getTodayInbox(authenticatedRequest);
+        // Recomputed on every load (not cached in state) so the app staying open across local
+        // midnight picks up the new day on its next focus/refresh instead of continuing to show
+        // yesterday's date.
+        const today = formatDateOnly(new Date());
+        const result = await getItemHistoryByDate(authenticatedRequest, today, { limit: PAGE_LIMIT });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setDailyInbox(inbox);
+        setDate(result.date);
+        setItems(result.items);
+        setNextCursor(result.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
+        // Failure keeps whatever Home already shows - only the error text changes.
         setError(getInboxErrorMessage(caughtError, false, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
@@ -139,32 +164,67 @@ export function DailyInboxScreen() {
     [authenticatedRequest, t],
   );
 
-  // Refetches every time the Inbox tab regains focus (including returning from ItemDetails after
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor || !date) {
+      return;
+    }
+
+    const requestId = loadRequestIdRef.current;
+    loadingMoreRef.current = true;
+    setIsLoadingMore(true);
+
+    (async () => {
+      try {
+        const result = await getItemHistoryByDate(authenticatedRequest, date, {
+          limit: PAGE_LIMIT,
+          cursor: nextCursor,
+        });
+        if (loadRequestIdRef.current !== requestId) {
+          return;
+        }
+        setItems(previousItems => {
+          const seenIds = new Set(previousItems.map(item => item.id));
+          const additionalItems = result.items.filter(item => !seenIds.has(item.id));
+          return [...previousItems, ...additionalItems];
+        });
+        setNextCursor(result.nextCursor);
+      } catch (caughtError) {
+        if (loadRequestIdRef.current === requestId) {
+          setError(getInboxErrorMessage(caughtError, false, t));
+        }
+      } finally {
+        loadingMoreRef.current = false;
+        setIsLoadingMore(false);
+      }
+    })();
+  }, [authenticatedRequest, date, nextCursor, isLoading, isRefreshing, t]);
+
+  // Refetches every time the Home tab regains focus (including returning from ItemDetails after
   // an edit), matching the same focus-driven refresh already used for Wishlist/Archive.
   useFocusEffect(
     useCallback(() => {
-      loadTodayInbox(hasLoadedOnceRef.current);
-    }, [loadTodayInbox]),
+      loadToday(hasLoadedOnceRef.current ? 'refresh' : 'initial');
+    }, [loadToday]),
   );
 
   // Refetches when the app itself comes back from the background/inactive (e.g. the user shared a
   // URL to Juple from another app, then switched back) - useFocusEffect alone only catches
-  // in-app navigation, not the app being backgrounded while the Inbox tab stays focused. Only
+  // in-app navigation, not the app being backgrounded while the Home tab stays focused. Only
   // fires on an actual background/inactive -> active transition (mirrors the same AppState
   // precedent in useIncomingShare.ts), never on initial mount, so it never duplicates the
-  // useFocusEffect load above. loadTodayInbox's own request-generation guard (loadRequestIdRef)
+  // useFocusEffect load above. loadToday's own request-generation guard (loadRequestIdRef)
   // already discards whichever of the two concurrent calls resolves second.
   const appStateRef = useRef(AppState.currentState);
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (appStateRef.current?.match(/inactive|background/) && nextAppState === 'active') {
-        loadTodayInbox(true);
+        loadToday('refresh');
       }
       appStateRef.current = nextAppState;
     });
 
     return () => subscription.remove();
-  }, [loadTodayInbox]);
+  }, [loadToday]);
 
   useEffect(() => {
     if (!pendingShare) {
@@ -193,7 +253,7 @@ export function DailyInboxScreen() {
       }
       setUrl('');
       setShareMessage(null);
-      await loadTodayInbox();
+      await loadToday('refresh');
     } catch (caughtError) {
       setError(getInboxErrorMessage(caughtError, true, t));
     } finally {
@@ -211,15 +271,11 @@ export function DailyInboxScreen() {
     setShareMessage(null);
   };
 
-  const runItemAction = async (
-    itemId: number,
-    action: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
-    isDelete = false,
-  ) => {
+  const runDelete = async (itemId: number) => {
     if (
       actionInFlightItemIdRef.current !== null ||
       isRefreshingRef.current ||
-      !dailyInboxRef.current?.items.some(entry => entry.id === itemId)
+      !itemsRef.current.some(entry => entry.id === itemId)
     ) {
       return;
     }
@@ -227,14 +283,10 @@ export function DailyInboxScreen() {
     setActionInFlightItemId(itemId);
     setError(null);
     try {
-      await action(authenticatedRequest, itemId);
-      setDailyInbox(previous =>
-        previous
-          ? { ...previous, items: previous.items.filter(item => item.id !== itemId) }
-          : previous,
-      );
+      await deleteItem(authenticatedRequest, itemId);
+      setItems(previousItems => previousItems.filter(item => item.id !== itemId));
     } catch (caughtError) {
-      setError(getItemActionErrorMessage(caughtError, isDelete, t));
+      setError(getDeleteErrorMessage(caughtError, t));
     } finally {
       setActionInFlightItemId(null);
     }
@@ -260,7 +312,7 @@ export function DailyInboxScreen() {
           style: 'destructive',
           onPress: () => {
             closeConfirmation();
-            runItemAction(itemId, deleteItem, true);
+            runDelete(itemId);
           },
         },
       ],
@@ -268,7 +320,7 @@ export function DailyInboxScreen() {
     );
   };
 
-  if (isLoading && !dailyInbox) {
+  if (isLoading && items.length === 0 && !error) {
     return (
       <SafeAreaView edges={['top']} style={styles.loadingContainer}>
         <ActivityIndicator />
@@ -276,14 +328,14 @@ export function DailyInboxScreen() {
     );
   }
 
-  const entries = dailyInbox?.items ?? [];
-
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
         contentContainerStyle={styles.content}
-        data={entries}
+        data={items}
         keyExtractor={entry => entry.id.toString()}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -291,7 +343,7 @@ export function DailyInboxScreen() {
               if (actionInFlightItemId !== null) {
                 return;
               }
-              loadTodayInbox(true);
+              loadToday('refresh');
             }}
           />
         }
@@ -300,7 +352,7 @@ export function DailyInboxScreen() {
             <Text style={styles.brand}>Juple</Text>
             <Text style={styles.title}>{t('inbox.title')}</Text>
             <Text style={styles.date}>
-              {t('inbox.dateCount', { date: dailyInbox?.date, count: entries.length })}
+              {t('inbox.dateCount', { date, count: items.length })}
             </Text>
             <TextInput
               autoCapitalize="none"
@@ -347,44 +399,35 @@ export function DailyInboxScreen() {
             isActionDisabled={actionInFlightItemId !== null || isRefreshing}
             isActionInFlight={actionInFlightItemId === item.id}
             item={item}
-            onArchive={() => {
-              runItemAction(item.id, moveItemToArchive);
-            }}
             onDelete={() => {
               confirmDelete(item.id);
             }}
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.id });
             }}
-            onWishlist={() => {
-              runItemAction(item.id, moveItemToWishlist);
-            }}
           />
         )}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator />
+            </View>
+          ) : undefined
+        }
       />
     </SafeAreaView>
   );
 }
 
 interface InboxRowProps {
-  readonly item: InboxEntry;
+  readonly item: ItemHistoryEntry;
   readonly isActionDisabled: boolean;
   readonly isActionInFlight: boolean;
-  readonly onWishlist: () => void;
-  readonly onArchive: () => void;
   readonly onDelete: () => void;
   readonly onPress: () => void;
 }
 
-function InboxRow({
-  item,
-  isActionDisabled,
-  isActionInFlight,
-  onWishlist,
-  onArchive,
-  onDelete,
-  onPress,
-}: InboxRowProps) {
+function InboxRow({ item, isActionDisabled, isActionInFlight, onDelete, onPress }: InboxRowProps) {
   const { t } = useTranslation();
 
   return (
@@ -414,28 +457,6 @@ function InboxRow({
         </View>
       </Pressable>
       <View style={styles.itemActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
-          disabled={isActionDisabled}
-          onPress={onWishlist}
-          style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
-        >
-          <Text style={styles.itemActionLabel}>
-            {isActionInFlight ? t('common.processing') : t('inbox.moveToWishlist')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
-          disabled={isActionDisabled}
-          onPress={onArchive}
-          style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
-        >
-          <Text style={styles.itemActionLabel}>
-            {isActionInFlight ? t('common.processing') : t('inbox.moveToArchive')}
-          </Text>
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
@@ -597,5 +618,8 @@ const styles = StyleSheet.create({
   },
   deleteActionLabel: {
     color: '#B42318',
+  },
+  footerLoading: {
+    paddingVertical: 20,
   },
 });

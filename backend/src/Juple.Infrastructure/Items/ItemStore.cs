@@ -11,7 +11,7 @@ namespace Juple.Infrastructure.Items;
 
 public sealed class ItemStore(JupleDbContext dbContext) :
     IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore, IItemDetailQueryStore,
-    IItemCategoryStore
+    IItemCategoryStore, IItemHistoryQueryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -393,5 +393,145 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             : null;
 
         return (new ItemPage(items, nextCursor), representativeImages);
+    }
+
+    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetHistoryAsync(
+        long userId,
+        ItemHistoryPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        // Deliberately no State filter (unlike GetByStateAsync) - History spans every state, and
+        // orders/pages by SavedAtUtc (the original save moment), never StateChangedAtUtc. Backed by
+        // the existing IX_Items_UserId_SavedAtUtc_Id index - no new index needed.
+        var itemsQuery = dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.UserId == userId);
+
+        if (cursor is not null)
+        {
+            itemsQuery = itemsQuery.Where(item =>
+                item.SavedAtUtc < cursor.SavedAtUtc
+                || (item.SavedAtUtc == cursor.SavedAtUtc && item.Id < cursor.Id));
+        }
+
+        var pagedQuery =
+            from item in itemsQuery
+            join category in dbContext.Categories.AsNoTracking()
+                on item.CategoryId equals category.Id into categoryJoin
+            from category in categoryJoin.DefaultIfEmpty()
+            orderby item.SavedAtUtc descending, item.Id descending
+            select new
+            {
+                item.Id,
+                item.Url,
+                item.Title,
+                item.Memo,
+                item.SavedAtUtc,
+                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
+                RepresentativeImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id)
+                    .OrderBy(image => image.SortOrder)
+                    .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+            };
+
+        var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
+
+        var hasMore = page.Count > limit;
+        var pageRows = hasMore ? page.GetRange(0, limit) : page;
+
+        var items = new List<ItemHistoryEntryDto>(pageRows.Count);
+        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        foreach (var row in pageRows)
+        {
+            items.Add(new ItemHistoryEntryDto(
+                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.Category,
+                RepresentativeImage: null));
+            if (row.RepresentativeImage is not null)
+            {
+                representativeImages[row.Id] =
+                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+        }
+
+        var nextCursor = hasMore
+            ? new ItemHistoryPageCursor(pageRows[^1].SavedAtUtc, pageRows[^1].Id)
+            : null;
+
+        return (new ItemHistoryPage(items, nextCursor), representativeImages);
+    }
+
+    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByDateRangeAsync(
+        long userId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        ItemHistoryPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        // Same shape as GetHistoryAsync - deliberately no State filter, so a saved Item shows up
+        // here for its whole SavedAtUtc-local-date regardless of any later Wishlist/Archive
+        // transition - plus the [fromUtc, toUtc) date-range predicate GetDailyAsync (Daily Inbox)
+        // also uses. Unbounded (all-of-a-day) responses are not acceptable for a production API,
+        // so this uses the exact same keyset cursor pagination as GetHistoryAsync.
+        var itemsQuery = dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.UserId == userId && item.SavedAtUtc >= fromUtc && item.SavedAtUtc < toUtc);
+
+        if (cursor is not null)
+        {
+            itemsQuery = itemsQuery.Where(item =>
+                item.SavedAtUtc < cursor.SavedAtUtc
+                || (item.SavedAtUtc == cursor.SavedAtUtc && item.Id < cursor.Id));
+        }
+
+        var pagedQuery =
+            from item in itemsQuery
+            join category in dbContext.Categories.AsNoTracking()
+                on item.CategoryId equals category.Id into categoryJoin
+            from category in categoryJoin.DefaultIfEmpty()
+            orderby item.SavedAtUtc descending, item.Id descending
+            select new
+            {
+                item.Id,
+                item.Url,
+                item.Title,
+                item.Memo,
+                item.SavedAtUtc,
+                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
+                RepresentativeImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id)
+                    .OrderBy(image => image.SortOrder)
+                    .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+            };
+
+        var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
+
+        var hasMore = page.Count > limit;
+        var pageRows = hasMore ? page.GetRange(0, limit) : page;
+
+        var items = new List<ItemHistoryEntryDto>(pageRows.Count);
+        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        foreach (var row in pageRows)
+        {
+            items.Add(new ItemHistoryEntryDto(
+                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.Category,
+                RepresentativeImage: null));
+            if (row.RepresentativeImage is not null)
+            {
+                representativeImages[row.Id] =
+                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+        }
+
+        var nextCursor = hasMore
+            ? new ItemHistoryPageCursor(pageRows[^1].SavedAtUtc, pageRows[^1].Id)
+            : null;
+
+        return (new ItemHistoryPage(items, nextCursor), representativeImages);
     }
 }

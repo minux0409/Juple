@@ -1,3 +1,4 @@
+using System.Globalization;
 using Juple.Api.Authentication;
 using Juple.Api.Items;
 using Juple.Application.Categories;
@@ -7,6 +8,8 @@ using Juple.Application.Items;
 using Juple.Application.Items.AssignItemCategory;
 using Juple.Application.Items.DeleteItem;
 using Juple.Application.Items.GetItemDetail;
+using Juple.Application.Items.GetItemHistory;
+using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetItemsByState;
 using Juple.Application.Items.ItemStateTransition;
 using Juple.Application.Items.UpdateItemDetails;
@@ -27,7 +30,9 @@ public sealed class ItemsController(
     IDeleteItemService deleteItemService,
     IUpdateItemDetailsService updateItemDetailsService,
     IGetItemDetailService getItemDetailService,
-    IAssignItemCategoryService assignItemCategoryService) : ControllerBase
+    IAssignItemCategoryService assignItemCategoryService,
+    IGetItemHistoryService getItemHistoryService,
+    IGetItemHistoryByDateService getItemHistoryByDateService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetByStateAsync(
@@ -92,6 +97,120 @@ public sealed class ItemsController(
         catch (CategoryNotFoundException)
         {
             return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// All Items the user has ever saved, newest-saved-first, regardless of current
+    /// Inbox/Wishlist/Archived state - distinct from GET /api/v1/items (state-filtered) and
+    /// GET /api/v1/inbox (today + Inbox-state only). See docs/product-overview.md "History".
+    /// </summary>
+    [HttpGet("history")]
+    public async Task<IActionResult> GetHistoryAsync(
+        [FromQuery] int? limit,
+        [FromQuery] string? cursor,
+        CancellationToken cancellationToken)
+    {
+        if (!ItemsQueryParameters.TryParseLimit(limit, out var resolvedLimit))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["limit"] = [
+                    $"limit must be between {ItemsQueryParameters.MinLimit} and {ItemsQueryParameters.MaxLimit}.",
+                ],
+            }));
+        }
+
+        ItemHistoryPageCursor? typedCursor = null;
+        if (cursor is not null && !ItemHistoryPageCursorCodec.TryDecode(cursor, out typedCursor))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["cursor"] = ["cursor is invalid."],
+            }));
+        }
+
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var page = await getItemHistoryService.GetAsync(
+                currentUser.UserId, typedCursor, resolvedLimit, cancellationToken);
+
+            return Ok(new ItemHistoryPageResponse(
+                page.Items,
+                page.NextCursor is { } nextCursor ? ItemHistoryPageCursorCodec.Encode(nextCursor) : null));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
+
+    /// <summary>
+    /// Items the user saved (SavedAtUtc) on a single local calendar date, regardless of current
+    /// Inbox/Wishlist/Archived state - powers Home ("오늘 저장한 링크"), which is deliberately no
+    /// longer state-filtered like the legacy GET /api/v1/inbox. date is required (unlike GET
+    /// /api/v1/inbox's optional date, which defaults server-side) because Home always asks for a
+    /// specific day; the local-date-to-UTC-range conversion reuses the exact same
+    /// DailyInboxDateRangeCalculator + currentUser.TimeZoneId that GET /api/v1/inbox already uses,
+    /// so "today" means the identical thing in both places. Cursor-paginated with the same
+    /// limit/cursor conventions and ItemHistoryPageCursorCodec as GET /api/v1/items/history - a
+    /// day's worth of Items is unbounded, so this never returns a whole day in one response.
+    /// </summary>
+    [HttpGet("history/date")]
+    public async Task<IActionResult> GetHistoryByDateAsync(
+        [FromQuery] string? date,
+        [FromQuery] int? limit,
+        [FromQuery] string? cursor,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseDate(date, out var parsedDate))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["date"] = ["date is required and must use the YYYY-MM-DD format."],
+            }));
+        }
+
+        if (!ItemsQueryParameters.TryParseLimit(limit, out var resolvedLimit))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["limit"] = [
+                    $"limit must be between {ItemsQueryParameters.MinLimit} and {ItemsQueryParameters.MaxLimit}.",
+                ],
+            }));
+        }
+
+        ItemHistoryPageCursor? typedCursor = null;
+        if (cursor is not null && !ItemHistoryPageCursorCodec.TryDecode(cursor, out typedCursor))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["cursor"] = ["cursor is invalid."],
+            }));
+        }
+
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var result = await getItemHistoryByDateService.GetAsync(
+                currentUser.UserId, currentUser.TimeZoneId, parsedDate, typedCursor, resolvedLimit, cancellationToken);
+
+            return Ok(new ItemHistoryByDateResponse(
+                result.Date,
+                result.Items,
+                result.NextCursor is { } nextCursor ? ItemHistoryPageCursorCodec.Encode(nextCursor) : null));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
         }
     }
 
@@ -205,7 +324,31 @@ public sealed class ItemsController(
         }
     }
 
+    /// <summary>
+    /// Unlike InboxController.TryParseDate (where a missing date is valid and defaults
+    /// server-side), date is required here - Home always asks for one specific local date.
+    /// </summary>
+    private static bool TryParseDate(string? value, out DateOnly date)
+    {
+        if (value is not null && DateOnly.TryParseExact(
+            value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+        {
+            date = parsedDate;
+            return true;
+        }
+
+        date = default;
+        return false;
+    }
+
     public sealed record ItemsPageResponse(IReadOnlyList<ItemListEntryDto> Items, string? NextCursor);
+
+    public sealed record ItemHistoryPageResponse(IReadOnlyList<ItemHistoryEntryDto> Items, string? NextCursor);
+
+    public sealed record ItemHistoryByDateResponse(
+        DateOnly Date,
+        IReadOnlyList<ItemHistoryEntryDto> Items,
+        string? NextCursor);
 
     public sealed record UpdateItemDetailsRequest(string? Title, string? Memo);
 

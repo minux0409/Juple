@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IItemDetailsStore, ItemStore>();
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
         services.AddScoped<IItemCategoryStore, ItemStore>();
+        services.AddScoped<IItemHistoryQueryStore, ItemStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<IPurchaseStore, PurchaseStore>();
         services.AddScoped<IRepeatPurchaseStore, RepeatPurchaseStore>();
