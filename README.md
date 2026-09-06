@@ -94,6 +94,24 @@ npm run android
 3. Xcode가 자동 생성하는 `.entitlements`가 이 파일을 대체하거나, 이 파일을 그대로 가리키도록 연결한다 - 어느 쪽이든 최종적으로 `applinks:<실제 production domain>` 항목이 들어 있는지 확인한다 (현재 파일의 `app-links-host-not-configured.invalid`는 RFC 2606 예약 도메인 placeholder일 뿐, 실제 도메인이 아니다).
 4. Apple Developer Team ID/실제 domain은 이 문서 작성 시점에 확인되지 않았으므로 추측하지 않는다 - 실제 값이 정해지면 Android의 `JUPLE_PUBLIC_WEB_HOST`(`android/app/build.gradle`, `src/config/publicWebConfig.ts`) 및 Backend의 `PublicWeb:BaseUrl`과 동일한 도메인으로 맞춘다.
 
+### Dogfood signing
+
+`assembleDogfood`(PC/Metro 없이 기기에서 단독 실행되는 dogfooding 빌드, Azure Dev Backend와 통신 - `src/api/apiConfig.ts` 참고)는 **전용 고정 signing identity**를 사용한다. 예전에는 다른 buildType과 마찬가지로 `apps/mobile/android/app/debug.keystore`(머신별로 생성되고 `.gitignore`의 `*.keystore` 규칙으로 커밋되지 않는 파일)를 사용했는데, 이 때문에 PC마다 다른 인증서로 서명된 dogfood APK가 만들어져 한 PC에서 만든 APK를 다른 PC에서 만든 것 위에 업데이트 설치할 수 없는 문제(`INSTALL_FAILED_UPDATE_INCOMPATIBLE`)가 있었다.
+
+**중요**:
+- 이 signing identity는 Dogfood 전용이다. Production release(`assembleRelease`)는 여전히 별개이며 Play App Signing과는 아무 관계가 없다 - 절대 혼용하지 않는다.
+- 실제 keystore 파일과 password는 어떤 형태로도 이 repository에 commit하지 않는다.
+- `android/app/build.gradle`은 `android/app/dogfood-signing.local.properties`(gitignored)를 읽고, 없으면 동일한 이름의 환경변수로 fallback한다:
+  ```
+  JUPLE_DOGFOOD_STORE_FILE=<keystore 파일의 절대 경로>
+  JUPLE_DOGFOOD_STORE_PASSWORD=<store password>
+  JUPLE_DOGFOOD_KEY_ALIAS=<key alias>
+  JUPLE_DOGFOOD_KEY_PASSWORD=<key password>
+  ```
+- 이 설정이 없거나 불완전하면 `assembleDogfood`는 `packageDogfood` 단계에서 명확한 signing 오류로 fail한다 - 조용히 `debug.keystore`로 fallback하지 않는다(예전 문제의 재발 방지). `assembleDebug`/`assembleRelease`는 이 설정과 무관하게 항상 그대로 동작한다.
+- keystore 파일 자체는 repo 밖(예: `%USERPROFILE%\.android\`)에 보관한다.
+- **새 PC(회사/집 등)에서 dogfood 빌드를 하려면**: 기존에 생성해 둔 keystore 파일과 `dogfood-signing.local.properties`(또는 동일한 4개 환경변수)를 안전한 방법으로 그 PC에 복사해야 한다 - 각 PC가 서로 다른 keystore를 새로 생성하면 이 문제가 다시 발생한다. 모든 PC가 동일한 keystore/certificate를 사용해야 서로 만든 dogfood APK끼리 update install이 가능하다.
+
 ### Android에서 로컬 Backend 연결
 
 Mobile 개발용 API 주소는 `http://localhost:5092`로 고정되어 있으며, Android emulator와 physical device 모두 다음 명령으로 PC의 Backend에 연결한다.

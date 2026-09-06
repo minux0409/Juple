@@ -122,12 +122,51 @@ android {
             appLinksHost: System.getenv("JUPLE_PUBLIC_WEB_HOST") ?: "app-links-host-not-configured.invalid"
         ]
     }
+    // Dogfood's signing identity (see below) is read from a gitignored local properties file,
+    // falling back to environment variables of the same name - see README's "Dogfood signing"
+    // section for how to set either up. Neither the file nor the env vars are required for
+    // Debug/Release, so this stays a no-op for every other buildType.
+    def dogfoodSigningProps = new Properties()
+    def dogfoodSigningPropsFile = file("dogfood-signing.local.properties")
+    if (dogfoodSigningPropsFile.exists()) {
+        dogfoodSigningPropsFile.withInputStream { dogfoodSigningProps.load(it) }
+    }
+    def dogfoodSigningValue = { String key ->
+        dogfoodSigningProps.getProperty(key) ?: System.getenv(key)
+    }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
+        }
+        dogfood {
+            // A dedicated signing identity for the "dogfood" buildType ONLY - never Production/
+            // Play App Signing (see the "release" buildType below, unchanged). Deliberately does
+            // NOT fall back to signingConfigs.debug when unset: debug.keystore is a machine-local,
+            // gitignored file (see .gitignore's *.keystore rule), and every machine typically
+            // generates its own - which is exactly why a dogfood APK built on one PC used to fail
+            // to install-update over one built on another (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+            // This identity is meant to be the same physical keystore file, copied safely between
+            // every machine that dogfoods (see README).
+            //
+            // Left incomplete/null on purpose when unconfigured - AGP's own generated
+            // `validateSigningDogfood` task (a dogfood-only task, see the build's task list) fails
+            // the build with a clear signing-config error the moment a dogfood-variant task
+            // actually needs it, without ever touching Debug/Release's own configuration. This
+            // avoids a subtler trap: a `throw` written directly in this closure would run during
+            // Gradle's DSL configuration phase for every buildType on every invocation - including
+            // an unrelated `assembleDebug` - since AGP evaluates all buildTypes' blocks regardless
+            // of which task was actually requested.
+            def storeFilePath = dogfoodSigningValue("JUPLE_DOGFOOD_STORE_FILE")
+            if (storeFilePath) {
+                storeFile file(storeFilePath)
+            }
+            storePassword dogfoodSigningValue("JUPLE_DOGFOOD_STORE_PASSWORD")
+            keyAlias dogfoodSigningValue("JUPLE_DOGFOOD_KEY_ALIAS")
+            keyPassword dogfoodSigningValue("JUPLE_DOGFOOD_KEY_PASSWORD")
         }
     }
     buildTypes {
@@ -137,6 +176,8 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
+            // Deliberately NOT signingConfigs.dogfood - that identity is dogfood-only (see above)
+            // and must never be reused as/confused with the eventual Play App Signing key.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
@@ -155,6 +196,9 @@ android {
             // debug/release variants - without this, Gradle can't resolve them for a buildType
             // it doesn't recognize by name.
             matchingFallbacks = ['release']
+            // Overrides release's inherited signingConfigs.debug (see initWith above) with
+            // Dogfood's own dedicated identity - see signingConfigs.dogfood's comment.
+            signingConfig signingConfigs.dogfood
             // The React Native Gradle Plugin only auto-fills this manifest placeholder for
             // buildTypes literally named "debug"/"release"/"debugOptimized" (see
             // AgpConfiguratorUtils.configureBuildTypesForApp) - dogfood needs it set explicitly,

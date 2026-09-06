@@ -34,6 +34,10 @@ local.properties
 *.keystore
 .kotlin/
 
+# Dogfood signing identity - machine-local secret (store file path + passwords), never committed.
+# See README's "Dogfood signing" section and android/app/build.gradle's dogfood signingConfig.
+android/app/dogfood-signing.local.properties
+
 # node.js
 #
 node_modules/
