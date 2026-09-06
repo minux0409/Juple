@@ -28,6 +28,7 @@ import {
 } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { formatDateOnly } from '../purchases/dateOnly';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
@@ -371,7 +372,10 @@ export function DailyInboxScreen() {
         }
         ListHeaderComponent={
           <View>
-            <Text style={styles.brand}>Juple</Text>
+            <View style={styles.brandRow}>
+              <Text style={styles.brand}>Juple</Text>
+              <NotificationBellButton />
+            </View>
             <Text style={styles.title}>{t('inbox.title')}</Text>
             <Text style={styles.date}>
               {t('inbox.dateCount', { date, count: items.length })}
@@ -520,10 +524,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
   },
+  brandRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 28,
+  },
   brand: {
     fontSize: 26,
     fontWeight: '700',
-    marginBottom: 28,
   },
   title: {
     fontSize: 22,

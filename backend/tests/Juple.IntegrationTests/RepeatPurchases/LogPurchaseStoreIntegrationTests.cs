@@ -1,10 +1,12 @@
 using System.Data.Common;
 using Juple.Application.Items;
+using Juple.Application.Notifications;
 using Juple.Application.Purchases;
 using Juple.Application.RepeatPurchases;
 using Juple.Domain.Items;
 using Juple.Domain.Purchases;
 using Juple.Domain.Users;
+using Juple.Infrastructure.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.RepeatPurchases;
 using Microsoft.EntityFrameworkCore;
@@ -47,6 +49,8 @@ public sealed class LogPurchaseStoreIntegrationTests : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM notifications.Notifications WHERE UserId = {_userId} OR UserId = {_otherUserId}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM purchases.Purchases WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM purchases.RepeatPurchases WHERE UserId = {_userId} OR UserId = {_otherUserId}");
@@ -63,13 +67,15 @@ public sealed class LogPurchaseStoreIntegrationTests : IAsyncLifetime
         string productName = "Repeat Test Product",
         int intervalValue = 30,
         IntervalUnit intervalUnit = IntervalUnit.Day,
-        bool isEnabled = true)
+        bool isEnabled = true,
+        DateOnly? nextPurchaseDateOverride = null)
     {
         var store = new RepeatPurchaseStore(_dbContext);
         var created = await store.CreateAsync(
             userId,
             new RepeatPurchaseFields(
-                itemId, productName, intervalValue, intervalUnit, new DateOnly(2026, 9, 30), false, 0),
+                itemId, productName, intervalValue, intervalUnit, nextPurchaseDateOverride ?? new DateOnly(2026, 9, 30),
+                false, 0),
             DateTimeOffset.UtcNow);
         if (!isEnabled)
         {
@@ -114,6 +120,28 @@ public sealed class LogPurchaseStoreIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var persisted = await _dbContext.Purchases.AsNoTracking().SingleAsync(p => p.Id == result.Purchase.Id);
         Assert.Equal(repeatPurchase.Id, persisted.RepeatPurchaseId);
+    }
+
+    [Fact]
+    public async Task LogAsync_MarksAnyExistingUnreadDueNotificationForThatRepeatPurchaseAsRead()
+    {
+        var store = NewStore();
+        var repeatPurchase = await CreateRepeatPurchaseAsync(_userId, _itemId, nextPurchaseDateOverride: new DateOnly(2026, 9, 1));
+        var notificationStore = new NotificationStore(_dbContext);
+        await notificationStore.MaterializeDueAsync(
+            _userId, "UTC", new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero));
+        _dbContext.ChangeTracker.Clear();
+        var beforeLog = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Null(beforeLog.ReadAtUtc);
+
+        var nowUtc = new DateTimeOffset(2026, 9, 1, 5, 0, 0, TimeSpan.Zero);
+        await store.LogAsync(
+            _userId, repeatPurchase.Id, LogFields(_itemId, "Repeat Test Product", new DateOnly(2026, 9, 1)),
+            repeatPurchase.Version, nowUtc);
+
+        _dbContext.ChangeTracker.Clear();
+        var afterLog = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Equal(nowUtc, afterLog.ReadAtUtc);
     }
 
     [Theory]

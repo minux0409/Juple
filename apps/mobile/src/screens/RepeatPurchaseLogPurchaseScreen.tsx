@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { useNotificationBadge } from '../notifications/NotificationBadgeContext';
 import { logRepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { formatDateOnly, formatDateOnlyForDisplay } from '../purchases/dateOnly';
 import {
@@ -44,6 +45,7 @@ export function RepeatPurchaseLogPurchaseScreen({ route, navigation }: Props) {
   const { repeatPurchaseId, initialRepeatPurchase } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
+  const { refresh: refreshNotificationBadge } = useNotificationBadge();
 
   // Device-local today, via the same DateOnly utility as PurchaseEditor - never
   // toISOString()/new Date("YYYY-MM-DD") (UTC parsing).
@@ -133,6 +135,10 @@ export function RepeatPurchaseLogPurchaseScreen({ route, navigation }: Props) {
         quantity: validatedQuantity,
         memo: memo || null,
       });
+      // The Backend resolves this RepeatPurchase's due notification(s) as part of the same
+      // transaction (see LogPurchaseStore) - refresh the badge so it never lags behind what the
+      // user just did.
+      refreshNotificationBadge();
       // RepeatPurchaseDetailsScreen already refetches on every focus (see its useFocusEffect), so
       // popping back here reflects the new NextPurchaseDate/version without any extra plumbing -
       // the same mechanism already used by RepeatPurchaseEditor's own save-and-return flow.

@@ -23,6 +23,7 @@ import {
   type Collection,
 } from '../collections/api/collectionsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { NotificationBellButton } from '../notifications/NotificationBellButton';
 
 const PAGE_LIMIT = 50;
 
@@ -307,7 +308,10 @@ export function CollectionsScreen() {
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load('refresh')} />}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>{t('collections.title')}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{t('collections.title')}</Text>
+              <NotificationBellButton />
+            </View>
 
             {favorites.length > 0 || favoritesError ? (
               <View style={styles.favoritesSection}>
@@ -431,6 +435,11 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     padding: 24,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 22,

@@ -4,6 +4,7 @@ using Juple.Application.RepeatPurchases;
 using Juple.Domain.Items;
 using Juple.Domain.Purchases;
 using Juple.Domain.Users;
+using Juple.Infrastructure.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.RepeatPurchases;
 using Microsoft.EntityFrameworkCore;
@@ -51,6 +52,8 @@ public sealed class RepeatPurchaseStoreIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM notifications.Notifications WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM purchases.Purchases WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
@@ -453,6 +456,119 @@ public sealed class RepeatPurchaseStoreIntegrationTests : IAsyncLifetime
         Assert.Equal("Original", reloaded.ProductName);
     }
 
+    // Scenario A from the Notification Center Stage 1 edit-lifecycle review: an existing unread due
+    // notification must be resolved when NextPurchaseDate moves away from the date it was about.
+    [Fact]
+    public async Task UpdateAsync_WhenNextPurchaseDateChangesFromDueToFuture_MarksExistingUnreadNotificationRead()
+    {
+        var store = NewStore();
+        var created = await store.CreateAsync(
+            _userId, Fields(nextPurchaseDate: new DateOnly(2026, 9, 6)), DateTimeOffset.UtcNow);
+        var notificationStore = new NotificationStore(_dbContext);
+        await notificationStore.MaterializeDueAsync(
+            _userId, "UTC", new DateTimeOffset(2026, 9, 6, 0, 0, 0, TimeSpan.Zero));
+        _dbContext.ChangeTracker.Clear();
+        var beforeUpdate = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Null(beforeUpdate.ReadAtUtc);
+
+        var updatedAtUtc = new DateTimeOffset(2026, 9, 6, 5, 0, 0, TimeSpan.Zero);
+        await store.UpdateAsync(
+            _userId, created.Id, Fields(nextPurchaseDate: new DateOnly(2026, 9, 20)), created.Version, updatedAtUtc);
+
+        _dbContext.ChangeTracker.Clear();
+        var afterUpdate = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Equal(updatedAtUtc, afterUpdate.ReadAtUtc);
+        Assert.Equal(new DateOnly(2026, 9, 6), afterUpdate.DueDate);
+    }
+
+    // Scenario B: moving NextPurchaseDate from future to already-due must not create a Notification
+    // row directly (UpdateAsync never materializes) - it only needs to become materializable on the
+    // very next MaterializeDueAsync call, exactly like a brand-new RepeatPurchase would.
+    [Fact]
+    public async Task UpdateAsync_WhenNextPurchaseDateChangesFromFutureToDue_BecomesMaterializableOnNextRefresh()
+    {
+        var store = NewStore();
+        var created = await store.CreateAsync(
+            _userId, Fields(nextPurchaseDate: new DateOnly(2026, 9, 20)), DateTimeOffset.UtcNow);
+        var notificationStore = new NotificationStore(_dbContext);
+        var nowUtc = new DateTimeOffset(2026, 9, 6, 0, 0, 0, TimeSpan.Zero);
+        await notificationStore.MaterializeDueAsync(_userId, "UTC", nowUtc);
+        _dbContext.ChangeTracker.Clear();
+        Assert.Empty((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+
+        await store.UpdateAsync(
+            _userId, created.Id, Fields(nextPurchaseDate: new DateOnly(2026, 9, 6)), created.Version, nowUtc);
+        _dbContext.ChangeTracker.Clear();
+        // UpdateAsync itself never materializes - immediately after the save, still nothing.
+        Assert.Empty((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+
+        await notificationStore.MaterializeDueAsync(_userId, "UTC", nowUtc);
+        _dbContext.ChangeTracker.Clear();
+        var notification = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Equal(new DateOnly(2026, 9, 6), notification.DueDate);
+        Assert.Null(notification.ReadAtUtc);
+    }
+
+    // Scenario C: due date A -> due date B (both already due "today") must resolve A's unread
+    // notification and leave exactly one fresh, unread notification for B - never two stale rows
+    // for the same schedule.
+    [Fact]
+    public async Task UpdateAsync_WhenNextPurchaseDateChangesFromOneDueDateToAnotherDueDate_ResolvesOldAndMaterializesNewWithoutDuplicate()
+    {
+        var store = NewStore();
+        var created = await store.CreateAsync(
+            _userId, Fields(nextPurchaseDate: new DateOnly(2026, 9, 6)), DateTimeOffset.UtcNow);
+        var notificationStore = new NotificationStore(_dbContext);
+        var nowUtc = new DateTimeOffset(2026, 9, 6, 0, 0, 0, TimeSpan.Zero);
+        await notificationStore.MaterializeDueAsync(_userId, "UTC", nowUtc);
+        _dbContext.ChangeTracker.Clear();
+        var originalNotification = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+
+        // 9/5 is also already due relative to "today" (9/6) - both are past-or-today due dates.
+        await store.UpdateAsync(
+            _userId, created.Id, Fields(nextPurchaseDate: new DateOnly(2026, 9, 5)), created.Version, nowUtc);
+        _dbContext.ChangeTracker.Clear();
+        await notificationStore.MaterializeDueAsync(_userId, "UTC", nowUtc);
+
+        _dbContext.ChangeTracker.Clear();
+        var page = await notificationStore.ListAsync(_userId, cursor: null, limit: 50);
+        Assert.Equal(2, page.Notifications.Count);
+        var original = page.Notifications.Single(n => n.Id == originalNotification.Id);
+        var fresh = page.Notifications.Single(n => n.Id != originalNotification.Id);
+        Assert.Equal(new DateOnly(2026, 9, 6), original.DueDate);
+        Assert.NotNull(original.ReadAtUtc);
+        Assert.Equal(new DateOnly(2026, 9, 5), fresh.DueDate);
+        Assert.Null(fresh.ReadAtUtc);
+    }
+
+    // Scenario D: editing anything else (ProductName here) while NextPurchaseDate stays exactly the
+    // same must never touch an existing unread notification's read state.
+    [Fact]
+    public async Task UpdateAsync_WhenNextPurchaseDateIsUnchanged_LeavesExistingUnreadNotificationUntouched()
+    {
+        var store = NewStore();
+        var created = await store.CreateAsync(
+            _userId, Fields(nextPurchaseDate: new DateOnly(2026, 9, 6), productName: "Original Name"),
+            DateTimeOffset.UtcNow);
+        var notificationStore = new NotificationStore(_dbContext);
+        await notificationStore.MaterializeDueAsync(
+            _userId, "UTC", new DateTimeOffset(2026, 9, 6, 0, 0, 0, TimeSpan.Zero));
+        _dbContext.ChangeTracker.Clear();
+        var beforeUpdate = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Null(beforeUpdate.ReadAtUtc);
+
+        await store.UpdateAsync(
+            _userId,
+            created.Id,
+            Fields(nextPurchaseDate: new DateOnly(2026, 9, 6), productName: "Renamed", intervalValue: 14),
+            created.Version,
+            new DateTimeOffset(2026, 9, 6, 5, 0, 0, TimeSpan.Zero));
+
+        _dbContext.ChangeTracker.Clear();
+        var afterUpdate = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Null(afterUpdate.ReadAtUtc);
+    }
+
     [Fact]
     public async Task EnableAsync_TogglesIsEnabledAndUpdatesTimestampAndVersion()
     {
@@ -518,6 +634,27 @@ public sealed class RepeatPurchaseStoreIntegrationTests : IAsyncLifetime
         Assert.Equal(reloaded!.Version, disabled.Version);
         Assert.False(reloaded.IsEnabled);
         Assert.Equal(updatedAtUtc, reloaded.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task DisableAsync_MarksAnyExistingUnreadDueNotificationForThatRepeatPurchaseAsRead()
+    {
+        var store = NewStore();
+        var created = await store.CreateAsync(
+            _userId, Fields(nextPurchaseDate: new DateOnly(2026, 9, 1)), DateTimeOffset.UtcNow);
+        var notificationStore = new NotificationStore(_dbContext);
+        await notificationStore.MaterializeDueAsync(
+            _userId, "UTC", new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero));
+        _dbContext.ChangeTracker.Clear();
+        var beforeDisable = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Null(beforeDisable.ReadAtUtc);
+
+        var updatedAtUtc = new DateTimeOffset(2026, 9, 1, 5, 0, 0, TimeSpan.Zero);
+        await store.DisableAsync(_userId, created.Id, updatedAtUtc);
+
+        _dbContext.ChangeTracker.Clear();
+        var afterDisable = Assert.Single((await notificationStore.ListAsync(_userId, cursor: null, limit: 50)).Notifications);
+        Assert.Equal(updatedAtUtc, afterDisable.ReadAtUtc);
     }
 
     [Fact]

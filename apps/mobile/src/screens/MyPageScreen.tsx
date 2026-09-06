@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { NotificationBellButton } from '../notifications/NotificationBellButton';
 
 /**
  * First-pass shell for the 내 페이지 tab. There is no per-user profile endpoint yet (no
@@ -20,7 +21,10 @@ export function MyPageScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <View style={styles.content}>
-        <Text style={styles.title}>{t('myPage.title')}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{t('myPage.title')}</Text>
+          <NotificationBellButton />
+        </View>
 
         <Text style={styles.sectionTitle}>{t('myPage.activity')}</Text>
         <Pressable
@@ -71,6 +75,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 22,

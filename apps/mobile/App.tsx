@@ -15,6 +15,7 @@ import './src/i18n';
 import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
 import { linking } from './src/navigation/linking';
 import { RootStack } from './src/navigation/RootStack';
+import { NotificationBadgeProvider } from './src/notifications/NotificationBadgeContext';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -40,7 +41,9 @@ function App() {
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       {isLanguageReady ? (
         <AuthProvider>
-          <AppNavigation />
+          <NotificationBadgeProvider>
+            <AppNavigation />
+          </NotificationBadgeProvider>
         </AuthProvider>
       ) : (
         <View style={styles.container}>

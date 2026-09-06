@@ -68,6 +68,18 @@ public sealed class LogPurchaseStore(JupleDbContext dbContext) : ILogPurchaseSto
 
         repeatPurchase.RecordPurchase(nextPurchaseDate, nowUtc);
 
+        // A real purchase against this RepeatPurchase resolves whatever due notification(s) it had -
+        // an unread "buy this again" reminder makes no sense once the user just bought it. Runs
+        // inside this same transaction so a rollback (e.g. a concurrency conflict below) undoes this
+        // too, never leaving notifications marked read for a schedule advance that didn't happen.
+        await dbContext.Notifications
+            .Where(notification =>
+                notification.UserId == userId
+                && notification.RepeatPurchaseId == repeatPurchaseId
+                && notification.ReadAtUtc == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(notification => notification.ReadAtUtc, nowUtc), cancellationToken);
+
         // Forces the RepeatPurchase UPDATE's WHERE clause to check the client's last-read version -
         // a mismatch (including one caused by a concurrent Item-delete cascade, see above) means
         // this call must not silently overwrite a change the client never saw, and the whole

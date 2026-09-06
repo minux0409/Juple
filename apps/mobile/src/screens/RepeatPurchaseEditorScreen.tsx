@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { useNotificationBadge } from '../notifications/NotificationBadgeContext';
 import {
   createRepeatPurchase,
   updateRepeatPurchase,
@@ -73,6 +74,7 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
   const isEditMode = repeatPurchaseId !== undefined && initialRepeatPurchase !== undefined;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
+  const { refresh: refreshNotificationBadge } = useNotificationBadge();
 
   const intervalUnitOptions: ReadonlyArray<{ value: IntervalUnit; label: string }> = [
     { value: 'day', label: t('repeatPurchase.unitDayLabel') },
@@ -158,6 +160,11 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
           reminderLeadDays: 0,
         });
       }
+      // The Backend may have just resolved a stale due notification (NextPurchaseDate changed) or
+      // made a new one materializable (NextPurchaseDate now due) - see RepeatPurchaseStore.
+      // UpdateAsync/CreateAsync's own notification-lifecycle handling. Refresh so the badge never
+      // lags behind what this save just did; skipped entirely on a failed save below.
+      refreshNotificationBadge();
       navigation.goBack();
     } catch (caughtError) {
       setError(getSaveErrorMessage(caughtError, isEditMode, t));

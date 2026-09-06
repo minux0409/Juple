@@ -133,6 +133,18 @@ public sealed class RepeatPurchaseStore(JupleDbContext dbContext) : IRepeatPurch
         return ToDto(repeatPurchase);
     }
 
+    /// <summary>
+    /// When NextPurchaseDate actually changes, resolves this RepeatPurchase's existing unread due
+    /// notification(s) - a schedule that just moved is no longer the same due cycle those rows were
+    /// about, so leaving them unread would be a stale "action needed" the user already addressed by
+    /// editing the date (mirrors LogPurchaseStore/DisableAsync's identical reasoning). If the new
+    /// date is itself already due, the next materialize call creates a fresh row for it under its
+    /// own DueDate - never done here, this method only ever resolves the old one. Editing anything
+    /// else (ProductName, interval, ItemId) while NextPurchaseDate stays the same must never touch
+    /// notifications - the comparison below is deliberately scoped to that one field. Both writes
+    /// share one explicit transaction so a concurrency conflict rolls back the notification
+    /// resolution too, never leaving one resolved for an update that didn't actually commit.
+    /// </summary>
     public async Task<RepeatPurchaseDto> UpdateAsync(
         long userId,
         long repeatPurchaseId,
@@ -141,6 +153,8 @@ public sealed class RepeatPurchaseStore(JupleDbContext dbContext) : IRepeatPurch
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         var repeatPurchase = await dbContext.RepeatPurchases
             .FirstOrDefaultAsync(
                 repeatPurchase => repeatPurchase.Id == repeatPurchaseId && repeatPurchase.UserId == userId,
@@ -151,6 +165,8 @@ public sealed class RepeatPurchaseStore(JupleDbContext dbContext) : IRepeatPurch
         }
 
         await EnsureItemOwnedIfProvidedAsync(userId, fields.ItemId, cancellationToken);
+
+        var nextPurchaseDateChanged = repeatPurchase.NextPurchaseDate != fields.NextPurchaseDate;
 
         repeatPurchase.Update(
             fields.ItemId,
@@ -181,6 +197,20 @@ public sealed class RepeatPurchaseStore(JupleDbContext dbContext) : IRepeatPurch
             throw new ItemNotFoundException();
         }
 
+        if (nextPurchaseDateChanged)
+        {
+            await dbContext.Notifications
+                .Where(notification =>
+                    notification.UserId == userId
+                    && notification.RepeatPurchaseId == repeatPurchaseId
+                    && notification.ReadAtUtc == null)
+                .ExecuteUpdateAsync(
+                    setters => setters.SetProperty(notification => notification.ReadAtUtc, updatedAtUtc),
+                    cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
         return ToDto(repeatPurchase);
     }
 
@@ -191,12 +221,54 @@ public sealed class RepeatPurchaseStore(JupleDbContext dbContext) : IRepeatPurch
         CancellationToken cancellationToken = default) =>
         TransitionAsync(userId, repeatPurchaseId, repeatPurchase => repeatPurchase.Enable(updatedAtUtc), cancellationToken);
 
-    public Task<RepeatPurchaseDto> DisableAsync(
+    /// <summary>
+    /// Unlike EnableAsync (which reuses the shared TransitionAsync), Disable also resolves whatever
+    /// unread due notification(s) this RepeatPurchase currently has - a paused schedule is no
+    /// longer action-needed, so its badge/inbox presence should not linger (mirrors LogPurchaseStore's
+    /// identical reasoning for a real purchase). Both writes run inside one explicit transaction so a
+    /// concurrency conflict below rolls back the notification read-marking too, never leaving
+    /// notifications resolved for a disable that didn't actually happen.
+    /// </summary>
+    public async Task<RepeatPurchaseDto> DisableAsync(
         long userId,
         long repeatPurchaseId,
         DateTimeOffset updatedAtUtc,
-        CancellationToken cancellationToken = default) =>
-        TransitionAsync(userId, repeatPurchaseId, repeatPurchase => repeatPurchase.Disable(updatedAtUtc), cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var repeatPurchase = await dbContext.RepeatPurchases
+            .FirstOrDefaultAsync(
+                repeatPurchase => repeatPurchase.Id == repeatPurchaseId && repeatPurchase.UserId == userId,
+                cancellationToken);
+        if (repeatPurchase is null)
+        {
+            throw new RepeatPurchaseNotFoundException();
+        }
+
+        repeatPurchase.Disable(updatedAtUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new RepeatPurchaseConcurrencyException(exception);
+        }
+
+        await dbContext.Notifications
+            .Where(notification =>
+                notification.UserId == userId
+                && notification.RepeatPurchaseId == repeatPurchaseId
+                && notification.ReadAtUtc == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(notification => notification.ReadAtUtc, updatedAtUtc), cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return ToDto(repeatPurchase);
+    }
 
     // Returns the post-transition row (including its current RowVersion, unchanged on a no-op
     // idempotent call) so the caller never ends up holding a version that went stale the instant

@@ -57,7 +57,8 @@
     "repeatPurchaseDetails": "Repeat Purchase Details",
     "repeatPurchaseLogPurchase": "Log Purchase",
     "sharedCollection": "Shared Collection",
-    "recentlyOpenedLinks": "Recently opened links"
+    "recentlyOpenedLinks": "Recently opened links",
+    "notifications": "Notifications"
   },
   "inbox": {
     "title": "Links saved today",
@@ -269,5 +270,13 @@
     "errorLoadFallback": "Couldn't load recently opened links.",
     "errorDeleteFallback": "Couldn't remove this entry.",
     "errorDeleteAllFallback": "Couldn't clear recently opened links."
+  },
+  "notifications": {
+    "empty": "No notifications yet.",
+    "markAllRead": "Mark all read",
+    "repeatPurchaseDueFallbackTitle": "Repeat purchase reminder",
+    "repeatPurchaseDueMessage": "Time to buy again ({{date}})",
+    "errorLoadFallback": "Couldn't load notifications.",
+    "errorActionFallback": "Couldn't complete this request."
   }
 }

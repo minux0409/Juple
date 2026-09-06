@@ -6,6 +6,7 @@ import type { BackendAuthStatus, UserBootstrapStatus } from '../auth/types';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
 import { PurchaseHistoryScreen } from '../screens/PurchaseHistoryScreen';
@@ -33,6 +34,8 @@ export type RootStackParamList = {
   PurchaseHistory: undefined;
   /** My Page → "최근 본 링크" - the screen fetches the current page itself via GET. */
   RecentlyOpenedLinks: undefined;
+  /** Notification Center - reachable via the 🔔 bell on each main tab screen (see NotificationBellButton). */
+  Notifications: undefined;
   /**
    * Create mode: itemId/initialProductName are both optional - present when reached from
    * ItemDetailsScreen (a suggested initial value only, never confirmed automatically), absent when
@@ -147,6 +150,11 @@ export function RootStack() {
             component={RecentlyOpenedLinksScreen}
             name="RecentlyOpenedLinks"
             options={{ title: t('nav.recentlyOpenedLinks') }}
+          />
+          <Stack.Screen
+            component={NotificationsScreen}
+            name="Notifications"
+            options={{ title: t('nav.notifications') }}
           />
           <Stack.Screen
             component={PurchaseEditorScreen}

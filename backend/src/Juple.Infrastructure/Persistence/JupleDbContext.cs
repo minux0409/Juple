@@ -2,6 +2,7 @@ using Juple.Domain.Collections;
 using Juple.Domain.Identity;
 using Juple.Domain.Images;
 using Juple.Domain.Items;
+using Juple.Domain.Notifications;
 using Juple.Domain.Purchases;
 using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<CollectionItem> CollectionItems => Set<CollectionItem>();
 
     public DbSet<CollectionShare> CollectionShares => Set<CollectionShare>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -18,6 +18,7 @@ import { groupHistoryByLocalDate } from '../items/historyDateGrouping';
 import { useItemHistory } from '../items/useItemHistory';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { NotificationBellButton } from '../notifications/NotificationBellButton';
 
 function formatSavedTime(savedAtUtc: string): string {
   return new Intl.DateTimeFormat(i18n.language, {
@@ -61,7 +62,10 @@ export function DateHistoryScreen() {
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <View>
-            <Text style={styles.title}>{t('history.title')}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{t('history.title')}</Text>
+              <NotificationBellButton />
+            </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
@@ -132,6 +136,11 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     padding: 24,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 22,

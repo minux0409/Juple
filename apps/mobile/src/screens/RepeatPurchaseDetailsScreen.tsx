@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { useNotificationBadge } from '../notifications/NotificationBadgeContext';
 import {
   deleteRepeatPurchase,
   disableRepeatPurchase,
@@ -65,6 +66,7 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
   const { repeatPurchaseId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
+  const { refresh: refreshNotificationBadge } = useNotificationBadge();
 
   const [repeatPurchase, setRepeatPurchase] = useState<RepeatPurchase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,6 +137,10 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
         ? await disableRepeatPurchase(authenticatedRequest, repeatPurchase.id)
         : await enableRepeatPurchase(authenticatedRequest, repeatPurchase.id);
       setRepeatPurchase(updated);
+      // Disabling resolves this RepeatPurchase's unread due notification(s) server-side (see
+      // RepeatPurchaseStore.DisableAsync) - refresh so the badge never lags behind what the user
+      // just did. Harmless (a no-op count-wise) on the enable path too.
+      refreshNotificationBadge();
     } catch (caughtError) {
       // Failure leaves the existing state/version exactly as they were - never toggled locally,
       // never silently retried.
@@ -155,6 +161,9 @@ export function RepeatPurchaseDetailsScreen({ route, navigation }: Props) {
     setError(null);
     try {
       await deleteRepeatPurchase(authenticatedRequest, repeatPurchaseId);
+      // The Backend cascades this RepeatPurchase's notification history away with it (see
+      // NotificationConfiguration) - refresh so the badge never lags behind what the user just did.
+      refreshNotificationBadge();
       navigation.goBack();
     } catch (caughtError) {
       setError(getDeleteErrorMessage(caughtError, t));
