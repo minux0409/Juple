@@ -1,8 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
-import type { ItemCategory } from '../../categories/api/categoriesApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
-
-export type ItemDetailState = 'inbox' | 'wishlist' | 'archived';
 
 export interface ItemDetails {
   readonly id: number;
@@ -10,23 +7,15 @@ export interface ItemDetails {
   readonly title: string | null;
   readonly memo: string | null;
   readonly savedAtUtc: string;
-  readonly state: ItemDetailState;
-  readonly stateChangedAtUtc: string;
-  readonly category: ItemCategory | null;
 }
 
-/**
- * A History row - the Item as it was originally saved. Deliberately has no state/stateChangedAtUtc
- * field: History spans every Inbox/Wishlist/Archived state and is never filtered or ordered by it
- * (see GET /api/v1/items/history).
- */
+/** A History row - the Item as it was originally saved. */
 export interface ItemHistoryEntry {
   readonly id: number;
   readonly url: string;
   readonly title: string | null;
   readonly memo: string | null;
   readonly savedAtUtc: string;
-  readonly category: ItemCategory | null;
   readonly representativeImage: RepresentativeImage | null;
 }
 
@@ -41,10 +30,7 @@ export interface GetItemHistoryOptions {
   readonly cursor?: string;
 }
 
-/**
- * All Items the user has ever saved, newest-saved-first, regardless of current
- * Inbox/Wishlist/Archived state.
- */
+/** All Items the user has ever saved, newest-saved-first. */
 export async function getItemHistory(
   request: AuthenticatedApiRequest,
   options: GetItemHistoryOptions = {},
@@ -83,13 +69,12 @@ export interface GetItemHistoryByDateOptions {
 }
 
 /**
- * Items saved on a single local calendar date, regardless of current Inbox/Wishlist/Archived
- * state - powers Home ("오늘 저장한 링크"), which is the same underlying concept as History's "오늘"
- * section, just windowed to one day instead of open-ended. date must be a `YYYY-MM-DD` local
- * calendar date (e.g. from formatDateOnly(new Date())); the Backend converts it to a UTC range
- * using the current user's own timezone. Cursor-paginated exactly like getItemHistory - a day's
- * worth of Items is unbounded, so callers must page via nextCursor rather than assuming one
- * response has everything.
+ * Items saved on a single local calendar date - powers Home ("오늘 저장한 링크"), which is the same
+ * underlying concept as History's "오늘" section, just windowed to one day instead of open-ended.
+ * date must be a `YYYY-MM-DD` local calendar date (e.g. from formatDateOnly(new Date())); the
+ * Backend converts it to a UTC range using the current user's own timezone. Cursor-paginated
+ * exactly like getItemHistory - a day's worth of Items is unbounded, so callers must page via
+ * nextCursor rather than assuming one response has everything.
  */
 export async function getItemHistoryByDate(
   request: AuthenticatedApiRequest,

@@ -60,30 +60,6 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetByDateRangeAsync_IncludesItemsRegardlessOfCurrentState()
-    {
-        var store = new ItemStore(_dbContext);
-        var fromUtc = new DateTimeOffset(2026, 8, 30, 0, 0, 0, TimeSpan.Zero);
-        var toUtc = fromUtc.AddDays(1);
-
-        var inboxItem = await SaveAsync(store, "https://shop.example/history-date-state-inbox", fromUtc.AddHours(1));
-        var wishlistItem = await SaveAsync(
-            store, "https://shop.example/history-date-state-wishlist", fromUtc.AddHours(2));
-        var archivedItem = await SaveAsync(
-            store, "https://shop.example/history-date-state-archived", fromUtc.AddHours(3));
-
-        await store.MoveToWishlistAsync(_userId, wishlistItem, DateTimeOffset.UtcNow);
-        await store.MoveToArchiveAsync(_userId, archivedItem, DateTimeOffset.UtcNow);
-
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
-
-        var returnedIds = page.Items.Select(item => item.Id).ToList();
-        Assert.Contains(inboxItem, returnedIds);
-        Assert.Contains(wishlistItem, returnedIds);
-        Assert.Contains(archivedItem, returnedIds);
-    }
-
-    [Fact]
     public async Task GetByDateRangeAsync_ExcludesDeletedItems()
     {
         var store = new ItemStore(_dbContext);

@@ -11,8 +11,8 @@ public sealed class GetItemHistoryByDateServiceTests
     {
         var expectedItems = new List<ItemHistoryEntryDto>
         {
-            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero), null, null),
-            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero), null, null),
+            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero), null),
+            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero), null),
         };
         var store = new FakeItemHistoryQueryStore { DateRangeItems = expectedItems };
         var service = new GetItemHistoryByDateService(store, new FakeItemImageStorage());
@@ -69,7 +69,7 @@ public sealed class GetItemHistoryByDateServiceTests
         var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
         var items = new List<ItemHistoryEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeItemHistoryQueryStore
@@ -91,7 +91,7 @@ public sealed class GetItemHistoryByDateServiceTests
     {
         var items = new List<ItemHistoryEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
         };
         var store = new FakeItemHistoryQueryStore { DateRangeItems = items };
         var imageStorage = new FakeItemImageStorage();
@@ -108,7 +108,7 @@ public sealed class GetItemHistoryByDateServiceTests
     {
         var items = new List<ItemHistoryEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeItemHistoryQueryStore

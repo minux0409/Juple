@@ -55,48 +55,6 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetHistoryAsync_IncludesItemsRegardlessOfCurrentState()
-    {
-        var store = new ItemStore(_dbContext);
-        var inboxItem = await SaveAsync(store, "https://shop.example/history-state-inbox");
-        var wishlistItem = await SaveAsync(store, "https://shop.example/history-state-wishlist");
-        var archivedItem = await SaveAsync(store, "https://shop.example/history-state-archived");
-
-        await store.MoveToWishlistAsync(_userId, wishlistItem, DateTimeOffset.UtcNow);
-        await store.MoveToArchiveAsync(_userId, archivedItem, DateTimeOffset.UtcNow);
-
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
-
-        var returnedIds = page.Items.Select(item => item.Id).ToList();
-        Assert.Contains(inboxItem, returnedIds);
-        Assert.Contains(wishlistItem, returnedIds);
-        Assert.Contains(archivedItem, returnedIds);
-    }
-
-    [Fact]
-    public async Task GetHistoryAsync_StateChangeAfterSave_DoesNotMoveItInHistoryOrder()
-    {
-        // History orders by the original SavedAtUtc, never StateChangedAtUtc - moving an Item to
-        // Wishlist long after saving it must not resurface it at the top of History.
-        var store = new ItemStore(_dbContext);
-        var baseTime = DateTimeOffset.UtcNow.AddDays(-1);
-
-        var older = await store.SaveAsync(_userId, "https://shop.example/history-order-older", null, baseTime);
-        _dbContext.ChangeTracker.Clear();
-        var newer = await store.SaveAsync(
-            _userId, "https://shop.example/history-order-newer", null, baseTime.AddMinutes(1));
-        _dbContext.ChangeTracker.Clear();
-
-        // The older Item transitions to Wishlist well after the newer Item was saved - its
-        // SavedAtUtc (and hence its History position) must not change.
-        await store.MoveToWishlistAsync(_userId, older.Entry.Id, DateTimeOffset.UtcNow);
-
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
-
-        Assert.Equal(new[] { newer.Entry.Id, older.Entry.Id }, page.Items.Select(item => item.Id));
-    }
-
-    [Fact]
     public async Task GetHistoryAsync_ExcludesDeletedItems()
     {
         var store = new ItemStore(_dbContext);

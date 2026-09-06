@@ -30,8 +30,7 @@ public sealed class GetItemHistoryService(
     private async Task<RepresentativeImageDto?> ResolveRepresentativeImageAsync(
         long userId, ItemRepresentativeImageRef reference, CancellationToken cancellationToken)
     {
-        // Same degrade-gracefully policy as GetItemsByStateService/GetDailyInboxService: a
-        // failed/missing read URL drops the representative image for this one Item rather than
+        // A failed/missing read URL drops the representative image for this one Item rather than
         // failing the whole page.
         var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
         return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);

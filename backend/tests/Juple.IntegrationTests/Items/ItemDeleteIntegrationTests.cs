@@ -1,5 +1,4 @@
 using Juple.Application.Items;
-using Juple.Domain.Items;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
@@ -46,55 +45,16 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteAsync_ExistingInboxItem_RemovesFromDailyInbox()
+    public async Task DeleteAsync_ExistingItem_RemovesFromHistory()
     {
         var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(_userId, "https://shop.example/delete-inbox", null, DateTimeOffset.UtcNow);
+        var saved = await store.SaveAsync(_userId, "https://shop.example/delete-history", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await store.DeleteAsync(_userId, saved.Entry.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var (dailyItems, _) = await store.GetDailyAsync(
-            _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
-
-        Assert.DoesNotContain(dailyItems, item => item.Id == saved.Entry.Id);
-        Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
-    }
-
-    [Fact]
-    public async Task DeleteAsync_ExistingWishlistItem_RemovesFromWishlistQuery()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(
-            _userId, "https://shop.example/delete-wishlist", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-        await store.MoveToWishlistAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        await store.DeleteAsync(_userId, saved.Entry.Id);
-        _dbContext.ChangeTracker.Clear();
-
-        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
-
-        Assert.DoesNotContain(page.Items, item => item.Id == saved.Entry.Id);
-        Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
-    }
-
-    [Fact]
-    public async Task DeleteAsync_ExistingArchivedItem_RemovesFromArchiveQuery()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(
-            _userId, "https://shop.example/delete-archived", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-        await store.MoveToArchiveAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        await store.DeleteAsync(_userId, saved.Entry.Id);
-        _dbContext.ChangeTracker.Clear();
-
-        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Archived, categoryId: null, cursor: null, limit: 50);
+        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         Assert.DoesNotContain(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
@@ -175,7 +135,7 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
         await otherDbContext.Items.FirstAsync(item => item.Id == saved.Entry.Id);
 
         var concurrentLoad = await _dbContext.Items.FirstAsync(item => item.Id == saved.Entry.Id);
-        concurrentLoad.MoveToWishlist(DateTimeOffset.UtcNow);
+        concurrentLoad.UpdateDetails("Concurrent title", null);
         await _dbContext.SaveChangesAsync();
 
         await Assert.ThrowsAsync<ItemConcurrencyException>(

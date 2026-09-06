@@ -1,5 +1,4 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
-import type { ItemCategory } from '../../categories/api/categoriesApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
 
 /** A named 보관함 - an Item can belong to any number of Collections at once (unlike Category). */
@@ -13,14 +12,13 @@ export interface Collection {
   readonly updatedAtUtc: string;
 }
 
-/** One Item inside a Collection - no state field, since Collection membership is independent of Inbox/Wishlist/Archived. */
+/** One Item inside a Collection. */
 export interface CollectionItemEntry {
   readonly itemId: number;
   readonly url: string;
   readonly title: string | null;
   readonly memo: string | null;
   readonly addedAtUtc: string;
-  readonly category: ItemCategory | null;
   readonly representativeImage: RepresentativeImage | null;
 }
 

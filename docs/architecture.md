@@ -33,9 +33,8 @@ Juple/
 - Identity
 - Users
 - Inbox / Saved Links
-- Categories
 - Items
-- Wishlist
+- Collections
 - Purchases
 - Repeat Purchases
 - Notifications

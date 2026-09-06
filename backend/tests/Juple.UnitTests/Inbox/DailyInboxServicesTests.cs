@@ -1,4 +1,3 @@
-using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Inbox.GetDailyInbox;
 using Juple.Application.Inbox.SaveInboxEntry;
@@ -148,25 +147,6 @@ public sealed class DailyInboxServicesTests
     }
 
     [Fact]
-    public async Task GetAsync_FiltersUsingCurrentUserAndPreservesStoreOrder()
-    {
-        var expectedItems = new List<DailyInboxEntryDto>
-        {
-            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero), null, null),
-            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero), null, null),
-        };
-        var store = new FakeInboxEntryStore { DailyItems = expectedItems };
-        var imageStorage = new FakeItemImageStorage();
-        var service = new GetDailyInboxService(store, imageStorage, new FixedTimeProvider());
-
-        var result = await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30));
-
-        Assert.Equal(17, store.DailyUserId);
-        Assert.Equal(expectedItems, result.Items);
-        Assert.Equal(new DateOnly(2026, 8, 30), result.Date);
-    }
-
-    [Fact]
     public void Calculate_WhenDateIsDstSpringTransition_DoesNotAssumeTwentyFourHours()
     {
         var range = DailyInboxDateRangeCalculator.Calculate(
@@ -174,81 +154,6 @@ public sealed class DailyInboxServicesTests
             "America/New_York");
 
         Assert.Equal(TimeSpan.FromHours(23), range.ToUtc - range.FromUtc);
-    }
-
-    [Fact]
-    public async Task GetAsync_WhenDateIsOmitted_UsesCurrentUserLocalDate()
-    {
-        var store = new FakeInboxEntryStore();
-        var service = new GetDailyInboxService(
-            store,
-            new FakeItemImageStorage(),
-            new FixedTimeProvider(new DateTimeOffset(2026, 8, 29, 15, 30, 0, TimeSpan.Zero)));
-
-        var result = await service.GetAsync(17, "Asia/Seoul", date: null);
-
-        Assert.Equal(new DateOnly(2026, 8, 30), result.Date);
-    }
-
-    [Fact]
-    public async Task GetAsync_WhenItemHasRepresentativeImage_ResolvesReadUrl()
-    {
-        var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
-        var items = new List<DailyInboxEntryDto>
-        {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
-        };
-        var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
-        var store = new FakeInboxEntryStore
-        {
-            DailyItems = items,
-            RepresentativeImages = new Dictionary<long, ItemRepresentativeImageRef> { [41] = reference },
-        };
-        var imageStorage = new FakeItemImageStorage { ReadUrl = readUrl };
-        var service = new GetDailyInboxService(store, imageStorage, new FixedTimeProvider());
-
-        var result = await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30));
-
-        Assert.Equal(new RepresentativeImageDto(9, readUrl), result.Items[0].RepresentativeImage);
-        Assert.Equal((17L, "items/17/41/img.jpg"), imageStorage.LastCreateReadUrlCall);
-    }
-
-    [Fact]
-    public async Task GetAsync_WhenItemHasNoImage_RepresentativeImageIsNull()
-    {
-        var items = new List<DailyInboxEntryDto>
-        {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
-        };
-        var store = new FakeInboxEntryStore { DailyItems = items };
-        var imageStorage = new FakeItemImageStorage();
-        var service = new GetDailyInboxService(store, imageStorage, new FixedTimeProvider());
-
-        var result = await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30));
-
-        Assert.Null(result.Items[0].RepresentativeImage);
-        Assert.Null(imageStorage.LastCreateReadUrlCall);
-    }
-
-    [Fact]
-    public async Task GetAsync_WhenReadUrlCreationFails_RepresentativeImageIsNullButRequestStillSucceeds()
-    {
-        var items = new List<DailyInboxEntryDto>
-        {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
-        };
-        var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
-        var store = new FakeInboxEntryStore
-        {
-            DailyItems = items,
-            RepresentativeImages = new Dictionary<long, ItemRepresentativeImageRef> { [41] = reference },
-        };
-        var imageStorage = new FakeItemImageStorage { ReadUrl = null };
-        var service = new GetDailyInboxService(store, imageStorage, new FixedTimeProvider());
-
-        var result = await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30));
-
-        Assert.Null(result.Items[0].RepresentativeImage);
     }
 
     private sealed class FakeInboxEntryStore : IInboxEntryStore
@@ -259,13 +164,6 @@ public sealed class DailyInboxServicesTests
         public long? SavedUserId { get; private set; }
 
         public string? SavedUrl { get; private set; }
-
-        public long? DailyUserId { get; private set; }
-
-        public IReadOnlyList<DailyInboxEntryDto> DailyItems { get; init; } = [];
-
-        public IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages { get; init; } =
-            new Dictionary<long, ItemRepresentativeImageRef>();
 
         public Task<InboxEntrySaveResult> SaveAsync(
             long userId,
@@ -297,32 +195,6 @@ public sealed class DailyInboxServicesTests
 
             return Task.FromResult(new InboxEntrySaveResult(
                 new InboxEntryDto(_nextId++, url, savedAtUtc), Created: true));
-        }
-
-        public Task<(IReadOnlyList<DailyInboxEntryDto> Items, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetDailyAsync(
-            long userId,
-            DateTimeOffset fromUtc,
-            DateTimeOffset toUtc,
-            CancellationToken cancellationToken = default)
-        {
-            DailyUserId = userId;
-            return Task.FromResult((DailyItems, RepresentativeImages));
-        }
-    }
-
-    private sealed class FakeItemImageStorage : IItemImageStorage
-    {
-        public Uri? ReadUrl { get; init; }
-
-        public (long UserId, string BlobName)? LastCreateReadUrlCall { get; private set; }
-
-        public Task DeleteItemBlobsAsync(long userId, long itemId, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-
-        public Task<Uri?> CreateReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default)
-        {
-            LastCreateReadUrlCall = (userId, blobName);
-            return Task.FromResult(ReadUrl);
         }
     }
 

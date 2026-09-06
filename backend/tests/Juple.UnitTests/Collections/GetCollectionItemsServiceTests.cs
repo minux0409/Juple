@@ -49,7 +49,7 @@ public sealed class GetCollectionItemsServiceTests
         var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
         var items = new List<CollectionItemEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeCollectionItemStore
@@ -71,7 +71,7 @@ public sealed class GetCollectionItemsServiceTests
     {
         var items = new List<CollectionItemEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
         };
         var store = new FakeCollectionItemStore { Items = items };
         var imageStorage = new FakeItemImageStorage();

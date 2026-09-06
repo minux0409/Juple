@@ -4,7 +4,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
 using Juple.Application.Images;
 using Juple.Application.Items;
-using Juple.Domain.Items;
+using Juple.Application.Items.GetItemHistory;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Images;
 using Juple.Infrastructure.Items;
@@ -128,16 +128,15 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetByStateAsync_RepresentativeImage_IsSortOrderAscIdAscFirst()
+    public async Task GetHistoryAsync_RepresentativeImage_IsSortOrderAscIdAscFirst()
     {
         var item = await SaveItemAsync();
-        await _itemStore.MoveToWishlistAsync(_userId, item, DateTimeOffset.UtcNow);
         var first = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var second = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, representativeImages) = await _itemStore.GetByStateAsync(
-            _userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var (page, representativeImages) = await _itemStore.GetHistoryAsync(
+            _userId, cursor: null, limit: 50);
 
         Assert.True(representativeImages.TryGetValue(item, out var reference));
         Assert.Equal(first.Id, reference!.ImageId);
@@ -146,28 +145,25 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetByStateAsync_ItemWithNoImages_HasNoRepresentativeImageEntry()
+    public async Task GetHistoryAsync_ItemWithNoImages_HasNoRepresentativeImageEntry()
     {
         var item = await SaveItemAsync();
-        await _itemStore.MoveToWishlistAsync(_userId, item, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
 
-        var (_, representativeImages) = await _itemStore.GetByStateAsync(
-            _userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var (_, representativeImages) = await _itemStore.GetHistoryAsync(
+            _userId, cursor: null, limit: 50);
 
         Assert.False(representativeImages.ContainsKey(item));
     }
 
     [Fact]
-    public async Task GetByStateAsync_ResolvedThroughApplicationService_PopulatesReadUrlForRepresentativeImage()
+    public async Task GetHistoryAsync_ResolvedThroughApplicationService_PopulatesReadUrlForRepresentativeImage()
     {
         var item = await SaveItemAsync();
-        await _itemStore.MoveToWishlistAsync(_userId, item, DateTimeOffset.UtcNow);
         await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var service = new Juple.Application.Items.GetItemsByState.GetItemsByStateService(_itemStore, _imageStore);
-        var page = await service.GetAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var service = new GetItemHistoryService(_itemStore, _imageStore);
+        var page = await service.GetAsync(_userId, cursor: null, limit: 50);
 
         var entry = Assert.Single(page.Items, entry => entry.Id == item);
         Assert.NotNull(entry.RepresentativeImage);
@@ -199,22 +195,22 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetDailyAsync_RepresentativeImage_MatchesFirstUploadedImage()
+    public async Task GetHistoryAsync_RepresentativeImage_MatchesFirstUploadedImage()
     {
         var item = await SaveItemAsync();
         var first = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (_, representativeImages) = await _itemStore.GetDailyAsync(
-            _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        var (_, representativeImages) = await _itemStore.GetHistoryAsync(
+            _userId, cursor: null, limit: 50);
 
         Assert.True(representativeImages.TryGetValue(item, out var reference));
         Assert.Equal(first.Id, reference!.ImageId);
     }
 
     [Fact]
-    public async Task GetByStateAsync_QueryingItemsWithImages_ExecutesExactlyOneDbCommand()
+    public async Task GetHistoryAsync_QueryingItemsWithImages_ExecutesExactlyOneDbCommand()
     {
         var interceptor = new CountingCommandInterceptor();
         var options = new DbContextOptionsBuilder<JupleDbContext>()
@@ -233,9 +229,6 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         var itemA = await SaveItemAsync();
         var itemB = await SaveItemAsync();
         var itemC = await SaveItemAsync();
-        await _itemStore.MoveToWishlistAsync(_userId, itemA, DateTimeOffset.UtcNow);
-        await _itemStore.MoveToWishlistAsync(_userId, itemB, DateTimeOffset.UtcNow);
-        await _itemStore.MoveToWishlistAsync(_userId, itemC, DateTimeOffset.UtcNow);
         await _imageStore.UploadAsync(_userId, itemA, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         await _imageStore.UploadAsync(_userId, itemB, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         // itemC deliberately has no image, to prove the query handles a mix without extra round trips.
@@ -243,8 +236,8 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         countedDbContext.ChangeTracker.Clear();
 
         interceptor.ExecutedCommandCount = 0;
-        var (page, representativeImages) = await countedItemStore.GetByStateAsync(
-            _userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
+        var (page, representativeImages) = await countedItemStore.GetHistoryAsync(
+            _userId, cursor: null, limit: 50);
 
         // One SQL statement for the whole page (the representative image is a correlated
         // subquery/OUTER APPLY inside it) - never one query per Item.

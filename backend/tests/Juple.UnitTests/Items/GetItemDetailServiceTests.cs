@@ -1,7 +1,6 @@
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Items.GetItemDetail;
-using Juple.Domain.Items;
 
 namespace Juple.UnitTests.Items;
 
@@ -11,8 +10,7 @@ public sealed class GetItemDetailServiceTests
     public async Task GetAsync_WhenItemExists_ReturnsDetails()
     {
         var expected = new ItemDetailsDto(
-            41, "https://shop.example/item", "My Title", "My memo", DateTimeOffset.UtcNow,
-            ItemState.Wishlist, DateTimeOffset.UtcNow, new ItemCategoryDto(9, "Electronics"), null);
+            41, "https://shop.example/item", "My Title", "My memo", DateTimeOffset.UtcNow, null);
         var store = new FakeItemDetailQueryStore { Details = expected };
         var imageStorage = new FakeItemImageStorage();
         var service = new GetItemDetailService(store, imageStorage);
@@ -38,8 +36,7 @@ public sealed class GetItemDetailServiceTests
     {
         var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
         var expected = new ItemDetailsDto(
-            41, "https://shop.example/item", null, null, DateTimeOffset.UtcNow,
-            ItemState.Wishlist, DateTimeOffset.UtcNow, null, null);
+            41, "https://shop.example/item", null, null, DateTimeOffset.UtcNow, null);
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeItemDetailQueryStore { Details = expected, RepresentativeImage = reference };
         var imageStorage = new FakeItemImageStorage { ReadUrl = readUrl };
@@ -55,8 +52,7 @@ public sealed class GetItemDetailServiceTests
     public async Task GetAsync_WhenItemHasNoImage_RepresentativeImageIsNull()
     {
         var expected = new ItemDetailsDto(
-            41, "https://shop.example/item", null, null, DateTimeOffset.UtcNow,
-            ItemState.Wishlist, DateTimeOffset.UtcNow, null, null);
+            41, "https://shop.example/item", null, null, DateTimeOffset.UtcNow, null);
         var store = new FakeItemDetailQueryStore { Details = expected };
         var imageStorage = new FakeItemImageStorage();
         var service = new GetItemDetailService(store, imageStorage);
@@ -71,8 +67,7 @@ public sealed class GetItemDetailServiceTests
     public async Task GetAsync_WhenReadUrlCreationFails_RepresentativeImageIsNullButRequestStillSucceeds()
     {
         var expected = new ItemDetailsDto(
-            41, "https://shop.example/item", null, null, DateTimeOffset.UtcNow,
-            ItemState.Wishlist, DateTimeOffset.UtcNow, null, null);
+            41, "https://shop.example/item", null, null, DateTimeOffset.UtcNow, null);
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeItemDetailQueryStore { Details = expected, RepresentativeImage = reference };
         var imageStorage = new FakeItemImageStorage { ReadUrl = null };

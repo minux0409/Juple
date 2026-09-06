@@ -1,4 +1,3 @@
-using Juple.Domain.Items;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
@@ -55,7 +54,6 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
         Assert.Null(details.Title);
         Assert.Null(details.Memo);
         Assert.Equal(saved.Entry.Url, details.Url);
-        Assert.Equal(ItemState.Inbox, details.State);
     }
 
     [Fact]
@@ -73,49 +71,6 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
         Assert.NotNull(details);
         Assert.Equal("My Title", details.Title);
         Assert.Equal("My memo", details.Memo);
-    }
-
-    [Fact]
-    public async Task GetDetailsAsync_WhenItemIsInInbox_ReturnsInboxState()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(
-            _userId, "https://shop.example/detail-c", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        var (details, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
-
-        Assert.Equal(ItemState.Inbox, details!.State);
-    }
-
-    [Fact]
-    public async Task GetDetailsAsync_WhenItemIsInWishlist_ReturnsWishlistState()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(
-            _userId, "https://shop.example/detail-d", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-        await store.MoveToWishlistAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        var (details, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
-
-        Assert.Equal(ItemState.Wishlist, details!.State);
-    }
-
-    [Fact]
-    public async Task GetDetailsAsync_WhenItemIsArchived_ReturnsArchivedState()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(
-            _userId, "https://shop.example/detail-e", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-        await store.MoveToArchiveAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        var (details, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
-
-        Assert.Equal(ItemState.Archived, details!.State);
     }
 
     [Fact]

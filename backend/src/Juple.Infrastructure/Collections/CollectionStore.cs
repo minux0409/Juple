@@ -256,9 +256,6 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             // depth ownership check, not just a join condition.
             join item in dbContext.Items.AsNoTracking().Where(item => item.UserId == userId)
                 on membership.ItemId equals item.Id
-            join category in dbContext.Categories.AsNoTracking()
-                on item.CategoryId equals category.Id into categoryJoin
-            from category in categoryJoin.DefaultIfEmpty()
             orderby membership.AddedAtUtc descending, membership.ItemId descending
             select new
             {
@@ -267,7 +264,6 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 item.Title,
                 item.Memo,
                 membership.AddedAtUtc,
-                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
@@ -286,7 +282,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         foreach (var row in pageRows)
         {
             items.Add(new CollectionItemEntryDto(
-                row.Id, row.Url, row.Title, row.Memo, row.AddedAtUtc, row.Category,
+                row.Id, row.Url, row.Title, row.Memo, row.AddedAtUtc,
                 RepresentativeImage: null));
             if (row.RepresentativeImage is not null)
             {

@@ -9,8 +9,7 @@ namespace Juple.Application.RepeatPurchases;
 /// CK_RepeatPurchases_ProductName_NotWhitespaceOnly). IntervalUnit is not re-validated here: by the
 /// time a caller reaches this normalizer, it has already been parsed from the wire by
 /// IntervalUnitWireFormat.TryParse, which only ever returns one of the three defined values -
-/// mirrors how ItemsQueryParameters.TryParseState fully owns state validation with nothing
-/// downstream re-checking it.
+/// nothing downstream re-checks it.
 /// </summary>
 internal static class RepeatPurchaseFieldsNormalizer
 {

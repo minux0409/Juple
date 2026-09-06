@@ -4,17 +4,14 @@ using Juple.Application.Inbox.GetDailyInbox;
 namespace Juple.Application.Items.GetItemHistoryByDate;
 
 /// <summary>
-/// Reuses DailyInboxDateRangeCalculator - the exact same local-date-to-UTC-window conversion
-/// GetDailyInbox already uses (TimeZoneInfo-based, never a UTC substring) - so "date" means the
-/// identical thing for Home's saved-today query as it does for the legacy Inbox-state endpoint.
-/// timeZoneId is always the caller's CurrentJupleUser.TimeZoneId (the User's stored bootstrap
-/// timezone) - never a second, independently-sourced timezone value.
+/// Reuses DailyInboxDateRangeCalculator - a TimeZoneInfo-based local-date-to-UTC-window
+/// conversion, never a UTC substring. timeZoneId is always the caller's CurrentJupleUser.TimeZoneId
+/// (the User's stored bootstrap timezone) - never a second, independently-sourced timezone value.
 ///
 /// Known edge (not addressed here - see product-overview.md's device-Intl-timezone bootstrap
 /// flow): if the device's timezone changes mid-session, User.TimeZoneId only catches up on the
 /// next bootstrap call, so Mobile's live device-local "today" and this endpoint's stored
-/// timeZoneId can disagree briefly. Same pre-existing behavior as GetDailyInboxService already
-/// has; not a regression introduced by Home reusing it.
+/// timeZoneId can disagree briefly.
 /// </summary>
 public sealed class GetItemHistoryByDateService(
     IItemHistoryQueryStore itemHistoryQueryStore,
@@ -47,9 +44,8 @@ public sealed class GetItemHistoryByDateService(
     private async Task<RepresentativeImageDto?> ResolveRepresentativeImageAsync(
         long userId, ItemRepresentativeImageRef reference, CancellationToken cancellationToken)
     {
-        // Same degrade-gracefully policy as GetDailyInboxService/GetItemHistoryService: a
-        // failed/missing read URL drops the representative image for this one Item rather than
-        // failing the whole response.
+        // Same degrade-gracefully policy as GetItemHistoryService: a failed/missing read URL drops
+        // the representative image for this one Item rather than failing the whole response.
         var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
         return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
     }

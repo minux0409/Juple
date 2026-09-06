@@ -5,8 +5,7 @@ namespace Juple.Application.Items;
 public interface IItemHistoryQueryStore
 {
     /// <summary>
-    /// All Items owned by userId regardless of current State (Inbox/Wishlist/Archived), ordered by
-    /// SavedAtUtc DESC, Id DESC - the original save moment, never the current-state timestamp.
+    /// All Items owned by userId, ordered by SavedAtUtc DESC, Id DESC - the original save moment.
     /// Deleted Items are hard-deleted (see ItemStore.DeleteAsync), so no extra exclusion filter is
     /// needed here. Each returned ItemHistoryEntryDto.RepresentativeImage is always null here -
     /// representative images are keyed by Item Id in the second tuple element (raw BlobName refs,
@@ -20,11 +19,9 @@ public interface IItemHistoryQueryStore
 
     /// <summary>
     /// Items saved (SavedAtUtc) within [fromUtc, toUtc) - a single local calendar date's UTC
-    /// window, computed by the caller via DailyInboxDateRangeCalculator (the same one
-    /// GetDailyInbox already uses) so "today" means the identical thing here as it does for the
-    /// legacy Inbox-state endpoint. No State filter. Cursor-paginated using the exact same keyset
-    /// cursor/ordering as GetHistoryAsync (SavedAtUtc DESC, Id DESC) - a day's worth of Items is
-    /// unbounded, so this must never return the whole date range in one response.
+    /// window, computed by the caller via DailyInboxDateRangeCalculator. Cursor-paginated using the
+    /// exact same keyset cursor/ordering as GetHistoryAsync (SavedAtUtc DESC, Id DESC) - a day's
+    /// worth of Items is unbounded, so this must never return the whole date range in one response.
     /// </summary>
     Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByDateRangeAsync(
         long userId,

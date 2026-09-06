@@ -1,4 +1,3 @@
-using Juple.Application.Categories;
 using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
@@ -10,8 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Juple.Infrastructure.Items;
 
 public sealed class ItemStore(JupleDbContext dbContext) :
-    IInboxEntryStore, IItemLifecycleStore, IItemQueryStore, IItemDetailsStore, IItemDetailQueryStore,
-    IItemCategoryStore, IItemHistoryQueryStore
+    IInboxEntryStore, IItemLifecycleStore, IItemDetailsStore, IItemDetailQueryStore, IItemHistoryQueryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -70,58 +68,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         return new InboxEntrySaveResult(new InboxEntryDto(item.Id, item.Url, item.SavedAtUtc), Created: true);
     }
 
-    public async Task<(IReadOnlyList<DailyInboxEntryDto> Items, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetDailyAsync(
-        long userId,
-        DateTimeOffset fromUtc,
-        DateTimeOffset toUtc,
-        CancellationToken cancellationToken = default)
-    {
-        var query =
-            from item in dbContext.Items.AsNoTracking()
-            where item.UserId == userId
-                && item.State == ItemState.Inbox
-                && item.SavedAtUtc >= fromUtc
-                && item.SavedAtUtc < toUtc
-            join category in dbContext.Categories.AsNoTracking()
-                on item.CategoryId equals category.Id into categoryJoin
-            from category in categoryJoin.DefaultIfEmpty()
-            orderby item.SavedAtUtc descending, item.Id descending
-            select new
-            {
-                item.Id,
-                item.Url,
-                item.Title,
-                item.Memo,
-                item.SavedAtUtc,
-                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
-                // SortOrder ASC, Id ASC first image, translated as a correlated subquery (OUTER
-                // APPLY on SQL Server) - one round trip for the whole page, not one per Item.
-                RepresentativeImage = dbContext.ItemImages
-                    .Where(image => image.ItemId == item.Id)
-                    .OrderBy(image => image.SortOrder)
-                    .ThenBy(image => image.Id)
-                    .Select(image => new { image.Id, image.BlobName })
-                    .FirstOrDefault(),
-            };
-
-        var rows = await query.ToListAsync(cancellationToken);
-
-        var items = new List<DailyInboxEntryDto>(rows.Count);
-        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
-        foreach (var row in rows)
-        {
-            items.Add(new DailyInboxEntryDto(
-                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.Category, RepresentativeImage: null));
-            if (row.RepresentativeImage is not null)
-            {
-                representativeImages[row.Id] =
-                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
-            }
-        }
-
-        return (items, representativeImages);
-    }
-
     private static InboxEntrySaveResult BuildReplayResult(InboxEntryDto existing, string requestedUrl)
     {
         if (existing.Url != requestedUrl)
@@ -141,20 +87,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             .Where(request => request.UserId == userId && request.ClientRequestId == clientRequestId)
             .Select(request => new InboxEntryDto(request.ItemId, request.Url, request.SavedAtUtc))
             .FirstOrDefaultAsync(cancellationToken);
-
-    public Task MoveToWishlistAsync(
-        long userId,
-        long itemId,
-        DateTimeOffset changedAtUtc,
-        CancellationToken cancellationToken = default) =>
-        TransitionAsync(userId, itemId, item => item.MoveToWishlist(changedAtUtc), cancellationToken);
-
-    public Task MoveToArchiveAsync(
-        long userId,
-        long itemId,
-        DateTimeOffset changedAtUtc,
-        CancellationToken cancellationToken = default) =>
-        TransitionAsync(userId, itemId, item => item.MoveToArchive(changedAtUtc), cancellationToken);
 
     private async Task TransitionAsync(
         long userId,
@@ -188,44 +120,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         string? memo,
         CancellationToken cancellationToken = default) =>
         TransitionAsync(userId, itemId, item => item.UpdateDetails(title, memo), cancellationToken);
-
-    public async Task AssignCategoryAsync(
-        long userId,
-        long itemId,
-        long? categoryId,
-        CancellationToken cancellationToken = default)
-    {
-        var item = await dbContext.Items
-            .FirstOrDefaultAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
-        if (item is null)
-        {
-            throw new ItemNotFoundException();
-        }
-
-        if (categoryId is { } requestedCategoryId)
-        {
-            var categoryIsOwnedByUser = await dbContext.Categories
-                .AsNoTracking()
-                .AnyAsync(
-                    category => category.Id == requestedCategoryId && category.UserId == userId,
-                    cancellationToken);
-            if (!categoryIsOwnedByUser)
-            {
-                throw new CategoryNotFoundException();
-            }
-        }
-
-        item.AssignCategory(categoryId);
-
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException exception)
-        {
-            throw new ItemConcurrencyException(exception);
-        }
-    }
 
     public async Task DeleteAsync(
         long userId,
@@ -272,9 +166,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         var query =
             from item in dbContext.Items.AsNoTracking()
             where item.Id == itemId && item.UserId == userId
-            join category in dbContext.Categories.AsNoTracking()
-                on item.CategoryId equals category.Id into categoryJoin
-            from category in categoryJoin.DefaultIfEmpty()
             select new
             {
                 item.Id,
@@ -282,9 +173,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
-                item.State,
-                item.StateChangedAtUtc,
-                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
@@ -300,99 +188,12 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         }
 
         var details = new ItemDetailsDto(
-            row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.State, row.StateChangedAtUtc, row.Category,
-            RepresentativeImage: null);
+            row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, RepresentativeImage: null);
         var representativeImage = row.RepresentativeImage is null
             ? null
             : new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
 
         return (details, representativeImage);
-    }
-
-    public async Task<(ItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByStateAsync(
-        long userId,
-        ItemState state,
-        long? categoryId,
-        ItemPageCursor? cursor,
-        int limit,
-        CancellationToken cancellationToken = default)
-    {
-        if (categoryId is { } requestedCategoryId)
-        {
-            var categoryIsOwnedByUser = await dbContext.Categories
-                .AsNoTracking()
-                .AnyAsync(
-                    category => category.Id == requestedCategoryId && category.UserId == userId,
-                    cancellationToken);
-            if (!categoryIsOwnedByUser)
-            {
-                throw new CategoryNotFoundException();
-            }
-        }
-
-        var itemsQuery = dbContext.Items
-            .AsNoTracking()
-            .Where(item => item.UserId == userId && item.State == state);
-
-        if (categoryId is not null)
-        {
-            itemsQuery = itemsQuery.Where(item => item.CategoryId == categoryId);
-        }
-
-        if (cursor is not null)
-        {
-            itemsQuery = itemsQuery.Where(item =>
-                item.StateChangedAtUtc < cursor.StateChangedAtUtc
-                || (item.StateChangedAtUtc == cursor.StateChangedAtUtc && item.Id < cursor.Id));
-        }
-
-        var pagedQuery =
-            from item in itemsQuery
-            join category in dbContext.Categories.AsNoTracking()
-                on item.CategoryId equals category.Id into categoryJoin
-            from category in categoryJoin.DefaultIfEmpty()
-            orderby item.StateChangedAtUtc descending, item.Id descending
-            select new
-            {
-                item.Id,
-                item.Url,
-                item.Title,
-                item.Memo,
-                item.SavedAtUtc,
-                item.StateChangedAtUtc,
-                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
-                RepresentativeImage = dbContext.ItemImages
-                    .Where(image => image.ItemId == item.Id)
-                    .OrderBy(image => image.SortOrder)
-                    .ThenBy(image => image.Id)
-                    .Select(image => new { image.Id, image.BlobName })
-                    .FirstOrDefault(),
-            };
-
-        var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
-
-        var hasMore = page.Count > limit;
-        var pageRows = hasMore ? page.GetRange(0, limit) : page;
-
-        var items = new List<ItemListEntryDto>(pageRows.Count);
-        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
-        foreach (var row in pageRows)
-        {
-            items.Add(new ItemListEntryDto(
-                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.StateChangedAtUtc, row.Category,
-                RepresentativeImage: null));
-            if (row.RepresentativeImage is not null)
-            {
-                representativeImages[row.Id] =
-                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
-            }
-        }
-
-        var nextCursor = hasMore
-            ? new ItemPageCursor(pageRows[^1].StateChangedAtUtc, pageRows[^1].Id)
-            : null;
-
-        return (new ItemPage(items, nextCursor), representativeImages);
     }
 
     public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetHistoryAsync(
@@ -401,9 +202,8 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         int limit,
         CancellationToken cancellationToken = default)
     {
-        // Deliberately no State filter (unlike GetByStateAsync) - History spans every state, and
-        // orders/pages by SavedAtUtc (the original save moment), never StateChangedAtUtc. Backed by
-        // the existing IX_Items_UserId_SavedAtUtc_Id index - no new index needed.
+        // Orders/pages by SavedAtUtc (the original save moment). Backed by the existing
+        // IX_Items_UserId_SavedAtUtc_Id index - no new index needed.
         var itemsQuery = dbContext.Items
             .AsNoTracking()
             .Where(item => item.UserId == userId);
@@ -417,9 +217,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
 
         var pagedQuery =
             from item in itemsQuery
-            join category in dbContext.Categories.AsNoTracking()
-                on item.CategoryId equals category.Id into categoryJoin
-            from category in categoryJoin.DefaultIfEmpty()
             orderby item.SavedAtUtc descending, item.Id descending
             select new
             {
@@ -428,7 +225,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
-                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
@@ -447,7 +243,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         foreach (var row in pageRows)
         {
             items.Add(new ItemHistoryEntryDto(
-                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.Category,
+                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
                 RepresentativeImage: null));
             if (row.RepresentativeImage is not null)
             {
@@ -471,11 +267,9 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         int limit,
         CancellationToken cancellationToken = default)
     {
-        // Same shape as GetHistoryAsync - deliberately no State filter, so a saved Item shows up
-        // here for its whole SavedAtUtc-local-date regardless of any later Wishlist/Archive
-        // transition - plus the [fromUtc, toUtc) date-range predicate GetDailyAsync (Daily Inbox)
-        // also uses. Unbounded (all-of-a-day) responses are not acceptable for a production API,
-        // so this uses the exact same keyset cursor pagination as GetHistoryAsync.
+        // Same shape as GetHistoryAsync, plus the [fromUtc, toUtc) date-range predicate - unbounded
+        // (all-of-a-day) responses are not acceptable for a production API, so this uses the exact
+        // same keyset cursor pagination as GetHistoryAsync.
         var itemsQuery = dbContext.Items
             .AsNoTracking()
             .Where(item => item.UserId == userId && item.SavedAtUtc >= fromUtc && item.SavedAtUtc < toUtc);
@@ -489,9 +283,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
 
         var pagedQuery =
             from item in itemsQuery
-            join category in dbContext.Categories.AsNoTracking()
-                on item.CategoryId equals category.Id into categoryJoin
-            from category in categoryJoin.DefaultIfEmpty()
             orderby item.SavedAtUtc descending, item.Id descending
             select new
             {
@@ -500,7 +291,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
-                Category = category == null ? null : new ItemCategoryDto(category.Id, category.Name),
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
@@ -519,7 +309,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         foreach (var row in pageRows)
         {
             items.Add(new ItemHistoryEntryDto(
-                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, row.Category,
+                row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
                 RepresentativeImage: null));
             if (row.RepresentativeImage is not null)
             {

@@ -1,5 +1,4 @@
 using Juple.Application.Items;
-using Juple.Domain.Items;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
@@ -73,7 +72,7 @@ public sealed class ItemDetailsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetDailyAsync_ReflectsUpdatedTitleAndMemo()
+    public async Task GetHistoryAsync_ReflectsUpdatedTitleAndMemo()
     {
         var store = new ItemStore(_dbContext);
         var saved = await store.SaveAsync(_userId, "https://shop.example/details-c", null, DateTimeOffset.UtcNow);
@@ -81,45 +80,8 @@ public sealed class ItemDetailsIntegrationTests : IAsyncLifetime
         await store.UpdateDetailsAsync(_userId, saved.Entry.Id, "My Title", "My memo");
         _dbContext.ChangeTracker.Clear();
 
-        var (dailyItems, _) = await store.GetDailyAsync(
-            _userId, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
-        var entry = Assert.Single(dailyItems, item => item.Id == saved.Entry.Id);
-        Assert.Equal("My Title", entry.Title);
-        Assert.Equal("My memo", entry.Memo);
-    }
-
-    [Fact]
-    public async Task MoveToWishlistAsync_PreservesTitleAndMemo()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(_userId, "https://shop.example/details-d", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-        await store.UpdateDetailsAsync(_userId, saved.Entry.Id, "My Title", "My memo");
-        _dbContext.ChangeTracker.Clear();
-
-        await store.MoveToWishlistAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Wishlist, categoryId: null, cursor: null, limit: 50);
-        var entry = Assert.Single(page.Items, item => item.Id == saved.Entry.Id);
-        Assert.Equal("My Title", entry.Title);
-        Assert.Equal("My memo", entry.Memo);
-    }
-
-    [Fact]
-    public async Task MoveToArchiveAsync_PreservesTitleAndMemo()
-    {
-        var store = new ItemStore(_dbContext);
-        var saved = await store.SaveAsync(_userId, "https://shop.example/details-e", null, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-        await store.UpdateDetailsAsync(_userId, saved.Entry.Id, "My Title", "My memo");
-        _dbContext.ChangeTracker.Clear();
-
-        await store.MoveToArchiveAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
-
-        var (page, _) = await store.GetByStateAsync(_userId, ItemState.Archived, categoryId: null, cursor: null, limit: 50);
         var entry = Assert.Single(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal("My Title", entry.Title);
         Assert.Equal("My memo", entry.Memo);
