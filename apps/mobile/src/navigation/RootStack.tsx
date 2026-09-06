@@ -26,9 +26,9 @@ export type RootStackParamList = {
   CollectionDetails: { collectionId: number };
   LanguageSettings: undefined;
   /**
-   * Not in the Bottom Tabs (see MainTabs) since the new 홈/기록/보관함/내 페이지 IA - kept reachable
-   * here as a temporary, explicitly-labeled path (see MyPageScreen) while PurchaseHistory's own
-   * eventual UX/placement is still only a future direction, not implemented in this pass.
+   * Purchase/RepeatPurchase are an optional, secondary enhancement on top of the URL-library core
+   * (홈/기록/보관함/내 페이지) - not core Juple features, so this screen is intentionally not in the
+   * Bottom Tabs and is only reachable as a supplementary My Page menu item (see MyPageScreen).
    */
   PurchaseHistory: undefined;
   /** My Page → "최근 본 링크" - the screen fetches the current page itself via GET. */

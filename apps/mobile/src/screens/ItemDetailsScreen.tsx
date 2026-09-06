@@ -49,7 +49,10 @@ import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
 import { formatIntervalDescription } from '../purchases/repeatPurchaseFormat';
 
 const MAX_ITEM_IMAGES = 10;
-const RECENT_PURCHASES_LIMIT = 3;
+// Purchase is a secondary/optional feature on this screen (see the "추가 기능" section below) - only
+// the single most recent Purchase is fetched for a compact summary; "전체 보기" leads to the full
+// Purchase History screen for everything beyond that.
+const ITEM_PURCHASE_SUMMARY_LIMIT = 1;
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
@@ -308,7 +311,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     try {
       const page = await getPurchases(authenticatedRequest, {
         itemId,
-        limit: RECENT_PURCHASES_LIMIT,
+        limit: ITEM_PURCHASE_SUMMARY_LIMIT,
       });
       if (purchasesRequestIdRef.current !== requestId) {
         return;
@@ -834,152 +837,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         value={memo}
       />
 
-      <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
-      {isLoadingItemCollections ? (
-        <ActivityIndicator style={styles.purchasesLoading} />
-      ) : itemCollections.length > 0 ? (
-        itemCollections.map(option => (
-          <View key={option.id} style={styles.collectionChipRow}>
-            <Text numberOfLines={1} style={styles.collectionChipLabel}>
-              {option.name}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                disabled: removingCollectionId !== null,
-                busy: removingCollectionId === option.id,
-              }}
-              disabled={removingCollectionId !== null}
-              onPress={() => removeFromCollection(option.id)}
-              style={styles.collectionChipRemoveButton}
-            >
-              <Text style={styles.collectionChipRemoveLabel}>
-                {removingCollectionId === option.id
-                  ? t('common.processing')
-                  : t('collections.removeItem')}
-              </Text>
-            </Pressable>
-          </View>
-        ))
-      ) : (
-        <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
-      )}
-      {itemCollectionsNextCursor ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isLoadingMoreItemCollections, busy: isLoadingMoreItemCollections }}
-          disabled={isLoadingMoreItemCollections}
-          onPress={loadMoreItemCollections}
-          style={styles.loadMoreButton}
-        >
-          <Text style={styles.loadMoreButtonLabel}>
-            {isLoadingMoreItemCollections ? t('common.processing') : t('collections.loadMore')}
-          </Text>
-        </Pressable>
-      ) : null}
-      {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={openCollectionModal}
-        style={styles.addPurchaseButton}
-      >
-        <Text style={styles.addPurchaseButtonLabel}>{t('collections.addItem')}</Text>
-      </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          navigation.navigate('PurchaseEditor', {
-            itemId,
-            // A suggested initial value only - the user can freely change it, and neither the
-            // client nor the server ever confirms it automatically (see PurchaseEditorScreen).
-            initialProductName: item.title ?? undefined,
-          })
-        }
-        style={styles.addPurchaseButton}
-      >
-        <Text style={styles.addPurchaseButtonLabel}>{t('item.addPurchase')}</Text>
-      </Pressable>
-
-      <Text style={styles.label}>{t('item.purchasesSection')}</Text>
-      {isLoadingPurchases ? (
-        <ActivityIndicator style={styles.purchasesLoading} />
-      ) : recentPurchases.length > 0 ? (
-        recentPurchases.map(purchase => (
-          <Pressable
-            accessibilityRole="button"
-            key={purchase.id}
-            onPress={() => navigation.navigate('PurchaseDetails', { purchaseId: purchase.id })}
-            style={styles.purchaseRow}
-          >
-            <Text numberOfLines={1} style={styles.purchaseRowProductName}>
-              {purchase.productName}
-            </Text>
-            <Text style={styles.purchaseRowDate}>
-              {formatDateOnlyForDisplay(purchase.purchaseDate)}
-            </Text>
-            {purchase.amount !== null && purchase.currencyCode ? (
-              // Verbatim decimal string from the API - no Number()/Intl.NumberFormat conversion,
-              // since a value like "999999999999999.9999" is not exactly representable as a JS Number.
-              <Text style={styles.purchaseRowAmount}>
-                {purchase.amount} {purchase.currencyCode}
-              </Text>
-            ) : null}
-          </Pressable>
-        ))
-      ) : !purchasesError ? (
-        <Text style={styles.purchasesEmpty}>{t('item.noPurchases')}</Text>
-      ) : null}
-      {purchasesError ? <Text style={styles.error}>{purchasesError}</Text> : null}
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          navigation.navigate('RepeatPurchaseEditor', {
-            itemId,
-            // A suggested initial value only - the user can freely change it, and it is never
-            // synced back to Item.Title (see RepeatPurchaseEditorScreen).
-            initialProductName: item.title ?? undefined,
-          })
-        }
-        style={styles.addPurchaseButton}
-      >
-        <Text style={styles.addPurchaseButtonLabel}>{t('item.addRepeatPurchase')}</Text>
-      </Pressable>
-
-      <Text style={styles.label}>{t('item.repeatPurchasesSection')}</Text>
-      {isLoadingRepeatPurchases ? (
-        <ActivityIndicator style={styles.purchasesLoading} />
-      ) : linkedRepeatPurchases.length > 0 ? (
-        linkedRepeatPurchases.map(repeatPurchase => (
-          <Pressable
-            accessibilityRole="button"
-            key={repeatPurchase.id}
-            onPress={() =>
-              navigation.navigate('RepeatPurchaseDetails', { repeatPurchaseId: repeatPurchase.id })
-            }
-            style={styles.purchaseRow}
-          >
-            <Text numberOfLines={2} style={styles.purchaseRowProductName}>
-              {repeatPurchase.productName}
-            </Text>
-            <Text style={styles.purchaseRowDate}>
-              {formatIntervalDescription(t, repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
-              {' · '}
-              {t('repeatPurchase.nextPurchaseDateLabel', {
-                date: formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate),
-              })}
-            </Text>
-            {!repeatPurchase.isEnabled ? (
-              <Text style={styles.repeatPurchasePausedLabel}>{t('repeatPurchase.paused')}</Text>
-            ) : null}
-          </Pressable>
-        ))
-      ) : !repeatPurchasesError ? (
-        <Text style={styles.purchasesEmpty}>{t('item.noRepeatPurchases')}</Text>
-      ) : null}
-      {repeatPurchasesError ? <Text style={styles.error}>{repeatPurchasesError}</Text> : null}
-
       <View style={styles.imagesHeaderRow}>
         <Text style={styles.label}>
           {t('item.photosHeader', { count: images.length, max: MAX_ITEM_IMAGES })}
@@ -1056,6 +913,164 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         style={[styles.saveButton, (!isDirty || isSaving) && styles.disabledButton]}
       >
         <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
+      </Pressable>
+
+      <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
+      {isLoadingItemCollections ? (
+        <ActivityIndicator style={styles.purchasesLoading} />
+      ) : itemCollections.length > 0 ? (
+        itemCollections.map(option => (
+          <View key={option.id} style={styles.collectionChipRow}>
+            <Text numberOfLines={1} style={styles.collectionChipLabel}>
+              {option.name}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled: removingCollectionId !== null,
+                busy: removingCollectionId === option.id,
+              }}
+              disabled={removingCollectionId !== null}
+              onPress={() => removeFromCollection(option.id)}
+              style={styles.collectionChipRemoveButton}
+            >
+              <Text style={styles.collectionChipRemoveLabel}>
+                {removingCollectionId === option.id
+                  ? t('common.processing')
+                  : t('collections.removeItem')}
+              </Text>
+            </Pressable>
+          </View>
+        ))
+      ) : (
+        <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
+      )}
+      {itemCollectionsNextCursor ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isLoadingMoreItemCollections, busy: isLoadingMoreItemCollections }}
+          disabled={isLoadingMoreItemCollections}
+          onPress={loadMoreItemCollections}
+          style={styles.loadMoreButton}
+        >
+          <Text style={styles.loadMoreButtonLabel}>
+            {isLoadingMoreItemCollections ? t('common.processing') : t('collections.loadMore')}
+          </Text>
+        </Pressable>
+      ) : null}
+      {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={openCollectionModal}
+        style={styles.addPurchaseButton}
+      >
+        <Text style={styles.addPurchaseButtonLabel}>{t('collections.addItem')}</Text>
+      </Pressable>
+
+      <Text style={styles.sectionHeading}>{t('item.additionalFeaturesSection')}</Text>
+
+      <Text style={styles.label}>{t('item.purchasesSection')}</Text>
+      {isLoadingPurchases ? (
+        <ActivityIndicator style={styles.purchasesLoading} />
+      ) : recentPurchases.length > 0 ? (
+        <>
+          {recentPurchases.map(purchase => (
+            <Pressable
+              accessibilityRole="button"
+              key={purchase.id}
+              onPress={() => navigation.navigate('PurchaseDetails', { purchaseId: purchase.id })}
+              style={styles.purchaseRow}
+            >
+              <Text numberOfLines={1} style={styles.purchaseRowProductName}>
+                {purchase.productName}
+              </Text>
+              <Text style={styles.purchaseRowDate}>
+                {formatDateOnlyForDisplay(purchase.purchaseDate)}
+              </Text>
+              {purchase.amount !== null && purchase.currencyCode ? (
+                // Verbatim decimal string from the API - no Number()/Intl.NumberFormat conversion,
+                // since a value like "999999999999999.9999" is not exactly representable as a JS Number.
+                <Text style={styles.purchaseRowAmount}>
+                  {purchase.amount} {purchase.currencyCode}
+                </Text>
+              ) : null}
+            </Pressable>
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('PurchaseHistory')}
+            style={styles.loadMoreButton}
+          >
+            <Text style={styles.loadMoreButtonLabel}>{t('item.viewAllPurchases')}</Text>
+          </Pressable>
+        </>
+      ) : !purchasesError ? (
+        <>
+          <Text style={styles.purchasesEmpty}>{t('item.noPurchases')}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              navigation.navigate('PurchaseEditor', {
+                itemId,
+                // A suggested initial value only - the user can freely change it, and neither the
+                // client nor the server ever confirms it automatically (see PurchaseEditorScreen).
+                initialProductName: item.title ?? undefined,
+              })
+            }
+            style={styles.addPurchaseButton}
+          >
+            <Text style={styles.addPurchaseButtonLabel}>{t('item.addPurchase')}</Text>
+          </Pressable>
+        </>
+      ) : null}
+      {purchasesError ? <Text style={styles.error}>{purchasesError}</Text> : null}
+
+      <Text style={styles.label}>{t('item.repeatPurchasesSection')}</Text>
+      {isLoadingRepeatPurchases ? (
+        <ActivityIndicator style={styles.purchasesLoading} />
+      ) : linkedRepeatPurchases.length > 0 ? (
+        linkedRepeatPurchases.map(repeatPurchase => (
+          <Pressable
+            accessibilityRole="button"
+            key={repeatPurchase.id}
+            onPress={() =>
+              navigation.navigate('RepeatPurchaseDetails', { repeatPurchaseId: repeatPurchase.id })
+            }
+            style={styles.purchaseRow}
+          >
+            <Text numberOfLines={2} style={styles.purchaseRowProductName}>
+              {repeatPurchase.productName}
+            </Text>
+            <Text style={styles.purchaseRowDate}>
+              {formatIntervalDescription(t, repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
+              {' · '}
+              {t('repeatPurchase.nextPurchaseDateLabel', {
+                date: formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate),
+              })}
+            </Text>
+            {!repeatPurchase.isEnabled ? (
+              <Text style={styles.repeatPurchasePausedLabel}>{t('repeatPurchase.paused')}</Text>
+            ) : null}
+          </Pressable>
+        ))
+      ) : !repeatPurchasesError ? (
+        <Text style={styles.purchasesEmpty}>{t('item.noRepeatPurchases')}</Text>
+      ) : null}
+      {repeatPurchasesError ? <Text style={styles.error}>{repeatPurchasesError}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          navigation.navigate('RepeatPurchaseEditor', {
+            itemId,
+            // A suggested initial value only - the user can freely change it, and it is never
+            // synced back to Item.Title (see RepeatPurchaseEditorScreen). Always offered alongside
+            // the list above (not just when empty) - an Item can have more than one RepeatPurchase.
+            initialProductName: item.title ?? undefined,
+          })
+        }
+        style={styles.addPurchaseButton}
+      >
+        <Text style={styles.addPurchaseButtonLabel}>{t('item.addRepeatPurchase')}</Text>
       </Pressable>
 
       {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
@@ -1183,6 +1198,12 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginTop: 20,
     marginBottom: 6,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111111',
+    marginTop: 32,
   },
   titleInput: {
     borderColor: '#9A9A9A',

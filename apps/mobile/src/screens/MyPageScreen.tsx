@@ -22,8 +22,21 @@ export function MyPageScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>{t('myPage.title')}</Text>
 
-        <Text style={styles.sectionTitle}>{t('myPage.account')}</Text>
-        <Text style={styles.accountStatus}>{t('myPage.loggedInAs')}</Text>
+        <Text style={styles.sectionTitle}>{t('myPage.activity')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('RecentlyOpenedLinks')}
+          style={styles.linkButton}
+        >
+          <Text style={styles.linkButtonLabel}>{t('myPage.viewRecentlyOpenedLinks')}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('PurchaseHistory')}
+          style={[styles.linkButton, styles.linkButtonSpaced]}
+        >
+          <Text style={styles.linkButtonLabel}>{t('myPage.viewPurchaseHistory')}</Text>
+        </Pressable>
 
         <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
         <Pressable
@@ -33,22 +46,9 @@ export function MyPageScreen() {
         >
           <Text style={styles.linkButtonLabel}>{t('settings.language')}</Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('RecentlyOpenedLinks')}
-          style={[styles.linkButton, styles.linkButtonSpaced]}
-        >
-          <Text style={styles.linkButtonLabel}>{t('myPage.viewRecentlyOpenedLinks')}</Text>
-        </Pressable>
 
-        <Text style={styles.sectionTitle}>{t('myPage.existingFeatures')}</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('PurchaseHistory')}
-          style={styles.linkButton}
-        >
-          <Text style={styles.linkButtonLabel}>{t('myPage.viewPurchaseHistory')}</Text>
-        </Pressable>
+        <Text style={styles.sectionTitle}>{t('myPage.account')}</Text>
+        <Text style={styles.accountStatus}>{t('myPage.loggedInAs')}</Text>
 
         <Pressable
           accessibilityRole="button"

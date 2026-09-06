@@ -129,9 +129,9 @@
     "account": "계정",
     "loggedInAs": "Juple 계정으로 로그인되어 있습니다.",
     "settings": "설정",
+    "activity": "활동",
     "viewRecentlyOpenedLinks": "최근 본 링크",
-    "existingFeatures": "기존 기능",
-    "viewPurchaseHistory": "구매내역 보기"
+    "viewPurchaseHistory": "구매 기록"
   },
   "settings": {
     "language": "언어"
@@ -149,9 +149,11 @@
     "share": "공유하기",
     "memo": "메모",
     "memoPlaceholder": "메모를 입력해 주세요",
+    "additionalFeaturesSection": "추가 기능",
     "addPurchase": "구매 기록 추가",
     "purchasesSection": "구매 기록",
     "noPurchases": "구매 기록이 없습니다.",
+    "viewAllPurchases": "구매 기록 보기",
     "addRepeatPurchase": "반복 구매 추가",
     "repeatPurchasesSection": "반복 구매",
     "noRepeatPurchases": "반복 구매가 없습니다.",

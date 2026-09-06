@@ -129,9 +129,9 @@
     "account": "Account",
     "loggedInAs": "You're signed in to your Juple account.",
     "settings": "Settings",
+    "activity": "Activity",
     "viewRecentlyOpenedLinks": "Recently opened links",
-    "existingFeatures": "Existing features",
-    "viewPurchaseHistory": "View Purchase History"
+    "viewPurchaseHistory": "Purchases"
   },
   "settings": {
     "language": "Language"
@@ -149,9 +149,11 @@
     "share": "Share",
     "memo": "Memo",
     "memoPlaceholder": "Enter a memo",
+    "additionalFeaturesSection": "Optional features",
     "addPurchase": "Add Purchase",
     "purchasesSection": "Purchases",
     "noPurchases": "No purchases yet.",
+    "viewAllPurchases": "View purchases",
     "addRepeatPurchase": "Add Repeat Purchase",
     "repeatPurchasesSection": "Repeat Purchases",
     "noRepeatPurchases": "No repeat purchases yet.",
