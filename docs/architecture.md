@@ -64,7 +64,7 @@ Firebase는 Backend, Auth, Database, Storage로 사용하지 않는다. Android 
 - OpenTelemetry
 - Azure Container Registry
 
-환경은 Development, Staging, Production을 고려한다. Infrastructure as Code 도구는 Bicep 또는 Terraform 중 아직 확정하지 않았으므로 TBD로 둔다.
+환경은 Development, Staging, Production을 고려한다. Infrastructure as Code 도구는 Bicep으로 결정되었고, Development 환경의 Foundation/App 두 단계(`infra/azure/`)가 이미 배포되어 있다(`rg-juple-dev`: Managed Identity, ACR, Storage Account, Azure SQL, Log Analytics, Container Apps Environment, Container App `ca-juple-api-dev`). Staging/Production은 여전히 고려 중이며 아직 리소스를 만들지 않았다.
 
 ## 운영 원칙
 

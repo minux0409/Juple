@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Required by React Native's HeadlessJsTaskService to keep the device awake while the background share-save task runs. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Android 13+ (API 33+) requires this manifest declaration before the runtime prompt (see src/push/pushPermission.ts) can be requested at all - targetSdkVersion is 36 here, so this is not optional. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
       android:name=".MainApplication"

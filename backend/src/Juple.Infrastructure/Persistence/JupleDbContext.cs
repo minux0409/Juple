@@ -4,6 +4,7 @@ using Juple.Domain.Images;
 using Juple.Domain.Items;
 using Juple.Domain.Notifications;
 using Juple.Domain.Purchases;
+using Juple.Domain.Push;
 using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,6 +35,10 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<CollectionShare> CollectionShares => Set<CollectionShare>();
 
     public DbSet<Notification> Notifications => Set<Notification>();
+
+    public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
+
+    public DbSet<PushDeviceRegistration> PushDeviceRegistrations => Set<PushDeviceRegistration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -9,6 +9,7 @@ using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Notifications;
 using Juple.Application.Purchases;
+using Juple.Application.Push;
 using Juple.Application.RepeatPurchases;
 using Juple.Application.RepeatPurchases.LogPurchase;
 using Juple.Application.Users.CurrentUser;
@@ -19,6 +20,7 @@ using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Purchases;
+using Juple.Infrastructure.Push;
 using Juple.Infrastructure.RepeatPurchases;
 using Juple.Infrastructure.Storage;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
@@ -57,6 +59,12 @@ public static class DependencyInjection
         services.AddScoped<IRepeatPurchaseStore, RepeatPurchaseStore>();
         services.AddScoped<ILogPurchaseStore, LogPurchaseStore>();
         services.AddScoped<INotificationStore, NotificationStore>();
+        services.AddScoped<INotificationDeliveryStore, NotificationDeliveryStore>();
+        services.AddScoped<IPushDeviceRegistrationStore, PushDeviceRegistrationStore>();
+        // No Azure Notification Hub exists yet (see this feature's own design notes) - swap for a
+        // real Hub-backed IPushSender once one is provisioned; no other code depends on which one is
+        // registered here.
+        services.AddScoped<IPushSender, NotConfiguredPushSender>();
         services.AddScoped<IItemImageStore, ItemImageStore>();
         services.AddScoped<IItemImageStorage, ItemImageStore>();
 

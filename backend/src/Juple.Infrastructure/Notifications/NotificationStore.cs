@@ -84,6 +84,24 @@ public sealed class NotificationStore(JupleDbContext dbContext) : INotificationS
         }
     }
 
+    public async Task<IReadOnlyList<(long UserId, string TimeZoneId)>> ListUsersWithDueRepeatPurchasesAsync(
+        DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var utcTomorrow = DateOnly.FromDateTime(nowUtc.UtcDateTime).AddDays(1);
+
+        return await dbContext.RepeatPurchases
+            .AsNoTracking()
+            .Where(repeatPurchase => repeatPurchase.IsEnabled && repeatPurchase.NextPurchaseDate <= utcTomorrow)
+            .Join(
+                dbContext.Users.AsNoTracking(),
+                repeatPurchase => repeatPurchase.UserId,
+                user => user.Id,
+                (repeatPurchase, user) => new { user.Id, user.TimeZoneId })
+            .Distinct()
+            .Select(candidate => new ValueTuple<long, string>(candidate.Id, candidate.TimeZoneId))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<NotificationPage> ListAsync(
         long userId, NotificationPageCursor? cursor, int limit, CancellationToken cancellationToken = default)
     {

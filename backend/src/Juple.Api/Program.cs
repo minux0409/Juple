@@ -38,6 +38,9 @@ using Juple.Application.Purchases.DeletePurchase;
 using Juple.Application.Purchases.GetPurchaseDetail;
 using Juple.Application.Purchases.ListPurchases;
 using Juple.Application.Purchases.UpdatePurchase;
+using Juple.Application.Push.DispatchDuePushNotifications;
+using Juple.Application.Push.RegisterPushDevice;
+using Juple.Application.Push.UnregisterPushDevice;
 using Juple.Application.RepeatPurchases.CreateRepeatPurchase;
 using Juple.Application.RepeatPurchases.DeleteRepeatPurchase;
 using Juple.Application.RepeatPurchases.GetRepeatPurchaseDetail;
@@ -102,6 +105,11 @@ builder.Services.AddScoped<IListNotificationsService, ListNotificationsService>(
 builder.Services.AddScoped<IGetUnreadNotificationCountService, GetUnreadNotificationCountService>();
 builder.Services.AddScoped<IMarkNotificationReadService, MarkNotificationReadService>();
 builder.Services.AddScoped<IMarkAllNotificationsReadService, MarkAllNotificationsReadService>();
+builder.Services.AddScoped<IRegisterPushDeviceService, RegisterPushDeviceService>();
+builder.Services.AddScoped<IUnregisterPushDeviceService, UnregisterPushDeviceService>();
+// Not exposed via any controller - invoked by the future Push dispatch entrypoint/job command
+// (see IDispatchDuePushNotificationsService's own remarks) and directly by tests today.
+builder.Services.AddScoped<IDispatchDuePushNotificationsService, DispatchDuePushNotificationsService>();
 builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
@@ -142,6 +150,18 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// One-shot execution mode for a scheduled dispatch run (intended for an Azure Container Apps Job
+// invoking this exact same container image with this exact argument - see
+// IDispatchDuePushNotificationsService's own remarks on why a scheduled Job, not an in-API
+// BackgroundService, is required here: the Dev Container App scales to zero). Deliberately never an
+// HTTP endpoint a scheduler calls - nothing here ever reaches UseAuthentication/MapControllers/
+// app.Run() below, so no port is bound and no unauthenticated dispatch trigger is ever reachable
+// over the network.
+if (args.Contains("--run-push-dispatch", StringComparer.Ordinal))
+{
+    return await RunPushDispatchOnceAsync(app.Services);
+}
+
 // Forces PublicCollectionCursor:EncryptionKey validation (see PublicCollectionItemPageCursorCodec's
 // constructor) at startup rather than on the first public "load more" request.
 app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();
@@ -159,3 +179,29 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.Run();
+return 0;
+
+static async Task<int> RunPushDispatchOnceAsync(IServiceProvider rootServices)
+{
+    await using var scope = rootServices.CreateAsyncScope();
+    var dispatchService = scope.ServiceProvider.GetRequiredService<IDispatchDuePushNotificationsService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PushDispatchJob");
+
+    try
+    {
+        var result = await dispatchService.DispatchAsync();
+        logger.LogInformation(
+            "Push dispatch complete. CandidateUsers={CandidateUsers} Attempted={Attempted} Sent={Sent} Failed={Failed} Skipped={Skipped}",
+            result.CandidateUsers, result.Attempted, result.Sent, result.Failed, result.Skipped);
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        // A scheduled Job execution's exit code is how Azure reports failure - never swallow this
+        // into a "successful" exit, and never log the exception's data at a level that could include
+        // a push token (nothing this feature logs ever does - see PushDeviceRegistration's own
+        // remarks on treating tokens as secrets).
+        logger.LogError(exception, "Push dispatch run failed.");
+        return 1;
+    }
+}

@@ -150,6 +150,11 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
           version: initialRepeatPurchase.version,
         });
       } else {
+        // Push permission is intentionally NOT requested here yet - FCM token registration and the
+        // Push transport don't exist yet (see pushPermission.ts's own remarks), so prompting now
+        // would ask the user for something the app cannot yet act on. A future stage wires: first
+        // RepeatPurchase setup -> permission -> (if granted) FCM token -> Backend registration, as
+        // one connected flow.
         await createRepeatPurchase(authenticatedRequest, {
           itemId: itemId ?? null,
           productName: trimmedProductName,

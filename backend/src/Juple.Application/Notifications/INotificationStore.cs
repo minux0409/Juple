@@ -15,6 +15,18 @@ public interface INotificationStore
     Task MaterializeDueAsync(
         long userId, string timeZoneId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Distinct (UserId, TimeZoneId) for every user with at least one enabled RepeatPurchase that
+    /// could be due somewhere on Earth right now - the Push dispatch worker's per-user candidate
+    /// list (see DispatchDuePushNotificationsService), since unlike the lazy per-request path there
+    /// is no single "current user" to materialize for. Deliberately coarse (NextPurchaseDate on or
+    /// before UTC-tomorrow, the widest possible local "today" across every UTC offset) - the caller
+    /// still runs the exact per-user MaterializeDueAsync check for each candidate, so over-including
+    /// a few extra users here only costs a cheap no-op, never a missed or duplicated notification.
+    /// </summary>
+    Task<IReadOnlyList<(long UserId, string TimeZoneId)>> ListUsersWithDueRepeatPurchasesAsync(
+        DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
     Task<NotificationPage> ListAsync(
         long userId, NotificationPageCursor? cursor, int limit, CancellationToken cancellationToken = default);
 
