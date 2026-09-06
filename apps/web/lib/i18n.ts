@@ -16,6 +16,9 @@ interface Dictionary {
   readonly footerNote: string;
   readonly notFoundTitle: string;
   readonly notFoundMessage: string;
+  readonly installCtaText: string;
+  readonly googlePlay: string;
+  readonly appStore: string;
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -27,6 +30,9 @@ const dictionaries: Record<Locale, Dictionary> = {
     footerNote: 'Saved and organized with Juple.',
     notFoundTitle: "This link isn't available.",
     notFoundMessage: 'It may have been unshared, or the link may be incorrect.',
+    installCtaText: 'Manage this more easily in the Juple app.',
+    googlePlay: 'Get it on Google Play',
+    appStore: 'Download on the App Store',
   },
   ko: {
     open: '열기',
@@ -36,6 +42,9 @@ const dictionaries: Record<Locale, Dictionary> = {
     footerNote: 'Juple로 저장하고 관리하세요.',
     notFoundTitle: '더 이상 사용할 수 없는 링크입니다.',
     notFoundMessage: '공유가 해제되었거나 링크가 올바르지 않을 수 있습니다.',
+    installCtaText: 'Juple 앱에서 더 편하게 관리하세요.',
+    googlePlay: 'Google Play에서 받기',
+    appStore: 'App Store에서 받기',
   },
 };
 

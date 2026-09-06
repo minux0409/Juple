@@ -24,6 +24,26 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!--
+          Android App Links for the Public Collection Sharing link (https://<host>/c/{publicId} ->
+          SharedCollectionScreen - see src/navigation/linking.ts's matching JS-side config).
+          android:host is a manifest placeholder (see android/app/build.gradle's defaultConfig) -
+          no real production domain exists yet (see docs/architecture.md), so it defaults to an
+          RFC 2606 reserved, guaranteed-unresolvable placeholder host rather than a fabricated one.
+          autoVerify="true" is inert until that placeholder is overridden with a real domain AND
+          that domain serves a correct /.well-known/assetlinks.json (see apps/web) - until then
+          Android simply never verifies this intent-filter, and the OS falls back to its normal
+          disambiguation/browser behavior, never a crash.
+        -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+                android:scheme="https"
+                android:host="${appLinksHost}"
+                android:pathPrefix="/c/" />
+        </intent-filter>
       </activity>
       <activity
         android:name=".ShareReceiverActivity"

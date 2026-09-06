@@ -83,6 +83,17 @@ npm run android
 
 현재 개발용 Android AVD 이름은 `Juple_Pixel_API36`이다. iOS 빌드와 배포는 Mac + Xcode 환경에서 수행한다.
 
+### iOS Universal Links (아직 비활성 상태)
+
+`apps/mobile/ios/JupleMobile/JupleMobile.entitlements` 파일은 Public Collection Sharing 공유 링크(`https://<domain>/c/{publicId}`)를 위한 Associated Domains 항목을 담고 있지만, **아직 `JupleMobile.xcodeproj`에 연결되지 않았다** - `CODE_SIGN_ENTITLEMENTS` build setting도, 프로젝트의 PBXFileReference/PBXGroup 항목도 없다. 즉 이 파일이 repo에 존재한다고 해서 Universal Links가 실제로 동작하는 것은 아니다. Mac/Xcode가 없는 환경에서 `project.pbxproj`를 직접 손으로 수정하면 검증 불가능한 상태로 Xcode 프로젝트를 손상시킬 위험이 있어, 의도적으로 pbxproj는 건드리지 않았다.
+
+실제로 활성화하려면 Mac에서:
+
+1. `JupleMobile.xcodeproj`를 Xcode로 연다.
+2. Signing & Capabilities 탭 → **+ Capability** → **Associated Domains** 추가.
+3. Xcode가 자동 생성하는 `.entitlements`가 이 파일을 대체하거나, 이 파일을 그대로 가리키도록 연결한다 - 어느 쪽이든 최종적으로 `applinks:<실제 production domain>` 항목이 들어 있는지 확인한다 (현재 파일의 `app-links-host-not-configured.invalid`는 RFC 2606 예약 도메인 placeholder일 뿐, 실제 도메인이 아니다).
+4. Apple Developer Team ID/실제 domain은 이 문서 작성 시점에 확인되지 않았으므로 추측하지 않는다 - 실제 값이 정해지면 Android의 `JUPLE_PUBLIC_WEB_HOST`(`android/app/build.gradle`, `src/config/publicWebConfig.ts`) 및 Backend의 `PublicWeb:BaseUrl`과 동일한 도메인으로 맞춘다.
+
 ### Android에서 로컬 Backend 연결
 
 Mobile 개발용 API 주소는 `http://localhost:5092`로 고정되어 있으며, Android emulator와 physical device 모두 다음 명령으로 PC의 Backend에 연결한다.

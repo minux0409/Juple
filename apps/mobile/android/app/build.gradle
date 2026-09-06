@@ -98,9 +98,28 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        // Captures the Microsoft Entra External ID OAuth redirect (react-native-app-auth)
+        // Captures the Microsoft Entra External ID OAuth redirect (react-native-app-auth).
+        // appLinksHost feeds AndroidManifest.xml's App Links intent-filter (see its comment) - no
+        // real production domain exists yet, so this defaults to an RFC 2606 reserved,
+        // guaranteed-unresolvable placeholder rather than a fabricated domain. Override per build
+        // once a real domain exists, e.g.:
+        //   JUPLE_PUBLIC_WEB_HOST=app.example.com ./gradlew assembleRelease
+        // Kept as the same env var name JS-side config reads (see babel.config.js/
+        // src/config/publicWebConfig.ts) even though this is read by Gradle, not Metro/Babel - the
+        // two must agree on the same real domain once one exists, just injected through each
+        // build tool's own mechanism.
+        //
+        // This placeholder default applies to every buildType, including "release" - deliberately
+        // not overridden/validated here for release specifically: any check placed inside a
+        // buildType { } closure runs during Gradle's DSL configuration phase for ALL buildTypes
+        // every time, even an unrelated `assembleDebug`/`assembleDogfood`, which would break the
+        // very builds this default exists to keep working. The real Production fail-fast (refusing
+        // to ship a release with this placeholder, no host, or localhost) lives in
+        // metro.release.config.js instead - it only ever runs when the "release" variant's own
+        // bundle task executes, so it cannot affect any other buildType. See that file for details.
         manifestPlaceholders = [
-            appAuthRedirectScheme: "com.juple.app.auth"
+            appAuthRedirectScheme: "com.juple.app.auth",
+            appLinksHost: System.getenv("JUPLE_PUBLIC_WEB_HOST") ?: "app-links-host-not-configured.invalid"
         ]
     }
     signingConfigs {

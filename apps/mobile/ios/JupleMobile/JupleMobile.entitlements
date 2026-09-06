@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Associated Domains entitlement for iOS Universal Links (https://<host>/c/{publicId} -> the app -
+  the iOS counterpart to AndroidManifest.xml's App Links intent-filter).
+
+  Prepared as a standalone file only - deliberately NOT wired into JupleMobile.xcodeproj's
+  CODE_SIGN_ENTITLEMENTS build setting or its PBXFileReference/PBXGroup entries. This environment
+  has no Mac/Xcode to open, edit via Signing & Capabilities, or validate the result, and
+  project.pbxproj is not a format meant to be hand-edited outside Xcode - an unverifiable edit here
+  risks silently corrupting the Xcode project. Wiring this in requires an actual Mac: open
+  JupleMobile.xcodeproj, Signing & Capabilities -> + Capability -> Associated Domains (Xcode will
+  either pick up this file or generate its own; either way, verify it lists the domain below).
+
+  "app-links-host-not-configured.invalid" is an RFC 2606 reserved, guaranteed-unresolvable
+  placeholder - no real production domain exists yet (see docs/architecture.md). Replace it with
+  the real domain (matching Android's JUPLE_PUBLIC_WEB_HOST and Backend's PublicWeb:BaseUrl) once
+  one exists; until then this entitlement, even once wired in, verifies nothing and is inert.
+-->
+<dict>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:app-links-host-not-configured.invalid</string>
+	</array>
+</dict>
+</plist>

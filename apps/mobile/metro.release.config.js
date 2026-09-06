@@ -23,6 +23,40 @@ if (!productionApiBaseUrl) {
   );
 }
 
+// Same fail-fast philosophy as JUPLE_API_BASE_URL above, for the Public Collection Sharing deep
+// link host (see AndroidManifest.xml's App Links intent-filter, android/app/build.gradle's
+// appLinksHost manifest placeholder, and src/config/publicWebConfig.ts). That manifest placeholder
+// defaults to an inert "app-links-host-not-configured.invalid" placeholder for Debug/Dogfood - a
+// safe default for local dev and Azure Dev Backend dogfooding where no real Public Web domain
+// exists yet - but a Production release must never silently ship with that placeholder, or with
+// no host at all. Deliberately does not touch android/app/build.gradle to enforce this: any check
+// written directly inside its `release { }` buildType closure runs during Gradle's DSL
+// configuration phase for *every* buildType (even when only `assembleDebug`/`assembleDogfood` was
+// requested), which would break the very Debug/Dogfood builds this must stay safe for. This file
+// only ever executes when the "release" variant's own bundle task actually runs, so it cannot
+// affect any other buildType.
+const productionPublicWebHost = process.env.JUPLE_PUBLIC_WEB_HOST;
+const isValidProductionPublicWebHost =
+  typeof productionPublicWebHost === 'string' &&
+  productionPublicWebHost.trim().length > 0 &&
+  !productionPublicWebHost.includes('://') &&
+  !productionPublicWebHost.includes('/') &&
+  !productionPublicWebHost.includes(':') &&
+  productionPublicWebHost.includes('.') &&
+  productionPublicWebHost !== 'localhost' &&
+  productionPublicWebHost !== 'app-links-host-not-configured.invalid';
+
+if (!isValidProductionPublicWebHost) {
+  throw new Error(
+    'JUPLE_PUBLIC_WEB_HOST is not set to a valid bare HTTPS host. Refusing to build a Production ' +
+      'release without a real Public Web domain (see AndroidManifest.xml\'s App Links intent-filter ' +
+      'and src/navigation/linking.ts) - it must never ship with the ' +
+      '"app-links-host-not-configured.invalid" placeholder, localhost, or no host at all. Set ' +
+      'JUPLE_PUBLIC_WEB_HOST to a bare host (no scheme/path, e.g. app.example.com) once a real ' +
+      'domain exists, e.g.: JUPLE_PUBLIC_WEB_HOST=app.example.com ./gradlew assembleRelease',
+  );
+}
+
 process.env.JUPLE_API_ENV = 'production';
 
 module.exports = require('./metro.config.js');
