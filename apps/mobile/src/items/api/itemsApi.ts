@@ -2,17 +2,6 @@ import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { ItemCategory } from '../../categories/api/categoriesApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
 
-export interface ItemListEntry {
-  readonly id: number;
-  readonly url: string;
-  readonly title: string | null;
-  readonly memo: string | null;
-  readonly savedAtUtc: string;
-  readonly stateChangedAtUtc: string;
-  readonly category: ItemCategory | null;
-  readonly representativeImage: RepresentativeImage | null;
-}
-
 export type ItemDetailState = 'inbox' | 'wishlist' | 'archived';
 
 export interface ItemDetails {
@@ -24,11 +13,6 @@ export interface ItemDetails {
   readonly state: ItemDetailState;
   readonly stateChangedAtUtc: string;
   readonly category: ItemCategory | null;
-}
-
-export interface ItemPage {
-  readonly items: readonly ItemListEntry[];
-  readonly nextCursor: string | null;
 }
 
 /**
@@ -51,44 +35,6 @@ export interface ItemHistoryPage {
   readonly nextCursor: string | null;
 }
 
-export type ItemListState = 'wishlist' | 'archived';
-
-export interface GetItemsByStateOptions {
-  readonly limit?: number;
-  /** Opaque value from a previous ItemPage.nextCursor; never parsed or modified. */
-  readonly cursor?: string;
-  /** When set (non-null), restricts the page to Items in that Category. */
-  readonly categoryId?: number | null;
-}
-
-export async function getItemsByState(
-  request: AuthenticatedApiRequest,
-  state: ItemListState,
-  options: GetItemsByStateOptions = {},
-): Promise<ItemPage> {
-  const query = new URLSearchParams({ state });
-  if (options.limit !== undefined) {
-    query.set('limit', String(options.limit));
-  }
-  if (options.cursor) {
-    query.set('cursor', options.cursor);
-  }
-  if (options.categoryId !== undefined && options.categoryId !== null) {
-    query.set('categoryId', String(options.categoryId));
-  }
-
-  const response = await request<ItemPage>({
-    method: 'GET',
-    path: `/api/v1/items?${query.toString()}`,
-  });
-
-  if (!response.body) {
-    throw new Error('Juple API returned no Items page body.');
-  }
-
-  return response.body;
-}
-
 export interface GetItemHistoryOptions {
   readonly limit?: number;
   /** Opaque value from a previous ItemHistoryPage.nextCursor; never parsed or modified. */
@@ -97,8 +43,7 @@ export interface GetItemHistoryOptions {
 
 /**
  * All Items the user has ever saved, newest-saved-first, regardless of current
- * Inbox/Wishlist/Archived state - distinct from getItemsByState (state-filtered) and
- * getTodayInbox (today + Inbox-state only).
+ * Inbox/Wishlist/Archived state.
  */
 export async function getItemHistory(
   request: AuthenticatedApiRequest,
@@ -171,28 +116,6 @@ export async function getItemHistoryByDate(
   return response.body;
 }
 
-/** POSTs to the Wishlist transition endpoint; resolves on 204 (idempotent - already-Wishlist succeeds too). */
-export async function moveItemToWishlist(
-  request: AuthenticatedApiRequest,
-  itemId: number,
-): Promise<void> {
-  await request<void>({
-    method: 'POST',
-    path: `/api/v1/items/${itemId}/wishlist`,
-  });
-}
-
-/** POSTs to the Archive transition endpoint; resolves on 204 (idempotent - already-Archived succeeds too). */
-export async function moveItemToArchive(
-  request: AuthenticatedApiRequest,
-  itemId: number,
-): Promise<void> {
-  await request<void>({
-    method: 'POST',
-    path: `/api/v1/items/${itemId}/archive`,
-  });
-}
-
 /**
  * POSTs the "opened original URL" event (My Page → "최근 본 링크" / Recently opened links); resolves
  * on 204. Best-effort by convention - see ItemDetailsScreen's usage: a failure here must never
@@ -251,18 +174,5 @@ export async function updateItemDetails(
     method: 'PUT',
     path: `/api/v1/items/${itemId}/details`,
     body: details,
-  });
-}
-
-/** PUTs the Item's Category (or clears it with null); resolves on 204. */
-export async function setItemCategory(
-  request: AuthenticatedApiRequest,
-  itemId: number,
-  categoryId: number | null,
-): Promise<void> {
-  await request<void>({
-    method: 'PUT',
-    path: `/api/v1/items/${itemId}/category`,
-    body: { categoryId },
   });
 }

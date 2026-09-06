@@ -6,11 +6,9 @@
     "delete": "Delete",
     "deleting": "Deleting...",
     "close": "Close",
-    "change": "Change",
     "edit": "Edit",
     "processing": "Processing...",
-    "none": "None",
-    "all": "All"
+    "none": "None"
   },
   "errors": {
     "unauthorized": "We couldn't re-verify your sign-in status.",
@@ -50,8 +48,6 @@
     "itemDetails": "Details",
     "collectionDetails": "Collection",
     "languageSettings": "Language",
-    "wishlist": "Wishlist",
-    "archive": "Archive",
     "purchaseHistory": "Purchase History",
     "purchaseEditorCreate": "Add Purchase",
     "purchaseEditorEdit": "Edit Purchase",
@@ -126,10 +122,7 @@
     "errorNameConflict": "A collection with this name already exists.",
     "errorNameInvalid": "Please check the collection name.",
     "errorNameRequired": "Please enter a collection name.",
-    "errorNameTooLong": "Collection name must be 100 characters or fewer.",
-    "existingScreens": "Existing screens",
-    "viewWishlist": "View Wishlist",
-    "viewArchive": "View Archive"
+    "errorNameTooLong": "Collection name must be 100 characters or fewer."
   },
   "myPage": {
     "title": "My Page",
@@ -156,7 +149,6 @@
     "share": "Share",
     "memo": "Memo",
     "memoPlaceholder": "Enter a memo",
-    "category": "Category",
     "addPurchase": "Add Purchase",
     "purchasesSection": "Purchases",
     "noPurchases": "No purchases yet.",
@@ -170,9 +162,6 @@
     "photoLimitError": "You can add up to {{max}} photos.",
     "addPhoto": "Add Photo",
     "saved": "Saved.",
-    "stateManagement": "Manage status",
-    "moveToWishlist": "Move to Wishlist",
-    "moveToArchive": "Archive",
     "deletePhotoConfirmTitle": "Delete this photo?",
     "deletePhotoConfirmMessage": "A deleted photo can't be recovered.",
     "deleteItemConfirmTitle": "Delete this item?",
@@ -192,41 +181,8 @@
     "errorImageDeleteFallback": "Couldn't delete the photo.",
     "errorRecentPurchasesFallback": "Couldn't load the purchase history.",
     "errorItemDeleteFallback": "Couldn't delete the item.",
-    "errorItemStateFallback": "Couldn't change the item's status.",
     "errorImagePickerPermission": "Photo library access is required.",
     "errorImagePickerFallback": "Couldn't select the photo."
-  },
-  "category": {
-    "selectTitle": "Select Category",
-    "manage": "Manage Categories",
-    "none": "No category",
-    "newCategory": "New Category",
-    "namePlaceholder": "Category name",
-    "create": "Create",
-    "backToSelect": "Back to Select",
-    "empty": "No categories yet.",
-    "rename": "Rename",
-    "deleteConfirmTitle": "Delete this category?",
-    "deleteConfirmMessage": "Items in this category will be changed to no category.",
-    "filterTitle": "Category Filter",
-    "filterLabel": "Category: {{name}}",
-    "errorListFallback": "Couldn't load the category list.",
-    "errorAssignFallback": "Couldn't change the category.",
-    "errorNameConflict": "A category with this name already exists.",
-    "errorNameInvalid": "Please check the category name.",
-    "errorRenameFallback": "Couldn't rename the category.",
-    "errorCreateFallback": "Couldn't create the category.",
-    "errorDeleteFallback": "Couldn't delete the category.",
-    "errorNameRequired": "Please enter a category name.",
-    "errorNameTooLong": "Category name must be 100 characters or less."
-  },
-  "itemList": {
-    "wishlistTitle": "Wishlist",
-    "archiveTitle": "Archive",
-    "wishlistEmpty": "You haven't saved anything to your Wishlist yet.",
-    "archiveEmpty": "No archived items yet.",
-    "errorListFallback": "Couldn't load the list.",
-    "errorForbidden": "We couldn't confirm permission to view this list."
   },
   "purchaseHistory": {
     "purchasesTab": "Purchases",

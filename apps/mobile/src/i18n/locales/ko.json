@@ -6,11 +6,9 @@
     "delete": "삭제",
     "deleting": "삭제 중...",
     "close": "닫기",
-    "change": "변경",
     "edit": "수정",
     "processing": "처리 중...",
-    "none": "없음",
-    "all": "전체"
+    "none": "없음"
   },
   "errors": {
     "unauthorized": "인증 상태를 다시 확인할 수 없습니다.",
@@ -50,8 +48,6 @@
     "itemDetails": "상세",
     "collectionDetails": "보관함",
     "languageSettings": "언어",
-    "wishlist": "위시리스트",
-    "archive": "보관",
     "purchaseHistory": "구매내역",
     "purchaseEditorCreate": "구매 기록 추가",
     "purchaseEditorEdit": "구매 기록 수정",
@@ -126,10 +122,7 @@
     "errorNameConflict": "이미 같은 이름의 보관함이 있습니다.",
     "errorNameInvalid": "보관함 이름을 확인해 주세요.",
     "errorNameRequired": "보관함 이름을 입력해 주세요.",
-    "errorNameTooLong": "보관함 이름은 100자 이하로 입력해 주세요.",
-    "existingScreens": "기존 화면",
-    "viewWishlist": "위시리스트 보기",
-    "viewArchive": "보관 보기"
+    "errorNameTooLong": "보관함 이름은 100자 이하로 입력해 주세요."
   },
   "myPage": {
     "title": "내 페이지",
@@ -156,7 +149,6 @@
     "share": "공유하기",
     "memo": "메모",
     "memoPlaceholder": "메모를 입력해 주세요",
-    "category": "카테고리",
     "addPurchase": "구매 기록 추가",
     "purchasesSection": "구매 기록",
     "noPurchases": "구매 기록이 없습니다.",
@@ -170,9 +162,6 @@
     "photoLimitError": "사진은 최대 {{max}}장까지 추가할 수 있습니다.",
     "addPhoto": "사진 추가",
     "saved": "저장되었습니다.",
-    "stateManagement": "상태 관리",
-    "moveToWishlist": "위시리스트로",
-    "moveToArchive": "보관",
     "deletePhotoConfirmTitle": "사진을 삭제할까요?",
     "deletePhotoConfirmMessage": "삭제한 사진은 복구할 수 없습니다.",
     "deleteItemConfirmTitle": "항목을 삭제할까요?",
@@ -192,41 +181,8 @@
     "errorImageDeleteFallback": "사진을 삭제할 수 없습니다.",
     "errorRecentPurchasesFallback": "구매 기록을 불러올 수 없습니다.",
     "errorItemDeleteFallback": "항목을 삭제할 수 없습니다.",
-    "errorItemStateFallback": "항목 상태를 변경할 수 없습니다.",
     "errorImagePickerPermission": "사진 보관함 접근 권한이 필요합니다.",
     "errorImagePickerFallback": "사진을 선택할 수 없습니다."
-  },
-  "category": {
-    "selectTitle": "카테고리 선택",
-    "manage": "카테고리 관리",
-    "none": "카테고리 없음",
-    "newCategory": "새 카테고리",
-    "namePlaceholder": "카테고리 이름",
-    "create": "생성",
-    "backToSelect": "선택으로",
-    "empty": "카테고리가 없습니다.",
-    "rename": "이름변경",
-    "deleteConfirmTitle": "카테고리를 삭제할까요?",
-    "deleteConfirmMessage": "이 카테고리가 지정된 항목은 카테고리 없음으로 변경됩니다.",
-    "filterTitle": "카테고리 필터",
-    "filterLabel": "카테고리: {{name}}",
-    "errorListFallback": "카테고리 목록을 불러올 수 없습니다.",
-    "errorAssignFallback": "카테고리를 변경할 수 없습니다.",
-    "errorNameConflict": "이미 같은 이름의 카테고리가 있습니다.",
-    "errorNameInvalid": "카테고리 이름을 확인해 주세요.",
-    "errorRenameFallback": "카테고리 이름을 변경할 수 없습니다.",
-    "errorCreateFallback": "카테고리를 생성할 수 없습니다.",
-    "errorDeleteFallback": "카테고리를 삭제할 수 없습니다.",
-    "errorNameRequired": "카테고리 이름을 입력해 주세요.",
-    "errorNameTooLong": "카테고리 이름은 100자 이하로 입력해 주세요."
-  },
-  "itemList": {
-    "wishlistTitle": "위시리스트",
-    "archiveTitle": "보관",
-    "wishlistEmpty": "아직 위시리스트에 저장한 항목이 없습니다.",
-    "archiveEmpty": "보관한 항목이 없습니다.",
-    "errorListFallback": "목록을 불러올 수 없습니다.",
-    "errorForbidden": "이 목록을 볼 권한을 확인하지 못했습니다."
   },
   "purchaseHistory": {
     "purchasesTab": "구매내역",

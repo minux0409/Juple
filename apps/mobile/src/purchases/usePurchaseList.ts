@@ -31,10 +31,10 @@ export interface UsePurchaseListResult {
 }
 
 /**
- * Loads and paginates the Purchase History list. Mirrors useItemStateList exactly: loading is
- * driven entirely by focus (first focus = full-screen spinner, every later focus = a fresh first
- * page), so a Purchase created via PurchaseEditor and popped back to this tab appears without the
- * user having to pull-to-refresh, and there is still only ever one GET in flight per focus.
+ * Loads and paginates the Purchase History list. Loading is driven entirely by focus (first
+ * focus = full-screen spinner, every later focus = a fresh first page), so a Purchase created via
+ * PurchaseEditor and popped back to this tab appears without the user having to pull-to-refresh,
+ * and there is still only ever one GET in flight per focus.
  */
 export function usePurchaseList(): UsePurchaseListResult {
   const { t } = useTranslation();

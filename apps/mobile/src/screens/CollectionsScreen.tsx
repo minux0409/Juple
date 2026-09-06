@@ -171,9 +171,9 @@ export function CollectionsScreen() {
   );
 
   // Refetches every time the Collections tab regains focus, so a Collection created/renamed/
-  // deleted on CollectionDetailsScreen shows up immediately on return, matching the
-  // Home/History/Wishlist/Archive precedent. Favorites are refetched independently of the main
-  // paginated list, same as ItemDetailsScreen's Purchases/RepeatPurchases independence.
+  // deleted on CollectionDetailsScreen shows up immediately on return, matching the Home/History
+  // precedent. Favorites are refetched independently of the main paginated list, same as
+  // ItemDetailsScreen's Purchases/RepeatPurchases independence.
   useFocusEffect(
     useCallback(() => {
       load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
@@ -362,28 +362,11 @@ export function CollectionsScreen() {
           />
         )}
         ListFooterComponent={
-          <View style={styles.legacySection}>
-            {isLoadingMore ? (
-              <View style={styles.footerLoading}>
-                <ActivityIndicator />
-              </View>
-            ) : null}
-            <Text style={styles.sectionTitle}>{t('collections.existingScreens')}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigation.navigate('Wishlist')}
-              style={styles.linkButton}
-            >
-              <Text style={styles.linkButtonLabel}>{t('collections.viewWishlist')}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigation.navigate('Archive')}
-              style={styles.linkButton}
-            >
-              <Text style={styles.linkButtonLabel}>{t('collections.viewArchive')}</Text>
-            </Pressable>
-          </View>
+          isLoadingMore ? (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator />
+            </View>
+          ) : undefined
         }
       />
     </SafeAreaView>
@@ -529,28 +512,12 @@ const styles = StyleSheet.create({
   favoriteButtonLabelActive: {
     color: '#F5A623',
   },
-  legacySection: {
-    marginTop: 40,
-  },
   footerLoading: {
-    paddingBottom: 20,
+    paddingVertical: 20,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 12,
-  },
-  linkButton: {
-    alignItems: 'center',
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 10,
-    paddingVertical: 12,
-  },
-  linkButtonLabel: {
-    color: '#111111',
-    fontSize: 15,
-    fontWeight: '600',
   },
 });

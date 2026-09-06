@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import type { BackendAuthStatus, UserBootstrapStatus } from '../auth/types';
-import { ArchiveScreen } from '../screens/ArchiveScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
@@ -16,7 +15,6 @@ import { RepeatPurchaseEditorScreen } from '../screens/RepeatPurchaseEditorScree
 import { RepeatPurchaseLogPurchaseScreen } from '../screens/RepeatPurchaseLogPurchaseScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
-import { WishlistScreen } from '../screens/WishlistScreen';
 import type { Purchase } from '../purchases/api/purchasesApi';
 import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { MainTabs } from './MainTabs';
@@ -29,12 +27,9 @@ export type RootStackParamList = {
   LanguageSettings: undefined;
   /**
    * Not in the Bottom Tabs (see MainTabs) since the new 홈/기록/보관함/내 페이지 IA - kept reachable
-   * here as a temporary, explicitly-labeled path (see CollectionsScreen/MyPageScreen) while
-   * Wishlist/Archive/PurchaseHistory's own eventual Collection/Item-detail migration is still
-   * only a future direction, not implemented in this pass.
+   * here as a temporary, explicitly-labeled path (see MyPageScreen) while PurchaseHistory's own
+   * eventual UX/placement is still only a future direction, not implemented in this pass.
    */
-  Wishlist: undefined;
-  Archive: undefined;
   PurchaseHistory: undefined;
   /** My Page → "최근 본 링크" - the screen fetches the current page itself via GET. */
   RecentlyOpenedLinks: undefined;
@@ -142,16 +137,6 @@ export function RootStack() {
             component={LanguageSettingsScreen}
             name="LanguageSettings"
             options={{ title: t('nav.languageSettings') }}
-          />
-          <Stack.Screen
-            component={WishlistScreen}
-            name="Wishlist"
-            options={{ title: t('nav.wishlist') }}
-          />
-          <Stack.Screen
-            component={ArchiveScreen}
-            name="Archive"
-            options={{ title: t('nav.archive') }}
           />
           <Stack.Screen
             component={PurchaseHistoryScreen}

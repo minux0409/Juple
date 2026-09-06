@@ -32,14 +32,13 @@ export interface UseItemHistoryResult {
 
 /**
  * Loads and paginates the full History list (every Item the user has ever saved, regardless of
- * current state - see GET /api/v1/items/history). Mirrors useItemStateList/usePurchaseList
- * exactly: loading is driven entirely by focus (first focus = full-screen spinner, every later
- * focus = a fresh first page, so a newly-saved Item shows up without the user having to
- * pull-to-refresh), a monotonic request generation discards stale in-flight results, and
- * onEndReached is guarded against firing more than once per page. Section/date grouping is a pure
- * display-layer concern (see historyDateGrouping.ts) applied to this hook's flat `items` array -
- * it is not done here, so a page boundary landing mid-day never fragments a date section on
- * screen.
+ * current state - see GET /api/v1/items/history). Mirrors usePurchaseList exactly: loading is
+ * driven entirely by focus (first focus = full-screen spinner, every later focus = a fresh first
+ * page, so a newly-saved Item shows up without the user having to pull-to-refresh), a monotonic
+ * request generation discards stale in-flight results, and onEndReached is guarded against firing
+ * more than once per page. Section/date grouping is a pure display-layer concern (see
+ * historyDateGrouping.ts) applied to this hook's flat `items` array - it is not done here, so a
+ * page boundary landing mid-day never fragments a date section on screen.
  */
 export function useItemHistory(): UseItemHistoryResult {
   const { t } = useTranslation();

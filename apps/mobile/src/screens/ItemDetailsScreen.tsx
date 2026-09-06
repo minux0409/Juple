@@ -20,15 +20,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
-import { useAuthenticatedApi, type AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import {
-  createCategory,
-  deleteCategory,
-  getCategories,
-  renameCategory,
-  type Category,
-  type ItemCategory,
-} from '../categories/api/categoriesApi';
+import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   addItemToCollection,
   createCollection,
@@ -45,10 +37,7 @@ import {
 import {
   deleteItem,
   getItemDetails,
-  moveItemToArchive,
-  moveItemToWishlist,
   recordItemOpen,
-  setItemCategory,
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
@@ -82,42 +71,6 @@ function getSaveErrorMessage(error: unknown, t: TFunction): string {
     }
   }
   return t('item.errorSaveFallback');
-}
-
-function getCategoryListErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('category.errorListFallback');
-}
-
-function getCategoryAssignErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('category.errorAssignFallback');
-}
-
-function getCategoryNameSaveErrorMessage(error: unknown, isRename: boolean, t: TFunction): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'conflict') {
-      return t('category.errorNameConflict');
-    }
-    if (error.kind === 'badRequest') {
-      return t('category.errorNameInvalid');
-    }
-    if (error.kind === 'unauthorized') {
-      return t('errors.unauthorized');
-    }
-  }
-  return isRename ? t('category.errorRenameFallback') : t('category.errorCreateFallback');
-}
-
-function getCategoryDeleteErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('category.errorDeleteFallback');
 }
 
 function getItemCollectionsListErrorMessage(error: unknown, t: TFunction): string {
@@ -213,11 +166,11 @@ function getLinkedRepeatPurchasesErrorMessage(error: unknown, t: TFunction): str
   return t('repeatPurchase.listErrorFallback');
 }
 
-function getItemLifecycleErrorMessage(error: unknown, isDelete: boolean, t: TFunction): string {
+function getItemDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
-  return isDelete ? t('item.errorItemDeleteFallback') : t('item.errorItemStateFallback');
+  return t('item.errorItemDeleteFallback');
 }
 
 /** picker/permission failures never reach the server, so this maps react-native-image-picker's own errorCode only. */
@@ -226,18 +179,6 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
     return t('item.errorImagePickerPermission');
   }
   return t('item.errorImagePickerFallback');
-}
-
-/** Mirrors the backend's CategoryNameNormalizer: trim, required, 100-character limit. */
-function getCategoryNameValidationError(name: string, t: TFunction): string | null {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return t('category.errorNameRequired');
-  }
-  if (trimmedName.length > 100) {
-    return t('category.errorNameTooLong');
-  }
-  return null;
 }
 
 export function ItemDetailsScreen({ route, navigation }: Props) {
@@ -254,7 +195,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [memo, setMemo] = useState('');
   const [baselineTitle, setBaselineTitle] = useState('');
   const [baselineMemo, setBaselineMemo] = useState('');
-  const [category, setCategory] = useState<ItemCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,18 +209,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const isUploadingImageRef = useRef(false);
   const deletingImageIdsRef = useRef<Set<number>>(new Set());
 
-  const [isCategoryModalVisible, setIsCategoryModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState<'select' | 'manage'>('select');
-  const [categoryOptions, setCategoryOptions] = useState<readonly Category[]>([]);
-  const [isLoadingCategoryOptions, setIsLoadingCategoryOptions] = useState(false);
-  const [categoryModalError, setCategoryModalError] = useState<string | null>(null);
-  const [isCategoryActionInFlight, setIsCategoryActionInFlight] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [renamingCategoryId, setRenamingCategoryId] = useState<number | null>(null);
-  const [renameDraftName, setRenameDraftName] = useState('');
-
-  // Independent from Category above - an Item can belong to any number of Collections at once
-  // (unlike the single-select Category), so membership is its own list rather than one value.
+  // An Item can belong to any number of Collections at once, so membership is its own list.
   // There is no cap on how many Collections an Item can belong to, so this is genuinely paginated
   // (see loadMoreItemCollections below) rather than assumed to fit in one page.
   const [itemCollections, setItemCollections] = useState<readonly Collection[]>([]);
@@ -315,13 +244,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     isSavingRef.current = isSaving;
   }, [isSaving]);
 
-  const isCategoryActionInFlightRef = useRef(isCategoryActionInFlight);
-  useEffect(() => {
-    isCategoryActionInFlightRef.current = isCategoryActionInFlight;
-  }, [isCategoryActionInFlight]);
-
-  const isCategoryDeleteConfirmOpenRef = useRef(false);
-
   const [isItemActionInFlight, setIsItemActionInFlight] = useState(false);
   const [isDeletingItem, setIsDeletingItem] = useState(false);
   const [itemActionError, setItemActionError] = useState<string | null>(null);
@@ -351,7 +273,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setMemo(details.memo ?? '');
       setBaselineTitle(details.title ?? '');
       setBaselineMemo(details.memo ?? '');
-      setCategory(details.category);
     } catch (caughtError) {
       setError(getLoadErrorMessage(caughtError, t));
     } finally {
@@ -588,194 +509,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     ]);
   };
 
-  const openCategoryModal = async () => {
-    setIsCategoryModalVisible(true);
-    setModalMode('select');
-    setCategoryModalError(null);
-    setNewCategoryName('');
-    setRenamingCategoryId(null);
-    setRenameDraftName('');
-    setIsLoadingCategoryOptions(true);
-    try {
-      const categories = await getCategories(authenticatedRequest);
-      setCategoryOptions(categories);
-    } catch (caughtError) {
-      setCategoryModalError(getCategoryListErrorMessage(caughtError, t));
-    } finally {
-      setIsLoadingCategoryOptions(false);
-    }
-  };
-
-  const closeCategoryModal = () => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-    setIsCategoryModalVisible(false);
-  };
-
-  const openCategoryManage = () => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-    setModalMode('manage');
-    setCategoryModalError(null);
-  };
-
-  const closeCategoryManage = () => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-    setModalMode('select');
-    setRenamingCategoryId(null);
-    setRenameDraftName('');
-    setCategoryModalError(null);
-  };
-
-  const selectCategory = async (selected: ItemCategory | null) => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-
-    setIsCategoryActionInFlight(true);
-    setCategoryModalError(null);
-    try {
-      await setItemCategory(authenticatedRequest, itemId, selected?.id ?? null);
-      setCategory(selected);
-      setIsCategoryModalVisible(false);
-    } catch (caughtError) {
-      setCategoryModalError(getCategoryAssignErrorMessage(caughtError, t));
-    } finally {
-      setIsCategoryActionInFlight(false);
-    }
-  };
-
-  const submitNewCategory = async () => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-
-    const validationError = getCategoryNameValidationError(newCategoryName, t);
-    if (validationError) {
-      setCategoryModalError(validationError);
-      return;
-    }
-    const trimmedName = newCategoryName.trim();
-
-    setIsCategoryActionInFlight(true);
-    setCategoryModalError(null);
-    try {
-      const created = await createCategory(authenticatedRequest, trimmedName);
-      setCategoryOptions(previous => [...previous, created]);
-      setNewCategoryName('');
-    } catch (caughtError) {
-      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, false, t));
-    } finally {
-      setIsCategoryActionInFlight(false);
-    }
-  };
-
-  const startRename = (option: Category) => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-    setRenamingCategoryId(option.id);
-    setRenameDraftName(option.name);
-    setCategoryModalError(null);
-  };
-
-  const cancelRename = () => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-    setRenamingCategoryId(null);
-    setRenameDraftName('');
-    setCategoryModalError(null);
-  };
-
-  const submitRename = async () => {
-    if (renamingCategoryId === null || isCategoryActionInFlightRef.current) {
-      return;
-    }
-
-    const validationError = getCategoryNameValidationError(renameDraftName, t);
-    if (validationError) {
-      setCategoryModalError(validationError);
-      return;
-    }
-    const trimmedName = renameDraftName.trim();
-    const categoryId = renamingCategoryId;
-
-    setIsCategoryActionInFlight(true);
-    setCategoryModalError(null);
-    try {
-      await renameCategory(authenticatedRequest, categoryId, trimmedName);
-      setCategoryOptions(previous =>
-        previous.map(option =>
-          option.id === categoryId ? { ...option, name: trimmedName } : option,
-        ),
-      );
-      setCategory(previous =>
-        previous && previous.id === categoryId ? { ...previous, name: trimmedName } : previous,
-      );
-      setRenamingCategoryId(null);
-      setRenameDraftName('');
-    } catch (caughtError) {
-      setCategoryModalError(getCategoryNameSaveErrorMessage(caughtError, true, t));
-    } finally {
-      setIsCategoryActionInFlight(false);
-    }
-  };
-
-  const deleteCategoryAction = async (categoryId: number) => {
-    if (isCategoryActionInFlightRef.current) {
-      return;
-    }
-
-    setIsCategoryActionInFlight(true);
-    setCategoryModalError(null);
-    try {
-      await deleteCategory(authenticatedRequest, categoryId);
-      setCategoryOptions(previous => previous.filter(option => option.id !== categoryId));
-      setCategory(previous => (previous && previous.id === categoryId ? null : previous));
-      if (renamingCategoryId === categoryId) {
-        setRenamingCategoryId(null);
-        setRenameDraftName('');
-      }
-    } catch (caughtError) {
-      setCategoryModalError(getCategoryDeleteErrorMessage(caughtError, t));
-    } finally {
-      setIsCategoryActionInFlight(false);
-    }
-  };
-
-  const confirmDeleteCategory = (option: Category) => {
-    if (isCategoryDeleteConfirmOpenRef.current || isCategoryActionInFlightRef.current) {
-      return;
-    }
-    isCategoryDeleteConfirmOpenRef.current = true;
-
-    const closeConfirmation = () => {
-      isCategoryDeleteConfirmOpenRef.current = false;
-    };
-
-    Alert.alert(
-      t('category.deleteConfirmTitle'),
-      t('category.deleteConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            closeConfirmation();
-            deleteCategoryAction(option.id);
-          },
-        },
-      ],
-      { cancelable: true, onDismiss: closeConfirmation },
-    );
-  };
-
   const removeFromCollection = async (collectionId: number) => {
     if (removingCollectionId !== null) {
       return;
@@ -900,31 +633,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  const runItemStateTransition = async (
-    action: (request: AuthenticatedApiRequest, id: number) => Promise<void>,
-    targetState: ItemDetails['state'],
-  ) => {
-    if (itemActionInFlightRef.current) {
-      return;
-    }
-
-    itemActionInFlightRef.current = true;
-    setIsItemActionInFlight(true);
-    setItemActionError(null);
-    try {
-      await action(authenticatedRequest, itemId);
-      setItem(previous => (previous ? { ...previous, state: targetState } : previous));
-    } catch (caughtError) {
-      setItemActionError(getItemLifecycleErrorMessage(caughtError, false, t));
-    } finally {
-      itemActionInFlightRef.current = false;
-      setIsItemActionInFlight(false);
-    }
-  };
-
-  const moveToWishlistAction = () => runItemStateTransition(moveItemToWishlist, 'wishlist');
-  const moveToArchiveAction = () => runItemStateTransition(moveItemToArchive, 'archived');
-
   const deleteItemAction = async () => {
     if (itemActionInFlightRef.current) {
       return;
@@ -938,7 +646,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       await deleteItem(authenticatedRequest, itemId);
       navigation.goBack();
     } catch (caughtError) {
-      setItemActionError(getItemLifecycleErrorMessage(caughtError, true, t));
+      setItemActionError(getItemDeleteErrorMessage(caughtError, t));
     } finally {
       itemActionInFlightRef.current = false;
       setIsItemActionInFlight(false);
@@ -1125,18 +833,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         style={styles.memoInput}
         value={memo}
       />
-
-      <Text style={styles.label}>{t('item.category')}</Text>
-      <View style={styles.categoryRow}>
-        <Text style={styles.categoryValue}>{category?.name ?? t('common.none')}</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={openCategoryModal}
-          style={styles.categoryChangeButton}
-        >
-          <Text style={styles.categoryChangeLabel}>{t('common.change')}</Text>
-        </Pressable>
-      </View>
 
       <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
       {isLoadingItemCollections ? (
@@ -1362,43 +1058,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
       </Pressable>
 
-      <Text style={styles.label}>{t('item.stateManagement')}</Text>
-      <View style={styles.itemActionRow}>
-        {item.state === 'inbox' ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isItemActionInFlight }}
-            disabled={isItemActionInFlight}
-            onPress={moveToWishlistAction}
-            style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
-          >
-            <Text style={styles.itemActionButtonLabel}>{t('item.moveToWishlist')}</Text>
-          </Pressable>
-        ) : null}
-        {item.state === 'archived' ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isItemActionInFlight }}
-            disabled={isItemActionInFlight}
-            onPress={moveToWishlistAction}
-            style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
-          >
-            <Text style={styles.itemActionButtonLabel}>{t('item.moveToWishlist')}</Text>
-          </Pressable>
-        ) : null}
-        {item.state === 'inbox' || item.state === 'wishlist' ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isItemActionInFlight }}
-            disabled={isItemActionInFlight}
-            onPress={moveToArchiveAction}
-            style={[styles.itemActionButton, isItemActionInFlight && styles.disabledButton]}
-          >
-            <Text style={styles.itemActionButtonLabel}>{t('item.moveToArchive')}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
       {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
 
       <Pressable
@@ -1412,191 +1071,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           {isDeletingItem ? t('common.deleting') : t('common.delete')}
         </Text>
       </Pressable>
-
-      <Modal
-        animationType="slide"
-        onRequestClose={closeCategoryModal}
-        transparent
-        visible={isCategoryModalVisible}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
-            {modalMode === 'select' ? (
-              <>
-                <View style={styles.modalHeaderRow}>
-                  <Text style={styles.modalTitle}>{t('category.selectTitle')}</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isCategoryActionInFlight}
-                    onPress={openCategoryManage}
-                  >
-                    <Text style={styles.modalHeaderLinkLabel}>{t('category.manage')}</Text>
-                  </Pressable>
-                </View>
-
-                {isLoadingCategoryOptions ? (
-                  <ActivityIndicator style={styles.modalLoading} />
-                ) : (
-                  <FlatList
-                    ListHeaderComponent={
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={isCategoryActionInFlight}
-                        onPress={() => selectCategory(null)}
-                        style={[
-                          styles.categoryOptionRow,
-                          isCategoryActionInFlight && styles.disabledButton,
-                        ]}
-                      >
-                        <Text style={styles.categoryOptionLabel}>{t('category.none')}</Text>
-                      </Pressable>
-                    }
-                    data={categoryOptions}
-                    keyExtractor={option => option.id.toString()}
-                    renderItem={({ item: option }) => (
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={isCategoryActionInFlight}
-                        onPress={() => selectCategory({ id: option.id, name: option.name })}
-                        style={[
-                          styles.categoryOptionRow,
-                          isCategoryActionInFlight && styles.disabledButton,
-                        ]}
-                      >
-                        <Text style={styles.categoryOptionLabel}>{option.name}</Text>
-                      </Pressable>
-                    )}
-                    style={styles.categoryOptionList}
-                  />
-                )}
-
-                {categoryModalError ? (
-                  <Text style={styles.error}>{categoryModalError}</Text>
-                ) : null}
-
-                <Text style={styles.label}>{t('category.newCategory')}</Text>
-                <View style={styles.newCategoryRow}>
-                  <TextInput
-                    editable={!isCategoryActionInFlight}
-                    onChangeText={setNewCategoryName}
-                    placeholder={t('category.namePlaceholder')}
-                    style={styles.newCategoryInput}
-                    value={newCategoryName}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      disabled: !newCategoryName.trim() || isCategoryActionInFlight,
-                      busy: isCategoryActionInFlight,
-                    }}
-                    disabled={!newCategoryName.trim() || isCategoryActionInFlight}
-                    onPress={submitNewCategory}
-                    style={[
-                      styles.newCategoryButton,
-                      (!newCategoryName.trim() || isCategoryActionInFlight) &&
-                        styles.disabledButton,
-                    ]}
-                  >
-                    <Text style={styles.newCategoryButtonLabel}>{t('category.create')}</Text>
-                  </Pressable>
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.modalHeaderRow}>
-                  <Text style={styles.modalTitle}>{t('category.manage')}</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isCategoryActionInFlight}
-                    onPress={closeCategoryManage}
-                  >
-                    <Text style={styles.modalHeaderLinkLabel}>{t('category.backToSelect')}</Text>
-                  </Pressable>
-                </View>
-
-                {categoryModalError ? (
-                  <Text style={styles.error}>{categoryModalError}</Text>
-                ) : null}
-
-                <FlatList
-                  data={categoryOptions}
-                  keyExtractor={option => option.id.toString()}
-                  ListEmptyComponent={
-                    <Text style={styles.manageEmpty}>{t('category.empty')}</Text>
-                  }
-                  renderItem={({ item: option }) =>
-                    renamingCategoryId === option.id ? (
-                      <View style={styles.manageRow}>
-                        <TextInput
-                          autoFocus
-                          editable={!isCategoryActionInFlight}
-                          onChangeText={setRenameDraftName}
-                          style={styles.renameInput}
-                          value={renameDraftName}
-                        />
-                        <View style={styles.manageRowActions}>
-                          <Pressable
-                            accessibilityRole="button"
-                            disabled={isCategoryActionInFlight}
-                            onPress={submitRename}
-                            style={styles.manageActionButton}
-                          >
-                            <Text style={styles.manageActionLabel}>{t('common.save')}</Text>
-                          </Pressable>
-                          <Pressable
-                            accessibilityRole="button"
-                            disabled={isCategoryActionInFlight}
-                            onPress={cancelRename}
-                            style={styles.manageActionButton}
-                          >
-                            <Text style={styles.manageActionLabel}>{t('common.cancel')}</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={styles.manageRow}>
-                        <Text numberOfLines={1} style={styles.categoryOptionLabel}>
-                          {option.name}
-                        </Text>
-                        <View style={styles.manageRowActions}>
-                          <Pressable
-                            accessibilityRole="button"
-                            disabled={isCategoryActionInFlight}
-                            onPress={() => startRename(option)}
-                            style={styles.manageActionButton}
-                          >
-                            <Text style={styles.manageActionLabel}>{t('category.rename')}</Text>
-                          </Pressable>
-                          <Pressable
-                            accessibilityRole="button"
-                            disabled={isCategoryActionInFlight}
-                            onPress={() => confirmDeleteCategory(option)}
-                            style={styles.manageActionButton}
-                          >
-                            <Text style={[styles.manageActionLabel, styles.manageDeleteLabel]}>
-                              {t('common.delete')}
-                            </Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    )
-                  }
-                  style={styles.categoryOptionList}
-                />
-              </>
-            )}
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={isCategoryActionInFlight}
-              onPress={closeCategoryModal}
-              style={styles.modalCloseButton}
-            >
-              <Text style={styles.modalCloseLabel}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
 
       <Modal
         animationType="slide"
@@ -1779,23 +1253,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  itemActionRow: {
-    flexDirection: 'row',
-  },
-  itemActionButton: {
-    alignItems: 'center',
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    marginEnd: 10,
-    paddingVertical: 10,
-  },
-  itemActionButtonLabel: {
-    color: '#111111',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   itemDeleteButton: {
     alignItems: 'center',
     backgroundColor: '#B42318',
@@ -1862,27 +1319,6 @@ const styles = StyleSheet.create({
   saveButtonLabel: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  categoryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  categoryValue: {
-    color: '#111111',
-    fontSize: 15,
-  },
-  categoryChangeButton: {
-    borderColor: '#9A9A9A',
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  categoryChangeLabel: {
-    color: '#111111',
-    fontSize: 13,
     fontWeight: '600',
   },
   collectionChipRow: {
@@ -1979,21 +1415,9 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     padding: 24,
   },
-  modalHeaderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-  },
-  modalHeaderLinkLabel: {
-    color: '#666666',
-    fontSize: 13,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
   modalLoading: {
     marginVertical: 20,
@@ -2042,38 +1466,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 14,
     paddingVertical: 16,
-  },
-  manageRow: {
-    alignItems: 'center',
-    borderTopColor: '#E0E0E0',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
-  manageRowActions: {
-    flexDirection: 'row',
-  },
-  manageActionButton: {
-    marginStart: 14,
-  },
-  manageActionLabel: {
-    color: '#111111',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  manageDeleteLabel: {
-    color: '#B42318',
-  },
-  renameInput: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    fontSize: 15,
-    marginEnd: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   modalCloseButton: {
     alignItems: 'center',

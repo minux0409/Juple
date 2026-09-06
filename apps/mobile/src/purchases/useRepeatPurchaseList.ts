@@ -34,14 +34,14 @@ export interface UseRepeatPurchaseListResult {
 }
 
 /**
- * Loads and paginates the RepeatPurchase list, enabled-only by default. Mirrors
- * usePurchaseList/useItemStateList exactly: loading is driven entirely by focus (first focus =
- * full-screen spinner, every later focus = a fresh first page), a monotonic request generation
- * discards stale in-flight results, and onEndReached is guarded against firing more than once per
- * page. Toggling includeDisabled follows useItemStateList's Category-filter-change pattern
- * precisely (setFilterCategoryId): the existing page/cursor is cleared and the first page is
- * reloaded, so enabled/disabled results are never left mixed mid-list. Entirely independent state
- * from usePurchaseList - a failure here never touches the Purchase History segment's state.
+ * Loads and paginates the RepeatPurchase list, enabled-only by default. Mirrors usePurchaseList
+ * exactly: loading is driven entirely by focus (first focus = full-screen spinner, every later
+ * focus = a fresh first page), a monotonic request generation discards stale in-flight results,
+ * and onEndReached is guarded against firing more than once per page. Toggling includeDisabled
+ * follows the same clear-and-reload pattern (setIncludeDisabled below): the existing page/cursor
+ * is cleared and the first page is reloaded, so enabled/disabled results are never left mixed
+ * mid-list. Entirely independent state from usePurchaseList - a failure here never touches the
+ * Purchase History segment's state.
  */
 export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
   const { t } = useTranslation();
@@ -61,7 +61,7 @@ export function useRepeatPurchaseList(): UseRepeatPurchaseListResult {
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
   // Mirrors includeDisabled for synchronous reads inside load()/loadMore() without adding it to
-  // their dependency arrays (same idiom as useItemStateList's filterCategoryIdRef).
+  // their dependency arrays.
   const includeDisabledRef = useRef(false);
 
   const load = useCallback(
