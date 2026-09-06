@@ -216,3 +216,60 @@ export async function removeItemFromCollection(
     path: `/api/v1/collections/${collectionId}/items/${itemId}`,
   });
 }
+
+/** A Collection's public share - ShareUrl is the full, ready-to-share HTTPS link (composed server-side; never assembled here from a separately-known base URL). */
+export interface CollectionShare {
+  readonly publicId: string;
+  readonly shareUrl: string;
+  readonly createdAtUtc: string;
+}
+
+interface CollectionShareStatus {
+  readonly isShared: boolean;
+  readonly share: CollectionShare | null;
+}
+
+/** PUTs to activate this Collection's public share; idempotent - resolves with the existing active share if one is already enabled, rather than minting a new link. */
+export async function enableCollectionShare(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<CollectionShare> {
+  const response = await request<CollectionShare>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/share`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection share body.');
+  }
+
+  return response.body;
+}
+
+/** Returns null when the Collection is currently unshared - a valid, common state, not an error. */
+export async function getCollectionShare(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<CollectionShare | null> {
+  const response = await request<CollectionShareStatus>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/share`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection share status body.');
+  }
+
+  return response.body.share;
+}
+
+/** DELETEs this Collection's active share; resolves on 204 (idempotent - already-unshared succeeds too). The revoked link is never reactivated by a later enableCollectionShare call - re-sharing always mints a new one. */
+export async function revokeCollectionShare(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}/share`,
+  });
+}

@@ -1,5 +1,7 @@
 using Juple.Infrastructure;
 using Juple.Api.Authentication;
+using Juple.Api.Configuration;
+using Juple.Api.Public;
 using Juple.Application.Categories.CreateCategory;
 using Juple.Application.Categories.DeleteCategory;
 using Juple.Application.Categories.ListCategories;
@@ -7,11 +9,15 @@ using Juple.Application.Categories.RenameCategory;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.CreateCollection;
 using Juple.Application.Collections.DeleteCollection;
+using Juple.Application.Collections.EnableCollectionShare;
 using Juple.Application.Collections.GetCollectionDetail;
 using Juple.Application.Collections.GetCollectionItems;
+using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Collections.ListCollections;
+using Juple.Application.Collections.Public;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
+using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Identity;
 using Juple.Application.Images.DeleteItemImage;
@@ -76,6 +82,14 @@ builder.Services.AddScoped<IDeleteCollectionService, DeleteCollectionService>();
 builder.Services.AddScoped<IGetCollectionItemsService, GetCollectionItemsService>();
 builder.Services.AddScoped<IAddItemToCollectionService, AddItemToCollectionService>();
 builder.Services.AddScoped<IRemoveItemFromCollectionService, RemoveItemFromCollectionService>();
+builder.Services.AddScoped<IEnableCollectionShareService, EnableCollectionShareService>();
+builder.Services.AddScoped<IGetCollectionShareService, GetCollectionShareService>();
+builder.Services.AddScoped<IRevokeCollectionShareService, RevokeCollectionShareService>();
+builder.Services.AddScoped<IPublicCollectionService, PublicCollectionService>();
+builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("PublicWeb"));
+builder.Services.Configure<PublicCollectionCursorOptions>(
+    builder.Configuration.GetSection("PublicCollectionCursor"));
+builder.Services.AddSingleton<IPublicCollectionItemPageCursorCodec, PublicCollectionItemPageCursorCodec>();
 builder.Services.AddScoped<IListPurchasesService, ListPurchasesService>();
 builder.Services.AddScoped<IGetPurchaseDetailService, GetPurchaseDetailService>();
 builder.Services.AddScoped<ICreatePurchaseService, CreatePurchaseService>();
@@ -109,7 +123,28 @@ builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 
+// Scoped to PublicCollectionsController alone (see its [EnableCors] attribute) - the
+// authenticated Mobile-facing API surface has no default CORS policy and is unaffected. Left with
+// no allowed origins (WithOrigins requires at least one non-empty value) until PublicWeb:BaseUrl
+// is actually configured, so an unconfigured environment allows no cross-origin browser calls
+// rather than silently allowing everything.
+var publicWebBaseUrl = builder.Configuration["PublicWeb:BaseUrl"];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicies.PublicWeb, policy =>
+    {
+        if (!string.IsNullOrWhiteSpace(publicWebBaseUrl))
+        {
+            policy.WithOrigins(publicWebBaseUrl).WithMethods("GET").AllowAnyHeader();
+        }
+    });
+});
+
 var app = builder.Build();
+
+// Forces PublicCollectionCursor:EncryptionKey validation (see PublicCollectionItemPageCursorCodec's
+// constructor) at startup rather than on the first public "load more" request.
+app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -117,6 +152,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

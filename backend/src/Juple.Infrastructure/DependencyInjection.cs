@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Juple.Application.Categories;
 using Juple.Application.Collections;
+using Juple.Application.Collections.Public;
 using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
@@ -52,6 +53,8 @@ public static class DependencyInjection
         services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<ICollectionStore, CollectionStore>();
         services.AddScoped<ICollectionItemStore, CollectionStore>();
+        services.AddScoped<ICollectionShareStore, CollectionShareStore>();
+        services.AddScoped<IPublicCollectionShareStore, PublicCollectionStore>();
         services.AddScoped<IPurchaseStore, PurchaseStore>();
         services.AddScoped<IRepeatPurchaseStore, RepeatPurchaseStore>();
         services.AddScoped<ILogPurchaseStore, LogPurchaseStore>();

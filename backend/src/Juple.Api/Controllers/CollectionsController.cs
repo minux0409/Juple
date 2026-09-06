@@ -1,20 +1,25 @@
 using Juple.Api.Authentication;
 using Juple.Api.Collections;
+using Juple.Api.Configuration;
 using Juple.Application.Collections;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.CreateCollection;
 using Juple.Application.Collections.DeleteCollection;
+using Juple.Application.Collections.EnableCollectionShare;
 using Juple.Application.Collections.GetCollectionDetail;
 using Juple.Application.Collections.GetCollectionItems;
+using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
+using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Juple.Api.Controllers;
 
@@ -32,7 +37,11 @@ public sealed class CollectionsController(
     IDeleteCollectionService deleteCollectionService,
     IGetCollectionItemsService getCollectionItemsService,
     IAddItemToCollectionService addItemToCollectionService,
-    IRemoveItemFromCollectionService removeItemFromCollectionService) : ControllerBase
+    IRemoveItemFromCollectionService removeItemFromCollectionService,
+    IEnableCollectionShareService enableCollectionShareService,
+    IGetCollectionShareService getCollectionShareService,
+    IRevokeCollectionShareService revokeCollectionShareService,
+    IOptions<PublicWebOptions> publicWebOptions) : ControllerBase
 {
     /// <summary>
     /// Cursor-paginated - Collection is a growing user data set (production API, never unbounded),
@@ -238,6 +247,76 @@ public sealed class CollectionsController(
             cancellationToken);
 
     /// <summary>
+    /// Idempotent - if this Collection already has an active share, returns that same one (same
+    /// PublicId, same ShareUrl) rather than minting a new link. The 1:1 CollectionDto-reuse-ban
+    /// from the public side applies here too, just in reverse: CollectionShareResponse is never
+    /// reused by the anonymous side.
+    /// </summary>
+    [HttpPost("{id:long}/share")]
+    public async Task<IActionResult> EnableShareAsync(long id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var share = await enableCollectionShareService.EnableAsync(currentUser.UserId, id, cancellationToken);
+            return Ok(ToShareResponse(share));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>Share is null (not a 404) when the Collection is owned but currently unshared - a valid, common state.</summary>
+    [HttpGet("{id:long}/share")]
+    public async Task<IActionResult> GetShareAsync(long id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var share = await getCollectionShareService.GetAsync(currentUser.UserId, id, cancellationToken);
+            return Ok(new CollectionShareStatusResponse(
+                share is not null, share is null ? null : ToShareResponse(share)));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// Idempotent - revoking an already-unshared Collection resolves on 204 too. The revoked
+    /// PublicId is never reactivated by a later EnableShareAsync call (see
+    /// CollectionShareStore.EnableAsync, which always mints a fresh one when no active row exists).
+    /// </summary>
+    [HttpDelete("{id:long}/share")]
+    public Task<IActionResult> RevokeShareAsync(long id, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => revokeCollectionShareService.RevokeAsync(userId, id, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// Composes the canonical share URL server-side from PublicWebOptions - the Mobile client never
+    /// assembles this itself or needs to know the Public Web's base URL.
+    /// </summary>
+    private CollectionShareResponse ToShareResponse(CollectionShareDto share) =>
+        new(share.PublicId, $"{publicWebOptions.Value.BaseUrl.TrimEnd('/')}/c/{share.PublicId}", share.CreatedAtUtc);
+
+    /// <summary>
     /// A day's/Collection's worth of Items is unbounded, so this is always cursor-paginated - the
     /// same limit/cursor conventions and page-boundary keyset semantics as GET
     /// /api/v1/items/history, just with its own CollectionItemPageCursorCodec.
@@ -360,4 +439,8 @@ public sealed class CollectionsController(
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 
     public sealed record CollectionItemsPageResponse(IReadOnlyList<CollectionItemEntryDto> Items, string? NextCursor);
+
+    public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc);
+
+    public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
 }

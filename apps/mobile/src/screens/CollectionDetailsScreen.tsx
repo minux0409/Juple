@@ -20,12 +20,16 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   deleteCollection,
+  enableCollectionShare,
   getCollection,
+  getCollectionShare,
   removeItemFromCollection,
   renameCollection,
+  revokeCollectionShare,
   setCollectionFavorite,
   type Collection,
   type CollectionItemEntry,
+  type CollectionShare,
 } from '../collections/api/collectionsApi';
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
@@ -80,6 +84,21 @@ function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('collections.errorFavoriteToggleFallback');
+}
+
+/**
+ * ApiError here means the enable/revoke management call itself failed - a non-ApiError means
+ * Share.share (the OS Share Sheet) threw after a successful enable, so reuses the same message as
+ * the per-item quick-share failure (item.shareError) since it is the exact same failure mode.
+ */
+function getShareManagementErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError) {
+    if (error.kind === 'unauthorized') {
+      return t('errors.unauthorized');
+    }
+    return t('collections.errorShareManagementFallback');
+  }
+  return t('item.shareError');
 }
 
 /** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
@@ -139,6 +158,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
+  const [share, setShare] = useState<CollectionShare | null>(null);
+  const [isManagingShare, setIsManagingShare] = useState(false);
+  const [shareManagementError, setShareManagementError] = useState<string | null>(null);
+  const isUnshareConfirmOpenRef = useRef(false);
+
   const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeLocally } =
     useCollectionItems(collectionId);
 
@@ -155,13 +179,25 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   }, [authenticatedRequest, collectionId, t]);
 
+  const loadShareStatus = useCallback(async () => {
+    try {
+      const activeShare = await getCollectionShare(authenticatedRequest, collectionId);
+      setShare(activeShare);
+    } catch {
+      // A failed background status check is not worth its own error banner - the share
+      // buttons below stay usable either way: EnableShareAsync is idempotent, so tapping
+      // "share" still safely resolves to whatever the server's actual current state is.
+    }
+  }, [authenticatedRequest, collectionId]);
+
   // Refetches the Collection's own metadata (Name/ItemCount) on every focus - entirely independent
   // of useCollectionItems' own focus-driven Item list load, mirroring ItemDetailsScreen's
-  // Purchases/RepeatPurchases independence.
+  // Purchases/RepeatPurchases independence. Share status is fetched the same independent way.
   useFocusEffect(
     useCallback(() => {
       loadCollection();
-    }, [loadCollection]),
+      loadShareStatus();
+    }, [loadCollection, loadShareStatus]),
   );
 
   const startEditName = () => {
@@ -309,6 +345,74 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Idempotent, mirroring the Backend: if already shared, reuses the existing active link rather
+   * than minting a new one - tapping "share" again while active just re-opens the Share Sheet with
+   * the same URL. Never shares an Item's own URL - always the Collection's Juple public link.
+   */
+  const shareCollectionAction = async () => {
+    if (!collection || isManagingShare) {
+      return;
+    }
+
+    setIsManagingShare(true);
+    setShareManagementError(null);
+    try {
+      const activeShare = share ?? (await enableCollectionShare(authenticatedRequest, collectionId));
+      setShare(activeShare);
+      await shareItem(activeShare.shareUrl, collection.name);
+    } catch (caughtError) {
+      setShareManagementError(getShareManagementErrorMessage(caughtError, t));
+    } finally {
+      setIsManagingShare(false);
+    }
+  };
+
+  const revokeShareAction = async () => {
+    if (isManagingShare) {
+      return;
+    }
+
+    setIsManagingShare(true);
+    setShareManagementError(null);
+    try {
+      await revokeCollectionShare(authenticatedRequest, collectionId);
+      setShare(null);
+    } catch (caughtError) {
+      setShareManagementError(getShareManagementErrorMessage(caughtError, t));
+    } finally {
+      setIsManagingShare(false);
+    }
+  };
+
+  const confirmUnshare = () => {
+    if (isUnshareConfirmOpenRef.current || isManagingShare) {
+      return;
+    }
+    isUnshareConfirmOpenRef.current = true;
+
+    const closeConfirmation = () => {
+      isUnshareConfirmOpenRef.current = false;
+    };
+
+    Alert.alert(
+      t('collections.unshareConfirmTitle'),
+      t('collections.unshareConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
+        {
+          text: t('collections.unshare'),
+          style: 'destructive',
+          onPress: () => {
+            closeConfirmation();
+            revokeShareAction();
+          },
+        },
+      ],
+      { cancelable: true, onDismiss: closeConfirmation },
+    );
+  };
+
   if (isLoadingCollection && !collection) {
     return (
       <SafeAreaView edges={['top']} style={styles.loadingContainer}>
@@ -399,6 +503,32 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             <Text style={styles.itemCount}>
               {t('collections.itemCount', { count: collection.itemCount })}
             </Text>
+
+            <View style={styles.shareRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isManagingShare, busy: isManagingShare }}
+                disabled={isManagingShare}
+                onPress={shareCollectionAction}
+                style={[styles.shareCollectionButton, isManagingShare && styles.disabledButton]}
+              >
+                <Text style={styles.shareCollectionButtonLabel}>
+                  {isManagingShare ? t('common.processing') : t('collections.share')}
+                </Text>
+              </Pressable>
+              {share ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isManagingShare }}
+                  disabled={isManagingShare}
+                  onPress={confirmUnshare}
+                  style={[styles.unshareButton, isManagingShare && styles.disabledButton]}
+                >
+                  <Text style={styles.unshareButtonLabel}>{t('collections.unshare')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {shareManagementError ? <Text style={styles.error}>{shareManagementError}</Text> : null}
 
             {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
             {removeError ? <Text style={styles.error}>{removeError}</Text> : null}
@@ -606,6 +736,36 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontSize: 14,
     marginTop: 8,
+  },
+  shareRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  shareCollectionButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#111111',
+    borderRadius: 8,
+    marginEnd: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  shareCollectionButtonLabel: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  unshareButton: {
+    alignSelf: 'flex-start',
+    borderColor: '#B42318',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  unshareButtonLabel: {
+    color: '#B42318',
+    fontSize: 14,
+    fontWeight: '600',
   },
   error: {
     color: '#B42318',

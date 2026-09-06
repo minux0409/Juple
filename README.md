@@ -44,6 +44,26 @@ Juple/
 └─ .github/
 ```
 
+## Backend 로컬 실행
+
+### Public Collection Sharing cursor encryption key
+
+Public Collection Sharing의 공유 페이지(`/c/[publicId]`) pagination cursor는 AES-256-GCM으로 암호화된다. Backend는 시작 시 `PublicCollectionCursor:EncryptionKey` 설정(Base64로 인코딩된 32바이트 키)이 없거나 32바이트로 decode되지 않으면 의도적으로 startup을 실패시킨다 — 이 값을 설정하지 않은 새 PC/새 checkout에서 Backend가 뜨지 않는 것은 예상된 동작이다.
+
+- 실제 key 값은 어떤 형태로도 이 repository에 commit하지 않는다.
+- Local Development: Backend(`backend/src/Juple.Api`, `UserSecretsId: juple-api-local-development`)의 `dotnet user-secrets`에 개별적으로 저장한다.
+- Production: 소스에 두지 않고 환경변수 또는 secret provider(예: Azure Key Vault)로 주입한다 — 이 구성은 Stage 2/Azure 배포 단계에서 처리한다.
+
+PowerShell에서 cryptographically random 32바이트 키를 생성해 화면에 출력하지 않고 곧바로 user-secrets에 저장한다.
+
+```powershell
+cd backend/src/Juple.Api
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+dotnet user-secrets set "PublicCollectionCursor:EncryptionKey" ([Convert]::ToBase64String($bytes))
+Remove-Variable bytes
+```
+
 ## Mobile 실행
 
 에뮬레이터 또는 디바이스를 준비한 뒤 모바일 프로젝트에서 Metro를 실행한다.

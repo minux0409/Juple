@@ -1,0 +1,149 @@
+:root {
+  --background: #f7f7f5;
+  --surface: #ffffff;
+  --text: #111111;
+  --text-muted: #666666;
+  --border: #e0e0e0;
+  --accent: #111111;
+  --accent-text: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121212;
+    --surface: #1c1c1c;
+    --text: #f2f2f2;
+    --text-muted: #a0a0a0;
+    --border: #333333;
+    --accent: #f2f2f2;
+    --accent-text: #121212;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.brand {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.collectionName {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 24px;
+  word-break: break-word;
+}
+
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.itemCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.itemTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  word-break: break-word;
+}
+
+.itemDomain {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  word-break: break-all;
+}
+
+.itemOpenLink {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  text-decoration: none;
+}
+
+.emptyState {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 32px 0;
+  text-align: center;
+}
+
+.loadMoreButton {
+  margin-top: 16px;
+  width: 100%;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.loadMoreButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.footerNote {
+  margin-top: 40px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.notFound {
+  padding: 80px 0;
+  text-align: center;
+}
+
+.notFoundTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.notFoundMessage {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 0;
+}
