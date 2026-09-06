@@ -193,6 +193,22 @@ export async function moveItemToArchive(
   });
 }
 
+/**
+ * POSTs the "opened original URL" event (My Page → "최근 본 링크" / Recently opened links); resolves
+ * on 204. Best-effort by convention - see ItemDetailsScreen's usage: a failure here must never
+ * surface as a failure to open the URL itself, which has already succeeded by the time this is
+ * called.
+ */
+export async function recordItemOpen(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/items/${itemId}/open`,
+  });
+}
+
 /** DELETEs the Item; resolves on 204 (idempotent - missing/already-deleted/other-user's Item all succeed too). */
 export async function deleteItem(
   request: AuthenticatedApiRequest,

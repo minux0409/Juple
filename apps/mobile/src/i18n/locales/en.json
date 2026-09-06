@@ -60,7 +60,8 @@
     "repeatPurchaseEditorEdit": "Edit Repeat Purchase",
     "repeatPurchaseDetails": "Repeat Purchase Details",
     "repeatPurchaseLogPurchase": "Log Purchase",
-    "sharedCollection": "Shared Collection"
+    "sharedCollection": "Shared Collection",
+    "recentlyOpenedLinks": "Recently opened links"
   },
   "inbox": {
     "title": "Links saved today",
@@ -135,6 +136,7 @@
     "account": "Account",
     "loggedInAs": "You're signed in to your Juple account.",
     "settings": "Settings",
+    "viewRecentlyOpenedLinks": "Recently opened links",
     "existingFeatures": "Existing features",
     "viewPurchaseHistory": "View Purchase History"
   },
@@ -299,5 +301,15 @@
     "itemsEmpty": "This shared collection has no saved links yet.",
     "unavailableTitle": "This shared link isn't available.",
     "unavailableMessage": "It may have been unshared, or the link may be incorrect."
+  },
+  "recentlyOpenedLinks": {
+    "empty": "You haven't opened any links yet.",
+    "deleteEntry": "Remove",
+    "deleteAll": "Clear all",
+    "deleteAllConfirmTitle": "Clear all recently opened links?",
+    "deleteAllConfirmMessage": "This only clears this list - it won't delete the saved items themselves.",
+    "errorLoadFallback": "Couldn't load recently opened links.",
+    "errorDeleteFallback": "Couldn't remove this entry.",
+    "errorDeleteAllFallback": "Couldn't clear recently opened links."
   }
 }

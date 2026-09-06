@@ -19,6 +19,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<ItemSaveRequest> ItemSaveRequests => Set<ItemSaveRequest>();
 
+    public DbSet<RecentlyOpenedItem> RecentlyOpenedItems => Set<RecentlyOpenedItem>();
+
     public DbSet<Category> Categories => Set<Category>();
 
     public DbSet<ItemImage> ItemImages => Set<ItemImage>();

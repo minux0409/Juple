@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
         services.AddScoped<IItemCategoryStore, ItemStore>();
         services.AddScoped<IItemHistoryQueryStore, ItemStore>();
+        services.AddScoped<IRecentlyOpenedItemStore, RecentlyOpenedItemStore>();
         services.AddScoped<ICategoryStore, CategoryStore>();
         services.AddScoped<ICollectionStore, CollectionStore>();
         services.AddScoped<ICollectionItemStore, CollectionStore>();

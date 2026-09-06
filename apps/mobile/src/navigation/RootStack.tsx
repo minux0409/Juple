@@ -10,6 +10,7 @@ import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
 import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
 import { PurchaseHistoryScreen } from '../screens/PurchaseHistoryScreen';
+import { RecentlyOpenedLinksScreen } from '../screens/RecentlyOpenedLinksScreen';
 import { RepeatPurchaseDetailsScreen } from '../screens/RepeatPurchaseDetailsScreen';
 import { RepeatPurchaseEditorScreen } from '../screens/RepeatPurchaseEditorScreen';
 import { RepeatPurchaseLogPurchaseScreen } from '../screens/RepeatPurchaseLogPurchaseScreen';
@@ -35,6 +36,8 @@ export type RootStackParamList = {
   Wishlist: undefined;
   Archive: undefined;
   PurchaseHistory: undefined;
+  /** My Page → "최근 본 링크" - the screen fetches the current page itself via GET. */
+  RecentlyOpenedLinks: undefined;
   /**
    * Create mode: itemId/initialProductName are both optional - present when reached from
    * ItemDetailsScreen (a suggested initial value only, never confirmed automatically), absent when
@@ -154,6 +157,11 @@ export function RootStack() {
             component={PurchaseHistoryScreen}
             name="PurchaseHistory"
             options={{ title: t('nav.purchaseHistory') }}
+          />
+          <Stack.Screen
+            component={RecentlyOpenedLinksScreen}
+            name="RecentlyOpenedLinks"
+            options={{ title: t('nav.recentlyOpenedLinks') }}
           />
           <Stack.Screen
             component={PurchaseEditorScreen}

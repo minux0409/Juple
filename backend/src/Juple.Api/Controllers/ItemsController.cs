@@ -12,6 +12,7 @@ using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetItemsByState;
 using Juple.Application.Items.ItemStateTransition;
+using Juple.Application.Items.RecordItemOpen;
 using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
@@ -32,7 +33,8 @@ public sealed class ItemsController(
     IGetItemDetailService getItemDetailService,
     IAssignItemCategoryService assignItemCategoryService,
     IGetItemHistoryService getItemHistoryService,
-    IGetItemHistoryByDateService getItemHistoryByDateService) : ControllerBase
+    IGetItemHistoryByDateService getItemHistoryByDateService,
+    IRecordItemOpenService recordItemOpenService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetByStateAsync(
@@ -262,6 +264,18 @@ public sealed class ItemsController(
     public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
         TransitionAsync(
             userId => deleteItemService.DeleteAsync(userId, id, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// Records that the user opened this Item's original URL (My Page → "최근 본 링크" /
+    /// Recently opened links - see RecentlyOpenedLinksController). Mobile calls this only after
+    /// Linking.openURL actually succeeds, and only best-effort - a failure here must never be
+    /// surfaced as a failure to open the URL itself.
+    /// </summary>
+    [HttpPost("{id:long}/open")]
+    public Task<IActionResult> RecordOpenAsync(long id, CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => recordItemOpenService.RecordAsync(userId, id, cancellationToken),
             cancellationToken);
 
     [HttpPut("{id:long}/details")]
