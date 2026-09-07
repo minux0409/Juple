@@ -47,7 +47,18 @@ Juple/
 
 외부 Identity Provider UID와 내부 UserId를 분리한다. 인증 제공자는 “이 사람이 누구인가”를 담당하고, 내부 User는 Juple 데이터의 소유자다. 서버가 모든 사용자별 데이터 격리를 강제하며, 클라이언트 입력만으로 소유권을 결정하지 않는다.
 
-Firebase는 Backend, Auth, Database, Storage로 사용하지 않는다. Android Push 연결을 위한 FCM 용도로만 사용하며, iOS는 APNs와 Azure Notification Hubs를 고려한다.
+Firebase는 Backend, Auth, Database, Storage로 사용하지 않는다. Android Push 연결을 위한 FCM 용도로만 사용한다.
+
+## Push 알림 전송
+
+Backend는 Azure Notification Hubs를 사용하지 않기로 결정했다(Notification Hubs data-plane SDK가 SAS Access Policy만 지원해 Managed Identity 기반 인증과 맞지 않고, FCM/APNs 대비 이중 계층이 되는 운영 복잡도가 이 프로젝트 규모에 비해 크다는 판단). 대신:
+
+- Android: FCM v1에 Firebase Admin SDK로 직접 전송한다(legacy server key 아님).
+- iOS: APNs에 직접 전송할 계획이다(아직 구현되지 않음).
+
+Push 전송 서버 credential(Firebase 서비스 계정 JSON)은 Mobile의 `google-services.json`(client-side 설정, 비밀 아님)과 완전히 별개이며, Backend 설정(`Firebase:ServiceAccountKeyJson`)을 통해 local user-secrets 또는 Azure Container Apps secret으로만 주입한다 - 소스/appsettings에 두지 않는다.
+
+Push dispatch는 Azure Container Apps의 scheduled Job(cron)으로 기존 API 이미지를 `--run-push-dispatch` 인자로 재사용해 주기적으로 실행할 계획이다(아직 Azure Job 리소스는 생성되지 않았다 - `infra/azure/README.md` 참고).
 
 ## Azure 구성 방향
 
@@ -58,7 +69,6 @@ Firebase는 Backend, Auth, Database, Storage로 사용하지 않는다. Android 
 - Azure Blob Storage
 - Azure Service Bus
 - Microsoft Entra External ID
-- Azure Notification Hubs
 - Azure Key Vault
 - Application Insights
 - OpenTelemetry

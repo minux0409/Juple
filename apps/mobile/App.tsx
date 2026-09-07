@@ -14,8 +14,10 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import './src/i18n';
 import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
 import { linking } from './src/navigation/linking';
+import { navigationRef } from './src/navigation/navigationRef';
 import { RootStack } from './src/navigation/RootStack';
 import { NotificationBadgeProvider } from './src/notifications/NotificationBadgeContext';
+import { usePushMessageHandling } from './src/push/usePushMessageHandling';
 import { usePushRegistrationSync } from './src/push/usePushRegistrationSync';
 
 function App() {
@@ -44,6 +46,7 @@ function App() {
         <AuthProvider>
           <NotificationBadgeProvider>
             <PushRegistrationSync />
+            <PushMessageHandling />
             <AppNavigation />
           </NotificationBadgeProvider>
         </AuthProvider>
@@ -59,6 +62,12 @@ function App() {
 /** Headless - runs usePushRegistrationSync's effects only, renders nothing. */
 function PushRegistrationSync(): null {
   usePushRegistrationSync();
+  return null;
+}
+
+/** Headless - runs usePushMessageHandling's effects only, renders nothing. */
+function PushMessageHandling(): null {
+  usePushMessageHandling();
   return null;
 }
 
@@ -81,7 +90,7 @@ function AppNavigation() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <RootStack />
     </NavigationContainer>
   );

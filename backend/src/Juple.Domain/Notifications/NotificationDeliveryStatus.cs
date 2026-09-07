@@ -12,13 +12,15 @@ public enum NotificationDeliveryStatus : byte
 
     /// <summary>
     /// A dispatcher has atomically claimed this (Notification, PushDeviceRegistration) pair and is
-    /// about to call the transport - see NotificationDeliveryStore.TryClaimAsync. Only a row with no
-    /// existing delivery, or one currently Failed, can be claimed into this state; a row already
-    /// Sending or Sent can never be claimed again, which is what prevents two concurrent dispatch
-    /// passes from both sending the same Push. If a process crashes after claiming but before
-    /// recording a final Sent/Failed outcome, the row is left Sending indefinitely - an accepted
-    /// at-least-once/duplicate-minimization tradeoff (see this feature's own design notes), not a
-    /// staleness/lease timeout this stage implements.
+    /// about to call the transport - see NotificationDeliveryStore.TryClaimAsync. A row with no
+    /// existing delivery, one currently Failed, or one Sending whose AttemptedAtUtc lease has passed
+    /// NotificationDeliveryStore.StaleSendingLeaseTimeout (15 minutes) can be claimed into this
+    /// state; a Sent row, or a Sending row still within its lease, can never be claimed again - this
+    /// is what prevents two concurrent dispatch passes from both sending the same Push. If a process
+    /// crashes after claiming but before recording a final Sent/Failed outcome, the row stays
+    /// Sending only until the lease expires, at which point the next dispatch pass reclaims it -
+    /// an accepted at-least-once/duplicate-minimization tradeoff (see this feature's own design
+    /// notes), not a lost Push.
     /// </summary>
     Sending = 2,
 }

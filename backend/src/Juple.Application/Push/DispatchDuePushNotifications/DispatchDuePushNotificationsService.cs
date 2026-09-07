@@ -15,6 +15,7 @@ namespace Juple.Application.Push.DispatchDuePushNotifications;
 public sealed class DispatchDuePushNotificationsService(
     INotificationStore notificationStore,
     INotificationDeliveryStore notificationDeliveryStore,
+    IPushDeviceRegistrationStore pushDeviceRegistrationStore,
     IPushSender pushSender,
     TimeProvider timeProvider) : IDispatchDuePushNotificationsService
 {
@@ -65,6 +66,17 @@ public sealed class DispatchDuePushNotificationsService(
                 else
                 {
                     failed++;
+                    if (PushSendFailureCodes.IsPermanent(result.FailureCode))
+                    {
+                        // This exact token is permanently dead (see PushSendFailureCodes' own
+                        // remarks on which codes qualify) - disable the registration so it stops
+                        // being retried forever, on top of recording this one delivery as Failed
+                        // below. DisableByIdAsync is idempotent and never throws for a missing/
+                        // already-disabled row; a genuine infrastructure error here propagates and
+                        // fails this dispatch pass, same as every other store call in this loop.
+                        await pushDeviceRegistrationStore.DisableByIdAsync(
+                            device.Id, timeProvider.GetUtcNow(), cancellationToken);
+                    }
                 }
 
                 await notificationDeliveryStore.RecordAttemptAsync(

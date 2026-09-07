@@ -159,6 +159,22 @@ var app = builder.Build();
 // over the network.
 if (args.Contains("--run-push-dispatch", StringComparer.Ordinal))
 {
+    // The Job path has a stricter requirement than the plain API path below it: an absent
+    // Firebase:ServiceAccountKeyJson makes AddInfrastructure register NotConfiguredPushSender, a
+    // legitimate choice for e.g. a local API dev session with no Push testing intended (see that
+    // class's own remarks - every attempt still becomes an honest Failed delivery there, which is
+    // exactly right for exercising the dispatch pipeline in tests). A scheduled dispatch run's only
+    // purpose is sending real Push, so running it with no transport configured has no legitimate
+    // use - fail here, before any RepeatPurchase/Notification work starts, rather than letting the
+    // Job "succeed" while quietly marking every delivery Failed one by one.
+    if (string.IsNullOrWhiteSpace(app.Configuration["Firebase:ServiceAccountKeyJson"]))
+    {
+        Console.Error.WriteLine(
+            "Push dispatch aborted: Firebase:ServiceAccountKeyJson is not configured. A scheduled " +
+            "push dispatch run requires a real Push transport.");
+        return 1;
+    }
+
     return await RunPushDispatchOnceAsync(app.Services);
 }
 

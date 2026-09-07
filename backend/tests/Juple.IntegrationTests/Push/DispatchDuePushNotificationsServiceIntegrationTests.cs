@@ -105,6 +105,7 @@ public sealed class DispatchDuePushNotificationsServiceIntegrationTests : IAsync
         new(
             new NotificationStore(_dbContext),
             new NotificationDeliveryStore(_dbContext),
+            new PushDeviceRegistrationStore(_dbContext),
             pushSender,
             new FakeTimeProvider(nowUtc));
 
@@ -265,6 +266,72 @@ public sealed class DispatchDuePushNotificationsServiceIntegrationTests : IAsync
     }
 
     [Fact]
+    public async Task DispatchAsync_WhenSendFailsWithUnregisteredCode_DisablesTheRegistration()
+    {
+        await CreateDueRepeatPurchaseAsync(new DateOnly(2026, 9, 6));
+        var registration = await RegisterDeviceAsync();
+        var nowUtc = new DateTimeOffset(2026, 9, 6, 3, 0, 0, TimeSpan.Zero);
+        var sender = new RecordingPushSender(PushSendResult.Failed(PushSendFailureCodes.Unregistered));
+
+        var result = await NewService(sender, nowUtc).DispatchAsync();
+
+        Assert.Equal(1, result.Failed);
+        _dbContext.ChangeTracker.Clear();
+        var device = await _dbContext.PushDeviceRegistrations.AsNoTracking()
+            .SingleAsync(d => d.Id == registration.Id);
+        Assert.False(device.IsEnabled);
+    }
+
+    [Fact]
+    public async Task DispatchAsync_WhenSendFailsWithSenderIdMismatchCode_DisablesTheRegistration()
+    {
+        await CreateDueRepeatPurchaseAsync(new DateOnly(2026, 9, 6));
+        var registration = await RegisterDeviceAsync();
+        var nowUtc = new DateTimeOffset(2026, 9, 6, 3, 0, 0, TimeSpan.Zero);
+        var sender = new RecordingPushSender(PushSendResult.Failed(PushSendFailureCodes.SenderIdMismatch));
+
+        await NewService(sender, nowUtc).DispatchAsync();
+
+        _dbContext.ChangeTracker.Clear();
+        var device = await _dbContext.PushDeviceRegistrations.AsNoTracking()
+            .SingleAsync(d => d.Id == registration.Id);
+        Assert.False(device.IsEnabled);
+    }
+
+    [Theory]
+    [InlineData(PushSendFailureCodes.Unavailable)]
+    [InlineData(PushSendFailureCodes.QuotaExceeded)]
+    [InlineData(PushSendFailureCodes.Internal)]
+    [InlineData(PushSendFailureCodes.InvalidArgument)]
+    [InlineData(PushSendFailureCodes.SendTimeout)]
+    [InlineData(PushSendFailureCodes.ThirdPartyAuthError)]
+    public async Task DispatchAsync_WhenSendFailsWithTransientCode_LeavesTheRegistrationEnabledForRetry(
+        string transientFailureCode)
+    {
+        await CreateDueRepeatPurchaseAsync(new DateOnly(2026, 9, 6));
+        var registration = await RegisterDeviceAsync();
+        var nowUtc = new DateTimeOffset(2026, 9, 6, 3, 0, 0, TimeSpan.Zero);
+        var sender = new RecordingPushSender(PushSendResult.Failed(transientFailureCode));
+
+        await NewService(sender, nowUtc).DispatchAsync();
+
+        _dbContext.ChangeTracker.Clear();
+        var device = await _dbContext.PushDeviceRegistrations.AsNoTracking()
+            .SingleAsync(d => d.Id == registration.Id);
+        Assert.True(device.IsEnabled);
+
+        // Still enabled AND the delivery is Failed (not Sent) - the next hourly Job pass reclaims
+        // and retries this exact (Notification, Device) pair (see
+        // DispatchAsync_SentThenLaterFailingRetry_UpdatesSameDeliveryRowRatherThanInsertingAnother
+        // for the same claim-reuse mechanics from the opposite direction).
+        var delivery = Assert.Single(await _dbContext.NotificationDeliveries.AsNoTracking().ToListAsync());
+        Assert.Equal(NotificationDeliveryStatus.Failed, delivery.Status);
+        var retrySender = new RecordingPushSender(PushSendResult.Sent("provider-retry"));
+        await NewService(retrySender, nowUtc.AddHours(1)).DispatchAsync();
+        Assert.Single(retrySender.Calls);
+    }
+
+    [Fact]
     public async Task DispatchAsync_TwoConcurrentDispatchersFromIndependentDbContexts_SendExactlyOnce()
     {
         await CreateDueRepeatPurchaseAsync(new DateOnly(2026, 9, 6));
@@ -276,9 +343,11 @@ public sealed class DispatchDuePushNotificationsServiceIntegrationTests : IAsync
         await using var contextA = new JupleDbContext(options);
         await using var contextB = new JupleDbContext(options);
         var dispatcherA = new DispatchDuePushNotificationsService(
-            new NotificationStore(contextA), new NotificationDeliveryStore(contextA), sharedSender, new FakeTimeProvider(nowUtc));
+            new NotificationStore(contextA), new NotificationDeliveryStore(contextA),
+            new PushDeviceRegistrationStore(contextA), sharedSender, new FakeTimeProvider(nowUtc));
         var dispatcherB = new DispatchDuePushNotificationsService(
-            new NotificationStore(contextB), new NotificationDeliveryStore(contextB), sharedSender, new FakeTimeProvider(nowUtc));
+            new NotificationStore(contextB), new NotificationDeliveryStore(contextB),
+            new PushDeviceRegistrationStore(contextB), sharedSender, new FakeTimeProvider(nowUtc));
 
         // Two independent Job executions racing to dispatch the exact same (Notification, Device)
         // pair - TryClaimAsync's atomic conditional update/insert (not GetPendingAsync's candidate

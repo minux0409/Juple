@@ -81,6 +81,20 @@ public sealed class PushDeviceRegistrationStore(JupleDbContext dbContext) : IPus
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task DisableByIdAsync(
+        long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default)
+    {
+        var registration = await dbContext.PushDeviceRegistrations
+            .FirstOrDefaultAsync(registration => registration.Id == id, cancellationToken);
+        if (registration is null)
+        {
+            return;
+        }
+
+        registration.Disable(updatedAtUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(
         long userId, CancellationToken cancellationToken = default) =>
         await dbContext.PushDeviceRegistrations

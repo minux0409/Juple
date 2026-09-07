@@ -110,7 +110,7 @@ public sealed class PushDeviceRegistration
         LastSeenAtUtc = nowUtc;
     }
 
-    /// <summary>Idempotent - disabling an already-disabled registration is a no-op. Called on logout. The row is kept (not deleted) so a later re-login/re-registration is a simple Reregister/ReassignOwner.</summary>
+    /// <summary>Idempotent - disabling an already-disabled registration is a no-op. Called on logout (PushDeviceRegistrationStore.DisableAsync) and by the Push dispatch worker when a provider reports this token as permanently invalid (PushDeviceRegistrationStore.DisableByIdAsync; see PushSendFailureCodes.IsPermanent). The row is kept (not deleted) so a later re-login/re-registration is a simple Reregister/ReassignOwner.</summary>
     public void Disable(DateTimeOffset updatedAtUtc)
     {
         if (!IsEnabled)

@@ -1,4 +1,6 @@
 using Azure.Storage.Blobs;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,10 +63,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationStore, NotificationStore>();
         services.AddScoped<INotificationDeliveryStore, NotificationDeliveryStore>();
         services.AddScoped<IPushDeviceRegistrationStore, PushDeviceRegistrationStore>();
-        // No Azure Notification Hub exists yet (see this feature's own design notes) - swap for a
-        // real Hub-backed IPushSender once one is provisioned; no other code depends on which one is
-        // registered here.
-        services.AddScoped<IPushSender, NotConfiguredPushSender>();
+        AddPushSender(services, configuration);
         services.AddScoped<IItemImageStore, ItemImageStore>();
         services.AddScoped<IItemImageStorage, ItemImageStore>();
 
@@ -85,5 +84,36 @@ public static class DependencyInjection
         services.AddSingleton<UserDelegationKeyCache>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Firebase:ServiceAccountKeyJson is a Firebase project's FCM v1 server credential (see
+    /// FirebaseCloudMessagingSender) - entirely separate from Mobile's google-services.json (a
+    /// client-side app config, not a secret) and never stored in this repo. Sourced from
+    /// dotnet user-secrets locally, a Container Apps secret env var in Azure - see README.
+    ///
+    /// A genuinely absent credential registers NotConfiguredPushSender - an explicit, honest choice
+    /// for "no Push transport configured in this environment" (every send is still recorded as a
+    /// real Failed delivery; see that class's own remarks), never a silent behavior change. A
+    /// *present but malformed* credential is different: GoogleCredential.FromJson below throws, and
+    /// that exception is deliberately left to propagate and fail Backend startup outright - mirrors
+    /// PublicCollectionCursor:EncryptionKey's own fail-fast convention - rather than silently
+    /// degrading to NotConfiguredPushSender because of what would actually be a configuration bug.
+    /// </summary>
+    private static void AddPushSender(IServiceCollection services, IConfiguration configuration)
+    {
+        var serviceAccountKeyJson = configuration["Firebase:ServiceAccountKeyJson"];
+        if (string.IsNullOrWhiteSpace(serviceAccountKeyJson))
+        {
+            services.AddScoped<IPushSender, NotConfiguredPushSender>();
+            return;
+        }
+
+        const string FirebaseAppName = "juple-push-sender";
+        var firebaseApp = FirebaseApp.GetInstance(FirebaseAppName) ?? FirebaseApp.Create(
+            new AppOptions { Credential = GoogleCredential.FromJson(serviceAccountKeyJson) },
+            FirebaseAppName);
+        services.AddSingleton(firebaseApp);
+        services.AddScoped<IPushSender, FirebaseCloudMessagingSender>();
     }
 }

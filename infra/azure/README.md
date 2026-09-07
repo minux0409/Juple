@@ -92,23 +92,31 @@ Key Vault, Application Insights, Service Bus, Notification Hubs, VNet, Private E
 domain, Staging/Production 실제 리소스, GitHub Actions 워크플로, Container Apps의 scheduled Job.
 이유와 재검토 시점은 세션 히스토리의 Azure 조사 보고(2026-09-03) 참고.
 
-Firebase 프로젝트 존재 여부도 이 저장소 기준으로는 아직 미확정이다 - 생성되었다고 가정하지
-않는다(`google-services.json`/`GoogleService-Info.plist` 없음, Mobile에 FCM 관련 패키지/설정 없음).
+Firebase 프로젝트(`juple-9fa62`)와 Mobile의 `google-services.json`은 이미 존재한다(Push Stage
+2B-1 - Android FCM device registration 연결). Backend의 실제 FCM v1 전송(Push Stage 2B-2)은
+Azure Notification Hubs를 사용하지 않기로 확정하고 FCM v1에 Firebase Admin SDK로 직접 전송하는
+방식으로 local Backend까지 구현·검증되었다(아래 "Push 알림 - local 구현 완료, Azure 리소스 미생성"
+참고). 이 섹션 자체는 Azure 리소스 관점에서 여전히 미착수 상태를 기술한다.
 
-### Push 알림 계획 (미착수 — 리소스 미생성)
+### Push 알림 - local 구현 완료, Azure 리소스 미생성
 
-Backend에 Push 알림 전송을 위한 device 등록/delivery idempotency 기반(코드)만 먼저 마련된
-상태이고, 아래는 아직 리소스를 만들지 않은 **계획**이다:
+Backend에 Push 알림 전송을 위한 device 등록/delivery idempotency/실제 FCM v1 전송(코드)까지
+마련되어 local Backend + `--run-push-dispatch`로 검증되었고, 아래는 아직 Azure 리소스를 만들지
+않은 **계획**이다:
 
-- Android: FCM v1(legacy server key 아님) - Firebase 서비스 계정 credential(projectId/clientEmail/
-  privateKey) 필요, Firebase 프로젝트 존재 여부부터 먼저 확인 필요.
-- Azure Notification Hubs 네임스페이스/Hub 1개, **Send claim만 가진 전용 SAS Access Policy**로
-  Backend가 인증(Notification Hubs data-plane SDK는 Managed Identity를 지원하지 않고 SAS 기반
-  Access Policy만 지원 - Microsoft 공식 문서 기준).
+- Android: FCM v1(legacy server key 아님) - Firebase 서비스 계정 JSON credential이 필요하며,
+  Backend는 이를 `Firebase:ServiceAccountKeyJson` 설정(local: `dotnet user-secrets`, Azure:
+  Container Apps secret)으로 읽는다. Mobile의 `google-services.json`(client 설정, 비밀 아님)과는
+  완전히 별개다.
+- iOS: APNs 직접 전송 예정(아직 구현되지 않음).
+- Azure Notification Hubs는 사용하지 않기로 확정했다 - data-plane SDK가 SAS Access Policy만
+  지원해 Managed Identity 인증과 맞지 않고, FCM/APNs를 이미 직접 사용하는 구조에서 추가 계층이
+  될 필요가 없다는 판단.
 - Azure Container Apps의 scheduled Job(cron)으로 기존 API 이미지를 `--run-push-dispatch` 인자로
-  재사용해 주기적으로 dispatch.
+  재사용해 주기적으로 dispatch할 계획이다(아직 Job 리소스 미생성).
 
-실제 Hub/Job 생성, Firebase 프로젝트 생성/확인, credential 발급은 모두 별도 승인 후 진행한다.
+실제 Job 생성, Azure 환경의 Firebase credential(Container Apps secret) 설정은 모두 별도 승인
+후 진행한다.
 
 ## Naming
 

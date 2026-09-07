@@ -27,6 +27,16 @@ public interface IPushDeviceRegistrationStore
     Task DisableAsync(
         long userId, string installationId, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Disables by Id alone, with no owning-user check - used by the Push dispatch worker when a
+    /// provider reports this exact token as permanently invalid (see
+    /// PushSendFailureCodes.IsPermanent), where the only thing on hand is the PushDeviceRegistration
+    /// row that just failed to send, not the (userId, installationId) pair DisableAsync requires.
+    /// Idempotent and never throws for a missing/already-disabled row - a dispatch pass must never
+    /// fail just because this best-effort cleanup found nothing to do.
+    /// </summary>
+    Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default);
+
     /// <summary>All currently-enabled registrations for userId - the dispatch worker's device fan-out list.</summary>
     Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(
         long userId, CancellationToken cancellationToken = default);
