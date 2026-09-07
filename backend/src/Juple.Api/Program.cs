@@ -54,8 +54,20 @@ using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var requiredScope = builder.Configuration["Authentication:EntraExternalId:RequiredScope"]
-    ?? throw new InvalidOperationException("Authentication:EntraExternalId:RequiredScope must be configured.");
+// Decided this early (before any config validation below) because the two execution modes have
+// genuinely different configuration requirements: the Push dispatch Job never authenticates a
+// request - it runs entirely outside UseAuthentication/UseAuthorization/MapControllers (see the
+// early-return branch further down) - so it has no legitimate need for Entra config at all. Only
+// the actual HTTP API path keeps the existing fail-fast below unchanged.
+var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordinal);
+
+// Never required, and never validated, for the Job - RequireScope still needs a non-null value
+// to register the policy below, but that policy is only ever evaluated by the ASP.NET Core
+// request pipeline the Job never runs.
+var requiredScope = isPushDispatchJob
+    ? string.Empty
+    : builder.Configuration["Authentication:EntraExternalId:RequiredScope"]
+        ?? throw new InvalidOperationException("Authentication:EntraExternalId:RequiredScope must be configured.");
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
@@ -157,7 +169,7 @@ var app = builder.Build();
 // HTTP endpoint a scheduler calls - nothing here ever reaches UseAuthentication/MapControllers/
 // app.Run() below, so no port is bound and no unauthenticated dispatch trigger is ever reachable
 // over the network.
-if (args.Contains("--run-push-dispatch", StringComparer.Ordinal))
+if (isPushDispatchJob)
 {
     // The Job path has a stricter requirement than the plain API path below it: an absent
     // Firebase:ServiceAccountKeyJson makes AddInfrastructure register NotConfiguredPushSender, a

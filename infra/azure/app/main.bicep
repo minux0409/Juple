@@ -32,6 +32,10 @@ param managedIdentityClientId string
 @secure()
 param sqlConnectionString string
 
+@description('Base64-encoded 32-byte AES-256-GCM key for Public Collection Sharing cursor encryption (see PublicCollectionItemPageCursorCodec) - Backend fails startup outright if this is absent or does not decode to exactly 32 bytes (see README.md\'s own local dev setup notes for the same fail-fast). Never put a real value in a checked-in parameter file. Must stay the same value across redeployments/revisions - rotating it invalidates every public cursor already handed out (an in-flight "load more" page simply fails to decode, not a data-loss issue, but a needless disruption for anyone mid-scroll).')
+@secure()
+param publicCollectionCursorEncryptionKey string
+
 @description('Blob service endpoint URI - Foundation output "storageBlobServiceUri". No Storage key is ever used; the app authenticates via managedIdentityResourceId (see BlobServiceClientFactory.cs).')
 param storageBlobServiceUri string
 
@@ -91,6 +95,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'sql-connection-string'
           value: sqlConnectionString
         }
+        {
+          name: 'public-collection-cursor-key'
+          value: publicCollectionCursorEncryptionKey
+        }
       ]
     }
     template: {
@@ -115,6 +123,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'ConnectionStrings__JupleDatabase'
               secretRef: 'sql-connection-string'
+            }
+            {
+              name: 'PublicCollectionCursor__EncryptionKey'
+              secretRef: 'public-collection-cursor-key'
             }
             {
               // Deliberately no ConnectionStrings__BlobStorage - its absence is what makes
