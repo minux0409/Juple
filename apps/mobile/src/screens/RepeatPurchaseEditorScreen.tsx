@@ -9,6 +9,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useNotificationBadge } from '../notifications/NotificationBadgeContext';
+import { ensurePushPermissionAfterFirstRepeatPurchase } from '../push/pushPermissionFlow';
 import {
   createRepeatPurchase,
   updateRepeatPurchase,
@@ -150,11 +151,6 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
           version: initialRepeatPurchase.version,
         });
       } else {
-        // Push permission is intentionally NOT requested here yet - FCM token registration and the
-        // Push transport don't exist yet (see pushPermission.ts's own remarks), so prompting now
-        // would ask the user for something the app cannot yet act on. A future stage wires: first
-        // RepeatPurchase setup -> permission -> (if granted) FCM token -> Backend registration, as
-        // one connected flow.
         await createRepeatPurchase(authenticatedRequest, {
           itemId: itemId ?? null,
           productName: trimmedProductName,
@@ -164,6 +160,10 @@ export function RepeatPurchaseEditorScreen({ route, navigation }: Props) {
           isReminderEnabled: false,
           reminderLeadDays: 0,
         });
+        // The first RepeatPurchase ever created is this app's one and only prompt point for the OS
+        // notification permission (see pushPermissionFlow.ts) - the save above already succeeded
+        // and is never gated on this; a decline leaves the in-app Notification Center unaffected.
+        await ensurePushPermissionAfterFirstRepeatPurchase(authenticatedRequest);
       }
       // The Backend may have just resolved a stale due notification (NextPurchaseDate changed) or
       // made a new one materializable (NextPurchaseDate now due) - see RepeatPurchaseStore.

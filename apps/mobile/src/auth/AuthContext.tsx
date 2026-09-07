@@ -19,6 +19,7 @@ import {
 import { validateBackendSession } from './authSessionApi';
 import { bootstrapCurrentUser } from './userBootstrapApi';
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
+import { unregisterCurrentPushDeviceBestEffort } from '../push/pushLogoutUnregister';
 import type { AuthContextValue, AuthState, UserBootstrapStatus } from './types';
 
 const INITIAL_STATE: AuthState = {
@@ -204,6 +205,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [t]);
 
   const signOut = useCallback(async () => {
+    await unregisterCurrentPushDeviceBestEffort();
     await clearSession();
     setSignedOut();
   }, [setSignedOut]);

@@ -16,6 +16,7 @@ import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
 import { linking } from './src/navigation/linking';
 import { RootStack } from './src/navigation/RootStack';
 import { NotificationBadgeProvider } from './src/notifications/NotificationBadgeContext';
+import { usePushRegistrationSync } from './src/push/usePushRegistrationSync';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -42,6 +43,7 @@ function App() {
       {isLanguageReady ? (
         <AuthProvider>
           <NotificationBadgeProvider>
+            <PushRegistrationSync />
             <AppNavigation />
           </NotificationBadgeProvider>
         </AuthProvider>
@@ -52,6 +54,12 @@ function App() {
       )}
     </SafeAreaProvider>
   );
+}
+
+/** Headless - runs usePushRegistrationSync's effects only, renders nothing. */
+function PushRegistrationSync(): null {
+  usePushRegistrationSync();
+  return null;
 }
 
 /**

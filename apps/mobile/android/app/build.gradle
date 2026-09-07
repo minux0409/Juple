@@ -1,4 +1,19 @@
 apply plugin: "com.android.application"
+// @react-native-firebase/app's official Android setup requires this applied right after
+// com.android.application. Reads google-services.json per buildType via the plugin's own
+// documented src/<buildType>/google-services.json override (see
+// https://firebase.google.com/docs/android/google-services-plugin-and-file):
+//   - src/debug/google-services.json   -> Dev Firebase project (juple-9fa62)
+//   - src/dogfood/google-services.json -> same Dev Firebase project (Dogfood also talks to the
+//     Azure Dev Backend - see this file's dogfood buildType comment - so it uses the same
+//     Firebase project as debug; duplicated rather than shared via a symlink/copy task per
+//     explicit instruction to avoid custom build hacks for this).
+// There is deliberately no src/release/google-services.json and no app/google-services.json
+// fallback at the module root: a Production Firebase project does not exist yet, and the plugin
+// itself hard-fails processReleaseGoogleServices ("File google-services.json is missing...") the
+// moment assembleRelease actually needs it, rather than silently reusing Dev's config - this is
+// the plugin's own built-in behavior, not custom code.
+apply plugin: "com.google.gms.google-services"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
