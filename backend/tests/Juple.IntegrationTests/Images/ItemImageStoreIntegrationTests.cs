@@ -441,4 +441,59 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             finalRows.Select(row => row.BlobName).OrderBy(name => name),
             remainingBlobs.OrderBy(name => name));
     }
+
+    [Fact]
+    public async Task DeleteBlobsByPrefixAsync_RemovesEveryBlobAcrossAllOfTheUsersItems_AndLeavesOtherUsersBlobsIntact()
+    {
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+
+        // A second Item for the same user, so this proves the cleanup reaches every Item under
+        // the user's prefix - not just the one Item DeleteItemBlobsAsync would have been scoped to.
+        var secondItem = new Item(_userId, "https://shop.example/account-deletion-second-item", DateTimeOffset.UtcNow);
+        _dbContext.Items.Add(secondItem);
+        var otherUserItem = new Item(_otherUserId, "https://shop.example/other-user-item", DateTimeOffset.UtcNow);
+        _dbContext.Items.Add(otherUserItem);
+        await _dbContext.SaveChangesAsync();
+
+        var firstImage = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var secondImage = await store.UploadAsync(_userId, secondItem.Id, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var otherUserImage = await store.UploadAsync(_otherUserId, otherUserItem.Id, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var blobNamesById = await _dbContext.ItemImages
+            .AsNoTracking()
+            .Where(row => row.Id == firstImage.Id || row.Id == secondImage.Id || row.Id == otherUserImage.Id)
+            .ToDictionaryAsync(row => row.Id, row => row.BlobName);
+        _dbContext.ChangeTracker.Clear();
+
+        try
+        {
+            var succeeded = await store.DeleteBlobsByPrefixAsync(store.GetUserBlobPrefix(_userId));
+
+            Assert.True(succeeded);
+            Assert.False(await _blobContainerClient.GetBlobClient(blobNamesById[firstImage.Id]).ExistsAsync());
+            Assert.False(await _blobContainerClient.GetBlobClient(blobNamesById[secondImage.Id]).ExistsAsync());
+            Assert.True(await _blobContainerClient.GetBlobClient(blobNamesById[otherUserImage.Id]).ExistsAsync());
+        }
+        finally
+        {
+            await _blobContainerClient.GetBlobClient(blobNamesById[otherUserImage.Id]).DeleteIfExistsAsync();
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM items.Items WHERE Id = {secondItem.Id} OR Id = {otherUserItem.Id}");
+        }
+    }
+
+    [Fact]
+    public async Task DeleteBlobsByPrefixAsync_WhenBlobEnumerationItselfFails_CompletesWithoutThrowingAndReportsFailure()
+    {
+        // Same rationale as DeleteItemBlobsAsync's own enumeration-failure test - a Storage-side
+        // failure to even list the prefix must never propagate, since this always runs after the
+        // caller's own SQL deletion has already committed. Unlike DeleteItemBlobsAsync, this
+        // method also reports the failure back via its return value (see IBlobCleanupService,
+        // which relies on it to know whether a retry is needed).
+        var missingContainerClient = TestBlobContainerClientFactory.CreateForMissingContainer();
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, missingContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+
+        var succeeded = await store.DeleteBlobsByPrefixAsync(store.GetUserBlobPrefix(_userId));
+
+        Assert.False(succeeded);
+    }
 }

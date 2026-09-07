@@ -22,6 +22,27 @@ public interface IItemImageStorage
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The canonical Blob Storage prefix for everything this user owns ("items/{userId}/") - the
+    /// single source of truth for this naming convention (UploadAsync/DeleteItemBlobsAsync derive
+    /// from the same format). Pure, no I/O - lets other modules (e.g. account deletion) durably
+    /// record a prefix to clean up later (see AccountDeletionBlobCleanup) without assembling raw
+    /// Azure path syntax themselves.
+    /// </summary>
+    string GetUserBlobPrefix(long userId);
+
+    /// <summary>
+    /// Best-effort: deletes every Blob under the given prefix (found by listing Blob Storage
+    /// directly, never a caller-supplied snapshot of names), logging a sanitized structured
+    /// warning per failure, and never throwing. Returns whether every Blob found under the prefix
+    /// was confirmed deleted - false if enumeration itself failed, or any individual Blob delete
+    /// failed. Callers that need a durable guarantee (see IBlobCleanupService) use this return
+    /// value to decide whether cleanup can be considered complete or must be retried later.
+    /// </summary>
+    Task<bool> DeleteBlobsByPrefixAsync(
+        string prefix,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// A read-only, short-lived URL for the Blob at blobName - a SAS in Production (Managed
     /// Identity + User Delegation Key) and on Azurite locally (Shared Key). Verifies blobName is
     /// scoped to userId's own path before signing, so a caller can never obtain a URL for another

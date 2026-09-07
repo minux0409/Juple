@@ -207,6 +207,43 @@ public sealed class ItemImageStore(
         }
     }
 
+    public string GetUserBlobPrefix(long userId) => $"items/{userId}/";
+
+    public async Task<bool> DeleteBlobsByPrefixAsync(
+        string prefix,
+        CancellationToken cancellationToken = default)
+    {
+        // Listed directly from Blob Storage, same rationale as DeleteItemBlobsAsync: never trust a
+        // DB/pre-delete snapshot of BlobNames.
+        var allDeleted = true;
+
+        try
+        {
+            await foreach (var blobItem in blobContainerClient.GetBlobsAsync(
+                BlobTraits.None, BlobStates.None, prefix: prefix, cancellationToken: cancellationToken))
+            {
+                if (!await DeleteBlobBestEffortAsync(blobItem.Name))
+                {
+                    allDeleted = false;
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            // The caller's own SQL deletion (e.g. account deletion) has already committed by the
+            // time this runs - same rationale as DeleteItemBlobsAsync's catch block. Unlike that
+            // method, this reports the failure back via its return value rather than only logging,
+            // so a caller with a durability requirement (see IBlobCleanupService) knows to retry.
+            logger.LogWarning(
+                exception,
+                "Failed to enumerate Blobs under prefix {BlobPrefix} during cleanup.",
+                prefix);
+            return false;
+        }
+
+        return allDeleted;
+    }
+
     public async Task<Uri?> CreateReadUrlAsync(
         long userId,
         string blobName,
@@ -263,12 +300,16 @@ public sealed class ItemImageStore(
         }
     }
 
-    private async Task DeleteBlobBestEffortAsync(string blobName)
+    /// <summary>Returns whether the delete (or a not-found no-op) succeeded, for callers that need
+    /// to know (see DeleteBlobsByPrefixAsync); callers that don't just discard it, unchanged from
+    /// when this returned void.</summary>
+    private async Task<bool> DeleteBlobBestEffortAsync(string blobName)
     {
         try
         {
             await blobContainerClient.GetBlobClient(blobName)
                 .DeleteIfExistsAsync(cancellationToken: CancellationToken.None);
+            return true;
         }
         catch (Exception exception)
         {
@@ -277,6 +318,7 @@ public sealed class ItemImageStore(
             // those directly regardless.
             logger.LogWarning(
                 exception, "Failed to delete orphaned Blob {BlobName} during best-effort cleanup.", blobName);
+            return false;
         }
     }
 

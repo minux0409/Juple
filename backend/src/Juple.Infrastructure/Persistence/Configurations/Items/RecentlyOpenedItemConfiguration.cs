@@ -47,9 +47,9 @@ public sealed class RecentlyOpenedItemConfiguration : IEntityTypeConfiguration<R
             .HasForeignKey(entry => entry.ItemId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Mirrors ItemConfiguration's own FK to User (NoAction) - there is no account-deletion
-        // feature in this codebase yet for either Items or this table to cascade from; whenever
-        // one is implemented, it must clean up both.
+        // Mirrors ItemConfiguration's own FK to User (NoAction) - account deletion
+        // (AccountDeletionStore) explicitly clears this table by UserId rather than relying on a
+        // cascade from User.
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(entry => entry.UserId)

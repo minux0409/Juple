@@ -132,7 +132,11 @@
     "settings": "Settings",
     "activity": "Activity",
     "viewRecentlyOpenedLinks": "Recently opened links",
-    "viewPurchaseHistory": "Purchases"
+    "viewPurchaseHistory": "Purchases",
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirmTitle": "Delete account?",
+    "deleteAccountConfirmMessage": "This permanently deletes your Juple account and all saved items, collections, purchase history, and notifications. This cannot be undone.",
+    "deleteAccountErrorFallback": "Couldn't delete your account. Please try again."
   },
   "settings": {
     "language": "Language"

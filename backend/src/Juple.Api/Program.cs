@@ -16,6 +16,7 @@ using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Identity;
+using Juple.Application.Images.BlobCleanup;
 using Juple.Application.Images.DeleteItemImage;
 using Juple.Application.Images.ListItemImages;
 using Juple.Application.Images.UploadItemImage;
@@ -49,22 +50,25 @@ using Juple.Application.RepeatPurchases.LogPurchase;
 using Juple.Application.RepeatPurchases.RepeatPurchaseStateTransition;
 using Juple.Application.RepeatPurchases.UpdateRepeatPurchase;
 using Juple.Application.Users.BootstrapCurrentUser;
+using Juple.Application.Users.DeleteAccount;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Decided this early (before any config validation below) because the two execution modes have
-// genuinely different configuration requirements: the Push dispatch Job never authenticates a
-// request - it runs entirely outside UseAuthentication/UseAuthorization/MapControllers (see the
-// early-return branch further down) - so it has no legitimate need for Entra config at all. Only
-// the actual HTTP API path keeps the existing fail-fast below unchanged.
+// Decided this early (before any config validation below) because these one-shot execution modes
+// have genuinely different configuration requirements from the HTTP API: neither authenticates a
+// request - both run entirely outside UseAuthentication/UseAuthorization/MapControllers (see the
+// early-return branches further down) - so neither has a legitimate need for Entra config at all.
+// Only the actual HTTP API path keeps the existing fail-fast below unchanged.
 var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordinal);
+var isBlobCleanupRetryJob = args.Contains("--run-blob-cleanup-retry", StringComparer.Ordinal);
+var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob;
 
-// Never required, and never validated, for the Job - RequireScope still needs a non-null value
+// Never required, and never validated, for either Job - RequireScope still needs a non-null value
 // to register the policy below, but that policy is only ever evaluated by the ASP.NET Core
-// request pipeline the Job never runs.
-var requiredScope = isPushDispatchJob
+// request pipeline neither Job runs.
+var requiredScope = isOneShotJob
     ? string.Empty
     : builder.Configuration["Authentication:EntraExternalId:RequiredScope"]
         ?? throw new InvalidOperationException("Authentication:EntraExternalId:RequiredScope must be configured.");
@@ -74,6 +78,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IExternalIdentityAccessor, HttpContextExternalIdentityAccessor>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
+builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
 builder.Services.AddScoped<IGetItemHistoryService, GetItemHistoryService>();
 builder.Services.AddScoped<IGetItemHistoryByDateService, GetItemHistoryByDateService>();
@@ -190,6 +195,17 @@ if (isPushDispatchJob)
     return await RunPushDispatchOnceAsync(app.Services);
 }
 
+// One-shot execution mode for the Blob cleanup retry safety net (see AccountDeletionBlobCleanup/
+// IBlobCleanupService's own remarks): account deletion already attempts cleanup immediately, so in
+// the normal case this finds nothing pending - this exists only for the rarer case where that
+// immediate attempt failed. Intended for the same kind of scheduled Job invocation as the Push
+// dispatch mode above, and deliberately never an HTTP endpoint for the same reason: nothing here
+// ever reaches UseAuthentication/MapControllers/app.Run() below.
+if (isBlobCleanupRetryJob)
+{
+    return await RunBlobCleanupRetryOnceAsync(app.Services);
+}
+
 // Forces PublicCollectionCursor:EncryptionKey validation (see PublicCollectionItemPageCursorCodec's
 // constructor) at startup rather than on the first public "load more" request.
 app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();
@@ -230,6 +246,29 @@ static async Task<int> RunPushDispatchOnceAsync(IServiceProvider rootServices)
         // a push token (nothing this feature logs ever does - see PushDeviceRegistration's own
         // remarks on treating tokens as secrets).
         logger.LogError(exception, "Push dispatch run failed.");
+        return 1;
+    }
+}
+
+static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootServices)
+{
+    await using var scope = rootServices.CreateAsyncScope();
+    var blobCleanupService = scope.ServiceProvider.GetRequiredService<IBlobCleanupService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("BlobCleanupRetryJob");
+
+    try
+    {
+        var result = await blobCleanupService.RunPendingCleanupsAsync();
+        logger.LogInformation(
+            "Blob cleanup retry complete. Pending={Pending} Succeeded={Succeeded} Failed={Failed}",
+            result.Pending, result.Succeeded, result.Failed);
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        // Same rationale as RunPushDispatchOnceAsync's own catch block - a scheduled Job's exit
+        // code is how Azure reports failure.
+        logger.LogError(exception, "Blob cleanup retry run failed.");
         return 1;
     }
 }

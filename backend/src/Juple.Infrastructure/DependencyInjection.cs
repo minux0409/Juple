@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Juple.Application.Collections;
 using Juple.Application.Collections.Public;
 using Juple.Application.Images;
+using Juple.Application.Images.BlobCleanup;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Notifications;
@@ -16,8 +17,10 @@ using Juple.Application.RepeatPurchases;
 using Juple.Application.RepeatPurchases.LogPurchase;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
+using Juple.Application.Users.DeleteAccount;
 using Juple.Infrastructure.Collections;
 using Juple.Infrastructure.Images;
+using Juple.Infrastructure.Images.BlobCleanup;
 using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Notifications;
 using Juple.Infrastructure.Persistence;
@@ -27,6 +30,7 @@ using Juple.Infrastructure.RepeatPurchases;
 using Juple.Infrastructure.Storage;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
+using Juple.Infrastructure.Users.DeleteAccount;
 
 namespace Juple.Infrastructure;
 
@@ -47,6 +51,9 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
+        services.AddScoped<IAccountDeletionStore, AccountDeletionStore>();
+        services.AddScoped<IAccountDeletionBlobCleanupStore, AccountDeletionBlobCleanupStore>();
+        services.AddScoped<IBlobCleanupService, BlobCleanupService>();
         services.AddScoped<IInboxEntryStore, ItemStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();
         services.AddScoped<IItemDetailsStore, ItemStore>();

@@ -176,6 +176,11 @@ public sealed class GetItemHistoryByDateServiceTests
         public Task DeleteItemBlobsAsync(long userId, long itemId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
+        public string GetUserBlobPrefix(long userId) => $"items/{userId}/";
+
+        public Task<bool> DeleteBlobsByPrefixAsync(string prefix, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
+
         public Task<Uri?> CreateReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default)
         {
             LastCreateReadUrlCall = (userId, blobName);
