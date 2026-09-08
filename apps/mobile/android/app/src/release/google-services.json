@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "112483990517",
+    "project_id": "juple-production",
+    "storage_bucket": "juple-production.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112483990517:android:1c2c4963976d0d78643ebc",
+        "android_client_info": {
+          "package_name": "com.juple.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1Y5VVbkMdASF2B_MtMQZ6_UduNvUHCcQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
