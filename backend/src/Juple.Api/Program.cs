@@ -195,12 +195,18 @@ if (isPushDispatchJob)
     return await RunPushDispatchOnceAsync(app.Services);
 }
 
-// One-shot execution mode for the Blob cleanup retry safety net (see AccountDeletionBlobCleanup/
-// IBlobCleanupService's own remarks): account deletion already attempts cleanup immediately, so in
-// the normal case this finds nothing pending - this exists only for the rarer case where that
-// immediate attempt failed. Intended for the same kind of scheduled Job invocation as the Push
-// dispatch mode above, and deliberately never an HTTP endpoint for the same reason: nothing here
-// ever reaches UseAuthentication/MapControllers/app.Run() below.
+// One-shot execution mode for the Blob cleanup retry Job (see AccountDeletionBlobCleanup/
+// BlobCleanupService's own remarks). This is NOT a rare failure-only safety net: even a fully
+// successful account deletion leaves its cleanup task pending on purpose - DeleteAccountService's
+// immediate attempt only ever confirms the Blob prefix clean ONCE, which schedules a
+// FinalSweepAfterUtc rather than removing the task, precisely because a request that had already
+// passed its ownership check before deletion committed can still land a Blob afterward. Only a
+// LATER run - this Job - can find the prefix clean a second time, at or after that grace period,
+// and actually remove the task. So this Job is what every account deletion (failed-immediate-
+// attempt or not) ultimately depends on to finish, not an optional extra. Intended for the same
+// kind of scheduled Job invocation as the Push dispatch mode above, and deliberately never an HTTP
+// endpoint for the same reason: nothing here ever reaches UseAuthentication/MapControllers/
+// app.Run() below.
 if (isBlobCleanupRetryJob)
 {
     return await RunBlobCleanupRetryOnceAsync(app.Services);
