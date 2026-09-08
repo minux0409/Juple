@@ -112,7 +112,7 @@ public sealed class BlobCleanupServiceTests
     }
 
     [Fact]
-    public async Task RunPendingCleanupsAsync_ProcessesEveryPendingTask_OnlyCountingFullyFinishedTasksAsSucceeded()
+    public async Task RunPendingCleanupsAsync_ProcessesEveryPendingTask_SeparatesDeferredProgressFromGenuineFailures()
     {
         var cleanupStore = new FakeAccountDeletionBlobCleanupStore();
         cleanupStore.Seed(
@@ -120,8 +120,10 @@ public sealed class BlobCleanupServiceTests
             new PendingBlobCleanupDto(1, "items/1/", 0, Now.AddMinutes(-1)),
             // A genuine Storage failure.
             new PendingBlobCleanupDto(2, "items/2/", 0, FinalSweepAfterUtc: null),
-            // Clean for the first time - only schedules a final sweep, does not finish yet.
-            new PendingBlobCleanupDto(3, "items/3/", 0, FinalSweepAfterUtc: null));
+            // Clean for the first time - only schedules a final sweep. Not a failure.
+            new PendingBlobCleanupDto(3, "items/3/", 0, FinalSweepAfterUtc: null),
+            // Already scheduled, grace period not yet elapsed. Also not a failure.
+            new PendingBlobCleanupDto(4, "items/4/", 0, Now.AddMinutes(5)));
         var imageStorage = new FakeItemImageStorage
         {
             DeleteBlobsByPrefixResultByPrefix = new Dictionary<string, bool>
@@ -129,13 +131,14 @@ public sealed class BlobCleanupServiceTests
                 ["items/1/"] = true,
                 ["items/2/"] = false,
                 ["items/3/"] = true,
+                ["items/4/"] = true,
             },
         };
         var service = new BlobCleanupService(cleanupStore, imageStorage, NewTimeProvider(), NullLogger<BlobCleanupService>.Instance);
 
         var result = await service.RunPendingCleanupsAsync();
 
-        Assert.Equal(new BlobCleanupRunResult(Pending: 3, Succeeded: 1, Failed: 2), result);
+        Assert.Equal(new BlobCleanupRunResult(Pending: 4, Succeeded: 1, Failed: 1, Deferred: 2), result);
         Assert.Equal([1L], cleanupStore.DeletedIds);
         Assert.Single(cleanupStore.RecordedFailedAttempts, attempt => attempt.Id == 2L);
         Assert.Single(cleanupStore.ScheduledFinalSweeps, scheduled => scheduled.Id == 3L);

@@ -36,7 +36,7 @@ public sealed class BlobCleanupService(
             return true;
         }
 
-        return await ProcessAsync(task, cancellationToken);
+        return await ProcessAsync(task, cancellationToken) == CleanupOutcome.Removed;
     }
 
     public async Task<BlobCleanupRunResult> RunPendingCleanupsAsync(CancellationToken cancellationToken = default)
@@ -44,23 +44,38 @@ public sealed class BlobCleanupService(
         var pending = await cleanupStore.ListPendingAsync(cancellationToken);
         var succeeded = 0;
         var failed = 0;
+        var deferred = 0;
 
         foreach (var task in pending)
         {
-            if (await ProcessAsync(task, cancellationToken))
+            switch (await ProcessAsync(task, cancellationToken))
             {
-                succeeded++;
-            }
-            else
-            {
-                failed++;
+                case CleanupOutcome.Removed:
+                    succeeded++;
+                    break;
+                case CleanupOutcome.Deferred:
+                    deferred++;
+                    break;
+                case CleanupOutcome.Failed:
+                    failed++;
+                    break;
             }
         }
 
-        return new BlobCleanupRunResult(pending.Count, succeeded, failed);
+        return new BlobCleanupRunResult(pending.Count, succeeded, failed, deferred);
     }
 
-    private async Task<bool> ProcessAsync(PendingBlobCleanupDto task, CancellationToken cancellationToken)
+    // Distinguishes a genuine failure from ordinary, expected progress (first-time-clean or
+    // awaiting grace period) - see BlobCleanupRunResult's own remarks on why RunPendingCleanupsAsync
+    // needs this instead of just the bool TryCleanupAsync uses.
+    private enum CleanupOutcome
+    {
+        Removed,
+        Deferred,
+        Failed,
+    }
+
+    private async Task<CleanupOutcome> ProcessAsync(PendingBlobCleanupDto task, CancellationToken cancellationToken)
     {
         bool succeeded;
         string? errorCode;
@@ -86,7 +101,7 @@ public sealed class BlobCleanupService(
                 task.Id, task.AttemptCount + 1);
             await cleanupStore.RecordFailedAttemptAsync(
                 task.Id, errorCode, timeProvider.GetUtcNow(), cancellationToken);
-            return false;
+            return CleanupOutcome.Failed;
         }
 
         var now = timeProvider.GetUtcNow();
@@ -97,7 +112,7 @@ public sealed class BlobCleanupService(
         if (task.FinalSweepAfterUtc is null)
         {
             await cleanupStore.ScheduleFinalSweepAsync(task.Id, now + GracePeriod, cancellationToken);
-            return false;
+            return CleanupOutcome.Deferred;
         }
 
         if (now < task.FinalSweepAfterUtc)
@@ -105,10 +120,10 @@ public sealed class BlobCleanupService(
             // Confirmed clean once already, but the grace period from that first confirmation
             // hasn't elapsed yet - nothing more to do until a later attempt (immediate retries
             // before then would just re-confirm the same thing).
-            return false;
+            return CleanupOutcome.Deferred;
         }
 
         await cleanupStore.DeleteAsync(task.Id, cancellationToken);
-        return true;
+        return CleanupOutcome.Removed;
     }
 }

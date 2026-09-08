@@ -266,8 +266,8 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
     {
         var result = await blobCleanupService.RunPendingCleanupsAsync();
         logger.LogInformation(
-            "Blob cleanup retry complete. Pending={Pending} Succeeded={Succeeded} Failed={Failed}",
-            result.Pending, result.Succeeded, result.Failed);
+            "Blob cleanup retry complete. Pending={Pending} Succeeded={Succeeded} Deferred={Deferred} Failed={Failed}",
+            result.Pending, result.Succeeded, result.Deferred, result.Failed);
         return 0;
     }
     catch (Exception exception)

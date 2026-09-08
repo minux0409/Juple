@@ -1,6 +1,10 @@
 namespace Juple.Application.Images.BlobCleanup;
 
-public sealed record BlobCleanupRunResult(int Pending, int Succeeded, int Failed);
+// Deferred covers a task that made no error and is simply not finished yet - either it was just
+// confirmed clean for the first time (its final sweep was scheduled) or it is already scheduled
+// and its grace period has not elapsed. Neither case touches AttemptCount, so counting them as
+// Failed (as this record used to imply) would misreport ordinary, expected progress as an error.
+public sealed record BlobCleanupRunResult(int Pending, int Succeeded, int Failed, int Deferred);
 
 /// <summary>
 /// Finishes durable Blob cleanup tasks left behind by account deletion (see
