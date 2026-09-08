@@ -28,8 +28,17 @@ param imageTag string
 @description('Container Apps Environment resource ID - Foundation output "containerAppsEnvironmentId".')
 param containerAppsEnvironmentId string
 
+@description('Container Apps Environment name (not the full resource ID) - Foundation output "containerAppsEnvironmentName". Needed only to address an existing Managed Certificate as a child resource of this Environment (Microsoft.App/managedEnvironments/managedCertificates is looked up by parent+child name, not by a standalone resource ID) - see managedCertificateName below.')
+param containerAppsEnvironmentName string
+
 @description('User Assigned Managed Identity resource ID - Foundation output "managedIdentityResourceId". Used for ACR pull only - this app never talks to SQL or Blob Storage, so it needs none of the other role assignments ../app/main.bicep\'s identity also carries.')
 param managedIdentityResourceId string
+
+@description('Custom domain hostname bound to this Container App\'s ingress (e.g. "dev.juple.co.kr" for Dev, "juple.co.kr" for Production). The domain must already be verified and DNS-pointed at this Container App (TXT ownership record + CNAME/A, done once outside this template via `az containerapp hostname add`/`bind` - see ../README.md\'s "Web custom domain" section) - this template never performs that binding step itself, it only declares the resulting state so a later Bicep redeploy does not drop it. Microsoft.App/containerApps\' ingress.customDomains is fully replaced (not merged) on every deployment, which is exactly the bug this parameter exists to close. This template is shared by every environment and intentionally carries no per-environment default here - each environment\'s real value lives in its own parameter file (e.g. dev.bicepparam), never in this template, so a Production deployment can never end up referencing a Dev domain by omission. Defaults to "" (no binding, Container Apps\' own default *.azurecontainerapps.io ingress) - the safe, explicit choice for a genuinely new environment with no domain bound yet. Must be set together with managedCertificateName - see hasCustomDomain below.')
+param customDomainName string = ''
+
+@description('Name of the existing Managed Certificate resource (Microsoft.App/managedEnvironments/managedCertificates, a child of the Environment named by containerAppsEnvironmentName) that covers customDomainName. This template only references an existing certificate by name - it never creates, renews, or deletes one (Container Apps\' free managed certificate is provisioned once via `az containerapp env certificate create`/the domain-binding flow, outside this template). No per-environment default here either, same reasoning as customDomainName - see dev.bicepparam for Dev\'s real value. Must be set together with customDomainName (both empty, or both set).')
+param managedCertificateName string = ''
 
 @description('Backend Public API origin (api/v1/public/* only - see apps/web/lib/publicApi.ts) - a genuine runtime env var (JUPLE_API_BASE_URL, never NEXT_PUBLIC_*), read fresh by the running container, not frozen into the image at `docker build` time. Not a secret - the same anonymous, unauthenticated surface apps/mobile itself calls. No default on purpose, unlike the four values below: a meaningful value always exists for any real deployment (e.g. ../app/main.bicep\'s own containerAppFqdn output), unlike the store/Team ID values, which genuinely may not exist yet.')
 param apiBaseUrl string
@@ -62,6 +71,15 @@ param containerMemory string = '0.5Gi'
 var containerAppName = 'ca-juple-web-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 
+// Both-or-neither: a custom domain binding is meaningless without the certificate that covers it,
+// and vice versa. An environment with neither yet (a brand new environment, or Dev before its
+// first domain was bound) deploys with an empty customDomains array - Container Apps' own default,
+// no different from before this parameter existed.
+var hasCustomDomain = !empty(customDomainName) && !empty(managedCertificateName)
+var managedCertificateResourceId = hasCustomDomain
+  ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
+  : ''
+
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
   location: location
@@ -77,17 +95,29 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       // External: this is the public-facing Web Viewer, reachable from any browser/Android App
       // Links/iOS Universal Links resolver with no VPN. HTTPS is terminated by Container Apps' own
-      // managed ingress/certificate on its default *.azurecontainerapps.io FQDN - the container
-      // behind it only ever speaks plain HTTP on targetPort 3000 (see apps/web/Dockerfile's
-      // PORT=3000). No custom domain is configured here - the production public domain does not
-      // exist yet (see ../README.md); binding one later (Container Apps' own `customDomains` /
-      // managed certificate feature) is an additive change on top of this same resource, not a
-      // restructuring of it.
+      // ingress - either the default *.azurecontainerapps.io managed certificate, or, once
+      // customDomainName/managedCertificateName are set, the existing Managed Certificate declared
+      // below. The container behind it only ever speaks plain HTTP on targetPort 3000 (see
+      // apps/web/Dockerfile's PORT=3000) either way.
       ingress: {
         external: true
         targetPort: 3000
         transport: 'auto'
         allowInsecure: false
+        // Declared here (not left to a one-off `az containerapp hostname add` CLI call) because
+        // ingress.customDomains is fully replaced - not merged - on every deployment of this
+        // resource. A binding added only via CLI therefore disappears on the next plain Bicep
+        // redeploy (e.g. a runtime env change) unless the binding is also expressed in the
+        // template that owns this resource, which is what this does.
+        customDomains: hasCustomDomain
+          ? [
+              {
+                name: customDomainName
+                bindingType: 'SniEnabled'
+                certificateId: managedCertificateResourceId
+              }
+            ]
+          : []
       }
       // ACR pull via the Managed Identity's AcrPull role (granted in ../foundation/resources.bicep,
       // same identity ../app/main.bicep already reuses for the same purpose) - no username/password

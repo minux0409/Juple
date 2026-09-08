@@ -47,6 +47,10 @@ Blob cleanup용 Container Apps Job(`caj-juple-blob-cleanup-dev`)이 아직 배�
 "Blob cleanup scheduled Job" 섹션 참고. 이 Job이 배포되기 전까지 account deletion은 production
 release 대상이 될 수 없다(hard release blocker).
 
+Web Container App(`ca-juple-web-dev`)도 이미 배포되어 있고, custom domain `dev.juple.co.kr` +
+managed certificate가 bound되어 DNS/TLS 정상, Android App Links Dev E2E PASS 상태다 - 아래 "Web
+custom domain" 섹션 참고(이 binding이 Bicep 재배포로 유실되던 문제와 그 수정 내용).
+
 아래 명령 예시는 재배포/업데이트 시 참고용이며, 이미 배포된 부분(Foundation/App/Push Job)은
 "아직 실행하지 않음"이 아니라 향후 재배포 시 참고용이다 — 실제 값/시크릿은 예시에 포함하지 않는다.
 
@@ -118,22 +122,38 @@ az deployment group create `
 # 완전히 별개 리소스/이미지, secret 없음. 이미지는 환경과 무관하게 빌드된다 - build-arg가
 # 전혀 없다(아래 "Web Container App" 섹션 참고) - 그래서 Dev/Staging/Prod가 같은 tag를 그대로
 # 재사용할 수 있고, 환경별 차이는 전부 아래 배포 시점 parameter(Container App env)로만 갈린다.
-# apiBaseUrl은 위 3번에서 배포한 App의 containerAppFqdn 출력값을 그대로 쓰면 된다.
+#
+# web/main.bicep 자체는 environment-neutral하다 - customDomainName/managedCertificateName에
+# Dev 전용 기본값을 두지 않는다(과거엔 뒀었는데, Production 배포에서 이 둘을 override하는 걸
+# 잊으면 Dev domain/certificate를 그대로 참조하는 위험이 있어 제거했다 - 아래 "Web custom domain"
+# 섹션 참고). 대신 Dev의 실제 값은 `infra/azure/web/dev.bicepparam`에 고정되어 있고, Azure CLI가
+# .bicepparam 사용 시 `--parameters`를 한 번만 허용해서(`az deployment group create --help`로
+# 확인 - 별도 `--parameters key=value`를 덧붙여 합칠 수 없다) 나머지 필수 parameter(acrLoginServer/
+# containerAppsEnvironmentId/managedIdentityResourceId/imageTag/apiBaseUrl - 전부 non-secret이지만
+# subscription ID를 포함하거나 배포마다 바뀌는 live 값이라 파일에 literal로 적어둘 수 없다)는
+# dev.bicepparam 안에서 `readEnvironmentVariable(...)`로 읽는다 - 아래처럼 배포자의 shell에
+# 그 값을 담은 환경변수를 먼저 설정해야 한다(값 자체는 여전히 파일에 커밋되지 않는다).
 az acr login --name $foundation.acrName.value
 docker build -f apps/web/Dockerfile -t "$($foundation.acrLoginServer.value)/juple-web:<tag>" apps/web/
 docker push "$($foundation.acrLoginServer.value)/juple-web:<tag>"
 
+$env:JUPLE_WEB_ACR_LOGIN_SERVER = $foundation.acrLoginServer.value
+$env:JUPLE_WEB_CONTAINER_APPS_ENVIRONMENT_ID = $foundation.containerAppsEnvironmentId.value
+$env:JUPLE_WEB_MANAGED_IDENTITY_RESOURCE_ID = $foundation.managedIdentityResourceId.value
+$env:JUPLE_WEB_IMAGE_TAG = '<tag>'
+$env:JUPLE_WEB_API_BASE_URL = 'https://<3번에서 배포한 API의 containerAppFqdn>'
+
 az deployment group create `
   --resource-group $foundation.resourceGroupName.value `
-  --template-file infra/azure/web/main.bicep `
-  --parameters `
-    acrLoginServer=$foundation.acrLoginServer.value `
-    imageTag=<tag> `
-    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
-    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
-    apiBaseUrl=https://<3번에서 배포한 API의 containerAppFqdn>
-    # googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId/androidAssetlinksSha256Fingerprints는
-    # 실값이 생기기 전까지 기본값(빈 문자열)을 그대로 둔다 - fake 값을 넣지 않는다.
+  --parameters infra/azure/web/dev.bicepparam
+# googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId/androidAssetlinksSha256Fingerprints는
+# dev.bicepparam에 없다 - main.bicep의 기본값(빈 문자열)이 그대로 적용된다. 실값이 생기기 전까지
+# fake 값을 넣지 않는다.
+#
+# Production(`juple.co.kr`)에 적용할 때는 같은 구조를 재사용한다 - `infra/azure/web/prod.bicepparam`을
+# (Production Foundation이 실제로 생기는 시점에) 새로 만들어 customDomainName=juple.co.kr,
+# managedCertificateName=<Production의 실제 Managed Certificate 이름>으로 채우고, 위와 동일하게
+# 5개 환경변수 + `--parameters infra/azure/web/prod.bicepparam`으로 배포한다.
 
 # 7. Backend에 Web의 실제 URL을 알려준다 (3번 App 재배포, resource group scope) - 위 6번에서
 # 나온 Web의 containerAppUrl 출력값(또는 이후 실제 custom domain)을 그대로 publicWebBaseUrl로
@@ -231,19 +251,21 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
 ## 아직 provisioning되지 않은 것
 
 다음은 구독에 실제로 존재하지 않는다(subscription-wide 조회로 확인) — **not provisioned yet**:
-Key Vault, Application Insights, Service Bus, Notification Hubs, VNet, Private Endpoint, custom
-domain, Staging/Production 실제 리소스, GitHub Actions 워크플로, **Blob cleanup용 Container Apps
-Job**(`caj-juple-blob-cleanup-dev` - IaC는 `blob-cleanup-job/main.bicep`으로 이미 준비돼 있다,
-아래 "Blob cleanup scheduled Job" 참고, 아직 배포만 안 됐다는 뜻), **Web Container App**
-(`ca-juple-web-dev` - IaC는 `web/main.bicep`으로 이미 준비돼 있다, 아래 "Web Container App"
-참고, 아직 배포만 안 됐다는 뜻).
+Key Vault, Application Insights, Service Bus, Notification Hubs, VNet, Private Endpoint,
+Production 실제 custom domain(`juple.co.kr`)/리소스, GitHub Actions 워크플로, **Blob cleanup용
+Container Apps Job**(`caj-juple-blob-cleanup-dev` - IaC는 `blob-cleanup-job/main.bicep`으로 이미
+준비돼 있다, 아래 "Blob cleanup scheduled Job" 참고, 아직 배포만 안 됐다는 뜻).
+
+Dev의 Web Container App(`ca-juple-web-dev`)과 custom domain(`dev.juple.co.kr`)은 이미 배포·
+바인딩되어 있다(아래 "Web Container App"/"Web custom domain" 참고) - DNS/TLS 정상, Android App
+Links Dev E2E PASS.
 
 **Production public domain은 여전히 미확정이다.** Android(`appLinksHost` manifest placeholder),
 iOS(`JupleMobile.entitlements`의 placeholder, 게다가 Xcode project에 연결조차 안 되어 있다),
-Web(`web/main.bicep`이 custom domain을 전혀 참조하지 않는다), Backend(`publicWebBaseUrl`이 기본값
-빈 문자열이다) 네 곳 모두 이 값 하나를 기다리는 중이다 - 도메인이 정해지기 전까지 App
-Links/Universal Links는 켜지지 않지만, 각 플랫폼은 이미 정의된 "미설정 시 안전한 no-op"으로
-동작한다(추측 도메인을 채워 넣지 않는다).
+Backend(`publicWebBaseUrl`이 기본값 빈 문자열이다) 세 곳 모두 이 값 하나를 기다리는 중이다 -
+도메인이 정해지기 전까지 App Links/Universal Links는 켜지지 않지만, 각 플랫폼은 이미 정의된
+"미설정 시 안전한 no-op"으로 동작한다(추측 도메인을 채워 넣지 않는다). Web은 Dev 자체 도메인은
+이미 있지만 Production 도메인(`juple.co.kr`)은 아직 없다 - 위 "Web custom domain" 섹션 참고.
 Push dispatch Job(`caj-juple-push-dispatch-dev`)은 2026-09-07 배포 라운드에서 이미 생성되어
 현재 활성 상태다(위 "현재 배포 상태" 참고).
 이유와 재검토 시점은 세션 히스토리의 Azure 조사 보고(2026-09-03) 참고.
@@ -403,31 +425,85 @@ API B + `env-b` 스토어 URL로. `/c/{publicId}` SSR 결과(Collection 이름, 
 `ItemList`에 내려간 `apiBaseUrl` prop)와 `.well-known` 두 라우트가 재빌드 없이 컨테이너 실행
 시점 env만으로 정확히 갈리는 것을 확인했다.
 
-**Store/App ID/fingerprint는 아직 실값이 없다** - `web/main.bicep`의 `googlePlayUrl`/
-`appStoreUrl`/`appStoreAppId`/`iosAppId`/`androidAssetlinksSha256Fingerprints` 파라미터는
-전부 기본값 빈 문자열이고, 가짜 값을 채워 넣지 않았다. 출시 준비(Apple Developer Team ID 확보,
-Play App Signing 활성화, Play/App Store 리스팅 등록) 시점에 실값으로 재배포하면 된다 - 이미지
-재빌드도, 코드/IaC 구조 변경도 필요 없다.
+**Store/App ID는 아직 실값이 없다** - `web/main.bicep`의 `googlePlayUrl`/`appStoreUrl`/
+`appStoreAppId`/`iosAppId` 파라미터는 전부 기본값 빈 문자열이고, 가짜 값을 채워 넣지 않았다.
+출시 준비(Apple Developer Team ID 확보, Play App Signing 활성화, Play/App Store 리스팅 등록)
+시점에 실값으로 재배포하면 된다 - 이미지 재빌드도, 코드/IaC 구조 변경도 필요 없다.
 
-**Custom domain은 하드코딩하지 않았다** - `ingress`는 Container Apps 기본
-`*.azurecontainerapps.io` FQDN만 사용한다. 실 도메인이 정해지면 Container Apps의 `customDomains`/
-managed certificate 기능을 이 리소스 위에 추가하는 것으로 충분하며, 이 템플릿 자체의 구조 변경은
-필요 없다.
+**`androidAssetlinksSha256Fingerprints`는 실값이 있다** - Android App Links Dev E2E 검증을 위해
+`ca-juple-web-dev`에 CLI로 직접 값이 설정되어(이 Bicep 배포를 거치지 않고) 이미 PASS했다(위
+"아직 provisioning되지 않은 것" 참고). 어떤 keystore의 fingerprint인지는 이 repo에 기록되어
+있지 않다 - 확인 없이 추측하지 않는다(Dogfood keystore의 fingerprint와는 다른 값이다 - 위
+"Dogfood signing" 섹션의 keystore와 혼동하지 않는다). `dev.bicepparam`이 이 값을 literal로
+고정해 재배포로 유실되지 않게 한다 - 아래 "Web custom domain" 섹션의 `dev.bicepparam` 구성
+참고.
 
-**배포/연결 순서**(권장, 아직 어느 것도 실행하지 않았다):
+### Web custom domain (`dev.juple.co.kr`) - IaC state의 일부
 
-1. `web/main.bicep`으로 Web Container App 배포(위 "명령 예시" 6번) - `containerAppFqdn`
-   (`*.azurecontainerapps.io`)만으로도 `/c/{publicId}` 접근은 즉시 가능하다(단, 아직 앱이 직접
-   여는 App Links/Universal Links는 이 시점엔 없다 - 브라우저로만 열린다).
+Dev의 `ca-juple-web-dev`에는 `dev.juple.co.kr`이 실제로 bound되어 있고 DNS/TLS도 정상이다
+(managed certificate `mc-cae-juple-dev-dev-juple-co-kr-6698`, Android App Links Dev E2E도
+PASS). **이 binding은 처음에 `az containerapp hostname add`/`bind` CLI로만 추가됐었는데,
+`Microsoft.App/containerApps`의 `properties.configuration.ingress`는 매 Bicep 배포마다 전체가
+교체(merge가 아니라 replace)되는 속성이라, `customDomains`를 선언하지 않는 `web/main.bicep`을
+그대로 재배포하면(런타임 env 하나만 바꾸는 재배포라도) 이 binding이 즉시 사라지고 TLS가
+깨지는 사고가 있었다** - managed certificate 리소스 자체는 살아남지만 Container App의
+hostname binding만 초기화된다.
+
+그래서 지금은 `configuration.ingress.customDomains`를 `web/main.bicep`이 직접 선언한다
+(`customDomainName`/`managedCertificateName` 파라미터, 위 코드 참고). **`web/main.bicep` 자체는
+environment-neutral하다** - 두 파라미터 모두 기본값이 빈 문자열이고(`customDomains: []`), Dev
+전용 값을 템플릿에 두지 않는다. 처음엔 `app/main.bicep`의 `entraTenantId` 같은 "Dev 기본값을
+파라미터 default로 두고 override" 패턴을 그대로 따랐었지만, 이 값은 Entra 설정과 달리 실수로
+override를 빼먹으면 **다른 환경이 Dev의 domain/certificate를 그대로 참조**해버리는 위험이 있어
+(Entra 설정을 빼먹으면 그냥 Dev 테넌트를 계속 쓰는 정도지만, 여기선 Prod 배포가 `dev.juple.co.kr`
+바인딩을 시도하게 된다) 되돌렸다 - Dev의 실제 값은 대신 `infra/azure/web/dev.bicepparam`
+(이 repo의 첫 `.bicepparam` 파일)에 고정한다.
+
+Certificate는 `Microsoft.App/managedEnvironments/managedCertificates`의 기존 리소스를
+`resourceId(...)`로 참조만 한다 - 이 템플릿이 새 certificate를 발급하거나 갱신하는 일은 없다.
+
+**`dev.bicepparam`의 구성**(전체는 파일 자체의 헤더 주석 참고):
+
+- `environmentName`/`containerAppsEnvironmentName`(Naming 표의 `cae-juple-{environmentName}`
+  패턴으로 결정되는 이름, 추측이 아니다)/`customDomainName`/`managedCertificateName`/
+  `androidAssetlinksSha256Fingerprints` - Dev 환경에 대한 고정된 사실이라 파일에 literal로
+  커밋해도 안전한 값. `androidAssetlinksSha256Fingerprints`는 secret이 아니다 - 서명 인증서의
+  public fingerprint이며, `.well-known/assetlinks.json`으로 이미 공개 서빙되는 값과 동일하다.
+- `acrLoginServer`/`containerAppsEnvironmentId`/`managedIdentityResourceId`/`imageTag`/
+  `apiBaseUrl` - non-secret이지만 subscription ID를 포함하거나(리소스 ID) 배포마다 바뀌는
+  live 값(image tag, API의 실제 FQDN)이라 파일에 literal로 적을 수 없다. Azure CLI가
+  `.bicepparam` 사용 시 `--parameters`를 한 번만 허용해서(위 "명령 예시" 6번 참고, `az
+  deployment group create --help`로 확인) 별도 `--parameters key=value`로 채울 수도 없다 -
+  대신 파일 안에서 `readEnvironmentVariable('JUPLE_WEB_...')`로 읽는다. 배포자가 `az
+  deployment group create` 실행 전에 그 이름의 환경변수를 shell에 설정해야 하며(위 "명령 예시"
+  6번의 `$env:JUPLE_WEB_...` 참고), 설정하지 않으면 `az bicep build-params`/실제 배포 모두
+  명확한 에러(BCP427)로 즉시 실패한다 - 조용히 빈 문자열로 배포되지 않는다.
+
+**신규 환경(아직 domain이 없는 환경)에서는** `customDomainName`/`managedCertificateName`을
+아예 지정하지 않으면(파라미터 파일 없이 `main.bicep`을 직접 배포하거나, 그 둘이 없는 자체
+parameter 파일을 쓰면) `main.bicep`의 기본값(둘 다 `""`)이 적용되어 `customDomains: []`로
+안전하게 배포된다(`hasCustomDomain` 변수 참고) - Dev/Prod 어느 쪽도 다른 환경의 값을 실수로
+상속할 수 없다.
+
+**Production(`juple.co.kr`) 적용 시**도 같은 구조를 재사용한다 - Production Foundation이 실제로
+생기는 시점에 `infra/azure/web/prod.bicepparam`을 `dev.bicepparam`과 같은 구조로 새로 만들어
+`customDomainName=juple.co.kr`, `managedCertificateName=<Production의 실제 Managed Certificate
+이름>`을 채우면 된다. `main.bicep` 자체의 구조 변경은 필요 없다.
+
+**배포/연결 순서**(Dev는 1~5 완료, 아래는 향후 재배포/Production 적용 시 참고용):
+
+1. `web/main.bicep` + `web/dev.bicepparam`으로 Web Container App 배포(위 "명령 예시" 6번) -
+   `containerAppFqdn`(`*.azurecontainerapps.io`)만으로도 `/c/{publicId}` 접근은 즉시 가능하다.
 2. 실 production domain 확정.
-3. Web에 그 도메인을 custom domain으로 연결(Container Apps 기능, 이 Bicep과 별개 단계).
-4. `app/main.bicep`의 `publicWebBaseUrl`을 그 도메인(또는 2번 전이면 우선 1번의
-   `containerAppFqdn`)으로 재배포(위 "명령 예시" 7번) - 이 값이 바뀌기 전까지 공유 URL은 계속
-   구버전 origin으로 조립된다.
+3. Web에 그 도메인을 custom domain으로 최초 연결(Container Apps 기능, `az containerapp hostname
+   add`/`bind` - 이 최초 binding/도메인 검증 자체는 여전히 이 Bicep 밖의 1회성 단계다). 이후에는
+   `prod.bicepparam`의 `customDomainName`/`managedCertificateName`으로 그 결과를 IaC에도
+   반영해 재배포마다 유지되게 한다(위 참고).
+4. `app/main.bicep`의 `publicWebBaseUrl`을 그 도메인으로 재배포(위 "명령 예시" 7번) - 이 값이
+   바뀌기 전까지 공유 URL은 계속 구버전 origin으로 조립된다.
 5. Android(`JUPLE_PUBLIC_WEB_HOST`)/iOS(entitlements, Mac 필요)에 같은 도메인을 반영하고,
    Web의 `.well-known` 두 라우트가 실제로 올바른 값을 서빙하는지(fingerprint/Team ID 확보 후)
-   확인해야 App Links/Universal Links가 실제로 동작한다 - 그 전까지는 항상 Web 페이지로만 열린다
-   (설계된 fallback이지, 오류가 아니다).
+   확인해야 App Links/Universal Links가 실제로 동작한다.
 
 ## Naming
 
