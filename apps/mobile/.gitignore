@@ -38,6 +38,11 @@ local.properties
 # See README's "Dogfood signing" section and android/app/build.gradle's dogfood signingConfig.
 android/app/dogfood-signing.local.properties
 
+# Play App Signing upload key identity - machine/CI-local secret (store file path + passwords),
+# never committed. See README's "Production release signing" section and
+# android/app/build.gradle's release signingConfig.
+android/app/release-signing.local.properties
+
 # node.js
 #
 node_modules/

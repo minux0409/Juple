@@ -1,3 +1,5 @@
+import org.gradle.api.GradleException
+
 apply plugin: "com.android.application"
 // @react-native-firebase/app's official Android setup requires this applied right after
 // com.android.application. Reads google-services.json per buildType via the plugin's own
@@ -137,10 +139,11 @@ android {
             appLinksHost: System.getenv("JUPLE_PUBLIC_WEB_HOST") ?: "app-links-host-not-configured.invalid"
         ]
     }
-    // Dogfood's signing identity (see below) is read from a gitignored local properties file,
-    // falling back to environment variables of the same name - see README's "Dogfood signing"
-    // section for how to set either up. Neither the file nor the env vars are required for
-    // Debug/Release, so this stays a no-op for every other buildType.
+    // Dogfood's and Release's signing identities (see below) are each read from their own
+    // gitignored local properties file, falling back to environment variables of the same name -
+    // see README's "Dogfood signing" / "Production release signing" sections for how to set either
+    // up. Neither file nor its env vars are required for the other buildTypes, so each stays a
+    // no-op everywhere else.
     def dogfoodSigningProps = new Properties()
     def dogfoodSigningPropsFile = file("dogfood-signing.local.properties")
     if (dogfoodSigningPropsFile.exists()) {
@@ -148,6 +151,15 @@ android {
     }
     def dogfoodSigningValue = { String key ->
         dogfoodSigningProps.getProperty(key) ?: System.getenv(key)
+    }
+
+    def releaseSigningProps = new Properties()
+    def releaseSigningPropsFile = file("release-signing.local.properties")
+    if (releaseSigningPropsFile.exists()) {
+        releaseSigningPropsFile.withInputStream { releaseSigningProps.load(it) }
+    }
+    def releaseSigningValue = { String key ->
+        releaseSigningProps.getProperty(key) ?: System.getenv(key)
     }
 
     signingConfigs {
@@ -159,8 +171,8 @@ android {
         }
         dogfood {
             // A dedicated signing identity for the "dogfood" buildType ONLY - never Production/
-            // Play App Signing (see the "release" buildType below, unchanged). Deliberately does
-            // NOT fall back to signingConfigs.debug when unset: debug.keystore is a machine-local,
+            // Play App Signing (see the "release" buildType below). Deliberately does NOT fall
+            // back to signingConfigs.debug when unset: debug.keystore is a machine-local,
             // gitignored file (see .gitignore's *.keystore rule), and every machine typically
             // generates its own - which is exactly why a dogfood APK built on one PC used to fail
             // to install-update over one built on another (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
@@ -183,17 +195,42 @@ android {
             keyAlias dogfoodSigningValue("JUPLE_DOGFOOD_KEY_ALIAS")
             keyPassword dogfoodSigningValue("JUPLE_DOGFOOD_KEY_PASSWORD")
         }
+        release {
+            // The Google Play App Signing *upload key* - this identity signs the AAB/APK only for
+            // upload to the Play Console; Play then re-signs the artifact actually delivered to
+            // users with its own separately-held App Signing key. Never Debug's or Dogfood's
+            // identity - see README's "Production release signing" section for the full Upload
+            // key / App Signing key / assetlinks.json relationship (they are three different
+            // certificates, not interchangeable).
+            //
+            // Left incomplete/null on purpose when unconfigured, same reasoning as
+            // signingConfigs.dogfood above - confirmed by actually running the release variant
+            // with no credentials set: AGP treats this signingConfig as not-yet-configured (no
+            // `validateSigningRelease` task is even registered) rather than silently completing it
+            // with Debug's keystore (the previous state - see this file's git history), so a
+            // release-variant task that reaches signing fails instead of producing a debug-signed
+            // artifact. Once JUPLE_RELEASE_STORE_FILE etc. are set to real values, the same
+            // `validateSigningRelease` task appears and fails clearly on any remaining problem
+            // (e.g. a wrong keystore path), still before ever touching Debug's identity.
+            def storeFilePath = releaseSigningValue("JUPLE_RELEASE_STORE_FILE")
+            if (storeFilePath) {
+                storeFile file(storeFilePath)
+            }
+            storePassword releaseSigningValue("JUPLE_RELEASE_STORE_PASSWORD")
+            keyAlias releaseSigningValue("JUPLE_RELEASE_KEY_ALIAS")
+            keyPassword releaseSigningValue("JUPLE_RELEASE_KEY_PASSWORD")
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            // Deliberately NOT signingConfigs.dogfood - that identity is dogfood-only (see above)
-            // and must never be reused as/confused with the eventual Play App Signing key.
-            signingConfig signingConfigs.debug
+            // Google Play App Signing upload key - see signingConfigs.release above and README's
+            // "Production release signing" section. Deliberately NOT signingConfigs.dogfood - that
+            // identity is dogfood-only (see above) and must never be reused as/confused with the
+            // Play App Signing upload key.
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
@@ -211,7 +248,7 @@ android {
             // debug/release variants - without this, Gradle can't resolve them for a buildType
             // it doesn't recognize by name.
             matchingFallbacks = ['release']
-            // Overrides release's inherited signingConfigs.debug (see initWith above) with
+            // Overrides release's inherited signingConfigs.release (see initWith above) with
             // Dogfood's own dedicated identity - see signingConfigs.dogfood's comment.
             signingConfig signingConfigs.dogfood
             // The React Native Gradle Plugin only auto-fills this manifest placeholder for
@@ -221,6 +258,75 @@ android {
             // Backend over HTTPS (see src/api/apiConfig.ts), so cleartext HTTP is never needed.
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
+    }
+}
+
+// Explicit Production release signing pre-build check - see README's "Production release signing"
+// section. signingConfigs.release above already leaves storeFile/password/alias/keyPassword unset
+// when unconfigured (so it never silently completes with Debug's keystore), but testing that state
+// directly showed AGP responds by not registering a `validateSigningRelease` task at all, rather
+// than failing - not the explicit, always-present fail-fast a Production release needs. This task
+// re-checks the same four Play App Signing upload-key values on its own and is wired (below) as a
+// dependency of "release"'s own preReleaseBuild lifecycle task, so it always runs whenever a
+// release-variant task graph is actually built (assembleRelease, bundleRelease, ...) - not
+// Debug's preDebugBuild or Dogfood's preDogfoodBuild, which is a separate buildType with its own
+// lifecycle task and never depends on this one.
+def releaseSigningVerifyProps = new Properties()
+def releaseSigningVerifyPropsFile = file("release-signing.local.properties")
+if (releaseSigningVerifyPropsFile.exists()) {
+    releaseSigningVerifyPropsFile.withInputStream { releaseSigningVerifyProps.load(it) }
+}
+def releaseSigningVerifyValue = { String key ->
+    releaseSigningVerifyProps.getProperty(key) ?: System.getenv(key)
+}
+
+tasks.register("verifyReleaseSigning") {
+    group = "verification"
+    description = "Fails with a clear error if any Play App Signing upload-key credential is " +
+        "missing, or the keystore file does not exist - see README's \"Production release " +
+        "signing\" section. Runs only when a release-variant task graph is actually built " +
+        "(wired to preReleaseBuild below), never for Debug/Dogfood."
+    // All checking happens in doLast (task action / execution time), not here in the
+    // configuration block - a Gradle sync or an unrelated assembleDebug/assembleDogfood only
+    // configures tasks, it does not execute this task's action, so neither ever sees this fail.
+    doLast {
+        // Label only, never the actual secret value, in any error message below.
+        def requiredKeys = [
+            JUPLE_RELEASE_STORE_FILE    : 'store file path',
+            JUPLE_RELEASE_STORE_PASSWORD: 'store password',
+            JUPLE_RELEASE_KEY_ALIAS     : 'key alias',
+            JUPLE_RELEASE_KEY_PASSWORD  : 'key password',
+        ]
+        def missing = requiredKeys.findAll { key, label -> !releaseSigningVerifyValue(key) }
+            .collect { key, label -> "${key} (${label})" }
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                "Production release signing is not configured - missing: ${missing.join(', ')}. " +
+                    'Set these in android/app/release-signing.local.properties (gitignored) or as ' +
+                    'environment variables before building a release - see README\'s "Production ' +
+                    'release signing" section. Refusing to build; this never falls back to ' +
+                    "Debug's keystore."
+            )
+        }
+        def storeFilePath = releaseSigningVerifyValue('JUPLE_RELEASE_STORE_FILE')
+        if (!file(storeFilePath).exists()) {
+            throw new GradleException(
+                "Production release signing keystore not found at '${storeFilePath}' " +
+                    '(from JUPLE_RELEASE_STORE_FILE) - check the path in ' +
+                    'android/app/release-signing.local.properties or the environment variable. ' +
+                    'See README\'s "Production release signing" section.'
+            )
+        }
+    }
+}
+
+afterEvaluate {
+    // preReleaseBuild is AGP's own generated lifecycle task for the "release" variant specifically
+    // - looked up here (not referenced by name earlier) because AGP creates it while evaluating
+    // the android {} block above, so it does not exist yet at this file's top level until after
+    // that evaluation completes.
+    tasks.named('preReleaseBuild') {
+        dependsOn('verifyReleaseSigning')
     }
 }
 
