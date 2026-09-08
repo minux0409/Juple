@@ -47,6 +47,9 @@ param entraTenantId string = 'd2e79a05-cf5f-43ab-86d2-717e025a74b1'
 param entraClientId string = '14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b'
 param entraRequiredScope string = 'access_as_user'
 
+@description('Public Web Viewer origin (PublicWebOptions.BaseUrl) - CollectionsController composes every share URL server-side as "{this}/c/{PublicId}" (see CollectionsController.ToShareResponse), and the same value also scopes api/v1/public/*\'s CORS policy (see Program.cs). Not a secret - a public URL. Defaults to empty, the same safe no-op appsettings.json\'s own "" default already means (CORS allows no origins; share URLs compose with an empty origin) - the real Public Web origin does not exist yet (no production domain - see ../README.md and ../web/main.bicep\'s own "no custom domain yet" note), so this must be supplied explicitly once a real Web Container App/domain exists, e.g. ../web/main.bicep\'s own containerAppUrl output before a custom domain, or the real domain after one is bound.')
+param publicWebBaseUrl string = ''
+
 @description('Scale-to-zero by default - the cheapest Dev option. The first request after idle pays a cold-start cost; raise minReplicas to 1 if that proves disruptive.')
 param minReplicas int = 0
 
@@ -161,6 +164,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'Authentication__EntraExternalId__RequiredScope'
               value: entraRequiredScope
+            }
+            {
+              // Not a secret. Empty is a safe no-op (see publicWebBaseUrl's own description) -
+              // always passed through as-is rather than conditionally omitted, so a redeploy
+              // without an explicit value predictably resets to "unconfigured" instead of silently
+              // keeping whatever a previous revision happened to have.
+              name: 'PublicWeb__BaseUrl'
+              value: publicWebBaseUrl
             }
           ]
           probes: [

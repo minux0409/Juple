@@ -113,6 +113,44 @@ az deployment group create `
     managedIdentityClientId=$foundation.managedIdentityClientId.value `
     storageBlobServiceUri=$foundation.storageBlobServiceUri.value `
     sqlConnectionString=$env:SQL_CONNECTION_STRING
+
+# 6. Web (resource group scope) - apps/web (Public Collection Sharing Web Viewer), API/Job과
+# 완전히 별개 리소스/이미지, secret 없음. 이미지는 환경과 무관하게 빌드된다 - build-arg가
+# 전혀 없다(아래 "Web Container App" 섹션 참고) - 그래서 Dev/Staging/Prod가 같은 tag를 그대로
+# 재사용할 수 있고, 환경별 차이는 전부 아래 배포 시점 parameter(Container App env)로만 갈린다.
+# apiBaseUrl은 위 3번에서 배포한 App의 containerAppFqdn 출력값을 그대로 쓰면 된다.
+az acr login --name $foundation.acrName.value
+docker build -f apps/web/Dockerfile -t "$($foundation.acrLoginServer.value)/juple-web:<tag>" apps/web/
+docker push "$($foundation.acrLoginServer.value)/juple-web:<tag>"
+
+az deployment group create `
+  --resource-group $foundation.resourceGroupName.value `
+  --template-file infra/azure/web/main.bicep `
+  --parameters `
+    acrLoginServer=$foundation.acrLoginServer.value `
+    imageTag=<tag> `
+    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
+    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
+    apiBaseUrl=https://<3번에서 배포한 API의 containerAppFqdn>
+    # googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId/androidAssetlinksSha256Fingerprints는
+    # 실값이 생기기 전까지 기본값(빈 문자열)을 그대로 둔다 - fake 값을 넣지 않는다.
+
+# 7. Backend에 Web의 실제 URL을 알려준다 (3번 App 재배포, resource group scope) - 위 6번에서
+# 나온 Web의 containerAppUrl 출력값(또는 이후 실제 custom domain)을 그대로 publicWebBaseUrl로
+# 전달한다. 다른 parameter는 3번과 동일하게 유지한다.
+az deployment group create `
+  --resource-group $foundation.resourceGroupName.value `
+  --template-file infra/azure/app/main.bicep `
+  --parameters `
+    acrLoginServer=$foundation.acrLoginServer.value `
+    imageTag=<3번과 동일한 tag> `
+    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
+    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
+    managedIdentityClientId=$foundation.managedIdentityClientId.value `
+    storageBlobServiceUri=$foundation.storageBlobServiceUri.value `
+    sqlConnectionString=$env:SQL_CONNECTION_STRING `
+    publicCollectionCursorEncryptionKey=@<repo 밖 임시 파일 경로 - 32바이트 key의 Base64 한 줄> `
+    publicWebBaseUrl=https://<6번에서 배포한 Web의 containerAppUrl>
 ```
 
 ## EF Core migration 적용
@@ -196,7 +234,16 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
 Key Vault, Application Insights, Service Bus, Notification Hubs, VNet, Private Endpoint, custom
 domain, Staging/Production 실제 리소스, GitHub Actions 워크플로, **Blob cleanup용 Container Apps
 Job**(`caj-juple-blob-cleanup-dev` - IaC는 `blob-cleanup-job/main.bicep`으로 이미 준비돼 있다,
-아래 "Blob cleanup scheduled Job" 참고, 아직 배포만 안 됐다는 뜻).
+아래 "Blob cleanup scheduled Job" 참고, 아직 배포만 안 됐다는 뜻), **Web Container App**
+(`ca-juple-web-dev` - IaC는 `web/main.bicep`으로 이미 준비돼 있다, 아래 "Web Container App"
+참고, 아직 배포만 안 됐다는 뜻).
+
+**Production public domain은 여전히 미확정이다.** Android(`appLinksHost` manifest placeholder),
+iOS(`JupleMobile.entitlements`의 placeholder, 게다가 Xcode project에 연결조차 안 되어 있다),
+Web(`web/main.bicep`이 custom domain을 전혀 참조하지 않는다), Backend(`publicWebBaseUrl`이 기본값
+빈 문자열이다) 네 곳 모두 이 값 하나를 기다리는 중이다 - 도메인이 정해지기 전까지 App
+Links/Universal Links는 켜지지 않지만, 각 플랫폼은 이미 정의된 "미설정 시 안전한 no-op"으로
+동작한다(추측 도메인을 채워 넣지 않는다).
 Push dispatch Job(`caj-juple-push-dispatch-dev`)은 2026-09-07 배포 라운드에서 이미 생성되어
 현재 활성 상태다(위 "현재 배포 상태" 참고).
 이유와 재검토 시점은 세션 히스토리의 Azure 조사 보고(2026-09-03) 참고.
@@ -316,6 +363,72 @@ mutation(`RecordFailedAttemptAsync`/`ScheduleFinalSweepAsync`/`DeleteAsync`)은 
 동시에 처리해도 데이터 손상이 없다 - `replicaTimeout`을 schedule 간격보다 짧게 둔 것은 이 안전성에
 의존하기 위해서가 아니라 겹침 자체를 굳이 유발하지 않기 위한 예방적 선택이다.
 
+### Web Container App - IaC 준비 완료, Azure 리소스 미생성
+
+`apps/web`(Public Collection Sharing Web Viewer, Next.js 16, `/c/[publicId]` +
+`.well-known/apple-app-site-association` + `.well-known/assetlinks.json`)을 배포할
+`Microsoft.App/containerApps` 리소스(`ca-juple-web-{environmentName}`)가 `web/main.bicep`으로
+준비되어 있다. API/Job과 완전히 별개 리소스/이미지이며, DB/Blob Storage 권한도 secret도 전혀
+필요하지 않다 - Managed Identity는 ACR pull 용도로만 재사용한다(새 role assignment 없음).
+
+**빌드 방식**: `apps/web/Dockerfile`(신규, multi-stage) - `next.config.ts`의 `output: 'standalone'`
+으로 `next start`가 실제로 필요로 하는 파일만 추려 이미지에 담는다. 로컬에서 실제로
+`docker build`/`docker run`까지 실행해 검증했다.
+
+**모든 환경값이 runtime env다 - build-arg가 하나도 없다.** 처음엔 `NEXT_PUBLIC_JUPLE_API_BASE_URL`
+등 4개를 `NEXT_PUBLIC_` 접두사로 두어 `next build` 시점에 결과물에 굳혀 넣었으나(Next.js
+공식 문서로 확인: `node_modules/next/dist/docs/01-app/02-guides/environment-variables.md`),
+"같은 이미지를 Dev/Staging/Prod에서 재빌드 없이 쓴다"는 목표와 맞지 않아 전부 접두사 없는
+runtime 변수로 옮겼다:
+
+- `lib/publicApi.ts`의 API 호출 함수들이 `apiBaseUrl`을 인자로 받도록 변경 - 더 이상 모듈이
+  직접 env를 읽지 않는다.
+- `app/c/[publicId]/page.tsx`(이미 `headers()`를 쓰는 dynamic 페이지)가 매 요청마다
+  `process.env.JUPLE_API_BASE_URL`을 읽어 그 값을 API 호출과 `ItemList`(Client Component, "더
+  보기" pagination을 브라우저에서 직접 fetch) props로 그대로 내려준다 - Client Component는 어떤
+  env도 직접 읽지 않고, 그 요청의 RSC/HTML payload 안 평범한 문자열 prop으로만 값을 받는다.
+- `lib/storeConfig.ts`(`GOOGLE_PLAY_URL`/`APP_STORE_URL`/`APP_STORE_APP_ID`)도 마찬가지로
+  접두사를 뗐다 - 이 값들은 Server Component(`InstallCta`)/`generateMetadata`에서만 쓰이므로
+  애초에 client bundle 노출 우려가 없었다.
+
+그 결과 `Dockerfile`은 `ARG`/build-time `ENV`가 전혀 없는 평범한 `RUN npm run build`가 되었고,
+이전 라운드에서 넣었던 `RUN sh -c '[ -z "$X" ] && unset X; ...'` workaround(Docker `ARG`가
+"미설정"이 아니라 빈 문자열이 되어 `lib/publicApi.ts`의 `?? 'http://localhost:5092'`를
+깨뜨렸던 실측 버그의 우회책)도 함께 제거했다 - 애초에 그 값을 build-time에 다루지 않으므로
+이제 이 문제 자체가 발생하지 않는다.
+
+**하나의 image, 서로 다른 runtime env로 실제 검증**: 동일한 image(`docker inspect`로 image ID
+동일 확인)를 두 번 실행 - 한 번은 가짜 Public API A + `env-a` 스토어 URL로, 한 번은 가짜 Public
+API B + `env-b` 스토어 URL로. `/c/{publicId}` SSR 결과(Collection 이름, Install CTA 링크,
+`ItemList`에 내려간 `apiBaseUrl` prop)와 `.well-known` 두 라우트가 재빌드 없이 컨테이너 실행
+시점 env만으로 정확히 갈리는 것을 확인했다.
+
+**Store/App ID/fingerprint는 아직 실값이 없다** - `web/main.bicep`의 `googlePlayUrl`/
+`appStoreUrl`/`appStoreAppId`/`iosAppId`/`androidAssetlinksSha256Fingerprints` 파라미터는
+전부 기본값 빈 문자열이고, 가짜 값을 채워 넣지 않았다. 출시 준비(Apple Developer Team ID 확보,
+Play App Signing 활성화, Play/App Store 리스팅 등록) 시점에 실값으로 재배포하면 된다 - 이미지
+재빌드도, 코드/IaC 구조 변경도 필요 없다.
+
+**Custom domain은 하드코딩하지 않았다** - `ingress`는 Container Apps 기본
+`*.azurecontainerapps.io` FQDN만 사용한다. 실 도메인이 정해지면 Container Apps의 `customDomains`/
+managed certificate 기능을 이 리소스 위에 추가하는 것으로 충분하며, 이 템플릿 자체의 구조 변경은
+필요 없다.
+
+**배포/연결 순서**(권장, 아직 어느 것도 실행하지 않았다):
+
+1. `web/main.bicep`으로 Web Container App 배포(위 "명령 예시" 6번) - `containerAppFqdn`
+   (`*.azurecontainerapps.io`)만으로도 `/c/{publicId}` 접근은 즉시 가능하다(단, 아직 앱이 직접
+   여는 App Links/Universal Links는 이 시점엔 없다 - 브라우저로만 열린다).
+2. 실 production domain 확정.
+3. Web에 그 도메인을 custom domain으로 연결(Container Apps 기능, 이 Bicep과 별개 단계).
+4. `app/main.bicep`의 `publicWebBaseUrl`을 그 도메인(또는 2번 전이면 우선 1번의
+   `containerAppFqdn`)으로 재배포(위 "명령 예시" 7번) - 이 값이 바뀌기 전까지 공유 URL은 계속
+   구버전 origin으로 조립된다.
+5. Android(`JUPLE_PUBLIC_WEB_HOST`)/iOS(entitlements, Mac 필요)에 같은 도메인을 반영하고,
+   Web의 `.well-known` 두 라우트가 실제로 올바른 값을 서빙하는지(fingerprint/Team ID 확보 후)
+   확인해야 App Links/Universal Links가 실제로 동작한다 - 그 전까지는 항상 Web 페이지로만 열린다
+   (설계된 fallback이지, 오류가 아니다).
+
 ## Naming
 
 | 리소스 | 패턴 | 비고 |
@@ -328,6 +441,7 @@ mutation(`RecordFailedAttemptAsync`/`ScheduleFinalSweepAsync`/`DeleteAsync`)은 
 | Log Analytics | `log-juple-{environmentName}` | |
 | Container Apps Environment | `cae-juple-{environmentName}` | |
 | Container App | `ca-juple-api-{environmentName}` | |
+| Container App | `ca-juple-web-{environmentName}` | Public Collection Sharing Web Viewer(`apps/web`) 전용, API와 별개 리소스/이미지, secret 없음 |
 | Container Apps Job | `caj-juple-push-dispatch-{environmentName}` | Push dispatch 전용, API와 별개 secret 네임스페이스 |
 | Container Apps Job | `caj-juple-blob-cleanup-{environmentName}` | Account deletion Blob cleanup 전용, Firebase 불필요, Push Job과 별개 secret 네임스페이스 |
 

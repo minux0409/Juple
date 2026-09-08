@@ -5,6 +5,7 @@ import { getPublicCollectionItems, type PublicCollectionItem } from '../../../li
 import { ItemCard } from './ItemCard';
 
 interface ItemListProps {
+  readonly apiBaseUrl: string;
   readonly publicId: string;
   readonly initialItems: readonly PublicCollectionItem[];
   readonly initialNextCursor: string | null;
@@ -19,8 +20,14 @@ interface ItemListProps {
  * Server Component parent (page.tsx) with no client-side fetch/loading flash. Further pages are
  * fetched directly from the browser against the Public API (see lib/publicApi.ts) - that's exactly
  * what the "PublicWeb" CORS policy on the Backend exists for (GET-only, this origin only).
+ *
+ * apiBaseUrl is a prop from page.tsx (which reads the runtime JUPLE_API_BASE_URL env var), never a
+ * NEXT_PUBLIC_* env var read here - it arrives as a plain string in this request's own RSC/HTML
+ * payload, not a value frozen into the client JS bundle at `next build` time. This is what keeps
+ * one Docker image usable across Dev/Staging/Prod with no rebuild (see lib/publicApi.ts).
  */
 export function ItemList({
+  apiBaseUrl,
   publicId,
   initialItems,
   initialNextCursor,
@@ -40,7 +47,7 @@ export function ItemList({
 
     setIsLoadingMore(true);
     try {
-      const page = await getPublicCollectionItems(publicId, { cursor: nextCursor });
+      const page = await getPublicCollectionItems(apiBaseUrl, publicId, { cursor: nextCursor });
       // A null page here means the share was revoked between the initial load and this fetch -
       // treat it the same as "no more pages" rather than showing a broken state mid-scroll.
       setItems(previous => [...previous, ...(page?.items ?? [])]);

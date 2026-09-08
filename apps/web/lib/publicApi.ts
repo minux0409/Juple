@@ -1,13 +1,3 @@
-/**
- * The Juple Backend's base URL for the anonymous Public API only (api/v1/public/*) - never an
- * authenticated route, never a token. NEXT_PUBLIC_ is required (not just a server-side env var)
- * because the "load more" pagination in ItemList is a Client Component that fetches directly from
- * the browser, not through this Next.js server - see ItemList.tsx. No real production domain is
- * hardcoded here; the local default only applies when the env var is unset (local dev).
- */
-export const PUBLIC_API_BASE_URL =
-  process.env.NEXT_PUBLIC_JUPLE_API_BASE_URL ?? 'http://localhost:5092';
-
 /** Mirrors the Backend's PublicCollectionDto - Name only, nothing else. */
 export interface PublicCollection {
   readonly name: string;
@@ -24,10 +14,24 @@ export interface PublicCollectionItemsPage {
   readonly nextCursor: string | null;
 }
 
+/**
+ * apiBaseUrl is always passed in by the caller rather than read from an env var here - this keeps
+ * the same Docker image usable across Dev/Staging/Prod with no rebuild: `JUPLE_API_BASE_URL` is a
+ * genuine runtime env var (see app/c/[publicId]/page.tsx, which reads it fresh on every request -
+ * safe because that Server Component is already dynamic via headers()), never NEXT_PUBLIC_*. The
+ * "load more" pagination (ItemList.tsx) is a Client Component that calls this same function
+ * directly from the browser, so it receives apiBaseUrl as a prop threaded down from page.tsx
+ * instead of reading any env var of its own - a plain string in a request's own RSC/HTML payload,
+ * not a value frozen into the JS bundle at build time.
+ */
+
 /** Returns null for a 404 (unknown or revoked publicId) - callers render the not-found UI, never distinguishing the two. */
-export async function getPublicCollection(publicId: string): Promise<PublicCollection | null> {
+export async function getPublicCollection(
+  apiBaseUrl: string,
+  publicId: string,
+): Promise<PublicCollection | null> {
   const response = await fetch(
-    `${PUBLIC_API_BASE_URL}/api/v1/public/collections/${encodeURIComponent(publicId)}`,
+    `${apiBaseUrl}/api/v1/public/collections/${encodeURIComponent(publicId)}`,
     { cache: 'no-store' },
   );
 
@@ -49,6 +53,7 @@ export interface GetPublicCollectionItemsOptions {
 
 /** Returns null for a 404 (unknown or revoked publicId) - same rule as getPublicCollection. */
 export async function getPublicCollectionItems(
+  apiBaseUrl: string,
   publicId: string,
   options: GetPublicCollectionItemsOptions = {},
 ): Promise<PublicCollectionItemsPage | null> {
@@ -62,7 +67,7 @@ export async function getPublicCollectionItems(
   const queryString = query.toString();
 
   const response = await fetch(
-    `${PUBLIC_API_BASE_URL}/api/v1/public/collections/${encodeURIComponent(publicId)}/items${queryString ? `?${queryString}` : ''}`,
+    `${apiBaseUrl}/api/v1/public/collections/${encodeURIComponent(publicId)}/items${queryString ? `?${queryString}` : ''}`,
     { cache: 'no-store' },
   );
 
