@@ -43,16 +43,8 @@ import {
 } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { getPurchases, type Purchase } from '../purchases/api/purchasesApi';
-import { getRepeatPurchases, type RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
-import { formatDateOnlyForDisplay } from '../purchases/dateOnly';
-import { formatIntervalDescription } from '../purchases/repeatPurchaseFormat';
 
 const MAX_ITEM_IMAGES = 10;
-// Purchase is a secondary/optional feature on this screen (see the "추가 기능" section below) - only
-// the single most recent Purchase is fetched for a compact summary; "전체 보기" leads to the full
-// Purchase History screen for everything beyond that.
-const ITEM_PURCHASE_SUMMARY_LIMIT = 1;
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
@@ -155,20 +147,6 @@ function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
   return t('item.errorImageDeleteFallback');
 }
 
-function getRecentPurchasesErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('item.errorRecentPurchasesFallback');
-}
-
-function getLinkedRepeatPurchasesErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('repeatPurchase.listErrorFallback');
-}
-
 function getItemDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
@@ -253,19 +231,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const itemActionInFlightRef = useRef(false);
   const isItemDeleteConfirmOpenRef = useRef(false);
 
-  const [recentPurchases, setRecentPurchases] = useState<readonly Purchase[]>([]);
-  const [isLoadingPurchases, setIsLoadingPurchases] = useState(true);
-  const [purchasesError, setPurchasesError] = useState<string | null>(null);
-  // Discards a stale in-flight load's result if a newer one (e.g. a rapid re-focus) has since started.
-  const purchasesRequestIdRef = useRef(0);
-
-  // Entirely independent state from item/Purchase History above - a RepeatPurchase load failure
-  // never affects the rest of ItemDetails, and vice versa.
-  const [linkedRepeatPurchases, setLinkedRepeatPurchases] = useState<readonly RepeatPurchase[]>([]);
-  const [isLoadingRepeatPurchases, setIsLoadingRepeatPurchases] = useState(true);
-  const [repeatPurchasesError, setRepeatPurchasesError] = useState<string | null>(null);
-  const repeatPurchasesRequestIdRef = useRef(0);
-
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -303,58 +268,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   useEffect(() => {
     loadImages();
   }, [loadImages]);
-
-  const loadRecentPurchases = useCallback(async () => {
-    const requestId = ++purchasesRequestIdRef.current;
-    setIsLoadingPurchases(true);
-    setPurchasesError(null);
-    try {
-      const page = await getPurchases(authenticatedRequest, {
-        itemId,
-        limit: ITEM_PURCHASE_SUMMARY_LIMIT,
-      });
-      if (purchasesRequestIdRef.current !== requestId) {
-        return;
-      }
-      setRecentPurchases(page.purchases);
-    } catch (caughtError) {
-      if (purchasesRequestIdRef.current !== requestId) {
-        return;
-      }
-      // Failure keeps whatever Purchases are already shown - only the error text changes.
-      setPurchasesError(getRecentPurchasesErrorMessage(caughtError, t));
-    } finally {
-      if (purchasesRequestIdRef.current === requestId) {
-        setIsLoadingPurchases(false);
-      }
-    }
-  }, [authenticatedRequest, itemId, t]);
-
-  const loadLinkedRepeatPurchases = useCallback(async () => {
-    const requestId = ++repeatPurchasesRequestIdRef.current;
-    setIsLoadingRepeatPurchases(true);
-    setRepeatPurchasesError(null);
-    try {
-      // includeDisabled=true so a paused RepeatPurchase (see RepeatPurchaseDetailsScreen's
-      // pause/resume) stays visible here too - this is the recovery path for an Item-linked one,
-      // same as the Repeat Purchase tab's own "일시중지 포함" toggle.
-      const page = await getRepeatPurchases(authenticatedRequest, { itemId, includeDisabled: true });
-      if (repeatPurchasesRequestIdRef.current !== requestId) {
-        return;
-      }
-      setLinkedRepeatPurchases(page.repeatPurchases);
-    } catch (caughtError) {
-      if (repeatPurchasesRequestIdRef.current !== requestId) {
-        return;
-      }
-      // Failure keeps whatever RepeatPurchases are already shown - only the error text changes.
-      setRepeatPurchasesError(getLinkedRepeatPurchasesErrorMessage(caughtError, t));
-    } finally {
-      if (repeatPurchasesRequestIdRef.current === requestId) {
-        setIsLoadingRepeatPurchases(false);
-      }
-    }
-  }, [authenticatedRequest, itemId, t]);
 
   const loadItemCollections = useCallback(async () => {
     const requestId = ++itemCollectionsRequestIdRef.current;
@@ -418,16 +331,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     })();
   };
 
-  // Refetches on every focus (not just mount), so returning from PurchaseEditor/RepeatPurchaseEditor
-  // after a create/edit, from PurchaseDetails after a delete, or from RepeatPurchaseDetails after a
-  // state change, shows the current Purchases and linked RepeatPurchases immediately - and now also
-  // the current Collection membership, entirely independent of Purchases/RepeatPurchases.
+  // Refetches on every focus (not just mount), so a Collection add/remove made elsewhere (e.g. from
+  // CollectionDetailsScreen) is reflected immediately here too.
   useFocusEffect(
     useCallback(() => {
-      loadRecentPurchases();
-      loadLinkedRepeatPurchases();
       loadItemCollections();
-    }, [loadRecentPurchases, loadLinkedRepeatPurchases, loadItemCollections]),
+    }, [loadItemCollections]),
   );
 
   const pickAndUploadImage = async () => {
@@ -967,112 +876,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         <Text style={styles.addPurchaseButtonLabel}>{t('collections.addItem')}</Text>
       </Pressable>
 
-      <Text style={styles.sectionHeading}>{t('item.additionalFeaturesSection')}</Text>
-
-      <Text style={styles.label}>{t('item.purchasesSection')}</Text>
-      {isLoadingPurchases ? (
-        <ActivityIndicator style={styles.purchasesLoading} />
-      ) : recentPurchases.length > 0 ? (
-        <>
-          {recentPurchases.map(purchase => (
-            <Pressable
-              accessibilityRole="button"
-              key={purchase.id}
-              onPress={() => navigation.navigate('PurchaseDetails', { purchaseId: purchase.id })}
-              style={styles.purchaseRow}
-            >
-              <Text numberOfLines={1} style={styles.purchaseRowProductName}>
-                {purchase.productName}
-              </Text>
-              <Text style={styles.purchaseRowDate}>
-                {formatDateOnlyForDisplay(purchase.purchaseDate)}
-              </Text>
-              {purchase.amount !== null && purchase.currencyCode ? (
-                // Verbatim decimal string from the API - no Number()/Intl.NumberFormat conversion,
-                // since a value like "999999999999999.9999" is not exactly representable as a JS Number.
-                <Text style={styles.purchaseRowAmount}>
-                  {purchase.amount} {purchase.currencyCode}
-                </Text>
-              ) : null}
-            </Pressable>
-          ))}
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('PurchaseHistory')}
-            style={styles.loadMoreButton}
-          >
-            <Text style={styles.loadMoreButtonLabel}>{t('item.viewAllPurchases')}</Text>
-          </Pressable>
-        </>
-      ) : !purchasesError ? (
-        <>
-          <Text style={styles.purchasesEmpty}>{t('item.noPurchases')}</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              navigation.navigate('PurchaseEditor', {
-                itemId,
-                // A suggested initial value only - the user can freely change it, and neither the
-                // client nor the server ever confirms it automatically (see PurchaseEditorScreen).
-                initialProductName: item.title ?? undefined,
-              })
-            }
-            style={styles.addPurchaseButton}
-          >
-            <Text style={styles.addPurchaseButtonLabel}>{t('item.addPurchase')}</Text>
-          </Pressable>
-        </>
-      ) : null}
-      {purchasesError ? <Text style={styles.error}>{purchasesError}</Text> : null}
-
-      <Text style={styles.label}>{t('item.repeatPurchasesSection')}</Text>
-      {isLoadingRepeatPurchases ? (
-        <ActivityIndicator style={styles.purchasesLoading} />
-      ) : linkedRepeatPurchases.length > 0 ? (
-        linkedRepeatPurchases.map(repeatPurchase => (
-          <Pressable
-            accessibilityRole="button"
-            key={repeatPurchase.id}
-            onPress={() =>
-              navigation.navigate('RepeatPurchaseDetails', { repeatPurchaseId: repeatPurchase.id })
-            }
-            style={styles.purchaseRow}
-          >
-            <Text numberOfLines={2} style={styles.purchaseRowProductName}>
-              {repeatPurchase.productName}
-            </Text>
-            <Text style={styles.purchaseRowDate}>
-              {formatIntervalDescription(t, repeatPurchase.intervalValue, repeatPurchase.intervalUnit)}
-              {' · '}
-              {t('repeatPurchase.nextPurchaseDateLabel', {
-                date: formatDateOnlyForDisplay(repeatPurchase.nextPurchaseDate),
-              })}
-            </Text>
-            {!repeatPurchase.isEnabled ? (
-              <Text style={styles.repeatPurchasePausedLabel}>{t('repeatPurchase.paused')}</Text>
-            ) : null}
-          </Pressable>
-        ))
-      ) : !repeatPurchasesError ? (
-        <Text style={styles.purchasesEmpty}>{t('item.noRepeatPurchases')}</Text>
-      ) : null}
-      {repeatPurchasesError ? <Text style={styles.error}>{repeatPurchasesError}</Text> : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={() =>
-          navigation.navigate('RepeatPurchaseEditor', {
-            itemId,
-            // A suggested initial value only - the user can freely change it, and it is never
-            // synced back to Item.Title (see RepeatPurchaseEditorScreen). Always offered alongside
-            // the list above (not just when empty) - an Item can have more than one RepeatPurchase.
-            initialProductName: item.title ?? undefined,
-          })
-        }
-        style={styles.addPurchaseButton}
-      >
-        <Text style={styles.addPurchaseButtonLabel}>{t('item.addRepeatPurchase')}</Text>
-      </Pressable>
-
       {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
 
       <Pressable
@@ -1198,12 +1001,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginTop: 20,
     marginBottom: 6,
-  },
-  sectionHeading: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
-    marginTop: 32,
   },
   titleInput: {
     borderColor: '#9A9A9A',
@@ -1397,32 +1194,6 @@ const styles = StyleSheet.create({
   purchasesEmpty: {
     color: '#666666',
     fontSize: 14,
-  },
-  purchaseRow: {
-    borderTopColor: '#E0E0E0',
-    borderTopWidth: 1,
-    paddingVertical: 10,
-  },
-  purchaseRowProductName: {
-    color: '#111111',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  purchaseRowDate: {
-    color: '#666666',
-    fontSize: 13,
-    marginTop: 3,
-  },
-  purchaseRowAmount: {
-    color: '#111111',
-    fontSize: 13,
-    marginTop: 3,
-  },
-  repeatPurchasePausedLabel: {
-    color: '#9A9A9A',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 4,
   },
   modalOverlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.4)',

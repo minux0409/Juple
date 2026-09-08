@@ -84,13 +84,6 @@ export function MyPageScreen() {
         >
           <Text style={styles.linkButtonLabel}>{t('myPage.viewRecentlyOpenedLinks')}</Text>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('PurchaseHistory')}
-          style={[styles.linkButton, styles.linkButtonSpaced]}
-        >
-          <Text style={styles.linkButtonLabel}>{t('myPage.viewPurchaseHistory')}</Text>
-        </Pressable>
 
         <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
         <Pressable
@@ -166,9 +159,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     paddingVertical: 12,
-  },
-  linkButtonSpaced: {
-    marginTop: 10,
   },
   linkButtonLabel: {
     color: '#111111',
