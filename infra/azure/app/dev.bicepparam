@@ -72,6 +72,19 @@ param entraClientId = '14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b'
 // matches Dev's live value (confirmed via the same `az containerapp show`), and that parameter
 // keeps a default in main.bicep itself since it is not tenant-specific (see its own description).
 
+// Overrides main.bicep's own scale-to-zero default (minReplicas=0) - confirmed empirically that a
+// cold start from zero replicas takes over 30s (a direct `Invoke-WebRequest` to /health measured
+// ~31s), well past Mobile's single-attempt 15s request timeout (see
+// apps/mobile/src/api/apiClient.ts's DEFAULT_API_TIMEOUT_MS) - this was the actual root cause of a
+// reproducible "backendUnavailable" error on the very first app launch after the Dev API had been
+// idle long enough to scale to zero, with an immediate second launch (hitting the now-warm
+// container) always succeeding. Dogfood specifically needs the Dev API to behave reliably for
+// real, unattended usage on a phone with no PC/Metro to work around this - so, unlike a pure
+// cost-minimized Dev posture, this trades the scale-to-zero savings for that reliability. maxReplicas/
+// containerCpu/containerMemory are left at main.bicep's own Dev defaults - only the cold-start
+// behavior itself was the problem, not throughput or per-replica sizing.
+param minReplicas = 1
+
 // The Public Web Viewer origin CollectionsController composes every share URL against - confirmed
 // live via `az containerapp show` (PublicWeb__BaseUrl). A fixed fact about Dev today (the same
 // already-bound, already-verified domain literal ../web/dev.bicepparam's own customDomainName

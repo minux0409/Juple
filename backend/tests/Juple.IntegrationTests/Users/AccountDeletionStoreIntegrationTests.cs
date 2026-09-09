@@ -6,7 +6,6 @@ using Juple.Domain.Purchases;
 using Juple.Domain.Push;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Collections;
-using Juple.Infrastructure.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users.DeleteAccount;
 using Microsoft.EntityFrameworkCore;
@@ -286,19 +285,4 @@ public sealed class AccountDeletionStoreIntegrationTests : IAsyncLifetime
         Assert.Null(afterDelete);
     }
 
-    [Fact]
-    public async Task DeleteAllDataAsync_RemovesTheUserFromDuePushNotificationCandidates()
-    {
-        var notificationStore = new NotificationStore(_dbContext);
-        var beforeDelete = await notificationStore.ListUsersWithDueRepeatPurchasesAsync(DateTimeOffset.UtcNow);
-        Assert.Contains(beforeDelete, candidate => candidate.UserId == _userId);
-
-        var store = new AccountDeletionStore(_dbContext);
-        await DeleteAllDataAsync(store, _userId);
-        _dbContext.ChangeTracker.Clear();
-
-        var afterDelete = await notificationStore.ListUsersWithDueRepeatPurchasesAsync(DateTimeOffset.UtcNow);
-        Assert.DoesNotContain(afterDelete, candidate => candidate.UserId == _userId);
-        Assert.Contains(afterDelete, candidate => candidate.UserId == _otherUserId);
-    }
 }

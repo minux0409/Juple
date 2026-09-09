@@ -26,10 +26,9 @@ import {
   getItemHistoryByDate,
   type ItemHistoryEntry,
 } from '../items/api/itemsApi';
+import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { NotificationBellButton } from '../notifications/NotificationBellButton';
-import { formatDateOnly } from '../purchases/dateOnly';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
 
@@ -374,7 +373,6 @@ export function DailyInboxScreen() {
           <View>
             <View style={styles.brandRow}>
               <Text style={styles.brand}>Juple</Text>
-              <NotificationBellButton />
             </View>
             <Text style={styles.title}>{t('inbox.title')}</Text>
             <Text style={styles.date}>

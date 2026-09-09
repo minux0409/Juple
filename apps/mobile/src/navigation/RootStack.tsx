@@ -6,18 +6,9 @@ import type { BackendAuthStatus, UserBootstrapStatus } from '../auth/types';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
-import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { PurchaseDetailsScreen } from '../screens/PurchaseDetailsScreen';
-import { PurchaseEditorScreen } from '../screens/PurchaseEditorScreen';
-import { PurchaseHistoryScreen } from '../screens/PurchaseHistoryScreen';
 import { RecentlyOpenedLinksScreen } from '../screens/RecentlyOpenedLinksScreen';
-import { RepeatPurchaseDetailsScreen } from '../screens/RepeatPurchaseDetailsScreen';
-import { RepeatPurchaseEditorScreen } from '../screens/RepeatPurchaseEditorScreen';
-import { RepeatPurchaseLogPurchaseScreen } from '../screens/RepeatPurchaseLogPurchaseScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
-import type { Purchase } from '../purchases/api/purchasesApi';
-import type { RepeatPurchase } from '../purchases/api/repeatPurchasesApi';
 import { MainTabs } from './MainTabs';
 
 export type RootStackParamList = {
@@ -26,54 +17,8 @@ export type RootStackParamList = {
   /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
   CollectionDetails: { collectionId: number };
   LanguageSettings: undefined;
-  /**
-   * Purchase/RepeatPurchase are an optional, secondary enhancement on top of the URL-library core
-   * (홈/기록/보관함/내 페이지) - not core Juple features, so this screen is intentionally not in the
-   * Bottom Tabs and is only reachable as a supplementary My Page menu item (see MyPageScreen).
-   */
-  PurchaseHistory: undefined;
   /** My Page → "최근 본 링크" - the screen fetches the current page itself via GET. */
   RecentlyOpenedLinks: undefined;
-  /** Notification Center - reachable via the 🔔 bell on each main tab screen (see NotificationBellButton). */
-  Notifications: undefined;
-  /**
-   * Create mode: itemId/initialProductName are both optional - present when reached from
-   * ItemDetailsScreen (a suggested initial value only, never confirmed automatically), absent when
-   * reached standalone from the Purchase History tab.
-   * Edit mode: purchaseId + initialPurchase are both present (set together by PurchaseDetailsScreen)
-   * and prefill the form; itemId/initialProductName are unused in this mode.
-   */
-  PurchaseEditor: {
-    itemId?: number;
-    initialProductName?: string;
-    purchaseId?: number;
-    initialPurchase?: Purchase;
-  };
-  /** purchaseId only - the screen fetches the current Purchase itself via GET. */
-  PurchaseDetails: { purchaseId: number };
-  /**
-   * Create mode: itemId/initialProductName are both optional - present when reached from
-   * ItemDetailsScreen (a suggested initial value only, never confirmed automatically, never
-   * synced with Item.Title after this point; see RepeatPurchaseEditorScreen), absent when reached
-   * standalone from the Repeat Purchase list (itemId=null).
-   * Edit mode: repeatPurchaseId + initialRepeatPurchase are both present (set together by
-   * RepeatPurchaseDetailsScreen) and prefill the form, including the hidden Reminder fields, which
-   * must round-trip unchanged - see RepeatPurchaseEditorScreen.
-   */
-  RepeatPurchaseEditor: {
-    itemId?: number;
-    initialProductName?: string;
-    repeatPurchaseId?: number;
-    initialRepeatPurchase?: RepeatPurchase;
-  };
-  /** repeatPurchaseId only - the screen fetches the current RepeatPurchase itself via GET. */
-  RepeatPurchaseDetails: { repeatPurchaseId: number };
-  /**
-   * initialRepeatPurchase is always passed by RepeatPurchaseDetailsScreen (its own just-loaded
-   * state), supplying the current opaque version and the read-only ProductName to show - never
-   * re-fetched here.
-   */
-  RepeatPurchaseLogPurchase: { repeatPurchaseId: number; initialRepeatPurchase: RepeatPurchase };
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
@@ -142,54 +87,9 @@ export function RootStack() {
             options={{ title: t('nav.languageSettings') }}
           />
           <Stack.Screen
-            component={PurchaseHistoryScreen}
-            name="PurchaseHistory"
-            options={{ title: t('nav.purchaseHistory') }}
-          />
-          <Stack.Screen
             component={RecentlyOpenedLinksScreen}
             name="RecentlyOpenedLinks"
             options={{ title: t('nav.recentlyOpenedLinks') }}
-          />
-          <Stack.Screen
-            component={NotificationsScreen}
-            name="Notifications"
-            options={{ title: t('nav.notifications') }}
-          />
-          <Stack.Screen
-            component={PurchaseEditorScreen}
-            name="PurchaseEditor"
-            options={({ route }) => ({
-              title:
-                route.params.purchaseId !== undefined
-                  ? t('nav.purchaseEditorEdit')
-                  : t('nav.purchaseEditorCreate'),
-            })}
-          />
-          <Stack.Screen
-            component={PurchaseDetailsScreen}
-            name="PurchaseDetails"
-            options={{ title: t('nav.purchaseDetails') }}
-          />
-          <Stack.Screen
-            component={RepeatPurchaseEditorScreen}
-            name="RepeatPurchaseEditor"
-            options={({ route }) => ({
-              title:
-                route.params.repeatPurchaseId !== undefined
-                  ? t('nav.repeatPurchaseEditorEdit')
-                  : t('nav.repeatPurchaseEditorCreate'),
-            })}
-          />
-          <Stack.Screen
-            component={RepeatPurchaseDetailsScreen}
-            name="RepeatPurchaseDetails"
-            options={{ title: t('nav.repeatPurchaseDetails') }}
-          />
-          <Stack.Screen
-            component={RepeatPurchaseLogPurchaseScreen}
-            name="RepeatPurchaseLogPurchase"
-            options={{ title: t('nav.repeatPurchaseLogPurchase') }}
           />
         </Stack.Group>
       ) : isAuthenticated ? (
@@ -213,9 +113,14 @@ export function RootStack() {
 /** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
 function AuthenticatedPlaceholder() {
   const { t } = useTranslation();
-  const { signOut, backendAuthStatus, userBootstrapStatus } = useAuth();
+  const { signOut, backendAuthStatus, userBootstrapStatus, retryBootstrap } = useAuth();
   const backendAuthMessageKey = backendAuthMessageKeys[backendAuthStatus];
   const userBootstrapMessageKey = userBootstrapMessageKeys[userBootstrapStatus];
+  // Only backendAuthStatus can land here as 'unavailable' from a retryable state (a transient
+  // failure restoring the session, or the Backend itself being briefly unreachable - see
+  // AuthContext.tsx's runBootstrap) - userBootstrapStatus's own 'unavailable' means the device's
+  // regional settings were rejected, which retrying with no changed input would not fix.
+  const canRetry = backendAuthStatus === 'unavailable';
 
   return (
     <View style={styles.placeholderContainer}>
@@ -227,6 +132,15 @@ function AuthenticatedPlaceholder() {
       ) : null}
       {userBootstrapMessageKey ? (
         <Text style={styles.placeholderUserBootstrapMessage}>{t(userBootstrapMessageKey)}</Text>
+      ) : null}
+      {canRetry ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={retryBootstrap}
+          style={styles.placeholderRetryButton}
+        >
+          <Text style={styles.placeholderRetryLabel}>{t('auth.retry')}</Text>
+        </Pressable>
       ) : null}
       <Pressable
         accessibilityRole="button"
@@ -273,8 +187,20 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
   },
+  placeholderRetryButton: {
+    marginTop: 20,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    backgroundColor: '#111111',
+  },
+  placeholderRetryLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   placeholderSignOutButton: {
-    marginTop: 24,
+    marginTop: 12,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 28,

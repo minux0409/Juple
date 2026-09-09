@@ -10,7 +10,6 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { NotificationBellButton } from '../notifications/NotificationBellButton';
 
 function getDeleteAccountErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -33,7 +32,7 @@ export function MyPageScreen() {
 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
-  // Synchronous re-entrancy guard, same role as PurchaseDetailsScreen's isDeletingRef.
+  // Synchronous re-entrancy guard against a double-tap triggering two concurrent deletions.
   const isDeletingAccountRef = useRef(false);
 
   const deleteAccountAction = async () => {
@@ -73,7 +72,6 @@ export function MyPageScreen() {
       <View style={styles.content}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{t('myPage.title')}</Text>
-          <NotificationBellButton />
         </View>
 
         <Text style={styles.sectionTitle}>{t('myPage.activity')}</Text>

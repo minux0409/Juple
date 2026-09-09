@@ -18,7 +18,6 @@ import { groupHistoryByLocalDate } from '../items/historyDateGrouping';
 import { useItemHistory } from '../items/useItemHistory';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { NotificationBellButton } from '../notifications/NotificationBellButton';
 
 function formatSavedTime(savedAtUtc: string): string {
   return new Intl.DateTimeFormat(i18n.language, {
@@ -64,7 +63,6 @@ export function DateHistoryScreen() {
           <View>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('history.title')}</Text>
-              <NotificationBellButton />
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>

@@ -23,7 +23,6 @@ import {
   type Collection,
 } from '../collections/api/collectionsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { NotificationBellButton } from '../notifications/NotificationBellButton';
 
 const PAGE_LIMIT = 50;
 
@@ -310,7 +309,6 @@ export function CollectionsScreen() {
           <View>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('collections.title')}</Text>
-              <NotificationBellButton />
             </View>
 
             {favorites.length > 0 || favoritesError ? (

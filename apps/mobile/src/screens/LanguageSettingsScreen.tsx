@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LanguageBadge, type LanguageBadgeContent } from '../icons/LanguageBadge';
 import {
   loadLanguagePreference,
   resolveLanguageForPreference,
@@ -13,16 +14,17 @@ import i18n from '../i18n';
 
 interface LanguageOption {
   readonly preference: LanguagePreference;
-  readonly icon: string;
+  readonly badge: LanguageBadgeContent;
   readonly labelKey: string;
 }
 
-// English intentionally uses a globe, not a national flag - it is Juple's generic `en`, not
-// US-specific English (see the request that drove this screen).
+// A language code badge, not a national flag - `en` is Juple's generic English, not US-specific
+// English, and Korean is not tied to a country flag either (see LanguageBadge's own remarks). Add
+// another locale (e.g. `ja`, `zh`) here as one more `{ kind: 'code', code: '...' }` entry.
 const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
-  { preference: 'system', icon: '🌐', labelKey: 'language.system' },
-  { preference: 'ko', icon: '🇰🇷', labelKey: 'language.korean' },
-  { preference: 'en', icon: '🌐', labelKey: 'language.english' },
+  { preference: 'system', badge: { kind: 'device' }, labelKey: 'language.system' },
+  { preference: 'ko', badge: { kind: 'code', code: 'KO' }, labelKey: 'language.korean' },
+  { preference: 'en', badge: { kind: 'code', code: 'EN' }, labelKey: 'language.english' },
 ];
 
 /** A simple settings list: 시스템 설정 사용 / 한국어 / English, with a checkmark on the active preference. */
@@ -84,7 +86,9 @@ export function LanguageSettingsScreen() {
               onPress={() => selectPreference(option.preference)}
               style={[styles.row, isDisabled && styles.disabledRow]}
             >
-              <Text style={styles.icon}>{option.icon}</Text>
+              <View style={styles.badgeSlot}>
+                <LanguageBadge content={option.badge} />
+              </View>
               <Text style={styles.label}>{t(option.labelKey)}</Text>
               {pendingPreference === option.preference ? (
                 <ActivityIndicator />
@@ -121,8 +125,7 @@ const styles = StyleSheet.create({
   disabledRow: {
     opacity: 0.5,
   },
-  icon: {
-    fontSize: 20,
+  badgeSlot: {
     marginEnd: 14,
   },
   label: {

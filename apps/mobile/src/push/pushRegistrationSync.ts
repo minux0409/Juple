@@ -28,9 +28,10 @@ async function registerCurrentToken(
 /**
  * Fetches the current FCM token and (re-)registers this installation with the Backend - a
  * no-op if notification permission is not currently granted (read-only check, never prompts; see
- * pushPermission.ts). Best-effort throughout: called from app bootstrap, a language change, and a
- * fresh permission grant (see usePushRegistrationSync.ts and RepeatPurchaseEditorScreen), none of
- * which may ever fail loudly because of this.
+ * pushPermission.ts - no active feature currently requests the permission itself either, so this
+ * only ever does anything on a device where it was already granted some other way, e.g. below
+ * Android 13). Best-effort throughout: called from app bootstrap, a language change, and a token
+ * refresh (see usePushRegistrationSync.ts), none of which may ever fail loudly because of this.
  */
 export async function syncPushRegistrationIfPermitted(
   authenticatedRequest: AuthenticatedApiRequest,

@@ -16,8 +16,6 @@ import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
 import { linking } from './src/navigation/linking';
 import { navigationRef } from './src/navigation/navigationRef';
 import { RootStack } from './src/navigation/RootStack';
-import { NotificationBadgeProvider } from './src/notifications/NotificationBadgeContext';
-import { usePushMessageHandling } from './src/push/usePushMessageHandling';
 import { usePushRegistrationSync } from './src/push/usePushRegistrationSync';
 
 function App() {
@@ -44,11 +42,8 @@ function App() {
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       {isLanguageReady ? (
         <AuthProvider>
-          <NotificationBadgeProvider>
-            <PushRegistrationSync />
-            <PushMessageHandling />
-            <AppNavigation />
-          </NotificationBadgeProvider>
+          <PushRegistrationSync />
+          <AppNavigation />
         </AuthProvider>
       ) : (
         <View style={styles.container}>
@@ -62,12 +57,6 @@ function App() {
 /** Headless - runs usePushRegistrationSync's effects only, renders nothing. */
 function PushRegistrationSync(): null {
   usePushRegistrationSync();
-  return null;
-}
-
-/** Headless - runs usePushMessageHandling's effects only, renders nothing. */
-function PushMessageHandling(): null {
-  usePushMessageHandling();
   return null;
 }
 

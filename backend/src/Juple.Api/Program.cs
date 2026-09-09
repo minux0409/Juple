@@ -30,25 +30,8 @@ using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetRecentlyOpenedLinks;
 using Juple.Application.Items.RecordItemOpen;
 using Juple.Application.Items.UpdateItemDetails;
-using Juple.Application.Notifications.GetUnreadNotificationCount;
-using Juple.Application.Notifications.ListNotifications;
-using Juple.Application.Notifications.MarkAllNotificationsRead;
-using Juple.Application.Notifications.MarkNotificationRead;
-using Juple.Application.Purchases.CreatePurchase;
-using Juple.Application.Purchases.DeletePurchase;
-using Juple.Application.Purchases.GetPurchaseDetail;
-using Juple.Application.Purchases.ListPurchases;
-using Juple.Application.Purchases.UpdatePurchase;
-using Juple.Application.Push.DispatchDuePushNotifications;
 using Juple.Application.Push.RegisterPushDevice;
 using Juple.Application.Push.UnregisterPushDevice;
-using Juple.Application.RepeatPurchases.CreateRepeatPurchase;
-using Juple.Application.RepeatPurchases.DeleteRepeatPurchase;
-using Juple.Application.RepeatPurchases.GetRepeatPurchaseDetail;
-using Juple.Application.RepeatPurchases.ListRepeatPurchases;
-using Juple.Application.RepeatPurchases.LogPurchase;
-using Juple.Application.RepeatPurchases.RepeatPurchaseStateTransition;
-using Juple.Application.RepeatPurchases.UpdateRepeatPurchase;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -56,11 +39,20 @@ using Microsoft.Identity.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Decided this early (before any config validation below) because these one-shot execution modes
-// have genuinely different configuration requirements from the HTTP API: neither authenticates a
-// request - both run entirely outside UseAuthentication/UseAuthorization/MapControllers (see the
-// early-return branches further down) - so neither has a legitimate need for Entra config at all.
-// Only the actual HTTP API path keeps the existing fail-fast below unchanged.
+// Decided this early (before any config validation below) because this one-shot execution mode has
+// genuinely different configuration requirements from the HTTP API: it does not authenticate a
+// request - it runs entirely outside UseAuthentication/UseAuthorization/MapControllers (see the
+// early-return branch further down) - so it has no legitimate need for Entra config at all. Only
+// the actual HTTP API path keeps the existing fail-fast below unchanged.
+//
+// --run-push-dispatch is still recognized (see the no-op branch below) but no longer does anything
+// real - RepeatPurchase/Notification, the only feature it ever dispatched, was removed as a legacy
+// Purchase feature (Juple is a URL Library app; see docs/architecture.md). Kept recognized, rather
+// than removed outright, so the existing scheduled Azure Container Apps Job
+// (caj-juple-push-dispatch-dev - see infra/azure/README.md) exits cleanly and immediately instead
+// of falling through to full HTTP API startup (binding a port, running inside a batch Job context)
+// the next time it fires - see infra/azure/README.md for the follow-up decision on removing that
+// Job's IaC once this is confirmed to no longer be needed.
 var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordinal);
 var isBlobCleanupRetryJob = args.Contains("--run-blob-cleanup-retry", StringComparer.Ordinal);
 var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob;
@@ -106,27 +98,8 @@ builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("P
 builder.Services.Configure<PublicCollectionCursorOptions>(
     builder.Configuration.GetSection("PublicCollectionCursor"));
 builder.Services.AddSingleton<IPublicCollectionItemPageCursorCodec, PublicCollectionItemPageCursorCodec>();
-builder.Services.AddScoped<IListPurchasesService, ListPurchasesService>();
-builder.Services.AddScoped<IGetPurchaseDetailService, GetPurchaseDetailService>();
-builder.Services.AddScoped<ICreatePurchaseService, CreatePurchaseService>();
-builder.Services.AddScoped<IUpdatePurchaseService, UpdatePurchaseService>();
-builder.Services.AddScoped<IDeletePurchaseService, DeletePurchaseService>();
-builder.Services.AddScoped<IListRepeatPurchasesService, ListRepeatPurchasesService>();
-builder.Services.AddScoped<IGetRepeatPurchaseDetailService, GetRepeatPurchaseDetailService>();
-builder.Services.AddScoped<ICreateRepeatPurchaseService, CreateRepeatPurchaseService>();
-builder.Services.AddScoped<IUpdateRepeatPurchaseService, UpdateRepeatPurchaseService>();
-builder.Services.AddScoped<IRepeatPurchaseStateTransitionService, RepeatPurchaseStateTransitionService>();
-builder.Services.AddScoped<IDeleteRepeatPurchaseService, DeleteRepeatPurchaseService>();
-builder.Services.AddScoped<ILogPurchaseService, LogPurchaseService>();
-builder.Services.AddScoped<IListNotificationsService, ListNotificationsService>();
-builder.Services.AddScoped<IGetUnreadNotificationCountService, GetUnreadNotificationCountService>();
-builder.Services.AddScoped<IMarkNotificationReadService, MarkNotificationReadService>();
-builder.Services.AddScoped<IMarkAllNotificationsReadService, MarkAllNotificationsReadService>();
 builder.Services.AddScoped<IRegisterPushDeviceService, RegisterPushDeviceService>();
 builder.Services.AddScoped<IUnregisterPushDeviceService, UnregisterPushDeviceService>();
-// Not exposed via any controller - invoked by the future Push dispatch entrypoint/job command
-// (see IDispatchDuePushNotificationsService's own remarks) and directly by tests today.
-builder.Services.AddScoped<IDispatchDuePushNotificationsService, DispatchDuePushNotificationsService>();
 builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
@@ -167,32 +140,17 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// One-shot execution mode for a scheduled dispatch run (intended for an Azure Container Apps Job
-// invoking this exact same container image with this exact argument - see
-// IDispatchDuePushNotificationsService's own remarks on why a scheduled Job, not an in-API
-// BackgroundService, is required here: the Dev Container App scales to zero). Deliberately never an
-// HTTP endpoint a scheduler calls - nothing here ever reaches UseAuthentication/MapControllers/
-// app.Run() below, so no port is bound and no unauthenticated dispatch trigger is ever reachable
-// over the network.
+// Deliberate no-op - see the isPushDispatchJob comment above for why this is kept recognized
+// rather than removed. Exits immediately, before UseAuthentication/MapControllers/app.Run() below,
+// so the still-scheduled Azure Container Apps Job invocation exits cleanly rather than falling
+// through to full HTTP API startup.
 if (isPushDispatchJob)
 {
-    // The Job path has a stricter requirement than the plain API path below it: an absent
-    // Firebase:ServiceAccountKeyJson makes AddInfrastructure register NotConfiguredPushSender, a
-    // legitimate choice for e.g. a local API dev session with no Push testing intended (see that
-    // class's own remarks - every attempt still becomes an honest Failed delivery there, which is
-    // exactly right for exercising the dispatch pipeline in tests). A scheduled dispatch run's only
-    // purpose is sending real Push, so running it with no transport configured has no legitimate
-    // use - fail here, before any RepeatPurchase/Notification work starts, rather than letting the
-    // Job "succeed" while quietly marking every delivery Failed one by one.
-    if (string.IsNullOrWhiteSpace(app.Configuration["Firebase:ServiceAccountKeyJson"]))
-    {
-        Console.Error.WriteLine(
-            "Push dispatch aborted: Firebase:ServiceAccountKeyJson is not configured. A scheduled " +
-            "push dispatch run requires a real Push transport.");
-        return 1;
-    }
-
-    return await RunPushDispatchOnceAsync(app.Services);
+    Console.WriteLine(
+        "Push dispatch is no longer implemented - RepeatPurchase/Notification was removed as a " +
+        "legacy Purchase feature (see docs/architecture.md). This Job invocation is a deliberate " +
+        "no-op.");
+    return 0;
 }
 
 // One-shot execution mode for the Blob cleanup retry Job (see AccountDeletionBlobCleanup/
@@ -230,31 +188,6 @@ app.MapHealthChecks("/health");
 
 app.Run();
 return 0;
-
-static async Task<int> RunPushDispatchOnceAsync(IServiceProvider rootServices)
-{
-    await using var scope = rootServices.CreateAsyncScope();
-    var dispatchService = scope.ServiceProvider.GetRequiredService<IDispatchDuePushNotificationsService>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PushDispatchJob");
-
-    try
-    {
-        var result = await dispatchService.DispatchAsync();
-        logger.LogInformation(
-            "Push dispatch complete. CandidateUsers={CandidateUsers} Attempted={Attempted} Sent={Sent} Failed={Failed} Skipped={Skipped}",
-            result.CandidateUsers, result.Attempted, result.Sent, result.Failed, result.Skipped);
-        return 0;
-    }
-    catch (Exception exception)
-    {
-        // A scheduled Job execution's exit code is how Azure reports failure - never swallow this
-        // into a "successful" exit, and never log the exception's data at a level that could include
-        // a push token (nothing this feature logs ever does - see PushDeviceRegistration's own
-        // remarks on treating tokens as secrets).
-        logger.LogError(exception, "Push dispatch run failed.");
-        return 1;
-    }
-}
 
 static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootServices)
 {

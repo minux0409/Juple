@@ -16,8 +16,8 @@ export function usePushRegistrationSync(): void {
   const authenticatedRequest = useAuthenticatedApi();
   const isReady = isAuthenticated && userBootstrapStatus === 'ready';
 
-  // Bootstrap: a user who already granted permission on a previous run gets re-synced with no
-  // prompt (see RepeatPurchaseEditorScreen for the only place that ever prompts).
+  // Bootstrap: a user who already has notification permission granted (see pushPermission.ts -
+  // no active feature currently prompts for it) gets re-synced with no prompt of its own here.
   useEffect(() => {
     if (!isReady) {
       return;

@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { formatDateOnly, formatDateOnlyForDisplay } from '../purchases/dateOnly';
+import { formatDateOnly, formatDateOnlyForDisplay } from './dateOnly';
 import type { ItemHistoryEntry } from './api/itemsApi';
 
 export interface HistorySection {

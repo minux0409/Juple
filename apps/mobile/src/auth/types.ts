@@ -32,4 +32,6 @@ export interface AuthContextValue extends AuthState {
   getValidAccessToken: (
     options?: GetValidAccessTokenOptions,
   ) => Promise<string>;
+  /** Re-runs the session-restore/backend-check bootstrap - see AuthenticatedPlaceholder's retry action. */
+  retryBootstrap: () => Promise<void>;
 }

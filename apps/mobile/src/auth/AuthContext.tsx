@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { authorizeWithEntra } from './entraAuthClient';
+import { authorizeWithEntra, EntraAuthError, isEntraSessionInvalidError } from './entraAuthClient';
 import {
   clearSession,
   getValidAccessToken,
@@ -64,6 +64,31 @@ async function bootstrapUserAccount(
   }
 }
 
+/**
+ * True only for a genuine Entra rejection of the stored session (refresh token actually
+ * invalid/expired, or the authorization server otherwise explicitly refused it) - anything else
+ * getValidAccessToken() can throw while restoring a session (offline, DNS failure, timeout,
+ * connection reset, or the Entra endpoint itself being briefly unreachable) is a transient
+ * transport failure, not proof the session is bad. See entraAuthClient.ts's own
+ * isEntraSessionInvalidError, which authSessionManager.ts already uses for the same distinction
+ * before deciding whether to actually clear the stored session.
+ */
+function isGenuineSessionRejection(caughtError: unknown): boolean {
+  return (
+    caughtError instanceof EntraAuthError &&
+    isEntraSessionInvalidError(caughtError.cause)
+  );
+}
+
+/**
+ * A missing/never-existing session (AuthSessionError('sessionUnavailable') - see
+ * authSessionManager.ts) is not an EntraAuthError at all, so it is never classified as transient
+ * here and correctly falls through to signing out - there is nothing to retry.
+ */
+function isTransientSessionRestoreError(caughtError: unknown): boolean {
+  return caughtError instanceof EntraAuthError && !isGenuineSessionRejection(caughtError);
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const { t } = useTranslation();
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
@@ -74,63 +99,81 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => onSessionInvalidated(setSignedOut), [setSignedOut]);
 
-  useEffect(() => {
-    let isMounted = true;
+  const runBootstrap = useCallback(async (isMountedRef: { current: boolean }) => {
+    try {
+      const accessToken = await getValidAccessToken();
 
-    (async () => {
-      try {
-        const accessToken = await getValidAccessToken();
+      if (isMountedRef.current) {
+        setState({
+          isInitializing: false,
+          isSigningIn: false,
+          isAuthenticated: true,
+          error: null,
+          backendAuthStatus: 'checking',
+          userBootstrapStatus: 'notStarted',
+        });
+      }
 
-        if (isMounted) {
-          setState({
-            isInitializing: false,
-            isSigningIn: false,
-            isAuthenticated: true,
-            error: null,
-            backendAuthStatus: 'checking',
-            userBootstrapStatus: 'notStarted',
-          });
-        }
+      const backendAuthStatus = await validateBackendSession(accessToken);
+      if (isMountedRef.current) {
+        setState(previous =>
+          previous.isAuthenticated ? { ...previous, backendAuthStatus } : previous,
+        );
+      }
 
-        const backendAuthStatus = await validateBackendSession(accessToken);
-        if (isMounted) {
+      if (backendAuthStatus === 'valid') {
+        if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
-              ? { ...previous, backendAuthStatus }
+              ? { ...previous, userBootstrapStatus: 'checking' }
               : previous,
           );
         }
 
-        if (backendAuthStatus === 'valid') {
-          if (isMounted) {
-            setState(previous =>
-              previous.isAuthenticated
-                ? { ...previous, userBootstrapStatus: 'checking' }
-                : previous,
-            );
-          }
-
-          const userBootstrapStatus = await bootstrapUserAccount(accessToken);
-          if (isMounted) {
-            setState(previous =>
-              previous.isAuthenticated
-                ? { ...previous, userBootstrapStatus }
-                : previous,
-            );
-          }
-        }
-      } catch {
-        // A transient network failure should not discard a still-valid session.
-        if (isMounted) {
-          setSignedOut();
+        const userBootstrapStatus = await bootstrapUserAccount(accessToken);
+        if (isMountedRef.current) {
+          setState(previous =>
+            previous.isAuthenticated ? { ...previous, userBootstrapStatus } : previous,
+          );
         }
       }
-    })();
+    } catch (caughtError) {
+      if (!isMountedRef.current) {
+        return;
+      }
 
-    return () => {
-      isMounted = false;
-    };
+      // A transient failure while restoring the session (offline, DNS, timeout, connection reset,
+      // or the Entra endpoint being briefly unreachable) must not discard a still-valid session -
+      // only a genuine rejection (or no session at all) does. The user can retry manually (see
+      // retryBootstrap below / AuthenticatedPlaceholder's retry action) - this never retries on
+      // its own, so a real, sustained outage still surfaces clearly rather than looping forever.
+      if (isTransientSessionRestoreError(caughtError)) {
+        setState({
+          isInitializing: false,
+          isSigningIn: false,
+          isAuthenticated: true,
+          error: null,
+          backendAuthStatus: 'unavailable',
+          userBootstrapStatus: 'notStarted',
+        });
+      } else {
+        setSignedOut();
+      }
+    }
   }, [setSignedOut]);
+
+  useEffect(() => {
+    const isMountedRef = { current: true };
+    runBootstrap(isMountedRef);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [runBootstrap]);
+
+  const retryBootstrap = useCallback(() => {
+    const isMountedRef = { current: true };
+    return runBootstrap(isMountedRef);
+  }, [runBootstrap]);
 
   const signIn = useCallback(async () => {
     setState(previous =>
@@ -211,8 +254,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [setSignedOut]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn, signOut, getValidAccessToken }),
-    [state, signIn, signOut],
+    () => ({ ...state, signIn, signOut, getValidAccessToken, retryBootstrap }),
+    [state, signIn, signOut, retryBootstrap],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

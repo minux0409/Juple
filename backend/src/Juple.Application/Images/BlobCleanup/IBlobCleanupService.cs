@@ -25,8 +25,8 @@ public interface IBlobCleanupService
 
     /// <summary>
     /// Processes every currently pending task - the retry/maintenance entry point (see Program.cs's
-    /// --run-blob-cleanup-retry one-shot mode, mirroring IDispatchDuePushNotificationsService's
-    /// shape). One task's failure never stops the rest from being attempted.
+    /// --run-blob-cleanup-retry one-shot mode). One task's failure never stops the rest from being
+    /// attempted.
     /// </summary>
     Task<BlobCleanupRunResult> RunPendingCleanupsAsync(CancellationToken cancellationToken = default);
 }
