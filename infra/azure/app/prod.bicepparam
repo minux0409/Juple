@@ -50,6 +50,19 @@ param entraClientId = readEnvironmentVariable('JUPLE_APP_PROD_ENTRA_CLIENT_ID')
 // first, update the API's publicWebBaseUrl only after - see ../README.md's "Web custom domain"
 // deployment order), never set in advance of the real binding.
 
+// Confirmed initial Production scale/sizing decision (see ../README.md's "Production SKU/scale"
+// section for the full reasoning) - a fixed fact about how Production is meant to run, not a
+// live-generated or per-deployment value, so a literal here is safe to commit (same category as
+// containerAppsEnvironmentName above). Unlike Dev's scale-to-zero posture (main.bicep's own
+// defaults: minReplicas=0, maxReplicas=1, 0.25 vCPU/0.5Gi), Production keeps one instance always
+// warm (no cold start on a real user's first request) with burst headroom, and doubles per-replica
+// sizing since minReplicas=1 means this allocation is now a genuine 24/7 commitment, not a
+// scale-to-zero convenience.
+param minReplicas = 1
+param maxReplicas = 3
+param containerCpu = '0.5'
+param containerMemory = '1Gi'
+
 // Live Foundation/deploy-time values and secrets - none of these exist yet either (no Production
 // Foundation has been deployed - see ../README.md). Set the matching environment variable in the
 // deploying shell before running `az deployment group create` with this file; never hardcode a

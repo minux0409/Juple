@@ -26,6 +26,20 @@ param containerAppsEnvironmentName = 'cae-juple-prod'
 param customDomainName = ''
 param managedCertificateName = ''
 
+// Confirmed initial Production scale decision (see ../README.md's "Production SKU/scale" section
+// for the full reasoning) - a fixed fact about how Production is meant to run, not a live-generated
+// or per-deployment value, so a literal here is safe to commit. Unlike API's own Production
+// scale (minReplicas=1 - see ../app/prod.bicepparam), the Web Viewer keeps main.bicep's own
+// scale-to-zero default (minReplicas=0): it is anonymous, read-only, and far less latency-sensitive
+// than the authenticated API, so an occasional cold start here is an acceptable trade-off for not
+// paying for an always-on replica. maxReplicas is raised for burst headroom only - stated explicitly
+// here (rather than left to main.bicep's own default of 1) so this file's own intent is visible
+// without cross-referencing the template. CPU/memory stay at main.bicep's own Dev-equalling default
+// (0.25 vCPU/0.5Gi) - this is a lightweight SSR/proxy workload with no heavy compute, so there is no
+// reason yet to size it like the API.
+param minReplicas = 0
+param maxReplicas = 2
+
 // googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId/androidAssetlinksSha256Fingerprints are all
 // deliberately left unassigned - main.bicep's own "" defaults apply (storeConfig.ts/the two
 // .well-known routes already treat "" identically to "unset"). None of these five have a real

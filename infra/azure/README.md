@@ -515,6 +515,39 @@ Managed Certificate 이름>`으로 그 두 줄만 채우면 된다. `main.bicep`
    Web의 `.well-known` 두 라우트가 실제로 올바른 값을 서빙하는지(fingerprint/Team ID 확보 후)
    확인해야 App Links/Universal Links가 실제로 동작한다.
 
+### Production SKU/scale - parameter 파일 준비 완료, Azure 리소스 미생성
+
+Production 최초 출시용 SKU/scale이 확정되어 각 `prod.bicepparam`에 literal로 반영되어 있다(Dev는
+변경 없음, 아래 값 전부 기존 `main.bicep` parameter override만으로 적용 - template 자체는 수정하지
+않았다):
+
+- **API**(`app/prod.bicepparam`): `minReplicas=1`/`maxReplicas=3`/`containerCpu='0.5'`/
+  `containerMemory='1Gi'` - Dev의 scale-to-zero(`0`/`1`/`0.25`/`0.5Gi`)와 달리 인스턴스 1개를
+  상시 가동해 실사용자 첫 요청의 cold start를 없앤다. `minReplicas=1`이 이 repo의 Prod 상시 비용의
+  핵심 항목이다.
+- **Web**(`web/prod.bicepparam`): `minReplicas=0`(scale-to-zero 유지 - 익명 조회 전용 SSR이라
+  cold start 허용 가능)/`maxReplicas=2`. CPU/memory는 Dev와 동일한 `0.25`/`0.5Gi` 유지(가벼운
+  SSR/프록시 워크로드).
+- **SQL**(`foundation/prod.bicepparam`, 신규): `sqlDatabaseSku={name:'S0', tier:'Standard'}` -
+  Dev의 Basic(5 DTU/2GB)은 실사용자 트래픽이 매시 Push Job/5분 간격 Blob cleanup Job과 같은
+  DB를 동시에 두드리는 구조에서 throttling 위험이 있어 상향했다. Serverless(auto-pause)는
+  API의 `minReplicas=1`(상시 warm) 목적과 상충해(SQL이 auto-pause에서 깨어나는 지연이 API의
+  warm 상태를 무의미하게 만듦) 검토 후 배제했다.
+- **유지**: ACR Basic, Storage `Standard_LRS`, Log Analytics 30일 보존, Push/Blob cleanup Job
+  cadence 전부 그대로 - 변경 근거가 없었다.
+
+`foundation/prod.bicepparam`은 이 repo의 첫 Foundation parameter 파일이다 - `app`/`web`의
+`dev.bicepparam`/`prod.bicepparam`과 동일한 convention을 따른다: `environmentName`/
+`sqlDatabaseSku`는 Production에 대한 고정된 사실이라 literal, `sqlAdministratorLoginPassword`는
+secret이라 `readEnvironmentVariable('JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD')`로
+fail-closed 처리한다(값 미설정 시 BCP427로 즉시 실패 - 이 비밀번호는 아직 실제로 생성되지
+않았다). Foundation 배포 시:
+
+```powershell
+$env:JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD = '<신규 생성한 Prod SQL admin 비밀번호>'
+az deployment sub create --location koreacentral --parameters infra/azure/foundation/prod.bicepparam
+```
+
 ## Naming
 
 | 리소스 | 패턴 | 비고 |
