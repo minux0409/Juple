@@ -424,13 +424,14 @@ API B + `env-b` 스토어 URL로. `/c/{publicId}` SSR 결과(Collection 이름, 
 출시 준비(Apple Developer Team ID 확보, Play App Signing 활성화, Play/App Store 리스팅 등록)
 시점에 실값으로 재배포하면 된다 - 이미지 재빌드도, 코드/IaC 구조 변경도 필요 없다.
 
-**`androidAssetlinksSha256Fingerprints`는 실값이 있다** - Android App Links Dev E2E 검증을 위해
-`ca-juple-web-dev`에 CLI로 직접 값이 설정되어(이 Bicep 배포를 거치지 않고) 이미 PASS했다(위
-"아직 provisioning되지 않은 것" 참고). 어떤 keystore의 fingerprint인지는 이 repo에 기록되어
-있지 않다 - 확인 없이 추측하지 않는다(Dogfood keystore의 fingerprint와는 다른 값이다 - 위
-"Dogfood signing" 섹션의 keystore와 혼동하지 않는다). `dev.bicepparam`이 이 값을 literal로
-고정해 재배포로 유실되지 않게 한다 - 아래 "Web custom domain" 섹션의 `dev.bicepparam` 구성
-참고.
+**`androidAssetlinksSha256Fingerprints`는 실값이 있다(fingerprint 2개, comma-separated)** -
+`dev.bicepparam`의 자체 주석 참고. 첫 번째는 Android App Links Dev E2E 검증을 위해
+`ca-juple-web-dev`에 CLI로 직접 설정되어(이 Bicep 배포를 거치지 않고) 이미 PASS한 값으로, 이후
+실기기의 기존 설치본을 `adb shell dumpsys package`로 대조해 이 PC의
+`apps/mobile/android/app/debug.keystore` fingerprint임을 확인했다. 두 번째는 home-PC Dogfood
+keystore의 fingerprint(위 "Dogfood signing" 섹션) - standalone `assembleDogfood` 설치본도 같은
+도메인의 App Links를 검증받을 수 있도록 추가했다. `dev.bicepparam`이 두 값을 literal로 고정해
+재배포로 유실되지 않게 한다 - 아래 "Web custom domain" 섹션의 `dev.bicepparam` 구성 참고.
 
 ### Web custom domain (`dev.juple.co.kr`) - IaC state의 일부
 

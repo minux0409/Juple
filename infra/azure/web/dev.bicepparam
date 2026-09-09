@@ -45,22 +45,25 @@ param containerAppsEnvironmentName = 'cae-juple-dev'
 param customDomainName = 'dev.juple.co.kr'
 param managedCertificateName = 'mc-cae-juple-dev-dev-juple-co-kr-6698'
 
-// The fingerprint currently live on ca-juple-web-dev's ANDROID_ASSETLINKS_SHA256_FINGERPRINTS env
-// var (confirmed via `az containerapp show` on 2026-09-08) - it is what apps/web's
-// .well-known/assetlinks.json route is serving today, and what the already-PASSed Android App
-// Links Dev E2E run was verified against. Not sourced from this template/main.bicep's default
-// (which is "" - see ../README.md, written before this env var was set out-of-band via the CLI,
-// not through this Bicep template). Without this line, a plain `web/main.bicep` +
-// `dev.bicepparam` redeploy would silently reset it to "", breaking the Dev App Links verification
-// exactly like the customDomains issue above.
+// Two fingerprints, comma-separated (route.ts's GET() splits on "," - the spec itself allows a
+// list, e.g. during a signing cert rotation):
+//   1. The fingerprint originally live on ca-juple-web-dev's ANDROID_ASSETLINKS_SHA256_FINGERPRINTS
+//      env var (confirmed via `az containerapp show` on 2026-09-08) - the already-PASSed Android
+//      App Links Dev E2E run was verified against this one. Now also confirmed (via `adb shell
+//      dumpsys package` against the phone's existing install) to be this machine's own
+//      apps/mobile/android/app/debug.keystore fingerprint, i.e. a plain `npm run android`/
+//      `react-native run-android` Debug build.
+//   2. The home-PC Dogfood keystore's fingerprint (see ../../../README.md's "Dogfood signing"
+//      section) - a separate, dedicated signing identity for standalone `assembleDogfood` builds,
+//      added here so a Dogfood-signed install verifies dev.juple.co.kr App Links too, without
+//      disturbing fingerprint 1 above (Debug App Links must keep working unchanged).
 //
-// This is NOT the home-PC Dogfood keystore's fingerprint (that one signs assembleDogfood builds
-// for cross-PC update compatibility - see ../../../README.md's "Dogfood signing" section - a
-// different SHA256, unrelated to what is bound here). Do not replace this value with the Dogfood
-// keystore's fingerprint or regenerate it from any local keystore - it must stay whatever
-// ca-juple-web-dev is actually live-verified against; if that ever needs to change, update it here
-// to match a newly verified live value, not the other way around.
-param androidAssetlinksSha256Fingerprints = '2C:5D:24:99:C2:D5:F6:5C:31:C4:73:20:C4:57:C7:DC:77:C4:A8:CB:B4:46:D0:84:77:E4:12:A4:82:92:A9:29'
+// Not sourced from this template/main.bicep's default (which is "" - see ../README.md). Without
+// this line, a plain `web/main.bicep` + `dev.bicepparam` redeploy would silently reset it to "",
+// breaking Dev App Links verification for both fingerprints exactly like the customDomains issue
+// above. If either value ever needs to change, update it here to match a newly verified live
+// value, not the other way around - never guess or regenerate one from an unrelated keystore.
+param androidAssetlinksSha256Fingerprints = '2C:5D:24:99:C2:D5:F6:5C:31:C4:73:20:C4:57:C7:DC:77:C4:A8:CB:B4:46:D0:84:77:E4:12:A4:82:92:A9:29,D8:10:EE:BB:B3:C6:90:3E:61:8F:77:5C:AB:37:14:90:C9:77:2F:72:82:C6:04:D0:F2:F8:0F:62:3C:FA:F1:2E'
 
 // Live Foundation/deploy-time values - see the file header comment above. Set the matching
 // environment variable in the deploying shell before running `az deployment group create` with
