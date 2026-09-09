@@ -57,6 +57,38 @@ if (!isValidProductionPublicWebHost) {
   );
 }
 
+// Same fail-fast philosophy as JUPLE_API_BASE_URL/JUPLE_PUBLIC_WEB_HOST above, for the Production
+// Microsoft Entra External ID values a release build authenticates against (see
+// src/auth/entraAuthConfig.ts). None of these exist yet (no Production Entra tenant/app
+// registrations - see README.md), and none has a literal default: without this check, a release
+// build would still succeed but silently ship still wired to the Development Entra tenant (see
+// entraAuthConfig.ts's own resolveEntraAuthConfig(), which would otherwise only fail this loudly at
+// app startup on a user's device instead of at build time). This must never fall back to the
+// Development tenant, an empty value, or a fabricated Production value.
+const productionEntraEnvVarNames = [
+  'JUPLE_ENTRA_PROD_INSTANCE',
+  'JUPLE_ENTRA_PROD_TENANT_ID',
+  'JUPLE_ENTRA_PROD_API_CLIENT_ID',
+  'JUPLE_ENTRA_PROD_NATIVE_CLIENT_ID',
+];
+const missingProductionEntraEnvVarNames = productionEntraEnvVarNames.filter(
+  name => !process.env[name],
+);
+
+if (missingProductionEntraEnvVarNames.length > 0) {
+  throw new Error(
+    'Missing required Production Microsoft Entra environment variable(s): ' +
+      missingProductionEntraEnvVarNames.join(', ') +
+      '. Refusing to build a Production release that would silently authenticate against the ' +
+      'Development Entra tenant (see src/auth/entraAuthConfig.ts). Set each once the Production ' +
+      'Entra tenant/app registrations exist, alongside JUPLE_API_BASE_URL, e.g.: ' +
+      'JUPLE_ENTRA_PROD_INSTANCE=https://<prod-tenant>.ciamlogin.com/ ' +
+      'JUPLE_ENTRA_PROD_TENANT_ID=<guid> JUPLE_ENTRA_PROD_API_CLIENT_ID=<guid> ' +
+      'JUPLE_ENTRA_PROD_NATIVE_CLIENT_ID=<guid> JUPLE_API_BASE_URL=https://api.example.com ' +
+      './gradlew assembleRelease',
+  );
+}
+
 process.env.JUPLE_API_ENV = 'production';
 
 module.exports = require('./metro.config.js');

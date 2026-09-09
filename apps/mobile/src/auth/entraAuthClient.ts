@@ -5,7 +5,7 @@ import {
   type AuthorizeResult,
   type RefreshResult,
 } from 'react-native-app-auth';
-import { entraDevAuthConfig } from './entraAuthConfig';
+import { selectedEntraAuthConfig } from './entraAuthConfig';
 
 export class EntraAuthError extends Error {
   constructor(message: string, readonly cause?: unknown) {
@@ -36,7 +36,7 @@ export function isEntraSessionInvalidError(error: unknown): boolean {
  * Does not persist, log, or decode any token. Callers own what happens next.
  */
 export async function authorizeWithEntra(): Promise<AuthorizeResult> {
-  const config = entraDevAuthConfig;
+  const config = selectedEntraAuthConfig;
 
   try {
     return await authorize({
@@ -67,7 +67,7 @@ export async function authorizeWithEntra(): Promise<AuthorizeResult> {
 export async function refreshEntraSession(
   refreshToken: string,
 ): Promise<RefreshResult> {
-  const config = entraDevAuthConfig;
+  const config = selectedEntraAuthConfig;
 
   try {
     return await refresh(
