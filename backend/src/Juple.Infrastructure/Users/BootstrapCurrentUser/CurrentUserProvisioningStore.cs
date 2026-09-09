@@ -1,5 +1,6 @@
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
+using Juple.Domain.Collections;
 using Juple.Domain.Identity;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Persistence;
@@ -34,6 +35,21 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 data.CreatedAtUtc,
                 data.CreatedAtUtc);
             dbContext.Set<User>().Add(user);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            // One-time default-Category seed for brand-new users only (see DefaultCollectionSeed) -
+            // inserted in the same transaction as the User row so it either lands atomically with
+            // the new user or not at all (including on the race-recovery path below, which rolls
+            // back this whole transaction wholesale rather than partially committing it).
+            foreach (var name in DefaultCollectionSeed.NamesFor(data.PreferredLocale))
+            {
+                // Fixed literal names we control, not user input - CollectionNameNormalizer's
+                // normalization is inlined here (trim+uppercase) since it's `internal` to
+                // Juple.Application and this store intentionally doesn't take a dependency on an
+                // Application-layer service (see the seeding design note in the UI refactor plan).
+                dbContext.Set<Collection>().Add(
+                    new Collection(user.Id, name, name.Trim().ToUpperInvariant(), data.CreatedAtUtc));
+            }
             await dbContext.SaveChangesAsync(cancellationToken);
 
             dbContext.Set<ExternalIdentity>().Add(new ExternalIdentity(

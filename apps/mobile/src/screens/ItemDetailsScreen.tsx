@@ -37,7 +37,6 @@ import {
 import {
   deleteItem,
   getItemDetails,
-  recordItemOpen,
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
@@ -645,16 +644,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       await Linking.openURL(item.url);
     } catch {
       setUrlOpenError(t('item.urlOpenFailed'));
-      return;
-    }
-
-    // Best-effort, after the URL has already opened successfully (My Page → "최근 본 링크" /
-    // Recently opened links) - a failure here must never surface as a failure to open the URL
-    // itself, which is the actual user-facing action and has already succeeded by this point.
-    try {
-      await recordItemOpen(authenticatedRequest, itemId);
-    } catch {
-      // Intentionally silent - see comment above.
     }
   };
 

@@ -28,6 +28,8 @@ export interface GetValidAccessTokenOptions {
 
 let accessToken: string | null = null;
 let accessTokenExpirationDate: string | null = null;
+/** The most recently known idToken - only for reading display-only claims client-side (see idTokenClaims.ts), never used for API authorization. */
+let cachedIdToken: string | null = null;
 let refreshInFlight: Promise<string> | null = null;
 const sessionInvalidatedListeners = new Set<() => void>();
 
@@ -56,6 +58,12 @@ function clearCachedAccessToken(): void {
 async function clearSessionInternal(): Promise<void> {
   await clearAuthSession().catch(() => undefined);
   clearCachedAccessToken();
+  cachedIdToken = null;
+}
+
+/** The most recently known idToken (from sign-in, refresh, or the persisted session), or null if never available. */
+export function getCachedIdToken(): string | null {
+  return cachedIdToken;
 }
 
 function notifySessionInvalidated(): void {
@@ -77,6 +85,7 @@ export async function saveAuthorizedSession(
   session: AuthorizedSession,
 ): Promise<void> {
   setCachedAccessToken(session.accessToken, session.accessTokenExpirationDate);
+  cachedIdToken = session.idToken ?? cachedIdToken;
   await saveAuthSession({
     refreshToken: session.refreshToken,
     idToken: session.idToken,
@@ -98,6 +107,9 @@ async function refreshAccessToken(): Promise<string> {
     if (!session) {
       throw new AuthSessionError('sessionUnavailable');
     }
+    // Populates the in-memory cache from the persisted session on a cold start, even before this
+    // refresh call itself resolves - so getCachedIdToken() works right after app launch/restore.
+    cachedIdToken = session.idToken ?? cachedIdToken;
 
     try {
       const result = await refreshEntraSession(session.refreshToken);
@@ -106,10 +118,12 @@ async function refreshAccessToken(): Promise<string> {
       }
 
       if (result.refreshToken) {
+        const idToken = result.idToken ?? session.idToken;
         await saveAuthSession({
           refreshToken: result.refreshToken,
-          idToken: result.idToken ?? session.idToken,
+          idToken,
         });
+        cachedIdToken = idToken ?? cachedIdToken;
       }
 
       setCachedAccessToken(result.accessToken, result.accessTokenExpirationDate);

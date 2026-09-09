@@ -37,6 +37,11 @@ class NativeIncomingShareModule(
     promise.resolve(null)
   }
 
+  override fun setQuickSaveOnShare(enabled: Boolean, promise: Promise) {
+    QuickSaveOnSharePreference.set(reactContext, enabled)
+    promise.resolve(null)
+  }
+
   companion object {
     const val Name = "NativeIncomingShare"
   }

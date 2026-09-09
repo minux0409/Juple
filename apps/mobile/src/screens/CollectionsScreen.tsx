@@ -22,9 +22,14 @@ import {
   setCollectionFavorite,
   type Collection,
 } from '../collections/api/collectionsApi';
+import { ChevronIcon } from '../icons/ChevronIcon';
+import { StarIcon } from '../icons/StarIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
+
+type ActiveTab = 'favorites' | 'all';
 
 function getListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -77,14 +82,18 @@ function getNameValidationError(name: string, t: TFunction): string | null {
 }
 
 /**
- * 보관함: user-named buckets of saved URLs (see collectionsApi.ts). Distinct from the legacy
- * Category (single-select tag) - an Item can belong to any number of Collections. The Item list
- * inside a Collection lives on CollectionDetailsScreen; this screen only lists/creates Collections.
+ * 카테고리 (user-facing label; backend/API still uses "Collection"): user-named buckets of saved
+ * URLs (see collectionsApi.ts). Distinct from the legacy Category (single-select tag, removed) -
+ * an Item can belong to any number of Collections. The Item list inside a Collection lives on
+ * CollectionDetailsScreen; this screen only lists/creates Collections, split across two segmented
+ * tabs (favorites / all) that are never shown at the same time.
  */
 export function CollectionsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
+
+  const [activeTab, setActiveTab] = useState<ActiveTab>('all');
 
   const [collections, setCollections] = useState<readonly Collection[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -97,10 +106,11 @@ export function CollectionsScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // Favorites are a small quick-access section, loaded independently of the main paginated list -
+  // Favorites are the other segmented tab's data, loaded independently of the main paginated list -
   // fully walked page-by-page (never just the first page) so a favorite count past one page is
-  // never silently dropped from the section.
+  // never silently dropped.
   const [favorites, setFavorites] = useState<readonly Collection[]>([]);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(true);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
@@ -113,6 +123,7 @@ export function CollectionsScreen() {
 
   const loadFavorites = useCallback(async () => {
     const requestId = ++favoritesRequestIdRef.current;
+    setIsLoadingFavorites(true);
     setFavoritesError(null);
 
     try {
@@ -133,6 +144,10 @@ export function CollectionsScreen() {
         return;
       }
       setFavoritesError(getListErrorMessage(caughtError, t));
+    } finally {
+      if (favoritesRequestIdRef.current === requestId) {
+        setIsLoadingFavorites(false);
+      }
     }
   }, [authenticatedRequest, t]);
 
@@ -170,7 +185,7 @@ export function CollectionsScreen() {
     [authenticatedRequest, t],
   );
 
-  // Refetches every time the Collections tab regains focus, so a Collection created/renamed/
+  // Refetches every time the Categories tab regains focus, so a Collection created/renamed/
   // deleted on CollectionDetailsScreen shows up immediately on return, matching the Home/History
   // precedent. Favorites are refetched independently of the main paginated list, same as
   // ItemDetailsScreen's Purchases/RepeatPurchases independence.
@@ -242,10 +257,11 @@ export function CollectionsScreen() {
   };
 
   /**
-   * Toggles the star on either the favorites section or the main list - both render the same
-   * Collection rows, so a single handler keeps both in sync. Optimistic (flips immediately, no
-   * disabling of the whole screen), but only one toggle may be in flight at a time; on failure the
-   * pre-toggle Collection is restored in both lists rather than trusting the flipped local state.
+   * Toggles the star on either segmented tab's rows - both render the same Collection rows, so a
+   * single handler keeps both `collections` and `favorites` state in lockstep, which is what makes
+   * switching tabs instant (no refetch needed). Optimistic (flips immediately), but only one toggle
+   * may be in flight at a time; on failure the pre-toggle Collection is restored in both lists
+   * rather than trusting the flipped local state.
    */
   const toggleFavoriteAction = async (collection: Collection) => {
     if (togglingFavoriteId !== null) {
@@ -288,21 +304,19 @@ export function CollectionsScreen() {
     }
   };
 
-  if (isLoading && collections.length === 0 && !error) {
-    return (
-      <SafeAreaView edges={['top']} style={styles.loadingContainer}>
-        <ActivityIndicator />
-      </SafeAreaView>
-    );
-  }
+  const activeTabData = activeTab === 'favorites' ? favorites : collections;
+  const isActiveTabInitialLoading =
+    activeTab === 'favorites'
+      ? isLoadingFavorites && favorites.length === 0 && !favoritesError
+      : isLoading && collections.length === 0 && !error;
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
         contentContainerStyle={styles.content}
-        data={collections}
+        data={activeTabData}
         keyExtractor={collection => collection.id.toString()}
-        onEndReached={loadMore}
+        onEndReached={activeTab === 'all' ? loadMore : undefined}
         onEndReachedThreshold={0.5}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load('refresh')} />}
         ListHeaderComponent={
@@ -310,26 +324,6 @@ export function CollectionsScreen() {
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('collections.title')}</Text>
             </View>
-
-            {favorites.length > 0 || favoritesError ? (
-              <View style={styles.favoritesSection}>
-                <Text style={styles.sectionTitle}>{t('collections.favoritesTitle')}</Text>
-                {favorites.map(favorite => (
-                  <CollectionRow
-                    key={favorite.id}
-                    collection={favorite}
-                    isFavoriteToggleDisabled={togglingFavoriteId !== null}
-                    isTogglingFavorite={togglingFavoriteId === favorite.id}
-                    onPress={() => navigation.navigate('CollectionDetails', { collectionId: favorite.id })}
-                    onToggleFavorite={() => toggleFavoriteAction(favorite)}
-                  />
-                ))}
-                {favoritesError ? <Text style={styles.error}>{favoritesError}</Text> : null}
-                {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-              </View>
-            ) : null}
-
-            <Text style={styles.sectionTitle}>{t('collections.allCollectionsTitle')}</Text>
 
             <TextInput
               editable={!isCreating}
@@ -350,10 +344,46 @@ export function CollectionsScreen() {
               </Text>
             </Pressable>
             {createError ? <Text style={styles.error}>{createError}</Text> : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <View style={styles.segmentRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: activeTab === 'favorites' }}
+                onPress={() => setActiveTab('favorites')}
+                style={[styles.segmentTab, activeTab === 'favorites' && styles.segmentTabActive]}
+              >
+                <Text
+                  style={[styles.segmentLabel, activeTab === 'favorites' && styles.segmentLabelActive]}
+                >
+                  {t('collections.favoritesTitle')}
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: activeTab === 'all' }}
+                onPress={() => setActiveTab('all')}
+                style={[styles.segmentTab, activeTab === 'all' && styles.segmentTabActive]}
+              >
+                <Text style={[styles.segmentLabel, activeTab === 'all' && styles.segmentLabelActive]}>
+                  {t('collections.allCollectionsTitle')}
+                </Text>
+              </Pressable>
+            </View>
+
+            {activeTab === 'favorites' && favoritesError ? (
+              <Text style={styles.error}>{favoritesError}</Text>
+            ) : null}
+            {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
+            {activeTab === 'all' && error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
-        ListEmptyComponent={!error ? <Text style={styles.empty}>{t('collections.empty')}</Text> : undefined}
+        ListEmptyComponent={
+          isActiveTabInitialLoading ? (
+            <ActivityIndicator style={styles.tabLoading} />
+          ) : (
+            <Text style={styles.empty}>{t('collections.empty')}</Text>
+          )
+        }
         renderItem={({ item }) => (
           <CollectionRow
             collection={item}
@@ -395,12 +425,15 @@ function CollectionRow({
   return (
     <View style={styles.row}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
-        <Text numberOfLines={1} style={styles.rowName}>
-          {collection.name}
-        </Text>
-        <Text style={styles.rowItemCount}>
-          {t('collections.itemCount', { count: collection.itemCount })}
-        </Text>
+        <View style={styles.rowTextColumn}>
+          <Text numberOfLines={1} style={styles.rowName}>
+            {collection.name}
+          </Text>
+          <Text style={styles.rowItemCount}>
+            {t('collections.itemCount', { count: collection.itemCount })}
+          </Text>
+        </View>
+        <ChevronIcon color={colors.border} direction="right" size={18} />
       </Pressable>
       <Pressable
         accessibilityLabel={
@@ -409,13 +442,14 @@ function CollectionRow({
         accessibilityRole="button"
         accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }}
         disabled={isFavoriteToggleDisabled}
-        hitSlop={8}
         onPress={onToggleFavorite}
         style={styles.favoriteButton}
       >
-        <Text style={[styles.favoriteButtonLabel, collection.isFavorite && styles.favoriteButtonLabelActive]}>
-          {collection.isFavorite ? '★' : '☆'}
-        </Text>
+        <StarIcon
+          color={collection.isFavorite ? colors.warning : colors.border}
+          filled={collection.isFavorite}
+          size={20}
+        />
       </Pressable>
     </View>
   );
@@ -425,14 +459,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   content: {
     flexGrow: 1,
-    padding: 24,
+    padding: spacing.xl,
   },
   titleRow: {
     alignItems: 'center',
@@ -442,89 +471,101 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   input: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     borderWidth: 1,
     fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
   },
   createButton: {
     alignItems: 'center',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    marginTop: 10,
-    paddingVertical: 12,
+    backgroundColor: colors.textPrimary,
+    borderRadius: radii.md,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm + 4,
   },
   disabledButton: {
     opacity: 0.5,
   },
   createButtonLabel: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
   },
   error: {
-    color: '#B42318',
+    color: colors.danger,
     fontSize: 14,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   empty: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 14,
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
-  favoritesSection: {
-    marginBottom: 12,
+  tabLoading: {
+    paddingVertical: spacing.lg,
+  },
+  segmentRow: {
+    flexDirection: 'row',
+    marginTop: spacing.lg,
+  },
+  segmentTab: {
+    alignItems: 'center',
+    borderBottomColor: colors.divider,
+    borderBottomWidth: 2,
+    flex: 1,
+    paddingBottom: spacing.sm,
+  },
+  segmentTabActive: {
+    borderBottomColor: colors.brand,
+  },
+  segmentLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  segmentLabelActive: {
+    color: colors.brand,
   },
   row: {
-    borderTopColor: '#E0E0E0',
+    alignItems: 'center',
+    borderTopColor: colors.divider,
     borderTopWidth: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    marginTop: 24,
+    paddingVertical: spacing.sm + 4,
   },
   rowPressable: {
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginEnd: 12,
+    marginEnd: spacing.md,
+  },
+  rowTextColumn: {
+    flex: 1,
+    marginEnd: spacing.sm,
   },
   rowName: {
-    color: '#111111',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: '600',
-    flex: 1,
-    marginEnd: 12,
   },
   rowItemCount: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
+    marginTop: 2,
   },
   favoriteButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 32,
-    minWidth: 32,
-  },
-  favoriteButtonLabel: {
-    color: '#9A9A9A',
-    fontSize: 22,
-  },
-  favoriteButtonLabelActive: {
-    color: '#F5A623',
+    minHeight: minTouchTarget,
+    minWidth: minTouchTarget,
   },
   footerLoading: {
-    paddingVertical: 20,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 12,
+    paddingVertical: spacing.lg,
   },
 });

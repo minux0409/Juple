@@ -19,7 +19,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { RowActionSheet } from '../components/RowActionSheet';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { LinkIcon } from '../icons/LinkIcon';
+import { OverflowIcon } from '../icons/OverflowIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
   deleteItem,
@@ -31,6 +34,7 @@ import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
 
@@ -81,7 +85,8 @@ function formatSavedTime(savedAtUtc: string): string {
  * is later moved to Wishlist or Archived stays visible here for the rest of the day, matching
  * History's own "오늘" section exactly (both derive from the same SavedAtUtc-local-date concept -
  * see GET /api/v1/items/history/date). Wishlist/Archive-moving actions are therefore not offered
- * from this screen; only viewing (tap -> ItemDetails) and deleting remain.
+ * from this screen; only viewing (tap -> ItemDetails), sharing, and deleting remain (share/delete
+ * live behind a row's overflow menu - see RowActionSheet - not as always-visible buttons).
  *
  * A day's worth of saves is unbounded, so - mirroring useItemHistory.ts's verified
  * pagination/refresh pattern exactly - only one page loads up front and the rest is fetched via
@@ -103,6 +108,7 @@ export function DailyInboxScreen() {
   const [error, setError] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
+  const [actionSheetItem, setActionSheetItem] = useState<ItemHistoryEntry | null>(null);
 
   // Mirrors of the latest state/refs for use inside the Delete confirmation Alert's callbacks,
   // which are constructed once when the Alert opens and must not read stale values captured at
@@ -378,15 +384,20 @@ export function DailyInboxScreen() {
             <Text style={styles.date}>
               {t('inbox.dateCount', { date, count: items.length })}
             </Text>
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              onChangeText={setUrl}
-              placeholder={t('inbox.urlPlaceholder')}
-              style={styles.input}
-              value={url}
-            />
+            <View style={styles.inputWrapper}>
+              <View style={styles.inputIconContainer}>
+                <LinkIcon color={colors.textSecondary} size={18} />
+              </View>
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                onChangeText={setUrl}
+                placeholder={t('inbox.urlPlaceholder')}
+                style={styles.input}
+                value={url}
+              />
+            </View>
             <Pressable
               accessibilityRole="button"
               disabled={isSaving}
@@ -423,14 +434,9 @@ export function DailyInboxScreen() {
             isActionDisabled={actionInFlightItemId !== null || isRefreshing}
             isActionInFlight={actionInFlightItemId === item.id}
             item={item}
-            onDelete={() => {
-              confirmDelete(item.id);
-            }}
+            onOpenActions={() => setActionSheetItem(item)}
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.id });
-            }}
-            onShare={() => {
-              runShare(item);
             }}
           />
         )}
@@ -442,6 +448,20 @@ export function DailyInboxScreen() {
           ) : undefined
         }
       />
+      <RowActionSheet
+        onClose={() => setActionSheetItem(null)}
+        onDelete={() => {
+          if (actionSheetItem) {
+            confirmDelete(actionSheetItem.id);
+          }
+        }}
+        onShare={() => {
+          if (actionSheetItem) {
+            runShare(actionSheetItem);
+          }
+        }}
+        visible={actionSheetItem !== null}
+      />
     </SafeAreaView>
   );
 }
@@ -450,14 +470,11 @@ interface InboxRowProps {
   readonly item: ItemHistoryEntry;
   readonly isActionDisabled: boolean;
   readonly isActionInFlight: boolean;
-  readonly onDelete: () => void;
+  readonly onOpenActions: () => void;
   readonly onPress: () => void;
-  readonly onShare: () => void;
 }
 
-function InboxRow({ item, isActionDisabled, isActionInFlight, onDelete, onPress, onShare }: InboxRowProps) {
-  const { t } = useTranslation();
-
+function InboxRow({ item, isActionDisabled, isActionInFlight, onOpenActions, onPress }: InboxRowProps) {
   return (
     <View style={styles.row}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
@@ -479,32 +496,19 @@ function InboxRow({ item, isActionDisabled, isActionInFlight, onDelete, onPress,
           <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
         </View>
       </Pressable>
-      <View style={styles.itemActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isActionDisabled }}
-          disabled={isActionDisabled}
-          onPress={onShare}
-          style={[styles.itemActionButton, isActionDisabled && styles.disabledButton]}
-        >
-          <Text style={styles.itemActionLabel}>{t('item.share')}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
-          disabled={isActionDisabled}
-          onPress={onDelete}
-          style={[
-            styles.itemActionButton,
-            styles.deleteActionButton,
-            isActionDisabled && styles.disabledButton,
-          ]}
-        >
-          <Text style={[styles.itemActionLabel, styles.deleteActionLabel]}>
-            {isActionInFlight ? t('common.processing') : t('common.delete')}
-          </Text>
-        </Pressable>
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
+        disabled={isActionDisabled}
+        onPress={onOpenActions}
+        style={styles.overflowButton}
+      >
+        {isActionInFlight ? (
+          <ActivityIndicator size="small" />
+        ) : (
+          <OverflowIcon color={colors.textSecondary} size={20} />
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -520,13 +524,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: 24,
+    padding: spacing.xl,
   },
   brandRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: spacing.lg,
   },
   brand: {
     fontSize: 26,
@@ -537,120 +541,119 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   date: {
-    marginTop: 6,
-    color: '#666666',
+    marginTop: spacing.xs + 2,
+    color: colors.textSecondary,
     fontSize: 14,
   },
+  inputWrapper: {
+    marginTop: spacing.lg,
+  },
+  inputIconContainer: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: spacing.md,
+    position: 'absolute',
+    top: 0,
+    zIndex: 1,
+  },
   input: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radii.md,
     borderWidth: 1,
     fontSize: 16,
-    marginTop: 24,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingEnd: spacing.md,
+    paddingStart: spacing.xl + spacing.xs,
+    paddingVertical: spacing.sm + 4,
   },
   saveButton: {
     alignItems: 'center',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    marginTop: 10,
-    paddingVertical: 12,
+    backgroundColor: colors.textPrimary,
+    borderRadius: radii.md,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm + 4,
   },
   disabledButton: {
     opacity: 0.5,
   },
   saveButtonLabel: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
   },
   error: {
-    color: '#B42318',
+    color: colors.danger,
     fontSize: 14,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   shareReview: {
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   shareMessage: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 14,
   },
   cancelShareButton: {
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   cancelShareLabel: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 14,
     textDecorationLine: 'underline',
   },
   recentTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 8,
-    marginTop: 28,
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
   },
   empty: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 14,
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
   row: {
-    borderTopColor: '#E0E0E0',
+    alignItems: 'center',
+    borderTopColor: colors.divider,
     borderTopWidth: 1,
-    paddingVertical: 14,
+    flexDirection: 'row',
+    paddingVertical: spacing.sm,
   },
   rowPressable: {
+    flex: 1,
     flexDirection: 'row',
   },
   rowTextColumn: {
     flex: 1,
+    marginEnd: spacing.sm,
   },
   url: {
-    color: '#111111',
+    color: colors.textPrimary,
     fontSize: 15,
   },
   secondaryUrl: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 3,
   },
   memoPreview: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 5,
+    marginTop: 3,
   },
   savedTime: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 5,
+    marginTop: 3,
   },
-  itemActions: {
-    flexDirection: 'row',
-    marginTop: 10,
-  },
-  itemActionButton: {
-    borderColor: '#9A9A9A',
-    borderRadius: 6,
-    borderWidth: 1,
-    marginEnd: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  itemActionLabel: {
-    color: '#111111',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  deleteActionButton: {
-    borderColor: '#B42318',
-  },
-  deleteActionLabel: {
-    color: '#B42318',
+  overflowButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    minWidth: minTouchTarget,
   },
   footerLoading: {
-    paddingVertical: 20,
+    paddingVertical: spacing.lg,
   },
 });

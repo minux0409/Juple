@@ -17,6 +17,7 @@ import { linking } from './src/navigation/linking';
 import { navigationRef } from './src/navigation/navigationRef';
 import { RootStack } from './src/navigation/RootStack';
 import { usePushRegistrationSync } from './src/push/usePushRegistrationSync';
+import { applyStoredQuickSaveOnSharePreference } from './src/settings/quickSaveOnSharePreference';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -35,6 +36,12 @@ function App() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  // Re-syncs the quick-save-on-share preference to native SharedPreferences on every launch -
+  // not gated on isLanguageReady since it doesn't affect anything screens render.
+  useEffect(() => {
+    applyStoredQuickSaveOnSharePreference();
   }, []);
 
   return (

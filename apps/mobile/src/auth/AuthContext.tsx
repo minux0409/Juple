@@ -10,8 +10,10 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { authorizeWithEntra, EntraAuthError, isEntraSessionInvalidError } from './entraAuthClient';
+import { decodeIdTokenClaims, extractEmailClaim } from './idTokenClaims';
 import {
   clearSession,
+  getCachedIdToken,
   getValidAccessToken,
   onSessionInvalidated,
   saveAuthorizedSession,
@@ -253,9 +255,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setSignedOut();
   }, [setSignedOut]);
 
+  // Display-only - re-decoded from the always-fresh module-level cache rather than threaded through
+  // AuthState/every setState call site above (a JWT decode is cheap, and this avoids every one of
+  // this file's several setState calls needing to also remember to set an email field).
+  const userEmail = useMemo(
+    () => (state.isAuthenticated ? extractEmailClaim(decodeIdTokenClaims(getCachedIdToken() ?? '')) : null),
+    [state.isAuthenticated],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn, signOut, getValidAccessToken, retryBootstrap }),
-    [state, signIn, signOut, retryBootstrap],
+    () => ({ ...state, signIn, signOut, getValidAccessToken, retryBootstrap, userEmail }),
+    [state, signIn, signOut, retryBootstrap, userEmail],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

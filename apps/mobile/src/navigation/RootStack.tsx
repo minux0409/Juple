@@ -6,7 +6,6 @@ import type { BackendAuthStatus, UserBootstrapStatus } from '../auth/types';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
-import { RecentlyOpenedLinksScreen } from '../screens/RecentlyOpenedLinksScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { MainTabs } from './MainTabs';
@@ -17,8 +16,6 @@ export type RootStackParamList = {
   /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
   CollectionDetails: { collectionId: number };
   LanguageSettings: undefined;
-  /** My Page → "최근 본 링크" - the screen fetches the current page itself via GET. */
-  RecentlyOpenedLinks: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
@@ -85,11 +82,6 @@ export function RootStack() {
             component={LanguageSettingsScreen}
             name="LanguageSettings"
             options={{ title: t('nav.languageSettings') }}
-          />
-          <Stack.Screen
-            component={RecentlyOpenedLinksScreen}
-            name="RecentlyOpenedLinks"
-            options={{ title: t('nav.recentlyOpenedLinks') }}
           />
         </Stack.Group>
       ) : isAuthenticated ? (

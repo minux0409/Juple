@@ -15,6 +15,7 @@ jest.mock('react-native-app-auth', () => ({
 
 jest.mock('../session/authSessionManager', () => ({
   getValidAccessToken: jest.fn(),
+  getCachedIdToken: jest.fn(() => null),
   onSessionInvalidated: jest.fn(() => jest.fn()),
   clearSession: jest.fn(),
   saveAuthorizedSession: jest.fn(),

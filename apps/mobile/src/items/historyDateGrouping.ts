@@ -18,6 +18,11 @@ export interface HistorySection {
  * Runs over the whole accumulated items array (not per-page), so a load-more page boundary that
  * lands mid-day merges into the same section as already-shown rows instead of splitting it.
  */
+/** Today's dateKey in the device's local calendar - same computation groupHistoryByLocalDate uses internally, exported so screens can default-expand today's section without duplicating the logic. */
+export function todayDateKey(): string {
+  return formatDateOnly(new Date());
+}
+
 export function groupHistoryByLocalDate(
   items: readonly ItemHistoryEntry[],
   t: TFunction,

@@ -34,4 +34,6 @@ export interface AuthContextValue extends AuthState {
   ) => Promise<string>;
   /** Re-runs the session-restore/backend-check bootstrap - see AuthenticatedPlaceholder's retry action. */
   retryBootstrap: () => Promise<void>;
+  /** Email-like claim (email, then preferred_username, then upn) decoded from the current id token, or null if unauthenticated/not present. Display-only, never used for authorization. */
+  readonly userEmail: string | null;
 }

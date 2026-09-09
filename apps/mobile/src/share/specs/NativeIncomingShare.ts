@@ -17,6 +17,12 @@ export interface Spec extends TurboModule {
    * (via acknowledgePendingShare) is itself the success signal.
    */
   reportAttemptOutcome(pendingShareId: string, outcome: string): Promise<void>;
+  /**
+   * Mirrors the "quick save on share" JS preference into native SharedPreferences, so
+   * ShareReceiverActivity can read it synchronously (no JS/bridge guaranteed to be running yet)
+   * when deciding whether to silently save or bring the app to the foreground for review.
+   */
+  setQuickSaveOnShare(enabled: boolean): Promise<void>;
 }
 
 const nativeIncomingShare =

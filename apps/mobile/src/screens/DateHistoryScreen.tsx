@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -12,12 +12,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import i18n from '../i18n';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
-import { groupHistoryByLocalDate } from '../items/historyDateGrouping';
+import { groupHistoryByLocalDate, todayDateKey } from '../items/historyDateGrouping';
 import { useItemHistory } from '../items/useItemHistory';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { colors, spacing } from '../theme/tokens';
 
 function formatSavedTime(savedAtUtc: string): string {
   return new Intl.DateTimeFormat(i18n.language, {
@@ -32,6 +34,10 @@ function formatSavedTime(savedAtUtc: string): string {
  * never the Item's current Inbox/Wishlist/Archived state. A page boundary landing mid-day merges
  * into the same on-screen section since grouping runs over the whole accumulated flat list from
  * useItemHistory, not per-page.
+ *
+ * Each date section is an independent accordion: today starts expanded, older dates start
+ * collapsed (rendered with zero rows via SectionList's own `data`, not a separate component), and
+ * the user's expand/collapse choices are only initialized once (not reset on every refetch).
  */
 export function DateHistoryScreen() {
   const { t } = useTranslation();
@@ -40,6 +46,31 @@ export function DateHistoryScreen() {
     useItemHistory();
 
   const sections = useMemo(() => groupHistoryByLocalDate(items, t), [items, t]);
+
+  const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
+
+  useEffect(() => {
+    if (expandedDateKeys !== null || sections.length === 0) {
+      return;
+    }
+    const initialKey = sections.find(section => section.dateKey === todayDateKey())?.dateKey
+      ?? sections[0]?.dateKey;
+    if (initialKey) {
+      setExpandedDateKeys(new Set([initialKey]));
+    }
+  }, [sections, expandedDateKeys]);
+
+  const toggleSection = (dateKey: string) => {
+    setExpandedDateKeys(previous => {
+      const next = new Set(previous ?? []);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  };
 
   if (isLoading && items.length === 0 && !error) {
     return (
@@ -53,7 +84,10 @@ export function DateHistoryScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <SectionList
         contentContainerStyle={styles.content}
-        sections={sections.map(section => ({ ...section, data: section.items }))}
+        sections={sections.map(section => ({
+          ...section,
+          data: expandedDateKeys?.has(section.dateKey) ? section.items : [],
+        }))}
         keyExtractor={item => item.id.toString()}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
@@ -68,11 +102,26 @@ export function DateHistoryScreen() {
           </View>
         }
         ListEmptyComponent={!error ? <Text style={styles.empty}>{t('history.empty')}</Text> : undefined}
-        renderSectionHeader={({ section }) => (
-          <Text style={styles.sectionHeader}>
-            {t('history.sectionHeader', { label: section.label, count: section.items.length })}
-          </Text>
-        )}
+        renderSectionHeader={({ section }) => {
+          const isExpanded = expandedDateKeys?.has(section.dateKey) ?? false;
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isExpanded }}
+              onPress={() => toggleSection(section.dateKey)}
+              style={styles.sectionHeader}
+            >
+              <Text style={styles.sectionHeaderLabel}>
+                {t('history.sectionHeader', { label: section.label, count: section.items.length })}
+              </Text>
+              <ChevronIcon
+                color={colors.textSecondary}
+                direction={isExpanded ? 'up' : 'down'}
+                size={18}
+              />
+            </Pressable>
+          );
+        }}
         renderItem={({ item }) => (
           <HistoryRow
             item={item}
@@ -133,7 +182,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: 24,
+    padding: spacing.xl,
   },
   titleRow: {
     alignItems: 'center',
@@ -143,55 +192,62 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   error: {
-    color: '#B42318',
+    color: colors.danger,
     fontSize: 14,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   empty: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 14,
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
   sectionHeader: {
-    backgroundColor: '#F5F5F5',
-    color: '#666666',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 40,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xs + 2,
+  },
+  sectionHeaderLabel: {
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
-    paddingTop: 16,
-    paddingBottom: 6,
   },
   row: {
-    borderTopColor: '#E0E0E0',
+    borderTopColor: colors.divider,
     borderTopWidth: 1,
     flexDirection: 'row',
-    paddingVertical: 14,
+    paddingVertical: spacing.sm,
   },
   rowTextColumn: {
     flex: 1,
   },
   url: {
-    color: '#111111',
+    color: colors.textPrimary,
     fontSize: 15,
   },
   secondaryUrl: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 3,
   },
   memoPreview: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 5,
+    marginTop: 3,
   },
   savedTime: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 5,
+    marginTop: 3,
   },
   footerLoading: {
-    paddingVertical: 20,
+    paddingVertical: spacing.lg,
   },
 });
