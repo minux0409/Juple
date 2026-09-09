@@ -71,22 +71,27 @@ az acr login --name $foundation.acrName.value
 docker build -f backend/src/Juple.Api/Dockerfile -t "$($foundation.acrLoginServer.value)/juple-api:<tag>" backend/
 docker push "$($foundation.acrLoginServer.value)/juple-api:<tag>"
 
-# 3. App (resource group scope)
-# sqlConnectionString은 기존과 동일하게 환경변수로 전달한다 - 이미 검증된 방식이라 바꾸지 않는다.
-# publicCollectionCursorEncryptionKey는 @<file> 문법으로 전달한다 - repo 밖 임시 파일에 32바이트
-# key의 Base64 문자열만 담아두고, 명령줄/셸 히스토리에는 파일 경로만 남긴다(내용은 노출되지 않음).
+# 3. App (resource group scope) - app/main.bicep 자체는 environment-neutral하다: entraInstance/
+# entraTenantId/entraClientId에 Dev 전용 기본값을 두지 않는다(과거엔 뒀었는데, Production 배포에서
+# 이 셋을 override하는 걸 잊으면 Dev Entra tenant를 그대로 인증에 써버리는 위험이 있어 제거했다 -
+# customDomainName/managedCertificateName도 Web과 동일한 이유로 Dev 전용 기본값이 없다). Dev의
+# 실제 값은 `infra/azure/app/dev.bicepparam`에 고정되어 있다 - Web(위 6번)과 같은 이유로 non-secret
+# live 값(acrLoginServer 등)은 readEnvironmentVariable(...)로 읽고, secret 2개
+# (sqlConnectionString/publicCollectionCursorEncryptionKey)도 .bicepparam 사용 시
+# `--parameters`를 한 번만 허용하는 CLI 제약 때문에 같은 방식으로 읽는다 - 값 자체는 여전히 파일에
+# 커밋되지 않고, 배포자의 shell에 설정한 환경변수에서만 읽힌다.
+$env:JUPLE_APP_ACR_LOGIN_SERVER = $foundation.acrLoginServer.value
+$env:JUPLE_APP_CONTAINER_APPS_ENVIRONMENT_ID = $foundation.containerAppsEnvironmentId.value
+$env:JUPLE_APP_MANAGED_IDENTITY_RESOURCE_ID = $foundation.managedIdentityResourceId.value
+$env:JUPLE_APP_MANAGED_IDENTITY_CLIENT_ID = $foundation.managedIdentityClientId.value
+$env:JUPLE_APP_STORAGE_BLOB_SERVICE_URI = $foundation.storageBlobServiceUri.value
+$env:JUPLE_APP_IMAGE_TAG = '<tag>'
+$env:JUPLE_APP_SQL_CONNECTION_STRING = $env:SQL_CONNECTION_STRING
+$env:JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY = '<기존과 동일한 32바이트 key의 Base64 - 새로 생성하지 않는다>'
+
 az deployment group create `
   --resource-group $foundation.resourceGroupName.value `
-  --template-file infra/azure/app/main.bicep `
-  --parameters `
-    acrLoginServer=$foundation.acrLoginServer.value `
-    imageTag=<tag> `
-    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
-    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
-    managedIdentityClientId=$foundation.managedIdentityClientId.value `
-    storageBlobServiceUri=$foundation.storageBlobServiceUri.value `
-    sqlConnectionString=$env:SQL_CONNECTION_STRING `
-    publicCollectionCursorEncryptionKey=@<repo 밖 임시 파일 경로 - 32바이트 key의 Base64 한 줄>
+  --parameters infra/azure/app/dev.bicepparam
 
 # 4. Push dispatch Job (resource group scope) - App과 별개 리소스, 별개 secret 네임스페이스.
 # firebaseServiceAccountKeyJson도 같은 이유로 @<file> 문법으로 전달한다 - 사용자가 이미
@@ -155,22 +160,11 @@ az deployment group create `
 # managedCertificateName=<Production의 실제 Managed Certificate 이름>으로 채우고, 위와 동일하게
 # 5개 환경변수 + `--parameters infra/azure/web/prod.bicepparam`으로 배포한다.
 
-# 7. Backend에 Web의 실제 URL을 알려준다 (3번 App 재배포, resource group scope) - 위 6번에서
-# 나온 Web의 containerAppUrl 출력값(또는 이후 실제 custom domain)을 그대로 publicWebBaseUrl로
-# 전달한다. 다른 parameter는 3번과 동일하게 유지한다.
-az deployment group create `
-  --resource-group $foundation.resourceGroupName.value `
-  --template-file infra/azure/app/main.bicep `
-  --parameters `
-    acrLoginServer=$foundation.acrLoginServer.value `
-    imageTag=<3번과 동일한 tag> `
-    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
-    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
-    managedIdentityClientId=$foundation.managedIdentityClientId.value `
-    storageBlobServiceUri=$foundation.storageBlobServiceUri.value `
-    sqlConnectionString=$env:SQL_CONNECTION_STRING `
-    publicCollectionCursorEncryptionKey=@<repo 밖 임시 파일 경로 - 32바이트 key의 Base64 한 줄> `
-    publicWebBaseUrl=https://<6번에서 배포한 Web의 containerAppUrl>
+# 7. Backend에 Web의 실제 URL을 알려준다 - Dev는 이미 `app/dev.bicepparam`의 publicWebBaseUrl에
+# `https://dev.juple.co.kr`이 고정 반영되어 있으므로(위 3번을 그대로 재실행하면 끝) 별도 조치가
+# 필요 없다. 이 값을 나중에 바꿔야 하는 경우(도메인 이전 등)에는 해당 환경의 `<env>.bicepparam`
+# 파일에서 publicWebBaseUrl 한 줄만 실제 값으로 고쳐 커밋하고, 위 3번과 동일한 명령으로
+# 재배포한다 - 더 이상 이 값만 따로 --parameters로 덧붙이는 별도 배포 단계가 아니다.
 ```
 
 ## EF Core migration 적용
@@ -452,12 +446,21 @@ hostname binding만 초기화된다.
 그래서 지금은 `configuration.ingress.customDomains`를 `web/main.bicep`이 직접 선언한다
 (`customDomainName`/`managedCertificateName` 파라미터, 위 코드 참고). **`web/main.bicep` 자체는
 environment-neutral하다** - 두 파라미터 모두 기본값이 빈 문자열이고(`customDomains: []`), Dev
-전용 값을 템플릿에 두지 않는다. 처음엔 `app/main.bicep`의 `entraTenantId` 같은 "Dev 기본값을
-파라미터 default로 두고 override" 패턴을 그대로 따랐었지만, 이 값은 Entra 설정과 달리 실수로
-override를 빼먹으면 **다른 환경이 Dev의 domain/certificate를 그대로 참조**해버리는 위험이 있어
-(Entra 설정을 빼먹으면 그냥 Dev 테넌트를 계속 쓰는 정도지만, 여기선 Prod 배포가 `dev.juple.co.kr`
-바인딩을 시도하게 된다) 되돌렸다 - Dev의 실제 값은 대신 `infra/azure/web/dev.bicepparam`
+전용 값을 템플릿에 두지 않는다. Dev의 실제 값은 대신 `infra/azure/web/dev.bicepparam`
 (이 repo의 첫 `.bicepparam` 파일)에 고정한다.
+
+**같은 문제가 `app/main.bicep`에도 그대로 있었다** - `entraInstance`/`entraTenantId`/
+`entraClientId`가 Dev tenant 값을 파라미터 default로 갖고 있었고, `customDomains`를 아예
+선언하지도 않았다(Web의 이 fix가 적용되기 전과 동일한 상태). Entra 쪽은 override를 빼먹어도
+"그냥 Dev tenant로 계속 인증"이라 binding처럼 즉시 눈에 띄게 깨지진 않지만, Production이 조용히
+Dev tenant를 통해 인증을 처리하게 된다는 점에서 실질적으로 같은 위험이었다. 지금은 `app/main.bicep`
+도 Web과 동일하게 두 가지를 모두 고쳤다: entraInstance/entraTenantId/entraClientId는 기본값 없이
+필수 파라미터로 바뀌었고(entraRequiredScope는 tenant에 종속되지 않는 값이라 기본값 유지),
+`customDomainName`/`managedCertificateName`/`containerAppsEnvironmentName` +
+`configuration.ingress.customDomains`도 Web과 동일한 구조로 추가되었다(`api.juple.co.kr` 등
+API 자체의 custom domain을 위한 것 - Dev에는 아직 bind되어 있지 않아 `app/dev.bicepparam`에서
+둘 다 빈 문자열이다). Dev의 실제 Entra/PublicWeb 값은 `infra/azure/app/dev.bicepparam`에
+고정한다(live `az containerapp show` 결과로 재확인한 값 - 추측 없음).
 
 Certificate는 `Microsoft.App/managedEnvironments/managedCertificates`의 기존 리소스를
 `resourceId(...)`로 참조만 한다 - 이 템플릿이 새 certificate를 발급하거나 갱신하는 일은 없다.
@@ -485,22 +488,29 @@ parameter 파일을 쓰면) `main.bicep`의 기본값(둘 다 `""`)이 적용되
 안전하게 배포된다(`hasCustomDomain` 변수 참고) - Dev/Prod 어느 쪽도 다른 환경의 값을 실수로
 상속할 수 없다.
 
-**Production(`juple.co.kr`) 적용 시**도 같은 구조를 재사용한다 - Production Foundation이 실제로
-생기는 시점에 `infra/azure/web/prod.bicepparam`을 `dev.bicepparam`과 같은 구조로 새로 만들어
-`customDomainName=juple.co.kr`, `managedCertificateName=<Production의 실제 Managed Certificate
-이름>`을 채우면 된다. `main.bicep` 자체의 구조 변경은 필요 없다.
+**Production(`juple.co.kr`/`api.juple.co.kr`) 적용 시**도 같은 구조를 재사용한다 -
+`infra/azure/web/prod.bicepparam`과 `infra/azure/app/prod.bicepparam`이 이미 이 repo에
+준비되어 있다(둘 다 Production Foundation/리소스가 아직 없으므로 `customDomainName`/
+`managedCertificateName`은 일단 빈 문자열, 나머지 live 값은 `readEnvironmentVariable(...)`로
+fail-closed 처리 - 실제 리소스가 생기기 전에 배포를 시도하면 추측값 대신 명확한 BCP427 에러로
+막힌다). Production Foundation/리소스가 실제로 생기고 각 domain이 실제로 bind된 뒤,
+`customDomainName=juple.co.kr`(Web)/`api.juple.co.kr`(App), `managedCertificateName=<실제
+Managed Certificate 이름>`으로 그 두 줄만 채우면 된다. `main.bicep` 자체의 구조 변경은
+필요 없다.
 
 **배포/연결 순서**(Dev는 1~5 완료, 아래는 향후 재배포/Production 적용 시 참고용):
 
 1. `web/main.bicep` + `web/dev.bicepparam`으로 Web Container App 배포(위 "명령 예시" 6번) -
    `containerAppFqdn`(`*.azurecontainerapps.io`)만으로도 `/c/{publicId}` 접근은 즉시 가능하다.
 2. 실 production domain 확정.
-3. Web에 그 도메인을 custom domain으로 최초 연결(Container Apps 기능, `az containerapp hostname
-   add`/`bind` - 이 최초 binding/도메인 검증 자체는 여전히 이 Bicep 밖의 1회성 단계다). 이후에는
-   `prod.bicepparam`의 `customDomainName`/`managedCertificateName`으로 그 결과를 IaC에도
-   반영해 재배포마다 유지되게 한다(위 참고).
-4. `app/main.bicep`의 `publicWebBaseUrl`을 그 도메인으로 재배포(위 "명령 예시" 7번) - 이 값이
-   바뀌기 전까지 공유 URL은 계속 구버전 origin으로 조립된다.
+3. Web/API 각각에 그 도메인을 custom domain으로 최초 연결(Container Apps 기능, `az containerapp
+   hostname add`/`bind` - 이 최초 binding/도메인 검증 자체는 여전히 이 Bicep 밖의 1회성 단계다).
+   이후에는 해당 `prod.bicepparam`의 `customDomainName`/`managedCertificateName`으로 그 결과를
+   IaC에도 반영해 재배포마다 유지되게 한다(위 참고) - Web/API는 완전히 독립된 hostname/certificate
+   쌍이라 각자 따로 진행한다.
+4. `app/main.bicep`의 `publicWebBaseUrl`을 그 도메인으로 재배포(위 "명령 예시" 7번 참고 - Dev는
+   이미 `app/dev.bicepparam`에 고정 반영되어 있어 별도 조치가 필요 없었다) - 이 값이 바뀌기 전까지
+   공유 URL은 계속 구버전 origin으로 조립된다.
 5. Android(`JUPLE_PUBLIC_WEB_HOST`)/iOS(entitlements, Mac 필요)에 같은 도메인을 반영하고,
    Web의 `.well-known` 두 라우트가 실제로 올바른 값을 서빙하는지(fingerprint/Team ID 확보 후)
    확인해야 App Links/Universal Links가 실제로 동작한다.
@@ -521,5 +531,6 @@ parameter 파일을 쓰면) `main.bicep`의 기본값(둘 다 `""`)이 적용되
 | Container Apps Job | `caj-juple-push-dispatch-{environmentName}` | Push dispatch 전용, API와 별개 secret 네임스페이스 |
 | Container Apps Job | `caj-juple-blob-cleanup-{environmentName}` | Account deletion Blob cleanup 전용, Firebase 불필요, Push Job과 별개 secret 네임스페이스 |
 
-`environmentName`은 모든 템플릿에서 parameter이므로(현재는 `dev`만 허용), 향후 Staging/Production
-도 같은 템플릿을 재사용해 생성할 수 있다.
+`environmentName`은 모든 템플릿에서 parameter다. `foundation/main.bicep`의 `@allowed`는
+`dev`/`prod` 둘 다 허용한다(Production Foundation은 아직 실제로 배포되지 않았을 뿐, 템플릿 자체는
+막혀 있지 않다) - 같은 템플릿을 그대로 재사용해 생성한다. Staging은 여전히 고려 단계다.

@@ -7,9 +7,10 @@
 // the ACR this template creates (see ../README.md for the full order).
 targetScope = 'subscription'
 
-@description('Short environment name used throughout resource naming. Only "dev" is deployed today - docs/architecture.md still treats Staging/Production as future work - but every name here is parameterized on it so the same templates can be reused later.')
+@description('Short environment name used throughout resource naming. Only "dev" is actually deployed today - docs/architecture.md still treats Production as future work - but every name here is parameterized on it, and "prod" is now an allowed value too so Production Foundation can be deployed with this same template (no separate copy/fork) once that work actually starts. Defaults to "dev" so an existing Dev redeploy that omits this parameter is unaffected.')
 @allowed([
   'dev'
+  'prod'
 ])
 param environmentName string = 'dev'
 
