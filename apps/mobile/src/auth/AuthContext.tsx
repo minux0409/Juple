@@ -31,6 +31,7 @@ const INITIAL_STATE: AuthState = {
   error: null,
   backendAuthStatus: 'notChecked',
   userBootstrapStatus: 'notStarted',
+  sessionRestoreStep: 'sessionRestore',
 };
 
 const SIGNED_OUT_STATE: AuthState = {
@@ -40,6 +41,7 @@ const SIGNED_OUT_STATE: AuthState = {
   error: null,
   backendAuthStatus: 'notChecked',
   userBootstrapStatus: 'notStarted',
+  sessionRestoreStep: 'sessionRestore',
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -103,17 +105,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const runBootstrap = useCallback(async (isMountedRef: { current: boolean }) => {
     try {
-      const accessToken = await getValidAccessToken();
+      const accessToken = await getValidAccessToken({
+        // Reports the two real sub-phases of restoring a session (see authSessionManager.ts) so
+        // the Startup Progress UI can show determinate progress - never a fake timer.
+        onStep: step => {
+          if (isMountedRef.current) {
+            setState(previous => ({ ...previous, sessionRestoreStep: step }));
+          }
+        },
+      });
 
       if (isMountedRef.current) {
-        setState({
+        setState(previous => ({
+          ...previous,
           isInitializing: false,
           isSigningIn: false,
           isAuthenticated: true,
           error: null,
           backendAuthStatus: 'checking',
           userBootstrapStatus: 'notStarted',
-        });
+        }));
       }
 
       const backendAuthStatus = await validateBackendSession(accessToken);
@@ -150,14 +161,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       // retryBootstrap below / AuthenticatedPlaceholder's retry action) - this never retries on
       // its own, so a real, sustained outage still surfaces clearly rather than looping forever.
       if (isTransientSessionRestoreError(caughtError)) {
-        setState({
+        setState(previous => ({
+          ...previous,
           isInitializing: false,
           isSigningIn: false,
           isAuthenticated: true,
           error: null,
           backendAuthStatus: 'unavailable',
           userBootstrapStatus: 'notStarted',
-        });
+        }));
       } else {
         setSignedOut();
       }
@@ -204,14 +216,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         idToken: result.idToken,
       });
 
-      setState({
+      setState(previous => ({
+        ...previous,
         isInitializing: false,
         isSigningIn: false,
         isAuthenticated: true,
         error: null,
         backendAuthStatus: 'checking',
         userBootstrapStatus: 'notStarted',
-      });
+      }));
 
       const backendAuthStatus = await validateBackendSession(
         result.accessToken,
@@ -238,14 +251,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         );
       }
     } catch (caughtError) {
-      setState({
+      setState(previous => ({
+        ...previous,
         isInitializing: false,
         isSigningIn: false,
         isAuthenticated: false,
         error: toSafeAuthErrorMessage(caughtError, t),
         backendAuthStatus: 'notChecked',
         userBootstrapStatus: 'notStarted',
-      });
+      }));
     }
   }, [t]);
 

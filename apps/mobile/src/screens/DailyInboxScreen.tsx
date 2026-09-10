@@ -16,13 +16,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { RowActionSheet } from '../components/RowActionSheet';
-import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { LinkIcon } from '../icons/LinkIcon';
-import { OverflowIcon } from '../icons/OverflowIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
   deleteItem,
@@ -34,7 +33,7 @@ import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { parseSharedText } from '../share/sharedTextParser';
 import { useIncomingShare } from '../share/useIncomingShare';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
 
@@ -72,13 +71,6 @@ function getShareErrorMessage(t: TFunction): string {
   return t('item.shareError');
 }
 
-function formatSavedTime(savedAtUtc: string): string {
-  return new Intl.DateTimeFormat(i18n.language, {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(savedAtUtc));
-}
-
 /**
  * Home ("오늘 저장한 링크"): every URL the user saved today (SavedAtUtc, local calendar date),
  * regardless of current Inbox/Wishlist/Archived state - not a state-based triage view. A save that
@@ -86,7 +78,7 @@ function formatSavedTime(savedAtUtc: string): string {
  * History's own "오늘" section exactly (both derive from the same SavedAtUtc-local-date concept -
  * see GET /api/v1/items/history/date). Wishlist/Archive-moving actions are therefore not offered
  * from this screen; only viewing (tap -> ItemDetails), sharing, and deleting remain (share/delete
- * live behind a row's overflow menu - see RowActionSheet - not as always-visible buttons).
+ * live behind a row swipe - see SwipeableItemRow - not as always-visible buttons).
  *
  * A day's worth of saves is unbounded, so - mirroring useItemHistory.ts's verified
  * pagination/refresh pattern exactly - only one page loads up front and the rest is fetched via
@@ -108,7 +100,6 @@ export function DailyInboxScreen() {
   const [error, setError] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
-  const [actionSheetItem, setActionSheetItem] = useState<ItemHistoryEntry | null>(null);
 
   // Mirrors of the latest state/refs for use inside the Delete confirmation Alert's callbacks,
   // which are constructed once when the Alert opens and must not read stale values captured at
@@ -364,6 +355,7 @@ export function DailyInboxScreen() {
         keyExtractor={entry => entry.id.toString()}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        onScrollBeginDrag={closeOpenRow}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -430,15 +422,17 @@ export function DailyInboxScreen() {
         }
         ListEmptyComponent={<Text style={styles.empty}>{t('inbox.empty')}</Text>}
         renderItem={({ item }) => (
-          <InboxRow
-            isActionDisabled={actionInFlightItemId !== null || isRefreshing}
-            isActionInFlight={actionInFlightItemId === item.id}
-            item={item}
-            onOpenActions={() => setActionSheetItem(item)}
+          <SwipeableItemRow
+            containerStyle={styles.card}
+            disabled={actionInFlightItemId !== null || isRefreshing}
+            onDelete={() => confirmDelete(item.id)}
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.id });
             }}
-          />
+            onShare={() => runShare(item)}
+          >
+            <SavedLinkRow isActionInFlight={actionInFlightItemId === item.id} item={item} />
+          </SwipeableItemRow>
         )}
         ListFooterComponent={
           isLoadingMore ? (
@@ -448,68 +442,7 @@ export function DailyInboxScreen() {
           ) : undefined
         }
       />
-      <RowActionSheet
-        onClose={() => setActionSheetItem(null)}
-        onDelete={() => {
-          if (actionSheetItem) {
-            confirmDelete(actionSheetItem.id);
-          }
-        }}
-        onShare={() => {
-          if (actionSheetItem) {
-            runShare(actionSheetItem);
-          }
-        }}
-        visible={actionSheetItem !== null}
-      />
     </SafeAreaView>
-  );
-}
-
-interface InboxRowProps {
-  readonly item: ItemHistoryEntry;
-  readonly isActionDisabled: boolean;
-  readonly isActionInFlight: boolean;
-  readonly onOpenActions: () => void;
-  readonly onPress: () => void;
-}
-
-function InboxRow({ item, isActionDisabled, isActionInFlight, onOpenActions, onPress }: InboxRowProps) {
-  return (
-    <View style={styles.row}>
-      <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
-        <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
-        <View style={styles.rowTextColumn}>
-          <Text numberOfLines={2} style={styles.url}>
-            {item.title ?? item.url}
-          </Text>
-          {item.title ? (
-            <Text numberOfLines={1} style={styles.secondaryUrl}>
-              {item.url}
-            </Text>
-          ) : null}
-          {item.memo ? (
-            <Text numberOfLines={2} style={styles.memoPreview}>
-              {item.memo}
-            </Text>
-          ) : null}
-          <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
-        </View>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isActionDisabled, busy: isActionInFlight }}
-        disabled={isActionDisabled}
-        onPress={onOpenActions}
-        style={styles.overflowButton}
-      >
-        {isActionInFlight ? (
-          <ActivityIndicator size="small" />
-        ) : (
-          <OverflowIcon color={colors.textSecondary} size={20} />
-        )}
-      </Pressable>
-    </View>
   );
 }
 
@@ -613,45 +546,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: spacing.lg,
   },
-  row: {
-    alignItems: 'center',
-    borderTopColor: colors.divider,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    paddingVertical: spacing.sm,
-  },
-  rowPressable: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  rowTextColumn: {
-    flex: 1,
-    marginEnd: spacing.sm,
-  },
-  url: {
-    color: colors.textPrimary,
-    fontSize: 15,
-  },
-  secondaryUrl: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 3,
-  },
-  memoPreview: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 3,
-  },
-  savedTime: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 3,
-  },
-  overflowButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
+  // Each saved link is its own standalone card - a subtle border plus the screen's muted ambient
+  // background (not this card's own white surface) is what separates one row from the next, so no
+  // heavy shadow is needed. Vertical gaps between cards come from marginBottom here; horizontal
+  // margin deliberately isn't set here - `content`'s own padding.xl already lines every card up
+  // with the URL input/Save button above it.
+  card: {
+    borderColor: colors.divider,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
   },
   footerLoading: {
     paddingVertical: spacing.lg,

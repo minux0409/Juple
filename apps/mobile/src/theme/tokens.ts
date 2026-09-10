@@ -14,6 +14,8 @@ export const spacing = {
 export const radii = {
   sm: 6,
   md: 8,
+  /** Card-level radius (saved-link rows, grouped History sections). */
+  lg: 16,
 } as const;
 
 export const colors = {

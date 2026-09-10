@@ -1,4 +1,6 @@
-import type { GetValidAccessTokenOptions } from './session/authSessionManager';
+import type { GetValidAccessTokenOptions, SessionRestoreStep } from './session/authSessionManager';
+
+export type { SessionRestoreStep };
 
 export type BackendAuthStatus =
   | 'notChecked'
@@ -22,6 +24,8 @@ export interface AuthState {
   readonly error: string | null;
   readonly backendAuthStatus: BackendAuthStatus;
   readonly userBootstrapStatus: UserBootstrapStatus;
+  /** Only meaningful before backendAuthStatus leaves 'notChecked' - see bootstrapProgress.ts. */
+  readonly sessionRestoreStep: SessionRestoreStep;
 }
 
 export type { GetValidAccessTokenOptions };

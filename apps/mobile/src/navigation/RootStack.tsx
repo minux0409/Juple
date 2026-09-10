@@ -1,14 +1,22 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
-import type { BackendAuthStatus, UserBootstrapStatus } from '../auth/types';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
+import { StartupProgressScreen } from '../screens/StartupProgressScreen';
 import { MainTabs } from './MainTabs';
+
+/**
+ * Keeps the completed Startup Progress step ("준비가 완료되었습니다" at a full bar) on screen
+ * briefly instead of swapping to MainTabs the instant bootstrap finishes - long enough to read,
+ * short enough to never feel like a delay. Never used to fake progress, only to let a real,
+ * already-reached completion register before navigating away.
+ */
+const READY_LINGER_MS = 450;
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -30,23 +38,6 @@ export type RootStackParamList = {
   SharedCollection: { publicId: string };
 };
 
-const backendAuthMessageKeys: Record<BackendAuthStatus, string | null> = {
-  notChecked: null,
-  checking: 'auth.backendChecking',
-  valid: 'auth.backendValid',
-  unauthorized: 'auth.backendUnauthorized',
-  forbidden: 'auth.backendForbidden',
-  unavailable: 'auth.backendUnavailable',
-};
-
-const userBootstrapMessageKeys: Record<UserBootstrapStatus, string | null> = {
-  notStarted: null,
-  checking: 'auth.bootstrapChecking',
-  ready: 'auth.bootstrapReady',
-  invalidDeviceSettings: 'auth.bootstrapInvalidDeviceSettings',
-  unavailable: 'auth.bootstrapUnavailable',
-};
-
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
@@ -59,9 +50,23 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootStack() {
   const { t } = useTranslation();
-  const { isAuthenticated, backendAuthStatus, userBootstrapStatus } = useAuth();
-  const isReady =
+  const { isAuthenticated, isInitializing, backendAuthStatus, userBootstrapStatus } = useAuth();
+  const isBootstrapComplete =
     isAuthenticated && backendAuthStatus === 'valid' && userBootstrapStatus === 'ready';
+
+  // Lets the Startup Progress UI's completed state (full bar, "준비가 완료되었습니다") register
+  // on screen for READY_LINGER_MS before swapping to MainTabs - see that constant's own comment.
+  const [showMainTabs, setShowMainTabs] = useState(false);
+  useEffect(() => {
+    if (!isBootstrapComplete) {
+      setShowMainTabs(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowMainTabs(true), READY_LINGER_MS);
+    return () => clearTimeout(timer);
+  }, [isBootstrapComplete]);
+
+  const isReady = isBootstrapComplete && showMainTabs;
 
   return (
     <Stack.Navigator>
@@ -84,9 +89,9 @@ export function RootStack() {
             options={{ title: t('nav.languageSettings') }}
           />
         </Stack.Group>
-      ) : isAuthenticated ? (
+      ) : isInitializing || isAuthenticated ? (
         <Stack.Screen
-          component={AuthenticatedPlaceholder}
+          component={StartupProgressScreen}
           name="AuthPending"
           options={{ headerShown: false }}
         />
@@ -101,107 +106,3 @@ export function RootStack() {
     </Stack.Navigator>
   );
 }
-
-/** Verifies the auth round trip only; replaced by the real App Shell/Home later. */
-function AuthenticatedPlaceholder() {
-  const { t } = useTranslation();
-  const { signOut, backendAuthStatus, userBootstrapStatus, retryBootstrap } = useAuth();
-  const backendAuthMessageKey = backendAuthMessageKeys[backendAuthStatus];
-  const userBootstrapMessageKey = userBootstrapMessageKeys[userBootstrapStatus];
-  // Only backendAuthStatus can land here as 'unavailable' from a retryable state (a transient
-  // failure restoring the session, or the Backend itself being briefly unreachable - see
-  // AuthContext.tsx's runBootstrap) - userBootstrapStatus's own 'unavailable' means the device's
-  // regional settings were rejected, which retrying with no changed input would not fix.
-  const canRetry = backendAuthStatus === 'unavailable';
-
-  return (
-    <View style={styles.placeholderContainer}>
-      <Text style={styles.placeholderTitle}>Juple</Text>
-      <Text style={styles.placeholderMessage}>{t('auth.loggedIn')}</Text>
-      <Text style={styles.placeholderSubMessage}>{t('auth.authConnected')}</Text>
-      {backendAuthMessageKey ? (
-        <Text style={styles.placeholderBackendAuthMessage}>{t(backendAuthMessageKey)}</Text>
-      ) : null}
-      {userBootstrapMessageKey ? (
-        <Text style={styles.placeholderUserBootstrapMessage}>{t(userBootstrapMessageKey)}</Text>
-      ) : null}
-      {canRetry ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={retryBootstrap}
-          style={styles.placeholderRetryButton}
-        >
-          <Text style={styles.placeholderRetryLabel}>{t('auth.retry')}</Text>
-        </Pressable>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={signOut}
-        style={styles.placeholderSignOutButton}
-      >
-        <Text style={styles.placeholderSignOutLabel}>{t('auth.logout')}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  placeholderContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  placeholderTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  placeholderMessage: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  placeholderSubMessage: {
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-  },
-  placeholderBackendAuthMessage: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-  },
-  placeholderUserBootstrapMessage: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666666',
-    textAlign: 'center',
-  },
-  placeholderRetryButton: {
-    marginTop: 20,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    backgroundColor: '#111111',
-  },
-  placeholderRetryLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  placeholderSignOutButton: {
-    marginTop: 12,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderWidth: 1,
-    borderColor: '#111111',
-  },
-  placeholderSignOutLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111111',
-  },
-});

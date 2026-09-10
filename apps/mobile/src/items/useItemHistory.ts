@@ -28,6 +28,8 @@ export interface UseItemHistoryResult {
   readonly error: string | null;
   readonly refresh: () => void;
   readonly loadMore: () => void;
+  /** Removes an already-deleted Item from the in-memory list - the caller owns the actual delete API call. */
+  readonly removeItem: (itemId: number) => void;
 }
 
 /**
@@ -138,5 +140,9 @@ export function useItemHistory(): UseItemHistoryResult {
     })();
   }, [authenticatedRequest, nextCursor, isLoading, isRefreshing, t]);
 
-  return { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore };
+  const removeItem = useCallback((itemId: number) => {
+    setItems(previousItems => previousItems.filter(item => item.id !== itemId));
+  }, []);
+
+  return { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeItem };
 }

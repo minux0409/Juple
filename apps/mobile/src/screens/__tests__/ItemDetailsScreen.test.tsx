@@ -1,0 +1,471 @@
+import ReactTestRenderer, { act } from 'react-test-renderer';
+import { Alert, Text, TextInput } from 'react-native';
+import { usePreventRemove } from '@react-navigation/native';
+import i18n from '../../i18n';
+import { ItemDetailsScreen } from '../ItemDetailsScreen';
+import { getItemDetails, updateItemDetails, type ItemDetails } from '../../items/api/itemsApi';
+import { deleteItemImage, getItemImages, uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
+import {
+  addItemToCollection,
+  getCollections,
+  removeItemFromCollection,
+  type Collection,
+  type GetCollectionsOptions,
+} from '../../collections/api/collectionsApi';
+import { launchImageLibrary } from 'react-native-image-picker';
+
+// The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
+// otherwise resolve to English by default - pinned to Korean so this file's label assertions are
+// deterministic regardless of that mock's default locale.
+beforeAll(async () => {
+  await i18n.changeLanguage('ko');
+});
+
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      return callback();
+    }, [callback]);
+  },
+  usePreventRemove: jest.fn(),
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
+jest.mock('../../items/api/itemsApi', () => ({
+  getItemDetails: jest.fn(),
+  updateItemDetails: jest.fn(),
+  deleteItem: jest.fn(),
+}));
+
+jest.mock('../../images/api/imagesApi', () => ({
+  getItemImages: jest.fn(),
+  uploadItemImage: jest.fn(),
+  deleteItemImage: jest.fn(),
+}));
+
+jest.mock('../../collections/api/collectionsApi', () => ({
+  getCollections: jest.fn(),
+  addItemToCollection: jest.fn(),
+  removeItemFromCollection: jest.fn(),
+  createCollection: jest.fn(),
+}));
+
+jest.mock('../../items/shareItem', () => ({
+  shareItem: jest.fn(),
+}));
+
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn(),
+}));
+
+const route = { key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1 } } as never;
+const navigation = { goBack: jest.fn() } as never;
+
+function makeItemDetails(overrides: Partial<ItemDetails> = {}): ItemDetails {
+  return {
+    id: 1,
+    url: 'https://example.com',
+    title: 'Original title',
+    memo: 'Original memo',
+    savedAtUtc: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function makeImage(overrides: Partial<ItemImage> = {}): ItemImage {
+  return {
+    id: 1,
+    contentType: 'image/jpeg',
+    byteLength: 1000,
+    sortOrder: 0,
+    createdAtUtc: new Date().toISOString(),
+    readUrl: 'https://example.com/image.jpg',
+    ...overrides,
+  };
+}
+
+function makeCollection(overrides: Partial<Collection> = {}): Collection {
+  return {
+    id: 1,
+    name: 'Groceries',
+    isFavorite: false,
+    itemCount: 0,
+    createdAtUtc: new Date().toISOString(),
+    updatedAtUtc: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function findPressableByText(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
+  return renderer.root
+    .findAll(node => typeof node.props.onPress === 'function')
+    .find(node => node.findAllByType(Text).some(textNode => textNode.props.children === text));
+}
+
+function findPressableByAccessibilityLabel(
+  renderer: ReactTestRenderer.ReactTestRenderer,
+  label: string,
+) {
+  return renderer.root.findAll(node => node.props.accessibilityLabel === label)[0];
+}
+
+function isSaveDisabled(renderer: ReactTestRenderer.ReactTestRenderer): boolean {
+  return findPressableByText(renderer, '저장')?.props.accessibilityState.disabled;
+}
+
+/** The most recent isDirty value usePreventRemove was called with - i.e. whether leaving now would show the unsaved-changes warning. */
+function latestPreventRemoveIsDirty(): boolean {
+  const calls = jest.mocked(usePreventRemove).mock.calls;
+  return calls[calls.length - 1]?.[0];
+}
+
+async function renderScreen() {
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = ReactTestRenderer.create(
+      <ItemDetailsScreen navigation={navigation} route={route} />,
+    );
+  });
+  return renderer;
+}
+
+function mockConfirmAlert(): jest.SpyInstance {
+  return jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+    const confirmButton = buttons?.find(button => button.style === 'destructive');
+    confirmButton?.onPress?.();
+  });
+}
+
+describe('ItemDetailsScreen', () => {
+  beforeEach(() => {
+    jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails());
+    jest.mocked(getItemImages).mockResolvedValue([]);
+    jest.mocked(getCollections).mockImplementation(
+      async (_request, options: GetCollectionsOptions = {}) => {
+        if (options.itemId) {
+          return { items: [], nextCursor: null };
+        }
+        return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
+      },
+    );
+    jest.mocked(launchImageLibrary).mockResolvedValue({
+      didCancel: false,
+      assets: [{ uri: 'file://photo.jpg', type: 'image/jpeg', fileName: 'photo.jpg' }],
+    } as never);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('title/memo', () => {
+    it('keeps Save disabled until title or memo actually changes', async () => {
+      const renderer = await renderScreen();
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      const titleInput = renderer.root.findAllByType(TextInput)[0];
+      await act(async () => {
+        titleInput.props.onChangeText('Changed title');
+      });
+
+      expect(isSaveDisabled(renderer)).toBe(false);
+    });
+
+    it('revert -> not dirty: restoring the original title disables Save again', async () => {
+      const renderer = await renderScreen();
+      const titleInput = renderer.root.findAllByType(TextInput)[0];
+
+      await act(async () => {
+        titleInput.props.onChangeText('Changed title');
+      });
+      expect(isSaveDisabled(renderer)).toBe(false);
+
+      await act(async () => {
+        titleInput.props.onChangeText('Original title');
+      });
+      expect(isSaveDisabled(renderer)).toBe(true);
+    });
+
+    it('save -> new baseline: saving establishes the saved value as the new baseline', async () => {
+      jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+      const titleInput = renderer.root.findAllByType(TextInput)[0];
+
+      await act(async () => {
+        titleInput.props.onChangeText('Saved title');
+      });
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 1, {
+        title: 'Saved title',
+        memo: 'Original memo',
+      });
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      await act(async () => {
+        titleInput.props.onChangeText('Original title');
+      });
+      expect(isSaveDisabled(renderer)).toBe(false);
+    });
+  });
+
+  describe('images - immediate persistence, never staged', () => {
+    it('image add calls the upload API immediately', async () => {
+      jest.mocked(uploadItemImage).mockResolvedValue(makeImage({ id: 9 }));
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+      });
+
+      expect(uploadItemImage).toHaveBeenCalledTimes(1);
+    });
+
+    it('image delete calls the delete API immediately (after confirmation)', async () => {
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
+      jest.mocked(deleteItemImage).mockResolvedValue(undefined);
+      const alertSpy = mockConfirmAlert();
+      const renderer = await renderScreen();
+
+      const deleteButton = findPressableByAccessibilityLabel(renderer, '사진 삭제');
+      await act(async () => {
+        deleteButton.props.onPress();
+      });
+
+      expect(deleteItemImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
+      alertSpy.mockRestore();
+    });
+
+    it('image add/delete never affect isDirty - Save stays disabled for an image-only change', async () => {
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
+      jest.mocked(uploadItemImage).mockResolvedValue(makeImage({ id: 9 }));
+      jest.mocked(deleteItemImage).mockResolvedValue(undefined);
+      const alertSpy = mockConfirmAlert();
+      const renderer = await renderScreen();
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      await act(async () => {
+        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+      });
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      const deleteButton = findPressableByAccessibilityLabel(renderer, '사진 삭제');
+      await act(async () => {
+        deleteButton.props.onPress();
+      });
+      expect(isSaveDisabled(renderer)).toBe(true);
+      alertSpy.mockRestore();
+    });
+
+    it('an image-only change never triggers the unsaved-changes back warning', async () => {
+      jest.mocked(uploadItemImage).mockResolvedValue(makeImage({ id: 9 }));
+      const renderer = await renderScreen();
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+
+      await act(async () => {
+        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+      });
+
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+    });
+
+    it('an upload failure never leaves the UI looking like it succeeded', async () => {
+      jest.mocked(uploadItemImage).mockRejectedValue(new Error('network error'));
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+      });
+
+      expect(renderer.root.findAllByType(require('react-native').Image)).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: '사진을 업로드할 수 없습니다.' })).toBeTruthy();
+    });
+  });
+
+  describe('categories - staged, only persisted on Save', () => {
+    it('category add stages locally with no immediate API call, and enables Save', async () => {
+      const renderer = await renderScreen();
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      await act(async () => {
+        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
+      });
+
+      expect(addItemToCollection).not.toHaveBeenCalled();
+      expect(isSaveDisabled(renderer)).toBe(false);
+    });
+
+    it('category remove stages locally with no immediate API call, and enables Save', async () => {
+      jest.mocked(getCollections).mockImplementation(
+        async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
+          }
+          return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
+        },
+      );
+      const renderer = await renderScreen();
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      await act(async () => {
+        findPressableByText(renderer, '제거')?.props.onPress();
+      });
+
+      expect(removeItemFromCollection).not.toHaveBeenCalled();
+      expect(isSaveDisabled(renderer)).toBe(false);
+    });
+
+    it('reverting a staged category change (remove then re-add) disables Save again', async () => {
+      jest.mocked(getCollections).mockImplementation(
+        async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
+          }
+          return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
+        },
+      );
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByText(renderer, '제거')?.props.onPress();
+      });
+      expect(isSaveDisabled(renderer)).toBe(false);
+
+      await act(async () => {
+        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
+      });
+
+      expect(isSaveDisabled(renderer)).toBe(true);
+    });
+
+    it('a staged category change triggers the unsaved-changes back warning until saved', async () => {
+      jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+
+      await act(async () => {
+        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
+      });
+      expect(latestPreventRemoveIsDirty()).toBe(true);
+
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+    });
+
+    it('Save calls addItemToCollection/removeItemFromCollection for exactly the staged diff', async () => {
+      jest.mocked(getCollections).mockImplementation(
+        async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
+          }
+          return { items: [makeCollection({ id: 6, name: 'Groceries' })], nextCursor: null };
+        },
+      );
+      jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      // Remove the existing membership (Wishlist) and add a new one (Groceries).
+      await act(async () => {
+        findPressableByText(renderer, '제거')?.props.onPress();
+      });
+      await act(async () => {
+        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Groceries')?.props.onPress();
+      });
+
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1);
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 6, 1);
+      expect(isSaveDisabled(renderer)).toBe(true);
+      expect(renderer.root.findByProps({ children: '저장되었습니다.' })).toBeTruthy();
+    });
+
+    it('never shows a saved message before Save is actually pressed, even after staging a category change', async () => {
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
+      });
+
+      expect(renderer.root.findAllByProps({ children: '저장되었습니다.' })).toHaveLength(0);
+    });
+
+    it('a partial category save failure keeps only the failed diff pending, and retry does not redo the succeeded one', async () => {
+      jest.mocked(getCollections).mockImplementation(
+        async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            return { items: [], nextCursor: null };
+          }
+          return {
+            items: [
+              makeCollection({ id: 5, name: 'Wishlist' }),
+              makeCollection({ id: 6, name: 'Groceries' }),
+            ],
+            nextCursor: null,
+          };
+        },
+      );
+      jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => {
+        if (collectionId === 6) {
+          throw new Error('network error');
+        }
+      });
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByText(renderer, 'Groceries')?.props.onPress();
+      });
+
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      expect(addItemToCollection).toHaveBeenCalledTimes(2);
+      // Wishlist succeeded, Groceries failed - Save must stay enabled (Groceries still pending).
+      expect(isSaveDisabled(renderer)).toBe(false);
+      expect(renderer.root.findAllByProps({ children: '저장되었습니다.' })).toHaveLength(0);
+
+      jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      // Only the still-pending Groceries add is retried - Wishlist (already succeeded) is not
+      // re-sent a third time.
+      expect(addItemToCollection).toHaveBeenCalledTimes(3);
+      expect(isSaveDisabled(renderer)).toBe(true);
+    });
+  });
+});

@@ -180,6 +180,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
 
+  // Images are an immediate server mutation, deliberately never staged - unlike title/memo/
+  // categories, there is no locally-staged image state for Save to ever commit (see this file's
+  // isDirty below, and the "Save semantics" round that settled this).
   const [images, setImages] = useState<readonly ItemImage[]>([]);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -189,33 +192,29 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const isUploadingImageRef = useRef(false);
   const deletingImageIdsRef = useRef<Set<number>>(new Set());
 
-  // An Item can belong to any number of Collections at once, so membership is its own list.
-  // There is no cap on how many Collections an Item can belong to, so this is genuinely paginated
-  // (see loadMoreItemCollections below) rather than assumed to fit in one page.
-  const [itemCollections, setItemCollections] = useState<readonly Collection[]>([]);
+  // The Item's currently-staged Collection membership (selectedCategories) vs. the last known
+  // persisted membership (originalCategoryIds) - the diff between the two is exactly what Save
+  // must add/remove. There is no cap on how many Collections an Item can belong to, so this is
+  // genuinely paginated (see loadMoreItemCollections below) rather than assumed to fit one page.
+  const [selectedCategories, setSelectedCategories] = useState<readonly Collection[]>([]);
+  const [originalCategoryIds, setOriginalCategoryIds] = useState<ReadonlySet<number>>(new Set());
   const [itemCollectionsNextCursor, setItemCollectionsNextCursor] = useState<string | null>(null);
   const [isLoadingItemCollections, setIsLoadingItemCollections] = useState(true);
   const [isLoadingMoreItemCollections, setIsLoadingMoreItemCollections] = useState(false);
   const loadingMoreItemCollectionsRef = useRef(false);
   const [itemCollectionsError, setItemCollectionsError] = useState<string | null>(null);
   const itemCollectionsRequestIdRef = useRef(0);
-  const [removingCollectionId, setRemovingCollectionId] = useState<number | null>(null);
 
   const [isCollectionModalVisible, setIsCollectionModalVisible] = useState(false);
-  // The server excludes Collections the Item already belongs to (excludeItemId - see
-  // collectionsApi.ts), so this is exactly the addable set on every page, regardless of how much
-  // of itemCollections above has itself been loaded - unlike filtering client-side against a
-  // separately-paginated membership list, which could resurface an already-added Collection while
-  // its own membership page hadn't loaded yet.
-  const [addableCollectionOptions, setAddableCollectionOptions] = useState<readonly Collection[]>([]);
+  // The raw fetched pool of the user's Collections (no server-side excludeItemId anymore - the
+  // "addable" set must reflect the current *staged* selection, not the last-persisted membership,
+  // so it is computed below by filtering this pool against selectedCategories on every render).
+  const [collectionPool, setCollectionPool] = useState<readonly Collection[]>([]);
+  const [collectionPoolNextCursor, setCollectionPoolNextCursor] = useState<string | null>(null);
   const [isLoadingCollectionOptions, setIsLoadingCollectionOptions] = useState(false);
-  // The user's full Collection list is unbounded (production API, always paginated) - this modal
-  // must scroll-loadMore through it rather than assume one page has everything.
-  const [collectionOptionsNextCursor, setCollectionOptionsNextCursor] = useState<string | null>(null);
   const [isLoadingMoreCollectionOptions, setIsLoadingMoreCollectionOptions] = useState(false);
   const loadingMoreCollectionOptionsRef = useRef(false);
   const [collectionModalError, setCollectionModalError] = useState<string | null>(null);
-  const [addingCollectionId, setAddingCollectionId] = useState<number | null>(null);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
 
@@ -229,6 +228,22 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [itemActionError, setItemActionError] = useState<string | null>(null);
   const itemActionInFlightRef = useRef(false);
   const isItemDeleteConfirmOpenRef = useRef(false);
+
+  // Plain per-render value (not memoized - a cheap scan over a small list), so the focus-refetch
+  // guard below and the combined isDirty further down always agree on one definition. Image
+  // add/remove is deliberately excluded - see the "images" state's own comment above.
+  const isCategoriesDirty =
+    selectedCategories.length !== originalCategoryIds.size ||
+    selectedCategories.some(option => !originalCategoryIds.has(option.id));
+  const isDirty = title !== baselineTitle || memo !== baselineMemo || isCategoriesDirty;
+
+  const isCategoriesDirtyRef = useRef(isCategoriesDirty);
+  useEffect(() => {
+    isCategoriesDirtyRef.current = isCategoriesDirty;
+  }, [isCategoriesDirty]);
+
+  const selectedCategoryIds = new Set(selectedCategories.map(option => option.id));
+  const addableCollectionOptions = collectionPool.filter(option => !selectedCategoryIds.has(option.id));
 
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
@@ -280,7 +295,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       if (itemCollectionsRequestIdRef.current !== requestId) {
         return;
       }
-      setItemCollections(page.items);
+      setSelectedCategories(page.items);
+      setOriginalCategoryIds(new Set(page.items.map(option => option.id)));
       setItemCollectionsNextCursor(page.nextCursor);
     } catch (caughtError) {
       if (itemCollectionsRequestIdRef.current !== requestId) {
@@ -313,10 +329,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         if (itemCollectionsRequestIdRef.current !== requestId) {
           return;
         }
-        setItemCollections(previous => {
+        setSelectedCategories(previous => {
           const seenIds = new Set(previous.map(option => option.id));
           const additional = page.items.filter(option => !seenIds.has(option.id));
           return [...previous, ...additional];
+        });
+        setOriginalCategoryIds(previous => {
+          const next = new Set(previous);
+          for (const option of page.items) {
+            next.add(option.id);
+          }
+          return next;
         });
         setItemCollectionsNextCursor(page.nextCursor);
       } catch (caughtError) {
@@ -331,10 +354,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   // Refetches on every focus (not just mount), so a Collection add/remove made elsewhere (e.g. from
-  // CollectionDetailsScreen) is reflected immediately here too.
+  // CollectionDetailsScreen) is reflected here too - but never while the user has an in-progress,
+  // unsaved staged category edit on this very screen, which a refetch would otherwise silently
+  // discard the moment focus returns here (e.g. after opening the add-to-category modal's "create
+  // new category" flow, which itself briefly leaves and returns focus in some navigators).
   useFocusEffect(
     useCallback(() => {
-      loadItemCollections();
+      if (!isCategoriesDirtyRef.current) {
+        loadItemCollections();
+      }
     }, [loadItemCollections]),
   );
 
@@ -365,6 +393,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     isUploadingImageRef.current = true;
     setIsUploadingImage(true);
     setImagesError(null);
+    // A stale "저장되었습니다." from an earlier title/memo/category save no longer describes the
+    // screen once something else has changed - mirrors title/memo's own onChangeText clearing it.
+    setJustSaved(false);
     try {
       // asset.type is whatever the picker actually reports post-conversion - never assumed or
       // overridden to 'image/jpeg' here. The server independently verifies the real format via
@@ -378,6 +409,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       // appending preserves the SortOrder ASC, Id ASC order without needing to re-sort.
       setImages(previous => [...previous, uploaded]);
     } catch (caughtError) {
+      // Failure never leaves the UI looking like the upload succeeded - the photo simply never
+      // appears, alongside a clear error below the list.
       setImagesError(getImageUploadErrorMessage(caughtError, t));
     } finally {
       isUploadingImageRef.current = false;
@@ -393,11 +426,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     deletingImageIdsRef.current.add(imageId);
     setDeletingImageIds(new Set(deletingImageIdsRef.current));
     setImagesError(null);
+    setJustSaved(false);
     try {
       await deleteItemImage(authenticatedRequest, itemId, imageId);
       setImages(previous => previous.filter(image => image.id !== imageId));
     } catch (caughtError) {
-      // Failure leaves the existing UI (the image stays in the list) unchanged.
+      // Failure leaves the existing UI (the image stays in the list) unchanged - never removed
+      // client-side unless the server actually confirmed the delete.
       setImagesError(getImageDeleteErrorMessage(caughtError, t));
     } finally {
       deletingImageIdsRef.current.delete(imageId);
@@ -420,21 +455,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     ]);
   };
 
-  const removeFromCollection = async (collectionId: number) => {
-    if (removingCollectionId !== null) {
-      return;
-    }
-
-    setRemovingCollectionId(collectionId);
-    setItemCollectionsError(null);
-    try {
-      await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
-      setItemCollections(previous => previous.filter(option => option.id !== collectionId));
-    } catch (caughtError) {
-      setItemCollectionsError(getCollectionMembershipErrorMessage(caughtError, t));
-    } finally {
-      setRemovingCollectionId(null);
-    }
+  const stageRemoveCategory = (collectionId: number) => {
+    setJustSaved(false);
+    setSelectedCategories(previous => previous.filter(option => option.id !== collectionId));
   };
 
   const openCollectionModal = async () => {
@@ -443,16 +466,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setNewCollectionName('');
     setIsLoadingCollectionOptions(true);
     try {
-      // excludeItemId is server-side, so every page returned here is already guaranteed to
-      // exclude Collections the Item belongs to - no client-side filtering against
-      // itemCollections needed (and it would be unreliable anyway: itemCollections can itself
-      // still be mid-pagination).
-      const page = await getCollections(authenticatedRequest, {
-        excludeItemId: itemId,
-        limit: COLLECTION_OPTIONS_PAGE_LIMIT,
-      });
-      setAddableCollectionOptions(page.items);
-      setCollectionOptionsNextCursor(page.nextCursor);
+      // No excludeItemId here on purpose - the addable set must reflect the current staged
+      // selection (see addableCollectionOptions above), which the server has no notion of.
+      const page = await getCollections(authenticatedRequest, { limit: COLLECTION_OPTIONS_PAGE_LIMIT });
+      setCollectionPool(page.items);
+      setCollectionPoolNextCursor(page.nextCursor);
     } catch (caughtError) {
       setCollectionModalError(getItemCollectionsListErrorMessage(caughtError, t));
     } finally {
@@ -461,7 +479,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   const closeCollectionModal = () => {
-    if (addingCollectionId !== null || isCreatingCollection) {
+    if (isCreatingCollection) {
       return;
     }
     setIsCollectionModalVisible(false);
@@ -471,7 +489,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     if (
       loadingMoreCollectionOptionsRef.current ||
       isLoadingCollectionOptions ||
-      !collectionOptionsNextCursor
+      !collectionPoolNextCursor
     ) {
       return;
     }
@@ -482,16 +500,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     (async () => {
       try {
         const page = await getCollections(authenticatedRequest, {
-          excludeItemId: itemId,
           limit: COLLECTION_OPTIONS_PAGE_LIMIT,
-          cursor: collectionOptionsNextCursor,
+          cursor: collectionPoolNextCursor,
         });
-        setAddableCollectionOptions(previous => {
+        setCollectionPool(previous => {
           const seenIds = new Set(previous.map(option => option.id));
           const additional = page.items.filter(option => !seenIds.has(option.id));
           return [...previous, ...additional];
         });
-        setCollectionOptionsNextCursor(page.nextCursor);
+        setCollectionPoolNextCursor(page.nextCursor);
       } catch (caughtError) {
         setCollectionModalError(getItemCollectionsListErrorMessage(caughtError, t));
       } finally {
@@ -501,26 +518,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     })();
   };
 
-  const addToCollection = async (option: Collection) => {
-    if (addingCollectionId !== null) {
-      return;
-    }
-
-    setAddingCollectionId(option.id);
-    setCollectionModalError(null);
-    try {
-      await addItemToCollection(authenticatedRequest, option.id, itemId);
-      setItemCollections(previous => [...previous, option]);
-      setAddableCollectionOptions(previous => previous.filter(remaining => remaining.id !== option.id));
-    } catch (caughtError) {
-      setCollectionModalError(getCollectionMembershipErrorMessage(caughtError, t));
-    } finally {
-      setAddingCollectionId(null);
-    }
+  const stageAddCategory = (option: Collection) => {
+    setJustSaved(false);
+    setSelectedCategories(previous =>
+      previous.some(existing => existing.id === option.id) ? previous : [...previous, option],
+    );
   };
 
   const submitNewCollection = async () => {
-    if (addingCollectionId !== null || isCreatingCollection) {
+    if (isCreatingCollection) {
       return;
     }
 
@@ -534,8 +540,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsCreatingCollection(true);
     setCollectionModalError(null);
     try {
+      // Creating the category itself is not part of this Item's staged membership edit - it is an
+      // immediate, item-independent action (like creating a folder to file into later); only
+      // actually adding this Item to it is staged, via stageAddCategory below.
       const created = await createCollection(authenticatedRequest, trimmedName);
-      setAddableCollectionOptions(previous => [...previous, created]);
+      setCollectionPool(previous => [...previous, created]);
       setNewCollectionName('');
     } catch (caughtError) {
       setCollectionModalError(getCollectionCreateErrorMessage(caughtError, t));
@@ -588,8 +597,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     ], { cancelable: true, onDismiss: closeConfirmation });
   };
 
-  const isDirty = title !== baselineTitle || memo !== baselineMemo;
-
   usePreventRemove(isDirty, ({ data }) => {
     Alert.alert(
       t('item.unsavedChangesTitle'),
@@ -605,6 +612,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     );
   });
 
+  /**
+   * Persists exactly the staged changes - title/memo (if changed) and the category
+   * add/remove diff - never a duplicate call for a category already in the state it's supposed to
+   * reach. Each operation updates its own baseline (baselineTitle/baselineMemo, or
+   * originalCategoryIds) the moment it succeeds, independently of whether any other operation in
+   * this same Save later fails - so a partial category failure never loses or duplicates a still-
+   * pending change, isDirty stays true only for what actually still needs saving, and the user can
+   * just press Save again to retry the remainder. Images are never touched here - see the
+   * "images" state's own comment above.
+   */
   const save = async () => {
     if (isSavingRef.current || !isDirty) {
       return;
@@ -613,15 +630,51 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsSaving(true);
     setError(null);
     setJustSaved(false);
-    try {
-      await updateItemDetails(authenticatedRequest, itemId, { title, memo });
-      setBaselineTitle(title);
-      setBaselineMemo(memo);
+
+    const failureMessages: string[] = [];
+
+    if (title !== baselineTitle || memo !== baselineMemo) {
+      try {
+        await updateItemDetails(authenticatedRequest, itemId, { title, memo });
+        setBaselineTitle(title);
+        setBaselineMemo(memo);
+      } catch (caughtError) {
+        failureMessages.push(getSaveErrorMessage(caughtError, t));
+      }
+    }
+
+    const currentSelectedIds = new Set(selectedCategories.map(option => option.id));
+    const categoriesToAdd = selectedCategories.filter(option => !originalCategoryIds.has(option.id));
+    const categoryIdsToRemove = [...originalCategoryIds].filter(id => !currentSelectedIds.has(id));
+
+    for (const option of categoriesToAdd) {
+      try {
+        await addItemToCollection(authenticatedRequest, option.id, itemId);
+        setOriginalCategoryIds(previous => new Set(previous).add(option.id));
+      } catch (caughtError) {
+        failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
+      }
+    }
+    for (const collectionId of categoryIdsToRemove) {
+      try {
+        await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
+        setOriginalCategoryIds(previous => {
+          const next = new Set(previous);
+          next.delete(collectionId);
+          return next;
+        });
+      } catch (caughtError) {
+        failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
+      }
+    }
+
+    setIsSaving(false);
+    if (failureMessages.length > 0) {
+      // De-duplicated - several failed operations of the same kind must not repeat the same
+      // sentence over and over.
+      setError([...new Set(failureMessages)].join('\n'));
+    } else {
       setJustSaved(true);
-    } catch (caughtError) {
-      setError(getSaveErrorMessage(caughtError, t));
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -816,27 +869,20 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
       {isLoadingItemCollections ? (
         <ActivityIndicator style={styles.purchasesLoading} />
-      ) : itemCollections.length > 0 ? (
-        itemCollections.map(option => (
+      ) : selectedCategories.length > 0 ? (
+        selectedCategories.map(option => (
           <View key={option.id} style={styles.collectionChipRow}>
             <Text numberOfLines={1} style={styles.collectionChipLabel}>
               {option.name}
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityState={{
-                disabled: removingCollectionId !== null,
-                busy: removingCollectionId === option.id,
-              }}
-              disabled={removingCollectionId !== null}
-              onPress={() => removeFromCollection(option.id)}
+              accessibilityState={{ disabled: isSaving }}
+              disabled={isSaving}
+              onPress={() => stageRemoveCategory(option.id)}
               style={styles.collectionChipRemoveButton}
             >
-              <Text style={styles.collectionChipRemoveLabel}>
-                {removingCollectionId === option.id
-                  ? t('common.processing')
-                  : t('collections.removeItem')}
-              </Text>
+              <Text style={styles.collectionChipRemoveLabel}>{t('collections.removeItem')}</Text>
             </Pressable>
           </View>
         ))
@@ -859,6 +905,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
       <Pressable
         accessibilityRole="button"
+        accessibilityState={{ disabled: isSaving }}
+        disabled={isSaving}
         onPress={openCollectionModal}
         style={styles.addPurchaseButton}
       >
@@ -903,20 +951,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                 renderItem={({ item: option }) => (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{
-                      disabled: addingCollectionId !== null,
-                      busy: addingCollectionId === option.id,
-                    }}
-                    disabled={addingCollectionId !== null}
-                    onPress={() => addToCollection(option)}
-                    style={[
-                      styles.categoryOptionRow,
-                      addingCollectionId !== null && styles.disabledButton,
-                    ]}
+                    onPress={() => stageAddCategory(option)}
+                    style={styles.categoryOptionRow}
                   >
-                    <Text style={styles.categoryOptionLabel}>
-                      {addingCollectionId === option.id ? t('common.processing') : option.name}
-                    </Text>
+                    <Text style={styles.categoryOptionLabel}>{option.name}</Text>
                   </Pressable>
                 )}
                 ListFooterComponent={
@@ -960,7 +998,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
             <Pressable
               accessibilityRole="button"
-              disabled={addingCollectionId !== null || isCreatingCollection}
+              disabled={isCreatingCollection}
               onPress={closeCollectionModal}
               style={styles.modalCloseButton}
             >

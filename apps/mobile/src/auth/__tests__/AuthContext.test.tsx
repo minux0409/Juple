@@ -39,8 +39,8 @@ jest.mock('../../push/pushLogoutUnregister', () => ({
 
 /** Renders just enough of useAuth()'s state to assert on, via a plain react-test-renderer tree. */
 function AuthStateProbe() {
-  const { isAuthenticated, backendAuthStatus } = useAuth();
-  return <Text>{`${isAuthenticated}:${backendAuthStatus}`}</Text>;
+  const { isAuthenticated, backendAuthStatus, sessionRestoreStep } = useAuth();
+  return <Text>{`${isAuthenticated}:${backendAuthStatus}:${sessionRestoreStep}`}</Text>;
 }
 
 async function renderAuthProvider() {
@@ -73,7 +73,7 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
 
     const renderer = await renderAuthProvider();
 
-    expect(readProbeText(renderer)).toBe('true:unavailable');
+    expect(readProbeText(renderer)).toBe('true:unavailable:sessionRestore');
     expect(validateBackendSession).not.toHaveBeenCalled();
   });
 
@@ -86,7 +86,7 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
 
     const renderer = await renderAuthProvider();
 
-    expect(readProbeText(renderer)).toBe('false:notChecked');
+    expect(readProbeText(renderer)).toBe('false:notChecked:sessionRestore');
   });
 
   it('signs out when there is no stored session at all (not an EntraAuthError)', async () => {
@@ -94,7 +94,7 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
 
     const renderer = await renderAuthProvider();
 
-    expect(readProbeText(renderer)).toBe('false:notChecked');
+    expect(readProbeText(renderer)).toBe('false:notChecked:sessionRestore');
   });
 
   it('keeps existing behavior for a normal, successful refresh', async () => {
@@ -103,6 +103,40 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
 
     const renderer = await renderAuthProvider();
 
-    expect(readProbeText(renderer)).toBe('true:valid');
+    expect(readProbeText(renderer)).toBe('true:valid:sessionRestore');
+  });
+
+  it('reports the real sessionRestore -> entraRefresh sub-phases as getValidAccessToken reaches them', async () => {
+    let capturedOnStep!: (step: 'sessionRestore' | 'entraRefresh') => void;
+    let resolveToken!: (token: string) => void;
+    jest.mocked(getValidAccessToken).mockImplementation(options => {
+      capturedOnStep = options!.onStep!;
+      return new Promise(resolve => {
+        resolveToken = resolve;
+      });
+    });
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <AuthProvider>
+          <AuthStateProbe />
+        </AuthProvider>,
+      );
+    });
+
+    // Still restoring - the step hasn't advanced past the default yet.
+    expect(readProbeText(renderer)).toBe('false:notChecked:sessionRestore');
+
+    await act(async () => {
+      capturedOnStep('entraRefresh');
+    });
+    expect(readProbeText(renderer)).toBe('false:notChecked:entraRefresh');
+
+    await act(async () => {
+      resolveToken('a-valid-token');
+    });
+    expect(readProbeText(renderer)).toBe('true:valid:entraRefresh');
   });
 });

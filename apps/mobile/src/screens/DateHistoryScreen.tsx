@@ -1,9 +1,11 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   SectionList,
@@ -12,20 +14,29 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ApiError } from '../api/ApiError';
+import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { ChevronIcon } from '../icons/ChevronIcon';
-import i18n from '../i18n';
-import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import { groupHistoryByLocalDate, todayDateKey } from '../items/historyDateGrouping';
 import { useItemHistory } from '../items/useItemHistory';
-import type { ItemHistoryEntry } from '../items/api/itemsApi';
+import { deleteItem, type ItemHistoryEntry } from '../items/api/itemsApi';
+import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, spacing } from '../theme/tokens';
+import { colors, radii, spacing } from '../theme/tokens';
 
-function formatSavedTime(savedAtUtc: string): string {
-  return new Intl.DateTimeFormat(i18n.language, {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(savedAtUtc));
+function getHistoryDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('history.errorDeleteFallback');
+}
+
+/** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
+function getHistoryShareErrorMessage(t: TFunction): string {
+  return t('item.shareError');
 }
 
 /**
@@ -42,12 +53,77 @@ function formatSavedTime(savedAtUtc: string): string {
 export function DateHistoryScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore } =
+  const authenticatedRequest = useAuthenticatedApi();
+  const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeItem } =
     useItemHistory();
 
   const sections = useMemo(() => groupHistoryByLocalDate(items, t), [items, t]);
 
   const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
+  const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const isDeleteConfirmationOpenRef = useRef(false);
+
+  const runDelete = async (itemId: number) => {
+    if (actionInFlightItemId !== null) {
+      return;
+    }
+
+    setActionInFlightItemId(itemId);
+    setActionError(null);
+    try {
+      await deleteItem(authenticatedRequest, itemId);
+      removeItem(itemId);
+    } catch (caughtError) {
+      setActionError(getHistoryDeleteErrorMessage(caughtError, t));
+    } finally {
+      setActionInFlightItemId(null);
+    }
+  };
+
+  const runShare = async (item: ItemHistoryEntry) => {
+    if (actionInFlightItemId !== null) {
+      return;
+    }
+
+    setActionInFlightItemId(item.id);
+    setActionError(null);
+    try {
+      await shareItem(item.url, item.title);
+    } catch {
+      setActionError(getHistoryShareErrorMessage(t));
+    } finally {
+      setActionInFlightItemId(null);
+    }
+  };
+
+  const confirmDelete = (itemId: number) => {
+    if (isDeleteConfirmationOpenRef.current) {
+      return;
+    }
+    isDeleteConfirmationOpenRef.current = true;
+
+    const closeConfirmation = () => {
+      isDeleteConfirmationOpenRef.current = false;
+    };
+
+    Alert.alert(
+      t('history.deleteConfirmTitle'),
+      t('history.deleteConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: () => {
+            closeConfirmation();
+            runDelete(itemId);
+          },
+        },
+      ],
+      { cancelable: true, onDismiss: closeConfirmation },
+    );
+  };
 
   useEffect(() => {
     if (expandedDateKeys !== null || sections.length === 0) {
@@ -91,6 +167,7 @@ export function DateHistoryScreen() {
         keyExtractor={item => item.id.toString()}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        onScrollBeginDrag={closeOpenRow}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
@@ -99,6 +176,7 @@ export function DateHistoryScreen() {
               <Text style={styles.title}>{t('history.title')}</Text>
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
+            {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
           </View>
         }
         ListEmptyComponent={!error ? <Text style={styles.empty}>{t('history.empty')}</Text> : undefined}
@@ -109,7 +187,7 @@ export function DateHistoryScreen() {
               accessibilityRole="button"
               accessibilityState={{ expanded: isExpanded }}
               onPress={() => toggleSection(section.dateKey)}
-              style={styles.sectionHeader}
+              style={[styles.sectionHeader, !isExpanded && styles.sectionHeaderCollapsed]}
             >
               <Text style={styles.sectionHeaderLabel}>
                 {t('history.sectionHeader', { label: section.label, count: section.items.length })}
@@ -122,14 +200,22 @@ export function DateHistoryScreen() {
             </Pressable>
           );
         }}
-        renderItem={({ item }) => (
-          <HistoryRow
-            item={item}
-            onPress={() => {
-              navigation.navigate('ItemDetails', { itemId: item.id });
-            }}
-          />
-        )}
+        renderItem={({ item, index, section }) => {
+          const isLast = index === section.data.length - 1;
+          return (
+            <SwipeableItemRow
+              containerStyle={[styles.historyCard, isLast && styles.historyCardLast]}
+              disabled={actionInFlightItemId !== null}
+              onDelete={() => confirmDelete(item.id)}
+              onPress={() => {
+                navigation.navigate('ItemDetails', { itemId: item.id });
+              }}
+              onShare={() => runShare(item)}
+            >
+              <SavedLinkRow isActionInFlight={actionInFlightItemId === item.id} item={item} />
+            </SwipeableItemRow>
+          );
+        }}
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoading}>
@@ -139,35 +225,6 @@ export function DateHistoryScreen() {
         }
       />
     </SafeAreaView>
-  );
-}
-
-interface HistoryRowProps {
-  readonly item: ItemHistoryEntry;
-  readonly onPress: () => void;
-}
-
-function HistoryRow({ item, onPress }: HistoryRowProps) {
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.row}>
-      <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
-      <View style={styles.rowTextColumn}>
-        <Text numberOfLines={2} style={styles.url}>
-          {item.title ?? item.url}
-        </Text>
-        {item.title ? (
-          <Text numberOfLines={1} style={styles.secondaryUrl}>
-            {item.url}
-          </Text>
-        ) : null}
-        {item.memo ? (
-          <Text numberOfLines={2} style={styles.memoPreview}>
-            {item.memo}
-          </Text>
-        ) : null}
-        <Text style={styles.savedTime}>{formatSavedTime(item.savedAtUtc)}</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -204,48 +261,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: spacing.lg,
   },
+  // A date section reads as one grouped card: the header always rounds its top corners, and only
+  // rounds its bottom corners (and gets a matching gap below) when collapsed - i.e. when it's the
+  // entire visible card for that date on its own. When expanded, that bottom corner/gap job moves
+  // to the section's last item instead (see historyCardLast), so there is exactly one gap between
+  // this date's card and the next, never a doubled one.
   sectionHeader: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
+    borderColor: colors.divider,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    borderTopLeftRadius: radii.lg,
+    borderTopRightRadius: radii.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     minHeight: 40,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xs + 2,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  sectionHeaderCollapsed: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+    marginBottom: spacing.sm,
   },
   sectionHeaderLabel: {
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '700',
   },
-  row: {
-    borderTopColor: colors.divider,
+  // Every item in an expanded section shares one continuous side border with the header above it
+  // (see sectionHeader) and a thin top separator - never a full bold rule, and inset from the
+  // screen edge by the same amount as the header/Home cards. Only the section's last item closes
+  // the shape off with rounded bottom corners and the gap before the next date's card.
+  historyCard: {
+    borderColor: colors.divider,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderTopWidth: 1,
-    flexDirection: 'row',
-    paddingVertical: spacing.sm,
   },
-  rowTextColumn: {
-    flex: 1,
-  },
-  url: {
-    color: colors.textPrimary,
-    fontSize: 15,
-  },
-  secondaryUrl: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 3,
-  },
-  memoPreview: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 3,
-  },
-  savedTime: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 3,
+  historyCardLast: {
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+    borderBottomWidth: 1,
+    marginBottom: spacing.sm,
   },
   footerLoading: {
     paddingVertical: spacing.lg,

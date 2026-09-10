@@ -22,8 +22,17 @@ export interface AuthorizedSession {
   readonly idToken?: string;
 }
 
+/**
+ * The two real sub-phases refreshAccessToken() below goes through on a cold start (reading the
+ * persisted session, then the network round trip to Entra) - exposed via GetValidAccessTokenOptions
+ * so the Startup Progress UI (see auth/bootstrapProgress.ts) can show determinate progress driven by
+ * these actual transitions instead of a fake timer.
+ */
+export type SessionRestoreStep = 'sessionRestore' | 'entraRefresh';
+
 export interface GetValidAccessTokenOptions {
   readonly forceRefresh?: boolean;
+  readonly onStep?: (step: SessionRestoreStep) => void;
 }
 
 let accessToken: string | null = null;
@@ -97,12 +106,13 @@ export async function clearSession(): Promise<void> {
   await clearSessionInternal();
 }
 
-async function refreshAccessToken(): Promise<string> {
+async function refreshAccessToken(onStep?: (step: SessionRestoreStep) => void): Promise<string> {
   if (refreshInFlight) {
     return refreshInFlight;
   }
 
   const refreshPromise = (async () => {
+    onStep?.('sessionRestore');
     const session = await loadAuthSession();
     if (!session) {
       throw new AuthSessionError('sessionUnavailable');
@@ -112,6 +122,7 @@ async function refreshAccessToken(): Promise<string> {
     cachedIdToken = session.idToken ?? cachedIdToken;
 
     try {
+      onStep?.('entraRefresh');
       const result = await refreshEntraSession(session.refreshToken);
       if (!result.accessToken) {
         throw new Error('Entra refresh completed without an access token.');
@@ -168,5 +179,5 @@ export async function getValidAccessToken(
     return accessToken;
   }
 
-  return refreshAccessToken();
+  return refreshAccessToken(options.onStep);
 }

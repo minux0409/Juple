@@ -37,6 +37,7 @@ function mockUseAuth(overrides: { signOut?: jest.Mock; userEmail?: string | null
     error: null,
     backendAuthStatus: 'valid',
     userBootstrapStatus: 'ready',
+    sessionRestoreStep: 'sessionRestore',
     signIn: jest.fn(),
     getValidAccessToken: jest.fn(),
     retryBootstrap: jest.fn(),
