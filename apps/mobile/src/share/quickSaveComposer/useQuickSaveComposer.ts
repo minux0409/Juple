@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler } from 'react-native';
+import { isDetailedShareDiagnosticsEnabled } from '../../api/apiConfig';
 import { getHostnameFromUrl } from '../../items/savedLinkPrimaryText';
 import { NO_COLLECTION_ID, type QuickSaveOutcome } from '../quickSaveDraft';
 import { extractTitleCandidateFromSharedText, parseSharedText } from '../sharedTextParser';
@@ -62,6 +63,14 @@ export function useQuickSaveComposer(pendingShareId: string | null) {
   useEffect(() => {
     const nativeModule = NativeIncomingShare;
     if (!pendingShareId || !nativeModule) {
+      // Dev/Dogfood only (see apiConfig.ts's isDetailedShareDiagnosticsEnabled) - existence/boolean
+      // only, never the pendingShareId value itself, per this round's privacy hardening.
+      if (isDetailedShareDiagnosticsEnabled) {
+        console.warn('[QuickSaveComposer] missing pendingShareId or native module', {
+          hasPendingShareId: !!pendingShareId,
+          hasNativeModule: !!nativeModule,
+        });
+      }
       setPhase('permanentFailure');
       return;
     }
@@ -77,6 +86,17 @@ export function useQuickSaveComposer(pendingShareId: string | null) {
 
       const pendingShare = pendingShares.find(share => share.id === pendingShareId);
       if (!pendingShare) {
+        // Dev/Dogfood only - lets a permanentFailure that shows before the composer's own ready UI
+        // ever renders be told apart from one reported by classifySaveFailure after Save (see
+        // incomingShareHeadlessTask.ts) instead of collapsing both into the same generic message.
+        // Counts only, never the actual pendingShareId/queue id values (see this round's privacy
+        // hardening - a count is enough to tell "queue was empty" apart from "queue had entries but
+        // none matched").
+        if (isDetailedShareDiagnosticsEnabled) {
+          console.warn('[QuickSaveComposer] pendingShareId not found in native queue', {
+            knownPendingShareCount: pendingShares.length,
+          });
+        }
         setPhase('permanentFailure');
         return;
       }

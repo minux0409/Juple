@@ -55,3 +55,12 @@ function resolveBaseUrl(): string | undefined {
 export const apiConfig = {
   baseUrl: resolveBaseUrl(),
 };
+
+/**
+ * Gates the more verbose share-diagnostics logging (see incomingShareHeadlessTask.ts/
+ * useQuickSaveComposer.ts) to Local Development and Dogfood only - never Production. Production
+ * keeps only the privacy-reviewed, always-on failure-classification log (API kind/status/outcome),
+ * never this more exploratory diagnostic detail.
+ */
+export const isDetailedShareDiagnosticsEnabled =
+  __DEV__ || process.env.JUPLE_API_ENV === 'dogfood';

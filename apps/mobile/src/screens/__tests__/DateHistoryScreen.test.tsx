@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Alert, SectionList } from 'react-native';
+import { Modal, SectionList } from 'react-native';
 import i18n from '../../i18n';
 import { DateHistoryScreen } from '../DateHistoryScreen';
 
@@ -96,6 +96,12 @@ function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: Item
     rowRenderer = ReactTestRenderer.create(element);
   });
   return rowRenderer;
+}
+
+/** The screen's single ConfirmDialog (a Modal) - scoping queries to it avoids colliding with the SectionList's own real (unrelated) swipe-action buttons that happen to share the same accessibilityLabel text ("삭제"). */
+function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  const dialog = renderer.root.findByType(Modal);
+  return dialog.findAll(node => node.props.accessibilityLabel === label)[0];
 }
 
 describe('DateHistoryScreen accordion', () => {
@@ -196,15 +202,11 @@ describe('DateHistoryScreen swipe actions', () => {
     expect(shareItem).toHaveBeenCalledWith(item.url, item.title);
   });
 
-  it('deletes only after the confirmation is accepted, and removes it from the in-memory list immediately', async () => {
+  it('deletes only after the ConfirmDialog is accepted, and removes it from the in-memory list immediately', async () => {
     const now = new Date();
     const onlyTodayItem = makeItem({ id: 31, title: 'Only today item', savedAtUtc: now.toISOString() });
     mockUseItemHistoryStateful([onlyTodayItem]);
     jest.mocked(deleteItem).mockResolvedValue(undefined);
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      const confirmButton = buttons?.find(button => button.style === 'destructive');
-      confirmButton?.onPress?.();
-    });
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, onlyTodayItem);
@@ -213,23 +215,23 @@ describe('DateHistoryScreen swipe actions', () => {
       deleteAction.props.onPress();
     });
 
+    expect(deleteItem).not.toHaveBeenCalled();
+
+    await act(async () => {
+      getConfirmDialogButton(renderer, '삭제').props.onPress();
+    });
+
     expect(deleteItem).toHaveBeenCalledWith(expect.anything(), onlyTodayItem.id);
 
     // Deleting the only item in Today's section removes that section entirely rather than
     // leaving an empty one, and the section list no longer carries any data for it.
     const sectionList = renderer.root.findByType(SectionList);
     expect(sectionList.props.sections).toHaveLength(0);
-
-    alertSpy.mockRestore();
   });
 
-  it('does not delete when the confirmation is cancelled', async () => {
+  it('does not delete when the ConfirmDialog is cancelled', async () => {
     const item = makeItem({ id: 41, title: 'Kept' });
     mockUseItemHistory([item]);
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      const cancelButton = buttons?.find(button => button.style === 'cancel');
-      cancelButton?.onPress?.();
-    });
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
@@ -238,8 +240,10 @@ describe('DateHistoryScreen swipe actions', () => {
       deleteAction.props.onPress();
     });
 
-    expect(deleteItem).not.toHaveBeenCalled();
+    await act(async () => {
+      getConfirmDialogButton(renderer, '취소').props.onPress();
+    });
 
-    alertSpy.mockRestore();
+    expect(deleteItem).not.toHaveBeenCalled();
   });
 });

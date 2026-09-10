@@ -46,6 +46,8 @@ import type { RootStackParamList } from '../navigation/RootStack';
 
 const MAX_ITEM_IMAGES = 10;
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
+/** How many selected-category chips the compact summary row shows before collapsing the rest into a "+N" chip. */
+const CATEGORY_SUMMARY_MAX_CHIPS = 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
@@ -195,14 +197,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   // The Item's currently-staged Collection membership (selectedCategories) vs. the last known
   // persisted membership (originalCategoryIds) - the diff between the two is exactly what Save
-  // must add/remove. There is no cap on how many Collections an Item can belong to, so this is
-  // genuinely paginated (see loadMoreItemCollections below) rather than assumed to fit one page.
+  // must add/remove. There is no cap on how many Collections an Item can belong to, so
+  // loadItemCollections below drains every page itself rather than assuming one page is enough.
   const [selectedCategories, setSelectedCategories] = useState<readonly Collection[]>([]);
   const [originalCategoryIds, setOriginalCategoryIds] = useState<ReadonlySet<number>>(new Set());
-  const [itemCollectionsNextCursor, setItemCollectionsNextCursor] = useState<string | null>(null);
   const [isLoadingItemCollections, setIsLoadingItemCollections] = useState(true);
-  const [isLoadingMoreItemCollections, setIsLoadingMoreItemCollections] = useState(false);
-  const loadingMoreItemCollectionsRef = useRef(false);
   const [itemCollectionsError, setItemCollectionsError] = useState<string | null>(null);
   const itemCollectionsRequestIdRef = useRef(0);
 
@@ -244,7 +243,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }, [isCategoriesDirty]);
 
   const selectedCategoryIds = new Set(selectedCategories.map(option => option.id));
-  const addableCollectionOptions = collectionPool.filter(option => !selectedCategoryIds.has(option.id));
 
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
@@ -284,21 +282,32 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     loadImages();
   }, [loadImages]);
 
+  // Drains every page itself (there is no cap on how many Collections an Item can belong to - "100
+  // is enough" was a false assumption) rather than exposing a manual "load more" - the compact
+  // category summary (see categorySummaryRow below) needs the complete, accurate selected set to
+  // show a correct "+N" count and can't leave the Detail screen's own height depend on how many
+  // pages loaded, which is exactly what this redesign moved away from.
   const loadItemCollections = useCallback(async () => {
     const requestId = ++itemCollectionsRequestIdRef.current;
     setIsLoadingItemCollections(true);
     setItemCollectionsError(null);
     try {
-      // There is no cap on how many Collections an Item can belong to - "100 is enough" was a
-      // false assumption, so this loads one page and exposes loadMoreItemCollections rather than
-      // ever silently truncating a large membership list.
-      const page = await getCollections(authenticatedRequest, { itemId, limit: COLLECTION_OPTIONS_PAGE_LIMIT });
-      if (itemCollectionsRequestIdRef.current !== requestId) {
-        return;
-      }
-      setSelectedCategories(page.items);
-      setOriginalCategoryIds(new Set(page.items.map(option => option.id)));
-      setItemCollectionsNextCursor(page.nextCursor);
+      let cursor: string | null = null;
+      let allItems: Collection[] = [];
+      do {
+        const page = await getCollections(authenticatedRequest, {
+          itemId,
+          limit: COLLECTION_OPTIONS_PAGE_LIMIT,
+          cursor: cursor ?? undefined,
+        });
+        if (itemCollectionsRequestIdRef.current !== requestId) {
+          return;
+        }
+        allItems = allItems.concat(page.items);
+        cursor = page.nextCursor;
+      } while (cursor);
+      setSelectedCategories(allItems);
+      setOriginalCategoryIds(new Set(allItems.map(option => option.id)));
     } catch (caughtError) {
       if (itemCollectionsRequestIdRef.current !== requestId) {
         return;
@@ -310,49 +319,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       }
     }
   }, [authenticatedRequest, itemId, t]);
-
-  const loadMoreItemCollections = () => {
-    if (loadingMoreItemCollectionsRef.current || isLoadingItemCollections || !itemCollectionsNextCursor) {
-      return;
-    }
-
-    const requestId = itemCollectionsRequestIdRef.current;
-    loadingMoreItemCollectionsRef.current = true;
-    setIsLoadingMoreItemCollections(true);
-
-    (async () => {
-      try {
-        const page = await getCollections(authenticatedRequest, {
-          itemId,
-          limit: COLLECTION_OPTIONS_PAGE_LIMIT,
-          cursor: itemCollectionsNextCursor,
-        });
-        if (itemCollectionsRequestIdRef.current !== requestId) {
-          return;
-        }
-        setSelectedCategories(previous => {
-          const seenIds = new Set(previous.map(option => option.id));
-          const additional = page.items.filter(option => !seenIds.has(option.id));
-          return [...previous, ...additional];
-        });
-        setOriginalCategoryIds(previous => {
-          const next = new Set(previous);
-          for (const option of page.items) {
-            next.add(option.id);
-          }
-          return next;
-        });
-        setItemCollectionsNextCursor(page.nextCursor);
-      } catch (caughtError) {
-        if (itemCollectionsRequestIdRef.current === requestId) {
-          setItemCollectionsError(getItemCollectionsListErrorMessage(caughtError, t));
-        }
-      } finally {
-        loadingMoreItemCollectionsRef.current = false;
-        setIsLoadingMoreItemCollections(false);
-      }
-    })();
-  };
 
   // Refetches on every focus (not just mount), so a Collection add/remove made elsewhere (e.g. from
   // CollectionDetailsScreen) is reflected here too - but never while the user has an in-progress,
@@ -467,8 +433,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setNewCollectionName('');
     setIsLoadingCollectionOptions(true);
     try {
-      // No excludeItemId here on purpose - the addable set must reflect the current staged
-      // selection (see addableCollectionOptions above), which the server has no notion of.
+      // No itemId/excludeItemId here on purpose - this modal shows every Collection with a
+      // selected/unselected toggle (see selectedCategoryIds), which must reflect the current
+      // staged selection, not a server-side filter the server has no notion of.
       const page = await getCollections(authenticatedRequest, { limit: COLLECTION_OPTIONS_PAGE_LIMIT });
       setCollectionPool(page.items);
       setCollectionPoolNextCursor(page.nextCursor);
@@ -871,49 +838,40 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
       {isLoadingItemCollections ? (
         <ActivityIndicator style={styles.purchasesLoading} />
-      ) : selectedCategories.length > 0 ? (
-        selectedCategories.map(option => (
-          <View key={option.id} style={styles.collectionChipRow}>
-            <Text numberOfLines={1} style={styles.collectionChipLabel}>
-              {option.name}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isSaving }}
-              disabled={isSaving}
-              onPress={() => stageRemoveCategory(option.id)}
-              style={styles.collectionChipRemoveButton}
-            >
-              <Text style={styles.collectionChipRemoveLabel}>{t('collections.removeItem')}</Text>
-            </Pressable>
-          </View>
-        ))
       ) : (
-        <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
-      )}
-      {itemCollectionsNextCursor ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: isLoadingMoreItemCollections, busy: isLoadingMoreItemCollections }}
-          disabled={isLoadingMoreItemCollections}
-          onPress={loadMoreItemCollections}
-          style={styles.loadMoreButton}
+          accessibilityState={{ disabled: isSaving }}
+          disabled={isSaving}
+          onPress={openCollectionModal}
+          style={styles.categorySummaryRow}
         >
-          <Text style={styles.loadMoreButtonLabel}>
-            {isLoadingMoreItemCollections ? t('common.processing') : t('collections.loadMore')}
-          </Text>
+          <View style={styles.categorySummaryChips}>
+            {selectedCategories.length === 0 ? (
+              <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
+            ) : (
+              <>
+                {selectedCategories.slice(0, CATEGORY_SUMMARY_MAX_CHIPS).map(option => (
+                  <View key={option.id} style={styles.categorySummaryChip}>
+                    <Text numberOfLines={1} style={styles.categorySummaryChipLabel}>
+                      {option.name}
+                    </Text>
+                  </View>
+                ))}
+                {selectedCategories.length > CATEGORY_SUMMARY_MAX_CHIPS ? (
+                  <View style={styles.categorySummaryChip}>
+                    <Text style={styles.categorySummaryChipLabel}>
+                      {`+${selectedCategories.length - CATEGORY_SUMMARY_MAX_CHIPS}`}
+                    </Text>
+                  </View>
+                ) : null}
+              </>
+            )}
+          </View>
+          <Text style={styles.categorySummaryEditLabel}>{t('collections.edit')}</Text>
         </Pressable>
-      ) : null}
+      )}
       {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isSaving }}
-        disabled={isSaving}
-        onPress={openCollectionModal}
-        style={styles.addPurchaseButton}
-      >
-        <Text style={styles.addPurchaseButtonLabel}>{t('collections.addItem')}</Text>
-      </Pressable>
 
       {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
 
@@ -937,28 +895,39 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
-            <Text style={styles.modalTitle}>{t('collections.addItem')}</Text>
+            <Text style={styles.modalTitle}>{t('collections.selectTitle')}</Text>
 
             {isLoadingCollectionOptions ? (
               <ActivityIndicator style={styles.modalLoading} />
             ) : (
               <FlatList
-                data={addableCollectionOptions}
+                data={collectionPool}
+                extraData={selectedCategoryIds}
                 keyExtractor={option => option.id.toString()}
                 onEndReached={loadMoreCollectionOptions}
                 onEndReachedThreshold={0.5}
                 ListEmptyComponent={
                   <Text style={styles.manageEmpty}>{t('collections.addModalEmpty')}</Text>
                 }
-                renderItem={({ item: option }) => (
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => stageAddCategory(option)}
-                    style={styles.categoryOptionRow}
-                  >
-                    <Text style={styles.categoryOptionLabel}>{option.name}</Text>
-                  </Pressable>
-                )}
+                renderItem={({ item: option }) => {
+                  const isSelected = selectedCategoryIds.has(option.id);
+                  return (
+                    <Pressable
+                      accessibilityLabel={option.name}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      onPress={() =>
+                        isSelected ? stageRemoveCategory(option.id) : stageAddCategory(option)
+                      }
+                      style={[styles.categoryOptionRow, isSelected && styles.categoryOptionRowSelected]}
+                    >
+                      <Text numberOfLines={1} style={styles.categoryOptionLabel}>
+                        {option.name}
+                      </Text>
+                      {isSelected ? <Text style={styles.categoryOptionCheck}>✓</Text> : null}
+                    </Pressable>
+                  );
+                }}
                 ListFooterComponent={
                   isLoadingMoreCollectionOptions ? (
                     <View style={styles.modalFooterLoading}>
@@ -1168,52 +1137,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  collectionChipRow: {
+  // Compact summary row: at most CATEGORY_SUMMARY_MAX_CHIPS selected-category chips (+ a "+N"
+  // chip for the rest), never the full list - tapping anywhere in the row opens the picker Modal,
+  // which is where the full list/add/remove actually lives (see the Modal below). This is what
+  // keeps this screen's own height independent of how many categories are selected.
+  categorySummaryRow: {
     alignItems: 'center',
-    borderTopColor: '#E0E0E0',
-    borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 10,
   },
-  collectionChipLabel: {
-    color: '#111111',
-    fontSize: 15,
+  categorySummaryChips: {
     flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginEnd: 12,
   },
-  collectionChipRemoveButton: {
-    borderColor: '#9A9A9A',
+  categorySummaryChip: {
+    backgroundColor: '#F5F5F5',
     borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 12,
+    // Caps a single chip's width so one long category name can never push the "+N" chip or the
+    // 편집 label off-screen - it truncates with an ellipsis (numberOfLines=1) instead.
+    maxWidth: 140,
+    paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  collectionChipRemoveLabel: {
+  categorySummaryChipLabel: {
     color: '#111111',
     fontSize: 13,
     fontWeight: '600',
   },
-  loadMoreButton: {
-    alignSelf: 'flex-start',
-    marginTop: 10,
-  },
-  loadMoreButtonLabel: {
-    color: '#666666',
-    fontSize: 13,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  addPurchaseButton: {
-    alignItems: 'center',
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 20,
-    paddingVertical: 10,
-  },
-  addPurchaseButtonLabel: {
-    color: '#111111',
+  categorySummaryEditLabel: {
+    color: '#3366CC',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -1250,13 +1205,26 @@ const styles = StyleSheet.create({
     maxHeight: 260,
   },
   categoryOptionRow: {
+    alignItems: 'center',
     borderTopColor: '#E0E0E0',
     borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingVertical: 14,
+  },
+  categoryOptionRowSelected: {
+    backgroundColor: '#F5F5F5',
   },
   categoryOptionLabel: {
     color: '#111111',
+    flex: 1,
     fontSize: 15,
+    marginEnd: 12,
+  },
+  categoryOptionCheck: {
+    color: '#3366CC',
+    fontSize: 16,
+    fontWeight: '700',
   },
   newCategoryRow: {
     flexDirection: 'row',

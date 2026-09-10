@@ -3,6 +3,7 @@ package com.juple.app
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 
 /**
  * Receives ACTION_SEND from the Android sharesheet, including from a Direct Share category
@@ -23,11 +24,27 @@ class ShareReceiverActivity : Activity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
+    // Diagnostic only (see incomingShareHeadlessTask.ts's own logging) - deliberately limited to
+    // the privacy-reviewed allowlist (Intent action/type, boolean extras-presence, boolean
+    // capture-success) so this line stays safe to leave enabled in every build, including
+    // Production release: never EXTRA_TEXT's actual content, never the pendingShareId value itself
+    // (only whether capture succeeded), so a failure can still be traced to "the sharing app didn't
+    // provide X" vs. a Juple bug without ever logging what the user actually shared.
+    Log.d(
+      LogTag,
+      "onCreate action=${intent?.action} type=${intent?.type} " +
+        "hasSubject=${intent?.hasExtra(Intent.EXTRA_SUBJECT)} " +
+        "hasTitle=${intent?.hasExtra(Intent.EXTRA_TITLE)} " +
+        "hasShortcutId=${intent?.hasExtra(Intent.EXTRA_SHORTCUT_ID)}",
+    )
+
     val preselectedCollectionId = resolvePreselectedCollectionId()
     val pendingShareId = PendingShareQueue.capture(this, intent, preselectedCollectionId)
+    val quickSaveOn = QuickSaveOnSharePreference.isEnabled(this)
+    Log.d(LogTag, "captured pendingShare=${pendingShareId != null} quickSaveOn=$quickSaveOn")
 
     if (pendingShareId != null) {
-      if (QuickSaveOnSharePreference.isEnabled(this)) {
+      if (quickSaveOn) {
         startActivity(
           Intent(this, QuickSaveComposerActivity::class.java)
             .putExtra(QuickSaveComposerActivity.ExtraPendingShareId, pendingShareId)
@@ -54,5 +71,9 @@ class ShareReceiverActivity : Activity() {
     val categoryId = ShortcutSyncManager.categoryIdFromShortcutId(shortcutId) ?: return null
     val stillExists = CategorySnapshotStore.findById(this, categoryId) != null
     return if (stillExists) categoryId else null
+  }
+
+  companion object {
+    private const val LogTag = "JupleShare"
   }
 }

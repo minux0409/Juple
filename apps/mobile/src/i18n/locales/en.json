@@ -48,7 +48,8 @@
     "itemDetails": "Details",
     "collectionDetails": "Category",
     "languageSettings": "Language",
-    "sharedCollection": "Shared Category"
+    "sharedCollection": "Shared Category",
+    "newLinkReview": "Review New Link"
   },
   "inbox": {
     "title": "Links saved today",
@@ -90,13 +91,13 @@
     "removeFavorite": "Remove from favorites",
     "errorFavoriteToggleFallback": "Couldn't update favorite status.",
     "itemsEmpty": "No items saved in this category yet.",
-    "addItem": "Add to category",
+    "edit": "Edit",
+    "selectTitle": "Select categories",
     "removeItem": "Remove",
     "delete": "Delete category",
     "addModalEmpty": "No categories available to add to.",
-    "loadMore": "Load more",
     "itemSectionTitle": "Categories",
-    "itemSectionEmpty": "This item isn't in any category yet.",
+    "itemSectionEmpty": "No categories selected",
     "deleteConfirmTitle": "Delete this category?",
     "deleteConfirmMessage": "Deleting the category won't delete the items inside it.",
     "share": "Share",

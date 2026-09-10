@@ -5,9 +5,11 @@ import { useAuth } from '../auth/AuthContext';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
+import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { StartupProgressScreen } from '../screens/StartupProgressScreen';
+import { IncomingShareRouter } from '../share/IncomingShareRouter';
 import { MainTabs } from './MainTabs';
 
 /**
@@ -23,6 +25,16 @@ export type RootStackParamList = {
   ItemDetails: { itemId: number };
   /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
   CollectionDetails: { collectionId: number };
+  /**
+   * Reached only via IncomingShareRouter's explicit navigate call, never a prefilled tab - see that
+   * file. preselectedCollectionId/initialTitle are just the starting values for editable fields, not
+   * anything already persisted (no Item exists until this screen's own Save call).
+   */
+  NewLinkReview: {
+    url: string;
+    initialTitle: string | null;
+    preselectedCollectionId: number | null;
+  };
   LanguageSettings: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
@@ -69,40 +81,54 @@ export function RootStack() {
   const isReady = isBootstrapComplete && showMainTabs;
 
   return (
-    <Stack.Navigator>
-      {isReady ? (
-        <Stack.Group>
-          <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
+    <>
+      <Stack.Navigator>
+        {isReady ? (
+          <Stack.Group>
+            <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
+            <Stack.Screen
+              component={ItemDetailsScreen}
+              name="ItemDetails"
+              options={{ title: t('nav.itemDetails') }}
+            />
+            <Stack.Screen
+              component={CollectionDetailsScreen}
+              name="CollectionDetails"
+              options={{ title: t('nav.collectionDetails') }}
+            />
+            <Stack.Screen
+              component={NewLinkReviewScreen}
+              name="NewLinkReview"
+              options={{ title: t('nav.newLinkReview') }}
+            />
+            <Stack.Screen
+              component={LanguageSettingsScreen}
+              name="LanguageSettings"
+              options={{ title: t('nav.languageSettings') }}
+            />
+          </Stack.Group>
+        ) : isInitializing || isAuthenticated ? (
           <Stack.Screen
-            component={ItemDetailsScreen}
-            name="ItemDetails"
-            options={{ title: t('nav.itemDetails') }}
+            component={StartupProgressScreen}
+            name="AuthPending"
+            options={{ headerShown: false }}
           />
-          <Stack.Screen
-            component={CollectionDetailsScreen}
-            name="CollectionDetails"
-            options={{ title: t('nav.collectionDetails') }}
-          />
-          <Stack.Screen
-            component={LanguageSettingsScreen}
-            name="LanguageSettings"
-            options={{ title: t('nav.languageSettings') }}
-          />
-        </Stack.Group>
-      ) : isInitializing || isAuthenticated ? (
+        ) : (
+          <Stack.Screen component={SignInScreen} name="SignIn" options={{ headerShown: false }} />
+        )}
         <Stack.Screen
-          component={StartupProgressScreen}
-          name="AuthPending"
-          options={{ headerShown: false }}
+          component={SharedCollectionScreen}
+          name="SharedCollection"
+          options={{ title: t('nav.sharedCollection') }}
         />
-      ) : (
-        <Stack.Screen component={SignInScreen} name="SignIn" options={{ headerShown: false }} />
-      )}
-      <Stack.Screen
-        component={SharedCollectionScreen}
-        name="SharedCollection"
-        options={{ title: t('nav.sharedCollection') }}
-      />
-    </Stack.Navigator>
+      </Stack.Navigator>
+      {/*
+        IncomingShareRouter only calls navigationRef imperatively (see that file) - it has no need
+        to be a descendant of Stack.Navigator (which only ever renders its own Screen/Group
+        children), so it's a plain sibling here instead. Gated on isReady because it navigates to
+        NewLinkReview, a screen that only exists in the tree above once isReady is true.
+      */}
+      {isReady ? <IncomingShareRouter /> : null}
+    </>
   );
 }

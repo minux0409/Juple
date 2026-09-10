@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  Alert,
   AppState,
   FlatList,
   Pressable,
@@ -18,10 +17,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
-import { addItemToCollection } from '../collections/api/collectionsApi';
 import { LinkIcon } from '../icons/LinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
@@ -32,8 +31,6 @@ import {
 import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { parseSharedText } from '../share/sharedTextParser';
-import { useIncomingShare } from '../share/useIncomingShare';
 import { colors, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
@@ -89,7 +86,6 @@ export function DailyInboxScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { pendingShare, acknowledgePendingShare } = useIncomingShare();
   const [date, setDate] = useState<string | null>(null);
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -99,16 +95,18 @@ export function DailyInboxScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
+  // Delete confirmation is a declarative ConfirmDialog keyed off this - null means closed, an id
+  // means the dialog is open for that item. Mirrors the old isDeleteConfirmationOpenRef guard: a
+  // second delete tap while one is already open is a no-op instead of opening a second dialog.
+  const [pendingDeleteItemId, setPendingDeleteItemId] = useState<number | null>(null);
 
-  // Mirrors of the latest state/refs for use inside the Delete confirmation Alert's callbacks,
-  // which are constructed once when the Alert opens and must not read stale values captured at
-  // that moment - a delete can be re-attempted while the Alert is still on screen.
+  // Mirrors of the latest state/refs for use inside the Delete confirmation callbacks, which are
+  // constructed once when the dialog opens and must not read stale values captured at that moment
+  // - a delete can be re-attempted while the dialog is still on screen.
   const itemsRef = useRef(items);
   const actionInFlightItemIdRef = useRef(actionInFlightItemId);
   const isRefreshingRef = useRef(isRefreshing);
-  const isDeleteConfirmationOpenRef = useRef(false);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
   // Discards a stale in-flight initial/refresh load's result if a newer one has since started
@@ -230,18 +228,6 @@ export function DailyInboxScreen() {
     return () => subscription.remove();
   }, [loadToday]);
 
-  useEffect(() => {
-    if (!pendingShare) {
-      return;
-    }
-
-    const parsedShare = parseSharedText(pendingShare.text);
-    setUrl(parsedShare.text);
-    setShareMessage(
-      parsedShare.kind === 'exactUrl' ? t('inbox.shareReviewExactUrl') : t('inbox.shareReviewOther'),
-    );
-  }, [pendingShare, t]);
-
   const saveUrl = async () => {
     const trimmedUrl = url.trim();
     if (!trimmedUrl || isSaving) {
@@ -251,45 +237,14 @@ export function DailyInboxScreen() {
     setIsSaving(true);
     setError(null);
     try {
-      const savedEntry = await saveInboxEntry(authenticatedRequest, trimmedUrl, pendingShare?.id);
-
-      // A Direct Share category target resolves a category before this review screen ever shows
-      // (Quick Save OFF - see ShareReceiverActivity.kt); it is auto-applied here rather than
-      // exposing a second category picker on this screen. Best-effort: the Item is already saved
-      // either way, and a failed link can still be added later from ItemDetails.
-      if (pendingShare?.preselectedCollectionId != null) {
-        try {
-          await addItemToCollection(
-            authenticatedRequest,
-            pendingShare.preselectedCollectionId,
-            savedEntry.id,
-          );
-        } catch {
-          // Intentionally swallowed - see comment above.
-        }
-      }
-
-      if (pendingShare) {
-        await acknowledgePendingShare(pendingShare.id);
-      }
+      await saveInboxEntry(authenticatedRequest, trimmedUrl);
       setUrl('');
-      setShareMessage(null);
       await loadToday('refresh');
     } catch (caughtError) {
       setError(getInboxErrorMessage(caughtError, true, t));
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const cancelPendingShare = async () => {
-    if (!pendingShare) {
-      return;
-    }
-
-    await acknowledgePendingShare(pendingShare.id);
-    setUrl('');
-    setShareMessage(null);
   };
 
   const runDelete = async (itemId: number) => {
@@ -330,31 +285,7 @@ export function DailyInboxScreen() {
   };
 
   const confirmDelete = (itemId: number) => {
-    if (isDeleteConfirmationOpenRef.current) {
-      return;
-    }
-    isDeleteConfirmationOpenRef.current = true;
-
-    const closeConfirmation = () => {
-      isDeleteConfirmationOpenRef.current = false;
-    };
-
-    Alert.alert(
-      t('inbox.deleteConfirmTitle'),
-      t('inbox.deleteConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            closeConfirmation();
-            runDelete(itemId);
-          },
-        },
-      ],
-      { cancelable: true, onDismiss: closeConfirmation },
-    );
+    setPendingDeleteItemId(previous => previous ?? itemId);
   };
 
   if (isLoading && items.length === 0 && !error) {
@@ -420,20 +351,6 @@ export function DailyInboxScreen() {
                 {isSaving ? t('common.saving') : t('common.save')}
               </Text>
             </Pressable>
-            {shareMessage ? (
-              <View style={styles.shareReview}>
-                <Text style={styles.shareMessage}>{shareMessage}</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    cancelPendingShare();
-                  }}
-                  style={styles.cancelShareButton}
-                >
-                  <Text style={styles.cancelShareLabel}>{t('inbox.cancelShare')}</Text>
-                </Pressable>
-              </View>
-            ) : null}
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
           </View>
@@ -459,6 +376,21 @@ export function DailyInboxScreen() {
             </View>
           ) : undefined
         }
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message={t('inbox.deleteConfirmMessage')}
+        onCancel={() => setPendingDeleteItemId(null)}
+        onConfirm={() => {
+          const itemId = pendingDeleteItemId;
+          setPendingDeleteItemId(null);
+          if (itemId !== null) {
+            runDelete(itemId);
+          }
+        }}
+        title={t('inbox.deleteConfirmTitle')}
+        visible={pendingDeleteItemId !== null}
       />
     </SafeAreaView>
   );
@@ -536,22 +468,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     marginTop: spacing.md,
-  },
-  shareReview: {
-    marginTop: spacing.md,
-  },
-  shareMessage: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  cancelShareButton: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
-  },
-  cancelShareLabel: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    textDecorationLine: 'underline',
   },
   recentTitle: {
     fontSize: 16,

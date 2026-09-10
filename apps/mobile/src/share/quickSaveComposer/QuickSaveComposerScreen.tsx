@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, spacing } from '../../theme/tokens';
 import { useQuickSaveComposer, type ComposerPhase } from './useQuickSaveComposer';
 
@@ -32,6 +33,7 @@ const ERROR_MESSAGE_KEYS: Partial<Record<ComposerPhase, string>> = {
  */
 export function QuickSaveComposerScreen({ pendingShareId }: QuickSaveComposerScreenProps) {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const {
     phase,
     displayText,
@@ -50,47 +52,55 @@ export function QuickSaveComposerScreen({ pendingShareId }: QuickSaveComposerScr
   const errorMessageKey = ERROR_MESSAGE_KEYS[phase];
 
   return (
-    <View style={styles.backdrop}>
+    /*
+      This is the backdrop AND the keyboard-avoider in one: QuickSaveComposerActivity's translucent
+      theme (see styles.xml) makes windowSoftInputMode="adjustResize" unreliable - confirmed
+      on-device, the card render was fully behind/covered by the keyboard instead of the window
+      shrinking above it. "height" (rather than "padding", the iOS-appropriate one) tracks the
+      actual Keyboard show/hide events directly instead of depending on that native window resize -
+      but it only computes a correct shrink height when the KeyboardAvoidingView itself has a real
+      bounded height (flex:1) to shrink from, so it has to be the outermost, full-screen element
+      rather than a plain-width wrapper around the card.
+    */
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.backdrop}
+    >
       <Pressable
         accessibilityRole="button"
         disabled={!isReady}
         onPress={cancel}
         style={StyleSheet.absoluteFill}
       />
-      {/*
-        QuickSaveComposerActivity's translucent theme (see styles.xml) makes
-        windowSoftInputMode="adjustResize" unreliable - confirmed on-device: the composer's own
-        card render was fully behind/covered by the keyboard instead of the window shrinking above
-        it. "height" (rather than "padding", which is the iOS-appropriate one) tracks the actual
-        Keyboard show/hide events directly instead of depending on that native window resize.
-      */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoider}
-      >
-        <View style={styles.card}>
-          {phase === 'loading' ? (
-            <ActivityIndicator style={styles.loading} />
-          ) : phase === 'success' ? (
-            <Text style={styles.statusMessage}>{t('quickSaveComposer.savedMessage')}</Text>
-          ) : phase === 'queued' ? (
-            <Text style={styles.statusMessage}>{t('quickSaveComposer.queuedMessage')}</Text>
-          ) : errorMessageKey ? (
-            <View>
-              <Text style={styles.errorMessage}>{t(errorMessageKey)}</Text>
-              <View style={styles.buttonRow}>
-                {phase === 'retryableFailure' ? (
-                  <Pressable accessibilityRole="button" onPress={save} style={styles.saveButton}>
-                    <Text style={styles.saveButtonLabel}>{t('quickSaveComposer.retry')}</Text>
-                  </Pressable>
-                ) : null}
-                <Pressable accessibilityRole="button" onPress={close} style={styles.cancelButton}>
-                  <Text style={styles.cancelButtonLabel}>{t('quickSaveComposer.close')}</Text>
+      <View style={[styles.card, { paddingBottom: spacing.xl + insets.bottom }]}>
+        {phase === 'loading' ? (
+          <ActivityIndicator style={styles.loading} />
+        ) : phase === 'success' ? (
+          <Text style={styles.statusMessage}>{t('quickSaveComposer.savedMessage')}</Text>
+        ) : phase === 'queued' ? (
+          <Text style={styles.statusMessage}>{t('quickSaveComposer.queuedMessage')}</Text>
+        ) : errorMessageKey ? (
+          <View>
+            <Text style={styles.errorMessage}>{t(errorMessageKey)}</Text>
+            <View style={styles.buttonRow}>
+              {phase === 'retryableFailure' ? (
+                <Pressable accessibilityRole="button" onPress={save} style={styles.saveButton}>
+                  <Text style={styles.saveButtonLabel}>{t('quickSaveComposer.retry')}</Text>
                 </Pressable>
-              </View>
+              ) : null}
+              <Pressable accessibilityRole="button" onPress={close} style={styles.cancelButton}>
+                <Text style={styles.cancelButtonLabel}>{t('quickSaveComposer.close')}</Text>
+              </Pressable>
             </View>
-          ) : (
-            <>
+          </View>
+        ) : (
+          <>
+            {/*
+              Only the title/category content scrolls - buttonRow below stays outside this
+              ScrollView so Cancel/Save remain reachable above the keyboard even when the scrollable
+              content alone wouldn't fit in the shrunk (post-keyboard) height.
+            */}
+            <ScrollView keyboardShouldPersistTaps="handled" style={styles.scrollArea}>
               <Text style={styles.brand}>Juple</Text>
               <Text numberOfLines={1} style={styles.domain}>
                 {displayText}
@@ -98,7 +108,6 @@ export function QuickSaveComposerScreen({ pendingShareId }: QuickSaveComposerScr
 
               <Text style={styles.fieldLabel}>{t('quickSaveComposer.titleLabel')}</Text>
               <TextInput
-                autoFocus
                 editable={!isBusy}
                 onChangeText={setTitle}
                 placeholder={t('quickSaveComposer.titlePlaceholder')}
@@ -130,36 +139,36 @@ export function QuickSaveComposerScreen({ pendingShareId }: QuickSaveComposerScr
                   </ScrollView>
                 </>
               ) : null}
+            </ScrollView>
 
-              <View style={styles.buttonRow}>
-                <Pressable
-                  accessibilityLabel={t('quickSaveComposer.cancel')}
-                  accessibilityRole="button"
-                  disabled={isBusy}
-                  onPress={cancel}
-                  style={[styles.cancelButton, isBusy && styles.disabledButton]}
-                >
-                  <Text style={styles.cancelButtonLabel}>{t('quickSaveComposer.cancel')}</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={t('quickSaveComposer.save')}
-                  accessibilityRole="button"
-                  disabled={isBusy}
-                  onPress={save}
-                  style={[styles.saveButton, isBusy && styles.disabledButton]}
-                >
-                  {isBusy ? (
-                    <ActivityIndicator color={colors.surface} size="small" />
-                  ) : (
-                    <Text style={styles.saveButtonLabel}>{t('quickSaveComposer.save')}</Text>
-                  )}
-                </Pressable>
-              </View>
-            </>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+            <View style={styles.buttonRow}>
+              <Pressable
+                accessibilityLabel={t('quickSaveComposer.cancel')}
+                accessibilityRole="button"
+                disabled={isBusy}
+                onPress={cancel}
+                style={[styles.cancelButton, isBusy && styles.disabledButton]}
+              >
+                <Text style={styles.cancelButtonLabel}>{t('quickSaveComposer.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel={t('quickSaveComposer.save')}
+                accessibilityRole="button"
+                disabled={isBusy}
+                onPress={save}
+                style={[styles.saveButton, isBusy && styles.disabledButton]}
+              >
+                {isBusy ? (
+                  <ActivityIndicator color={colors.surface} size="small" />
+                ) : (
+                  <Text style={styles.saveButtonLabel}>{t('quickSaveComposer.save')}</Text>
+                )}
+              </Pressable>
+            </View>
+          </>
+        )}
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -191,15 +200,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
-  keyboardAvoider: {
-    width: '100%',
-  },
   card: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
+    // Caps the card at the KeyboardAvoidingView's own (possibly keyboard-shrunk) height so
+    // scrollArea below actually scrolls its overflow instead of pushing buttonRow off-screen.
+    maxHeight: '100%',
     padding: spacing.xl,
-    paddingBottom: spacing.xl + spacing.md,
+  },
+  // flexShrink: 1 (RN's default is 0) is what lets this ScrollView give up height to buttonRow
+  // when card's capped height can't fit both - without it the ScrollView keeps its full content
+  // height regardless of the cap, and buttonRow would be pushed out below the visible window.
+  scrollArea: {
+    flexShrink: 1,
   },
   loading: {
     paddingVertical: spacing.xl,

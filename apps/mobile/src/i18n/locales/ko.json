@@ -48,7 +48,8 @@
     "itemDetails": "상세",
     "collectionDetails": "카테고리",
     "languageSettings": "언어",
-    "sharedCollection": "공유된 카테고리"
+    "sharedCollection": "공유된 카테고리",
+    "newLinkReview": "새 링크 검토"
   },
   "inbox": {
     "title": "오늘 저장한 링크",
@@ -90,13 +91,13 @@
     "removeFavorite": "즐겨찾기 해제",
     "errorFavoriteToggleFallback": "즐겨찾기 상태를 변경할 수 없습니다.",
     "itemsEmpty": "이 카테고리에 저장한 항목이 없습니다.",
-    "addItem": "카테고리에 추가",
+    "edit": "편집",
+    "selectTitle": "카테고리 선택",
     "removeItem": "제거",
     "delete": "카테고리 삭제",
     "addModalEmpty": "추가할 수 있는 카테고리가 없습니다.",
-    "loadMore": "더 보기",
     "itemSectionTitle": "카테고리",
-    "itemSectionEmpty": "이 항목이 들어있는 카테고리가 없습니다.",
+    "itemSectionEmpty": "선택된 카테고리 없음",
     "deleteConfirmTitle": "카테고리를 삭제할까요?",
     "deleteConfirmMessage": "카테고리를 삭제해도 안에 있던 항목은 삭제되지 않습니다.",
     "share": "공유하기",

@@ -1,11 +1,10 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   SectionList,
@@ -16,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -62,7 +62,9 @@ export function DateHistoryScreen() {
   const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const isDeleteConfirmationOpenRef = useRef(false);
+  // Delete confirmation is a declarative ConfirmDialog keyed off this - null means closed, an id
+  // means the dialog is open for that item (mirrors DailyInboxScreen's same pattern).
+  const [pendingDeleteItemId, setPendingDeleteItemId] = useState<number | null>(null);
 
   const runDelete = async (itemId: number) => {
     if (actionInFlightItemId !== null) {
@@ -98,31 +100,7 @@ export function DateHistoryScreen() {
   };
 
   const confirmDelete = (itemId: number) => {
-    if (isDeleteConfirmationOpenRef.current) {
-      return;
-    }
-    isDeleteConfirmationOpenRef.current = true;
-
-    const closeConfirmation = () => {
-      isDeleteConfirmationOpenRef.current = false;
-    };
-
-    Alert.alert(
-      t('history.deleteConfirmTitle'),
-      t('history.deleteConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            closeConfirmation();
-            runDelete(itemId);
-          },
-        },
-      ],
-      { cancelable: true, onDismiss: closeConfirmation },
-    );
+    setPendingDeleteItemId(previous => previous ?? itemId);
   };
 
   useEffect(() => {
@@ -223,6 +201,21 @@ export function DateHistoryScreen() {
             </View>
           ) : undefined
         }
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message={t('history.deleteConfirmMessage')}
+        onCancel={() => setPendingDeleteItemId(null)}
+        onConfirm={() => {
+          const itemId = pendingDeleteItemId;
+          setPendingDeleteItemId(null);
+          if (itemId !== null) {
+            runDelete(itemId);
+          }
+        }}
+        title={t('history.deleteConfirmTitle')}
+        visible={pendingDeleteItemId !== null}
       />
     </SafeAreaView>
   );

@@ -289,16 +289,29 @@ describe('ItemDetailsScreen', () => {
   });
 
   describe('categories - staged, only persisted on Save', () => {
+    /** Opens the compact summary row's picker Modal (see categorySummaryRow/편집 in ItemDetailsScreen). */
+    async function openCategoryModal(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
+      await act(async () => {
+        findPressableByText(renderer, i18n.t('collections.edit'))?.props.onPress();
+      });
+    }
+
+    /** Taps a category row inside the picker Modal by name - add if unselected, remove (toggle off) if already selected. Uses accessibilityLabel, not text, because the compact summary's own selected-category chips repeat the same name outside the Modal. */
+    async function toggleCategoryInModal(
+      renderer: ReactTestRenderer.ReactTestRenderer,
+      name: string,
+    ): Promise<void> {
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, name)?.props.onPress();
+      });
+    }
+
     it('category add stages locally with no immediate API call, and enables Save', async () => {
       const renderer = await renderScreen();
       expect(isSaveDisabled(renderer)).toBe(true);
 
-      await act(async () => {
-        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
 
       expect(addItemToCollection).not.toHaveBeenCalled();
       expect(isSaveDisabled(renderer)).toBe(false);
@@ -316,9 +329,8 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
       expect(isSaveDisabled(renderer)).toBe(true);
 
-      await act(async () => {
-        findPressableByText(renderer, '제거')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
 
       expect(removeItemFromCollection).not.toHaveBeenCalled();
       expect(isSaveDisabled(renderer)).toBe(false);
@@ -335,17 +347,11 @@ describe('ItemDetailsScreen', () => {
       );
       const renderer = await renderScreen();
 
-      await act(async () => {
-        findPressableByText(renderer, '제거')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
       expect(isSaveDisabled(renderer)).toBe(false);
 
-      await act(async () => {
-        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
-      });
+      await toggleCategoryInModal(renderer, 'Wishlist');
 
       expect(isSaveDisabled(renderer)).toBe(true);
     });
@@ -355,12 +361,8 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
       expect(latestPreventRemoveIsDirty()).toBe(false);
 
-      await act(async () => {
-        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
       expect(latestPreventRemoveIsDirty()).toBe(true);
 
       await act(async () => {
@@ -375,7 +377,13 @@ describe('ItemDetailsScreen', () => {
           if (options.itemId) {
             return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
           }
-          return { items: [makeCollection({ id: 6, name: 'Groceries' })], nextCursor: null };
+          return {
+            items: [
+              makeCollection({ id: 5, name: 'Wishlist' }),
+              makeCollection({ id: 6, name: 'Groceries' }),
+            ],
+            nextCursor: null,
+          };
         },
       );
       jest.mocked(addItemToCollection).mockResolvedValue(undefined);
@@ -383,15 +391,9 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       // Remove the existing membership (Wishlist) and add a new one (Groceries).
-      await act(async () => {
-        findPressableByText(renderer, '제거')?.props.onPress();
-      });
-      await act(async () => {
-        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Groceries')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await toggleCategoryInModal(renderer, 'Groceries');
 
       await act(async () => {
         await findPressableByText(renderer, '저장')?.props.onPress();
@@ -406,12 +408,8 @@ describe('ItemDetailsScreen', () => {
     it('never shows a saved message before Save is actually pressed, even after staging a category change', async () => {
       const renderer = await renderScreen();
 
-      await act(async () => {
-        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
 
       expect(renderer.root.findAllByProps({ children: '저장되었습니다.' })).toHaveLength(0);
     });
@@ -438,15 +436,9 @@ describe('ItemDetailsScreen', () => {
       });
       const renderer = await renderScreen();
 
-      await act(async () => {
-        findPressableByText(renderer, '카테고리에 추가')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Wishlist')?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByText(renderer, 'Groceries')?.props.onPress();
-      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await toggleCategoryInModal(renderer, 'Groceries');
 
       await act(async () => {
         await findPressableByText(renderer, '저장')?.props.onPress();
@@ -466,6 +458,82 @@ describe('ItemDetailsScreen', () => {
       // re-sent a third time.
       expect(addItemToCollection).toHaveBeenCalledTimes(3);
       expect(isSaveDisabled(renderer)).toBe(true);
+    });
+  });
+
+  describe('category summary (compact chips)', () => {
+    function mockSelectedCategories(items: readonly Collection[]): void {
+      jest.mocked(getCollections).mockImplementation(
+        async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            return { items, nextCursor: null };
+          }
+          return { items: [], nextCursor: null };
+        },
+      );
+    }
+
+    it('shows the "no categories selected" message when there are none', async () => {
+      mockSelectedCategories([]);
+      const renderer = await renderScreen();
+
+      expect(
+        renderer.root.findByProps({ children: i18n.t('collections.itemSectionEmpty') }),
+      ).toBeTruthy();
+    });
+
+    it('shows every chip inline with no "+N" chip when there are 1-3 categories', async () => {
+      mockSelectedCategories([
+        makeCollection({ id: 1, name: 'A' }),
+        makeCollection({ id: 2, name: 'B' }),
+        makeCollection({ id: 3, name: 'C' }),
+      ]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: 'A' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: 'B' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: 'C' })).toBeTruthy();
+      expect(
+        renderer.root.findAll(node => typeof node.props.children === 'string' && /^\+\d+$/.test(node.props.children)),
+      ).toHaveLength(0);
+    });
+
+    it('collapses everything past the 3rd selected category into a single "+N" chip', async () => {
+      mockSelectedCategories([
+        makeCollection({ id: 1, name: 'A' }),
+        makeCollection({ id: 2, name: 'B' }),
+        makeCollection({ id: 3, name: 'C' }),
+        makeCollection({ id: 4, name: 'D' }),
+        makeCollection({ id: 5, name: 'E' }),
+      ]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: 'A' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: 'B' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: 'C' })).toBeTruthy();
+      expect(renderer.root.findAll(node => node.props.children === 'D')).toHaveLength(0);
+      expect(renderer.root.findAll(node => node.props.children === 'E')).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: '+2' })).toBeTruthy();
+    });
+
+    it('truncates a long category name to a single line instead of growing the screen', async () => {
+      const longName = 'A'.repeat(60);
+      mockSelectedCategories([makeCollection({ id: 1, name: longName })]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: longName }).props.numberOfLines).toBe(1);
+    });
+
+    it('the compact summary never grows past the 3-chip cap regardless of how many categories are selected', async () => {
+      mockSelectedCategories(
+        Array.from({ length: 12 }, (_, index) =>
+          makeCollection({ id: index + 1, name: `Category ${index + 1}` }),
+        ),
+      );
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: '+9' })).toBeTruthy();
+      expect(renderer.root.findAll(node => node.props.children === 'Category 12')).toHaveLength(0);
     });
   });
 });

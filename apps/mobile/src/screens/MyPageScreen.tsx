@@ -9,6 +9,7 @@ import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LogoutIcon } from '../icons/LogoutIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
 import {
@@ -38,6 +39,7 @@ export function MyPageScreen() {
 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
+  const [isDeleteAccountDialogVisible, setIsDeleteAccountDialogVisible] = useState(false);
   // Synchronous re-entrancy guard against a double-tap triggering two concurrent deletions.
   const isDeletingAccountRef = useRef(false);
 
@@ -100,10 +102,7 @@ export function MyPageScreen() {
       return;
     }
 
-    Alert.alert(t('myPage.deleteAccountConfirmTitle'), t('myPage.deleteAccountConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.delete'), style: 'destructive', onPress: deleteAccountAction },
-    ]);
+    setIsDeleteAccountDialogVisible(true);
   };
 
   const confirmSignOut = () => {
@@ -179,6 +178,18 @@ export function MyPageScreen() {
           </Pressable>
         </View>
       </View>
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message={t('myPage.deleteAccountConfirmMessage')}
+        onCancel={() => setIsDeleteAccountDialogVisible(false)}
+        onConfirm={() => {
+          setIsDeleteAccountDialogVisible(false);
+          deleteAccountAction();
+        }}
+        title={t('myPage.deleteAccountConfirmTitle')}
+        visible={isDeleteAccountDialogVisible}
+      />
     </SafeAreaView>
   );
 }

@@ -1,11 +1,16 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Alert, Text } from 'react-native';
+import { Alert, Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
 import { useAuth } from '../../auth/AuthContext';
+import { deleteAccount } from '../../api/accountApi';
 
 jest.mock('../../auth/AuthContext', () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock('../../api/accountApi', () => ({
+  deleteAccount: jest.fn(),
 }));
 
 jest.mock('../../settings/quickSaveOnSharePreference', () => ({
@@ -54,6 +59,21 @@ async function renderScreen() {
 
 function findTextValues(renderer: ReactTestRenderer.ReactTestRenderer): unknown[] {
   return renderer.root.findAllByType(Text).map(node => node.props.children);
+}
+
+/** Finds the Text node with exactly this children text, then walks up to its nearest onPress-bearing ancestor. */
+function findPressableContainingText(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
+  let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findByProps({ children: text });
+  while (node && typeof node.props.onPress !== 'function') {
+    node = node.parent;
+  }
+  return node;
+}
+
+/** MyPageScreen's single ConfirmDialog (a Modal) - used for the account-deletion confirm/cancel flow, distinct from sign-out's own native Alert. */
+function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  const dialog = renderer.root.findByType(Modal);
+  return dialog.findAll(node => node.props.accessibilityLabel === label)[0];
 }
 
 describe('MyPageScreen account section', () => {
@@ -115,5 +135,48 @@ describe('MyPageScreen sign-out', () => {
     });
 
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MyPageScreen account deletion', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('gates account deletion behind the shared ConfirmDialog, and only deletes after confirming', async () => {
+    const signOut = jest.fn();
+    mockUseAuth({ signOut, userEmail: null });
+    jest.mocked(deleteAccount).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    const deleteButton = findPressableContainingText(renderer, i18n.t('myPage.deleteAccount'));
+    await act(async () => {
+      deleteButton!.props.onPress();
+    });
+
+    expect(deleteAccount).not.toHaveBeenCalled();
+
+    await act(async () => {
+      getConfirmDialogButton(renderer, i18n.t('common.delete')).props.onPress();
+    });
+
+    expect(deleteAccount).toHaveBeenCalledWith(expect.anything());
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not delete the account when the ConfirmDialog is cancelled', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    const deleteButton = findPressableContainingText(renderer, i18n.t('myPage.deleteAccount'));
+    await act(async () => {
+      deleteButton!.props.onPress();
+    });
+
+    await act(async () => {
+      getConfirmDialogButton(renderer, i18n.t('common.cancel')).props.onPress();
+    });
+
+    expect(deleteAccount).not.toHaveBeenCalled();
   });
 });
