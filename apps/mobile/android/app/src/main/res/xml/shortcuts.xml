@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sharing Shortcuts API: matches ShortcutSyncManager's dynamic category shortcuts (see
+  ShortcutSyncManager.kt) to ShareReceiverActivity's ACTION_SEND/text-plain intent-filter, via the
+  shared category id below - both this file's <category> and each ShortcutInfoCompat's
+  setCategories() must use the exact same value. No static <shortcut> entries here; every category
+  shortcut is published dynamically at runtime from the user's own Collections.
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <share-target android:targetClass="com.juple.app.ShareReceiverActivity">
+        <data android:mimeType="text/plain" />
+        <category android:name="com.juple.app.sharetarget.CATEGORY" />
+    </share-target>
+</shortcuts>

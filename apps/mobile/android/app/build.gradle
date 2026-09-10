@@ -342,4 +342,7 @@ dependencies {
 
     // Durable one-shot fallback for the incoming-share save (see IncomingShareRetryScheduler).
     implementation("androidx.work:work-runtime:2.11.2")
+
+    // Plain JVM unit tests only (no Android framework/Robolectric) - see app/src/test.
+    testImplementation("junit:junit:4.13.2")
 }

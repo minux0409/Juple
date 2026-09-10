@@ -22,6 +22,7 @@ import { validateBackendSession } from './authSessionApi';
 import { bootstrapCurrentUser } from './userBootstrapApi';
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
 import { unregisterCurrentPushDeviceBestEffort } from '../push/pushLogoutUnregister';
+import { clearCategoryShortcutsOnLogoutBestEffort } from '../share/clearCategoryShortcutsOnLogout';
 import type { AuthContextValue, AuthState, UserBootstrapStatus } from './types';
 
 const INITIAL_STATE: AuthState = {
@@ -265,6 +266,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     await unregisterCurrentPushDeviceBestEffort();
+    await clearCategoryShortcutsOnLogoutBestEffort();
     await clearSession();
     setSignedOut();
   }, [setSignedOut]);

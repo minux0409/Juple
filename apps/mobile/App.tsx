@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { useCategorySnapshotBootstrapSync } from './src/categories/useCategorySnapshotBootstrapSync';
 // Runs i18next.init() at module load, before RootStack ever renders, so there is no untranslated
 // first frame - see src/i18n/index.ts.
 import './src/i18n';
@@ -50,6 +51,7 @@ function App() {
       {isLanguageReady ? (
         <AuthProvider>
           <PushRegistrationSync />
+          <CategorySnapshotSync />
           <AppNavigation />
         </AuthProvider>
       ) : (
@@ -64,6 +66,12 @@ function App() {
 /** Headless - runs usePushRegistrationSync's effects only, renders nothing. */
 function PushRegistrationSync(): null {
   usePushRegistrationSync();
+  return null;
+}
+
+/** Headless - runs useCategorySnapshotBootstrapSync's effects only, renders nothing. */
+function CategorySnapshotSync(): null {
+  useCategorySnapshotBootstrapSync();
   return null;
 }
 

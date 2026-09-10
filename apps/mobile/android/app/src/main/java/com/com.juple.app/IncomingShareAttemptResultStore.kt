@@ -41,6 +41,15 @@ object IncomingShareAttemptResultStore {
     return Outcome.fromWireValue(value)
   }
 
+  /**
+   * Non-destructive read for the Quick Save composer's outcome polling (see
+   * NativeIncomingShareModule.getQuickSaveOutcome) - unlike [consume], never removes the stored
+   * value, since [IncomingShareRetryWorker] is the only thing allowed to consume it for its own
+   * retry decision.
+   */
+  fun peek(context: Context, pendingShareId: String): Outcome? =
+    Outcome.fromWireValue(prefs(context).getString(pendingShareId, null))
+
   private fun prefs(context: Context) =
     context.getSharedPreferences(PreferencesName, Context.MODE_PRIVATE)
 }

@@ -59,7 +59,22 @@
           <category android:name="android.intent.category.DEFAULT" />
           <data android:mimeType="text/plain" />
         </intent-filter>
+        <!-- Sharing Shortcuts API: associates ShortcutSyncManager's dynamic category shortcuts with this Activity's ACTION_SEND intent-filter above, so the Sharesheet can offer them as Direct Share targets. -->
+        <meta-data
+            android:name="android.app.shortcuts"
+            android:resource="@xml/shortcuts" />
       </activity>
+      <!--
+        Quick Save composer: a small dialog-styled Activity shown over the sharing app when
+        "공유 즉시 저장" is ON (see ShareReceiverActivity/QuickSaveOnSharePreference) - deliberately
+        not exported (only ShareReceiverActivity starts it) and not MainActivity, so it never boots
+        the app's full navigation stack just to confirm a title/category before saving.
+      -->
+      <activity
+        android:name=".QuickSaveComposerActivity"
+        android:theme="@style/QuickSaveComposerTheme"
+        android:windowSoftInputMode="adjustResize"
+        android:exported="false" />
       <service
         android:name=".IncomingShareHeadlessService"
         android:exported="false" />

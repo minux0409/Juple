@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import {
   deleteCollection,
   enableCollectionShare,
@@ -235,6 +236,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       await renameCollection(authenticatedRequest, collectionId, trimmedName);
       setCollection(previous => (previous ? { ...previous, name: trimmedName } : previous));
       setIsEditingName(false);
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       setRenameError(getRenameErrorMessage(caughtError, t));
     } finally {
@@ -251,6 +253,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setDeleteError(null);
     try {
       await deleteCollection(authenticatedRequest, collectionId);
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
       navigation.goBack();
     } catch (caughtError) {
       setDeleteError(getDeleteErrorMessage(caughtError, t));
@@ -336,6 +339,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     try {
       const updated = await setCollectionFavorite(authenticatedRequest, collectionId, desiredIsFavorite);
       setCollection(updated);
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       // Roll back the optimistic flip - never trust it once the request has failed.
       setCollection(previous => (previous ? { ...previous, isFavorite: !desiredIsFavorite } : previous));

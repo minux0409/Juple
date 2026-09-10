@@ -21,6 +21,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { addItemToCollection } from '../collections/api/collectionsApi';
 import { LinkIcon } from '../icons/LinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
@@ -250,7 +251,24 @@ export function DailyInboxScreen() {
     setIsSaving(true);
     setError(null);
     try {
-      await saveInboxEntry(authenticatedRequest, trimmedUrl, pendingShare?.id);
+      const savedEntry = await saveInboxEntry(authenticatedRequest, trimmedUrl, pendingShare?.id);
+
+      // A Direct Share category target resolves a category before this review screen ever shows
+      // (Quick Save OFF - see ShareReceiverActivity.kt); it is auto-applied here rather than
+      // exposing a second category picker on this screen. Best-effort: the Item is already saved
+      // either way, and a failed link can still be added later from ItemDetails.
+      if (pendingShare?.preselectedCollectionId != null) {
+        try {
+          await addItemToCollection(
+            authenticatedRequest,
+            pendingShare.preselectedCollectionId,
+            savedEntry.id,
+          );
+        } catch {
+          // Intentionally swallowed - see comment above.
+        }
+      }
+
       if (pendingShare) {
         await acknowledgePendingShare(pendingShare.id);
       }

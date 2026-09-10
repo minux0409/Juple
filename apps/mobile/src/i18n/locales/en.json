@@ -181,5 +181,23 @@
     "itemsEmpty": "This shared category has no saved links yet.",
     "unavailableTitle": "This shared link isn't available.",
     "unavailableMessage": "It may have been unshared, or the link may be incorrect."
+  },
+  "quickSaveComposer": {
+    "titleLabel": "Title",
+    "titlePlaceholder": "Enter a title",
+    "categoryLabel": "Category",
+    "categoryNone": "None",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "close": "Close",
+    "retry": "Try again",
+    "savedMessage": "Saved.",
+    "queuedMessage": "Saving... we'll finish this in the background.",
+    "reviewRequiredMessage": "This couldn't be saved automatically. Please review it in the Juple app.",
+    "authenticationRequiredMessage": "Please sign in. Open the Juple app to sign in, then try again.",
+    "retryableFailureMessage": "Couldn't save. Please check your connection and try again.",
+    "permanentFailureMessage": "This link couldn't be saved.",
+    "loadFailureMessage": "Couldn't load the shared content."
   }
 }

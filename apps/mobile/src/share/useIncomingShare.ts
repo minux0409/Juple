@@ -4,7 +4,12 @@ import NativeIncomingShare, {
   type PendingShare,
 } from './specs/NativeIncomingShare';
 
-export function useIncomingShare() {
+export interface UseIncomingShareResult {
+  readonly pendingShare: PendingShare | null;
+  readonly acknowledgePendingShare: (id: string) => Promise<void>;
+}
+
+export function useIncomingShare(): UseIncomingShareResult {
   const [pendingShares, setPendingShares] = useState<readonly PendingShare[]>(
     [],
   );

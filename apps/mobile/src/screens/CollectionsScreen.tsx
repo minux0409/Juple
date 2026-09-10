@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import {
   createCollection,
   getCollections,
@@ -193,7 +194,11 @@ export function CollectionsScreen() {
     useCallback(() => {
       load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
       loadFavorites();
-    }, [load, loadFavorites]),
+      // Best-effort: keeps the native Direct Share/Quick Save composer category snapshot (see
+      // categorySnapshotSync.ts) current on every visit, independently of this screen's own
+      // paginated state - a failure here never affects what this screen shows.
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+    }, [authenticatedRequest, load, loadFavorites]),
   );
 
   const loadMore = useCallback(() => {
@@ -249,6 +254,7 @@ export function CollectionsScreen() {
       const created = await createCollection(authenticatedRequest, trimmedName);
       setCollections(previous => [created, ...previous]);
       setName('');
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       setCreateError(getCreateErrorMessage(caughtError, t));
     } finally {
@@ -289,6 +295,7 @@ export function CollectionsScreen() {
         const withoutStale = previous.filter(existing => existing.id !== updated.id);
         return updated.isFavorite ? sortByCreatedAtUtcDescending([...withoutStale, updated]) : withoutStale;
       });
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       // Roll back to the pre-toggle Collection in both lists - never trust the optimistic flip.
       setCollections(previous =>

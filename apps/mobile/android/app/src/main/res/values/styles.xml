@@ -9,4 +9,20 @@
     <!-- For ShareReceiverActivity: never renders a window; the activity must call finish() before onResume. -->
     <style name="NoDisplayTheme" parent="android:Theme.NoDisplay" />
 
+    <!--
+      For QuickSaveComposerActivity: a translucent, chrome-less window so the JS root (see
+      QuickSaveComposerScreen.tsx) can render its own dimmed backdrop + bottom-sheet card over the
+      sharing app, rather than a full opaque screen. windowIsFloating is deliberately NOT set -
+      that would size the window to its content instead of filling the screen, which is exactly
+      what QuickSaveComposerScreen's own backdrop Pressable (tap-outside-to-cancel) needs to fill.
+    -->
+    <style name="QuickSaveComposerTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
 </resources>

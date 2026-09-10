@@ -21,6 +21,7 @@ import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import {
   addItemToCollection,
   createCollection,
@@ -546,6 +547,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       const created = await createCollection(authenticatedRequest, trimmedName);
       setCollectionPool(previous => [...previous, created]);
       setNewCollectionName('');
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       setCollectionModalError(getCollectionCreateErrorMessage(caughtError, t));
     } finally {
