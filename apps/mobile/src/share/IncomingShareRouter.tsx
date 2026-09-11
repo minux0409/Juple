@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { navigationRef } from '../navigation/navigationRef';
-import { extractTitleCandidateFromSharedText, parseSharedText } from './sharedTextParser';
+import { resolveIncomingShare } from './resolveIncomingShare';
 import { useIncomingShare } from './useIncomingShare';
 
 /**
@@ -29,12 +30,21 @@ export function IncomingShareRouter(): null {
 
     lastHandledShareIdRef.current = pendingShare.id;
 
-    const parsedShare = parseSharedText(pendingShare.text);
-    const titleCandidate = extractTitleCandidateFromSharedText(pendingShare.text)?.titleCandidate;
+    // The same shared resolver Quick Save ON's headless save uses (see resolveIncomingShare/
+    // incomingShareHeadlessTask) - ON and OFF must never resolve a share's URL/title differently.
+    const resolvedShare = resolveIncomingShare(pendingShare);
+    // Dev/Dogfood only - booleans/enums only, never the shared text, URL, or resolved title text.
+    if (isDetailedShareDiagnosticsEnabled) {
+      console.log('[IncomingShareRouter] navigate to NewLinkReview', {
+        parsedKind: resolvedShare.kind,
+        resolvedTitlePresent: resolvedShare.title !== null,
+        titleSource: resolvedShare.titleSource,
+      });
+    }
 
     navigationRef.navigate('NewLinkReview', {
-      url: parsedShare.text,
-      initialTitle: pendingShare.draftTitle ?? titleCandidate ?? pendingShare.initialTitle,
+      url: resolvedShare.text,
+      initialTitle: resolvedShare.title,
       preselectedCollectionId: pendingShare.draftCollectionId ?? pendingShare.preselectedCollectionId,
     });
 

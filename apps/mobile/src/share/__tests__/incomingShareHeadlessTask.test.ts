@@ -2,6 +2,7 @@ import { AppRegistry } from 'react-native';
 import { registerIncomingShareHeadlessTask } from '../incomingShareHeadlessTask';
 import NativeIncomingShare from '../specs/NativeIncomingShare';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
+import { updateItemDetails } from '../../items/api/itemsApi';
 import { ApiError } from '../../api/ApiError';
 
 jest.mock('../specs/NativeIncomingShare', () => ({
@@ -15,6 +16,10 @@ jest.mock('../specs/NativeIncomingShare', () => ({
 
 jest.mock('../../inbox/api/inboxApi', () => ({
   saveInboxEntry: jest.fn(),
+}));
+
+jest.mock('../../items/api/itemsApi', () => ({
+  updateItemDetails: jest.fn(),
 }));
 
 function makePendingShare(overrides: Partial<Record<string, unknown>> = {}) {
@@ -46,7 +51,7 @@ describe('incomingShareHeadlessTask', () => {
     jest.clearAllMocks();
   });
 
-  it('saves the URL as-is and acknowledges the pending share - no title/category applied', async () => {
+  it('saves the URL as-is and acknowledges the pending share - no title PUT when the share has no title', async () => {
     const pendingShare = makePendingShare();
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
     jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
@@ -54,6 +59,47 @@ describe('incomingShareHeadlessTask', () => {
     await task({ pendingShareId: pendingShare.id });
 
     expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), pendingShare.text, pendingShare.id);
+    expect(updateItemDetails).not.toHaveBeenCalled();
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+  });
+
+  it('applies the resolved share title to the saved Item (same resolver/PUT the review flow uses)', async () => {
+    const pendingShare = makePendingShare({ initialTitle: 'Video title from EXTRA_SUBJECT' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 42, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 42, {
+      title: 'Video title from EXTRA_SUBJECT',
+      memo: '',
+    });
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+  });
+
+  it('still acknowledges the share when the title PUT fails - the Item is already saved (best-effort title)', async () => {
+    const pendingShare = makePendingShare({ initialTitle: 'A title' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 42, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockRejectedValue(new ApiError('unavailable'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    expect(NativeIncomingShare!.reportAttemptOutcome).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('never uses the raw shared URL as the Item title', async () => {
+    const pendingShare = makePendingShare({ initialTitle: 'https://example.com/a' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 42, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(updateItemDetails).not.toHaveBeenCalled();
     expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
   });
 
@@ -105,6 +151,22 @@ describe('incomingShareHeadlessTask', () => {
       const calls: unknown[][] = [...logSpy.mock.calls, ...warnSpy.mock.calls];
       return calls.map(call => call.map((arg: unknown) => JSON.stringify(arg)).join(' ')).join('\n');
     }
+
+    it('never logs the resolved title text - only titleSource/resolvedTitlePresent', async () => {
+      const SECRET_TITLE = 'secret-video-title-should-never-be-logged-verbatim';
+      const pendingShare = makePendingShare({ initialTitle: SECRET_TITLE });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(updateItemDetails).mockRejectedValue(new Error(`rejected: ${SECRET_TITLE}`));
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(allLoggedText(logSpy, warnSpy)).not.toContain(SECRET_TITLE);
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
 
     it('never logs the raw shared URL or the raw pendingShareId on a successful save', async () => {
       const pendingShare = makePendingShare({ id: SECRET_PENDING_SHARE_ID, text: SECRET_URL });

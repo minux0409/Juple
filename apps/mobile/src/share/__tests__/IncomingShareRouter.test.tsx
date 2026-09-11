@@ -106,6 +106,36 @@ describe('IncomingShareRouter', () => {
     );
   });
 
+  it('prefers the intent title (EXTRA_SUBJECT/EXTRA_TITLE) over a shared-text leading candidate', async () => {
+    mockPendingShare(
+      makePendingShare({
+        id: 'share-4b',
+        text: 'Check this out: https://example.com/c',
+        initialTitle: 'From intent',
+      }),
+    );
+
+    await render();
+
+    expect(navigationRef.navigate).toHaveBeenCalledWith(
+      'NewLinkReview',
+      expect.objectContaining({ initialTitle: 'From intent' }),
+    );
+  });
+
+  it('passes a null title instead of the raw URL for a URL-only share', async () => {
+    mockPendingShare(
+      makePendingShare({ id: 'share-4c', text: 'https://www.instagram.com/reel/abc/' }),
+    );
+
+    await render();
+
+    expect(navigationRef.navigate).toHaveBeenCalledWith(
+      'NewLinkReview',
+      expect.objectContaining({ initialTitle: null, url: 'https://www.instagram.com/reel/abc/' }),
+    );
+  });
+
   it('does not navigate again for the same pending share id on a later render', async () => {
     const share = makePendingShare({ id: 'share-5' });
     mockPendingShare(share);
