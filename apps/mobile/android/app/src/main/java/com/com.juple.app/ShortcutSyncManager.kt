@@ -31,7 +31,7 @@ object ShortcutSyncManager {
     // truncate what's actually shown in the Sharesheet.
     val ranked = categories.sortedByDescending { it.isFavorite }.take(maxShortcuts)
 
-    val shortcuts = ranked.map { category ->
+    val shortcuts = ranked.mapIndexed { index, category ->
       // Only a fallback for long-pressing the app icon in the launcher - the Sharesheet's Direct
       // Share row itself resolves to ShareReceiverActivity via shortcuts.xml's <share-target>,
       // not this Intent.
@@ -42,6 +42,10 @@ object ShortcutSyncManager {
         .setLongLabel(category.name.take(MaxLabelLength))
         .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
         .setCategories(setOf(ShareTargetCategory))
+        // The supported ranking signal (lower = more important) - without it every shortcut has
+        // rank 0 and the OS is free to ignore the publish order entirely. Favorite-first ordering
+        // above therefore becomes an explicit, API-honored rank here.
+        .setRank(index)
         .setIntent(fallbackIntent)
         .build()
     }
