@@ -6,10 +6,8 @@ import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
 import { ApiError } from '../api/ApiError';
 import { EntraAuthError, isEntraSessionInvalidError } from '../auth/entraAuthClient';
 import { AuthSessionError } from '../auth/session/authSessionErrors';
-import { addItemToCollection } from '../collections/api/collectionsApi';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
-import { updateItemDetails } from '../items/api/itemsApi';
 
 /**
  * Coarse, non-identifying shape for diagnostics only - never the URL itself (path/query can carry
@@ -100,15 +98,16 @@ async function reportOutcome(
 /**
  * Looks up the pending share captured by ShareReceiverActivity and, only when its text is an
  * exact http/https URL, saves it in the background using the same authenticated client and
- * clientRequestId idempotency the manual/foreground share flow uses. This only ever runs after
- * the user has confirmed Save in the Quick Save composer (see
- * NativeIncomingShare.submitQuickSaveDraft) - draftTitle/draftCollectionId are what the composer
- * confirmed, never the merely-suggested initialTitle/preselectedCollectionId.
+ * clientRequestId idempotency the manual/foreground share flow uses. Runs immediately for every
+ * Quick Save ON share (see ShareReceiverActivity/IncomingShareSaveScheduler) - deliberately does
+ * not apply any title/category afterward (a since-removed composer used to stage
+ * draftTitle/draftCollectionId here and apply them via two extra API calls post-save; that was an
+ * added failure surface for no user-visible benefit and has been removed - see this file's git
+ * history for the prior composer-aware version). A user who wants a category on the saved Item
+ * still adds one afterward from ItemDetails, same as any other saved link.
  *
- * saveInboxEntry and addItemToCollection are both already idempotent (POST /inbox replays by
- * clientRequestId; the collection PUT succeeds again for an already-a-member Item), so a retried
- * attempt after a partial failure (Item created, category link failed) safely redoes only what's
- * still needed without ever creating a second Item.
+ * saveInboxEntry is already idempotent (POST /inbox replays by clientRequestId), so a retried
+ * attempt after a failure safely resolves to the same Item without ever creating a second one.
  *
  * Any failure (no session, network, timeout, non-2xx) leaves the pending share for a possible
  * retry (see IncomingShareRetryWorker) or manual review, and reports why via reportOutcome; this
@@ -146,8 +145,6 @@ async function incomingShareHeadlessTask(
       parsedKind: parsedShare.kind,
       hostname: parsedShare.kind === 'exactUrl' ? getHostnameFromUrl(parsedShare.text) : null,
       urlShape: parsedShare.kind === 'exactUrl' ? classifyUrlShape(parsedShare.text) : null,
-      hasDraftTitle: !!pendingShare.draftTitle,
-      hasDraftCollectionId: pendingShare.draftCollectionId !== null,
     });
   }
   if (parsedShare.kind !== 'exactUrl') {
@@ -156,26 +153,7 @@ async function incomingShareHeadlessTask(
   }
 
   try {
-    const savedEntry = await saveInboxEntry(
-      requestAuthenticatedApi,
-      parsedShare.text,
-      pendingShare.id,
-    );
-
-    if (pendingShare.draftTitle) {
-      await updateItemDetails(requestAuthenticatedApi, savedEntry.id, {
-        title: pendingShare.draftTitle,
-        memo: '',
-      });
-    }
-
-    if (pendingShare.draftCollectionId !== null) {
-      await addItemToCollection(
-        requestAuthenticatedApi,
-        pendingShare.draftCollectionId,
-        savedEntry.id,
-      );
-    }
+    await saveInboxEntry(requestAuthenticatedApi, parsedShare.text, pendingShare.id);
   } catch (error) {
     const outcome = classifySaveFailure(error);
     // Always on, including Production - API kind/status and the resulting failure classification

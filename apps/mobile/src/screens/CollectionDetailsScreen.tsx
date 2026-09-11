@@ -1,15 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -33,9 +33,13 @@ import {
   type CollectionShare,
 } from '../collections/api/collectionsApi';
 import { useCollectionItems } from '../collections/useCollectionItems';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { colors, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -148,12 +152,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const isDeleteConfirmOpenRef = useRef(false);
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
 
-  const [removingItemId, setRemovingItemId] = useState<number | null>(null);
+  // Mirrors DailyInboxScreen/DateHistoryScreen's SwipeableItemRow usage: one shared in-flight id
+  // disables every row's swipe actions while any single row's share/remove is running.
+  const [itemActionInFlightId, setItemActionInFlightId] = useState<number | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
-
-  const [sharingItemId, setSharingItemId] = useState<number | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
 
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
@@ -162,7 +166,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [share, setShare] = useState<CollectionShare | null>(null);
   const [isManagingShare, setIsManagingShare] = useState(false);
   const [shareManagementError, setShareManagementError] = useState<string | null>(null);
-  const isUnshareConfirmOpenRef = useRef(false);
+  const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
 
   const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeLocally } =
     useCollectionItems(collectionId);
@@ -263,39 +267,18 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
 
   const confirmDeleteCollection = () => {
-    if (isDeleteConfirmOpenRef.current || isDeletingCollection) {
+    if (isDeletingCollection) {
       return;
     }
-    isDeleteConfirmOpenRef.current = true;
-
-    const closeConfirmation = () => {
-      isDeleteConfirmOpenRef.current = false;
-    };
-
-    Alert.alert(
-      t('collections.deleteConfirmTitle'),
-      t('collections.deleteConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: () => {
-            closeConfirmation();
-            deleteCollectionAction();
-          },
-        },
-      ],
-      { cancelable: true, onDismiss: closeConfirmation },
-    );
+    setIsDeleteConfirmVisible(true);
   };
 
   const removeItemAction = async (itemId: number) => {
-    if (removingItemId !== null) {
+    if (itemActionInFlightId !== null) {
       return;
     }
 
-    setRemovingItemId(itemId);
+    setItemActionInFlightId(itemId);
     setRemoveError(null);
     try {
       await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
@@ -306,24 +289,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     } catch (caughtError) {
       setRemoveError(getRemoveItemErrorMessage(caughtError, t));
     } finally {
-      setRemovingItemId(null);
+      setItemActionInFlightId(null);
     }
   };
 
   /** Shares the Item's original URL as-is via the OS Share Sheet - never a Juple-branded link. */
   const shareItemAction = async (item: CollectionItemEntry) => {
-    if (sharingItemId !== null) {
+    if (itemActionInFlightId !== null) {
       return;
     }
 
-    setSharingItemId(item.itemId);
+    setItemActionInFlightId(item.itemId);
     setShareError(null);
     try {
       await shareItem(item.url, item.title);
     } catch {
       setShareError(getShareErrorMessage(t));
     } finally {
-      setSharingItemId(null);
+      setItemActionInFlightId(null);
     }
   };
 
@@ -351,10 +334,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   /**
    * Idempotent, mirroring the Backend: if already shared, reuses the existing active link rather
-   * than minting a new one - tapping "share" again while active just re-opens the Share Sheet with
-   * the same URL. Never shares an Item's own URL - always the Collection's Juple public link.
+   * than minting a new one. Enabling no longer also opens the OS Share Sheet - that is now the
+   * separate, explicit "링크 공유" action below, so toggling the switch ON never itself triggers a
+   * system share sheet.
    */
-  const shareCollectionAction = async () => {
+  const enableShareAction = async () => {
     if (!collection || isManagingShare) {
       return;
     }
@@ -364,11 +348,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     try {
       const activeShare = share ?? (await enableCollectionShare(authenticatedRequest, collectionId));
       setShare(activeShare);
-      await shareItem(activeShare.shareUrl, collection.name);
     } catch (caughtError) {
       setShareManagementError(getShareManagementErrorMessage(caughtError, t));
     } finally {
       setIsManagingShare(false);
+    }
+  };
+
+  /** Shares the Collection's own Juple public link (never an Item's URL) via the OS Share Sheet. */
+  const shareLinkAction = async () => {
+    if (!collection || !share) {
+      return;
+    }
+    try {
+      await shareItem(share.shareUrl, collection.name);
+    } catch {
+      setShareManagementError(getShareErrorMessage(t));
     }
   };
 
@@ -390,31 +385,18 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   };
 
   const confirmUnshare = () => {
-    if (isUnshareConfirmOpenRef.current || isManagingShare) {
+    if (isManagingShare) {
       return;
     }
-    isUnshareConfirmOpenRef.current = true;
+    setIsUnshareConfirmVisible(true);
+  };
 
-    const closeConfirmation = () => {
-      isUnshareConfirmOpenRef.current = false;
-    };
-
-    Alert.alert(
-      t('collections.unshareConfirmTitle'),
-      t('collections.unshareConfirmMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
-        {
-          text: t('collections.unshare'),
-          style: 'destructive',
-          onPress: () => {
-            closeConfirmation();
-            revokeShareAction();
-          },
-        },
-      ],
-      { cancelable: true, onDismiss: closeConfirmation },
-    );
+  const handleShareToggle = (value: boolean) => {
+    if (value) {
+      enableShareAction();
+    } else {
+      confirmUnshare();
+    }
   };
 
   if (isLoadingCollection && !collection) {
@@ -499,36 +481,44 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 <Pressable accessibilityRole="button" onPress={startEditName} style={styles.editButton}>
                   <Text style={styles.editButtonLabel}>{t('common.edit')}</Text>
                 </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+                  disabled={isDeletingCollection}
+                  onPress={confirmDeleteCollection}
+                  style={[styles.deleteButton, isDeletingCollection && styles.disabledButton]}
+                >
+                  <Text style={styles.deleteButtonLabel}>
+                    {isDeletingCollection ? t('common.deleting') : t('common.delete')}
+                  </Text>
+                </Pressable>
               </View>
             )}
             {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
+            {deleteError ? <Text style={styles.error}>{deleteError}</Text> : null}
 
             <Text style={styles.itemCount}>
               {t('collections.itemCount', { count: collection.itemCount })}
             </Text>
 
-            <View style={styles.shareRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isManagingShare, busy: isManagingShare }}
-                disabled={isManagingShare}
-                onPress={shareCollectionAction}
-                style={[styles.shareCollectionButton, isManagingShare && styles.disabledButton]}
-              >
-                <Text style={styles.shareCollectionButtonLabel}>
-                  {isManagingShare ? t('common.processing') : t('collections.share')}
-                </Text>
-              </Pressable>
+            <View style={styles.shareSection}>
+              <View style={styles.shareToggleRow}>
+                <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
+                <Switch
+                  disabled={isManagingShare}
+                  onValueChange={handleShareToggle}
+                  value={share !== null}
+                />
+              </View>
+              <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
               {share ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: isManagingShare }}
-                  disabled={isManagingShare}
-                  onPress={confirmUnshare}
-                  style={[styles.unshareButton, isManagingShare && styles.disabledButton]}
+                  onPress={shareLinkAction}
+                  style={styles.shareLinkButton}
                 >
-                  <Text style={styles.unshareButtonLabel}>{t('collections.unshare')}</Text>
+                  <Text style={styles.shareLinkButtonLabel}>{t('collections.shareLinkAction')}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -543,112 +533,79 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         ListEmptyComponent={
           !isLoading && !error ? <Text style={styles.empty}>{t('collections.itemsEmpty')}</Text> : undefined
         }
+        onScrollBeginDrag={closeOpenRow}
         renderItem={({ item }) => (
-          <CollectionItemRow
-            isRemoveDisabled={removingItemId !== null}
-            isRemoving={removingItemId === item.itemId}
-            isShareDisabled={sharingItemId !== null}
-            item={item}
+          <SwipeableItemRow
+            containerStyle={styles.row}
+            disabled={itemActionInFlightId !== null || isRefreshing}
+            onDelete={() => removeItemAction(item.itemId)}
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.itemId });
             }}
-            onRemove={() => {
-              removeItemAction(item.itemId);
-            }}
-            onShare={() => {
-              shareItemAction(item);
-            }}
-          />
+            onShare={() => shareItemAction(item)}
+          >
+            <CollectionItemContent item={item} />
+          </SwipeableItemRow>
         )}
         ListFooterComponent={
-          <View>
-            {isLoadingMore ? (
-              <View style={styles.footerLoading}>
-                <ActivityIndicator />
-              </View>
-            ) : null}
-            {deleteError ? <Text style={styles.error}>{deleteError}</Text> : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-              disabled={isDeletingCollection}
-              onPress={confirmDeleteCollection}
-              style={[styles.deleteCollectionButton, isDeletingCollection && styles.disabledButton]}
-            >
-              <Text style={styles.deleteCollectionButtonLabel}>
-                {isDeletingCollection ? t('common.deleting') : t('collections.delete')}
-              </Text>
-            </Pressable>
-          </View>
+          isLoadingMore ? (
+            <View style={styles.footerLoading}>
+              <ActivityIndicator />
+            </View>
+          ) : undefined
         }
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message={t('collections.deleteConfirmMessage')}
+        onCancel={() => setIsDeleteConfirmVisible(false)}
+        onConfirm={() => {
+          setIsDeleteConfirmVisible(false);
+          deleteCollectionAction();
+        }}
+        title={t('collections.deleteConfirmTitle')}
+        visible={isDeleteConfirmVisible}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('collections.unshare')}
+        message={t('collections.unshareConfirmMessage')}
+        onCancel={() => setIsUnshareConfirmVisible(false)}
+        onConfirm={() => {
+          setIsUnshareConfirmVisible(false);
+          revokeShareAction();
+        }}
+        title={t('collections.unshareConfirmTitle')}
+        visible={isUnshareConfirmVisible}
       />
     </SafeAreaView>
   );
 }
 
-interface CollectionItemRowProps {
+interface CollectionItemContentProps {
   readonly item: CollectionItemEntry;
-  readonly isRemoving: boolean;
-  readonly isRemoveDisabled: boolean;
-  readonly isShareDisabled: boolean;
-  readonly onPress: () => void;
-  readonly onRemove: () => void;
-  readonly onShare: () => void;
 }
 
-function CollectionItemRow({
-  item,
-  isRemoving,
-  isRemoveDisabled,
-  isShareDisabled,
-  onPress,
-  onRemove,
-  onShare,
-}: CollectionItemRowProps) {
-  const { t } = useTranslation();
-
+function CollectionItemContent({ item }: CollectionItemContentProps) {
   return (
-    <View style={styles.row}>
-      <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
-        <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
-        <View style={styles.rowTextColumn}>
-          <Text numberOfLines={2} style={styles.url}>
-            {item.title ?? item.url}
+    <View style={styles.rowContent}>
+      <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
+      <View style={styles.rowTextColumn}>
+        <Text numberOfLines={2} style={styles.url}>
+          {item.title ?? item.url}
+        </Text>
+        {item.title ? (
+          <Text numberOfLines={1} style={styles.secondaryUrl}>
+            {item.url}
           </Text>
-          {item.title ? (
-            <Text numberOfLines={1} style={styles.secondaryUrl}>
-              {item.url}
-            </Text>
-          ) : null}
-          {item.memo ? (
-            <Text numberOfLines={2} style={styles.memoPreview}>
-              {item.memo}
-            </Text>
-          ) : null}
-          <Text style={styles.addedTime}>{formatAddedTime(item.addedAtUtc)}</Text>
-        </View>
-      </Pressable>
-      <View style={styles.rowActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isShareDisabled }}
-          disabled={isShareDisabled}
-          onPress={onShare}
-          style={[styles.shareButton, isShareDisabled && styles.disabledButton]}
-        >
-          <Text style={styles.shareButtonLabel}>{t('item.share')}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isRemoveDisabled, busy: isRemoving }}
-          disabled={isRemoveDisabled}
-          onPress={onRemove}
-          style={[styles.removeButton, isRemoveDisabled && styles.disabledButton]}
-        >
-          <Text style={styles.removeButtonLabel}>
-            {isRemoving ? t('common.processing') : t('collections.removeItem')}
+        ) : null}
+        {item.memo ? (
+          <Text numberOfLines={2} style={styles.memoPreview}>
+            {item.memo}
           </Text>
-        </Pressable>
+        ) : null}
+        <Text style={styles.addedTime}>{formatAddedTime(item.addedAtUtc)}</Text>
       </View>
     </View>
   );
@@ -671,6 +628,7 @@ const styles = StyleSheet.create({
   nameRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: spacing.sm,
     justifyContent: 'space-between',
   },
   title: {
@@ -736,34 +694,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  shareRow: {
+  shareSection: {
+    marginTop: spacing.md,
+  },
+  shareToggleRow: {
+    alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 12,
+    justifyContent: 'space-between',
   },
-  shareCollectionButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    marginEnd: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  shareCollectionButtonLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
+  shareToggleLabel: {
+    color: colors.textPrimary,
+    fontSize: 15,
     fontWeight: '600',
   },
-  unshareButton: {
-    alignSelf: 'flex-start',
-    borderColor: '#B42318',
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  shareDescription: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: spacing.xs,
   },
-  unshareButtonLabel: {
-    color: '#B42318',
-    fontSize: 14,
+  shareLinkButton: {
+    alignSelf: 'flex-start',
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+  },
+  shareLinkButtonLabel: {
+    color: colors.textPrimary,
+    fontSize: 13,
     fontWeight: '600',
   },
   error: {
@@ -779,11 +739,11 @@ const styles = StyleSheet.create({
   row: {
     borderTopColor: '#E0E0E0',
     borderTopWidth: 1,
-    paddingVertical: 14,
     marginTop: 24,
   },
-  rowPressable: {
+  rowContent: {
     flexDirection: 'row',
+    paddingVertical: 14,
   },
   rowTextColumn: {
     flex: 1,
@@ -807,53 +767,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 5,
   },
-  rowActions: {
-    flexDirection: 'row',
-    marginTop: 10,
-  },
-  shareButton: {
-    alignSelf: 'flex-start',
-    borderColor: '#9A9A9A',
-    borderRadius: 6,
-    borderWidth: 1,
-    marginEnd: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  shareButtonLabel: {
-    color: '#111111',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  removeButton: {
-    alignSelf: 'flex-start',
-    borderColor: '#9A9A9A',
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  removeButtonLabel: {
-    color: '#111111',
-    fontSize: 13,
-    fontWeight: '600',
-  },
   disabledButton: {
     opacity: 0.5,
   },
   footerLoading: {
     paddingVertical: 20,
   },
-  deleteCollectionButton: {
-    alignItems: 'center',
-    backgroundColor: '#B42318',
-    borderRadius: 8,
-    marginTop: 32,
-    paddingVertical: 12,
+  deleteButton: {
+    borderColor: colors.danger,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
   },
-  deleteCollectionButtonLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  deleteButtonLabel: {
+    color: colors.danger,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

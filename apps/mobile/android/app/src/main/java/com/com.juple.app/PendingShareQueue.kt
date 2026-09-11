@@ -15,7 +15,7 @@ data class PendingShare(
     val initialTitle: String?,
     /** Resolved once at capture time from a matched Direct Share category shortcut (see ShareReceiverActivity) - null for the generic Juple target. */
     val preselectedCollectionId: Long?,
-    /** Set only once the user confirms Save in the Quick Save composer (see submitDraft) - null until then; this (not initialTitle) is what the headless save task actually acts on. */
+    /** Always null - reserved wire-format field, kept for native queue schema compatibility with a since-removed Quick Save composer draft. */
     val draftTitle: String?,
     val draftCollectionId: Long?,
 )
@@ -51,21 +51,6 @@ object PendingShareQueue {
       writeEntries(context, entries)
     }
     return id
-  }
-
-  /** Records the user-confirmed title/category from the Quick Save composer; read by the headless save task on its very next attempt. */
-  fun submitDraft(context: Context, id: String, title: String?, collectionId: Long?) {
-    synchronized(lock) {
-      val entries = readEntries(context)
-      for (index in 0 until entries.length()) {
-        val entry = entries.optJSONObject(index) ?: continue
-        if (entry.optString("id") == id) {
-          entry.putOpt("draftTitle", title)
-          entry.putOpt("draftCollectionId", collectionId)
-        }
-      }
-      writeEntries(context, entries)
-    }
   }
 
   fun getPendingShares(context: Context): List<PendingShare> = synchronized(lock) {

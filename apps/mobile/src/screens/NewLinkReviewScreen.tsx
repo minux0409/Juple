@@ -2,11 +2,17 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { addItemToCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
+import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
+import {
+  addItemToCollection,
+  createCollection,
+  getCollections,
+  type Collection,
+} from '../collections/api/collectionsApi';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -34,6 +40,33 @@ function getSaveErrorMessage(error: unknown, t: TFunction): string {
   return t('inbox.errorSaveFallback');
 }
 
+function getCollectionCreateErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError) {
+    if (error.kind === 'conflict') {
+      return t('collections.errorNameConflict');
+    }
+    if (error.kind === 'badRequest') {
+      return t('collections.errorNameInvalid');
+    }
+    if (error.kind === 'unauthorized') {
+      return t('errors.unauthorized');
+    }
+  }
+  return t('collections.errorCreateFallback');
+}
+
+/** Mirrors the backend's CollectionNameNormalizer: trim, required, 100-character limit. */
+function getCollectionNameValidationError(name: string, t: TFunction): string | null {
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return t('collections.errorNameRequired');
+  }
+  if (trimmedName.length > 100) {
+    return t('collections.errorNameTooLong');
+  }
+  return null;
+}
+
 /**
  * Reached only via IncomingShareRouter (Quick Save OFF, or a leftover Quick Save ON share that
  * still needs review) - never navigated to any other way, and never pre-creates the Item. Save is
@@ -54,6 +87,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
   const [collections, setCollections] = useState<readonly Collection[]>([]);
   const [isLoadingCollections, setIsLoadingCollections] = useState(true);
+
+  const [isCreatingCategoryFormVisible, setIsCreatingCategoryFormVisible] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [collectionCreateError, setCollectionCreateError] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +150,34 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  const submitNewCollection = async () => {
+    if (isCreatingCollection) {
+      return;
+    }
+
+    const validationError = getCollectionNameValidationError(newCollectionName, t);
+    if (validationError) {
+      setCollectionCreateError(validationError);
+      return;
+    }
+    const trimmedName = newCollectionName.trim();
+
+    setIsCreatingCollection(true);
+    setCollectionCreateError(null);
+    try {
+      const created = await createCollection(authenticatedRequest, trimmedName);
+      setCollections(previous => [...previous, created]);
+      setSelectedCollectionId(created.id);
+      setNewCollectionName('');
+      setIsCreatingCategoryFormVisible(false);
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+    } catch (caughtError) {
+      setCollectionCreateError(getCollectionCreateErrorMessage(caughtError, t));
+    } finally {
+      setIsCreatingCollection(false);
+    }
+  };
+
   return (
     <ScrollView
       contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
@@ -147,11 +213,50 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         value={memo}
       />
 
-      <Text style={styles.label}>{t('quickSaveComposer.categoryLabel')}</Text>
+      <View style={styles.categoryHeaderRow}>
+        <Text style={styles.categoryHeaderLabel}>{t('quickSaveComposer.categoryLabel')}</Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setIsCreatingCategoryFormVisible(previous => !previous)}
+          style={styles.addCategoryButton}
+        >
+          <Text style={styles.addCategoryButtonLabel}>{t('collections.addNew')}</Text>
+        </Pressable>
+      </View>
+
+      {isCreatingCategoryFormVisible ? (
+        <View style={styles.newCategoryRow}>
+          <TextInput
+            autoFocus
+            editable={!isCreatingCollection}
+            onChangeText={setNewCollectionName}
+            placeholder={t('collections.namePlaceholder')}
+            style={styles.newCategoryInput}
+            value={newCollectionName}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: !newCollectionName.trim() || isCreatingCollection,
+              busy: isCreatingCollection,
+            }}
+            disabled={!newCollectionName.trim() || isCreatingCollection}
+            onPress={submitNewCollection}
+            style={[
+              styles.newCategoryButton,
+              (!newCollectionName.trim() || isCreatingCollection) && styles.disabledButton,
+            ]}
+          >
+            <Text style={styles.newCategoryButtonLabel}>{t('collections.create')}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {collectionCreateError ? <Text style={styles.error}>{collectionCreateError}</Text> : null}
+
       {isLoadingCollections ? (
         <ActivityIndicator style={styles.categoriesLoading} />
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRow}>
+        <View style={styles.categoryRow}>
           <CategoryChip
             isSelected={selectedCollectionId === null}
             label={t('quickSaveComposer.categoryNone')}
@@ -165,7 +270,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
               onPress={() => setSelectedCollectionId(collection.id)}
             />
           ))}
-        </ScrollView>
+        </View>
       )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -243,16 +348,64 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     textAlignVertical: 'top',
   },
+  categoryHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  categoryHeaderLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  addCategoryButton: {
+    paddingVertical: spacing.xs,
+  },
+  addCategoryButtonLabel: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  newCategoryRow: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+  },
+  newCategoryInput: {
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    fontSize: 15,
+    marginEnd: spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: spacing.sm + 2,
+  },
+  newCategoryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.textPrimary,
+    borderRadius: radii.md,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  newCategoryButtonLabel: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   categoriesLoading: {
     marginTop: spacing.sm,
   },
   categoryRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   chip: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md,
-    marginEnd: spacing.sm,
+    maxWidth: 160,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },

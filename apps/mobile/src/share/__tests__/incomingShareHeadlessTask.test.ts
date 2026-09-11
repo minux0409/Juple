@@ -2,8 +2,6 @@ import { AppRegistry } from 'react-native';
 import { registerIncomingShareHeadlessTask } from '../incomingShareHeadlessTask';
 import NativeIncomingShare from '../specs/NativeIncomingShare';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
-import { updateItemDetails } from '../../items/api/itemsApi';
-import { addItemToCollection } from '../../collections/api/collectionsApi';
 import { ApiError } from '../../api/ApiError';
 
 jest.mock('../specs/NativeIncomingShare', () => ({
@@ -17,14 +15,6 @@ jest.mock('../specs/NativeIncomingShare', () => ({
 
 jest.mock('../../inbox/api/inboxApi', () => ({
   saveInboxEntry: jest.fn(),
-}));
-
-jest.mock('../../items/api/itemsApi', () => ({
-  updateItemDetails: jest.fn(),
-}));
-
-jest.mock('../../collections/api/collectionsApi', () => ({
-  addItemToCollection: jest.fn(),
 }));
 
 function makePendingShare(overrides: Partial<Record<string, unknown>> = {}) {
@@ -56,7 +46,7 @@ describe('incomingShareHeadlessTask', () => {
     jest.clearAllMocks();
   });
 
-  it('saves the URL and acknowledges the pending share when there is no title/category', async () => {
+  it('saves the URL as-is and acknowledges the pending share - no title/category applied', async () => {
     const pendingShare = makePendingShare();
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
     jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
@@ -64,61 +54,33 @@ describe('incomingShareHeadlessTask', () => {
     await task({ pendingShareId: pendingShare.id });
 
     expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), pendingShare.text, pendingShare.id);
-    expect(updateItemDetails).not.toHaveBeenCalled();
-    expect(addItemToCollection).not.toHaveBeenCalled();
     expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
   });
 
-  it('sets the title when a draftTitle was confirmed in the composer', async () => {
-    const pendingShare = makePendingShare({ draftTitle: 'My title' });
+  it('retrying after a failed save never creates a second Item (saveInboxEntry replays the same clientRequestId)', async () => {
+    const pendingShare = makePendingShare();
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(saveInboxEntry).mockRejectedValueOnce(new ApiError('unavailable'));
+    jest.mocked(saveInboxEntry).mockResolvedValueOnce({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
 
-    await task({ pendingShareId: pendingShare.id });
+    await task({ pendingShareId: pendingShare.id }); // first attempt fails
+    await task({ pendingShareId: pendingShare.id }); // retry succeeds
 
-    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 100, { title: 'My title', memo: '' });
+    expect(saveInboxEntry).toHaveBeenCalledTimes(2);
+    expect(saveInboxEntry).toHaveBeenNthCalledWith(1, expect.anything(), pendingShare.text, pendingShare.id);
+    expect(saveInboxEntry).toHaveBeenNthCalledWith(2, expect.anything(), pendingShare.text, pendingShare.id);
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledTimes(1);
   });
 
-  it('links the confirmed category after saving', async () => {
-    const pendingShare = makePendingShare({ draftCollectionId: 7 });
+  it('does not acknowledge the pending share when the save fails', async () => {
+    const pendingShare = makePendingShare();
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
-
-    await task({ pendingShareId: pendingShare.id });
-
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 7, 100);
-    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
-  });
-
-  it('does not acknowledge the pending share when only the category link fails (partial failure)', async () => {
-    const pendingShare = makePendingShare({ draftCollectionId: 7 });
-    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(addItemToCollection).mockRejectedValue(new ApiError('unavailable'));
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('unavailable'));
 
     await task({ pendingShareId: pendingShare.id });
 
     expect(NativeIncomingShare!.acknowledgePendingShare).not.toHaveBeenCalled();
     expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'retryableFailure');
-  });
-
-  it('retrying after a partial failure never creates a second Item (saveInboxEntry replays the same clientRequestId, only the category link is redone)', async () => {
-    const pendingShare = makePendingShare({ draftCollectionId: 7 });
-    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(addItemToCollection).mockRejectedValueOnce(new ApiError('unavailable'));
-    jest.mocked(addItemToCollection).mockResolvedValueOnce(undefined);
-
-    await task({ pendingShareId: pendingShare.id }); // first attempt: category link fails
-    await task({ pendingShareId: pendingShare.id }); // retry: category link succeeds
-
-    // saveInboxEntry is idempotent by clientRequestId - calling it again on retry is expected and
-    // safe, but it must always be called with the SAME id, never creating a second Item.
-    expect(saveInboxEntry).toHaveBeenCalledTimes(2);
-    expect(saveInboxEntry).toHaveBeenNthCalledWith(1, expect.anything(), pendingShare.text, pendingShare.id);
-    expect(saveInboxEntry).toHaveBeenNthCalledWith(2, expect.anything(), pendingShare.text, pendingShare.id);
-    expect(addItemToCollection).toHaveBeenCalledTimes(2);
-    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledTimes(1);
   });
 
   it('reports reviewRequired and never saves when the shared text is not an exact URL', async () => {

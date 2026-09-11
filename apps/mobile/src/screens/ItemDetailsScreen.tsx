@@ -29,6 +29,7 @@ import {
   removeItemFromCollection,
   type Collection,
 } from '../collections/api/collectionsApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
   deleteItemImage,
   getItemImages,
@@ -41,8 +42,8 @@ import {
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
-import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const MAX_ITEM_IMAGES = 10;
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -82,11 +83,6 @@ function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): stri
     return t('errors.unauthorized');
   }
   return t('collections.errorMembershipFallback');
-}
-
-/** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
-function getShareErrorMessage(t: TFunction): string {
-  return t('item.shareError');
 }
 
 function getCollectionCreateErrorMessage(error: unknown, t: TFunction): string {
@@ -170,8 +166,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
   const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
-  const [shareError, setShareError] = useState<string | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [title, setTitle] = useState('');
@@ -226,8 +220,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isItemActionInFlight, setIsItemActionInFlight] = useState(false);
   const [isDeletingItem, setIsDeletingItem] = useState(false);
   const [itemActionError, setItemActionError] = useState<string | null>(null);
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const itemActionInFlightRef = useRef(false);
-  const isItemDeleteConfirmOpenRef = useRef(false);
 
   // Plain per-render value (not memoized - a cheap scan over a small list), so the focus-refetch
   // guard below and the combined isDirty further down always agree on one definition. Image
@@ -544,26 +538,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   const confirmDeleteItem = () => {
-    if (isItemDeleteConfirmOpenRef.current || itemActionInFlightRef.current) {
+    if (itemActionInFlightRef.current) {
       return;
     }
-    isItemDeleteConfirmOpenRef.current = true;
-
-    const closeConfirmation = () => {
-      isItemDeleteConfirmOpenRef.current = false;
-    };
-
-    Alert.alert(t('item.deleteItemConfirmTitle'), t('item.deleteItemConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel', onPress: closeConfirmation },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => {
-          closeConfirmation();
-          deleteItemAction();
-        },
-      },
-    ], { cancelable: true, onDismiss: closeConfirmation });
+    setIsDeleteConfirmVisible(true);
   };
 
   usePreventRemove(isDirty, ({ data }) => {
@@ -669,23 +647,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  /** Shares the Item's original URL as-is via the OS Share Sheet - never a Juple-branded link. */
-  const shareItemAction = async () => {
-    if (!item || isSharing) {
-      return;
-    }
-
-    setIsSharing(true);
-    setShareError(null);
-    try {
-      await shareItem(item.url, title.trim() || null);
-    } catch {
-      setShareError(getShareErrorMessage(t));
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
   if (isLoading && !item) {
     return (
       <View style={styles.loadingContainer}>
@@ -703,189 +664,195 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.label}>{t('item.titleLabel')}</Text>
-      <TextInput
-        onChangeText={text => {
-          setTitle(text);
-          setJustSaved(false);
-        }}
-        placeholder={t('item.titlePlaceholder')}
-        style={styles.titleInput}
-        value={title}
-      />
-
-      <Text style={styles.label}>{t('item.url')}</Text>
-      <Text selectable style={styles.url}>
-        {item.url}
-      </Text>
-      <View style={styles.urlActionsRow}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            openOriginalUrl();
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.label}>{t('item.titleLabel')}</Text>
+        <TextInput
+          onChangeText={text => {
+            setTitle(text);
+            setJustSaved(false);
           }}
-          style={styles.openUrlButton}
-        >
-          <Text style={styles.openUrlButtonLabel}>{t('item.openOriginal')}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isSharing, busy: isSharing }}
-          disabled={isSharing}
-          onPress={shareItemAction}
-          style={[styles.shareButton, isSharing && styles.disabledButton]}
-        >
-          <Text style={styles.shareButtonLabel}>{t('item.share')}</Text>
-        </Pressable>
-      </View>
-      {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
-      {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
-
-      <Text style={styles.label}>{t('item.memo')}</Text>
-      <TextInput
-        multiline
-        onChangeText={text => {
-          setMemo(text);
-          setJustSaved(false);
-        }}
-        placeholder={t('item.memoPlaceholder')}
-        style={styles.memoInput}
-        value={memo}
-      />
-
-      <View style={styles.imagesHeaderRow}>
-        <Text style={styles.label}>
-          {t('item.photosHeader', { count: images.length, max: MAX_ITEM_IMAGES })}
-        </Text>
-      </View>
-
-      {isLoadingImages ? (
-        <ActivityIndicator style={styles.imagesLoading} />
-      ) : (
-        <FlatList
-          contentContainerStyle={styles.imageListContent}
-          data={images}
-          horizontal
-          keyExtractor={image => image.id.toString()}
-          renderItem={({ item: image }) => (
-            <View style={styles.imageThumbnailWrapper}>
-              {image.readUrl ? (
-                <Image source={{ uri: image.readUrl }} style={styles.imageThumbnail} />
-              ) : (
-                <View style={[styles.imageThumbnail, styles.imageThumbnailFallback]} />
-              )}
-              <Pressable
-                accessibilityLabel={t('item.deletePhotoA11y')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: deletingImageIds.has(image.id) }}
-                disabled={deletingImageIds.has(image.id)}
-                onPress={() => confirmDeleteImage(image)}
-                style={styles.imageDeleteButton}
-              >
-                {deletingImageIds.has(image.id) ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.imageDeleteButtonLabel}>×</Text>
-                )}
-              </Pressable>
-            </View>
-          )}
-          showsHorizontalScrollIndicator={false}
+          placeholder={t('item.titlePlaceholder')}
+          style={styles.titleInput}
+          value={title}
         />
-      )}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{
-          disabled: isUploadingImage || images.length >= MAX_ITEM_IMAGES,
-          busy: isUploadingImage,
-        }}
-        disabled={isUploadingImage || images.length >= MAX_ITEM_IMAGES}
-        onPress={pickAndUploadImage}
-        style={[
-          styles.addImageButton,
-          (isUploadingImage || images.length >= MAX_ITEM_IMAGES) && styles.disabledButton,
-        ]}
-      >
-        <Text style={styles.addImageButtonLabel}>
-          {isUploadingImage
-            ? t('item.uploading')
-            : images.length >= MAX_ITEM_IMAGES
-              ? t('item.photoLimitButton', { max: MAX_ITEM_IMAGES })
-              : t('item.addPhoto')}
-        </Text>
-      </Pressable>
+        <Text style={styles.label}>{t('item.url')}</Text>
+        <View style={styles.urlRow}>
+          <Text numberOfLines={1} selectable style={styles.url}>
+            {item.url}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              openOriginalUrl();
+            }}
+            style={styles.goToButton}
+          >
+            <Text style={styles.goToButtonLabel}>{t('item.goToUrl')}</Text>
+          </Pressable>
+        </View>
+        {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
 
-      {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
+        <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
+        {isLoadingItemCollections ? (
+          <ActivityIndicator style={styles.purchasesLoading} />
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSaving }}
+            disabled={isSaving}
+            onPress={openCollectionModal}
+            style={styles.categorySummaryRow}
+          >
+            <View style={styles.categorySummaryChips}>
+              {selectedCategories.length === 0 ? (
+                <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
+              ) : (
+                <>
+                  {selectedCategories.slice(0, CATEGORY_SUMMARY_MAX_CHIPS).map(option => (
+                    <View key={option.id} style={styles.categorySummaryChip}>
+                      <Text numberOfLines={1} style={styles.categorySummaryChipLabel}>
+                        {option.name}
+                      </Text>
+                    </View>
+                  ))}
+                  {selectedCategories.length > CATEGORY_SUMMARY_MAX_CHIPS ? (
+                    <View style={styles.categorySummaryChip}>
+                      <Text style={styles.categorySummaryChipLabel}>
+                        {`+${selectedCategories.length - CATEGORY_SUMMARY_MAX_CHIPS}`}
+                      </Text>
+                    </View>
+                  ) : null}
+                </>
+              )}
+            </View>
+            <Text style={styles.categorySummaryEditLabel}>{t('collections.edit')}</Text>
+          </Pressable>
+        )}
+        {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {justSaved && !isDirty ? <Text style={styles.savedMessage}>{t('item.saved')}</Text> : null}
+        <Text style={styles.label}>{t('item.memo')}</Text>
+        <TextInput
+          multiline
+          onChangeText={text => {
+            setMemo(text);
+            setJustSaved(false);
+          }}
+          placeholder={t('item.memoPlaceholder')}
+          style={styles.memoInput}
+          value={memo}
+        />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !isDirty || isSaving, busy: isSaving }}
-        disabled={!isDirty || isSaving}
-        onPress={save}
-        style={[styles.saveButton, (!isDirty || isSaving) && styles.disabledButton]}
-      >
-        <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
-      </Pressable>
+        <View style={styles.imagesHeaderRow}>
+          <Text style={styles.label}>
+            {t('item.photosHeader', { count: images.length, max: MAX_ITEM_IMAGES })}
+          </Text>
+          <Pressable
+            accessibilityLabel={t('item.addPhoto')}
+            accessibilityRole="button"
+            accessibilityState={{
+              disabled: isUploadingImage || images.length >= MAX_ITEM_IMAGES,
+              busy: isUploadingImage,
+            }}
+            disabled={isUploadingImage || images.length >= MAX_ITEM_IMAGES}
+            onPress={pickAndUploadImage}
+            style={[
+              styles.addImageIconButton,
+              (isUploadingImage || images.length >= MAX_ITEM_IMAGES) && styles.disabledButton,
+            ]}
+          >
+            {isUploadingImage ? (
+              <ActivityIndicator color={colors.textPrimary} size="small" />
+            ) : (
+              <Text style={styles.addImageIconLabel}>+</Text>
+            )}
+          </Pressable>
+        </View>
+        {images.length >= MAX_ITEM_IMAGES ? (
+          <Text style={styles.photoLimitText}>
+            {t('item.photoLimitButton', { max: MAX_ITEM_IMAGES })}
+          </Text>
+        ) : null}
 
-      <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
-      {isLoadingItemCollections ? (
-        <ActivityIndicator style={styles.purchasesLoading} />
-      ) : (
+        {isLoadingImages ? (
+          <ActivityIndicator style={styles.imagesLoading} />
+        ) : (
+          <FlatList
+            contentContainerStyle={styles.imageListContent}
+            data={images}
+            horizontal
+            keyExtractor={image => image.id.toString()}
+            renderItem={({ item: image }) => (
+              <View style={styles.imageThumbnailWrapper}>
+                {image.readUrl ? (
+                  <Image source={{ uri: image.readUrl }} style={styles.imageThumbnail} />
+                ) : (
+                  <View style={[styles.imageThumbnail, styles.imageThumbnailFallback]} />
+                )}
+                <Pressable
+                  accessibilityLabel={t('item.deletePhotoA11y')}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: deletingImageIds.has(image.id) }}
+                  disabled={deletingImageIds.has(image.id)}
+                  onPress={() => confirmDeleteImage(image)}
+                  style={styles.imageDeleteButton}
+                >
+                  {deletingImageIds.has(image.id) ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.imageDeleteButtonLabel}>×</Text>
+                  )}
+                </Pressable>
+              </View>
+            )}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
+
+        {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
+        {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {justSaved && !isDirty ? <Text style={styles.savedMessage}>{t('item.saved')}</Text> : null}
+      </ScrollView>
+
+      <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: isSaving }}
-          disabled={isSaving}
-          onPress={openCollectionModal}
-          style={styles.categorySummaryRow}
+          accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
+          disabled={isItemActionInFlight}
+          onPress={confirmDeleteItem}
+          style={[styles.deleteActionButton, isItemActionInFlight && styles.disabledButton]}
         >
-          <View style={styles.categorySummaryChips}>
-            {selectedCategories.length === 0 ? (
-              <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
-            ) : (
-              <>
-                {selectedCategories.slice(0, CATEGORY_SUMMARY_MAX_CHIPS).map(option => (
-                  <View key={option.id} style={styles.categorySummaryChip}>
-                    <Text numberOfLines={1} style={styles.categorySummaryChipLabel}>
-                      {option.name}
-                    </Text>
-                  </View>
-                ))}
-                {selectedCategories.length > CATEGORY_SUMMARY_MAX_CHIPS ? (
-                  <View style={styles.categorySummaryChip}>
-                    <Text style={styles.categorySummaryChipLabel}>
-                      {`+${selectedCategories.length - CATEGORY_SUMMARY_MAX_CHIPS}`}
-                    </Text>
-                  </View>
-                ) : null}
-              </>
-            )}
-          </View>
-          <Text style={styles.categorySummaryEditLabel}>{t('collections.edit')}</Text>
+          <Text style={styles.deleteActionLabel}>
+            {isDeletingItem ? t('common.deleting') : t('common.delete')}
+          </Text>
         </Pressable>
-      )}
-      {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !isDirty || isSaving, busy: isSaving }}
+          disabled={!isDirty || isSaving}
+          onPress={save}
+          style={[styles.saveActionButton, (!isDirty || isSaving) && styles.disabledButton]}
+        >
+          <Text style={styles.saveActionLabel}>
+            {isSaving ? t('common.saving') : t('common.save')}
+          </Text>
+        </Pressable>
+      </View>
 
-      {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
-        disabled={isItemActionInFlight}
-        onPress={confirmDeleteItem}
-        style={[styles.itemDeleteButton, isItemActionInFlight && styles.disabledButton]}
-      >
-        <Text style={styles.itemDeleteButtonLabel}>
-          {isDeletingItem ? t('common.deleting') : t('common.delete')}
-        </Text>
-      </Pressable>
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message={t('item.deleteItemConfirmMessage')}
+        onCancel={() => setIsDeleteConfirmVisible(false)}
+        onConfirm={() => {
+          setIsDeleteConfirmVisible(false);
+          deleteItemAction();
+        }}
+        title={t('item.deleteItemConfirmTitle')}
+        visible={isDeleteConfirmVisible}
+      />
 
       <Modal
         animationType="slide"
@@ -978,7 +945,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -988,6 +955,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+  },
+  screen: {
+    flex: 1,
   },
   content: {
     flexGrow: 1,
@@ -1008,34 +978,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  url: {
-    color: '#111111',
-    fontSize: 14,
-  },
-  urlActionsRow: {
+  urlRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    marginTop: 8,
+    justifyContent: 'space-between',
   },
-  openUrlButton: {
-    alignSelf: 'flex-start',
-    marginEnd: 16,
-  },
-  openUrlButtonLabel: {
-    color: '#3366CC',
+  url: {
+    color: colors.textPrimary,
+    flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    marginEnd: spacing.md,
   },
-  shareButton: {
+  goToButton: {
     alignSelf: 'flex-start',
-    borderColor: '#9A9A9A',
-    borderRadius: 6,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  shareButtonLabel: {
-    color: '#111111',
+  goToButtonLabel: {
+    color: colors.brand,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1059,30 +1021,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 16,
   },
-  saveButton: {
-    alignItems: 'center',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    marginTop: 24,
-    paddingVertical: 12,
-  },
   disabledButton: {
     opacity: 0.5,
   },
-  itemDeleteButton: {
-    alignItems: 'center',
-    backgroundColor: '#B42318',
-    borderRadius: 8,
-    marginTop: 12,
-    paddingVertical: 12,
+  bottomBar: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.divider,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
   },
-  itemDeleteButtonLabel: {
-    color: '#FFFFFF',
+  deleteActionButton: {
+    alignItems: 'center',
+    borderColor: colors.danger,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+  },
+  deleteActionLabel: {
+    color: colors.danger,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveActionButton: {
+    alignItems: 'center',
+    backgroundColor: colors.textPrimary,
+    borderRadius: radii.md,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+  },
+  saveActionLabel: {
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
   },
   imagesHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 20,
+  },
+  photoLimitText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginBottom: 4,
   },
   imagesLoading: {
     marginTop: 12,
@@ -1119,22 +1106,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   },
-  addImageButton: {
+  addImageIconButton: {
     alignItems: 'center',
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 10,
-    paddingVertical: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.sm,
+    height: minTouchTarget,
+    justifyContent: 'center',
+    width: minTouchTarget,
   },
-  addImageButtonLabel: {
-    color: '#111111',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  saveButtonLabel: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  addImageIconLabel: {
+    color: colors.textPrimary,
+    fontSize: 22,
     fontWeight: '600',
   },
   // Compact summary row: at most CATEGORY_SUMMARY_MAX_CHIPS selected-category chips (+ a "+N"

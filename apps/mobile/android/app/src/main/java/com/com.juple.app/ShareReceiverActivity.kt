@@ -12,10 +12,13 @@ import android.util.Log
  * the share into PendingShareQueue (resolving EXTRA_SHORTCUT_ID to a category id first, so it is
  * persisted with the pending share from the start), then branches on the "공유 즉시 저장"
  * preference (QuickSaveOnSharePreference, default true/ON):
- * - ON: launches QuickSaveComposerActivity, a small dialog-styled Activity over the source app,
- *   for the user to confirm/edit the title and category before anything is saved - no Item API
- *   call happens here or in the composer until Save is tapped (see
- *   NativeIncomingShareModule.submitQuickSaveDraft).
+ * - ON: hands off to IncomingShareSaveScheduler, which schedules the durable retry fallback and
+ *   makes a best-effort immediate save via IncomingShareHeadlessService - no UI opens over the
+ *   source app, and no title/category is applied (a shortcut-resolved preselectedCollectionId is
+ *   intentionally not used here - see incomingShareHeadlessTask.ts). This is the same bare
+ *   immediate-save path Quick Save ON used before the since-removed composer UI; that detour
+ *   chained extra title/category API calls after the save, which was an added, unnecessary
+ *   failure surface (see incomingShareHeadlessTask.ts).
  * - OFF: launches MainActivity so the app's existing pending-share prefill/review UI
  *   (useIncomingShare/DailyInboxScreen) takes over once the user taps Save themselves; any
  *   resolved category is carried along as staged/preselected, applied automatically on save.
@@ -45,11 +48,7 @@ class ShareReceiverActivity : Activity() {
 
     if (pendingShareId != null) {
       if (quickSaveOn) {
-        startActivity(
-          Intent(this, QuickSaveComposerActivity::class.java)
-            .putExtra(QuickSaveComposerActivity.ExtraPendingShareId, pendingShareId)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
+        IncomingShareSaveScheduler.schedule(this, pendingShareId)
       } else {
         startActivity(
           Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

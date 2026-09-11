@@ -9,8 +9,6 @@ import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.turbomodule.core.interfaces.TurboModule
 import org.json.JSONArray
 
-private const val NoCollectionId = -1L
-
 private fun WritableMap.putNullableLong(key: String, value: Long?) {
   if (value != null) putDouble(key, value.toDouble()) else putNull(key)
 }
@@ -87,38 +85,6 @@ class NativeIncomingShareModule(
 
     CategorySnapshotStore.set(reactContext, entries)
     ShortcutSyncManager.sync(reactContext, entries)
-    promise.resolve(null)
-  }
-
-  override fun submitQuickSaveDraft(
-    pendingShareId: String,
-    title: String,
-    collectionId: Double,
-    promise: Promise,
-  ) {
-    val resolvedCollectionId = collectionId.toLong().takeIf { it != NoCollectionId }
-    val resolvedTitle = title.trim().takeIf { it.isNotEmpty() }
-
-    PendingShareQueue.submitDraft(reactContext, pendingShareId, resolvedTitle, resolvedCollectionId)
-    IncomingShareSaveScheduler.schedule(reactContext, pendingShareId)
-    promise.resolve(null)
-  }
-
-  override fun getQuickSaveOutcome(pendingShareId: String, promise: Promise) {
-    val stillPending = PendingShareQueue.getPendingShares(reactContext)
-      .any { it.id == pendingShareId }
-
-    if (!stillPending) {
-      promise.resolve("success")
-      return
-    }
-
-    val outcome = IncomingShareAttemptResultStore.peek(reactContext, pendingShareId)
-    promise.resolve(outcome?.wireValue ?: "pending")
-  }
-
-  override fun finishComposerActivity(promise: Promise) {
-    reactContext.currentActivity?.finish()
     promise.resolve(null)
   }
 

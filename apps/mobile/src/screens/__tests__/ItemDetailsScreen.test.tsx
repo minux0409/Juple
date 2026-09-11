@@ -3,7 +3,7 @@ import { Alert, Text, TextInput } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
-import { getItemDetails, updateItemDetails, type ItemDetails } from '../../items/api/itemsApi';
+import { deleteItem, getItemDetails, updateItemDetails, type ItemDetails } from '../../items/api/itemsApi';
 import { deleteItemImage, getItemImages, uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
 import {
   addItemToCollection,
@@ -221,7 +221,7 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
       });
 
       expect(uploadItemImage).toHaveBeenCalledTimes(1);
@@ -251,7 +251,7 @@ describe('ItemDetailsScreen', () => {
       expect(isSaveDisabled(renderer)).toBe(true);
 
       await act(async () => {
-        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
       });
       expect(isSaveDisabled(renderer)).toBe(true);
 
@@ -269,7 +269,7 @@ describe('ItemDetailsScreen', () => {
       expect(latestPreventRemoveIsDirty()).toBe(false);
 
       await act(async () => {
-        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
       });
 
       expect(latestPreventRemoveIsDirty()).toBe(false);
@@ -280,7 +280,7 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, '사진 추가')?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
       });
 
       expect(renderer.root.findAllByType(require('react-native').Image)).toHaveLength(0);
@@ -534,6 +534,41 @@ describe('ItemDetailsScreen', () => {
 
       expect(renderer.root.findByProps({ children: '+9' })).toBeTruthy();
       expect(renderer.root.findAll(node => node.props.children === 'Category 12')).toHaveLength(0);
+    });
+  });
+
+  describe('URL section - compact, no in-screen share', () => {
+    it('shows a compact 이동 button and no 공유하기 button', async () => {
+      const renderer = await renderScreen();
+
+      expect(findPressableByText(renderer, i18n.t('item.goToUrl'))).toBeTruthy();
+      expect(findPressableByText(renderer, i18n.t('item.share'))).toBeFalsy();
+    });
+  });
+
+  describe('bottom action row - Delete/Save', () => {
+    it('renders Delete and Save as a single action row', async () => {
+      const renderer = await renderScreen();
+
+      expect(findPressableByText(renderer, '삭제')).toBeTruthy();
+      expect(findPressableByText(renderer, '저장')).toBeTruthy();
+    });
+
+    it('deletes the item only after confirming the shared ConfirmDialog, never on the first tap', async () => {
+      jest.mocked(deleteItem).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByText(renderer, '삭제')?.props.onPress();
+      });
+      expect(deleteItem).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, '삭제')?.props.onPress();
+      });
+
+      expect(deleteItem).toHaveBeenCalledWith(expect.anything(), 1);
+      expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalled();
     });
   });
 });

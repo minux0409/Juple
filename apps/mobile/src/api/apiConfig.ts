@@ -57,8 +57,8 @@ export const apiConfig = {
 };
 
 /**
- * Gates the more verbose share-diagnostics logging (see incomingShareHeadlessTask.ts/
- * useQuickSaveComposer.ts) to Local Development and Dogfood only - never Production. Production
+ * Gates the more verbose share-diagnostics logging (see incomingShareHeadlessTask.ts) to Local
+ * Development and Dogfood only - never Production. Production
  * keeps only the privacy-reviewed, always-on failure-classification log (API kind/status/outcome),
  * never this more exploratory diagnostic detail.
  */

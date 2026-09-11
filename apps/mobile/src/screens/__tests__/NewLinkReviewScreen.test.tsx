@@ -1,8 +1,8 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { TextInput } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import i18n from '../../i18n';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
-import { addItemToCollection, getCollections } from '../../collections/api/collectionsApi';
+import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { updateItemDetails } from '../../items/api/itemsApi';
 
@@ -17,6 +17,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../collections/api/collectionsApi', () => ({
   getCollections: jest.fn(),
   addItemToCollection: jest.fn(),
+  createCollection: jest.fn(),
 }));
 
 jest.mock('../../inbox/api/inboxApi', () => ({
@@ -158,5 +159,73 @@ describe('NewLinkReviewScreen', () => {
 
     expect(navigation.goBack).not.toHaveBeenCalled();
     expect(renderer.root.findByProps({ children: i18n.t('inbox.errorSaveFallback') })).toBeTruthy();
+  });
+
+  it('lays out categories as wrapping chips, not a horizontal scroller', async () => {
+    jest.mocked(getCollections).mockResolvedValue({
+      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '' }],
+      nextCursor: null,
+    });
+    const { renderer } = await renderScreen();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const wrappingRow = renderer.root.findAllByType(View).find(node => {
+      const style = node.props.style;
+      const flattened = Array.isArray(style) ? Object.assign({}, ...style) : style;
+      return flattened?.flexWrap === 'wrap';
+    });
+    expect(wrappingRow).toBeTruthy();
+  });
+
+  it('creating a new category adds it to the list and auto-selects it', async () => {
+    jest.mocked(createCollection).mockResolvedValue({
+      id: 9,
+      name: '캠핑',
+      isFavorite: false,
+      itemCount: 0,
+      createdAtUtc: '',
+      updatedAtUtc: '',
+    });
+    jest.mocked(saveInboxEntry).mockResolvedValue({
+      id: 60,
+      url: 'https://example.com/shared',
+      savedAtUtc: '2026-01-01T00:00:00Z',
+    });
+    jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+
+    const { renderer } = await renderScreen();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const addNewButton = renderer.root.findAll(
+        node => typeof node.props.onPress === 'function' && node.findAllByType(Text).some(t => t.props.children === i18n.t('collections.addNew')),
+      )[0];
+      addNewButton.props.onPress();
+    });
+
+    const nameInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('collections.namePlaceholder'))!;
+    await act(async () => {
+      nameInput.props.onChangeText('캠핑');
+    });
+
+    await act(async () => {
+      const createButton = renderer.root.findAll(
+        node => typeof node.props.onPress === 'function' && node.findAllByType(Text).some(t => t.props.children === i18n.t('collections.create')),
+      )[0];
+      await createButton.props.onPress();
+    });
+
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), '캠핑');
+    expect(findByAccessibilityLabel(renderer, '캠핑')).toBeTruthy();
+
+    await act(async () => {
+      pressSaveButton(renderer);
+    });
+
+    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 60);
   });
 });

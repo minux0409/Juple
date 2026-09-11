@@ -7,9 +7,9 @@ export interface PendingShare {
   readonly receivedAtEpochMs: number;
   /** Best-effort title from the sharing app's own Intent (EXTRA_SUBJECT/EXTRA_TITLE) - null when it provided none. Never a network-fetched value. */
   readonly initialTitle: string | null;
-  /** Resolved from a matched Direct Share category shortcut at share time; null for the generic Juple target. */
+  /** Resolved from a matched Direct Share category shortcut at share time; null for the generic Juple target - only consumed by the Quick Save OFF review screen (NewLinkReviewScreen), never applied automatically by the ON immediate-save path. */
   readonly preselectedCollectionId: number | null;
-  /** Set only once the user confirms Save in the Quick Save composer; null until then. */
+  /** Always null - reserved wire-format field, kept for native queue schema compatibility with a since-removed Quick Save composer draft. */
   readonly draftTitle: string | null;
   readonly draftCollectionId: number | null;
 }
@@ -33,11 +33,10 @@ export interface Spec extends TurboModule {
   /**
    * Mirrors the "quick save on share" JS preference into native SharedPreferences, so
    * ShareReceiverActivity can read it synchronously (no JS/bridge guaranteed to be running yet)
-   * when deciding whether to open the Quick Save composer or bring the app to the foreground for
-   * review.
+   * when deciding whether to save immediately or bring the app to the foreground for review.
    */
   setQuickSaveOnShare(enabled: boolean): Promise<void>;
-  /** Native-cached Collection list for the Quick Save composer's category picker - never a live API call, so the picker renders instantly even before any auth/network round trip resolves. */
+  /** Native-cached Collection list backing Direct Share category shortcuts - never a live API call. */
   getCategorySnapshot(): Promise<ReadonlyArray<CategorySnapshotEntry>>;
   /**
    * Overwrites the native category snapshot and republishes Direct Share dynamic shortcuts from
@@ -46,20 +45,6 @@ export interface Spec extends TurboModule {
    * on the one object-passing shape already proven safe in this bridge.
    */
   setCategorySnapshot(categoriesJson: string): Promise<void>;
-  /**
-   * Records the user-confirmed title/category for a pending share and schedules the durable
-   * background save (the same WorkManager fallback + immediate headless-task attempt
-   * ShareReceiverActivity used to trigger unconditionally) - nothing calls the Item API before
-   * this is called. `collectionId` is NO_COLLECTION_ID when no category was selected.
-   */
-  submitQuickSaveDraft(pendingShareId: string, title: string, collectionId: number): Promise<void>;
-  /**
-   * Polls the outcome of a submitted draft: 'pending' (still in flight / not yet attempted),
-   * 'success' (no longer in the pending queue), or one of the reportAttemptOutcome values.
-   */
-  getQuickSaveOutcome(pendingShareId: string): Promise<string>;
-  /** Closes the currently-foregrounded Quick Save composer Activity. */
-  finishComposerActivity(): Promise<void>;
   /** Removes all Direct Share category shortcuts and clears the native category snapshot - called on logout/account deletion so another account never sees a previous user's categories. */
   clearCategoryShortcuts(): Promise<void>;
 }

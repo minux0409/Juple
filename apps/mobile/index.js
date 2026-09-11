@@ -10,12 +10,8 @@ import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebas
 import App from './App';
 import { name as appName } from './app.json';
 import { registerIncomingShareHeadlessTask } from './src/share/incomingShareHeadlessTask';
-import { QuickSaveComposerRoot } from './src/share/quickSaveComposer/QuickSaveComposerRoot';
 
 AppRegistry.registerComponent(appName, () => App);
-// Hosted by QuickSaveComposerActivity (Android only), a small dialog-styled Activity separate
-// from MainActivity - see ShareReceiverActivity.kt.
-AppRegistry.registerComponent('QuickSaveComposer', () => QuickSaveComposerRoot);
 registerIncomingShareHeadlessTask();
 
 // React Native Firebase's own setup docs treat this as required boilerplate registered outside the

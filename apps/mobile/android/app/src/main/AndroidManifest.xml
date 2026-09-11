@@ -64,26 +64,6 @@
             android:name="android.app.shortcuts"
             android:resource="@xml/shortcuts" />
       </activity>
-      <!--
-        Quick Save composer: a small dialog-styled Activity shown over the sharing app when
-        "공유 즉시 저장" is ON (see ShareReceiverActivity/QuickSaveOnSharePreference) - deliberately
-        not exported (only ShareReceiverActivity starts it) and not MainActivity, so it never boots
-        the app's full navigation stack just to confirm a title/category before saving.
-        taskAffinity="" (matching ShareReceiverActivity above) is required, not cosmetic: without
-        it this Activity falls back to the default (package-name) affinity, the same one
-        MainActivity uses, so FLAG_ACTIVITY_NEW_TASK below would join MainActivity's existing task
-        instead of creating a fresh one whenever that task is still alive in the background -
-        bringing MainActivity's last screen to the front underneath this translucent composer
-        instead of leaving the sharing app visible. excludeFromRecents keeps that
-        always-freshly-created task from ever showing as its own entry in Recents.
-      -->
-      <activity
-        android:name=".QuickSaveComposerActivity"
-        android:theme="@style/QuickSaveComposerTheme"
-        android:windowSoftInputMode="adjustResize"
-        android:taskAffinity=""
-        android:excludeFromRecents="true"
-        android:exported="false" />
       <service
         android:name=".IncomingShareHeadlessService"
         android:exported="false" />
