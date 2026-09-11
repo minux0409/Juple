@@ -679,7 +679,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
         <Text style={styles.label}>{t('item.url')}</Text>
         <View style={styles.urlRow}>
-          <Text numberOfLines={1} selectable style={styles.url}>
+          {/*
+            Deliberately not `selectable`: on Android, selectable Text ignores numberOfLines
+            truncation and renders a wrapped, vertically-clipped second line instead of a
+            single-line ellipsis (long-standing React Native Android issue - reproduced on
+            narrow/split-screen widths). The URL can still be opened via the button next to it.
+          */}
+          <Text numberOfLines={1} style={styles.url}>
             {item.url}
           </Text>
           <Pressable

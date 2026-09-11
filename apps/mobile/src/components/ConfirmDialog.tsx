@@ -73,6 +73,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
+    // Full width on phones (inside the overlay's padding), but capped on large/unfolded screens -
+    // without the cap the card stretches to nearly the whole ~840dp width of an unfolded foldable
+    // and stops reading as a dialog.
+    maxWidth: 400,
     padding: spacing.xl,
     width: '100%',
   },

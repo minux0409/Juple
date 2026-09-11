@@ -15,10 +15,16 @@
       android:theme="@style/AppTheme"
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
+      <!-- MainActivity's configChanges: `density` is not in RN's default template but is required
+           for foldables - Galaxy Z Fold-class devices change display density on fold/unfold, and
+           without it the Activity is recreated mid-edit (navigation state and unsaved input are
+           lost - reproduced on the resizable emulator). React Native 0.87 handles density changes
+           in onConfigurationChanged (ReactHostImpl re-inits DisplayMetricsHolder via the
+           default-on enableFontScaleChangesUpdatingLayout flag), so no recreation is needed. -->
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
-        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|density|uiMode"
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
         android:exported="true">
