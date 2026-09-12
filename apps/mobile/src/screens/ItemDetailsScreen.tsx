@@ -44,6 +44,7 @@ import {
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { checkUrlSafety } from '../urlSafety/api/urlSafetyApi';
 
 const MAX_ITEM_IMAGES = 10;
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -222,6 +223,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [itemActionError, setItemActionError] = useState<string | null>(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const itemActionInFlightRef = useRef(false);
+
+  const [isCheckingUrlSafety, setIsCheckingUrlSafety] = useState(false);
+  const [isUrlThreatConfirmVisible, setIsUrlThreatConfirmVisible] = useState(false);
 
   // Plain per-render value (not memoized - a cheap scan over a small list), so the focus-refetch
   // guard below and the combined isDirty further down always agree on one definition. Image
@@ -647,6 +651,34 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  /**
+   * Checked on demand at the moment "이동" is pressed, not persisted/pre-fetched on screen load -
+   * URL safety has no Item-level storage yet (see docs on UrlSafety's first round). Only an actual
+   * confirmed ThreatDetected result interrupts navigation with ConfirmDialog below; a failed/
+   * unavailable check (network error, provider down, rate-limited) never blocks opening the link -
+   * same "never a hard dependency" principle as everywhere else this feature appears.
+   */
+  const handleGoToUrlPress = async () => {
+    if (!item || isCheckingUrlSafety) {
+      return;
+    }
+
+    setIsCheckingUrlSafety(true);
+    try {
+      const result = await checkUrlSafety(authenticatedRequest, item.url);
+      if (result.status === 'threatDetected') {
+        setIsUrlThreatConfirmVisible(true);
+        return;
+      }
+    } catch {
+      // Treated the same as checkUnavailable - falls through to opening the URL below.
+    } finally {
+      setIsCheckingUrlSafety(false);
+    }
+
+    await openOriginalUrl();
+  };
+
   if (isLoading && !item) {
     return (
       <View style={styles.loadingContainer}>
@@ -690,12 +722,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => {
-              openOriginalUrl();
-            }}
-            style={styles.goToButton}
+            accessibilityState={{ disabled: isCheckingUrlSafety, busy: isCheckingUrlSafety }}
+            disabled={isCheckingUrlSafety}
+            onPress={handleGoToUrlPress}
+            style={[styles.goToButton, isCheckingUrlSafety && styles.disabledButton]}
           >
-            <Text style={styles.goToButtonLabel}>{t('item.goToUrl')}</Text>
+            {isCheckingUrlSafety ? (
+              <ActivityIndicator color={colors.brand} size="small" />
+            ) : (
+              <Text style={styles.goToButtonLabel}>{t('item.goToUrl')}</Text>
+            )}
           </Pressable>
         </View>
         {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
@@ -858,6 +894,19 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         }}
         title={t('item.deleteItemConfirmTitle')}
         visible={isDeleteConfirmVisible}
+      />
+
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('item.urlSafetyGoAnyway')}
+        message={t('item.urlSafetyThreatMessage')}
+        onCancel={() => setIsUrlThreatConfirmVisible(false)}
+        onConfirm={() => {
+          setIsUrlThreatConfirmVisible(false);
+          openOriginalUrl();
+        }}
+        title={t('item.urlSafetyThreatTitle')}
+        visible={isUrlThreatConfirmVisible}
       />
 
       <Modal

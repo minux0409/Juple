@@ -19,6 +19,7 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { colors, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
+import { checkUrlSafety, type UrlSafetyStatus } from '../urlSafety/api/urlSafetyApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -55,6 +56,23 @@ function getCollectionCreateErrorMessage(error: unknown, t: TFunction): string {
     }
   }
   return t('collections.errorCreateFallback');
+}
+
+type UrlSafetyDisplayState = 'checking' | UrlSafetyStatus;
+
+function getUrlSafetyStatusLabel(state: UrlSafetyDisplayState | null, t: TFunction): string | null {
+  switch (state) {
+    case 'checking':
+      return t('urlSafety.checking');
+    case 'noKnownThreat':
+      return t('urlSafety.noKnownThreat');
+    case 'threatDetected':
+      return t('urlSafety.threatDetected');
+    case 'checkUnavailable':
+      return t('urlSafety.checkUnavailable');
+    default:
+      return null;
+  }
 }
 
 /** Mirrors the backend's CollectionNameNormalizer: trim, required, 100-character limit. */
@@ -97,6 +115,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [urlSafetyState, setUrlSafetyState] = useState<UrlSafetyDisplayState | null>(null);
 
   const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
   // Set only by the user actually typing in the title field (see handleTitleChange) - never by
@@ -149,6 +169,36 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       .finally(() => {
         if (isMounted) {
           setIsResolvingMetadataTitle(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
+  }, []);
+
+  // Best-effort and mount-only for the initial URL, same policy as the metadata title fetch above
+  // (never re-run as the user edits the url field) - never blocks Save, which reads url/isSaving
+  // only, not this state. A rejected/failed check is shown as checkUnavailable rather than left
+  // blank, so the user always sees a definite (if non-committal) outcome instead of a silently
+  // stuck spinner.
+  useEffect(() => {
+    if (!isHttpUrl(route.params.url)) {
+      return;
+    }
+
+    let isMounted = true;
+    setUrlSafetyState('checking');
+    checkUrlSafety(authenticatedRequest, route.params.url)
+      .then(result => {
+        if (isMounted) {
+          setUrlSafetyState(result.status);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setUrlSafetyState('checkUnavailable');
         }
       });
 
@@ -238,6 +288,16 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         style={styles.urlInput}
         value={url}
       />
+      {urlSafetyState ? (
+        <Text
+          style={[
+            styles.urlSafetyStatus,
+            urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
+          ]}
+        >
+          {getUrlSafetyStatusLabel(urlSafetyState, t)}
+        </Text>
+      ) : null}
 
       <View style={styles.titleLabelRow}>
         <Text style={styles.label}>{t('item.titleLabel')}</Text>
@@ -390,6 +450,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  urlSafetyStatus: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: spacing.xs,
+  },
+  urlSafetyStatusWarning: {
+    color: colors.danger,
+    fontWeight: '600',
   },
   memoInput: {
     borderColor: colors.border,

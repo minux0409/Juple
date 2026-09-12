@@ -4,6 +4,7 @@ import NativeIncomingShare from '../specs/NativeIncomingShare';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { updateItemDetails } from '../../items/api/itemsApi';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
+import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 import { ApiError } from '../../api/ApiError';
 
 jest.mock('../specs/NativeIncomingShare', () => ({
@@ -25,6 +26,10 @@ jest.mock('../../items/api/itemsApi', () => ({
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
   resolveUrlMetadata: jest.fn(),
+}));
+
+jest.mock('../../urlSafety/api/urlSafetyApi', () => ({
+  checkUrlSafety: jest.fn(),
 }));
 
 function makePendingShare(overrides: Partial<Record<string, unknown>> = {}) {
@@ -55,6 +60,7 @@ describe('incomingShareHeadlessTask', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
+    jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
   });
 
   it('saves the URL as-is, falls back to URL metadata, and acknowledges the pending share - no title from metadata either', async () => {
@@ -187,6 +193,31 @@ describe('incomingShareHeadlessTask', () => {
     expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
   });
 
+  it('checks URL safety for the shared URL and still acknowledges the share when a threat is detected', async () => {
+    const pendingShare = makePendingShare();
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(checkUrlSafety).toHaveBeenCalledWith(expect.anything(), pendingShare.text);
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+  });
+
+  it('still saves and acknowledges the share when the URL safety check itself fails (never a hard dependency)', async () => {
+    const pendingShare = makePendingShare();
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 103, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(checkUrlSafety).mockRejectedValue(new ApiError('unavailable'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    warnSpy.mockRestore();
+  });
+
   describe('privacy - diagnostic logging never leaks share content', () => {
     // Distinctive enough that a substring match below can only succeed if the real value leaked
     // into a log call, not by coincidence with some other logged field.
@@ -253,6 +284,23 @@ describe('incomingShareHeadlessTask', () => {
         '[IncomingShareHeadlessTask] save failed',
         expect.objectContaining({ outcome: 'retryableFailure' }),
       );
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+
+    it('never logs the raw shared URL when the safety check reports a threat or fails', async () => {
+      const pendingShare = makePendingShare({ id: SECRET_PENDING_SHARE_ID, text: SECRET_URL });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: SECRET_URL, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      await task({ pendingShareId: pendingShare.id });
+
+      const logged = allLoggedText(logSpy, warnSpy);
+      expect(logged).not.toContain(SECRET_URL);
+      expect(logged).not.toContain(SECRET_PENDING_SHARE_ID);
       logSpy.mockRestore();
       warnSpy.mockRestore();
     });

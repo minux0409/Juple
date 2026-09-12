@@ -33,10 +33,13 @@ using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Push.RegisterPushDevice;
 using Juple.Application.Push.UnregisterPushDevice;
 using Juple.Application.UrlMetadata.ResolveUrlMetadata;
+using Juple.Application.UrlSafety.CheckUrlSafety;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Identity.Web;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,6 +108,7 @@ builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
 builder.Services.AddScoped<IResolveUrlMetadataService, ResolveUrlMetadataService>();
+builder.Services.AddScoped<ICheckUrlSafetyService, CheckUrlSafetyService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(
@@ -118,6 +122,28 @@ builder.Services.AddAuthorizationBuilder()
             Guid.TryParse(context.User.GetTenantId(), out _)
             && Guid.TryParse(context.User.GetObjectId(), out _));
     });
+
+// Endpoint-scoped only (see UrlSafetyController's [EnableRateLimiting]) - deliberately not a
+// global default limiter for every endpoint, which would be a much larger architecture change
+// than this round's actual need: url-safety/check is the first endpoint that calls a paid,
+// rate-limited external provider per request, so it is the first to need its own abuse
+// protection. Partitioned per authenticated user (their Entra object id - already validated by
+// the JupleUser policy above) rather than per IP, since every caller is already authenticated by
+// the time this runs. RejectionStatusCode 429 (not the RateLimiter default 503) so a client can
+// tell "you are calling this too fast" apart from "the service itself is down".
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(RateLimiterPolicies.UrlSafetyCheck, context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.User.GetObjectId() ?? "anonymous",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 30,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+});
+
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddHealthChecks();
@@ -185,6 +211,9 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+// After UseAuthorization so partitioning by context.User.GetObjectId() (see the UrlSafetyCheck
+// policy above) always sees a fully populated, already-authorized User.
+app.UseRateLimiter();
 app.MapControllers();
 app.MapHealthChecks("/health");
 

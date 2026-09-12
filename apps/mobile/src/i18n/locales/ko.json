@@ -181,7 +181,16 @@
     "errorImageDeleteFallback": "사진을 삭제할 수 없습니다.",
     "errorItemDeleteFallback": "항목을 삭제할 수 없습니다.",
     "errorImagePickerPermission": "사진 보관함 접근 권한이 필요합니다.",
-    "errorImagePickerFallback": "사진을 선택할 수 없습니다."
+    "errorImagePickerFallback": "사진을 선택할 수 없습니다.",
+    "urlSafetyThreatTitle": "주의가 필요한 링크입니다",
+    "urlSafetyThreatMessage": "알려진 위험 신호가 감지되었습니다. 그래도 이동할까요?",
+    "urlSafetyGoAnyway": "그래도 이동"
+  },
+  "urlSafety": {
+    "checking": "검사 중...",
+    "noKnownThreat": "알려진 위험이 발견되지 않았습니다",
+    "threatDetected": "주의가 필요한 링크입니다",
+    "checkUnavailable": "현재 안전성 검사를 완료할 수 없습니다"
   },
   "sharedCollection": {
     "itemsEmpty": "이 공유 카테고리에 저장된 링크가 아직 없습니다.",

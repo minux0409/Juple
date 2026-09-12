@@ -10,6 +10,7 @@ import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
 import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
+import { checkUrlSafetyBestEffort } from '../urlSafety/checkUrlSafetyBestEffort';
 
 /**
  * Coarse, non-identifying shape for diagnostics only - never the URL itself (path/query can carry
@@ -204,6 +205,10 @@ async function incomingShareHeadlessTask(
     // try/catch already never throws, so a failure here never leaves the share pending or unsaved.
     await enrichItemTitleFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
   }
+
+  // Best-effort, never blocks the share from completing - see checkUrlSafetyBestEffort's own
+  // remarks on why this has no UI/persistence effect yet.
+  await checkUrlSafetyBestEffort(requestAuthenticatedApi, resolvedShare.text);
 
   console.log('[IncomingShareHeadlessTask] success');
   await NativeIncomingShare.acknowledgePendingShare(pendingShare.id);

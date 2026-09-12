@@ -15,6 +15,7 @@ using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Push;
 using Juple.Application.UrlMetadata;
+using Juple.Application.UrlSafety;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
@@ -26,6 +27,7 @@ using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Push;
 using Juple.Infrastructure.Storage;
 using Juple.Infrastructure.UrlMetadata;
+using Juple.Infrastructure.UrlSafety;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
 using Juple.Infrastructure.Users.DeleteAccount;
@@ -84,6 +86,7 @@ public static class DependencyInjection
         services.AddSingleton<UserDelegationKeyCache>();
 
         AddUrlMetadataResolver(services);
+        AddUrlSafetyChecker(services, configuration);
 
         return services;
     }
@@ -136,6 +139,34 @@ public static class DependencyInjection
                         }
                     },
                 };
+            });
+    }
+
+    /// <summary>
+    /// Unlike AddUrlMetadataResolver, no ConnectCallback/DNS guard here - WebRiskUrlSafetyChecker
+    /// only ever sends the URL string to Google's own fixed BaseAddress below, never connects to
+    /// the caller-supplied URL itself, so there is no SSRF surface to defend. MaxConnectionsPerServer
+    /// bounds concurrent outbound calls to Web Risk (a paid, rate-limited external API) - matching
+    /// this round's "endpoint-level abuse protection, not a new global architecture" scope; the
+    /// short Timeout keeps a slow/unavailable provider from holding up a request (URL safety is
+    /// never a hard dependency of saving a URL - see IUrlSafetyChecker's own remarks). Reuses the
+    /// IMemoryCache already registered by AddUrlMetadataResolver above (same SizeLimit budget,
+    /// distinct "UrlSafety:" key prefix - see WebRiskUrlSafetyChecker) rather than registering a
+    /// second cache.
+    /// </summary>
+    private static void AddUrlSafetyChecker(IServiceCollection services, IConfiguration configuration)
+    {
+        var apiKey = configuration["UrlSafety:WebRisk:ApiKey"];
+        services.AddSingleton(new WebRiskOptions(apiKey));
+
+        services.AddHttpClient<IUrlSafetyChecker, WebRiskUrlSafetyChecker>(client =>
+            {
+                client.BaseAddress = new Uri("https://webrisk.googleapis.com/");
+                client.Timeout = TimeSpan.FromSeconds(4);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                MaxConnectionsPerServer = 10,
             });
     }
 

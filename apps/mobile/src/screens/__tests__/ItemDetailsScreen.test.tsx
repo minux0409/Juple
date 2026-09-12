@@ -1,8 +1,10 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Alert, Text, TextInput } from 'react-native';
+import { Alert, Linking, Text, TextInput } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
+import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 import { deleteItem, getItemDetails, updateItemDetails, type ItemDetails } from '../../items/api/itemsApi';
 import { deleteItemImage, getItemImages, uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
 import {
@@ -60,6 +62,10 @@ jest.mock('../../items/shareItem', () => ({
 
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
+}));
+
+jest.mock('../../urlSafety/api/urlSafetyApi', () => ({
+  checkUrlSafety: jest.fn(),
 }));
 
 const route = { key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1 } } as never;
@@ -131,6 +137,12 @@ async function renderScreen() {
     );
   });
   return renderer;
+}
+
+function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer, title: string) {
+  return renderer.root.findAll(
+    node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === title,
+  )[0];
 }
 
 function mockConfirmAlert(): jest.SpyInstance {
@@ -569,6 +581,81 @@ describe('ItemDetailsScreen', () => {
 
       expect(deleteItem).toHaveBeenCalledWith(expect.anything(), 1);
       expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalled();
+    });
+  });
+
+  describe('URL safety check on 이동', () => {
+    it('opens the URL directly when the safety check finds no known threat', async () => {
+      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
+      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+      });
+
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
+      expect(findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'))).toBeFalsy();
+    });
+
+    it('opens the URL directly (non-blocking) when the safety check itself fails', async () => {
+      jest.mocked(checkUrlSafety).mockRejectedValue(new Error('network down'));
+      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+      });
+
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
+    });
+
+    it('shows a ConfirmDialog instead of opening the URL when a known threat is detected', async () => {
+      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
+      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+      });
+
+      expect(openUrlSpy).not.toHaveBeenCalled();
+      expect(findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'))).toBeTruthy();
+    });
+
+    it('cancelling the threat ConfirmDialog closes it without opening the URL', async () => {
+      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
+      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+      });
+      const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'));
+
+      await act(async () => {
+        dialog.props.onCancel();
+      });
+
+      expect(openUrlSpy).not.toHaveBeenCalled();
+      expect(findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'))).toBeFalsy();
+    });
+
+    it('confirming the threat ConfirmDialog opens the original URL', async () => {
+      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
+      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+      });
+      const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'));
+
+      await act(async () => {
+        dialog.props.onConfirm();
+      });
+
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
     });
   });
 });

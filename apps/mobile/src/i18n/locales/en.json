@@ -181,7 +181,16 @@
     "errorImageDeleteFallback": "Couldn't delete the photo.",
     "errorItemDeleteFallback": "Couldn't delete the item.",
     "errorImagePickerPermission": "Photo library access is required.",
-    "errorImagePickerFallback": "Couldn't select the photo."
+    "errorImagePickerFallback": "Couldn't select the photo.",
+    "urlSafetyThreatTitle": "This link needs caution",
+    "urlSafetyThreatMessage": "We detected a known threat signal for this link. Open it anyway?",
+    "urlSafetyGoAnyway": "Open anyway"
+  },
+  "urlSafety": {
+    "checking": "Checking...",
+    "noKnownThreat": "No known threats found.",
+    "threatDetected": "This link needs caution.",
+    "checkUnavailable": "Safety check isn't available right now."
   },
   "sharedCollection": {
     "itemsEmpty": "This shared category has no saved links yet.",
