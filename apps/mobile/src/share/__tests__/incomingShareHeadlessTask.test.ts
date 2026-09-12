@@ -3,6 +3,7 @@ import { registerIncomingShareHeadlessTask } from '../incomingShareHeadlessTask'
 import NativeIncomingShare from '../specs/NativeIncomingShare';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { updateItemDetails } from '../../items/api/itemsApi';
+import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { ApiError } from '../../api/ApiError';
 
 jest.mock('../specs/NativeIncomingShare', () => ({
@@ -20,6 +21,10 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 
 jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
+}));
+
+jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
+  resolveUrlMetadata: jest.fn(),
 }));
 
 function makePendingShare(overrides: Partial<Record<string, unknown>> = {}) {
@@ -49,9 +54,10 @@ describe('incomingShareHeadlessTask', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
   });
 
-  it('saves the URL as-is and acknowledges the pending share - no title PUT when the share has no title', async () => {
+  it('saves the URL as-is, falls back to URL metadata, and acknowledges the pending share - no title from metadata either', async () => {
     const pendingShare = makePendingShare();
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
     jest.mocked(saveInboxEntry).mockResolvedValue({ id: 100, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
@@ -59,8 +65,50 @@ describe('incomingShareHeadlessTask', () => {
     await task({ pendingShareId: pendingShare.id });
 
     expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), pendingShare.text, pendingShare.id);
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), pendingShare.text);
     expect(updateItemDetails).not.toHaveBeenCalled();
     expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+  });
+
+  it('applies a title resolved from URL metadata when the share itself had none', async () => {
+    const pendingShare = makePendingShare();
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 101, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 101, {
+      title: 'Metadata Title',
+      memo: '',
+    });
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+  });
+
+  it('never calls URL metadata when the share already has a title', async () => {
+    const pendingShare = makePendingShare({ initialTitle: 'Video title from EXTRA_SUBJECT' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 42, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+  });
+
+  it('still saves and acknowledges the share when URL metadata resolution fails', async () => {
+    const pendingShare = makePendingShare();
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 102, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(resolveUrlMetadata).mockRejectedValue(new ApiError('unavailable'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(updateItemDetails).not.toHaveBeenCalled();
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    warnSpy.mockRestore();
   });
 
   it('applies the resolved share title to the saved Item (same resolver/PUT the review flow uses)', async () => {

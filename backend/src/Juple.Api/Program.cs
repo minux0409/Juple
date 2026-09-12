@@ -32,6 +32,7 @@ using Juple.Application.Items.RecordItemOpen;
 using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Push.RegisterPushDevice;
 using Juple.Application.Push.UnregisterPushDevice;
+using Juple.Application.UrlMetadata.ResolveUrlMetadata;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -103,6 +104,7 @@ builder.Services.AddScoped<IUnregisterPushDeviceService, UnregisterPushDeviceSer
 builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
+builder.Services.AddScoped<IResolveUrlMetadataService, ResolveUrlMetadataService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(

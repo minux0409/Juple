@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -16,7 +16,9 @@ import {
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { isHttpUrl } from '../share/resolveIncomingShare';
 import { colors, radii, spacing } from '../theme/tokens';
+import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -96,6 +98,12 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
+  // Set only by the user actually typing in the title field (see handleTitleChange) - never by
+  // the metadata auto-fill below - so a later-arriving metadata result can tell "the user started
+  // typing" apart from "the field is still exactly what it started as".
+  const hasUserEditedTitleRef = useRef(false);
+
   useEffect(() => {
     let isMounted = true;
     (async () => {
@@ -117,6 +125,43 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       isMounted = false;
     };
   }, [authenticatedRequest]);
+
+  // Only when the sharing app provided no title at all (route.params.initialTitle === null - see
+  // resolveIncomingShare) and only once, on mount - never re-fetched as the user edits the url
+  // field. A non-URL review text (kind: 'reviewText') never reaches this, since isHttpUrl guards
+  // it. Never blocks Save - a small inline spinner is the only UI effect while it is in flight.
+  useEffect(() => {
+    if (route.params.initialTitle !== null || !isHttpUrl(route.params.url)) {
+      return;
+    }
+
+    let isMounted = true;
+    setIsResolvingMetadataTitle(true);
+    resolveUrlMetadata(authenticatedRequest, route.params.url)
+      .then(metadata => {
+        if (!isMounted || hasUserEditedTitleRef.current || !metadata.title) {
+          return;
+        }
+        const resolvedTitle = metadata.title;
+        setTitle(current => (current === '' ? resolvedTitle : current));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (isMounted) {
+          setIsResolvingMetadataTitle(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
+  }, []);
+
+  const handleTitleChange = (value: string) => {
+    hasUserEditedTitleRef.current = true;
+    setTitle(value);
+  };
 
   const save = async () => {
     const trimmedUrl = url.trim();
@@ -194,10 +239,13 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         value={url}
       />
 
-      <Text style={styles.label}>{t('item.titleLabel')}</Text>
+      <View style={styles.titleLabelRow}>
+        <Text style={styles.label}>{t('item.titleLabel')}</Text>
+        {isResolvingMetadataTitle ? <ActivityIndicator size="small" /> : null}
+      </View>
       <TextInput
         editable={!isSaving}
-        onChangeText={setTitle}
+        onChangeText={handleTitleChange}
         placeholder={t('item.titlePlaceholder')}
         style={styles.titleInput}
         value={title}
@@ -321,6 +369,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 20,
     marginBottom: 6,
+  },
+  titleLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
   },
   urlInput: {
     borderColor: colors.border,

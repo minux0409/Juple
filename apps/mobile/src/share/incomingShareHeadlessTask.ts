@@ -9,6 +9,7 @@ import { AuthSessionError } from '../auth/session/authSessionErrors';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
+import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 
 /**
  * Coarse, non-identifying shape for diagnostics only - never the URL itself (path/query can carry
@@ -197,6 +198,11 @@ async function incomingShareHeadlessTask(
         errorConstructor: error instanceof Error ? error.constructor.name : typeof error,
       });
     }
+  } else {
+    // No title from Intent/sharedText - best-effort URL-metadata fallback (same policy
+    // NewLinkReviewScreen/DailyInboxScreen use - see enrichItemTitleFromUrlMetadata). Its own
+    // try/catch already never throws, so a failure here never leaves the share pending or unsaved.
+    await enrichItemTitleFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
   }
 
   console.log('[IncomingShareHeadlessTask] success');

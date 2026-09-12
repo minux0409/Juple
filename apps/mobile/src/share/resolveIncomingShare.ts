@@ -22,7 +22,8 @@ export interface ResolvedIncomingShare {
   readonly titleSource: IncomingShareTitleSource;
 }
 
-function isHttpUrl(value: string): boolean {
+/** Exported for reuse by NewLinkReviewScreen, which only attempts a URL-metadata fetch on an actual http/https URL. */
+export function isHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
     return url.protocol === 'http:' || url.protocol === 'https:';

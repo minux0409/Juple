@@ -1,7 +1,10 @@
+using System.Net;
+using System.Net.Sockets;
 using Azure.Storage.Blobs;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Juple.Application.Collections;
@@ -11,6 +14,7 @@ using Juple.Application.Images.BlobCleanup;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Push;
+using Juple.Application.UrlMetadata;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
@@ -21,6 +25,7 @@ using Juple.Infrastructure.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Push;
 using Juple.Infrastructure.Storage;
+using Juple.Infrastructure.UrlMetadata;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
 using Juple.Infrastructure.Users.DeleteAccount;
@@ -78,7 +83,60 @@ public static class DependencyInjection
         // re-fetched from Azure AD/Storage on every request.
         services.AddSingleton<UserDelegationKeyCache>();
 
+        AddUrlMetadataResolver(services);
+
         return services;
+    }
+
+    /// <summary>
+    /// The SSRF-critical part is ConfigurePrimaryHttpMessageHandler's ConnectCallback: it resolves
+    /// and validates the target host itself (UrlMetadataConnectGuard) and connects directly to
+    /// that validated IP, rather than letting SocketsHttpHandler resolve DNS again on its own at
+    /// connect time - the latter would leave a DNS-rebinding gap between "we checked this host is
+    /// public" and "the socket actually connects". AllowAutoRedirect is off so UrlMetadataResolver
+    /// can count/cap redirects and let each hop re-run this same ConnectCallback instead of
+    /// following redirects blindly; UseCookies is off so no state leaks between requests to
+    /// different users' URLs. See UrlMetadataResolver's own remarks for the request-level policy
+    /// (byte/time budget, content-type gate) this handler does not itself express.
+    /// </summary>
+    private static void AddUrlMetadataResolver(IServiceCollection services)
+    {
+        services.AddSingleton<IDnsResolver, SystemDnsResolver>();
+        services.AddMemoryCache(options => options.SizeLimit = 500);
+
+        services.AddHttpClient<IUrlMetadataResolver, UrlMetadataResolver>(client =>
+            {
+                // No domain in the UA string - the production domain is not yet decided (see
+                // README's Universal Links section) and must not be guessed here either.
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("JupleBot/1.0 (URL metadata preview fetch)");
+            })
+            .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+            {
+                var dnsResolver = serviceProvider.GetRequiredService<IDnsResolver>();
+                return new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    UseCookies = false,
+                    ConnectTimeout = TimeSpan.FromSeconds(5),
+                    ConnectCallback = async (context, cancellationToken) =>
+                    {
+                        var validatedIp = await UrlMetadataConnectGuard.ResolveAndValidateAsync(
+                            dnsResolver, context.DnsEndPoint.Host, cancellationToken);
+                        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                        try
+                        {
+                            await socket.ConnectAsync(
+                                new IPEndPoint(validatedIp, context.DnsEndPoint.Port), cancellationToken);
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch
+                        {
+                            socket.Dispose();
+                            throw;
+                        }
+                    },
+                };
+            });
     }
 
     /// <summary>

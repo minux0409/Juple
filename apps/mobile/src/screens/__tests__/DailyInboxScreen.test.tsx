@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Modal } from 'react-native';
+import { FlatList, Modal, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { DailyInboxScreen } from '../DailyInboxScreen';
 
@@ -9,8 +9,10 @@ import { DailyInboxScreen } from '../DailyInboxScreen';
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-import { deleteItem, getItemHistoryByDate, type ItemHistoryEntry } from '../../items/api/itemsApi';
+import { deleteItem, getItemHistoryByDate, updateItemDetails, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
+import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
+import { saveInboxEntry } from '../../inbox/api/inboxApi';
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
@@ -33,11 +35,23 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 jest.mock('../../items/api/itemsApi', () => ({
   getItemHistoryByDate: jest.fn(),
   deleteItem: jest.fn(),
+  updateItemDetails: jest.fn(),
 }));
 
 jest.mock('../../items/shareItem', () => ({
   shareItem: jest.fn(),
 }));
+
+jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
+  resolveUrlMetadata: jest.fn(),
+}));
+
+/** Drains a handful of pending microtask ticks - used to let the fire-and-forget metadata enrichment chain (resolveUrlMetadata -> updateItemDetails -> loadToday) settle after Save, without relying on fake timers. */
+async function flushMicrotasks(times = 10): Promise<void> {
+  for (let i = 0; i < times; i++) {
+    await Promise.resolve();
+  }
+}
 
 function makeItem(overrides: Partial<ItemHistoryEntry>): ItemHistoryEntry {
   return {
@@ -162,5 +176,100 @@ describe('DailyInboxScreen swipe actions', () => {
     });
 
     expect(deleteItem).not.toHaveBeenCalled();
+  });
+});
+
+/** Home's Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to the nearest onPress-bearing ancestor - mirrors NewLinkReviewScreen.test.tsx's own pressSaveButton helper. */
+function pressHomeSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
+  let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findAll(
+    n => n.props.children === i18n.t('common.save'),
+  )[0];
+  while (node && typeof node.props.onPress !== 'function') {
+    node = node.parent;
+  }
+  node!.props.onPress();
+}
+
+describe('DailyInboxScreen direct URL save', () => {
+  beforeEach(() => {
+    setUpItems([]);
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('saves the URL and best-effort resolves URL metadata (Home never collects a title itself)', async () => {
+    jest.mocked(saveInboxEntry).mockResolvedValue({
+      id: 21,
+      url: 'https://example.com',
+      savedAtUtc: '2026-01-01T00:00:00Z',
+    });
+    const renderer = await renderScreen();
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText('https://example.com');
+    });
+
+    await act(async () => {
+      pressHomeSaveButton(renderer);
+      await flushMicrotasks();
+    });
+
+    expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), 'https://example.com');
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com');
+  });
+
+  it('applies a title resolved from URL metadata in the background, without Save waiting on it', async () => {
+    jest.mocked(saveInboxEntry).mockResolvedValue({
+      id: 22,
+      url: 'https://example.com',
+      savedAtUtc: '2026-01-01T00:00:00Z',
+    });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText('https://example.com');
+    });
+
+    await act(async () => {
+      pressHomeSaveButton(renderer);
+      await flushMicrotasks();
+    });
+
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 22, {
+      title: 'Metadata Title',
+      memo: '',
+    });
+  });
+
+  it('save succeeds even when URL metadata resolution fails', async () => {
+    jest.mocked(saveInboxEntry).mockResolvedValue({
+      id: 23,
+      url: 'https://example.com',
+      savedAtUtc: '2026-01-01T00:00:00Z',
+    });
+    jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const renderer = await renderScreen();
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText('https://example.com');
+    });
+
+    await act(async () => {
+      pressHomeSaveButton(renderer);
+      await flushMicrotasks();
+    });
+
+    expect(saveInboxEntry).toHaveBeenCalled();
+    expect(updateItemDetails).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

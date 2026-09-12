@@ -6,12 +6,20 @@
   <ItemGroup>
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.2" />
+    <!-- MIT-licensed, actively maintained managed HTML/DOM parser - used only for UrlMetadataResolver's
+         og:title/twitter:title/<title> extraction (see HtmlTitleExtractor), not for any browsing/JS
+         execution (AngleSharp.Js is not referenced). -->
+    <PackageVersion Include="AngleSharp" Version="1.8.1" />
     <!-- Official Google .NET Admin SDK - the officially-supported way to send FCM v1 messages from
          .NET (see FirebaseCloudMessagingSender). Not Azure Notification Hubs; see docs/architecture.md. -->
     <PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <!-- IHttpClientFactory/AddHttpClient (UrlMetadataResolver) - Juple.Infrastructure is a plain
+         Microsoft.NET.Sdk class library, so this does not come implicitly the way it would in Juple.Api. -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Identity.Web" Version="4.14.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />

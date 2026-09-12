@@ -5,6 +5,7 @@ import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
 import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { updateItemDetails } from '../../items/api/itemsApi';
+import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -26,6 +27,10 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 
 jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
+}));
+
+jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
+  resolveUrlMetadata: jest.fn(),
 }));
 
 const ROUTE_PARAMS: { url: string; initialTitle: string | null; preselectedCollectionId: number | null } = {
@@ -68,6 +73,7 @@ function pressSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
 describe('NewLinkReviewScreen', () => {
   beforeEach(() => {
     jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
   });
 
   afterEach(() => {
@@ -142,6 +148,81 @@ describe('NewLinkReviewScreen', () => {
     expect(saveInboxEntry).toHaveBeenCalled();
     expect(updateItemDetails).not.toHaveBeenCalled();
     expect(addItemToCollection).not.toHaveBeenCalled();
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('never calls resolveUrlMetadata when an incoming title is already present', async () => {
+    await renderScreen();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+  });
+
+  it('fetches URL metadata and fills the empty title field when there is no incoming title', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph' });
+
+    const { renderer } = await renderScreen({ initialTitle: null });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
+    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('Metadata Title');
+  });
+
+  it('does not overwrite a title the user already started typing once URL metadata resolves', async () => {
+    let resolveMetadata!: (value: { title: string | null; source: string | null }) => void;
+    jest.mocked(resolveUrlMetadata).mockReturnValue(
+      new Promise(resolve => {
+        resolveMetadata = resolve;
+      }),
+    );
+
+    const { renderer } = await renderScreen({ initialTitle: null });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    await act(async () => {
+      titleInput.props.onChangeText('User typed title');
+    });
+
+    await act(async () => {
+      resolveMetadata({ title: 'Metadata Title', source: 'openGraph' });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const [, titleInputAfter] = renderer.root.findAllByType(TextInput);
+    expect(titleInputAfter.props.value).toBe('User typed title');
+  });
+
+  it('metadata resolution failure leaves the title blank and Save still works', async () => {
+    jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
+    jest.mocked(saveInboxEntry).mockResolvedValue({
+      id: 70,
+      url: 'https://example.com/shared',
+      savedAtUtc: '2026-01-01T00:00:00Z',
+    });
+
+    const { renderer, navigation } = await renderScreen({ initialTitle: null });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('');
+
+    await act(async () => {
+      pressSaveButton(renderer);
+    });
+
+    expect(saveInboxEntry).toHaveBeenCalled();
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 

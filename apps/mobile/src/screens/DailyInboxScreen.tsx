@@ -32,6 +32,7 @@ import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, radii, spacing } from '../theme/tokens';
+import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 
 const PAGE_LIMIT = 50;
 
@@ -237,9 +238,18 @@ export function DailyInboxScreen() {
     setIsSaving(true);
     setError(null);
     try {
-      await saveInboxEntry(authenticatedRequest, trimmedUrl);
+      const savedEntry = await saveInboxEntry(authenticatedRequest, trimmedUrl);
       setUrl('');
       await loadToday('refresh');
+
+      // Home never collects a title, so every direct save here starts title-less - best-effort
+      // metadata fallback (same policy as Incoming Share - see enrichItemTitleFromUrlMetadata),
+      // deliberately NOT awaited so Save never blocks on it; refreshes the list again once it
+      // settles (itself never throws) so a resolved title actually shows up without the user
+      // having to pull-to-refresh.
+      enrichItemTitleFromUrlMetadata(authenticatedRequest, savedEntry.id, trimmedUrl).then(() =>
+        loadToday('refresh'),
+      );
     } catch (caughtError) {
       setError(getInboxErrorMessage(caughtError, true, t));
     } finally {
