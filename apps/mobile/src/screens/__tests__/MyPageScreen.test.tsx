@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Alert, Modal, Text } from 'react-native';
+import { Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
 import { useAuth } from '../../auth/AuthContext';
@@ -70,10 +70,32 @@ function findPressableContainingText(renderer: ReactTestRenderer.ReactTestRender
   return node;
 }
 
-/** MyPageScreen's single ConfirmDialog (a Modal) - used for the account-deletion confirm/cancel flow, distinct from sign-out's own native Alert. */
+/**
+ * MyPageScreen renders two ConfirmDialogs (sign-out, account-deletion), each a Modal always
+ * present in the tree with its own `visible` prop - only the currently-open one is queried, so a
+ * shared button label (both dialogs' Cancel is 취소) still resolves unambiguously.
+ */
 function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
-  const dialog = renderer.root.findByType(Modal);
-  return dialog.findAll(node => node.props.accessibilityLabel === label)[0];
+  const openDialog = renderer.root.findAll(node => node.type === Modal && node.props.visible === true)[0];
+  return openDialog.findAll(node => node.props.accessibilityLabel === label)[0];
+}
+
+function isInsideModal(node: ReactTestRenderer.ReactTestInstance): boolean {
+  for (let current = node.parent; current; current = current.parent) {
+    if (current.type === Modal) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The header's sign-out icon button shares its accessibilityLabel (로그아웃) with the sign-out ConfirmDialog's confirm button - excluding anything inside a Modal disambiguates the two. */
+function findHeaderLogoutButton(renderer: ReactTestRenderer.ReactTestRenderer) {
+  return renderer.root
+    .findAll(
+      node => typeof node.props.onPress === 'function' && node.props.accessibilityLabel === i18n.t('auth.logout'),
+    )
+    .find(node => !isInsideModal(node));
 }
 
 describe('MyPageScreen account section', () => {
@@ -101,40 +123,44 @@ describe('MyPageScreen sign-out', () => {
     jest.clearAllMocks();
   });
 
-  it('gates the actual sign-out behind a confirm dialog', async () => {
+  it('gates the actual sign-out behind the shared ConfirmDialog', async () => {
     const signOut = jest.fn();
     mockUseAuth({ signOut, userEmail: null });
-    const alertSpy = jest.spyOn(Alert, 'alert');
 
     const renderer = await renderScreen();
 
-    // Matches by the presence of an onPress prop rather than findAllByType(Pressable) - RN's
-    // Pressable export and the JSX element's resolved type are not always the exact same
-    // reference under this app's Jest/Babel setup, so type-based matching silently returns nothing.
-    const logoutButton = renderer.root
-      .findAll(node => typeof node.props.onPress === 'function')
-      .find(node => node.props.accessibilityLabel === i18n.t('auth.logout'));
+    const logoutButton = findHeaderLogoutButton(renderer);
     expect(logoutButton).toBeDefined();
 
     await act(async () => {
       logoutButton!.props.onPress();
     });
 
-    expect(alertSpy).toHaveBeenCalledTimes(1);
     expect(signOut).not.toHaveBeenCalled();
 
-    const alertButtons = alertSpy.mock.calls[0][2] as ReadonlyArray<{
-      style?: string;
-      onPress?: () => void;
-    }>;
-    const destructiveButton = alertButtons.find(button => button.style === 'destructive');
-    expect(destructiveButton).toBeDefined();
-
     await act(async () => {
-      destructiveButton!.onPress!();
+      getConfirmDialogButton(renderer, i18n.t('auth.logout')).props.onPress();
     });
 
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sign out when the ConfirmDialog is cancelled', async () => {
+    const signOut = jest.fn();
+    mockUseAuth({ signOut, userEmail: null });
+    const renderer = await renderScreen();
+
+    const logoutButton = findHeaderLogoutButton(renderer);
+
+    await act(async () => {
+      logoutButton!.props.onPress();
+    });
+
+    await act(async () => {
+      getConfirmDialogButton(renderer, i18n.t('common.cancel')).props.onPress();
+    });
+
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
 

@@ -36,4 +36,18 @@ public interface ICollectionItemStore
         long collectionId,
         long itemId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves itemId to immediately after afterItemId's current position (null afterItemId = move to
+    /// the very front). Only the Collection's owner may reorder. Throws CollectionNotFoundException
+    /// when collectionId is missing or not owned by userId, and ItemNotFoundException when itemId or
+    /// a non-null afterItemId does not belong to this Collection. A no-op when afterItemId already
+    /// equals itemId itself.
+    /// </summary>
+    Task MoveItemAsync(
+        long userId,
+        long collectionId,
+        long itemId,
+        long? afterItemId,
+        CancellationToken cancellationToken = default);
 }

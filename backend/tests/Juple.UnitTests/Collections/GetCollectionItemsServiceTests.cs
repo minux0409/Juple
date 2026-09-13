@@ -9,7 +9,7 @@ public sealed class GetCollectionItemsServiceTests
     [Fact]
     public async Task GetAsync_PassesCollectionCursorAndLimitThroughToStore()
     {
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 3, 0, 0, TimeSpan.Zero), 41);
+        var cursor = new CollectionItemPageCursor(1024, 41);
         var store = new FakeCollectionItemStore();
         var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
 
@@ -34,7 +34,7 @@ public sealed class GetCollectionItemsServiceTests
     [Fact]
     public async Task GetAsync_WhenStoreReturnsNextCursor_PropagatesItToResult()
     {
-        var nextCursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 1, 0, 0, TimeSpan.Zero), 7);
+        var nextCursor = new CollectionItemPageCursor(512, 7);
         var store = new FakeCollectionItemStore { NextCursor = nextCursor };
         var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
 
@@ -49,7 +49,7 @@ public sealed class GetCollectionItemsServiceTests
         var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
         var items = new List<CollectionItemEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeCollectionItemStore
@@ -71,7 +71,7 @@ public sealed class GetCollectionItemsServiceTests
     {
         var items = new List<CollectionItemEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null),
         };
         var store = new FakeCollectionItemStore { Items = items };
         var imageStorage = new FakeItemImageStorage();
@@ -129,6 +129,11 @@ public sealed class GetCollectionItemsServiceTests
 
         public Task RemoveAsync(
             long userId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by GetCollectionItemsService tests.");
+
+        public Task MoveItemAsync(
+            long userId, long collectionId, long itemId, long? afterItemId,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetCollectionItemsService tests.");
     }
 

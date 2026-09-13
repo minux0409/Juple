@@ -1,11 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DragList from 'react-native-draglist';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
@@ -24,6 +24,7 @@ import {
   enableCollectionShare,
   getCollection,
   getCollectionShare,
+  moveCollectionItem,
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
@@ -39,7 +40,7 @@ import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -168,8 +169,27 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [shareManagementError, setShareManagementError] = useState<string | null>(null);
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
 
-  const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeLocally } =
-    useCollectionItems(collectionId);
+  const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
+
+  const [isReordering, setIsReordering] = useState(false);
+  const [isReorderErrorVisible, setIsReorderErrorVisible] = useState(false);
+  // Synchronous guard against a second drag being dropped while the first move's API call is
+  // still in flight - isReordering (state) drives the disabled UI, this ref is what the handler
+  // itself checks, since a state update is not guaranteed to have committed before the next call.
+  const isReorderingRef = useRef(false);
+
+  const {
+    items,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    error,
+    refresh,
+    loadMore,
+    removeLocally,
+    reorderLocally,
+    restoreOrder,
+  } = useCollectionItems(collectionId);
 
   const loadCollection = useCallback(async () => {
     setIsLoadingCollection(true);
@@ -391,6 +411,45 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setIsUnshareConfirmVisible(true);
   };
 
+  const confirmUnlinkItem = (itemId: number) => {
+    setPendingUnlinkItemId(previous => previous ?? itemId);
+  };
+
+  /**
+   * Drops a drag at toIndex (react-native-draglist's own from/to-index contract - splice out at
+   * fromIndex, splice back in at toIndex, in that order). Reorders the in-memory list immediately
+   * (optimistic), fires the one anchor-based move call, and rolls back to the exact prior order on
+   * failure - never a partial/guessed order. A second reorder dropped while one is still in flight
+   * is ignored outright (no queue) - see isReorderingRef.
+   */
+  const handleReordered = async (fromIndex: number, toIndex: number) => {
+    if (isReorderingRef.current || fromIndex === toIndex) {
+      return;
+    }
+    const movingItem = items[fromIndex];
+    if (!movingItem) {
+      return;
+    }
+
+    const reordered = [...items];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    const afterItemId = toIndex === 0 ? null : reordered[toIndex - 1].itemId;
+
+    isReorderingRef.current = true;
+    setIsReordering(true);
+    const previousItems = reorderLocally(movingItem.itemId, afterItemId);
+    try {
+      await moveCollectionItem(authenticatedRequest, collectionId, movingItem.itemId, afterItemId);
+    } catch {
+      restoreOrder(previousItems);
+      setIsReorderErrorVisible(true);
+    } finally {
+      isReorderingRef.current = false;
+      setIsReordering(false);
+    }
+  };
+
   const handleShareToggle = (value: boolean) => {
     if (value) {
       enableShareAction();
@@ -417,12 +476,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <FlatList
+      <DragList
         contentContainerStyle={styles.content}
-        data={items}
+        data={[...items]}
         keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        onReordered={handleReordered}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListHeaderComponent={
           <View>
@@ -457,50 +517,54 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 </View>
               </View>
             ) : (
-              <View style={styles.nameRow}>
-                <Text numberOfLines={2} style={styles.title}>
-                  {collection.name}
+              <View>
+                <Text style={styles.title}>{collection.name}</Text>
+                <Text style={styles.itemCount}>
+                  {t('collections.itemCount', { count: collection.itemCount })}
                 </Text>
-                <Pressable
-                  accessibilityLabel={
-                    collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
-                  }
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
-                  disabled={isTogglingFavorite}
-                  hitSlop={8}
-                  onPress={toggleFavoriteAction}
-                  style={styles.favoriteButton}
-                >
-                  <Text
-                    style={[styles.favoriteButtonLabel, collection.isFavorite && styles.favoriteButtonLabelActive]}
+                <View style={styles.actionRow}>
+                  <Pressable
+                    accessibilityLabel={
+                      collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
+                    disabled={isTogglingFavorite}
+                    hitSlop={8}
+                    onPress={toggleFavoriteAction}
+                    style={styles.favoriteButton}
                   >
-                    {collection.isFavorite ? '★' : '☆'}
-                  </Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={startEditName} style={styles.editButton}>
-                  <Text style={styles.editButtonLabel}>{t('common.edit')}</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-                  disabled={isDeletingCollection}
-                  onPress={confirmDeleteCollection}
-                  style={[styles.deleteButton, isDeletingCollection && styles.disabledButton]}
-                >
-                  <Text style={styles.deleteButtonLabel}>
-                    {isDeletingCollection ? t('common.deleting') : t('common.delete')}
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[styles.favoriteButtonLabel, collection.isFavorite && styles.favoriteButtonLabelActive]}
+                    >
+                      {collection.isFavorite ? '★' : '☆'}
+                    </Text>
+                  </Pressable>
+                  {share ? (
+                    <Pressable accessibilityRole="button" onPress={shareLinkAction} style={styles.actionButton}>
+                      <Text style={styles.actionButtonLabel}>{t('collections.shareAction')}</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable accessibilityRole="button" onPress={startEditName} style={styles.actionButton}>
+                    <Text style={styles.actionButtonLabel}>{t('common.edit')}</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+                    disabled={isDeletingCollection}
+                    onPress={confirmDeleteCollection}
+                    style={[styles.actionButton, styles.deleteButton, isDeletingCollection && styles.disabledButton]}
+                  >
+                    <Text style={[styles.actionButtonLabel, styles.deleteButtonLabel]}>
+                      {isDeletingCollection ? t('common.deleting') : t('common.delete')}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             )}
             {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
             {deleteError ? <Text style={styles.error}>{deleteError}</Text> : null}
-
-            <Text style={styles.itemCount}>
-              {t('collections.itemCount', { count: collection.itemCount })}
-            </Text>
 
             <View style={styles.shareSection}>
               <View style={styles.shareToggleRow}>
@@ -512,15 +576,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 />
               </View>
               <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
-              {share ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={shareLinkAction}
-                  style={styles.shareLinkButton}
-                >
-                  <Text style={styles.shareLinkButtonLabel}>{t('collections.shareLinkAction')}</Text>
-                </Pressable>
-              ) : null}
             </View>
             {shareManagementError ? <Text style={styles.error}>{shareManagementError}</Text> : null}
 
@@ -534,19 +589,36 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           !isLoading && !error ? <Text style={styles.empty}>{t('collections.itemsEmpty')}</Text> : undefined
         }
         onScrollBeginDrag={closeOpenRow}
-        renderItem={({ item }) => (
-          <SwipeableItemRow
-            containerStyle={styles.row}
-            disabled={itemActionInFlightId !== null || isRefreshing}
-            onDelete={() => removeItemAction(item.itemId)}
-            onPress={() => {
-              navigation.navigate('ItemDetails', { itemId: item.itemId });
-            }}
-            onShare={() => shareItemAction(item)}
-          >
-            <CollectionItemContent item={item} />
-          </SwipeableItemRow>
-        )}
+        renderItem={({ item, index, onDragStart, onDragEnd, isActive }) => {
+          const rowDisabled = itemActionInFlightId !== null || isRefreshing || isReordering;
+          return (
+            <View style={[styles.row, isActive && styles.rowActive]}>
+              <Pressable
+                accessibilityLabel={t('collections.reorderHandleA11yLabel', { position: index + 1 })}
+                accessibilityRole="button"
+                delayLongPress={350}
+                disabled={rowDisabled}
+                onLongPress={onDragStart}
+                onPressOut={isActive ? onDragEnd : undefined}
+                style={styles.numberBadge}
+              >
+                <Text style={styles.numberBadgeLabel}>{index + 1}</Text>
+              </Pressable>
+              <View style={styles.rowSwipeWrapper}>
+                <SwipeableItemRow
+                  disabled={itemActionInFlightId !== null || isRefreshing}
+                  onDelete={() => confirmUnlinkItem(item.itemId)}
+                  onPress={() => {
+                    navigation.navigate('ItemDetails', { itemId: item.itemId });
+                  }}
+                  onShare={() => shareItemAction(item)}
+                >
+                  <CollectionItemContent item={item} />
+                </SwipeableItemRow>
+              </View>
+            </View>
+          );
+        }}
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoading}>
@@ -579,6 +651,29 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         title={t('collections.unshareConfirmTitle')}
         visible={isUnshareConfirmVisible}
       />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('collections.unlinkAction')}
+        message={t('collections.unlinkConfirmMessage')}
+        onCancel={() => setPendingUnlinkItemId(null)}
+        onConfirm={() => {
+          const itemId = pendingUnlinkItemId;
+          setPendingUnlinkItemId(null);
+          if (itemId !== null) {
+            removeItemAction(itemId);
+          }
+        }}
+        title={t('collections.unlinkConfirmTitle')}
+        visible={pendingUnlinkItemId !== null}
+      />
+      <ConfirmDialog
+        confirmLabel={t('common.confirm')}
+        destructive={false}
+        message={t('collections.errorReorderFallback')}
+        onConfirm={() => setIsReorderErrorVisible(false)}
+        title={t('collections.errorReorderTitle')}
+        visible={isReorderErrorVisible}
+      />
     </SafeAreaView>
   );
 }
@@ -587,6 +682,13 @@ interface CollectionItemContentProps {
   readonly item: CollectionItemEntry;
 }
 
+/**
+ * Mirrors SavedLinkRow's visual language (Home/History - see components/SavedLinkRow.tsx) so
+ * Category rows read as the same kind of row as the rest of the app: thumbnail, title primary /
+ * URL secondary, memo, added time. The leading position number is a sibling handle rendered by
+ * the caller (see CollectionDetailsScreen's renderItem), not this component - it must sit outside
+ * SwipeableItemRow so its long-press-to-drag gesture never competes with the swipe gesture.
+ */
 function CollectionItemContent({ item }: CollectionItemContentProps) {
   return (
     <View style={styles.rowContent}>
@@ -625,24 +727,22 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 24,
   },
-  nameRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    flex: 1,
-    marginEnd: 12,
+  },
+  actionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   favoriteButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginEnd: 8,
-    minHeight: 32,
-    minWidth: 32,
+    minHeight: minTouchTarget,
+    minWidth: minTouchTarget,
   },
   favoriteButtonLabel: {
     color: '#9A9A9A',
@@ -651,14 +751,14 @@ const styles = StyleSheet.create({
   favoriteButtonLabelActive: {
     color: '#F5A623',
   },
-  editButton: {
+  actionButton: {
     borderColor: '#9A9A9A',
-    borderRadius: 6,
+    borderRadius: radii.sm,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
   },
-  editButtonLabel: {
+  actionButtonLabel: {
     color: '#111111',
     fontSize: 13,
     fontWeight: '600',
@@ -712,20 +812,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: spacing.xs,
   },
-  shareLinkButton: {
-    alignSelf: 'flex-start',
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  shareLinkButtonLabel: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
   error: {
     color: '#B42318',
     fontSize: 14,
@@ -736,36 +822,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 16,
   },
+  // Card treatment matching Home/History (see DailyInboxScreen's `card`/DateHistoryScreen's
+  // `historyCard`) - a rounded, bordered card with a real margin, rather than the old edge-to-edge
+  // top-border-only divider that read as a clipped rectangle. Now the outer container for the
+  // whole row unit (number handle + swipeable content) rather than just SwipeableItemRow's own
+  // wrapper, since the handle must be a layout sibling of SwipeableItemRow, not nested inside it -
+  // see CollectionDetailsScreen's renderItem.
   row: {
-    borderTopColor: '#E0E0E0',
-    borderTopWidth: 1,
-    marginTop: 24,
+    alignItems: 'stretch',
+    borderColor: colors.divider,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  // Clearly visible while a row is the active drag target - a colored border plus a real
+  // elevation/shadow lift, not just a faint tint, so the dragged row never reads as having
+  // vanished mid-drag.
+  rowActive: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.brand,
+    borderWidth: 2,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  rowSwipeWrapper: {
+    flex: 1,
   },
   rowContent: {
+    alignItems: 'center',
     flexDirection: 'row',
-    paddingVertical: 14,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  // The drag handle - long-press starts a reorder (see renderItem's onLongPress={onDragStart}).
+  // A sibling of SwipeableItemRow, not a child, so its touches never enter SwipeableItemRow's own
+  // PanResponder region and vice versa (see components/SwipeableItemRow.tsx's own remarks on this
+  // exact composition pattern).
+  numberBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    width: minTouchTarget,
+  },
+  numberBadgeLabel: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700',
   },
   rowTextColumn: {
     flex: 1,
+    marginStart: spacing.sm,
   },
   url: {
-    color: '#111111',
-    fontSize: 15,
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   secondaryUrl: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 3,
+    marginTop: 2,
   },
   memoPreview: {
-    color: '#666666',
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 5,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
   },
   addedTime: {
-    color: '#666666',
-    fontSize: 13,
-    marginTop: 5,
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: spacing.xs,
   },
   disabledButton: {
     opacity: 0.5,
@@ -775,14 +908,8 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     borderColor: colors.danger,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
   },
   deleteButtonLabel: {
     color: colors.danger,
-    fontSize: 13,
-    fontWeight: '600',
   },
 });

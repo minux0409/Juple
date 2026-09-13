@@ -5,17 +5,24 @@ interface ConfirmDialogProps {
   readonly visible: boolean;
   readonly title: string;
   readonly message: string;
-  readonly cancelLabel: string;
+  /** Omit together with onCancel to render a single-button, alert-only variant (no cancel action). */
+  readonly cancelLabel?: string;
   readonly confirmLabel: string;
-  readonly onCancel: () => void;
+  readonly onCancel?: () => void;
   readonly onConfirm: () => void;
+  /** Styles the confirm button as the destructive action (default). Set false for a neutral confirm. */
+  readonly destructive?: boolean;
 }
 
 /**
- * Juple's one shared destructive-confirmation dialog (item delete, account delete, ...) - replaces
- * per-screen native Alert.alert calls so the wording/styling stays identical everywhere it's used.
- * Confirm is always styled as the destructive action; there is no non-destructive variant because
- * every current call site needs one.
+ * Juple's one shared dialog for every app-owned confirmation/alert (item delete, account delete,
+ * unsaved changes, sign-out, ...) - replaces per-screen native Alert.alert calls so wording/styling
+ * stays identical everywhere. New app-owned confirmations/alerts should use this component rather
+ * than Alert.alert or a bespoke Modal. OS-owned UI (permission dialogs, share sheet, image picker,
+ * browser, auth system UI) is out of scope and must stay native.
+ *
+ * Two shapes: a two-button confirm (cancelLabel + onCancel both provided) or a single-button,
+ * alert-only variant (both omitted) for a notice with no cancel action.
  */
 export function ConfirmDialog({
   visible,
@@ -25,33 +32,38 @@ export function ConfirmDialog({
   confirmLabel,
   onCancel,
   onConfirm,
+  destructive = true,
 }: ConfirmDialogProps) {
+  const dismiss = onCancel ?? onConfirm;
+
   return (
-    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
+    <Modal animationType="fade" onRequestClose={dismiss} transparent visible={visible}>
       <View style={styles.overlay}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          onPress={onCancel}
+          onPress={dismiss}
           style={StyleSheet.absoluteFill}
         />
         <View accessibilityViewIsModal style={styles.card}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.buttonRow}>
-            <Pressable
-              accessibilityLabel={cancelLabel}
-              accessibilityRole="button"
-              onPress={onCancel}
-              style={styles.cancelButton}
-            >
-              <Text style={styles.cancelButtonLabel}>{cancelLabel}</Text>
-            </Pressable>
+            {onCancel && cancelLabel ? (
+              <Pressable
+                accessibilityLabel={cancelLabel}
+                accessibilityRole="button"
+                onPress={onCancel}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelButtonLabel}>{cancelLabel}</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               accessibilityLabel={confirmLabel}
               accessibilityRole="button"
               onPress={onConfirm}
-              style={styles.confirmButton}
+              style={[styles.confirmButton, destructive ? styles.confirmButtonDestructive : styles.confirmButtonNeutral]}
             >
               <Text style={styles.confirmButtonLabel}>{confirmLabel}</Text>
             </Pressable>
@@ -111,11 +123,16 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     alignItems: 'center',
-    backgroundColor: colors.danger,
     borderRadius: radii.md,
     flex: 1,
     justifyContent: 'center',
     paddingVertical: spacing.sm + 4,
+  },
+  confirmButtonDestructive: {
+    backgroundColor: colors.danger,
+  },
+  confirmButtonNeutral: {
+    backgroundColor: colors.textPrimary,
   },
   confirmButtonLabel: {
     color: colors.surface,

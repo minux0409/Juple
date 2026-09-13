@@ -32,7 +32,7 @@ public sealed class PublicCollectionServiceTests
     [Fact]
     public async Task GetItemsAsync_PassesArgumentsThroughToStoreAndReturnsResult()
     {
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 3, 0, 0, TimeSpan.Zero), 41);
+        var cursor = new CollectionItemPageCursor(1024, 41);
         var expected = new PublicCollectionItemPage([new PublicCollectionItemDto("Title", "https://example.test")], null);
         var store = new FakeStore { ItemsResult = expected };
         var service = new PublicCollectionService(store);

@@ -8,7 +8,21 @@ public sealed class CollectionItemPageCursorCodecTests
     [Fact]
     public void EncodeThenTryDecode_RoundTripsToTheSameCursor()
     {
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero), 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
+
+        var encoded = CollectionItemPageCursorCodec.Encode(cursor);
+        var decoded = CollectionItemPageCursorCodec.TryDecode(encoded, out var result);
+
+        Assert.True(decoded);
+        Assert.Equal(cursor, result);
+    }
+
+    [Fact]
+    public void EncodeThenTryDecode_RoundTripsANegativeSortOrder()
+    {
+        // A prepended Item's SortOrder can go negative (see CollectionStore.AddAsync) - the cursor
+        // must round-trip that too, not just positive/zero values.
+        var cursor = new CollectionItemPageCursor(-4096, 123);
 
         var encoded = CollectionItemPageCursorCodec.Encode(cursor);
         var decoded = CollectionItemPageCursorCodec.TryDecode(encoded, out var result);
@@ -43,7 +57,9 @@ public sealed class CollectionItemPageCursorCodecTests
     [Fact]
     public void TryDecode_WhenVersionIsUnsupported_ReturnsFalse()
     {
-        var payloadJson = """{"V":2,"T":"2026-09-04T10:00:00+00:00","ItemId":123}""";
+        // V:1 is the old (pre-reorder) AddedAtUtc-based payload shape - must fail closed, not be
+        // misread as a SortOrder-based cursor.
+        var payloadJson = """{"V":1,"S":123,"ItemId":123}""";
         var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payloadJson))
             .Replace('+', '-')
             .Replace('/', '_')
@@ -58,7 +74,7 @@ public sealed class CollectionItemPageCursorCodecTests
     [Fact]
     public void TryDecode_WhenItemIdIsNotPositive_ReturnsFalse()
     {
-        var payloadJson = """{"V":1,"T":"2026-09-04T10:00:00+00:00","ItemId":0}""";
+        var payloadJson = """{"V":2,"S":123,"ItemId":0}""";
         var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(payloadJson))
             .Replace('+', '-')
             .Replace('/', '_')

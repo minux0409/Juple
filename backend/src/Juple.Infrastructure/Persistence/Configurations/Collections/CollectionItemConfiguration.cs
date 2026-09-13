@@ -28,9 +28,16 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
             .HasColumnType("datetimeoffset")
             .IsRequired();
 
-        // Collection detail's Item list query pattern (AddedAtUtc DESC, ItemId DESC, cursor-paged).
-        builder.HasIndex(collectionItem => new { collectionItem.CollectionId, collectionItem.AddedAtUtc, collectionItem.ItemId })
-            .HasDatabaseName("IX_CollectionItems_CollectionId_AddedAtUtc_ItemId");
+        builder.Property(collectionItem => collectionItem.SortOrder)
+            .HasColumnType("int")
+            .IsRequired();
+
+        // Collection detail's Item list query pattern (SortOrder ASC, Id ASC, cursor-paged) - the
+        // owner's manual display order, not insertion order. Replaces the old
+        // (CollectionId, AddedAtUtc, ItemId) index; AddedAtUtc itself is unindexed now but stays as
+        // a column (still shown as the Item's "added" time in the UI).
+        builder.HasIndex(collectionItem => new { collectionItem.CollectionId, collectionItem.SortOrder, collectionItem.Id })
+            .HasDatabaseName("IX_CollectionItems_CollectionId_SortOrder_Id");
 
         // "Which Collections is this Item in" lookup (ItemDetails membership section) - SQL Server
         // does not auto-index FK columns.

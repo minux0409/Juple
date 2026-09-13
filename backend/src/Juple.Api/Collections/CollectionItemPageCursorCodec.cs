@@ -13,11 +13,15 @@ namespace Juple.Api.Collections;
 /// </summary>
 public static class CollectionItemPageCursorCodec
 {
-    private const int CurrentVersion = 1;
+    // Bumped from 1: the payload's second field changed meaning from AddedAtUtc to SortOrder (see
+    // CollectionItemPageCursor) when Category reorder shipped - an old-shape cursor decoded under
+    // the new version check fails closed (TryDecode returns false) rather than being silently
+    // misinterpreted as a SortOrder value.
+    private const int CurrentVersion = 2;
 
     public static string Encode(CollectionItemPageCursor cursor)
     {
-        var payload = new CursorPayload(CurrentVersion, cursor.AddedAtUtc, cursor.ItemId);
+        var payload = new CursorPayload(CurrentVersion, cursor.SortOrder, cursor.ItemId);
         var json = JsonSerializer.SerializeToUtf8Bytes(payload);
         return Convert.ToBase64String(json)
             .Replace('+', '-')
@@ -42,7 +46,7 @@ public static class CollectionItemPageCursorCodec
                 return false;
             }
 
-            cursor = new CollectionItemPageCursor(payload.T, payload.ItemId);
+            cursor = new CollectionItemPageCursor(payload.S, payload.ItemId);
             return true;
         }
         catch (Exception exception) when (
@@ -52,5 +56,5 @@ public static class CollectionItemPageCursorCodec
         }
     }
 
-    private sealed record CursorPayload(int V, DateTimeOffset T, long ItemId);
+    private sealed record CursorPayload(int V, int S, long ItemId);
 }

@@ -190,7 +190,11 @@ export function DateHistoryScreen() {
               }}
               onShare={() => runShare(item)}
             >
-              <SavedLinkRow isActionInFlight={actionInFlightItemId === item.id} item={item} />
+              <SavedLinkRow
+                dateDisplayMode={section.showItemDate ? 'dateTime' : 'time'}
+                isActionInFlight={actionInFlightItemId === item.id}
+                item={item}
+              />
             </SwipeableItemRow>
           );
         }}

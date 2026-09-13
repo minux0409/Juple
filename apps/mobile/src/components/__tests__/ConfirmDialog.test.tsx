@@ -105,4 +105,46 @@ describe('ConfirmDialog', () => {
     expect(renderer.root.findByProps({ children: 'Delete item' })).toBeTruthy();
     expect(renderer.root.findByProps({ children: 'Are you sure?' })).toBeTruthy();
   });
+
+  it('renders a single confirm button with no cancel button when cancelLabel/onCancel are omitted (alert-only variant)', async () => {
+    const onConfirm = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <ConfirmDialog confirmLabel="OK" message="Something happened." onConfirm={onConfirm} title="Notice" visible />,
+      );
+    });
+
+    expect(findButton(renderer, 'OK')).toBeTruthy();
+
+    // Android back (onRequestClose) has no separate cancel action to fall back to in this variant,
+    // so it resolves the same single action as pressing the confirm button.
+    const modal = renderer.root.findByType(Modal);
+    await act(async () => {
+      modal.props.onRequestClose();
+    });
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaults to a destructive-styled confirm button, and switches to neutral when destructive={false}', async () => {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <ConfirmDialog
+          cancelLabel="Cancel"
+          confirmLabel="Continue"
+          destructive={false}
+          message="Are you sure?"
+          onCancel={jest.fn()}
+          onConfirm={jest.fn()}
+          title="Confirm"
+          visible
+        />,
+      );
+    });
+
+    const confirmButton = findButton(renderer, 'Continue');
+    const flattenedStyle = [confirmButton.props.style].flat();
+    expect(flattenedStyle.some(style => style && 'backgroundColor' in style && style.backgroundColor === '#B42318')).toBe(false);
+  });
 });

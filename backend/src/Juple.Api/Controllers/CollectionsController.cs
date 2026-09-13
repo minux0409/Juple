@@ -10,6 +10,7 @@ using Juple.Application.Collections.GetCollectionDetail;
 using Juple.Application.Collections.GetCollectionItems;
 using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Collections.ListCollections;
+using Juple.Application.Collections.MoveCollectionItem;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
@@ -38,6 +39,7 @@ public sealed class CollectionsController(
     IGetCollectionItemsService getCollectionItemsService,
     IAddItemToCollectionService addItemToCollectionService,
     IRemoveItemFromCollectionService removeItemFromCollectionService,
+    IMoveCollectionItemService moveCollectionItemService,
     IEnableCollectionShareService enableCollectionShareService,
     IGetCollectionShareService getCollectionShareService,
     IRevokeCollectionShareService revokeCollectionShareService,
@@ -384,6 +386,19 @@ public sealed class CollectionsController(
             userId => removeItemFromCollectionService.RemoveAsync(userId, id, itemId, cancellationToken),
             cancellationToken);
 
+    /// <summary>
+    /// Moves itemId to immediately after AfterItemId's current position (null = move to the very
+    /// front) - a single atomic move, not a full reordered-list replace, since a Collection's Item
+    /// list is unbounded/cursor-paginated (see GetItemsAsync) and the client may not have every
+    /// Item's id loaded. Only the Collection's owner may reorder.
+    /// </summary>
+    [HttpPut("{id:long}/items/{itemId:long}/position")]
+    public Task<IActionResult> MoveItemAsync(
+        long id, long itemId, MoveCollectionItemRequest request, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => moveCollectionItemService.MoveAsync(userId, id, itemId, request.AfterItemId, cancellationToken),
+            cancellationToken);
+
     private async Task<IActionResult> ExecuteAsync(
         Func<long, Task> action,
         CancellationToken cancellationToken)
@@ -435,6 +450,8 @@ public sealed class CollectionsController(
     public sealed record RenameCollectionRequest(string? Name);
 
     public sealed record SetCollectionFavoriteRequest(bool IsFavorite);
+
+    public sealed record MoveCollectionItemRequest(long? AfterItemId);
 
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 

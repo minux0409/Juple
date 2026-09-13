@@ -3,7 +3,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Linking,
@@ -222,6 +221,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isDeletingItem, setIsDeletingItem] = useState(false);
   const [itemActionError, setItemActionError] = useState<string | null>(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  const [pendingDeleteImageId, setPendingDeleteImageId] = useState<number | null>(null);
+  const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
+  // Stashes a closure over usePreventRemove's imperative `data.action`, rather than the action
+  // value itself, so this ref never needs to describe that action's shape.
+  const pendingLeaveRef = useRef<(() => void) | null>(null);
   const itemActionInFlightRef = useRef(false);
 
   const [isCheckingUrlSafety, setIsCheckingUrlSafety] = useState(false);
@@ -410,14 +414,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    Alert.alert(t('item.deletePhotoConfirmTitle'), t('item.deletePhotoConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () => deleteImageAction(image.id),
-      },
-    ]);
+    setPendingDeleteImageId(image.id);
   };
 
   const stageRemoveCategory = (collectionId: number) => {
@@ -549,18 +546,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   usePreventRemove(isDirty, ({ data }) => {
-    Alert.alert(
-      t('item.unsavedChangesTitle'),
-      t('item.unsavedChangesMessage'),
-      [
-        { text: t('item.continueEditing'), style: 'cancel' },
-        {
-          text: t('item.leave'),
-          style: 'destructive',
-          onPress: () => navigation.dispatch(data.action),
-        },
-      ],
-    );
+    pendingLeaveRef.current = () => navigation.dispatch(data.action);
+    setIsUnsavedChangesDialogVisible(true);
   });
 
   /**
@@ -909,6 +896,35 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         visible={isUrlThreatConfirmVisible}
       />
 
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message={t('item.deletePhotoConfirmMessage')}
+        onCancel={() => setPendingDeleteImageId(null)}
+        onConfirm={() => {
+          const imageId = pendingDeleteImageId;
+          setPendingDeleteImageId(null);
+          if (imageId !== null) {
+            deleteImageAction(imageId);
+          }
+        }}
+        title={t('item.deletePhotoConfirmTitle')}
+        visible={pendingDeleteImageId !== null}
+      />
+
+      <ConfirmDialog
+        cancelLabel={t('item.continueEditing')}
+        confirmLabel={t('item.leave')}
+        message={t('item.unsavedChangesMessage')}
+        onCancel={() => setIsUnsavedChangesDialogVisible(false)}
+        onConfirm={() => {
+          setIsUnsavedChangesDialogVisible(false);
+          pendingLeaveRef.current?.();
+        }}
+        title={t('item.unsavedChangesTitle')}
+        visible={isUnsavedChangesDialogVisible}
+      />
+
       <Modal
         animationType="slide"
         onRequestClose={closeCollectionModal}
@@ -941,12 +957,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                       onPress={() =>
                         isSelected ? stageRemoveCategory(option.id) : stageAddCategory(option)
                       }
-                      style={[styles.categoryOptionRow, isSelected && styles.categoryOptionRowSelected]}
+                      style={styles.categoryOptionRow}
                     >
                       <Text numberOfLines={1} style={styles.categoryOptionLabel}>
                         {option.name}
                       </Text>
-                      {isSelected ? <Text style={styles.categoryOptionCheck}>✓</Text> : null}
+                      <View style={[styles.categoryOptionCheckCircle, isSelected && styles.categoryOptionCheckCircleSelected]}>
+                        {isSelected ? <Text style={styles.categoryOptionCheckMark}>✓</Text> : null}
+                      </View>
                     </Pressable>
                   );
                 }}
@@ -1243,24 +1261,38 @@ const styles = StyleSheet.create({
   },
   categoryOptionRow: {
     alignItems: 'center',
-    borderTopColor: '#E0E0E0',
+    borderTopColor: colors.divider,
     borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
   },
-  categoryOptionRowSelected: {
-    backgroundColor: '#F5F5F5',
-  },
   categoryOptionLabel: {
-    color: '#111111',
+    color: colors.textPrimary,
     flex: 1,
     fontSize: 15,
-    marginEnd: 12,
+    marginEnd: spacing.md,
   },
-  categoryOptionCheck: {
-    color: '#3366CC',
-    fontSize: 16,
+  // A check-circle (empty outline when unselected, filled brand-colored circle with a white
+  // checkmark when selected) - replaces the old full-row gray background + bare "✓" character,
+  // which read as an accidental disabled-row state rather than an intentional selection control.
+  categoryOptionCheckCircle: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  categoryOptionCheckCircleSelected: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  categoryOptionCheckMark: {
+    color: colors.surface,
+    fontSize: 13,
     fontWeight: '700',
   },
   newCategoryRow: {

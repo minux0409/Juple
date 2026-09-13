@@ -12,13 +12,14 @@ export interface Collection {
   readonly updatedAtUtc: string;
 }
 
-/** One Item inside a Collection. */
+/** One Item inside a Collection. SortOrder is the owner's manual display order (ascending) - see moveCollectionItem; do not re-derive numbering from array position alone once reordering is in play. */
 export interface CollectionItemEntry {
   readonly itemId: number;
   readonly url: string;
   readonly title: string | null;
   readonly memo: string | null;
   readonly addedAtUtc: string;
+  readonly sortOrder: number;
   readonly representativeImage: RepresentativeImage | null;
 }
 
@@ -212,6 +213,25 @@ export async function removeItemFromCollection(
   await request<void>({
     method: 'DELETE',
     path: `/api/v1/collections/${collectionId}/items/${itemId}`,
+  });
+}
+
+/**
+ * PUTs itemId's new position: immediately after afterItemId (null = move to the very front).
+ * Resolves on 204. A single atomic move, not a full reordered-list replace - the server derives
+ * the new order from just this one anchor (see backend CollectionsController.MoveItemAsync), which
+ * is why this never needs the full Item id list even for an unbounded/paginated Collection.
+ */
+export async function moveCollectionItem(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+  afterItemId: number | null,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/items/${itemId}/position`,
+    body: { afterItemId },
   });
 }
 

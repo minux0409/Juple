@@ -64,8 +64,8 @@ public sealed class AccountDeletionStoreIntegrationTests : IAsyncLifetime
         _collectionId = collection.Id;
         _otherCollectionId = otherCollection.Id;
 
-        _dbContext.CollectionItems.Add(new CollectionItem(_collectionId, _itemId, now));
-        _dbContext.CollectionItems.Add(new CollectionItem(_otherCollectionId, _otherItemId, now));
+        _dbContext.CollectionItems.Add(new CollectionItem(_collectionId, _itemId, now, 0));
+        _dbContext.CollectionItems.Add(new CollectionItem(_otherCollectionId, _otherItemId, now, 0));
 
         _publicId = Guid.NewGuid().ToString("N");
         _dbContext.CollectionShares.Add(new CollectionShare(_collectionId, _publicId, now));

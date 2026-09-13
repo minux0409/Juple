@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
@@ -40,6 +40,7 @@ export function MyPageScreen() {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [isDeleteAccountDialogVisible, setIsDeleteAccountDialogVisible] = useState(false);
+  const [isSignOutDialogVisible, setIsSignOutDialogVisible] = useState(false);
   // Synchronous re-entrancy guard against a double-tap triggering two concurrent deletions.
   const isDeletingAccountRef = useRef(false);
 
@@ -106,16 +107,7 @@ export function MyPageScreen() {
   };
 
   const confirmSignOut = () => {
-    Alert.alert(t('myPage.signOutConfirmTitle'), t('myPage.signOutConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('auth.logout'),
-        style: 'destructive',
-        onPress: () => {
-          signOut();
-        },
-      },
-    ]);
+    setIsSignOutDialogVisible(true);
   };
 
   return (
@@ -189,6 +181,18 @@ export function MyPageScreen() {
         }}
         title={t('myPage.deleteAccountConfirmTitle')}
         visible={isDeleteAccountDialogVisible}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('auth.logout')}
+        message={t('myPage.signOutConfirmMessage')}
+        onCancel={() => setIsSignOutDialogVisible(false)}
+        onConfirm={() => {
+          setIsSignOutDialogVisible(false);
+          signOut();
+        }}
+        title={t('myPage.signOutConfirmTitle')}
+        visible={isSignOutDialogVisible}
       />
     </SafeAreaView>
   );

@@ -50,15 +50,15 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
         if (cursor is not null)
         {
             membershipQuery = membershipQuery.Where(membership =>
-                membership.AddedAtUtc < cursor.AddedAtUtc
-                || (membership.AddedAtUtc == cursor.AddedAtUtc && membership.ItemId < cursor.ItemId));
+                membership.SortOrder > cursor.SortOrder
+                || (membership.SortOrder == cursor.SortOrder && membership.ItemId > cursor.ItemId));
         }
 
         var pagedQuery =
             from membership in membershipQuery
             join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
-            orderby membership.AddedAtUtc descending, membership.ItemId descending
-            select new { item.Title, item.Url, membership.AddedAtUtc, membership.ItemId };
+            orderby membership.SortOrder ascending, membership.ItemId ascending
+            select new { item.Title, item.Url, membership.SortOrder, membership.ItemId };
 
         var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
 
@@ -67,7 +67,7 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
 
         var items = pageRows.Select(row => new PublicCollectionItemDto(row.Title, row.Url)).ToList();
         var nextCursor = hasMore
-            ? new CollectionItemPageCursor(pageRows[^1].AddedAtUtc, pageRows[^1].ItemId)
+            ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].ItemId)
             : null;
 
         return new PublicCollectionItemPage(items, nextCursor);

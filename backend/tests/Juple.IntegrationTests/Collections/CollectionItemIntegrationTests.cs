@@ -286,8 +286,10 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetItemsAsync_OrdersByAddedAtUtcDescendingThenItemIdDescending()
+    public async Task GetItemsAsync_OrdersBySortOrderAscending_NewestAddedFirstByDefault()
     {
+        // Each Add prepends (see CollectionStore.AddAsync), so with no manual reorder the default
+        // order still matches the old AddedAtUtc-DESC/ItemId-DESC behavior exactly.
         var store = new CollectionStore(_dbContext);
         var itemStore = new ItemStore(_dbContext);
         var collectionId = await CreateCollectionAsync(store, _userId, "Books");
@@ -521,5 +523,216 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         var allReturnedIds = firstPage.Items.Concat(secondPage.Items).Select(c => c.Id).ToList();
         Assert.Equal(3, allReturnedIds.Distinct().Count());
         Assert.Equal(addableIds.OrderByDescending(id => id), allReturnedIds);
+    }
+
+    private async Task<List<long>> GetOrderedItemIdsAsync(CollectionStore store, long userId, long collectionId)
+    {
+        var (page, _) = await store.GetItemsAsync(userId, collectionId, cursor: null, limit: 50);
+        return page.Items.Select(item => item.ItemId).ToList();
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_ToFront_WhenAfterItemIdIsNull_PlacesItemFirst()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var a = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-front-a");
+        var b = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-front-b");
+        var c = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-front-c");
+        await store.AddAsync(_userId, collectionId, a, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, b, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, c, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        // Default order (newest-first): [c, b, a].
+
+        await store.MoveItemAsync(_userId, collectionId, a, afterItemId: null);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal([a, c, b], await GetOrderedItemIdsAsync(store, _userId, collectionId));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_ToMiddle_PlacesItemImmediatelyAfterAnchor()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var a = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-mid-a");
+        var b = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-mid-b");
+        var c = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-mid-c");
+        await store.AddAsync(_userId, collectionId, a, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, b, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, c, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        // Default order (newest-first): [c, b, a]. Move a to right after c: [c, a, b].
+
+        await store.MoveItemAsync(_userId, collectionId, a, afterItemId: c);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal([c, a, b], await GetOrderedItemIdsAsync(store, _userId, collectionId));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_ToEnd_WhenAfterItemIdIsTheLastItem_PlacesItemLast()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var a = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-end-a");
+        var b = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-end-b");
+        var c = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-end-c");
+        await store.AddAsync(_userId, collectionId, a, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, b, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, c, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        // Default order (newest-first): [c, b, a]. Move c to right after (last item) a: [b, a, c].
+
+        await store.MoveItemAsync(_userId, collectionId, c, afterItemId: a);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal([b, a, c], await GetOrderedItemIdsAsync(store, _userId, collectionId));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_WhenNoIntegerGapRemainsBetweenNeighbors_RenumbersAndStillPlacesItemCorrectly()
+    {
+        // Directly manufactures an exhausted gap (SortOrder values 0 and 1, adjacent integers, no
+        // room for a midpoint) so a single move between them must hit MoveItemAsync's self-healing
+        // renumber path (see its needsRenumber branch) rather than computing a bad/duplicate value.
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var low = await CreateItemAsync(itemStore, _userId, "https://shop.example/renumber-low");
+        var high = await CreateItemAsync(itemStore, _userId, "https://shop.example/renumber-high");
+        var mover = await CreateItemAsync(itemStore, _userId, "https://shop.example/renumber-mover");
+        await store.AddAsync(_userId, collectionId, low, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, high, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, mover, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE collections.CollectionItems SET SortOrder = 0 WHERE CollectionId = {collectionId} AND ItemId = {low}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE collections.CollectionItems SET SortOrder = 1 WHERE CollectionId = {collectionId} AND ItemId = {high}");
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE collections.CollectionItems SET SortOrder = -1000 WHERE CollectionId = {collectionId} AND ItemId = {mover}");
+        _dbContext.ChangeTracker.Clear();
+        // [mover, low, high] with no integer room between low(0) and high(1).
+
+        await store.MoveItemAsync(_userId, collectionId, mover, afterItemId: low);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal([low, mover, high], await GetOrderedItemIdsAsync(store, _userId, collectionId));
+
+        // The renumber must leave every row with a distinct SortOrder, not just a correct read
+        // order - a real duplicate would still coincidentally sort correctly today but leave no
+        // room for a future move without an immediate second renumber.
+        var sortOrders = await _dbContext.CollectionItems
+            .AsNoTracking()
+            .Where(item => item.CollectionId == collectionId)
+            .Select(item => item.SortOrder)
+            .ToListAsync();
+        Assert.Equal(3, sortOrders.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_MovingRightAfterItself_IsANoOp()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var a = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-self-a");
+        var b = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-self-b");
+        await store.AddAsync(_userId, collectionId, a, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, collectionId, b, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        var before = await GetOrderedItemIdsAsync(store, _userId, collectionId);
+
+        await store.MoveItemAsync(_userId, collectionId, a, afterItemId: a);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal(before, await GetOrderedItemIdsAsync(store, _userId, collectionId));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_WhenCollectionDoesNotExist_ThrowsCollectionNotFound()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var itemId = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-no-collection");
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.MoveItemAsync(_userId, collectionId: -1, itemId, afterItemId: null));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_OnOtherUsersCollection_ThrowsCollectionNotFound()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var theirCollection = await CreateCollectionAsync(store, _otherUserId, "TheirsOnly");
+        var theirItem = await CreateItemAsync(itemStore, _otherUserId, "https://shop.example/move-foreign-collection");
+        await store.AddAsync(_otherUserId, theirCollection, theirItem, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.MoveItemAsync(_userId, theirCollection, theirItem, afterItemId: null));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_WhenItemNotInCollection_ThrowsItemNotFound()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var outsideItem = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-not-member");
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(
+            () => store.MoveItemAsync(_userId, collectionId, outsideItem, afterItemId: null));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_WhenAfterItemIdNotInCollection_ThrowsItemNotFound()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var a = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-bad-anchor-a");
+        var outsideItem = await CreateItemAsync(itemStore, _userId, "https://shop.example/move-bad-anchor-outside");
+        await store.AddAsync(_userId, collectionId, a, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(
+            () => store.MoveItemAsync(_userId, collectionId, a, afterItemId: outsideItem));
+    }
+
+    [Fact]
+    public async Task MoveItemAsync_OnlyOwnerCanReorder_OtherUsersItemInTheirOwnCollectionIsUnaffected()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var theirCollection = await CreateCollectionAsync(store, _otherUserId, "TheirsOnly");
+        var theirA = await CreateItemAsync(itemStore, _otherUserId, "https://shop.example/move-owner-a");
+        var theirB = await CreateItemAsync(itemStore, _otherUserId, "https://shop.example/move-owner-b");
+        await store.AddAsync(_otherUserId, theirCollection, theirA, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_otherUserId, theirCollection, theirB, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        var before = await GetOrderedItemIdsAsync(store, _otherUserId, theirCollection);
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.MoveItemAsync(_userId, theirCollection, theirA, afterItemId: null));
+
+        Assert.Equal(before, await GetOrderedItemIdsAsync(store, _otherUserId, theirCollection));
     }
 }

@@ -158,8 +158,10 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetItemsAsync_OrderedByAddedAtUtcDescendingThenItemIdDescending()
+    public async Task GetItemsAsync_OrderedBySortOrderAscending_NewestAddedFirstByDefault()
     {
+        // Each Add prepends (see CollectionStore.AddAsync), so with no manual reorder the public
+        // read's default order still matches the old AddedAtUtc-DESC behavior exactly.
         var collectionStore = new CollectionStore(_dbContext);
         var itemStore = new ItemStore(_dbContext);
         var collectionId = await CreateCollectionAsync(collectionStore, "Travel");
@@ -183,6 +185,42 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
         Assert.NotNull(page);
         Assert.Equal(
             ["https://shop.example/order-c", "https://shop.example/order-b", "https://shop.example/order-a"],
+            page!.Items.Select(i => i.Url));
+    }
+
+    [Fact]
+    public async Task GetItemsAsync_ReflectsOwnersManualReorder()
+    {
+        // The core cross-context guarantee: once the owner moves an Item via
+        // CollectionStore.MoveItemAsync, the SAME store's SortOrder-based ordering is what the
+        // public/anonymous read uses too - there is no separate "public order" concept.
+        var collectionStore = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(collectionStore, "Travel");
+        var itemA = await CreateItemAsync(itemStore, "https://shop.example/reorder-a");
+        var itemB = await CreateItemAsync(itemStore, "https://shop.example/reorder-b");
+        var itemC = await CreateItemAsync(itemStore, "https://shop.example/reorder-c");
+        await collectionStore.AddAsync(_userId, collectionId, itemA, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await collectionStore.AddAsync(_userId, collectionId, itemB, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await collectionStore.AddAsync(_userId, collectionId, itemC, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        // Default order is newest-first: [C, B, A].
+        var shareStore = new CollectionShareStore(_dbContext);
+        var share = await shareStore.EnableAsync(_userId, collectionId, NewCandidatePublicId(), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        var publicStore = new PublicCollectionStore(_dbContext);
+
+        // Move A to the very front: [A, C, B].
+        await collectionStore.MoveItemAsync(_userId, collectionId, itemA, afterItemId: null);
+        _dbContext.ChangeTracker.Clear();
+
+        var page = await publicStore.GetItemsAsync(share.PublicId, cursor: null, limit: 50);
+
+        Assert.NotNull(page);
+        Assert.Equal(
+            ["https://shop.example/reorder-a", "https://shop.example/reorder-c", "https://shop.example/reorder-b"],
             page!.Items.Select(i => i.Url));
     }
 

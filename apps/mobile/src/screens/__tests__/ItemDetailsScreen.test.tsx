@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Alert, Linking, Text, TextInput } from 'react-native';
+import { Linking, Text, TextInput } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -145,11 +145,10 @@ function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer,
   )[0];
 }
 
-function mockConfirmAlert(): jest.SpyInstance {
-  return jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-    const confirmButton = buttons?.find(button => button.style === 'destructive');
-    confirmButton?.onPress?.();
-  });
+/** Confirms the currently-visible photo-delete ConfirmDialog (see findVisibleConfirmDialog). */
+function confirmPhotoDelete(renderer: ReactTestRenderer.ReactTestRenderer) {
+  const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.deletePhotoConfirmTitle'));
+  dialog?.props.onConfirm();
 }
 
 describe('ItemDetailsScreen', () => {
@@ -242,23 +241,25 @@ describe('ItemDetailsScreen', () => {
     it('image delete calls the delete API immediately (after confirmation)', async () => {
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
       jest.mocked(deleteItemImage).mockResolvedValue(undefined);
-      const alertSpy = mockConfirmAlert();
       const renderer = await renderScreen();
 
       const deleteButton = findPressableByAccessibilityLabel(renderer, '사진 삭제');
       await act(async () => {
         deleteButton.props.onPress();
       });
+      expect(deleteItemImage).not.toHaveBeenCalled();
+
+      await act(async () => {
+        confirmPhotoDelete(renderer);
+      });
 
       expect(deleteItemImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
-      alertSpy.mockRestore();
     });
 
     it('image add/delete never affect isDirty - Save stays disabled for an image-only change', async () => {
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
       jest.mocked(uploadItemImage).mockResolvedValue(makeImage({ id: 9 }));
       jest.mocked(deleteItemImage).mockResolvedValue(undefined);
-      const alertSpy = mockConfirmAlert();
       const renderer = await renderScreen();
       expect(isSaveDisabled(renderer)).toBe(true);
 
@@ -271,8 +272,10 @@ describe('ItemDetailsScreen', () => {
       await act(async () => {
         deleteButton.props.onPress();
       });
+      await act(async () => {
+        confirmPhotoDelete(renderer);
+      });
       expect(isSaveDisabled(renderer)).toBe(true);
-      alertSpy.mockRestore();
     });
 
     it('an image-only change never triggers the unsaved-changes back warning', async () => {

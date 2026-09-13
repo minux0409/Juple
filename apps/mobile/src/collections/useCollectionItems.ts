@@ -33,6 +33,14 @@ export interface UseCollectionItemsResult {
   readonly loadMore: () => void;
   /** Removes an Item from the in-memory list immediately after a successful remove-from-Collection call. */
   readonly removeLocally: (itemId: number) => void;
+  /**
+   * Moves itemId to immediately after afterItemId (null = front) in the in-memory list, for an
+   * optimistic drag-drop update ahead of the moveCollectionItem API call actually resolving. Returns
+   * the previous item order so the caller can roll back to it verbatim if that call fails.
+   */
+  readonly reorderLocally: (itemId: number, afterItemId: number | null) => readonly CollectionItemEntry[];
+  /** Restores a previous item order verbatim - used to roll back an optimistic reorderLocally call after a failed API request. */
+  readonly restoreOrder: (previousItems: readonly CollectionItemEntry[]) => void;
 }
 
 /**
@@ -143,5 +151,40 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
     setItems(previousItems => previousItems.filter(item => item.itemId !== itemId));
   }, []);
 
-  return { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeLocally };
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const reorderLocally = useCallback((itemId: number, afterItemId: number | null) => {
+    const previousItems = itemsRef.current;
+    const moving = previousItems.find(item => item.itemId === itemId);
+    if (!moving) {
+      return previousItems;
+    }
+
+    const withoutMoving = previousItems.filter(item => item.itemId !== itemId);
+    const insertIndex =
+      afterItemId === null ? 0 : withoutMoving.findIndex(item => item.itemId === afterItemId) + 1;
+    const reordered = [...withoutMoving];
+    reordered.splice(insertIndex, 0, moving);
+
+    setItems(reordered);
+    return previousItems;
+  }, []);
+
+  const restoreOrder = useCallback((previousItems: readonly CollectionItemEntry[]) => {
+    setItems(previousItems);
+  }, []);
+
+  return {
+    items,
+    isLoading,
+    isRefreshing,
+    isLoadingMore,
+    error,
+    refresh,
+    loadMore,
+    removeLocally,
+    reorderLocally,
+    restoreOrder,
+  };
 }

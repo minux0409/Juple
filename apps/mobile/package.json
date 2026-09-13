@@ -23,6 +23,7 @@
     "react-i18next": "^17.0.13",
     "react-native": "0.87.0",
     "react-native-app-auth": "8.4.1",
+    "react-native-draglist": "3.11.0",
     "react-native-get-random-values": "^2.0.0",
     "react-native-image-picker": "8.2.1",
     "react-native-keychain": "10.0.0",

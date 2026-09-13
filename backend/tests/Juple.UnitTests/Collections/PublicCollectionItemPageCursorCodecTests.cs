@@ -24,7 +24,22 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void EncodeThenTryDecode_WithSamePublicId_RoundTripsToTheSameCursor()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero), 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
+
+        var encoded = codec.Encode(PublicId, cursor);
+        var decoded = codec.TryDecode(PublicId, encoded, out var result);
+
+        Assert.True(decoded);
+        Assert.Equal(cursor, result);
+    }
+
+    [Fact]
+    public void EncodeThenTryDecode_RoundTripsANegativeSortOrder()
+    {
+        // A prepended Item's SortOrder can go negative (see CollectionStore.AddAsync) - the cursor
+        // must round-trip that too, not just positive/zero values.
+        var codec = CreateCodec();
+        var cursor = new CollectionItemPageCursor(-4096, 123);
 
         var encoded = codec.Encode(PublicId, cursor);
         var decoded = codec.TryDecode(PublicId, encoded, out var result);
@@ -41,7 +56,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
         // key must decode a cursor minted by a since-recycled instance.
         var persistentKey = Convert.ToBase64String(Enumerable.Repeat((byte)7, 32).ToArray());
         var beforeRestart = CreateCodec(persistentKey);
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero), 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = beforeRestart.Encode(PublicId, cursor);
 
         var afterRestart = CreateCodec(persistentKey);
@@ -52,22 +67,22 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     }
 
     [Fact]
-    public void EncodeThenTryDecode_PreservesOrderingSemanticsForTiedAddedAtUtc()
+    public void EncodeThenTryDecode_PreservesOrderingSemanticsForTiedSortOrder()
     {
         var codec = CreateCodec();
-        var addedAtUtc = new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero);
-        var earlierCursor = new CollectionItemPageCursor(addedAtUtc, 100);
-        var laterCursor = new CollectionItemPageCursor(addedAtUtc, 200);
+        const int sortOrder = 4096;
+        var earlierCursor = new CollectionItemPageCursor(sortOrder, 100);
+        var laterCursor = new CollectionItemPageCursor(sortOrder, 200);
 
         codec.TryDecode(PublicId, codec.Encode(PublicId, earlierCursor), out var decodedEarlier);
         codec.TryDecode(PublicId, codec.Encode(PublicId, laterCursor), out var decodedLater);
 
-        // PublicCollectionStore's keyset pagination breaks AddedAtUtc ties by ItemId - the codec
-        // must round-trip both fields exactly, or two items added in the same instant could be
-        // skipped or repeated across pages.
+        // PublicCollectionStore's keyset pagination breaks SortOrder ties by ItemId - the codec
+        // must round-trip both fields exactly, or two items at the same SortOrder could be skipped
+        // or repeated across pages.
         Assert.Equal(earlierCursor, decodedEarlier);
         Assert.Equal(laterCursor, decodedLater);
-        Assert.Equal(decodedEarlier!.AddedAtUtc, decodedLater!.AddedAtUtc);
+        Assert.Equal(decodedEarlier!.SortOrder, decodedLater!.SortOrder);
         Assert.True(decodedEarlier.ItemId < decodedLater.ItemId);
     }
 
@@ -75,7 +90,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void Encode_DoesNotContainThePlaintextItemIdAsText()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero), 123456789);
+        var cursor = new CollectionItemPageCursor(4096, 123456789);
 
         var encoded = codec.Encode(PublicId, cursor);
 
@@ -86,7 +101,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void Encode_Base64UrlDecodedRawBytesDoNotContainThePlaintextItemIdEither()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero), 123456789);
+        var cursor = new CollectionItemPageCursor(4096, 123456789);
 
         var encoded = codec.Encode(PublicId, cursor);
 
@@ -106,7 +121,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void Encode_IsRandomizedSoTheSameCursorNeverProducesTheSameCiphertextTwice()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero), 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
 
         var first = codec.Encode(PublicId, cursor);
         var second = codec.Encode(PublicId, cursor);
@@ -121,7 +136,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void TryDecode_WithADifferentPublicIdThanItWasEncodedFor_ReturnsFalse()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(DateTimeOffset.UtcNow, 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = codec.Encode(PublicId, cursor);
 
         var decoded = codec.TryDecode(OtherPublicId, encoded, out var result);
@@ -143,7 +158,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void TryDecode_WhenEnvelopeVersionByteIsTampered_ReturnsFalse()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(DateTimeOffset.UtcNow, 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = codec.Encode(PublicId, cursor);
 
         var tampered = FlipByteAt(encoded, byteIndex: 0); // the envelope version byte
@@ -158,7 +173,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void TryDecode_WhenNonceIsTampered_ReturnsFalse()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(DateTimeOffset.UtcNow, 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = codec.Encode(PublicId, cursor);
 
         var tampered = FlipByteAt(encoded, byteIndex: 1); // first byte of the 12-byte nonce
@@ -173,7 +188,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void TryDecode_WhenCiphertextIsTampered_ReturnsFalse()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(DateTimeOffset.UtcNow, 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = codec.Encode(PublicId, cursor);
 
         var tampered = FlipByteAt(encoded, byteIndex: 13); // first byte after version(1) + nonce(12)
@@ -188,7 +203,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     public void TryDecode_WhenAuthTagIsTampered_ReturnsFalse()
     {
         var codec = CreateCodec();
-        var cursor = new CollectionItemPageCursor(DateTimeOffset.UtcNow, 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = codec.Encode(PublicId, cursor);
 
         var base64 = encoded.Replace('-', '+').Replace('_', '/');
@@ -240,7 +255,7 @@ public sealed class PublicCollectionItemPageCursorCodecTests
     {
         var encodingCodec = CreateCodec(Convert.ToBase64String(Enumerable.Repeat((byte)1, 32).ToArray()));
         var decodingCodec = CreateCodec(Convert.ToBase64String(Enumerable.Repeat((byte)2, 32).ToArray()));
-        var cursor = new CollectionItemPageCursor(DateTimeOffset.UtcNow, 123);
+        var cursor = new CollectionItemPageCursor(4096, 123);
         var encoded = encodingCodec.Encode(PublicId, cursor);
 
         var decoded = decodingCodec.TryDecode(PublicId, encoded, out var result);

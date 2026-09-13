@@ -44,7 +44,12 @@ public sealed class PublicCollectionItemPageCursorCodec : IPublicCollectionItemP
     // Decrypt with the wrong size assumptions. Distinct from CursorPayload.V, which versions the
     // JSON schema of the plaintext this envelope happens to carry.
     private const byte CurrentEnvelopeVersion = 1;
-    private const int CurrentVersion = 1;
+    // Bumped from 1: the payload's second field changed meaning from AddedAtUtc to SortOrder (see
+    // CollectionItemPageCursor) when Category reorder shipped - an old-shape cursor decrypted under
+    // the new version check fails closed (TryDecode returns false) rather than being silently
+    // misinterpreted as a SortOrder value. The envelope version above is unrelated/unchanged - it
+    // governs the AES-GCM wire format itself, not this JSON payload's schema.
+    private const int CurrentVersion = 2;
     private const int NonceSizeBytes = 12;
     private const int TagSizeBytes = 16;
 
@@ -69,7 +74,7 @@ public sealed class PublicCollectionItemPageCursorCodec : IPublicCollectionItemP
     public string Encode(string publicId, CollectionItemPageCursor cursor)
     {
         var plaintext = JsonSerializer.SerializeToUtf8Bytes(
-            new CursorPayload(CurrentVersion, cursor.AddedAtUtc, cursor.ItemId));
+            new CursorPayload(CurrentVersion, cursor.SortOrder, cursor.ItemId));
 
         var nonce = RandomNumberGenerator.GetBytes(NonceSizeBytes);
         var ciphertext = new byte[plaintext.Length];
@@ -126,7 +131,7 @@ public sealed class PublicCollectionItemPageCursorCodec : IPublicCollectionItemP
                 return false;
             }
 
-            cursor = new CollectionItemPageCursor(payload.T, payload.ItemId);
+            cursor = new CollectionItemPageCursor(payload.S, payload.ItemId);
             return true;
         }
         catch (Exception exception) when (
@@ -138,5 +143,5 @@ public sealed class PublicCollectionItemPageCursorCodec : IPublicCollectionItemP
 
     private static byte[] AssociatedData(string publicId) => Encoding.UTF8.GetBytes(publicId);
 
-    private sealed record CursorPayload(int V, DateTimeOffset T, long ItemId);
+    private sealed record CursorPayload(int V, int S, long ItemId);
 }

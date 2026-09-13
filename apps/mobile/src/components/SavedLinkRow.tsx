@@ -12,9 +12,23 @@ function formatSavedTime(savedAtUtc: string): string {
   }).format(new Date(savedAtUtc));
 }
 
+/** Full date + time, for a row shown inside a section that spans more than one calendar day. */
+function formatSavedDateTime(savedAtUtc: string): string {
+  return new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(savedAtUtc));
+}
+
 interface SavedLinkRowProps {
   readonly item: ItemHistoryEntry;
   readonly isActionInFlight: boolean;
+  /**
+   * 'time' (default) shows only the time-of-day - correct when the surrounding section is exactly
+   * one calendar day (오늘/어제). 'dateTime' shows the full date too, for a section that spans
+   * multiple days (이번 주 / a month bucket - see historyDateGrouping.ts's showItemDate).
+   */
+  readonly dateDisplayMode?: 'time' | 'dateTime';
 }
 
 /**
@@ -26,7 +40,7 @@ interface SavedLinkRowProps {
  * title) -> the actual URL -> memo, when present -> saved time. The raw URL deliberately never
  * becomes the biggest/darkest text on the row - see savedLinkPrimaryText.ts for the fallback rule.
  */
-export function SavedLinkRow({ item, isActionInFlight }: SavedLinkRowProps) {
+export function SavedLinkRow({ item, isActionInFlight, dateDisplayMode = 'time' }: SavedLinkRowProps) {
   const primaryText = resolveSavedLinkPrimaryText(item.title, item.url);
 
   return (
@@ -51,7 +65,9 @@ export function SavedLinkRow({ item, isActionInFlight }: SavedLinkRowProps) {
             {item.memo}
           </Text>
         ) : null}
-        <Text style={styles.time}>{formatSavedTime(item.savedAtUtc)}</Text>
+        <Text style={styles.time}>
+          {dateDisplayMode === 'dateTime' ? formatSavedDateTime(item.savedAtUtc) : formatSavedTime(item.savedAtUtc)}
+        </Text>
       </View>
     </View>
   );
