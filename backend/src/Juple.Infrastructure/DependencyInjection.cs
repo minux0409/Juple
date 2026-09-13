@@ -113,6 +113,19 @@ public static class DependencyInjection
                 // README's Universal Links section) and must not be guessed here either.
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("JupleBot/1.0 (URL metadata preview fetch)");
             })
+            // AddHttpClient's default LoggingHttpMessageHandlerBuilderFilter otherwise adds a
+            // LogicalHandler/ClientHandler pair that logs "Start/Sending/End processing HTTP
+            // request {Method} {Uri}" at Information level for every request - including every
+            // manually-followed redirect hop (see AllowAutoRedirect below) - and .NET's built-in
+            // header/query redaction does NOT extend to the request path, so a user-saved URL's
+            // path (which can itself carry sensitive/identifying content) would otherwise leak
+            // into Production logs verbatim. RemoveAllLoggers() (Microsoft.Extensions.Http,
+            // confirmed present in this exact package version) strips those two handlers from
+            // *only* this named/typed client's pipeline - no other HttpClient (e.g.
+            // IUrlSafetyChecker) and no global Logging:LogLevel setting is touched - leaving
+            // UrlMetadataResolver's own hostname-only LogOutcome as the sole log output for this
+            // feature.
+            .RemoveAllLoggers()
             .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
             {
                 var dnsResolver = serviceProvider.GetRequiredService<IDnsResolver>();
