@@ -31,7 +31,7 @@ import {
 import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 
 const PAGE_LIMIT = 50;
@@ -329,7 +329,7 @@ export function DailyInboxScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.brandRow}>
-              <Text style={styles.brand}>Juple</Text>
+              <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
             </View>
             <Text style={styles.title}>{t('inbox.title')}</Text>
             <Text style={styles.date}>
@@ -345,7 +345,7 @@ export function DailyInboxScreen() {
                 keyboardType="url"
                 onChangeText={setUrl}
                 placeholder={t('inbox.urlPlaceholder')}
-                style={styles.input}
+                style={[styles.input, url && ltrTextStyle]}
                 value={url}
               />
             </View>
@@ -415,6 +415,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // This screen sits inside a bottom-tab navigator, whose scene container is already sized to
+  // exclude the real, non-overlay Juple tab bar (which itself already pads for the system nav/
+  // gesture-area inset - see @react-navigation/bottom-tabs' BottomTabView/BottomTabBar). So this
+  // FlatList's own viewport already ends exactly above the tab bar - no tabBarHeight or
+  // insets.bottom belongs here too, or the last card gets an extra, empty tab-bar-sized gap below
+  // it. `padding.xl` (24) bottom is just ordinary breathing room, the same as every other side.
   content: {
     flexGrow: 1,
     padding: spacing.xl,
@@ -445,8 +451,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     bottom: 0,
     justifyContent: 'center',
-    left: spacing.md,
     position: 'absolute',
+    start: spacing.md,
     top: 0,
     zIndex: 1,
   },

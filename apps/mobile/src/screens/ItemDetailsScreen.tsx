@@ -29,6 +29,9 @@ import {
   type Collection,
 } from '../collections/api/collectionsApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { EditIcon } from '../icons/EditIcon';
+import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
+import { PlusIcon } from '../icons/PlusIcon';
 import {
   deleteItemImage,
   getItemImages,
@@ -42,7 +45,7 @@ import {
   type ItemDetails,
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { checkUrlSafety } from '../urlSafety/api/urlSafetyApi';
 
 const MAX_ITEM_IMAGES = 10;
@@ -639,7 +642,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   /**
-   * Checked on demand at the moment "이동" is pressed, not persisted/pre-fetched on screen load -
+   * Checked on demand at the moment the URL-open action is pressed, not persisted/pre-fetched on screen load -
    * URL safety has no Item-level storage yet (see docs on UrlSafety's first round). Only an actual
    * confirmed ThreatDetected result interrupts navigation with ConfirmDialog below; a failed/
    * unavailable check (network error, provider down, rate-limited) never blocks opening the link -
@@ -704,20 +707,21 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             single-line ellipsis (long-standing React Native Android issue - reproduced on
             narrow/split-screen widths). The URL can still be opened via the button next to it.
           */}
-          <Text numberOfLines={1} style={styles.url}>
+          <Text numberOfLines={1} style={[styles.url, ltrTextStyle]}>
             {item.url}
           </Text>
           <Pressable
+            accessibilityLabel={t('item.goToUrlA11y')}
             accessibilityRole="button"
             accessibilityState={{ disabled: isCheckingUrlSafety, busy: isCheckingUrlSafety }}
             disabled={isCheckingUrlSafety}
             onPress={handleGoToUrlPress}
-            style={[styles.goToButton, isCheckingUrlSafety && styles.disabledButton]}
+            style={[styles.iconButton, isCheckingUrlSafety && styles.disabledButton]}
           >
             {isCheckingUrlSafety ? (
               <ActivityIndicator color={colors.brand} size="small" />
             ) : (
-              <Text style={styles.goToButtonLabel}>{t('item.goToUrl')}</Text>
+              <ExternalLinkIcon color={colors.brand} size={20} />
             )}
           </Pressable>
         </View>
@@ -728,6 +732,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           <ActivityIndicator style={styles.purchasesLoading} />
         ) : (
           <Pressable
+            accessibilityLabel={t('item.categoryEditA11y')}
             accessibilityRole="button"
             accessibilityState={{ disabled: isSaving }}
             disabled={isSaving}
@@ -756,7 +761,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                 </>
               )}
             </View>
-            <Text style={styles.categorySummaryEditLabel}>{t('collections.edit')}</Text>
+            <View style={styles.iconButton}>
+              <EditIcon color={colors.textPrimary} size={20} />
+            </View>
           </Pressable>
         )}
         {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
@@ -774,7 +781,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         />
 
         <View style={styles.imagesHeaderRow}>
-          <Text style={styles.label}>
+          <Text style={[styles.label, styles.imagesHeaderLabel]}>
             {t('item.photosHeader', { count: images.length, max: MAX_ITEM_IMAGES })}
           </Text>
           <Pressable
@@ -787,14 +794,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             disabled={isUploadingImage || images.length >= MAX_ITEM_IMAGES}
             onPress={pickAndUploadImage}
             style={[
-              styles.addImageIconButton,
+              styles.iconButton,
               (isUploadingImage || images.length >= MAX_ITEM_IMAGES) && styles.disabledButton,
             ]}
           >
             {isUploadingImage ? (
               <ActivityIndicator color={colors.textPrimary} size="small" />
             ) : (
-              <Text style={styles.addImageIconLabel}>+</Text>
+              <PlusIcon color={colors.textPrimary} size={20} />
             )}
           </Pressable>
         </View>
@@ -1062,17 +1069,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginEnd: spacing.md,
   },
-  goToButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  goToButtonLabel: {
-    color: colors.brand,
-    fontSize: 13,
-    fontWeight: '600',
+  // Icon-only, no border/background box - shared by every secondary row action on this screen
+  // (URL open / category edit / photo add) so all three share the same visual alignment and touch
+  // target (see this round's "URL open / category edit / photo add ... must share the same visual
+  // alignment, touch target, and icon-only treatment"). The Pressable itself is the full min touch
+  // target even though the icon drawn inside it is visually compact (size=20).
+  iconButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    minWidth: minTouchTarget,
   },
   memoInput: {
     borderColor: '#9A9A9A',
@@ -1139,6 +1145,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
   },
+  // flexShrink (not just the row's space-between) so a long translation of the photos header text
+  // never collides with/pushes the add-photo action off-screen on a narrow width.
+  imagesHeaderLabel: {
+    flexShrink: 1,
+    marginEnd: spacing.sm,
+  },
   photoLimitText: {
     color: colors.textSecondary,
     fontSize: 13,
@@ -1166,10 +1178,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 11,
+    end: -6,
     height: 22,
     justifyContent: 'center',
     position: 'absolute',
-    right: -6,
     top: -6,
     width: 22,
   },
@@ -1178,19 +1190,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 16,
-  },
-  addImageIconButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.sm,
-    height: minTouchTarget,
-    justifyContent: 'center',
-    width: minTouchTarget,
-  },
-  addImageIconLabel: {
-    color: colors.textPrimary,
-    fontSize: 22,
-    fontWeight: '600',
   },
   // Compact summary row: at most CATEGORY_SUMMARY_MAX_CHIPS selected-category chips (+ a "+N"
   // chip for the rest), never the full list - tapping anywhere in the row opens the picker Modal,
@@ -1212,7 +1211,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderRadius: 6,
     // Caps a single chip's width so one long category name can never push the "+N" chip or the
-    // 편집 label off-screen - it truncates with an ellipsis (numberOfLines=1) instead.
+    // edit icon off-screen - it truncates with an ellipsis (numberOfLines=1) instead.
     maxWidth: 140,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -1220,11 +1219,6 @@ const styles = StyleSheet.create({
   categorySummaryChipLabel: {
     color: '#111111',
     fontSize: 13,
-    fontWeight: '600',
-  },
-  categorySummaryEditLabel: {
-    color: '#3366CC',
-    fontSize: 14,
     fontWeight: '600',
   },
   purchasesLoading: {

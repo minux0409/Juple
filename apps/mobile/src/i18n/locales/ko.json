@@ -152,7 +152,23 @@
   "language": {
     "system": "시스템 설정 사용",
     "korean": "한국어",
-    "english": "English"
+    "english": "English",
+    "japanese": "日本語",
+    "chineseSimplified": "简体中文",
+    "chineseTraditional": "繁體中文",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "italian": "Italiano",
+    "portugueseBrazil": "Português (Brasil)",
+    "vietnamese": "Tiếng Việt",
+    "thai": "ไทย",
+    "indonesian": "Bahasa Indonesia",
+    "russian": "Русский",
+    "turkish": "Türkçe",
+    "arabic": "العربية",
+    "hindi": "हिन्दी",
+    "restartForRtl": "레이아웃 방향을 완전히 적용하려면 앱을 다시 시작해 주세요."
   },
   "item": {
     "titleLabel": "제목",
@@ -160,6 +176,8 @@
     "url": "URL",
     "openOriginal": "원본 보기 ↗",
     "goToUrl": "이동",
+    "goToUrlA11y": "링크 열기",
+    "categoryEditA11y": "카테고리 편집",
     "share": "공유하기",
     "memo": "메모",
     "memoPlaceholder": "메모를 입력해 주세요",

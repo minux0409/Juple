@@ -8,7 +8,7 @@ import {
 } from '../auth/bootstrapProgress';
 import { useAuth } from '../auth/AuthContext';
 import { ProgressBar } from '../components/ProgressBar';
-import { colors, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, spacing } from '../theme/tokens';
 
 /**
  * Rendered by RootStack while bootstrap has not reached MainTabs yet (session restore, Entra
@@ -31,7 +31,7 @@ export function StartupProgressScreen() {
   if (errorInfo) {
     return (
       <View style={styles.container}>
-        <Text style={styles.brand}>Juple</Text>
+        <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
         <Text style={styles.errorMessage}>{t(errorInfo.messageKey)}</Text>
         {errorInfo.canRetry ? (
           <Pressable accessibilityRole="button" onPress={retryBootstrap} style={styles.retryButton}>
@@ -49,7 +49,7 @@ export function StartupProgressScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.brand}>Juple</Text>
+      <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
       <Text style={styles.progressMessage}>{t(STEP_MESSAGE_KEYS[step])}</Text>
       <View style={styles.progressBarWrapper}>
         <ProgressBar progress={bootstrapStepFraction(step)} />

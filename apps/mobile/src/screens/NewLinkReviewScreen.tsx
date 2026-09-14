@@ -17,7 +17,7 @@ import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety, type UrlSafetyStatus } from '../urlSafety/api/urlSafetyApi';
 
@@ -285,7 +285,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         editable={!isSaving}
         keyboardType="url"
         onChangeText={setUrl}
-        style={styles.urlInput}
+        style={[styles.urlInput, ltrTextStyle]}
         value={url}
       />
       {urlSafetyState ? (

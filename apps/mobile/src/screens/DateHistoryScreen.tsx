@@ -234,6 +234,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // See DailyInboxScreen's identical remark - this tab screen's viewport already excludes the
+  // real (non-overlay) Juple tab bar, so no tabBarHeight/insets.bottom belongs in this padding.
   content: {
     flexGrow: 1,
     padding: spacing.xl,

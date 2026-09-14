@@ -304,10 +304,10 @@ describe('ItemDetailsScreen', () => {
   });
 
   describe('categories - staged, only persisted on Save', () => {
-    /** Opens the compact summary row's picker Modal (see categorySummaryRow/편집 in ItemDetailsScreen). */
+    /** Opens the compact summary row's picker Modal (see categorySummaryRow in ItemDetailsScreen - an icon-only row action, found by accessibilityLabel not text). */
     async function openCategoryModal(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
       await act(async () => {
-        findPressableByText(renderer, i18n.t('collections.edit'))?.props.onPress();
+        findPressableByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))?.props.onPress();
       });
     }
 
@@ -553,10 +553,11 @@ describe('ItemDetailsScreen', () => {
   });
 
   describe('URL section - compact, no in-screen share', () => {
-    it('shows a compact 이동 button and no 공유하기 button', async () => {
+    it('shows an icon-only URL-open action (no visible text) and no 공유하기 button', async () => {
       const renderer = await renderScreen();
 
-      expect(findPressableByText(renderer, i18n.t('item.goToUrl'))).toBeTruthy();
+      expect(findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))).toBeTruthy();
+      expect(findPressableByText(renderer, i18n.t('item.goToUrl'))).toBeFalsy();
       expect(findPressableByText(renderer, i18n.t('item.share'))).toBeFalsy();
     });
   });
@@ -587,14 +588,14 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
-  describe('URL safety check on 이동', () => {
+  describe('URL safety check on the URL-open action', () => {
     it('opens the URL directly when the safety check finds no known threat', async () => {
       jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
       const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
       });
 
       expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
@@ -607,7 +608,7 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
       });
 
       expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
@@ -619,7 +620,7 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
       });
 
       expect(openUrlSpy).not.toHaveBeenCalled();
@@ -632,7 +633,7 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
       });
       const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'));
 
@@ -650,7 +651,7 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        await findPressableByText(renderer, i18n.t('item.goToUrl'))?.props.onPress();
+        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
       });
       const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'));
 

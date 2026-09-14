@@ -152,7 +152,23 @@
   "language": {
     "system": "Use system setting",
     "korean": "한국어",
-    "english": "English"
+    "english": "English",
+    "japanese": "日本語",
+    "chineseSimplified": "简体中文",
+    "chineseTraditional": "繁體中文",
+    "spanish": "Español",
+    "french": "Français",
+    "german": "Deutsch",
+    "italian": "Italiano",
+    "portugueseBrazil": "Português (Brasil)",
+    "vietnamese": "Tiếng Việt",
+    "thai": "ไทย",
+    "indonesian": "Bahasa Indonesia",
+    "russian": "Русский",
+    "turkish": "Türkçe",
+    "arabic": "العربية",
+    "hindi": "हिन्दी",
+    "restartForRtl": "Restart the app for the layout direction to fully apply."
   },
   "item": {
     "titleLabel": "Title",
@@ -160,6 +176,8 @@
     "url": "URL",
     "openOriginal": "Open original ↗",
     "goToUrl": "Open",
+    "goToUrlA11y": "Open link",
+    "categoryEditA11y": "Edit category",
     "share": "Share",
     "memo": "Memo",
     "memoPlaceholder": "Enter a memo",

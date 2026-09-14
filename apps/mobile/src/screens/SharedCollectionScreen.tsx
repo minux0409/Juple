@@ -3,7 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getPublicCollection,
   type PublicCollection,
@@ -11,6 +11,7 @@ import {
 } from '../collections/api/publicCollectionsApi';
 import { usePublicCollectionItems } from '../collections/usePublicCollectionItems';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { ltrTextStyle } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
 
@@ -27,6 +28,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
 export function SharedCollectionScreen({ route }: Props) {
   const { publicId } = route.params;
   const { t } = useTranslation();
+  // A stack screen, not a tab screen - see CollectionDetailsScreen's identical remark.
+  const insets = useSafeAreaInsets();
 
   const [collection, setCollection] = useState<PublicCollection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
@@ -89,16 +92,15 @@ export function SharedCollectionScreen({ route }: Props) {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
         data={items}
         keyExtractor={(item, index) => `${item.url}-${index}`}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ListHeaderComponent={
-          <Text numberOfLines={2} style={styles.title}>
-            {collection.name}
-          </Text>
-        }
+        // No numberOfLines - a long or foreign-language category name must be fully readable
+        // here too (this is the read-only public counterpart of CollectionDetailsScreen, which
+        // dropped its own title truncation for the same reason).
+        ListHeaderComponent={<Text style={styles.title}>{collection.name}</Text>}
         ListEmptyComponent={
           !isLoadingItems ? <Text style={styles.empty}>{t('sharedCollection.itemsEmpty')}</Text> : undefined
         }
@@ -110,11 +112,11 @@ export function SharedCollectionScreen({ route }: Props) {
             }}
             style={styles.row}
           >
-            <Text numberOfLines={2} style={styles.itemTitle}>
+            <Text numberOfLines={2} style={[styles.itemTitle, !item.title && ltrTextStyle]}>
               {item.title ?? item.url}
             </Text>
             {item.title ? (
-              <Text numberOfLines={1} style={styles.itemUrl}>
+              <Text numberOfLines={1} style={[styles.itemUrl, ltrTextStyle]}>
                 {item.url}
               </Text>
             ) : null}

@@ -20,6 +20,25 @@
 5. 날짜·시간을 특정 국가 시간으로 하드코딩하지 않는다.
 6. Currency를 KRW로 하드코딩하지 않는다.
 
+### Mobile Responsive UI Rules
+
+- 특정 Android 기기의 px 좌표/고정 screen size를 기준으로 UI를 만들지 않는다.
+- 기본 layout은 flex 기반으로 한다.
+- 화면 크기가 실제로 필요한 경우 `useWindowDimensions()` 사용.
+- module scope `Dimensions.get()` 값 캐싱 금지.
+- fixed width/height는 디자인상 반드시 필요한 control에만 사용.
+- 긴 번역/사용자 입력을 고려해 flexShrink/flexWrap/dynamic height 사용.
+- header/action/button text가 길어져도 box 밖으로 나오지 않도록 설계.
+- safe area / navigation bar / keyboard inset을 실제 system inset 기준으로 처리.
+- inset이 navigator/tab bar에서 이미 처리되는 경우 중복 적용 금지.
+- phone / narrow split-screen / foldable-unfolded 크기를 고려.
+- large screen에서는 필요 시 maxWidth + center alignment 사용.
+- absolute positioning은 overlay 등 명확한 목적 외 사용 지양.
+- RTL/LTR 모두 고려.
+- URL/email/technical identifier는 bidi/LTR 예외 처리.
+- 최소 touch target 44dp 유지.
+- 레이아웃 문제를 번역 문구를 억지로 줄여서 해결하지 않는다.
+
 ## 데이터와 보안
 
 1. 서버에서 사용자별 데이터 격리를 강제한다.

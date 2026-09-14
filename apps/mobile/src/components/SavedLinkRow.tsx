@@ -3,7 +3,7 @@ import i18n from '../i18n';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 
 function formatSavedTime(savedAtUtc: string): string {
   return new Intl.DateTimeFormat(i18n.language, {
@@ -54,10 +54,17 @@ export function SavedLinkRow({ item, isActionInFlight, dateDisplayMode = 'time' 
         ) : null}
       </View>
       <View style={styles.textColumn}>
-        <Text numberOfLines={2} style={styles.primaryText}>
+        {/* primaryText is the user's own title (any language/direction - never forced) when one
+            exists, otherwise a hostname/URL fallback (see savedLinkPrimaryText.ts) - only that
+            fallback case is a technical identifier that needs LTR isolation so it never gets
+            visually reordered inside an RTL row. secondaryUrl below is always a raw URL. */}
+        <Text
+          numberOfLines={2}
+          style={[styles.primaryText, !item.title && ltrTextStyle]}
+        >
           {primaryText}
         </Text>
-        <Text numberOfLines={1} style={styles.secondaryUrl}>
+        <Text numberOfLines={1} style={[styles.secondaryUrl, ltrTextStyle]}>
           {item.url}
         </Text>
         {item.memo ? (

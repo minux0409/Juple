@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import DragList from 'react-native-draglist';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
@@ -37,10 +37,14 @@ import { useCollectionItems } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { EditIcon } from '../icons/EditIcon';
+import { ShareIcon } from '../icons/ShareIcon';
+import { StarIcon } from '../icons/StarIcon';
+import { TrashIcon } from '../icons/TrashIcon';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -141,6 +145,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const { collectionId } = route.params;
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
+  // A stack screen, not a tab screen - there is no Juple tab bar below it reserving the system
+  // nav/gesture-area inset for itself, so (unlike the tab screens) this needs the raw inset
+  // directly, the same way ItemDetailsScreen/NewLinkReviewScreen already do.
+  const insets = useSafeAreaInsets();
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
@@ -460,24 +468,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   if (isLoadingCollection && !collection) {
     return (
-      <SafeAreaView edges={['top']} style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!collection) {
     return (
-      <SafeAreaView edges={['top']} style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <DragList
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
         data={[...items]}
         keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
         onEndReached={loadMore}
@@ -518,48 +526,58 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               </View>
             ) : (
               <View>
-                <Text style={styles.title}>{collection.name}</Text>
+                <View style={styles.headerTitleRow}>
+                  <Text style={styles.title}>{collection.name}</Text>
+                  <View style={styles.headerActions}>
+                    <Pressable
+                      accessibilityLabel={
+                        collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
+                      }
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
+                      disabled={isTogglingFavorite}
+                      onPress={toggleFavoriteAction}
+                      style={styles.iconButton}
+                    >
+                      <StarIcon
+                        color={collection.isFavorite ? colors.warning : colors.border}
+                        filled={collection.isFavorite}
+                        size={20}
+                      />
+                    </Pressable>
+                    {share ? (
+                      <Pressable
+                        accessibilityLabel={t('collections.shareAction')}
+                        accessibilityRole="button"
+                        onPress={shareLinkAction}
+                        style={styles.iconButton}
+                      >
+                        <ShareIcon color={colors.textPrimary} size={20} />
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      accessibilityLabel={t('common.edit')}
+                      accessibilityRole="button"
+                      onPress={startEditName}
+                      style={styles.iconButton}
+                    >
+                      <EditIcon color={colors.textPrimary} size={20} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel={t('common.delete')}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+                      disabled={isDeletingCollection}
+                      onPress={confirmDeleteCollection}
+                      style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
+                    >
+                      <TrashIcon color={colors.danger} size={20} />
+                    </Pressable>
+                  </View>
+                </View>
                 <Text style={styles.itemCount}>
                   {t('collections.itemCount', { count: collection.itemCount })}
                 </Text>
-                <View style={styles.actionRow}>
-                  <Pressable
-                    accessibilityLabel={
-                      collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
-                    disabled={isTogglingFavorite}
-                    hitSlop={8}
-                    onPress={toggleFavoriteAction}
-                    style={styles.favoriteButton}
-                  >
-                    <Text
-                      style={[styles.favoriteButtonLabel, collection.isFavorite && styles.favoriteButtonLabelActive]}
-                    >
-                      {collection.isFavorite ? '★' : '☆'}
-                    </Text>
-                  </Pressable>
-                  {share ? (
-                    <Pressable accessibilityRole="button" onPress={shareLinkAction} style={styles.actionButton}>
-                      <Text style={styles.actionButtonLabel}>{t('collections.shareAction')}</Text>
-                    </Pressable>
-                  ) : null}
-                  <Pressable accessibilityRole="button" onPress={startEditName} style={styles.actionButton}>
-                    <Text style={styles.actionButtonLabel}>{t('common.edit')}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-                    disabled={isDeletingCollection}
-                    onPress={confirmDeleteCollection}
-                    style={[styles.actionButton, styles.deleteButton, isDeletingCollection && styles.disabledButton]}
-                  >
-                    <Text style={[styles.actionButtonLabel, styles.deleteButtonLabel]}>
-                      {isDeletingCollection ? t('common.deleting') : t('common.delete')}
-                    </Text>
-                  </Pressable>
-                </View>
               </View>
             )}
             {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
@@ -674,7 +692,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         title={t('collections.errorReorderTitle')}
         visible={isReorderErrorVisible}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -694,11 +712,14 @@ function CollectionItemContent({ item }: CollectionItemContentProps) {
     <View style={styles.rowContent}>
       <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
       <View style={styles.rowTextColumn}>
-        <Text numberOfLines={2} style={styles.url}>
+        {/* item.title is the user's own text (any language/direction) when present; the fallback
+            to item.url below is a technical identifier and needs LTR isolation the same way
+            SavedLinkRow's equivalent fallback does. */}
+        <Text numberOfLines={2} style={[styles.url, !item.title && ltrTextStyle]}>
           {item.title ?? item.url}
         </Text>
         {item.title ? (
-          <Text numberOfLines={1} style={styles.secondaryUrl}>
+          <Text numberOfLines={1} style={[styles.secondaryUrl, ltrTextStyle]}>
             {item.url}
           </Text>
         ) : null}
@@ -723,45 +744,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  // paddingTop is intentionally smaller than the other three sides - the navigation header above
+  // already reserves its own vertical rhythm/elevation, so a full 24 on top read as an extra gap
+  // beneath it (see this round's "content starts slightly higher" request). Horizontal/bottom stay
+  // at the same 24 the rest of the screen (and other Juple detail screens) already use.
   content: {
     flexGrow: 1,
-    padding: 24,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
   },
+  // Top-aligned (not flex-end) - the title is now allowed to wrap to as many lines as it needs
+  // (no numberOfLines cap, see `title` below), so pinning the action icons to the top keeps them
+  // right under the nav header at a fixed position instead of drifting further down every time a
+  // longer name adds another line.
+  headerTitleRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+  },
+  // No numberOfLines/ellipsizeMode - a long or foreign-language category name must be fully
+  // readable, never truncated (see this round's "long title must NOT be truncated").
   title: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: 22,
     fontWeight: '700',
   },
-  actionRow: {
+  headerActions: {
     alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+    flexShrink: 0,
+    marginStart: spacing.sm,
   },
-  favoriteButton: {
+  // Icon-only, no border box (see this round's "버튼마다 큰 border box를 만들지 말 것") - the
+  // Pressable itself is the full min touch target even though the icon drawn inside it is
+  // visually compact (size=20), so the tappable area never shrinks below 44x44dp.
+  iconButton: {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
-  },
-  favoriteButtonLabel: {
-    color: '#9A9A9A',
-    fontSize: 24,
-  },
-  favoriteButtonLabelActive: {
-    color: '#F5A623',
-  },
-  actionButton: {
-    borderColor: '#9A9A9A',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  actionButtonLabel: {
-    color: '#111111',
-    fontSize: 13,
-    fontWeight: '600',
   },
   nameInput: {
     borderColor: '#9A9A9A',
@@ -792,7 +814,7 @@ const styles = StyleSheet.create({
   itemCount: {
     color: '#666666',
     fontSize: 14,
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
   shareSection: {
     marginTop: spacing.md,
@@ -905,11 +927,5 @@ const styles = StyleSheet.create({
   },
   footerLoading: {
     paddingVertical: 20,
-  },
-  deleteButton: {
-    borderColor: colors.danger,
-  },
-  deleteButtonLabel: {
-    color: colors.danger,
   },
 });

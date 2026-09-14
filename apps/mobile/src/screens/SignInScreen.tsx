@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { ltrTextStyle } from '../theme/tokens';
 
 export function SignInScreen() {
   const { t } = useTranslation();
@@ -8,7 +9,8 @@ export function SignInScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Juple</Text>
+      {/* The Juple brand name is never translated or mirrored - see theme/tokens.ts's ltrTextStyle. */}
+      <Text style={[styles.title, ltrTextStyle]}>Juple</Text>
       <Text style={styles.tagline}>
         {t('auth.taglineLine1')}
         {'\n'}

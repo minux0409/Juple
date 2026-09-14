@@ -33,3 +33,12 @@ export const colors = {
 } as const;
 
 export const minTouchTarget = 44;
+
+/**
+ * Forces LTR bidi isolation for technical/identifier text (URLs, email addresses, the Juple brand
+ * name) that must never visually reorder inside an RTL (e.g. Arabic) layout - general user-facing
+ * text/titles must NOT use this, since those should keep following the active locale's natural
+ * reading direction. A plain object (not StyleSheet.create) so it composes into a style array
+ * alongside a screen's own StyleSheet-created styles.
+ */
+export const ltrTextStyle = { writingDirection: 'ltr' } as const;

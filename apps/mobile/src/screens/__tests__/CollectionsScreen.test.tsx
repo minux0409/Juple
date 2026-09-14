@@ -1,11 +1,22 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Text } from 'react-native';
-import '../../i18n';
+import i18n from '../../i18n';
 import { CollectionsScreen } from '../CollectionsScreen';
-import { getCollections, type Collection, type GetCollectionsOptions } from '../../collections/api/collectionsApi';
+import {
+  getCollections,
+  setCollectionFavorite,
+  type Collection,
+  type GetCollectionsOptions,
+} from '../../collections/api/collectionsApi';
+import { ChevronIcon } from '../../icons/ChevronIcon';
+
+// A module-level mock (not a fresh `jest.fn()` returned from the factory on every call) so tests
+// can assert on it directly - matches the pattern already used for route-prop screens
+// (see CollectionDetailsScreen.test.tsx's own `navigation` constant).
+const mockNavigate = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => {
@@ -95,5 +106,53 @@ describe('CollectionsScreen segmented tabs', () => {
     expect(flatList.props.data).toEqual(favoriteCollections);
     // Switching tabs reuses the already-loaded favorites state - no additional getCollections call.
     expect(jest.mocked(getCollections).mock.calls.length).toBe(callCountBeforeSwitch);
+  });
+});
+
+/** The whole-row Pressable (name + item count), not the separate favorite-star Pressable next to it. */
+function findRowPressableByName(renderer: ReactTestRenderer.ReactTestRenderer, name: string) {
+  return renderer.root
+    .findAll(node => typeof node.props.onPress === 'function')
+    .find(node => node.findAllByType(Text).some(textNode => textNode.props.children === name));
+}
+
+describe('CollectionsScreen row', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders no chevron disclosure icon on any row - the whole row is already the navigation target', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByType(ChevronIcon)).toHaveLength(0);
+  });
+
+  it('tapping a row navigates to that Collection\'s details', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      findRowPressableByName(renderer, 'All B')?.props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2 });
+  });
+
+  it('tapping the favorite star toggles favorite state without navigating', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(setCollectionFavorite).mockResolvedValue({ ...allCollections[1], isFavorite: true });
+    const renderer = await renderScreen();
+
+    const starButton = renderer.root.findAll(
+      node => node.props.accessibilityLabel === i18n.t('collections.addFavorite'),
+    )[0];
+
+    await act(async () => {
+      await starButton.props.onPress();
+    });
+
+    expect(setCollectionFavorite).toHaveBeenCalledWith(expect.anything(), 2, true);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

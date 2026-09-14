@@ -32,6 +32,7 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 jest.mock('../../collections/api/collectionsApi', () => ({
@@ -134,12 +135,6 @@ function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
   return headerRenderer;
 }
 
-function findPressableByText(root: ReactTestRenderer.ReactTestInstance, text: string) {
-  return root
-    .findAll(node => typeof node.props.onPress === 'function')
-    .find(node => node.findAll(n => n.props.children === text).length > 0);
-}
-
 describe('CollectionDetailsScreen', () => {
   beforeEach(() => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection());
@@ -188,22 +183,36 @@ describe('CollectionDetailsScreen', () => {
     });
   });
 
-  describe('header - compact 수정/삭제, no giant footer button', () => {
-    it('shows a compact 삭제 button next to 수정, and deletes only after confirming', async () => {
+  describe('header - compact icon-only 수정/삭제, no giant footer button', () => {
+    it('shows a compact 삭제 icon button next to 수정, and deletes only after confirming', async () => {
       jest.mocked(deleteCollection).mockResolvedValue(undefined);
       const renderer = await renderScreen();
       const header = getHeaderElement(renderer);
 
-      expect(findPressableByText(header.root, '수정')).toBeTruthy();
+      const editButtons = header.root.findAll(
+        node => node.props.accessibilityLabel === '수정' && typeof node.props.onPress === 'function',
+      );
+      expect(editButtons.length).toBeGreaterThan(0);
+      const deleteButtons = header.root.findAll(
+        node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
+      );
+      expect(deleteButtons.length).toBeGreaterThan(0);
 
       await act(async () => {
-        findPressableByText(header.root, '삭제')?.props.onPress();
+        deleteButtons[0].props.onPress();
       });
       expect(deleteCollection).not.toHaveBeenCalled();
 
       await act(async () => {
-        const confirmButton = renderer.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
-        confirmButton.props.onPress();
+        // Both the header's own compact 삭제 icon button (rendered in-place in the actual list
+        // tree, unlike the isolated `header` sub-renderer above) and the ConfirmDialog's confirm
+        // button now carry accessibilityLabel === '삭제' - the ConfirmDialog one is the second
+        // Pressable (onPress-bearing node) found in document order.
+        const confirmButtons = renderer.root.findAll(
+          node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
+        );
+        expect(confirmButtons).toHaveLength(2);
+        confirmButtons[1].props.onPress();
       });
 
       expect(deleteCollection).toHaveBeenCalledWith(expect.anything(), 1);
@@ -276,7 +285,11 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
       const header = getHeaderElement(renderer);
 
-      const shareLinkButton = findPressableByText(header.root, i18n.t('collections.shareAction'));
+      const shareLinkButton = header.root.findAll(
+        node =>
+          node.props.accessibilityLabel === i18n.t('collections.shareAction') &&
+          typeof node.props.onPress === 'function',
+      )[0];
       expect(shareLinkButton).toBeTruthy();
 
       await act(async () => {

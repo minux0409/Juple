@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
@@ -16,7 +16,7 @@ import {
   loadQuickSaveOnSharePreference,
   saveQuickSaveOnSharePreference,
 } from '../settings/quickSaveOnSharePreference';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 function getDeleteAccountErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -112,45 +112,61 @@ export function MyPageScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{t('myPage.title')}</Text>
-          <Pressable
-            accessibilityLabel={t('auth.logout')}
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={confirmSignOut}
-            style={styles.logoutButton}
-          >
-            <LogoutIcon color={colors.textPrimary} size={22} />
-          </Pressable>
-        </View>
-
-        <Text style={styles.sectionTitle}>{t('myPage.account')}</Text>
-        <Text style={styles.accountStatus}>{userEmail ?? t('myPage.loggedInAs')}</Text>
-
-        <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('LanguageSettings')}
-          style={styles.settingsRow}
-        >
-          <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
-        </Pressable>
-        <View style={styles.settingsRow}>
-          <View style={styles.settingsRowTextColumn}>
-            <Text style={styles.settingsRowLabel}>{t('settings.quickSaveOnShare')}</Text>
-            <Text style={styles.settingsRowDescription}>
-              {isQuickSaveEnabled
-                ? t('settings.quickSaveOnShareOnDescription')
-                : t('settings.quickSaveOnShareOffDescription')}
-            </Text>
+      {/*
+        content is flexGrow:1 so it always fills at least the full viewport (already bounded by
+        the tab bar above it - see DailyInboxScreen's remark, no tabBarHeight/insets.bottom belongs
+        here either), with mainContent and the danger-zone footer as its only two direct children.
+        marginTop:'auto' on the footer pushes it to the bottom of that space when the screen is
+        short; if a long translation or small screen makes mainContent taller than the viewport,
+        the auto margin simply collapses to 0 and the ScrollView scrolls normally instead - the
+        footer is never clipped or pushed off-screen either way.
+      */}
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.mainContent}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{t('myPage.title')}</Text>
+            <Pressable
+              accessibilityLabel={t('auth.logout')}
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={confirmSignOut}
+              style={styles.logoutButton}
+            >
+              <LogoutIcon color={colors.textPrimary} size={22} />
+            </Pressable>
           </View>
-          <Switch
-            disabled={isTogglingQuickSave}
-            onValueChange={onToggleQuickSave}
-            value={isQuickSaveEnabled}
-          />
+
+          <Text style={styles.sectionTitle}>{t('myPage.account')}</Text>
+          {/* An email address is a technical identifier and needs LTR isolation; the fallback
+              sentence is natural-language copy and must keep following the active locale's own
+              reading direction, so only force LTR when an actual email is shown. */}
+          <Text style={[styles.accountStatus, userEmail && ltrTextStyle]}>
+            {userEmail ?? t('myPage.loggedInAs')}
+          </Text>
+
+          <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('LanguageSettings')}
+            style={styles.settingsRow}
+          >
+            <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
+          </Pressable>
+          <View style={styles.settingsRow}>
+            <View style={styles.settingsRowTextColumn}>
+              <Text style={styles.settingsRowLabel}>{t('settings.quickSaveOnShare')}</Text>
+              <Text style={styles.settingsRowDescription}>
+                {isQuickSaveEnabled
+                  ? t('settings.quickSaveOnShareOnDescription')
+                  : t('settings.quickSaveOnShareOffDescription')}
+              </Text>
+            </View>
+            <Switch
+              disabled={isTogglingQuickSave}
+              onValueChange={onToggleQuickSave}
+              value={isQuickSaveEnabled}
+            />
+          </View>
         </View>
 
         <View style={styles.dangerZone}>
@@ -169,7 +185,7 @@ export function MyPageScreen() {
             )}
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -202,9 +218,16 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  // flexGrow (not flex) - this is a ScrollView's contentContainerStyle, which must be allowed to
+  // grow past one viewport height when content is long, not clipped to it. See this screen's own
+  // top-level comment on why mainContent + dangerZone (marginTop: 'auto' below) are its only two
+  // direct children.
   content: {
-    flex: 1,
+    flexGrow: 1,
     padding: spacing.xl,
+  },
+  mainContent: {
+    flexShrink: 0,
   },
   titleRow: {
     alignItems: 'center',
@@ -259,6 +282,9 @@ const styles = StyleSheet.create({
   },
   dangerZone: {
     marginTop: 'auto',
+    // Only matters once content is tall enough to make the auto margin above collapse to 0 (see
+    // this screen's own top-level comment) - a minimum gap from the settings section either way.
+    paddingTop: spacing.lg,
   },
   error: {
     color: colors.danger,

@@ -23,7 +23,6 @@ import {
   setCollectionFavorite,
   type Collection,
 } from '../collections/api/collectionsApi';
-import { ChevronIcon } from '../icons/ChevronIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -440,7 +439,6 @@ function CollectionRow({
             {t('collections.itemCount', { count: collection.itemCount })}
           </Text>
         </View>
-        <ChevronIcon color={colors.border} direction="right" size={18} />
       </Pressable>
       <Pressable
         accessibilityLabel={
@@ -466,6 +464,8 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  // See DailyInboxScreen's identical remark - this tab screen's viewport already excludes the
+  // real (non-overlay) Juple tab bar, so no tabBarHeight/insets.bottom belongs in this padding.
   content: {
     flexGrow: 1,
     padding: spacing.xl,

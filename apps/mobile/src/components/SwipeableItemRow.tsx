@@ -209,11 +209,15 @@ const styles = StyleSheet.create({
     top: 0,
     width: ACTION_WIDTH,
   },
+  // Logical (not physical left/right) so RN's automatic RTL mirroring both repositions these
+  // slots and - since the PanResponder's own drag math is purely physical (it just uncovers
+  // whichever slot sits behind the content on either physical edge) - transparently swaps which
+  // swipe direction reveals which action in RTL, with no gesture-logic changes needed at all.
   shareSlot: {
-    left: 0,
+    start: 0,
   },
   deleteSlot: {
-    right: 0,
+    end: 0,
   },
   actionButton: {
     alignItems: 'center',
