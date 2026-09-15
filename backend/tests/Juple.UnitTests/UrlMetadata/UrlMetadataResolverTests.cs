@@ -244,6 +244,72 @@ public sealed class UrlMetadataResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_WhenYouTubeMaxresThumbnailExists_KeepsItAsIs()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                : HtmlResponse(
+                    "<html><head><meta property=\"og:title\" content=\"A Video\" />"
+                    + "<meta property=\"og:image\" content=\"https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg\" />"
+                    + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenYouTubeMaxresThumbnailIs404_PersistsTheWorkingFallbackInstead()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (request.Method == HttpMethod.Head)
+                {
+                    return request.RequestUri!.AbsoluteUri.Contains("hqdefault")
+                        ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                        : new HttpResponseMessage(HttpStatusCode.NotFound);
+                }
+
+                return HtmlResponse(
+                    "<html><head><meta property=\"og:title\" content=\"An Old Video\" />"
+                    + "<meta property=\"og:image\" content=\"https://i.ytimg.com/vi/jNQXAC9IVRw/maxresdefault.jpg\" />"
+                    + "</head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=jNQXAC9IVRw");
+
+            Assert.Equal("https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg", result.PreviewImageUrl);
+            // The title itself is completely unaffected by the image-verification fallback.
+            Assert.Equal("An Old Video", result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenNoYouTubeThumbnailQualityExists_PreviewImageUrlIsNull_NotAGuess()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                : HtmlResponse(
+                    "<html><head><meta property=\"og:image\" content=\"https://i.ytimg.com/vi/deadbeef1234/maxresdefault.jpg\" />"
+                    + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=deadbeef1234");
+
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
     public async Task ResolveAsync_CachesResult_SecondCallForSameUrlDoesNotRefetch()
     {
         var resolver = CreateResolver(

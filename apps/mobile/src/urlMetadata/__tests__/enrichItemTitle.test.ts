@@ -1,4 +1,4 @@
-import { enrichItemTitleFromUrlMetadata } from '../enrichItemTitle';
+import { enrichItemPreviewImageFromUrlMetadata, enrichItemTitleFromUrlMetadata } from '../enrichItemTitle';
 import { setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
 import { resolveUrlMetadata } from '../api/urlMetadataApi';
 
@@ -107,5 +107,65 @@ describe('enrichItemTitleFromUrlMetadata', () => {
 
     expect(updateItemDetails).not.toHaveBeenCalled();
     expect(setItemPreviewImage).not.toHaveBeenCalled();
+  });
+});
+
+describe('enrichItemPreviewImageFromUrlMetadata', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('applies only the preview image, never touching the title, even when metadata also has one', async () => {
+    // This is the whole point of this function existing separately from
+    // enrichItemTitleFromUrlMetadata - a caller that already has its own title (e.g. the sharing
+    // app's EXTRA_SUBJECT) must never have it silently replaced by a possibly-different metadata
+    // title, but should still get the independent preview-image signal.
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'A Different Metadata Title',
+      source: 'openGraph',
+      previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
+
+    await enrichItemPreviewImageFromUrlMetadata(request, 42, 'https://example.com');
+
+    expect(updateItemDetails).not.toHaveBeenCalled();
+    expect(setItemPreviewImage).toHaveBeenCalledWith(request, 42, 'https://cdn.example.com/preview.jpg');
+  });
+
+  it('does nothing when no preview image was found', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'Some Title', source: 'openGraph', previewImageUrl: null,
+    });
+
+    await enrichItemPreviewImageFromUrlMetadata(request, 42, 'https://example.com');
+
+    expect(updateItemDetails).not.toHaveBeenCalled();
+    expect(setItemPreviewImage).not.toHaveBeenCalled();
+  });
+
+  it('never throws when metadata resolution fails', async () => {
+    jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(
+      enrichItemPreviewImageFromUrlMetadata(request, 42, 'https://example.com'),
+    ).resolves.toBeUndefined();
+
+    expect(setItemPreviewImage).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('never throws when the preview-image apply itself fails', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
+    jest.mocked(setItemPreviewImage).mockRejectedValue(new Error('preview save failed'));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(
+      enrichItemPreviewImageFromUrlMetadata(request, 42, 'https://example.com'),
+    ).resolves.toBeUndefined();
+
+    warnSpy.mockRestore();
   });
 });

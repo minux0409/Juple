@@ -1,7 +1,29 @@
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
-import { resolveUrlMetadata } from './api/urlMetadataApi';
+import { resolveUrlMetadata, type ResolvedUrlMetadata } from './api/urlMetadataApi';
+
+function logWarn(scope: string, error: unknown): void {
+  // Privacy-safe (kind/status only - never the URL or resolved title/image text).
+  console.warn(`[${scope}] failed`, {
+    errorKind: error instanceof ApiError ? error.kind : undefined,
+    errorStatus: error instanceof ApiError ? error.status : undefined,
+    errorConstructor: error instanceof Error ? error.constructor.name : typeof error,
+  });
+}
+
+async function resolveMetadataBestEffort(
+  request: AuthenticatedApiRequest,
+  url: string,
+  scope: string,
+): Promise<ResolvedUrlMetadata | null> {
+  try {
+    return await resolveUrlMetadata(request, url);
+  } catch (error) {
+    logWarn(scope, error);
+    return null;
+  }
+}
 
 /**
  * Best-effort: resolves URL metadata and, if a title and/or preview image was found, applies each
@@ -9,9 +31,12 @@ import { resolveUrlMetadata } from './api/urlMetadataApi';
  * failure here must never affect the caller's own save flow (the Item is already saved by the
  * time this runs). Callers must only invoke this when there is no title yet (resolveIncomingShare
  * returned null, or a direct URL save that never collected one) - the title PUT always replaces
- * with a fresh value, so it must never be called once a title might already exist; the preview-
- * image PUT is independent of that and only ever fires when a preview image was actually found; a
- * failure there never blocks/undoes the title apply, and vice versa. Shared by
+ * with a fresh value, so it must never be called once a title might already exist. If a title
+ * *does* already exist (e.g. the sharing app's own EXTRA_SUBJECT), use
+ * enrichItemPreviewImageFromUrlMetadata below instead - never skip image resolution just because
+ * the title was already known, which used to be exactly this function's own gate and was the
+ * dominant real-world reason a real Quick-Save-ON YouTube/Instagram share ended up with no
+ * thumbnail even though the same URL saved with no incoming title got one. Shared by
  * incomingShareHeadlessTask (Quick Save ON) and DailyInboxScreen (Home direct save) so both use
  * the same resolution policy instead of duplicating this call sequence.
  */
@@ -20,17 +45,8 @@ export async function enrichItemTitleFromUrlMetadata(
   itemId: number,
   url: string,
 ): Promise<void> {
-  let metadata;
-  try {
-    metadata = await resolveUrlMetadata(request, url);
-  } catch (error) {
-    // Privacy-safe (kind/status only - never the URL or resolved title text), matching
-    // incomingShareHeadlessTask.ts's own existing best-effort title-apply logging.
-    console.warn('[enrichItemTitleFromUrlMetadata] resolve failed', {
-      errorKind: error instanceof ApiError ? error.kind : undefined,
-      errorStatus: error instanceof ApiError ? error.status : undefined,
-      errorConstructor: error instanceof Error ? error.constructor.name : typeof error,
-    });
+  const metadata = await resolveMetadataBestEffort(request, url, 'enrichItemTitleFromUrlMetadata');
+  if (!metadata) {
     return;
   }
 
@@ -38,11 +54,7 @@ export async function enrichItemTitleFromUrlMetadata(
     try {
       await updateItemDetails(request, itemId, { title: metadata.title, memo: '' });
     } catch (error) {
-      console.warn('[enrichItemTitleFromUrlMetadata] title apply failed', {
-        errorKind: error instanceof ApiError ? error.kind : undefined,
-        errorStatus: error instanceof ApiError ? error.status : undefined,
-        errorConstructor: error instanceof Error ? error.constructor.name : typeof error,
-      });
+      logWarn('enrichItemTitleFromUrlMetadata title apply', error);
     }
   }
 
@@ -50,11 +62,31 @@ export async function enrichItemTitleFromUrlMetadata(
     try {
       await setItemPreviewImage(request, itemId, metadata.previewImageUrl);
     } catch (error) {
-      console.warn('[enrichItemTitleFromUrlMetadata] preview image apply failed', {
-        errorKind: error instanceof ApiError ? error.kind : undefined,
-        errorStatus: error instanceof ApiError ? error.status : undefined,
-        errorConstructor: error instanceof Error ? error.constructor.name : typeof error,
-      });
+      logWarn('enrichItemTitleFromUrlMetadata preview image apply', error);
     }
+  }
+}
+
+/**
+ * The preview-image half of enrichItemTitleFromUrlMetadata, deliberately split out so a caller
+ * that already has a title from elsewhere (and must never overwrite it here) can still resolve
+ * and apply the preview image - see that function's own remarks for why skipping this whenever a
+ * title was already known was a real bug, not a deliberate simplification. Never throws, same
+ * best-effort policy.
+ */
+export async function enrichItemPreviewImageFromUrlMetadata(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  url: string,
+): Promise<void> {
+  const metadata = await resolveMetadataBestEffort(request, url, 'enrichItemPreviewImageFromUrlMetadata');
+  if (!metadata?.previewImageUrl) {
+    return;
+  }
+
+  try {
+    await setItemPreviewImage(request, itemId, metadata.previewImageUrl);
+  } catch (error) {
+    logWarn('enrichItemPreviewImageFromUrlMetadata preview image apply', error);
   }
 }

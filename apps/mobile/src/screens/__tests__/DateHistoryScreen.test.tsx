@@ -189,6 +189,25 @@ describe('DateHistoryScreen swipe actions', () => {
     expect(row.root.findByProps({ children: 'youtube.com' })).toBeTruthy();
   });
 
+  // History shares SavedLinkRow with Home and now opts into the same effective-thumbnail
+  // priority (see DateHistoryScreen's own preferEffectiveThumbnail prop) - a cover set via
+  // ItemDetails' drag reorder must be reflected here too, not just on Home, or it would look
+  // "undone" the moment the user opens History for the same Item.
+  it('prefers the cover image over the first-uploaded representativeImage, matching Home', async () => {
+    const item = makeItem({
+      id: 27,
+      representativeImage: { id: 1, readUrl: 'https://blob.example/first-uploaded.jpg' },
+      coverImage: { id: 2, readUrl: 'https://blob.example/cover.jpg' },
+    });
+    mockUseItemHistory([item]);
+    const renderer = await renderScreen();
+
+    const row = getRowElement(renderer, item);
+    const images = row.root.findAllByType(require('react-native').Image);
+    expect(images.some(node => node.props.source?.uri === 'https://blob.example/cover.jpg')).toBe(true);
+    expect(images.some(node => node.props.source?.uri === 'https://blob.example/first-uploaded.jpg')).toBe(false);
+  });
+
   it('shares the item via the swipe share action', async () => {
     const item = makeItem({ id: 21, title: 'Shareable' });
     mockUseItemHistory([item]);

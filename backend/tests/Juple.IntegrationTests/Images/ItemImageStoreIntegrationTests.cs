@@ -3,6 +3,7 @@ using Juple.Application.Images;
 using Juple.Application.Images.UploadItemImage;
 using Juple.Application.Items;
 using Juple.Application.Items.DeleteItem;
+using Juple.Domain.Images;
 using Juple.Domain.Items;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Images;
@@ -126,10 +127,10 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UploadAsync_WhenItemAlreadyHas10Images_ThrowsItemImageLimitExceeded()
+    public async Task UploadAsync_WhenItemAlreadyHasTwoImagesAndNoPreview_ThrowsItemImageLimitExceeded()
     {
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        for (var i = 0; i < 10; i++)
+        for (var i = 0; i < 2; i++)
         {
             await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         }
@@ -138,7 +139,49 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
 
         var count = await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId);
-        Assert.Equal(10, count);
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WhenItemHasAPreviewImageUrlAndOneUploadedImage_ThrowsItemImageLimitExceeded()
+    {
+        // PreviewImageUrl already occupies one of the two effective-image slots - see
+        // MaxEffectiveImagesPerItem's own remarks - so only a single upload is admitted, not two.
+        var item = await _dbContext.Items.SingleAsync(i => i.Id == _itemId);
+        item.SetPreviewImageUrl("https://cdn.example/preview.jpg");
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+
+        await Assert.ThrowsAsync<ItemImageLimitExceededException>(
+            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
+
+        var count = await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId);
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public async Task UploadAsync_WhenAnItemAlreadyHasMoreThanTwoLegacyImages_KeepsThemAll_ButRejectsFurtherUploads()
+    {
+        // Simulates data saved back when the cap was 10 (or before any cap existed) by seeding rows
+        // directly via EF, bypassing UploadAsync's own enforcement - nothing about a lower new cap
+        // may ever delete/hide pre-existing images; it only blocks additional ones going forward.
+        for (var i = 0; i < 4; i++)
+        {
+            _dbContext.ItemImages.Add(new ItemImage(
+                _itemId, $"items/{_userId}/{_itemId}/legacy-{i}.jpg", "image/jpeg", JpegBytes.Length, i, DateTimeOffset.UtcNow));
+        }
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        await Assert.ThrowsAsync<ItemImageLimitExceededException>(
+            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
+
+        var count = await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId);
+        Assert.Equal(4, count);
     }
 
     [Fact]
@@ -388,13 +431,10 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UploadAsync_TwoConcurrentUploadsAtCap_AllowsExactlyTenAndCompensatesTheRejectedBlob()
+    public async Task UploadAsync_TwoConcurrentUploadsAtCap_AllowsExactlyTwoAndCompensatesTheRejectedBlob()
     {
-        for (var i = 0; i < 9; i++)
-        {
-            var seedStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-            await seedStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        }
+        var seedStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        await seedStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")!;
@@ -413,7 +453,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             uploadB.ContinueWith(t => t.Exception?.InnerException));
 
         // Exactly one of the two truly-concurrent uploads must be rejected by the cap - never
-        // both accepted (11 rows) and never both rejected (9 rows stuck).
+        // both accepted (3 rows) and never both rejected (1 row stuck).
         var rejections = results.Count(exception => exception is ItemImageLimitExceededException);
         Assert.Equal(1, rejections);
 
@@ -421,8 +461,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             .AsNoTracking()
             .Where(row => row.ItemId == _itemId)
             .ToListAsync();
-        Assert.Equal(10, finalRows.Count);
-        Assert.Equal(10, finalRows.Select(row => row.SortOrder).Distinct().Count());
+        Assert.Equal(2, finalRows.Count);
+        Assert.Equal(2, finalRows.Select(row => row.SortOrder).Distinct().Count());
 
         var remainingBlobs = new List<string>();
         await foreach (var blobItem in _blobContainerClient.GetBlobsAsync(
@@ -435,8 +475,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         }
 
         // The rejected request's just-uploaded Blob must have been compensation-deleted - exactly
-        // the 10 Blobs backing the 10 persisted rows, no orphan from the losing request.
-        Assert.Equal(10, remainingBlobs.Count);
+        // the 2 Blobs backing the 2 persisted rows, no orphan from the losing request.
+        Assert.Equal(2, remainingBlobs.Count);
         Assert.Equal(
             finalRows.Select(row => row.BlobName).OrderBy(name => name),
             remainingBlobs.OrderBy(name => name));

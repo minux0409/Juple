@@ -17,7 +17,17 @@ public sealed class ItemImageStore(
     UserDelegationKeyCache userDelegationKeyCache,
     ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage
 {
-    private const int MaxImagesPerItem = 10;
+    /// <summary>
+    /// Total effective images (the auto-extracted PreviewImageUrl, if any, plus the user's own
+    /// uploaded ItemImages) an Item may show at once - see resolveEffectiveThumbnailUrl/the mobile
+    /// unified photo section this enforces the server side of. When PreviewImageUrl is set it
+    /// already occupies one of the two slots, so only one more upload is allowed; with no
+    /// PreviewImageUrl, both slots are available to uploads. This only ever gates NEW uploads - an
+    /// Item that already has more images than this (from before this cap existed, or because
+    /// PreviewImageUrl arrived after uploads had already filled both slots) keeps every existing
+    /// image untouched; nothing is ever deleted to enforce this retroactively.
+    /// </summary>
+    private const int MaxEffectiveImagesPerItem = 2;
     private static readonly TimeSpan ReadUrlTtl = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ClockSkewBuffer = TimeSpan.FromMinutes(5);
 
@@ -116,15 +126,28 @@ public sealed class ItemImageStore(
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        await dbContext.Items
+        // Locking (not just reading) the Item row here matters for more than serializing the count
+        // check below: it's also what PreviewImageUrl is read from, and a concurrent
+        // SetItemPreviewImageService write to that same row is exactly the race this transaction
+        // must serialize against too - two requests must never both see the pre-enrichment
+        // PreviewImageUrl and both admit an upload that together exceed the cap.
+        //
+        // FirstOrDefaultAsync (not FirstAsync): the Item can legitimately have been deleted in the
+        // window between UploadAsync's own ownership check and this locked read (the Blob upload in
+        // between takes real time) - that must surface as the same ItemNotFoundException a caller
+        // would get from a delete that had simply already happened, never an unhandled
+        // "sequence contains no elements" from FirstAsync.
+        var lockedItem = await dbContext.Items
             .FromSqlInterpolated($"SELECT * FROM items.Items WITH (UPDLOCK, HOLDLOCK) WHERE Id = {itemId}")
             .AsNoTracking()
-            .ToListAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new ItemNotFoundException();
 
         var existingCount = await dbContext.ItemImages
             .Where(image => image.ItemId == itemId)
             .CountAsync(cancellationToken);
-        if (existingCount >= MaxImagesPerItem)
+        var previewImageOccupiesASlot = lockedItem.PreviewImageUrl is not null ? 1 : 0;
+        if (existingCount + previewImageOccupiesASlot >= MaxEffectiveImagesPerItem)
         {
             throw new ItemImageLimitExceededException();
         }

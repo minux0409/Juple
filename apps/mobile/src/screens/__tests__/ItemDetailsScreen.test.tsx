@@ -1,5 +1,6 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Linking, Text, TextInput } from 'react-native';
+import DragList from 'react-native-draglist';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -312,94 +313,79 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
-  describe('cover section (대표 이미지 - separate from the 추가 이미지 user-photo section)', () => {
-    it('preview image only: 대표 이미지 section shows it, photo count stays 사진 (0/10), no 추가 이미지 section (no user images)', async () => {
+  describe('unified photo list (no more separate 대표 이미지 / 추가 이미지 sections)', () => {
+    it('preview only: header count includes the auto image, no delete button on it', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
       );
       jest.mocked(getItemImages).mockResolvedValue([]);
       const renderer = await renderScreen();
 
-      expect(renderer.root.findByProps({ children: '사진 (0/10)' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ children: '대표 이미지' })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ children: '추가 이미지' })).toHaveLength(0);
       const previewImages = renderer.root
         .findAllByType(require('react-native').Image)
         .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
       expect(previewImages).toHaveLength(1);
-      // No delete button on the cover thumbnail itself - only "변경" changes it, via the picker.
       expect(findPressableByAccessibilityLabel(renderer, '사진 삭제')).toBeFalsy();
-      expect(findPressableByAccessibilityLabel(renderer, '변경')).toBeTruthy();
     });
 
-    it('preview image + user images: both render, photo count reflects only user images, 추가 이미지 section shown', async () => {
+    it('preview + user image: both render as one list, count is 2/2, only the uploaded one has a delete button', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
       );
-      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       const renderer = await renderScreen();
 
-      expect(renderer.root.findByProps({ children: '사진 (1/10)' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '추가 이미지' })).toBeTruthy();
-      const previewImages = renderer.root
-        .findAllByType(require('react-native').Image)
-        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(previewImages).toHaveLength(1);
-      // The user-uploaded image's own delete button is still there - only the cover lacks one.
+      expect(renderer.root.findByProps({ children: '사진 (2/2)' })).toBeTruthy();
+      const images = renderer.root.findAllByType(require('react-native').Image);
+      expect(images.some(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg')).toBe(true);
+      expect(images.some(node => node.props.source?.uri === 'https://blob.example/7.jpg')).toBe(true);
       expect(findPressableByAccessibilityLabel(renderer, '사진 삭제')).toBeTruthy();
     });
 
-    it('no preview image and no cover: 대표 이미지 section still shows (empty state + 설정 button), no 추가 이미지 section without user images', async () => {
+    it('no preview, no user images: count is 0/2, list renders nothing', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ previewImageUrl: null }));
       jest.mocked(getItemImages).mockResolvedValue([]);
       const renderer = await renderScreen();
 
-      expect(renderer.root.findByProps({ children: '사진 (0/10)' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '대표 이미지 없음' })).toBeTruthy();
-      expect(renderer.root.findAllByProps({ children: '추가 이미지' })).toHaveLength(0);
-      expect(findPressableByAccessibilityLabel(renderer, '설정')).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '사진 (0/2)' })).toBeTruthy();
+      expect(renderer.root.findAllByType(require('react-native').Image)).toHaveLength(0);
     });
 
-    it('no preview image but has user images: 대표 이미지 section shows empty state, 추가 이미지 section shows the user images', async () => {
-      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ previewImageUrl: null }));
+    it('at the 2/2 cap, the add-photo button is disabled', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
       const renderer = await renderScreen();
 
-      expect(renderer.root.findByProps({ children: '사진 (1/10)' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '대표 이미지 없음' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '추가 이미지' })).toBeTruthy();
+      const addButton = findPressableByAccessibilityLabel(renderer, '사진 추가');
+      expect(addButton?.props.accessibilityState.disabled).toBe(true);
+      expect(renderer.root.findByProps({ children: '사진은 최대 2장까지 추가할 수 있습니다' })).toBeTruthy();
     });
   });
 
-  describe('cover picker (변경/설정 -> 대표 이미지 선택 modal)', () => {
-    it('opens the picker offering the automatic option and each uploaded image, and selecting an image persists it immediately', async () => {
+  describe('photo reorder (drag persists via setItemCoverImage - the same field, now purely an ordering detail)', () => {
+    it('dragging the uploaded image to the front persists it as the cover', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
       );
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
       const renderer = await renderScreen();
+      const dragList = renderer.root.findByType(DragList);
 
+      // [auto, uploaded] -> dragging index 1 to index 0.
       await act(async () => {
-        findPressableByAccessibilityLabel(renderer, '변경')?.props.onPress();
-      });
-
-      expect(renderer.root.findByProps({ children: '대표 이미지 선택' })).toBeTruthy();
-      expect(renderer.root.findByProps({ children: '자동 대표 이미지' })).toBeTruthy();
-
-      await act(async () => {
-        findPressableByAccessibilityLabel(renderer, '업로드한 사진')?.props.onPress();
+        await dragList.props.onReordered(1, 0);
       });
 
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
-      // The picker closes on success.
-      expect(renderer.root.findAllByProps({ children: '대표 이미지 선택' })).toHaveLength(0);
     });
 
-    it('selecting 자동 대표 이미지 clears an existing explicit cover choice', async () => {
+    it('dragging the auto preview back to the front clears the cover (null)', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({
           previewImageUrl: 'https://cdn.example.com/preview.jpg',
@@ -409,35 +395,51 @@ describe('ItemDetailsScreen', () => {
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
       const renderer = await renderScreen();
+      const dragList = renderer.root.findByType(DragList);
 
+      // Cover is already set, so the list renders as [uploaded, auto] - dragging index 1 (auto) to index 0.
       await act(async () => {
-        findPressableByAccessibilityLabel(renderer, '변경')?.props.onPress();
-      });
-      await act(async () => {
-        findPressableByAccessibilityLabel(renderer, '자동 대표 이미지')?.props.onPress();
+        await dragList.props.onReordered(1, 0);
       });
 
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, null);
     });
 
-    it('a failed cover selection keeps the picker open and shows an error, without changing the displayed cover', async () => {
+    it('a failed reorder rolls back the displayed order and shows an error', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
       );
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       jest.mocked(setItemCoverImage).mockRejectedValue(new Error('network error'));
       const renderer = await renderScreen();
+      const dragList = renderer.root.findByType(DragList);
 
       await act(async () => {
-        findPressableByAccessibilityLabel(renderer, '변경')?.props.onPress();
-      });
-      await act(async () => {
-        findPressableByAccessibilityLabel(renderer, '업로드한 사진')?.props.onPress();
+        await dragList.props.onReordered(1, 0);
       });
 
-      expect(renderer.root.findByProps({ children: '대표 이미지를 변경할 수 없습니다.' })).toBeTruthy();
-      // Still open - the picker only closes on success.
-      expect(renderer.root.findByProps({ children: '대표 이미지 선택' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '사진 순서를 변경할 수 없습니다.' })).toBeTruthy();
+      // Rolled back - the auto preview is still first (its Image is still present at all, and no
+      // cover was actually persisted).
+      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
+    });
+
+    it('the "첫 번째로 설정" accessibility action reorders without a real drag gesture', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      const secondThumbnail = renderer.root.findAll(
+        node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
+      )[0];
+      await act(async () => {
+        secondThumbnail.props.onAccessibilityAction();
+      });
+
+      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
     });
 
     it('deleting the currently-selected cover image falls back to the automatic preview image', async () => {
@@ -462,10 +464,7 @@ describe('ItemDetailsScreen', () => {
         findPressableByAccessibilityLabel(renderer, '사진 삭제')?.props.onPress();
       });
       await act(async () => {
-        const confirmButtons = renderer.root.findAll(
-          node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
-        );
-        confirmButtons[confirmButtons.length - 1]?.props.onPress();
+        confirmPhotoDelete(renderer);
       });
 
       expect(deleteItemImage).toHaveBeenCalledWith(expect.anything(), 1, 7);

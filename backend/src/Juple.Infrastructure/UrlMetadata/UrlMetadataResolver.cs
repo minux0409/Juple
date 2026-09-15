@@ -58,6 +58,7 @@ public sealed class UrlMetadataResolver(
         var redirectCount = 0;
         var lastAttemptedHost = initialUri.Host;
         UrlMetadataImageSource? imageSourceForDiagnostics = null;
+        string? youTubeImageVariantForDiagnostics = null;
 
         using var budgetCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budgetCts.CancelAfter(TotalRequestBudget);
@@ -117,6 +118,20 @@ public sealed class UrlMetadataResolver(
                 var html = await ReadBoundedHtmlAsync(response, budgetCts.Token);
                 var (title, source, previewImageUrl, previewImageSource) =
                     await HtmlTitleExtractor.ExtractAsync(html, budgetCts.Token, currentUri.Host);
+
+                // A YouTube og:image candidate unconditionally names maxresdefault.jpg even when
+                // that specific resolution was never generated for the video (see
+                // YouTubeThumbnailResolver's own remarks) - verify it actually exists (falling back
+                // through lower qualities that always exist) before ever persisting it, rather than
+                // storing a URL that will 404 for the mobile client. A no-op for every non-YouTube
+                // image URL.
+                if (previewImageUrl is { } extractedImageUrl)
+                {
+                    (previewImageUrl, youTubeImageVariantForDiagnostics) =
+                        await YouTubeThumbnailResolver.ResolveExistingThumbnailAsync(
+                            httpClient, extractedImageUrl, budgetCts.Token);
+                }
+
                 result = new UrlMetadataResult(title, source, previewImageUrl);
                 imageSourceForDiagnostics = previewImageSource;
                 break;
@@ -136,7 +151,9 @@ public sealed class UrlMetadataResolver(
         }
 
         var elapsedMs = timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
-        LogOutcome(lastAttemptedHost, result, imageSourceForDiagnostics, failureCategory, redirectCount, elapsedMs);
+        LogOutcome(
+            lastAttemptedHost, result, imageSourceForDiagnostics, youTubeImageVariantForDiagnostics,
+            failureCategory, redirectCount, elapsedMs);
 
         memoryCache.Set(cacheKey, result, CacheEntryOptions);
         return result;
@@ -203,11 +220,15 @@ public sealed class UrlMetadataResolver(
     /// no preview image" without ever logging content: they distinguish "metadata genuinely had no
     /// image" (ImageFound=false) from a persistence/render problem further down the pipeline, which
     /// must show up as a real PreviewImageUrl in the DB/API despite the mobile UI not displaying it.
+    /// YouTubeImageVariant is null for every non-YouTube image (nothing to verify) - when present,
+    /// it names which quality (see YouTubeThumbnailResolver) was actually confirmed to exist,
+    /// distinguishing "maxres worked as-is" from "had to fall back to a lower quality".
     /// </summary>
     private void LogOutcome(
         string hostname,
         UrlMetadataResult result,
         UrlMetadataImageSource? imageSource,
+        string? youTubeImageVariant,
         string? failureCategory,
         int redirectCount,
         double elapsedMs)
@@ -221,8 +242,8 @@ public sealed class UrlMetadataResolver(
         }
 
         logger.LogInformation(
-            "URL metadata resolve completed. Host={Hostname} Found={Found} Source={Source} ImageFound={ImageFound} ImageSource={ImageSource} RedirectCount={RedirectCount} ElapsedMs={ElapsedMs}",
+            "URL metadata resolve completed. Host={Hostname} Found={Found} Source={Source} ImageFound={ImageFound} ImageSource={ImageSource} YouTubeImageVariant={YouTubeImageVariant} RedirectCount={RedirectCount} ElapsedMs={ElapsedMs}",
             hostname, result.Title is not null, result.Source,
-            result.PreviewImageUrl is not null, imageSource, redirectCount, elapsedMs);
+            result.PreviewImageUrl is not null, imageSource, youTubeImageVariant, redirectCount, elapsedMs);
     }
 }

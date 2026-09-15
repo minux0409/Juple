@@ -190,10 +190,16 @@ export function DateHistoryScreen() {
               }}
               onShare={() => runShare(item)}
             >
+              {/* Same effective-thumbnail rule as Home (see DailyInboxScreen) - now that reordering
+                  a cover in ItemDetails is a real, everyday action (see effectiveImages.ts), a
+                  saved link's thumbnail here must match what Home/ItemDetails show for the exact
+                  same Item, or a reorder would silently look "undone" the moment the user opens
+                  History. No layout change - purely which single image this same row picks. */}
               <SavedLinkRow
                 dateDisplayMode={section.showItemDate ? 'dateTime' : 'time'}
                 isActionInFlight={actionInFlightItemId === item.id}
                 item={item}
+                preferEffectiveThumbnail
               />
             </SwipeableItemRow>
           );

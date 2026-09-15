@@ -9,7 +9,7 @@ import { AuthSessionError } from '../auth/session/authSessionErrors';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
-import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
+import { enrichItemPreviewImageFromUrlMetadata, enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 import { checkUrlSafetyBestEffort } from '../urlSafety/checkUrlSafetyBestEffort';
 
 /**
@@ -199,6 +199,13 @@ async function incomingShareHeadlessTask(
         errorConstructor: error instanceof Error ? error.constructor.name : typeof error,
       });
     }
+    // The sharing app's own title must never be overwritten by metadata (see
+    // enrichItemTitleFromUrlMetadata's own remarks), but the preview image is a completely
+    // independent signal - resolving it here too is exactly the fix for a real, previously-
+    // reproduced bug where a YouTube/Instagram share that already carried a title (e.g.
+    // YouTube's EXTRA_SUBJECT) silently never got a thumbnail at all, while the identical URL
+    // saved with no incoming title did. Its own try/catch already never throws.
+    await enrichItemPreviewImageFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
   } else {
     // No title from Intent/sharedText - best-effort URL-metadata fallback (same policy
     // NewLinkReviewScreen/DailyInboxScreen use - see enrichItemTitleFromUrlMetadata). Its own

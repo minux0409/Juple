@@ -2,7 +2,7 @@ import { AppRegistry } from 'react-native';
 import { registerIncomingShareHeadlessTask } from '../incomingShareHeadlessTask';
 import NativeIncomingShare from '../specs/NativeIncomingShare';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
-import { updateItemDetails } from '../../items/api/itemsApi';
+import { setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 import { ApiError } from '../../api/ApiError';
@@ -62,6 +62,7 @@ describe('incomingShareHeadlessTask', () => {
     jest.clearAllMocks();
     jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
     jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
+    jest.mocked(setItemPreviewImage).mockResolvedValue(undefined);
   });
 
   it('saves the URL as-is, falls back to URL metadata, and acknowledges the pending share - no title from metadata either', async () => {
@@ -93,15 +94,33 @@ describe('incomingShareHeadlessTask', () => {
     expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
   });
 
-  it('never calls URL metadata when the share already has a title', async () => {
+  it('still resolves URL metadata for the preview image when the share already has a title, without overwriting the title', async () => {
+    // This is the fix for a real bug: a share that already carries a title (e.g. YouTube's
+    // EXTRA_SUBJECT) used to skip URL-metadata resolution entirely, silently losing the preview
+    // image too even though the identical URL saved with no incoming title got one.
     const pendingShare = makePendingShare({ initialTitle: 'Video title from EXTRA_SUBJECT' });
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
     jest.mocked(saveInboxEntry).mockResolvedValue({ id: 42, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
     jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'A Different Metadata Title',
+      source: 'openGraph',
+      previewImageUrl: 'https://i.ytimg.com/vi/abc123/hqdefault.jpg',
+    });
 
     await task({ pendingShareId: pendingShare.id });
 
-    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), pendingShare.text);
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 42, {
+      title: 'Video title from EXTRA_SUBJECT',
+      memo: '',
+    });
+    expect(updateItemDetails).toHaveBeenCalledTimes(1);
+    expect(setItemPreviewImage).toHaveBeenCalledWith(
+      expect.anything(),
+      42,
+      'https://i.ytimg.com/vi/abc123/hqdefault.jpg',
+    );
   });
 
   it('still saves and acknowledges the share when URL metadata resolution fails', async () => {

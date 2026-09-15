@@ -1,10 +1,13 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text, TextInput, View } from 'react-native';
+import DragList from 'react-native-draglist';
+import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
 import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
-import { updateItemDetails } from '../../items/api/itemsApi';
+import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
+import { uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
 import { resolveUrlMetadata, type UrlMetadataSource } from '../../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 
@@ -29,6 +32,15 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
   setItemPreviewImage: jest.fn(),
+  setItemCoverImage: jest.fn(),
+}));
+
+jest.mock('../../images/api/imagesApi', () => ({
+  uploadItemImage: jest.fn(),
+}));
+
+jest.mock('react-native-image-picker', () => ({
+  launchImageLibrary: jest.fn(),
 }));
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
@@ -38,6 +50,18 @@ jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
 jest.mock('../../urlSafety/api/urlSafetyApi', () => ({
   checkUrlSafety: jest.fn(),
 }));
+
+function makeUploadedImage(overrides: Partial<ItemImage> = {}): ItemImage {
+  return {
+    id: 9,
+    contentType: 'image/jpeg',
+    byteLength: 1000,
+    sortOrder: 0,
+    createdAtUtc: new Date().toISOString(),
+    readUrl: 'https://blob.example/9.jpg',
+    ...overrides,
+  };
+}
 
 const ROUTE_PARAMS: { url: string; initialTitle: string | null; preselectedCollectionId: number | null } = {
   url: 'https://example.com/shared',
@@ -65,7 +89,10 @@ function findByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer,
   return renderer.root.findAll(node => node.props.accessibilityLabel === label)[0];
 }
 
-/** The Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to the nearest onPress-bearing ancestor. */
+/** The Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to
+ * the nearest onPress-bearing ancestor. Returns onPress()'s own result so a caller whose save()
+ * does real async work (e.g. a staged photo upload) can await full completion; existing callers
+ * that don't await it are unaffected. */
 function pressSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
   let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findAll(
     n => n.props.children === i18n.t('common.save'),
@@ -73,7 +100,7 @@ function pressSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
   while (node && typeof node.props.onPress !== 'function') {
     node = node.parent;
   }
-  node!.props.onPress();
+  return node!.props.onPress();
 }
 
 describe('NewLinkReviewScreen', () => {
@@ -81,6 +108,11 @@ describe('NewLinkReviewScreen', () => {
     jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
     jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
     jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
+    // Both are fire-and-forget (.catch()'d, never awaited) in save() - a bare jest.fn() (no
+    // resolved value) would make that .catch() itself throw synchronously on undefined, so every
+    // test needs a real resolved Promise here even when it never asserts on these calls directly.
+    jest.mocked(setItemPreviewImage).mockResolvedValue(undefined);
+    jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -130,7 +162,11 @@ describe('NewLinkReviewScreen', () => {
       pressSaveButton(renderer);
     });
 
-    expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
+    // A generated clientRequestId (uuid) is now always passed - see clientRequestIdRef's own
+    // remarks on why (idempotent retry-safety) - so this only pins the first two args.
+    expect(saveInboxEntry).toHaveBeenCalledWith(
+      expect.anything(), 'https://example.com/shared', expect.any(String),
+    );
     expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 55, { title: 'Shared title', memo: '' });
     expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 3, 55);
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
@@ -158,13 +194,26 @@ describe('NewLinkReviewScreen', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  it('never calls resolveUrlMetadata when an incoming title is already present', async () => {
-    await renderScreen();
+  it('still resolves metadata (for the preview image) even when an incoming title is already present, without overwriting the title', async () => {
+    // Regression test: this used to skip the whole metadata fetch whenever an incoming title
+    // existed, which silently meant most real shares (which usually do carry a title) never got
+    // a preview image at all - see the metadata-resolution effect's own remarks.
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'A Different Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
+
+    const { renderer } = await renderScreen();
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
+    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('Shared title');
+    const previewImages = renderer.root
+      .findAllByType(require('react-native').Image)
+      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+    expect(previewImages).toHaveLength(1);
   });
 
   it('fetches URL metadata and fills the empty title field when there is no incoming title', async () => {
@@ -235,6 +284,154 @@ describe('NewLinkReviewScreen', () => {
 
     expect(saveInboxEntry).toHaveBeenCalled();
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  describe('preview image shown before Save (Quick Save OFF)', () => {
+    it('shows the auto-resolved preview image in the photo list before Save is even pressed', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+      });
+
+      const { renderer } = await renderScreen({ initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+      const previewImages = renderer.root
+        .findAllByType(require('react-native').Image)
+        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+      expect(previewImages).toHaveLength(1);
+    });
+
+    it('staging a new photo appends it alongside the auto preview, up to the 2-image cap', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+      });
+      jest.mocked(launchImageLibrary).mockResolvedValue({
+        didCancel: false,
+        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+      } as never);
+
+      const { renderer } = await renderScreen({ initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      await act(async () => {
+        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
+      });
+
+      expect(renderer.root.findByProps({ children: '사진 (2/2)' })).toBeTruthy();
+      const addButton = findByAccessibilityLabel(renderer, '사진 추가');
+      expect(addButton?.props.accessibilityState.disabled).toBe(true);
+    });
+
+    it('save: uploads the staged photo only after the Item exists, in natural (auto-first) order with no cover override', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+      });
+      jest.mocked(launchImageLibrary).mockResolvedValue({
+        didCancel: false,
+        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+      } as never);
+      jest.mocked(saveInboxEntry).mockResolvedValue({
+        id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
+      });
+      jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
+
+      const { renderer, navigation } = await renderScreen({ initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
+      });
+
+      await act(async () => {
+        await pressSaveButton(renderer);
+      });
+
+      expect(uploadItemImage).toHaveBeenCalledWith(
+        expect.anything(), 88, expect.objectContaining({ uri: 'file://staged.jpg' }),
+      );
+      expect(setItemCoverImage).not.toHaveBeenCalled();
+      expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 88, 'https://cdn.example.com/preview.jpg');
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('save: dragging the staged photo ahead of the auto preview persists it as the cover', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+      });
+      jest.mocked(launchImageLibrary).mockResolvedValue({
+        didCancel: false,
+        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+      } as never);
+      jest.mocked(saveInboxEntry).mockResolvedValue({
+        id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
+      });
+      jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
+
+      const { renderer, navigation } = await renderScreen({ initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
+      });
+      // [auto, staged] -> drag index 1 to index 0.
+      await act(async () => {
+        await renderer.root.findByType(DragList).props.onReordered(1, 0);
+      });
+
+      await act(async () => {
+        await pressSaveButton(renderer);
+      });
+
+      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 88, 9);
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('a staged-photo upload failure surfaces an error but never creates a duplicate Item on retry', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+      jest.mocked(launchImageLibrary).mockResolvedValue({
+        didCancel: false,
+        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+      } as never);
+      jest.mocked(saveInboxEntry).mockResolvedValue({
+        id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
+      });
+      jest.mocked(uploadItemImage).mockRejectedValue(new Error('network error'));
+
+      const { renderer, navigation } = await renderScreen({ initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
+      });
+
+      await act(async () => {
+        await pressSaveButton(renderer);
+      });
+
+      expect(renderer.root.findByProps({ children: '사진을 업로드할 수 없습니다.' })).toBeTruthy();
+      // Never navigated away - the failure is surfaced, not silently swallowed.
+      expect(navigation.goBack).not.toHaveBeenCalled();
+
+      // Retrying Save replays the SAME clientRequestId/Item (never a second saveInboxEntry create
+      // with a different id) - see clientRequestIdRef's own remarks.
+      jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
+      await act(async () => {
+        await pressSaveButton(renderer);
+      });
+
+      expect(saveInboxEntry).toHaveBeenCalledTimes(2);
+      const [firstCallArgs, secondCallArgs] = jest.mocked(saveInboxEntry).mock.calls;
+      expect(secondCallArgs[2]).toBe(firstCallArgs[2]);
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('shows an error and does not navigate back when saving fails', async () => {
