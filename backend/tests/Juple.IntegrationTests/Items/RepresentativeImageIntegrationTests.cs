@@ -135,7 +135,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         var second = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, representativeImages) = await _itemStore.GetHistoryAsync(
+        var (page, representativeImages, _) = await _itemStore.GetHistoryAsync(
             _userId, cursor: null, limit: 50);
 
         Assert.True(representativeImages.TryGetValue(item, out var reference));
@@ -149,7 +149,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     {
         var item = await SaveItemAsync();
 
-        var (_, representativeImages) = await _itemStore.GetHistoryAsync(
+        var (_, representativeImages, _) = await _itemStore.GetHistoryAsync(
             _userId, cursor: null, limit: 50);
 
         Assert.False(representativeImages.ContainsKey(item));
@@ -178,7 +178,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (_, representativeImage) = await _itemStore.GetDetailsAsync(_userId, item);
+        var (_, representativeImage, _) = await _itemStore.GetDetailsAsync(_userId, item);
 
         Assert.NotNull(representativeImage);
         Assert.Equal(first.Id, representativeImage!.ImageId);
@@ -189,7 +189,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     {
         var item = await SaveItemAsync();
 
-        var (_, representativeImage) = await _itemStore.GetDetailsAsync(_userId, item);
+        var (_, representativeImage, _) = await _itemStore.GetDetailsAsync(_userId, item);
 
         Assert.Null(representativeImage);
     }
@@ -202,7 +202,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (_, representativeImages) = await _itemStore.GetHistoryAsync(
+        var (_, representativeImages, _) = await _itemStore.GetHistoryAsync(
             _userId, cursor: null, limit: 50);
 
         Assert.True(representativeImages.TryGetValue(item, out var reference));
@@ -236,7 +236,7 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         countedDbContext.ChangeTracker.Clear();
 
         interceptor.ExecutedCommandCount = 0;
-        var (page, representativeImages) = await countedItemStore.GetHistoryAsync(
+        var (page, representativeImages, _) = await countedItemStore.GetHistoryAsync(
             _userId, cursor: null, limit: 50);
 
         // One SQL statement for the whole page (the representative image is a correlated

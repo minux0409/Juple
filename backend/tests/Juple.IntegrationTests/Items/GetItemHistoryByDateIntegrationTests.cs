@@ -53,7 +53,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
             _otherUserId, "https://shop.example/history-date-ownership-other", null, fromUtc.AddHours(1));
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(myItem, page.Items[0].Id);
@@ -73,7 +73,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
         await store.DeleteAsync(_userId, deletedItem);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(keptItem, page.Items[0].Id);
@@ -96,7 +96,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
             _userId, "https://shop.example/history-date-sort-3", null, fromUtc.AddHours(3));
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Equal(
             new[] { third.Entry.Id, second.Entry.Id, first.Entry.Id },
@@ -114,7 +114,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
 
         var boundaryItem = await SaveAsync(store, "https://shop.example/history-date-boundary-from", fromUtc);
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(boundaryItem, page.Items[0].Id);
@@ -134,7 +134,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
         var boundaryItem = await SaveAsync(
             store, "https://shop.example/history-date-boundary-just-before-to", toUtc.AddSeconds(-1));
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(boundaryItem, page.Items[0].Id);
@@ -151,7 +151,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
 
         await SaveAsync(store, "https://shop.example/history-date-boundary-to", toUtc);
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Empty(page.Items);
     }
@@ -165,7 +165,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
 
         await SaveAsync(store, "https://shop.example/history-date-boundary-after-to", toUtc.AddSeconds(1));
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Empty(page.Items);
     }
@@ -180,7 +180,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
         await SaveAsync(
             store, "https://shop.example/history-date-boundary-before", fromUtc.AddMilliseconds(-1));
 
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
 
         Assert.Empty(page.Items);
     }
@@ -200,16 +200,16 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
             ids.Add(result.Entry.Id);
         }
 
-        var (firstPage, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 2);
+        var (firstPage, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var (secondPage, _) = await store.GetByDateRangeAsync(
+        var (secondPage, _, _) = await store.GetByDateRangeAsync(
             _userId, fromUtc, toUtc, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.NotNull(secondPage.NextCursor);
 
-        var (thirdPage, _) = await store.GetByDateRangeAsync(
+        var (thirdPage, _, _) = await store.GetByDateRangeAsync(
             _userId, fromUtc, toUtc, cursor: secondPage.NextCursor, limit: 2);
         Assert.Single(thirdPage.Items);
         Assert.Null(thirdPage.NextCursor);
@@ -236,11 +236,11 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
             ids.Add(result.Entry.Id);
         }
 
-        var (firstPage, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 2);
+        var (firstPage, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var (secondPage, _) = await store.GetByDateRangeAsync(
+        var (secondPage, _, _) = await store.GetByDateRangeAsync(
             _userId, fromUtc, toUtc, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.Null(secondPage.NextCursor);
@@ -261,12 +261,12 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
         var toUtc = fromUtc.AddDays(1);
 
         var todayItem = await SaveAsync(store, "https://shop.example/history-date-cursor-today", fromUtc.AddHours(1));
-        var (page, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
         Assert.Single(page.Items);
         Assert.Equal(todayItem, page.Items[0].Id);
 
         var cursor = new ItemHistoryPageCursor(page.Items[0].SavedAtUtc, page.Items[0].Id);
-        var (resumedPage, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor, limit: 50);
+        var (resumedPage, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor, limit: 50);
 
         Assert.Empty(resumedPage.Items);
         Assert.Null(resumedPage.NextCursor);

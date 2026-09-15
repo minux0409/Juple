@@ -80,7 +80,7 @@ public sealed class ItemDetailsIntegrationTests : IAsyncLifetime
         await store.UpdateDetailsAsync(_userId, saved.Entry.Id, "My Title", "My memo");
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         var entry = Assert.Single(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal("My Title", entry.Title);

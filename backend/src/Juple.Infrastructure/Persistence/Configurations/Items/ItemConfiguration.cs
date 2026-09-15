@@ -44,6 +44,20 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
             .HasColumnType("nvarchar(4000)")
             .HasMaxLength(4000);
 
+        // Same column type/max length as Url (not Title/Memo's): nvarchar(max) because SQL Server
+        // rejects a sized nvarchar(N) beyond 4000 - HasMaxLength(4096) is still enforced at the EF/
+        // app-validation layer even though the storage type is unbounded, exactly like Url. Extracted
+        // image URLs (CDN-hosted, often with long signed query strings) can legitimately be as long
+        // as a page URL.
+        builder.Property(item => item.PreviewImageUrl)
+            .HasColumnType("nvarchar(max)")
+            .HasMaxLength(4096);
+
+        // Deliberately no FK/index here - see Item.CoverImageId's own remarks (a real FK the other
+        // way from ItemImage's existing Item FK would form a cascade cycle SQL Server rejects).
+        builder.Property(item => item.CoverImageId)
+            .HasColumnType("bigint");
+
         builder.HasIndex(item => new { item.UserId, item.SavedAtUtc, item.Id })
             .HasDatabaseName("IX_Items_UserId_SavedAtUtc_Id");
 

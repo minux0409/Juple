@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp;
 using AngleSharp.Dom;
@@ -6,16 +7,18 @@ using Juple.Application.UrlMetadata;
 namespace Juple.Infrastructure.UrlMetadata;
 
 /// <summary>
-/// Pure HTML -&gt; title extraction, deliberately separate from the HTTP fetch (UrlMetadataResolver)
-/// so priority ordering/normalization/generic-title filtering can be unit-tested against raw HTML
-/// strings with no network involved. Uses AngleSharp (MIT-licensed, actively maintained DOM
-/// parser) rather than regex-scraping the HTML - queries og:title/twitter:title/&lt;title&gt;
-/// specifically via the parsed DOM, so script/style text can never be mistaken for a title, and
-/// malformed HTML is tolerated the same way a browser would.
+/// Pure HTML -&gt; title/preview-image extraction, deliberately separate from the HTTP fetch
+/// (UrlMetadataResolver) so priority ordering/normalization/generic-title filtering can be
+/// unit-tested against raw HTML strings with no network involved. Uses AngleSharp (MIT-licensed,
+/// actively maintained DOM parser) rather than regex-scraping the HTML - queries og:title/
+/// twitter:title/&lt;title&gt; and og:image/twitter:image specifically via the parsed DOM, so
+/// script/style text can never be mistaken for a title, and malformed HTML is tolerated the same
+/// way a browser would.
 /// </summary>
 public static partial class HtmlTitleExtractor
 {
     private const int MaxTitleLength = 300;
+    private const int MaxImageUrlLength = 4096;
 
     /// <summary>
     /// Known non-content titles a public HTML fetch can still legitimately return (e.g. an
@@ -25,8 +28,8 @@ public static partial class HtmlTitleExtractor
     /// </summary>
     private static readonly string[] GenericExactTitles = ["instagram", "log in • instagram", "login • instagram"];
 
-    public static async Task<(string? Title, UrlMetadataSource? Source)> ExtractAsync(
-        string html, CancellationToken cancellationToken)
+    public static async Task<(string? Title, UrlMetadataSource? Source, string? PreviewImageUrl, UrlMetadataImageSource? PreviewImageSource)> ExtractAsync(
+        string html, CancellationToken cancellationToken, string host = "")
     {
         using var context = BrowsingContext.New(Configuration.Default);
 
@@ -39,30 +42,194 @@ public static partial class HtmlTitleExtractor
         {
             // Malformed/unparseable HTML - AngleSharp is already lenient (html5lib-style), so this
             // is a last-resort guard, not the expected path for ordinary imperfect markup.
-            return (null, null);
+            return (null, null, null, null);
         }
+
+        var (previewImageUrl, previewImageSource) = ExtractPreviewImageUrl(document);
 
         var openGraphTitle = NormalizeTitle(
             document.QuerySelector("meta[property='og:title']")?.GetAttribute("content"));
         if (openGraphTitle is not null)
         {
-            return (openGraphTitle, UrlMetadataSource.OpenGraph);
+            return (
+                ApplyInstagramUsername(host, openGraphTitle, document), UrlMetadataSource.OpenGraph,
+                previewImageUrl, previewImageSource);
         }
 
         var twitterTitle = NormalizeTitle(
             document.QuerySelector("meta[name='twitter:title']")?.GetAttribute("content"));
         if (twitterTitle is not null)
         {
-            return (twitterTitle, UrlMetadataSource.Twitter);
+            return (
+                ApplyInstagramUsername(host, twitterTitle, document), UrlMetadataSource.Twitter,
+                previewImageUrl, previewImageSource);
         }
 
         var htmlTitle = NormalizeTitle(document.Title);
         if (htmlTitle is not null)
         {
-            return (htmlTitle, UrlMetadataSource.HtmlTitle);
+            return (htmlTitle, UrlMetadataSource.HtmlTitle, previewImageUrl, previewImageSource);
         }
 
-        return (null, null);
+        return (null, null, previewImageUrl, previewImageSource);
+    }
+
+    /// <summary>
+    /// Instagram-only (see InstagramMetadataNormalizer) - looks at the same document's og:description/
+    /// twitter:description for the real "(@handle)" marker alongside the already-selected title.
+    /// </summary>
+    private static string ApplyInstagramUsername(string host, string title, IDocument document)
+    {
+        if (!InstagramMetadataNormalizer.IsInstagramHost(host))
+        {
+            return title;
+        }
+
+        var description =
+            document.QuerySelector("meta[property='og:description']")?.GetAttribute("content")
+            ?? document.QuerySelector("meta[name='twitter:description']")?.GetAttribute("content");
+
+        return InstagramMetadataNormalizer.ApplyRealUsername(title, description);
+    }
+
+    /// <summary>
+    /// Priority: og:image:secure_url -&gt; og:image -&gt; twitter:image -&gt; a JSON-LD "image" (schema.org
+    /// structured data, e.g. &lt;script type="application/ld+json"&gt;) -&gt; null. No other
+    /// platform-specific image field was found beyond these for either YouTube (og:image already
+    /// gives its video thumbnail) or Instagram (see docs on this round's "do not guess" scope) -
+    /// see UrlMetadataResult's remarks. Never the page's first &lt;img&gt; and never anything drawn
+    /// from a caption/description's own text - only these explicit, page-author-declared metadata
+    /// fields are ever trusted.
+    /// </summary>
+    private static (string? Url, UrlMetadataImageSource? Source) ExtractPreviewImageUrl(IDocument document)
+    {
+        var secureUrl = ValidateImageUrl(
+            document.QuerySelector("meta[property='og:image:secure_url']")?.GetAttribute("content"));
+        if (secureUrl is not null)
+        {
+            return (secureUrl, UrlMetadataImageSource.OpenGraphSecureUrl);
+        }
+
+        var openGraphImage = ValidateImageUrl(
+            document.QuerySelector("meta[property='og:image']")?.GetAttribute("content"));
+        if (openGraphImage is not null)
+        {
+            return (openGraphImage, UrlMetadataImageSource.OpenGraphImage);
+        }
+
+        var twitterImage = ValidateImageUrl(
+            document.QuerySelector("meta[name='twitter:image']")?.GetAttribute("content"));
+        if (twitterImage is not null)
+        {
+            return (twitterImage, UrlMetadataImageSource.TwitterImage);
+        }
+
+        var jsonLdImage = ExtractJsonLdImageUrl(document);
+        return jsonLdImage is not null ? (jsonLdImage, UrlMetadataImageSource.JsonLd) : (null, null);
+    }
+
+    /// <summary>
+    /// Looks for a schema.org "image" value across every &lt;script type="application/ld+json"&gt;
+    /// block, in document order - the first valid http(s) image URL wins. Handles the handful of
+    /// shapes schema.org actually allows for "image": a bare URL string, an array of URL strings,
+    /// an ImageObject ({"url": "..."}), or an array of ImageObjects - and, since a single page can
+    /// legally declare its structured data as a JSON-LD array of separate objects (not just an
+    /// array-valued "image" property), a top-level JSON array is also unwrapped one level before
+    /// each entry is checked the same way. Any block that isn't valid JSON, or has no usable
+    /// "image", is silently skipped - this is best-effort enrichment, never a parse failure.
+    /// </summary>
+    private static string? ExtractJsonLdImageUrl(IDocument document)
+    {
+        foreach (var script in document.QuerySelectorAll("script[type='application/ld+json']"))
+        {
+            var raw = script.TextContent;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                continue;
+            }
+
+            JsonDocument jsonDocument;
+            try
+            {
+                jsonDocument = JsonDocument.Parse(raw);
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+
+            using (jsonDocument)
+            {
+                var root = jsonDocument.RootElement;
+                IEnumerable<JsonElement> candidates = root.ValueKind == JsonValueKind.Array
+                    ? root.EnumerateArray()
+                    : [root];
+
+                foreach (var candidate in candidates)
+                {
+                    var imageUrl = ExtractImageUrlFromJsonLdNode(candidate);
+                    if (imageUrl is not null)
+                    {
+                        return imageUrl;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ExtractImageUrlFromJsonLdNode(JsonElement node)
+    {
+        if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty("image", out var image))
+        {
+            return null;
+        }
+
+        return image.ValueKind switch
+        {
+            JsonValueKind.String => ValidateImageUrl(image.GetString()),
+            JsonValueKind.Object => ValidateImageUrl(
+                image.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String
+                    ? url.GetString()
+                    : null),
+            JsonValueKind.Array => image.EnumerateArray()
+                .Select(element => element.ValueKind switch
+                {
+                    JsonValueKind.String => ValidateImageUrl(element.GetString()),
+                    JsonValueKind.Object => ValidateImageUrl(
+                        element.TryGetProperty("url", out var elementUrl) && elementUrl.ValueKind == JsonValueKind.String
+                            ? elementUrl.GetString()
+                            : null),
+                    _ => null,
+                })
+                .FirstOrDefault(url => url is not null),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Only ever accepts an absolute http/https URL - never data:/file:/blob:/javascript: or a
+    /// relative path, and never truncated (a truncated URL would just be a different, broken/
+    /// dangerous link, not a shorter valid one) - an overlong or malformed value is treated the
+    /// same as "no image found".
+    /// </summary>
+    private static string? ValidateImageUrl(string? rawUrl)
+    {
+        if (string.IsNullOrWhiteSpace(rawUrl))
+        {
+            return null;
+        }
+
+        var trimmed = rawUrl.Trim();
+        if (trimmed.Length > MaxImageUrlLength
+            || !Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return null;
+        }
+
+        return trimmed;
     }
 
     /// <summary>

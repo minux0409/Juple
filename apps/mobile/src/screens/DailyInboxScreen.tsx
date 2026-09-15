@@ -331,10 +331,6 @@ export function DailyInboxScreen() {
             <View style={styles.brandRow}>
               <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
             </View>
-            <Text style={styles.title}>{t('inbox.title')}</Text>
-            <Text style={styles.date}>
-              {t('inbox.dateCount', { date, count: items.length })}
-            </Text>
             <View style={styles.inputWrapper}>
               <View style={styles.inputIconContainer}>
                 <LinkIcon color={colors.textSecondary} size={18} />
@@ -362,7 +358,12 @@ export function DailyInboxScreen() {
               </Text>
             </Pressable>
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
+            <View style={styles.recentHeaderRow}>
+              <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
+              <Text style={styles.recentCount}>
+                {t('inbox.recentSavedCount', { count: items.length })}
+              </Text>
+            </View>
           </View>
         }
         ListEmptyComponent={<Text style={styles.empty}>{t('inbox.empty')}</Text>}
@@ -376,7 +377,11 @@ export function DailyInboxScreen() {
             }}
             onShare={() => runShare(item)}
           >
-            <SavedLinkRow isActionInFlight={actionInFlightItemId === item.id} item={item} />
+            <SavedLinkRow
+              isActionInFlight={actionInFlightItemId === item.id}
+              item={item}
+              preferEffectiveThumbnail
+            />
           </SwipeableItemRow>
         )}
         ListFooterComponent={
@@ -429,23 +434,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   brand: {
     fontSize: 26,
     fontWeight: '700',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  date: {
-    marginTop: spacing.xs + 2,
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
   inputWrapper: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
   },
   inputIconContainer: {
     alignItems: 'center',
@@ -485,11 +481,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.md,
   },
+  recentHeaderRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
+  },
   recentTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: spacing.sm,
-    marginTop: spacing.lg,
+  },
+  recentCount: {
+    color: colors.textSecondary,
+    fontSize: 14,
   },
   empty: {
     color: colors.textSecondary,

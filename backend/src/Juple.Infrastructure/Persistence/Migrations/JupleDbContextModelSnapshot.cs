@@ -270,9 +270,16 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("CoverImageId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Memo")
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("PreviewImageUrl")
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()

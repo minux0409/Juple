@@ -5,7 +5,13 @@ import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
 import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
-import { deleteItem, getItemDetails, updateItemDetails, type ItemDetails } from '../../items/api/itemsApi';
+import {
+  deleteItem,
+  getItemDetails,
+  setItemCoverImage,
+  updateItemDetails,
+  type ItemDetails,
+} from '../../items/api/itemsApi';
 import { deleteItemImage, getItemImages, uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
 import {
   addItemToCollection,
@@ -41,6 +47,7 @@ jest.mock('../../items/api/itemsApi', () => ({
   getItemDetails: jest.fn(),
   updateItemDetails: jest.fn(),
   deleteItem: jest.fn(),
+  setItemCoverImage: jest.fn(),
 }));
 
 jest.mock('../../images/api/imagesApi', () => ({
@@ -78,6 +85,8 @@ function makeItemDetails(overrides: Partial<ItemDetails> = {}): ItemDetails {
     title: 'Original title',
     memo: 'Original memo',
     savedAtUtc: new Date().toISOString(),
+    previewImageUrl: null,
+    coverImage: null,
     ...overrides,
   };
 }
@@ -300,6 +309,172 @@ describe('ItemDetailsScreen', () => {
 
       expect(renderer.root.findAllByType(require('react-native').Image)).toHaveLength(0);
       expect(renderer.root.findByProps({ children: '사진을 업로드할 수 없습니다.' })).toBeTruthy();
+    });
+  });
+
+  describe('cover section (대표 이미지 - separate from the 추가 이미지 user-photo section)', () => {
+    it('preview image only: 대표 이미지 section shows it, photo count stays 사진 (0/10), no 추가 이미지 section (no user images)', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: '사진 (0/10)' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ children: '추가 이미지' })).toHaveLength(0);
+      const previewImages = renderer.root
+        .findAllByType(require('react-native').Image)
+        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+      expect(previewImages).toHaveLength(1);
+      // No delete button on the cover thumbnail itself - only "변경" changes it, via the picker.
+      expect(findPressableByAccessibilityLabel(renderer, '사진 삭제')).toBeFalsy();
+      expect(findPressableByAccessibilityLabel(renderer, '변경')).toBeTruthy();
+    });
+
+    it('preview image + user images: both render, photo count reflects only user images, 추가 이미지 section shown', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: '사진 (1/10)' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '추가 이미지' })).toBeTruthy();
+      const previewImages = renderer.root
+        .findAllByType(require('react-native').Image)
+        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+      expect(previewImages).toHaveLength(1);
+      // The user-uploaded image's own delete button is still there - only the cover lacks one.
+      expect(findPressableByAccessibilityLabel(renderer, '사진 삭제')).toBeTruthy();
+    });
+
+    it('no preview image and no cover: 대표 이미지 section still shows (empty state + 설정 button), no 추가 이미지 section without user images', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ previewImageUrl: null }));
+      jest.mocked(getItemImages).mockResolvedValue([]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: '사진 (0/10)' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '대표 이미지 없음' })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ children: '추가 이미지' })).toHaveLength(0);
+      expect(findPressableByAccessibilityLabel(renderer, '설정')).toBeTruthy();
+    });
+
+    it('no preview image but has user images: 대표 이미지 section shows empty state, 추가 이미지 section shows the user images', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ previewImageUrl: null }));
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7 })]);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ children: '사진 (1/10)' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '대표 이미지' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '대표 이미지 없음' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '추가 이미지' })).toBeTruthy();
+    });
+  });
+
+  describe('cover picker (변경/설정 -> 대표 이미지 선택 modal)', () => {
+    it('opens the picker offering the automatic option and each uploaded image, and selecting an image persists it immediately', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '변경')?.props.onPress();
+      });
+
+      expect(renderer.root.findByProps({ children: '대표 이미지 선택' })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: '자동 대표 이미지' })).toBeTruthy();
+
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '업로드한 사진')?.props.onPress();
+      });
+
+      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
+      // The picker closes on success.
+      expect(renderer.root.findAllByProps({ children: '대표 이미지 선택' })).toHaveLength(0);
+    });
+
+    it('selecting 자동 대표 이미지 clears an existing explicit cover choice', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({
+          previewImageUrl: 'https://cdn.example.com/preview.jpg',
+          coverImage: { id: 7, readUrl: 'https://blob.example/7.jpg' },
+        }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '변경')?.props.onPress();
+      });
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '자동 대표 이미지')?.props.onPress();
+      });
+
+      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, null);
+    });
+
+    it('a failed cover selection keeps the picker open and shows an error, without changing the displayed cover', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      jest.mocked(setItemCoverImage).mockRejectedValue(new Error('network error'));
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '변경')?.props.onPress();
+      });
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '업로드한 사진')?.props.onPress();
+      });
+
+      expect(renderer.root.findByProps({ children: '대표 이미지를 변경할 수 없습니다.' })).toBeTruthy();
+      // Still open - the picker only closes on success.
+      expect(renderer.root.findByProps({ children: '대표 이미지 선택' })).toBeTruthy();
+    });
+
+    it('deleting the currently-selected cover image falls back to the automatic preview image', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({
+          previewImageUrl: 'https://cdn.example.com/preview.jpg',
+          coverImage: { id: 7, readUrl: 'https://blob.example/7.jpg' },
+        }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      jest.mocked(deleteItemImage).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      // Cover currently shows the user-uploaded image, not the preview.
+      expect(
+        renderer.root
+          .findAllByType(require('react-native').Image)
+          .some(node => node.props.source?.uri === 'https://blob.example/7.jpg'),
+      ).toBe(true);
+
+      await act(async () => {
+        findPressableByAccessibilityLabel(renderer, '사진 삭제')?.props.onPress();
+      });
+      await act(async () => {
+        const confirmButtons = renderer.root.findAll(
+          node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
+        );
+        confirmButtons[confirmButtons.length - 1]?.props.onPress();
+      });
+
+      expect(deleteItemImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
+      // Falls back to the automatic preview image immediately, no reload needed.
+      expect(
+        renderer.root
+          .findAllByType(require('react-native').Image)
+          .some(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg'),
+      ).toBe(true);
     });
   });
 
@@ -585,6 +760,78 @@ describe('ItemDetailsScreen', () => {
 
       expect(deleteItem).toHaveBeenCalledWith(expect.anything(), 1);
       expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalled();
+    });
+
+    it('deleting a dirty item never shows the unsaved-changes warning and navigates back exactly once', async () => {
+      jest.mocked(deleteItem).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      const titleInput = renderer.root.findAllByType(TextInput)[0];
+      await act(async () => {
+        titleInput.props.onChangeText('Changed title');
+      });
+      expect(latestPreventRemoveIsDirty()).toBe(true);
+
+      await act(async () => {
+        findPressableByText(renderer, '삭제')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, '삭제')?.props.onPress();
+      });
+
+      expect(deleteItem).toHaveBeenCalledWith(expect.anything(), 1);
+      // The guard must be disabled post-delete even though the title edit was never saved/reverted.
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+      expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('Save is disabled and does nothing once delete has succeeded', async () => {
+      jest.mocked(deleteItem).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      const titleInput = renderer.root.findAllByType(TextInput)[0];
+      await act(async () => {
+        titleInput.props.onChangeText('Changed title');
+      });
+      expect(isSaveDisabled(renderer)).toBe(false);
+
+      await act(async () => {
+        findPressableByText(renderer, '삭제')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, '삭제')?.props.onPress();
+      });
+
+      expect(isSaveDisabled(renderer)).toBe(true);
+
+      await act(async () => {
+        findPressableByText(renderer, '저장')?.props.onPress();
+      });
+      expect(updateItemDetails).not.toHaveBeenCalled();
+    });
+
+    it('a failed delete preserves dirty edits, shows the error, and never navigates back', async () => {
+      jest.mocked(deleteItem).mockRejectedValue(new Error('server error'));
+      const renderer = await renderScreen();
+
+      const titleInput = renderer.root.findAllByType(TextInput)[0];
+      await act(async () => {
+        titleInput.props.onChangeText('Changed title');
+      });
+
+      await act(async () => {
+        findPressableByText(renderer, '삭제')?.props.onPress();
+      });
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, '삭제')?.props.onPress();
+      });
+
+      expect((navigation as unknown as { goBack: jest.Mock }).goBack).not.toHaveBeenCalled();
+      expect(renderer.root.findByProps({ children: '항목을 삭제할 수 없습니다.' })).toBeTruthy();
+      // Dirty state (the unsaved title edit) survives the failed delete - the user can still edit/Save/retry.
+      expect(latestPreventRemoveIsDirty()).toBe(true);
+      expect(isSaveDisabled(renderer)).toBe(false);
+      expect(titleInput.props.value).toBe('Changed title');
     });
   });
 

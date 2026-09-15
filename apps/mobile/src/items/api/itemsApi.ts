@@ -7,6 +7,20 @@ export interface ItemDetails {
   readonly title: string | null;
   readonly memo: string | null;
   readonly savedAtUtc: string;
+  /**
+   * Best-effort link-preview image auto-extracted from URL metadata (see resolveUrlMetadata) -
+   * completely separate from user-uploaded ItemImages (getItemImages/uploadItemImage): at most
+   * one, never counted against the user's image limit, never itself uploaded.
+   */
+  readonly previewImageUrl: string | null;
+  /**
+   * The user's explicit choice of which of their own uploaded ItemImages represents this Item -
+   * completely separate from previewImageUrl above (auto metadata) and representativeImage
+   * (always the first-uploaded image, regardless of this choice). See
+   * resolveEffectiveThumbnailUrl for the priority order client code should use to pick a single
+   * thumbnail: coverImage, then previewImageUrl, then representativeImage.
+   */
+  readonly coverImage: RepresentativeImage | null;
 }
 
 /** A History row - the Item as it was originally saved. */
@@ -17,6 +31,8 @@ export interface ItemHistoryEntry {
   readonly memo: string | null;
   readonly savedAtUtc: string;
   readonly representativeImage: RepresentativeImage | null;
+  readonly previewImageUrl: string | null;
+  readonly coverImage: RepresentativeImage | null;
 }
 
 export interface ItemHistoryPage {
@@ -143,5 +159,40 @@ export async function updateItemDetails(
     method: 'PUT',
     path: `/api/v1/items/${itemId}/details`,
     body: details,
+  });
+}
+
+/**
+ * PUTs the Item's auto-extracted preview image URL; resolves on 204. Always best-effort
+ * enrichment - see enrichItemTitleFromUrlMetadata - never called with null/empty (there is no
+ * "clear preview image" UI this round); never affects user-uploaded ItemImages.
+ */
+export async function setItemPreviewImage(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  previewImageUrl: string,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/items/${itemId}/preview-image`,
+    body: { previewImageUrl },
+  });
+}
+
+/**
+ * PUTs the Item's explicit cover image choice; resolves on 204. Pass imageId to set it (must be
+ * one of this same Item's own uploaded ItemImages), or null to clear it back to the automatic
+ * fallback (previewImageUrl, then the first-uploaded image). Immediate persistence, independent
+ * of ItemDetailsScreen's title/memo Save - see that screen's own image semantics.
+ */
+export async function setItemCoverImage(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  imageId: number | null,
+): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/items/${itemId}/cover-image`,
+    body: { imageId },
   });
 }

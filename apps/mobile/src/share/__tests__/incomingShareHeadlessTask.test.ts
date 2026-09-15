@@ -22,6 +22,7 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 
 jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
+  setItemPreviewImage: jest.fn(),
 }));
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
@@ -59,7 +60,7 @@ describe('incomingShareHeadlessTask', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
     jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
   });
 
@@ -80,7 +81,7 @@ describe('incomingShareHeadlessTask', () => {
     const pendingShare = makePendingShare();
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
     jest.mocked(saveInboxEntry).mockResolvedValue({ id: 101, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph' });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
     jest.mocked(updateItemDetails).mockResolvedValue(undefined);
 
     await task({ pendingShareId: pendingShare.id });

@@ -12,7 +12,7 @@ public sealed class ResolveUrlMetadataServiceTests
         public Task<UrlMetadataResult> ResolveAsync(string url, CancellationToken cancellationToken = default)
         {
             LastUrl = url;
-            return Task.FromResult(new UrlMetadataResult("Resolved Title", UrlMetadataSource.OpenGraph));
+            return Task.FromResult(new UrlMetadataResult("Resolved Title", UrlMetadataSource.OpenGraph, null));
         }
     }
 

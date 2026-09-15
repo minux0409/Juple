@@ -575,9 +575,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                     </Pressable>
                   </View>
                 </View>
-                <Text style={styles.itemCount}>
-                  {t('collections.itemCount', { count: collection.itemCount })}
-                </Text>
               </View>
             )}
             {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
@@ -710,7 +707,7 @@ interface CollectionItemContentProps {
 function CollectionItemContent({ item }: CollectionItemContentProps) {
   return (
     <View style={styles.rowContent}>
-      <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
+      <ItemRepresentativeThumbnail imageUrl={item.representativeImage?.readUrl ?? null} />
       <View style={styles.rowTextColumn}>
         {/* item.title is the user's own text (any language/direction) when present; the fallback
             to item.url below is a technical identifier and needs LTR isolation the same way
@@ -810,11 +807,6 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 14,
     fontWeight: '600',
-  },
-  itemCount: {
-    color: '#666666',
-    fontSize: 14,
-    marginTop: spacing.xs,
   },
   shareSection: {
     marginTop: spacing.md,

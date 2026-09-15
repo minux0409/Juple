@@ -8,4 +8,6 @@ public sealed record ItemDetailsDto(
     string? Title,
     string? Memo,
     DateTimeOffset SavedAtUtc,
-    RepresentativeImageDto? RepresentativeImage);
+    RepresentativeImageDto? RepresentativeImage,
+    string? PreviewImageUrl,
+    RepresentativeImageDto? CoverImage);

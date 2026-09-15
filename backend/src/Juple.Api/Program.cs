@@ -30,6 +30,8 @@ using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetRecentlyOpenedLinks;
 using Juple.Application.Items.RecordItemOpen;
+using Juple.Application.Items.SetItemCoverImage;
+using Juple.Application.Items.SetItemPreviewImage;
 using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Push.RegisterPushDevice;
 using Juple.Application.Push.UnregisterPushDevice;
@@ -85,6 +87,8 @@ builder.Services.AddScoped<IDeleteRecentlyOpenedLinkService, DeleteRecentlyOpene
 builder.Services.AddScoped<IDeleteAllRecentlyOpenedLinksService, DeleteAllRecentlyOpenedLinksService>();
 builder.Services.AddScoped<IDeleteItemService, DeleteItemService>();
 builder.Services.AddScoped<IUpdateItemDetailsService, UpdateItemDetailsService>();
+builder.Services.AddScoped<ISetItemPreviewImageService, SetItemPreviewImageService>();
+builder.Services.AddScoped<ISetItemCoverImageService, SetItemCoverImageService>();
 builder.Services.AddScoped<IGetItemDetailService, GetItemDetailService>();
 builder.Services.AddScoped<IListCollectionsService, ListCollectionsService>();
 builder.Services.AddScoped<ICreateCollectionService, CreateCollectionService>();

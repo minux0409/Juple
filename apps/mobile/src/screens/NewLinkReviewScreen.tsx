@@ -14,7 +14,7 @@ import {
   type Collection,
 } from '../collections/api/collectionsApi';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
-import { updateItemDetails } from '../items/api/itemsApi';
+import { setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
@@ -123,6 +123,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // the metadata auto-fill below - so a later-arriving metadata result can tell "the user started
   // typing" apart from "the field is still exactly what it started as".
   const hasUserEditedTitleRef = useRef(false);
+  // Captured from the same mount-time metadata fetch as the title below, applied only after Save
+  // actually creates the Item (there is no Item yet while this screen is open) - see save(). Never
+  // blocks Save itself; a still-pending/failed resolve just means no preview image is applied.
+  const resolvedPreviewImageUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -159,7 +163,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     setIsResolvingMetadataTitle(true);
     resolveUrlMetadata(authenticatedRequest, route.params.url)
       .then(metadata => {
-        if (!isMounted || hasUserEditedTitleRef.current || !metadata.title) {
+        if (!isMounted) {
+          return;
+        }
+        resolvedPreviewImageUrlRef.current = metadata.previewImageUrl;
+        if (hasUserEditedTitleRef.current || !metadata.title) {
           return;
         }
         const resolvedTitle = metadata.title;
@@ -235,6 +243,14 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
       if (selectedCollectionId !== null) {
         await addItemToCollection(authenticatedRequest, selectedCollectionId, savedEntry.id);
+      }
+
+      // Best-effort, from the same mount-time metadata fetch the title above already used - never
+      // blocks/fails Save itself (see resolvedPreviewImageUrlRef's own remarks).
+      if (resolvedPreviewImageUrlRef.current) {
+        setItemPreviewImage(authenticatedRequest, savedEntry.id, resolvedPreviewImageUrlRef.current).catch(
+          () => undefined,
+        );
       }
 
       navigation.goBack();

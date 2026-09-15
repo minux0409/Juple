@@ -2,6 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import i18n from '../i18n';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
+import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
 import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 
@@ -29,6 +30,14 @@ interface SavedLinkRowProps {
    * multiple days (이번 주 / a month bucket - see historyDateGrouping.ts's showItemDate).
    */
   readonly dateDisplayMode?: 'time' | 'dateTime';
+  /**
+   * When true, the thumbnail uses the full cover/preview/first-image priority (see
+   * resolveEffectiveThumbnailUrl) instead of only the first-uploaded image. Opt-in and defaults to
+   * false so History (DateHistoryScreen) keeps its existing thumbnail behavior unchanged - only
+   * Home (DailyInboxScreen) passes true. This is intentionally a minimal presentation flag rather
+   * than a History redesign.
+   */
+  readonly preferEffectiveThumbnail?: boolean;
 }
 
 /**
@@ -40,13 +49,21 @@ interface SavedLinkRowProps {
  * title) -> the actual URL -> memo, when present -> saved time. The raw URL deliberately never
  * becomes the biggest/darkest text on the row - see savedLinkPrimaryText.ts for the fallback rule.
  */
-export function SavedLinkRow({ item, isActionInFlight, dateDisplayMode = 'time' }: SavedLinkRowProps) {
+export function SavedLinkRow({
+  item,
+  isActionInFlight,
+  dateDisplayMode = 'time',
+  preferEffectiveThumbnail = false,
+}: SavedLinkRowProps) {
   const primaryText = resolveSavedLinkPrimaryText(item.title, item.url);
+  const thumbnailUrl = preferEffectiveThumbnail
+    ? resolveEffectiveThumbnailUrl(item)
+    : item.representativeImage?.readUrl ?? null;
 
   return (
     <View style={styles.row}>
       <View style={styles.thumbnailWrapper}>
-        <ItemRepresentativeThumbnail representativeImage={item.representativeImage} />
+        <ItemRepresentativeThumbnail imageUrl={thumbnailUrl} />
         {isActionInFlight ? (
           <View style={styles.thumbnailOverlay}>
             <ActivityIndicator color={colors.surface} size="small" />

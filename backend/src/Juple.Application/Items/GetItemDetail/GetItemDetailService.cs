@@ -11,21 +11,30 @@ public sealed class GetItemDetailService(
         long itemId,
         CancellationToken cancellationToken = default)
     {
-        var (details, reference) = await itemDetailQueryStore.GetDetailsAsync(userId, itemId, cancellationToken);
+        var (details, reference, coverReference) =
+            await itemDetailQueryStore.GetDetailsAsync(userId, itemId, cancellationToken);
         if (details is null)
         {
             throw new ItemNotFoundException();
         }
 
-        RepresentativeImageDto? representativeImage = null;
-        if (reference is not null)
+        var representativeImage = await ResolveAsync(userId, reference, cancellationToken);
+        var coverImage = await ResolveAsync(userId, coverReference, cancellationToken);
+
+        return details with { RepresentativeImage = representativeImage, CoverImage = coverImage };
+    }
+
+    private async Task<RepresentativeImageDto?> ResolveAsync(
+        long userId, ItemRepresentativeImageRef? reference, CancellationToken cancellationToken)
+    {
+        if (reference is null)
         {
-            // A failed/missing read URL degrades to no representative image rather than failing
-            // the whole detail request.
-            var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
-            representativeImage = readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
+            return null;
         }
 
-        return details with { RepresentativeImage = representativeImage };
+        // A failed/missing read URL degrades to no image rather than failing the whole detail
+        // request.
+        var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
+        return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
     }
 }

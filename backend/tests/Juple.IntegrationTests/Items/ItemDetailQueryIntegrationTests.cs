@@ -48,7 +48,7 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
             _userId, "https://shop.example/detail-a", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (details, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
+        var (details, _, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
 
         Assert.NotNull(details);
         Assert.Null(details.Title);
@@ -66,7 +66,7 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
         await store.UpdateDetailsAsync(_userId, saved.Entry.Id, "My Title", "My memo");
         _dbContext.ChangeTracker.Clear();
 
-        var (details, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
+        var (details, _, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
 
         Assert.NotNull(details);
         Assert.Equal("My Title", details.Title);
@@ -78,7 +78,7 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
     {
         var store = new ItemStore(_dbContext);
 
-        var (details, _) = await store.GetDetailsAsync(_userId, itemId: -1);
+        var (details, _, _) = await store.GetDetailsAsync(_userId, itemId: -1);
 
         Assert.Null(details);
     }
@@ -91,7 +91,7 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
             _otherUserId, "https://shop.example/detail-f", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (details, _) = await store.GetDetailsAsync(_userId, ownersItem.Entry.Id);
+        var (details, _, _) = await store.GetDetailsAsync(_userId, ownersItem.Entry.Id);
 
         Assert.Null(details);
     }

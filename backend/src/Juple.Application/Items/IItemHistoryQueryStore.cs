@@ -7,11 +7,12 @@ public interface IItemHistoryQueryStore
     /// <summary>
     /// All Items owned by userId, ordered by SavedAtUtc DESC, Id DESC - the original save moment.
     /// Deleted Items are hard-deleted (see ItemStore.DeleteAsync), so no extra exclusion filter is
-    /// needed here. Each returned ItemHistoryEntryDto.RepresentativeImage is always null here -
-    /// representative images are keyed by Item Id in the second tuple element (raw BlobName refs,
-    /// not yet resolved to a read URL) for the caller to resolve via IItemImageStorage.
+    /// needed here. Each returned ItemHistoryEntryDto.RepresentativeImage/CoverImage is always null
+    /// here - both are keyed by Item Id in the second/third tuple elements (raw BlobName refs, not
+    /// yet resolved to a read URL) for the caller to resolve via IItemImageStorage. PreviewImageUrl
+    /// (an external URL, not a Blob) is already fully populated on each ItemHistoryEntryDto.
     /// </summary>
-    Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetHistoryAsync(
+    Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetHistoryAsync(
         long userId,
         ItemHistoryPageCursor? cursor,
         int limit,
@@ -23,7 +24,7 @@ public interface IItemHistoryQueryStore
     /// exact same keyset cursor/ordering as GetHistoryAsync (SavedAtUtc DESC, Id DESC) - a day's
     /// worth of Items is unbounded, so this must never return the whole date range in one response.
     /// </summary>
-    Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByDateRangeAsync(
+    Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,

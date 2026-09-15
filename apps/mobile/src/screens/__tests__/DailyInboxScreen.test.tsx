@@ -36,6 +36,7 @@ jest.mock('../../items/api/itemsApi', () => ({
   getItemHistoryByDate: jest.fn(),
   deleteItem: jest.fn(),
   updateItemDetails: jest.fn(),
+  setItemPreviewImage: jest.fn(),
 }));
 
 jest.mock('../../items/shareItem', () => ({
@@ -61,6 +62,8 @@ function makeItem(overrides: Partial<ItemHistoryEntry>): ItemHistoryEntry {
     memo: null,
     savedAtUtc: new Date().toISOString(),
     representativeImage: null,
+    previewImageUrl: null,
+    coverImage: null,
     ...overrides,
   };
 }
@@ -193,7 +196,7 @@ function pressHomeSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
 describe('DailyInboxScreen direct URL save', () => {
   beforeEach(() => {
     setUpItems([]);
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
   });
 
   afterEach(() => {
@@ -228,7 +231,7 @@ describe('DailyInboxScreen direct URL save', () => {
       url: 'https://example.com',
       savedAtUtc: '2026-01-01T00:00:00Z',
     });
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph' });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
     jest.mocked(updateItemDetails).mockResolvedValue(undefined);
     const renderer = await renderScreen();
 
@@ -271,5 +274,36 @@ describe('DailyInboxScreen direct URL save', () => {
     expect(saveInboxEntry).toHaveBeenCalled();
     expect(updateItemDetails).not.toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe('DailyInboxScreen header', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('no longer shows the old "오늘 저장한 링크" heading or a date line', async () => {
+    setUpItems([makeItem({ id: 1 })]);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByProps({ children: '오늘 저장한 링크' })).toHaveLength(0);
+    expect(
+      renderer.root.findAll(node => typeof node.props.children === 'string' && node.props.children.includes('2026-')),
+    ).toHaveLength(0);
+  });
+
+  it('shows "최근 저장" with the current today-count next to it, including zero', async () => {
+    setUpItems([]);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ children: '최근 저장' })).toBeTruthy();
+    expect(renderer.root.findByProps({ children: '0개' })).toBeTruthy();
+  });
+
+  it('the recent-saved count reflects the loaded item count', async () => {
+    setUpItems([makeItem({ id: 1 }), makeItem({ id: 2 }), makeItem({ id: 3 })]);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ children: '3개' })).toBeTruthy();
   });
 });

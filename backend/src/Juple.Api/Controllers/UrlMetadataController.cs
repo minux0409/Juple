@@ -28,7 +28,7 @@ public sealed class UrlMetadataController : ControllerBase
             var result = await resolveUrlMetadataService.ResolveAsync(
                 new ResolveUrlMetadataCommand(request.Url), cancellationToken);
 
-            return Ok(new ResolveUrlMetadataResponse(result.Title, result.Source?.ToString()));
+            return Ok(new ResolveUrlMetadataResponse(result.Title, result.Source?.ToString(), result.PreviewImageUrl));
         }
         catch (InvalidUrlMetadataRequestException exception)
         {
@@ -41,5 +41,5 @@ public sealed class UrlMetadataController : ControllerBase
 
     public sealed record ResolveUrlMetadataRequest(string? Url);
 
-    public sealed record ResolveUrlMetadataResponse(string? Title, string? Source);
+    public sealed record ResolveUrlMetadataResponse(string? Title, string? Source, string? PreviewImageUrl);
 }

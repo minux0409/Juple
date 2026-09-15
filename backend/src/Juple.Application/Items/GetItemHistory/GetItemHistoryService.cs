@@ -12,7 +12,7 @@ public sealed class GetItemHistoryService(
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var (page, representativeImages) = await itemHistoryQueryStore.GetHistoryAsync(
+        var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetHistoryAsync(
             userId, cursor, limit, cancellationToken);
 
         var enrichedItems = new List<ItemHistoryEntryDto>(page.Items.Count);
@@ -21,7 +21,10 @@ public sealed class GetItemHistoryService(
             var representativeImage = representativeImages.TryGetValue(item.Id, out var reference)
                 ? await ResolveRepresentativeImageAsync(userId, reference, cancellationToken)
                 : null;
-            enrichedItems.Add(item with { RepresentativeImage = representativeImage });
+            var coverImage = coverImages.TryGetValue(item.Id, out var coverReference)
+                ? await ResolveRepresentativeImageAsync(userId, coverReference, cancellationToken)
+                : null;
+            enrichedItems.Add(item with { RepresentativeImage = representativeImage, CoverImage = coverImage });
         }
 
         return new ItemHistoryPage(enrichedItems, page.NextCursor);
@@ -30,8 +33,8 @@ public sealed class GetItemHistoryService(
     private async Task<RepresentativeImageDto?> ResolveRepresentativeImageAsync(
         long userId, ItemRepresentativeImageRef reference, CancellationToken cancellationToken)
     {
-        // A failed/missing read URL drops the representative image for this one Item rather than
-        // failing the whole page.
+        // A failed/missing read URL drops the image for this one Item rather than failing the
+        // whole page.
         var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
         return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
     }

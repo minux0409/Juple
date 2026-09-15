@@ -54,7 +54,7 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
         await store.DeleteAsync(_userId, saved.Entry.Id);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         Assert.DoesNotContain(page.Items, item => item.Id == saved.Entry.Id);
         Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));

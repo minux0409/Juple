@@ -11,8 +11,8 @@ public sealed class GetItemHistoryByDateServiceTests
     {
         var expectedItems = new List<ItemHistoryEntryDto>
         {
-            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero), null),
-            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero), null),
+            new(12, "https://example.test/newer", "Newer title", null, new DateTimeOffset(2026, 8, 29, 16, 0, 0, TimeSpan.Zero), null, null, null),
+            new(11, "https://example.test/older", null, "Older memo", new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero), null, null, null),
         };
         var store = new FakeItemHistoryQueryStore { DateRangeItems = expectedItems };
         var service = new GetItemHistoryByDateService(store, new FakeItemImageStorage());
@@ -69,7 +69,7 @@ public sealed class GetItemHistoryByDateServiceTests
         var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
         var items = new List<ItemHistoryEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeItemHistoryQueryStore
@@ -91,7 +91,7 @@ public sealed class GetItemHistoryByDateServiceTests
     {
         var items = new List<ItemHistoryEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null, null),
         };
         var store = new FakeItemHistoryQueryStore { DateRangeItems = items };
         var imageStorage = new FakeItemImageStorage();
@@ -108,7 +108,7 @@ public sealed class GetItemHistoryByDateServiceTests
     {
         var items = new List<ItemHistoryEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeItemHistoryQueryStore
@@ -122,6 +122,39 @@ public sealed class GetItemHistoryByDateServiceTests
         var result = await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30), cursor: null, limit: 50);
 
         Assert.Null(result.Items[0].RepresentativeImage);
+    }
+
+    [Fact]
+    public async Task GetAsync_WhenItemHasCoverImage_ResolvesReadUrlIndependentlyOfRepresentativeImage()
+    {
+        var repUrl = new Uri("https://storage.example/items/17/41/first.jpg?sas=1");
+        var coverUrl = new Uri("https://storage.example/items/17/41/chosen.jpg?sas=1");
+        var items = new List<ItemHistoryEntryDto>
+        {
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, null, null, null),
+        };
+        var store = new FakeItemHistoryQueryStore
+        {
+            DateRangeItems = items,
+            RepresentativeImages = new Dictionary<long, ItemRepresentativeImageRef>
+            {
+                [41] = new ItemRepresentativeImageRef(9, "items/17/41/first.jpg"),
+            },
+            CoverImages = new Dictionary<long, ItemRepresentativeImageRef>
+            {
+                [41] = new ItemRepresentativeImageRef(12, "items/17/41/chosen.jpg"),
+            },
+        };
+        var imageStorage = new FakeItemImageStorage
+        {
+            ReadUrlsByBlobName = { ["items/17/41/first.jpg"] = repUrl, ["items/17/41/chosen.jpg"] = coverUrl },
+        };
+        var service = new GetItemHistoryByDateService(store, imageStorage);
+
+        var result = await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30), cursor: null, limit: 50);
+
+        Assert.Equal(new RepresentativeImageDto(9, repUrl), result.Items[0].RepresentativeImage);
+        Assert.Equal(new RepresentativeImageDto(12, coverUrl), result.Items[0].CoverImage);
     }
 
     private sealed class FakeItemHistoryQueryStore : IItemHistoryQueryStore
@@ -143,14 +176,17 @@ public sealed class GetItemHistoryByDateServiceTests
         public IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages { get; init; } =
             new Dictionary<long, ItemRepresentativeImageRef>();
 
-        public Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetHistoryAsync(
+        public IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages { get; init; } =
+            new Dictionary<long, ItemRepresentativeImageRef>();
+
+        public Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetHistoryAsync(
             long userId,
             ItemHistoryPageCursor? cursor,
             int limit,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetItemHistoryByDateService tests.");
 
-        public Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByDateRangeAsync(
+        public Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(
             long userId,
             DateTimeOffset fromUtc,
             DateTimeOffset toUtc,
@@ -163,13 +199,17 @@ public sealed class GetItemHistoryByDateServiceTests
             DateRangeToUtc = toUtc;
             DateRangeCursor = cursor;
             DateRangeLimit = limit;
-            return Task.FromResult((new ItemHistoryPage(DateRangeItems, NextCursor), RepresentativeImages));
+            return Task.FromResult((new ItemHistoryPage(DateRangeItems, NextCursor), RepresentativeImages, CoverImages));
         }
     }
 
     private sealed class FakeItemImageStorage : IItemImageStorage
     {
         public Uri? ReadUrl { get; init; }
+
+        /// <summary>When set, takes priority over the single ReadUrl - lets a test give different
+        /// blobs different resolved URLs (see the cover-vs-representative independence test).</summary>
+        public Dictionary<string, Uri> ReadUrlsByBlobName { get; } = new();
 
         public (long UserId, string BlobName)? LastCreateReadUrlCall { get; private set; }
 
@@ -184,7 +224,8 @@ public sealed class GetItemHistoryByDateServiceTests
         public Task<Uri?> CreateReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default)
         {
             LastCreateReadUrlCall = (userId, blobName);
-            return Task.FromResult(ReadUrl);
+            var resolved = ReadUrlsByBlobName.TryGetValue(blobName, out var mapped) ? mapped : ReadUrl;
+            return Task.FromResult(resolved);
         }
     }
 }

@@ -41,6 +41,7 @@ import {
 import {
   deleteItem,
   getItemDetails,
+  setItemCoverImage,
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
@@ -148,6 +149,18 @@ function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
   return t('item.errorImageDeleteFallback');
 }
 
+function getCoverImageErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError) {
+    if (error.kind === 'unauthorized') {
+      return t('errors.unauthorized');
+    }
+    if (error.kind === 'badRequest') {
+      return t('item.errorCoverImageInvalid');
+    }
+  }
+  return t('item.errorCoverImageFallback');
+}
+
 function getItemDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
@@ -161,6 +174,35 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
     return t('item.errorImagePickerPermission');
   }
   return t('item.errorImagePickerFallback');
+}
+
+interface PreviewImageThumbnailProps {
+  readonly url: string;
+}
+
+/**
+ * Compact, read-only rendering of the "대표 이미지" section's effective image (see
+ * effectiveCoverImageUrl - the user's explicit coverImage, or else the auto-extracted
+ * previewImageUrl) inside the "사진" section - deliberately reuses imageThumbnail's own
+ * size/shape. Never has its own delete/edit affordance directly on the thumbnail - changing it
+ * always goes through the "변경"/"설정" button and its picker Modal, never a swipe/long-press here.
+ * A failed remote load just hides the thumbnail entirely (no broken-image placeholder, no crash) -
+ * the same fail-safe policy as ItemRepresentativeThumbnail elsewhere in the app.
+ */
+function PreviewImageThumbnail({ url }: PreviewImageThumbnailProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  if (url === failedUrl) {
+    return null;
+  }
+
+  return (
+    <Image
+      onError={() => setFailedUrl(url)}
+      source={{ uri: url }}
+      style={[styles.imageThumbnail, styles.previewImageThumbnail]}
+    />
+  );
 }
 
 export function ItemDetailsScreen({ route, navigation }: Props) {
@@ -189,7 +231,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [deletingImageIds, setDeletingImageIds] = useState<ReadonlySet<number>>(new Set());
   const [imagesError, setImagesError] = useState<string | null>(null);
 
+  // The user's explicit cover-image choice (see item.coverImage/setItemCoverImage) is also an
+  // immediate server mutation, exactly like the images above - never bundled into title/memo/
+  // categories' staged Save.
+  const [isCoverPickerVisible, setIsCoverPickerVisible] = useState(false);
+  const [isSavingCoverImage, setIsSavingCoverImage] = useState(false);
+  const [coverImageError, setCoverImageError] = useState<string | null>(null);
+
   const isUploadingImageRef = useRef(false);
+  const isSavingCoverImageRef = useRef(false);
   const deletingImageIdsRef = useRef<Set<number>>(new Set());
 
   // The Item's currently-staged Collection membership (selectedCategories) vs. the last known
@@ -224,6 +274,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isDeletingItem, setIsDeletingItem] = useState(false);
   const [itemActionError, setItemActionError] = useState<string | null>(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  // Flips true only once the Delete API call has actually succeeded - never before (see
+  // deleteItemAction: dirty state itself is never cleared/reset by Delete). Gates both the
+  // unsaved-changes guard below and Save, and drives the goBack() effect further down - see that
+  // effect's own remarks for why the navigation call itself must live there and not inline in
+  // deleteItemAction.
+  const [isDeleted, setIsDeleted] = useState(false);
   const [pendingDeleteImageId, setPendingDeleteImageId] = useState<number | null>(null);
   const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
   // Stashes a closure over usePreventRemove's imperative `data.action`, rather than the action
@@ -248,6 +304,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }, [isCategoriesDirty]);
 
   const selectedCategoryIds = new Set(selectedCategories.map(option => option.id));
+
+  // Deliberately does NOT fall back to the first-uploaded image the way Home's
+  // resolveEffectiveThumbnailUrl does - an incidental "first image in the list" is not the same
+  // thing as a deliberate cover choice, and showing it here would misrepresent it as one. See
+  // Item.CoverImageId's own remarks on the backend for the full priority rationale.
+  const effectiveCoverImageUrl = item?.coverImage?.readUrl ?? item?.previewImageUrl ?? null;
 
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
@@ -338,7 +400,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }, [loadItemCollections]),
   );
 
-  const pickAndUploadImage = async () => {
+  const pickAndUploadImage = async (options?: { readonly alsoSetAsCover?: boolean }) => {
     if (isUploadingImageRef.current || images.length >= MAX_ITEM_IMAGES) {
       return;
     }
@@ -380,6 +442,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       // A fresh upload always receives SortOrder = current max + 1 (server-assigned), so
       // appending preserves the SortOrder ASC, Id ASC order without needing to re-sort.
       setImages(previous => [...previous, uploaded]);
+      // Started from the cover picker's "새 이미지 추가" option - the newly uploaded image becomes
+      // the cover automatically, exactly as if the user had picked it from the existing-images list.
+      if (options?.alsoSetAsCover) {
+        await applyCoverSelection(uploaded.id, uploaded.readUrl);
+      }
     } catch (caughtError) {
       // Failure never leaves the UI looking like the upload succeeded - the photo simply never
       // appears, alongside a clear error below the list.
@@ -402,6 +469,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     try {
       await deleteItemImage(authenticatedRequest, itemId, imageId);
       setImages(previous => previous.filter(image => image.id !== imageId));
+      // Mirrors the server (see ItemImageStore.DeleteAsync): deleting the currently-selected cover
+      // image clears it immediately, falling back to the automatic preview image, rather than
+      // leaving a stale reference until the next full reload.
+      setItem(previous =>
+        previous && previous.coverImage?.id === imageId ? { ...previous, coverImage: null } : previous,
+      );
     } catch (caughtError) {
       // Failure leaves the existing UI (the image stays in the list) unchanged - never removed
       // client-side unless the server actually confirmed the delete.
@@ -410,6 +483,68 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       deletingImageIdsRef.current.delete(imageId);
       setDeletingImageIds(new Set(deletingImageIdsRef.current));
     }
+  };
+
+  /**
+   * Persists the user's cover-image choice (imageId null = "no explicit choice", falling back to
+   * the automatic preview image). Returns whether it succeeded, so callers (selectCoverImage,
+   * pickAndUploadImage's alsoSetAsCover path) can decide whether to close the picker - a failure
+   * leaves the picker open with coverImageError shown, exactly like the other image mutations
+   * above leave their own UI unchanged on failure.
+   */
+  const applyCoverSelection = async (imageId: number | null, readUrl: string | null): Promise<boolean> => {
+    if (isSavingCoverImageRef.current) {
+      return false;
+    }
+
+    isSavingCoverImageRef.current = true;
+    setIsSavingCoverImage(true);
+    setCoverImageError(null);
+    try {
+      await setItemCoverImage(authenticatedRequest, itemId, imageId);
+      setItem(previous =>
+        previous
+          ? {
+              ...previous,
+              coverImage: imageId !== null && readUrl !== null ? { id: imageId, readUrl } : null,
+            }
+          : previous,
+      );
+      return true;
+    } catch (caughtError) {
+      setCoverImageError(getCoverImageErrorMessage(caughtError, t));
+      return false;
+    } finally {
+      isSavingCoverImageRef.current = false;
+      setIsSavingCoverImage(false);
+    }
+  };
+
+  /** image === null means "자동 대표 이미지" (clear the explicit choice, fall back to previewImageUrl). */
+  const selectCoverImage = async (image: ItemImage | null) => {
+    const currentCoverId = item?.coverImage?.id ?? null;
+    const targetId = image?.id ?? null;
+    if (currentCoverId === targetId) {
+      setIsCoverPickerVisible(false);
+      return;
+    }
+
+    const succeeded = await applyCoverSelection(targetId, image?.readUrl ?? null);
+    if (succeeded) {
+      setIsCoverPickerVisible(false);
+    }
+  };
+
+  const openCoverPicker = () => {
+    setCoverImageError(null);
+    setIsCoverPickerVisible(true);
+  };
+
+  const closeCoverPicker = () => {
+    if (isSavingCoverImageRef.current) {
+      return;
+    }
+    setIsCoverPickerVisible(false);
   };
 
   const confirmDeleteImage = (image: ItemImage) => {
@@ -531,7 +666,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setItemActionError(null);
     try {
       await deleteItem(authenticatedRequest, itemId);
-      navigation.goBack();
+      // Does NOT call navigation.goBack() directly here - see the isDeleted effect below for why
+      // the actual navigation must wait for this state update to actually commit first.
+      setIsDeleted(true);
     } catch (caughtError) {
       setItemActionError(getItemDeleteErrorMessage(caughtError, t));
     } finally {
@@ -548,10 +685,26 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsDeleteConfirmVisible(true);
   };
 
-  usePreventRemove(isDirty, ({ data }) => {
+  usePreventRemove(isDirty && !isDeleted, ({ data }) => {
     pendingLeaveRef.current = () => navigation.dispatch(data.action);
     setIsUnsavedChangesDialogVisible(true);
   });
+
+  /**
+   * Navigates back exactly once, only after a successful delete - deliberately not called inline
+   * inside deleteItemAction. usePreventRemove's guard reads isDirty && !isDeleted through both an
+   * insertion effect (into a shared cross-screen registry) and a layout-effect-updated ref (see
+   * usePreventRemove.tsx/use-latest-callback), both of which only pick up isDeleted's new value
+   * once this render actually commits. Calling navigation.goBack() synchronously right after
+   * setIsDeleted(true) would still race the guard's stale (isDirty-true) closure and re-trigger the
+   * unsaved-changes dialog - exactly the bug this fix exists for. Waiting for isDeleted here
+   * guarantees the guard has already been disabled by the time this actually navigates.
+   */
+  useEffect(() => {
+    if (isDeleted) {
+      navigation.goBack();
+    }
+  }, [isDeleted, navigation]);
 
   /**
    * Persists exactly the staged changes - title/memo (if changed) and the category
@@ -564,7 +717,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
    * "images" state's own comment above.
    */
   const save = async () => {
-    if (isSavingRef.current || !isDirty) {
+    if (isSavingRef.current || !isDirty || isDeleted) {
       return;
     }
 
@@ -792,7 +945,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
               busy: isUploadingImage,
             }}
             disabled={isUploadingImage || images.length >= MAX_ITEM_IMAGES}
-            onPress={pickAndUploadImage}
+            onPress={() => pickAndUploadImage()}
             style={[
               styles.iconButton,
               (isUploadingImage || images.length >= MAX_ITEM_IMAGES) && styles.disabledButton,
@@ -811,40 +964,75 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </Text>
         ) : null}
 
+        {/* "대표 이미지" is always shown (populated or an explicit "없음" state) - N/10 above counts
+            only the user's own uploaded images (the FlatList below), never this section, whether
+            populated by an explicit coverImage or the automatic previewImageUrl. */}
+        <Text style={[styles.label, styles.coverSectionLabel]}>{t('item.previewImageLabel')}</Text>
+        <View style={styles.coverSectionRow}>
+          {effectiveCoverImageUrl ? (
+            <PreviewImageThumbnail url={effectiveCoverImageUrl} />
+          ) : (
+            <View style={[styles.imageThumbnail, styles.coverEmptyThumbnail]}>
+              <Text style={styles.coverEmptyText}>{t('item.noCoverImage')}</Text>
+            </View>
+          )}
+          <Pressable
+            accessibilityLabel={effectiveCoverImageUrl ? t('item.changeCoverImage') : t('item.setCoverImage')}
+            accessibilityRole="button"
+            onPress={openCoverPicker}
+            style={styles.coverChangeButton}
+          >
+            <Text style={styles.coverChangeButtonLabel}>
+              {effectiveCoverImageUrl ? t('item.changeCoverImage') : t('item.setCoverImage')}
+            </Text>
+          </Pressable>
+        </View>
+        {/* Only shown here once the picker is closed - while it's open the same error already
+            renders inside the Modal (see below), and showing it twice at once would be confusing.
+            This still catches the one case where an error can occur after the Modal already
+            closed itself: "새 이미지 추가" closes the picker immediately, then uploads and applies
+            the cover in the background - see pickAndUploadImage's alsoSetAsCover option. */}
+        {!isCoverPickerVisible && coverImageError ? <Text style={styles.error}>{coverImageError}</Text> : null}
+
         {isLoadingImages ? (
           <ActivityIndicator style={styles.imagesLoading} />
-        ) : (
-          <FlatList
-            contentContainerStyle={styles.imageListContent}
-            data={images}
-            horizontal
-            keyExtractor={image => image.id.toString()}
-            renderItem={({ item: image }) => (
-              <View style={styles.imageThumbnailWrapper}>
-                {image.readUrl ? (
-                  <Image source={{ uri: image.readUrl }} style={styles.imageThumbnail} />
-                ) : (
-                  <View style={[styles.imageThumbnail, styles.imageThumbnailFallback]} />
-                )}
-                <Pressable
-                  accessibilityLabel={t('item.deletePhotoA11y')}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: deletingImageIds.has(image.id) }}
-                  disabled={deletingImageIds.has(image.id)}
-                  onPress={() => confirmDeleteImage(image)}
-                  style={styles.imageDeleteButton}
-                >
-                  {deletingImageIds.has(image.id) ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+        ) : images.length > 0 ? (
+          <>
+            <Text style={[styles.label, styles.additionalImagesSectionLabel]}>
+              {t('item.additionalImagesLabel')}
+            </Text>
+            <FlatList
+              contentContainerStyle={styles.imageListContent}
+              data={images}
+              horizontal
+              keyExtractor={image => image.id.toString()}
+              renderItem={({ item: image }) => (
+                <View style={styles.imageThumbnailWrapper}>
+                  {image.readUrl ? (
+                    <Image source={{ uri: image.readUrl }} style={styles.imageThumbnail} />
                   ) : (
-                    <Text style={styles.imageDeleteButtonLabel}>×</Text>
+                    <View style={[styles.imageThumbnail, styles.imageThumbnailFallback]} />
                   )}
-                </Pressable>
-              </View>
-            )}
-            showsHorizontalScrollIndicator={false}
-          />
-        )}
+                  <Pressable
+                    accessibilityLabel={t('item.deletePhotoA11y')}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: deletingImageIds.has(image.id) }}
+                    disabled={deletingImageIds.has(image.id)}
+                    onPress={() => confirmDeleteImage(image)}
+                    style={styles.imageDeleteButton}
+                  >
+                    {deletingImageIds.has(image.id) ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text style={styles.imageDeleteButtonLabel}>×</Text>
+                    )}
+                  </Pressable>
+                </View>
+              )}
+              showsHorizontalScrollIndicator={false}
+            />
+          </>
+        ) : null}
 
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
         {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
@@ -866,10 +1054,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: !isDirty || isSaving, busy: isSaving }}
-          disabled={!isDirty || isSaving}
+          accessibilityState={{ disabled: !isDirty || isSaving || isDeleted, busy: isSaving }}
+          disabled={!isDirty || isSaving || isDeleted}
           onPress={save}
-          style={[styles.saveActionButton, (!isDirty || isSaving) && styles.disabledButton]}
+          style={[styles.saveActionButton, (!isDirty || isSaving || isDeleted) && styles.disabledButton]}
         >
           <Text style={styles.saveActionLabel}>
             {isSaving ? t('common.saving') : t('common.save')}
@@ -918,6 +1106,120 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         title={t('item.deletePhotoConfirmTitle')}
         visible={pendingDeleteImageId !== null}
       />
+
+      <Modal
+        animationType="slide"
+        onRequestClose={closeCoverPicker}
+        transparent
+        visible={isCoverPickerVisible}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
+            <Text style={styles.modalTitle}>{t('item.coverPickerTitle')}</Text>
+
+            <FlatList
+              data={images}
+              keyExtractor={image => image.id.toString()}
+              ListHeaderComponent={
+                <Pressable
+                  accessibilityLabel={t('item.coverPickerAutoOption')}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !item?.coverImage }}
+                  disabled={isSavingCoverImage}
+                  onPress={() => selectCoverImage(null)}
+                  style={styles.coverOptionRow}
+                >
+                  {item?.previewImageUrl ? (
+                    <Image source={{ uri: item.previewImageUrl }} style={styles.coverOptionThumbnail} />
+                  ) : (
+                    <View style={[styles.coverOptionThumbnail, styles.imageThumbnailFallback]} />
+                  )}
+                  <Text numberOfLines={1} style={styles.coverOptionLabel}>
+                    {t('item.coverPickerAutoOption')}
+                  </Text>
+                  <View
+                    style={[
+                      styles.categoryOptionCheckCircle,
+                      !item?.coverImage && styles.categoryOptionCheckCircleSelected,
+                    ]}
+                  >
+                    {!item?.coverImage ? <Text style={styles.categoryOptionCheckMark}>✓</Text> : null}
+                  </View>
+                </Pressable>
+              }
+              renderItem={({ item: image }) => {
+                const isSelected = item?.coverImage?.id === image.id;
+                return (
+                  <Pressable
+                    accessibilityLabel={t('item.coverPickerUploadedOption')}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    disabled={isSavingCoverImage}
+                    onPress={() => selectCoverImage(image)}
+                    style={styles.coverOptionRow}
+                  >
+                    {image.readUrl ? (
+                      <Image source={{ uri: image.readUrl }} style={styles.coverOptionThumbnail} />
+                    ) : (
+                      <View style={[styles.coverOptionThumbnail, styles.imageThumbnailFallback]} />
+                    )}
+                    <Text numberOfLines={1} style={styles.coverOptionLabel}>
+                      {t('item.coverPickerUploadedOption')}
+                    </Text>
+                    <View
+                      style={[
+                        styles.categoryOptionCheckCircle,
+                        isSelected && styles.categoryOptionCheckCircleSelected,
+                      ]}
+                    >
+                      {isSelected ? <Text style={styles.categoryOptionCheckMark}>✓</Text> : null}
+                    </View>
+                  </Pressable>
+                );
+              }}
+              ListFooterComponent={
+                <Pressable
+                  accessibilityLabel={t('item.coverPickerAddNewOption')}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    disabled: isUploadingImage || isSavingCoverImage || images.length >= MAX_ITEM_IMAGES,
+                    busy: isUploadingImage,
+                  }}
+                  disabled={isUploadingImage || isSavingCoverImage || images.length >= MAX_ITEM_IMAGES}
+                  onPress={() => {
+                    setIsCoverPickerVisible(false);
+                    pickAndUploadImage({ alsoSetAsCover: true });
+                  }}
+                  style={[
+                    styles.coverOptionRow,
+                    (isUploadingImage || isSavingCoverImage || images.length >= MAX_ITEM_IMAGES) &&
+                      styles.disabledButton,
+                  ]}
+                >
+                  <View style={[styles.coverOptionThumbnail, styles.coverAddNewThumbnail]}>
+                    <PlusIcon color={colors.textPrimary} size={20} />
+                  </View>
+                  <Text numberOfLines={1} style={styles.coverOptionLabel}>
+                    {t('item.coverPickerAddNewOption')}
+                  </Text>
+                </Pressable>
+              }
+              style={styles.coverOptionList}
+            />
+
+            {coverImageError ? <Text style={styles.error}>{coverImageError}</Text> : null}
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSavingCoverImage}
+              onPress={closeCoverPicker}
+              style={styles.modalCloseButton}
+            >
+              <Text style={styles.modalCloseLabel}>{t('common.close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <ConfirmDialog
         cancelLabel={t('item.continueEditing')}
@@ -1156,8 +1458,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 4,
   },
+  // "대표 이미지" and "추가 이미지" are two separate vertical sections (not the old single row split
+  // by a "|" divider, which read as visually awkward) - each gets its own small label reusing the
+  // same style as the field labels above (제목/메모 등), just without their marginTop since these
+  // sections directly follow the photos header/limit text instead of another input field.
+  coverSectionLabel: {
+    marginTop: spacing.sm,
+  },
+  coverSectionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  coverEmptyThumbnail: {
+    alignItems: 'center',
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  coverEmptyText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  coverChangeButton: {
+    borderColor: '#9A9A9A',
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  coverChangeButtonLabel: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  additionalImagesSectionLabel: {
+    marginTop: spacing.md,
+  },
   imagesLoading: {
     marginTop: 12,
+  },
+  previewImageThumbnail: {
+    marginEnd: 10,
   },
   imageListContent: {
     paddingVertical: 4,
@@ -1288,6 +1630,34 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 13,
     fontWeight: '700',
+  },
+  coverOptionList: {
+    maxHeight: 320,
+  },
+  coverOptionRow: {
+    alignItems: 'center',
+    borderTopColor: colors.divider,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  coverOptionThumbnail: {
+    borderRadius: 8,
+    height: 56,
+    marginEnd: spacing.md,
+    width: 56,
+  },
+  coverAddNewThumbnail: {
+    alignItems: 'center',
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+  },
+  coverOptionLabel: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontSize: 15,
+    marginEnd: spacing.md,
   },
   newCategoryRow: {
     flexDirection: 'row',

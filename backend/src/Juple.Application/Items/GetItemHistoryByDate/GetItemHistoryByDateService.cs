@@ -26,7 +26,7 @@ public sealed class GetItemHistoryByDateService(
         CancellationToken cancellationToken = default)
     {
         var range = DailyInboxDateRangeCalculator.Calculate(date, timeZoneId);
-        var (page, representativeImages) = await itemHistoryQueryStore.GetByDateRangeAsync(
+        var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetByDateRangeAsync(
             userId, range.FromUtc, range.ToUtc, cursor, limit, cancellationToken);
 
         var enrichedItems = new List<ItemHistoryEntryDto>(page.Items.Count);
@@ -35,7 +35,10 @@ public sealed class GetItemHistoryByDateService(
             var representativeImage = representativeImages.TryGetValue(item.Id, out var reference)
                 ? await ResolveRepresentativeImageAsync(userId, reference, cancellationToken)
                 : null;
-            enrichedItems.Add(item with { RepresentativeImage = representativeImage });
+            var coverImage = coverImages.TryGetValue(item.Id, out var coverReference)
+                ? await ResolveRepresentativeImageAsync(userId, coverReference, cancellationToken)
+                : null;
+            enrichedItems.Add(item with { RepresentativeImage = representativeImage, CoverImage = coverImage });
         }
 
         return new ItemHistoryByDateResult(date, enrichedItems, page.NextCursor);
@@ -45,7 +48,7 @@ public sealed class GetItemHistoryByDateService(
         long userId, ItemRepresentativeImageRef reference, CancellationToken cancellationToken)
     {
         // Same degrade-gracefully policy as GetItemHistoryService: a failed/missing read URL drops
-        // the representative image for this one Item rather than failing the whole response.
+        // the image for this one Item rather than failing the whole response.
         var readUrl = await itemImageStorage.CreateReadUrlAsync(userId, reference.BlobName, cancellationToken);
         return readUrl is null ? null : new RepresentativeImageDto(reference.ImageId, readUrl);
     }

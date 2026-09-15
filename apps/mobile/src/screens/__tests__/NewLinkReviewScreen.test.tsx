@@ -5,7 +5,7 @@ import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
 import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { updateItemDetails } from '../../items/api/itemsApi';
-import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
+import { resolveUrlMetadata, type UrlMetadataSource } from '../../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 
 beforeAll(async () => {
@@ -28,6 +28,7 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 
 jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
+  setItemPreviewImage: jest.fn(),
 }));
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
@@ -78,7 +79,7 @@ function pressSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
 describe('NewLinkReviewScreen', () => {
   beforeEach(() => {
     jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
     jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
   });
 
@@ -167,7 +168,7 @@ describe('NewLinkReviewScreen', () => {
   });
 
   it('fetches URL metadata and fills the empty title field when there is no incoming title', async () => {
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph' });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
 
     const { renderer } = await renderScreen({ initialTitle: null });
     await act(async () => {
@@ -180,7 +181,11 @@ describe('NewLinkReviewScreen', () => {
   });
 
   it('does not overwrite a title the user already started typing once URL metadata resolves', async () => {
-    let resolveMetadata!: (value: { title: string | null; source: string | null }) => void;
+    let resolveMetadata!: (value: {
+      title: string | null;
+      source: UrlMetadataSource | null;
+      previewImageUrl: string | null;
+    }) => void;
     jest.mocked(resolveUrlMetadata).mockReturnValue(
       new Promise(resolve => {
         resolveMetadata = resolve;
@@ -198,7 +203,7 @@ describe('NewLinkReviewScreen', () => {
     });
 
     await act(async () => {
-      resolveMetadata({ title: 'Metadata Title', source: 'openGraph' });
+      resolveMetadata({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
       await Promise.resolve();
       await Promise.resolve();
     });

@@ -197,5 +197,23 @@ public sealed class UpdateItemDetailsServiceTests
 
             return Task.CompletedTask;
         }
+
+        public Task SetPreviewImageUrlAsync(
+            long userId,
+            long itemId,
+            string previewImageUrl,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SetCoverImageIdAsync(
+            long userId,
+            long itemId,
+            long? imageId,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

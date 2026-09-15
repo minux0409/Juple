@@ -41,6 +41,8 @@ function makeItem(overrides: Partial<ItemHistoryEntry>): ItemHistoryEntry {
     memo: null,
     savedAtUtc: new Date().toISOString(),
     representativeImage: null,
+    previewImageUrl: null,
+    coverImage: null,
     ...overrides,
   };
 }

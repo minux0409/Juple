@@ -169,6 +169,18 @@ public sealed class ItemImageStore(
 
         var blobName = image.BlobName;
         dbContext.ItemImages.Remove(image);
+
+        // CoverImageId is deliberately not a DB-level FK (see Item.CoverImageId's own remarks), so
+        // this is the one place that must keep it from going stale: clear it in the same
+        // SaveChanges as the image row removal when it pointed at the image being deleted, so the
+        // effective representative image falls back to PreviewImageUrl/the next image automatically.
+        var owningItem = await dbContext.Items
+            .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken);
+        if (owningItem?.CoverImageId == imageId)
+        {
+            owningItem.SetCoverImageId(null);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         // The DB row (source of truth) is already gone - a failure here just leaves an orphaned

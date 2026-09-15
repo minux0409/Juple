@@ -40,7 +40,7 @@ public sealed class UrlMetadataResolver(
 
     public async Task<UrlMetadataResult> ResolveAsync(string url, CancellationToken cancellationToken = default)
     {
-        var none = new UrlMetadataResult(null, null);
+        var none = new UrlMetadataResult(null, null, null);
         if (!Uri.TryCreate(url, UriKind.Absolute, out var initialUri))
         {
             return none;
@@ -57,6 +57,7 @@ public sealed class UrlMetadataResolver(
         string? failureCategory = null;
         var redirectCount = 0;
         var lastAttemptedHost = initialUri.Host;
+        UrlMetadataImageSource? imageSourceForDiagnostics = null;
 
         using var budgetCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budgetCts.CancelAfter(TotalRequestBudget);
@@ -114,8 +115,10 @@ public sealed class UrlMetadataResolver(
                 }
 
                 var html = await ReadBoundedHtmlAsync(response, budgetCts.Token);
-                var (title, source) = await HtmlTitleExtractor.ExtractAsync(html, budgetCts.Token);
-                result = new UrlMetadataResult(title, source);
+                var (title, source, previewImageUrl, previewImageSource) =
+                    await HtmlTitleExtractor.ExtractAsync(html, budgetCts.Token, currentUri.Host);
+                result = new UrlMetadataResult(title, source, previewImageUrl);
+                imageSourceForDiagnostics = previewImageSource;
                 break;
             }
         }
@@ -133,7 +136,7 @@ public sealed class UrlMetadataResolver(
         }
 
         var elapsedMs = timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
-        LogOutcome(lastAttemptedHost, result, failureCategory, redirectCount, elapsedMs);
+        LogOutcome(lastAttemptedHost, result, imageSourceForDiagnostics, failureCategory, redirectCount, elapsedMs);
 
         memoryCache.Set(cacheKey, result, CacheEntryOptions);
         return result;
@@ -194,11 +197,20 @@ public sealed class UrlMetadataResolver(
     }
 
     /// <summary>
-    /// Privacy-safe by construction: hostname only (never full URL/path/query), never the title
-    /// text, never response bytes - see docs' logging policy for this feature.
+    /// Privacy-safe by construction: hostname only (never full URL/path/query), never the title or
+    /// image URL text, never response bytes - see docs' logging policy for this feature.
+    /// ImageFound/ImageSource exist specifically to diagnose reports like "this Instagram post has
+    /// no preview image" without ever logging content: they distinguish "metadata genuinely had no
+    /// image" (ImageFound=false) from a persistence/render problem further down the pipeline, which
+    /// must show up as a real PreviewImageUrl in the DB/API despite the mobile UI not displaying it.
     /// </summary>
     private void LogOutcome(
-        string hostname, UrlMetadataResult result, string? failureCategory, int redirectCount, double elapsedMs)
+        string hostname,
+        UrlMetadataResult result,
+        UrlMetadataImageSource? imageSource,
+        string? failureCategory,
+        int redirectCount,
+        double elapsedMs)
     {
         if (failureCategory is not null)
         {
@@ -209,7 +221,8 @@ public sealed class UrlMetadataResolver(
         }
 
         logger.LogInformation(
-            "URL metadata resolve completed. Host={Hostname} Found={Found} Source={Source} RedirectCount={RedirectCount} ElapsedMs={ElapsedMs}",
-            hostname, result.Title is not null, result.Source, redirectCount, elapsedMs);
+            "URL metadata resolve completed. Host={Hostname} Found={Found} Source={Source} ImageFound={ImageFound} ImageSource={ImageSource} RedirectCount={RedirectCount} ElapsedMs={ElapsedMs}",
+            hostname, result.Title is not null, result.Source,
+            result.PreviewImageUrl is not null, imageSource, redirectCount, elapsedMs);
     }
 }

@@ -9,6 +9,8 @@ using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.RecordItemOpen;
+using Juple.Application.Items.SetItemCoverImage;
+using Juple.Application.Items.SetItemPreviewImage;
 using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
@@ -24,6 +26,8 @@ public sealed class ItemsController(
     ICurrentJupleUserAccessor currentUserAccessor,
     IDeleteItemService deleteItemService,
     IUpdateItemDetailsService updateItemDetailsService,
+    ISetItemPreviewImageService setItemPreviewImageService,
+    ISetItemCoverImageService setItemCoverImageService,
     IGetItemDetailService getItemDetailService,
     IGetItemHistoryService getItemHistoryService,
     IGetItemHistoryByDateService getItemHistoryByDateService,
@@ -154,7 +158,9 @@ public sealed class ItemsController(
                 details.Title,
                 details.Memo,
                 details.SavedAtUtc,
-                details.RepresentativeImage));
+                details.RepresentativeImage,
+                details.PreviewImageUrl,
+                details.CoverImage));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -194,6 +200,37 @@ public sealed class ItemsController(
         TransitionAsync(
             userId => updateItemDetailsService.UpdateAsync(
                 userId, id, new UpdateItemDetailsCommand(request.Title, request.Memo), cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// Sets the auto-extracted link-preview image (see UrlMetadataResult.PreviewImageUrl) - always
+    /// a best-effort enrichment call from mobile, never part of Item creation/the title-memo update
+    /// above, and never user-uploaded ItemImages (see ItemImagesController).
+    /// </summary>
+    [HttpPut("{id:long}/preview-image")]
+    public Task<IActionResult> SetPreviewImageAsync(
+        long id,
+        SetItemPreviewImageRequest request,
+        CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => setItemPreviewImageService.SetAsync(
+                userId, id, new SetItemPreviewImageCommand(request.PreviewImageUrl), cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// Sets (ImageId non-null) or clears (null) the user's explicit cover image choice - always
+    /// one of this same Item's own uploaded ItemImages (see ItemImagesController), never the
+    /// metadata PreviewImageUrl above. Immediate persistence, independent of the title/memo Save
+    /// above - see SetItemCoverImageService's own remarks.
+    /// </summary>
+    [HttpPut("{id:long}/cover-image")]
+    public Task<IActionResult> SetCoverImageAsync(
+        long id,
+        SetItemCoverImageRequest request,
+        CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => setItemCoverImageService.SetAsync(
+                userId, id, new SetItemCoverImageCommand(request.ImageId), cancellationToken),
             cancellationToken);
 
     private async Task<IActionResult> TransitionAsync(
@@ -255,11 +292,17 @@ public sealed class ItemsController(
 
     public sealed record UpdateItemDetailsRequest(string? Title, string? Memo);
 
+    public sealed record SetItemPreviewImageRequest(string? PreviewImageUrl);
+
+    public sealed record SetItemCoverImageRequest(long? ImageId);
+
     public sealed record ItemDetailResponse(
         long Id,
         string Url,
         string? Title,
         string? Memo,
         DateTimeOffset SavedAtUtc,
-        RepresentativeImageDto? RepresentativeImage);
+        RepresentativeImageDto? RepresentativeImage,
+        string? PreviewImageUrl,
+        RepresentativeImageDto? CoverImage);
 }

@@ -482,6 +482,45 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DeleteAsync_WhenDeletingTheCurrentCoverImage_ClearsCoverImageId()
+    {
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var itemStore = new ItemStore(_dbContext);
+        var image = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        await itemStore.SetCoverImageIdAsync(_userId, _itemId, image.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        await imageStore.DeleteAsync(_userId, _itemId, image.Id);
+
+        var coverImageId = await _dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.Id == _itemId)
+            .Select(item => item.CoverImageId)
+            .SingleAsync();
+        Assert.Null(coverImageId);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenDeletingADifferentImage_LeavesCoverImageIdUntouched()
+    {
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var itemStore = new ItemStore(_dbContext);
+        var cover = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var other = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        await itemStore.SetCoverImageIdAsync(_userId, _itemId, cover.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        await imageStore.DeleteAsync(_userId, _itemId, other.Id);
+
+        var coverImageId = await _dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.Id == _itemId)
+            .Select(item => item.CoverImageId)
+            .SingleAsync();
+        Assert.Equal(cover.Id, coverImageId);
+    }
+
+    [Fact]
     public async Task DeleteBlobsByPrefixAsync_WhenBlobEnumerationItselfFails_CompletesWithoutThrowingAndReportsFailure()
     {
         // Same rationale as DeleteItemBlobsAsync's own enumeration-failure test - a Storage-side

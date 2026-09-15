@@ -48,7 +48,7 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
         await store.SaveAsync(_otherUserId, "https://shop.example/history-ownership-other", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(myItem, page.Items[0].Id);
@@ -64,7 +64,7 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
         await store.DeleteAsync(_userId, deletedItem);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         Assert.Single(page.Items);
         Assert.Equal(keptItem, page.Items[0].Id);
@@ -85,7 +85,7 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
             _userId, "https://shop.example/history-sort-3", null, baseTime.AddMinutes(2));
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         Assert.Equal(
             new[] { third.Entry.Id, second.Entry.Id, first.Entry.Id },
@@ -106,15 +106,15 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
             ids.Add(result.Entry.Id);
         }
 
-        var (firstPage, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 2);
+        var (firstPage, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var (secondPage, _) = await store.GetHistoryAsync(_userId, cursor: firstPage.NextCursor, limit: 2);
+        var (secondPage, _, _) = await store.GetHistoryAsync(_userId, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.NotNull(secondPage.NextCursor);
 
-        var (thirdPage, _) = await store.GetHistoryAsync(_userId, cursor: secondPage.NextCursor, limit: 2);
+        var (thirdPage, _, _) = await store.GetHistoryAsync(_userId, cursor: secondPage.NextCursor, limit: 2);
         Assert.Single(thirdPage.Items);
         Assert.Null(thirdPage.NextCursor);
 
@@ -138,11 +138,11 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
             ids.Add(result.Entry.Id);
         }
 
-        var (firstPage, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 2);
+        var (firstPage, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var (secondPage, _) = await store.GetHistoryAsync(_userId, cursor: firstPage.NextCursor, limit: 2);
+        var (secondPage, _, _) = await store.GetHistoryAsync(_userId, cursor: firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.Null(secondPage.NextCursor);
 

@@ -121,6 +121,52 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         CancellationToken cancellationToken = default) =>
         TransitionAsync(userId, itemId, item => item.UpdateDetails(title, memo), cancellationToken);
 
+    public Task SetPreviewImageUrlAsync(
+        long userId,
+        long itemId,
+        string previewImageUrl,
+        CancellationToken cancellationToken = default) =>
+        TransitionAsync(userId, itemId, item => item.SetPreviewImageUrl(previewImageUrl), cancellationToken);
+
+    public async Task SetCoverImageIdAsync(
+        long userId,
+        long itemId,
+        long? imageId,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
+        if (item is null)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        if (imageId is { } id)
+        {
+            // CoverImageId is deliberately not a DB-level FK (see Item.CoverImageId's own
+            // remarks) - this is the one place ownership (same Item, not just same user) is
+            // enforced before the value is ever persisted.
+            var imageBelongsToItem = await dbContext.ItemImages
+                .AsNoTracking()
+                .AnyAsync(image => image.Id == id && image.ItemId == itemId, cancellationToken);
+            if (!imageBelongsToItem)
+            {
+                throw new InvalidItemDetailsException("imageId", "The image does not belong to this Item.");
+            }
+        }
+
+        item.SetCoverImageId(imageId);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ItemConcurrencyException(exception);
+        }
+    }
+
     public async Task DeleteAsync(
         long userId,
         long itemId,
@@ -158,7 +204,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         }
     }
 
-    public async Task<(ItemDetailsDto? Details, ItemRepresentativeImageRef? RepresentativeImage)> GetDetailsAsync(
+    public async Task<(ItemDetailsDto? Details, ItemRepresentativeImageRef? RepresentativeImage, ItemRepresentativeImageRef? CoverImage)> GetDetailsAsync(
         long userId,
         long itemId,
         CancellationToken cancellationToken = default)
@@ -173,10 +219,15 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
+                item.PreviewImageUrl,
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
                     .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+                CoverImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id && image.Id == item.CoverImageId)
                     .Select(image => new { image.Id, image.BlobName })
                     .FirstOrDefault(),
             };
@@ -184,19 +235,23 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         var row = await query.FirstOrDefaultAsync(cancellationToken);
         if (row is null)
         {
-            return (null, null);
+            return (null, null, null);
         }
 
         var details = new ItemDetailsDto(
-            row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc, RepresentativeImage: null);
+            row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
+            RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null);
         var representativeImage = row.RepresentativeImage is null
             ? null
             : new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+        var coverImage = row.CoverImage is null
+            ? null
+            : new ItemRepresentativeImageRef(row.CoverImage.Id, row.CoverImage.BlobName);
 
-        return (details, representativeImage);
+        return (details, representativeImage, coverImage);
     }
 
-    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetHistoryAsync(
+    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetHistoryAsync(
         long userId,
         ItemHistoryPageCursor? cursor,
         int limit,
@@ -225,10 +280,15 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
+                item.PreviewImageUrl,
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
                     .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+                CoverImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id && image.Id == item.CoverImageId)
                     .Select(image => new { image.Id, image.BlobName })
                     .FirstOrDefault(),
             };
@@ -240,15 +300,20 @@ public sealed class ItemStore(JupleDbContext dbContext) :
 
         var items = new List<ItemHistoryEntryDto>(pageRows.Count);
         var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        var coverImages = new Dictionary<long, ItemRepresentativeImageRef>();
         foreach (var row in pageRows)
         {
             items.Add(new ItemHistoryEntryDto(
                 row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
-                RepresentativeImage: null));
+                RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null));
             if (row.RepresentativeImage is not null)
             {
                 representativeImages[row.Id] =
                     new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+            if (row.CoverImage is not null)
+            {
+                coverImages[row.Id] = new ItemRepresentativeImageRef(row.CoverImage.Id, row.CoverImage.BlobName);
             }
         }
 
@@ -256,10 +321,10 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             ? new ItemHistoryPageCursor(pageRows[^1].SavedAtUtc, pageRows[^1].Id)
             : null;
 
-        return (new ItemHistoryPage(items, nextCursor), representativeImages);
+        return (new ItemHistoryPage(items, nextCursor), representativeImages, coverImages);
     }
 
-    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetByDateRangeAsync(
+    public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(
         long userId,
         DateTimeOffset fromUtc,
         DateTimeOffset toUtc,
@@ -291,10 +356,15 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Title,
                 item.Memo,
                 item.SavedAtUtc,
+                item.PreviewImageUrl,
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
                     .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+                CoverImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id && image.Id == item.CoverImageId)
                     .Select(image => new { image.Id, image.BlobName })
                     .FirstOrDefault(),
             };
@@ -306,15 +376,20 @@ public sealed class ItemStore(JupleDbContext dbContext) :
 
         var items = new List<ItemHistoryEntryDto>(pageRows.Count);
         var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        var coverImages = new Dictionary<long, ItemRepresentativeImageRef>();
         foreach (var row in pageRows)
         {
             items.Add(new ItemHistoryEntryDto(
                 row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
-                RepresentativeImage: null));
+                RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null));
             if (row.RepresentativeImage is not null)
             {
                 representativeImages[row.Id] =
                     new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+            if (row.CoverImage is not null)
+            {
+                coverImages[row.Id] = new ItemRepresentativeImageRef(row.CoverImage.Id, row.CoverImage.BlobName);
             }
         }
 
@@ -322,6 +397,6 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             ? new ItemHistoryPageCursor(pageRows[^1].SavedAtUtc, pageRows[^1].Id)
             : null;
 
-        return (new ItemHistoryPage(items, nextCursor), representativeImages);
+        return (new ItemHistoryPage(items, nextCursor), representativeImages, coverImages);
     }
 }

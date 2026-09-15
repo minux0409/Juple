@@ -119,7 +119,7 @@ function getRowElement(
 }
 
 /**
- * Renders the FlatList's ListHeaderComponent (name/star/edit/delete, item count, share section) in
+ * Renders the FlatList's ListHeaderComponent (name/star/edit/delete, share section) in
  * isolation - same rationale as getRowElement above: FlatList's own virtualization is not something
  * these tests should depend on. The element's onPress/onValueChange props are the exact same
  * closures the mounted `renderer` created, so invoking them here still updates the real screen's
@@ -216,6 +216,21 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(deleteCollection).toHaveBeenCalledWith(expect.anything(), 1);
+    });
+  });
+
+  describe('header - no "URL N개" item-count line (rows already show their own sequence number)', () => {
+    it('does not render the item-count text under the name', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: 6 }));
+      const renderer = await renderScreen();
+      const header = getHeaderElement(renderer);
+
+      expect(header.root.findAllByProps({ children: 'URL 6개' })).toHaveLength(0);
+      expect(
+        header.root.findAll(
+          node => typeof node.props.children === 'string' && /^URL\s*\d+개$/.test(node.props.children),
+        ),
+      ).toHaveLength(0);
     });
   });
 
