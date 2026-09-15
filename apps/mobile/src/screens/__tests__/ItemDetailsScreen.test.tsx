@@ -1,6 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Linking, Text, TextInput } from 'react-native';
-import DragList from 'react-native-draglist';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -368,6 +367,18 @@ describe('ItemDetailsScreen', () => {
   });
 
   describe('photo reorder (drag persists via setItemCoverImage - the same field, now purely an ordering detail)', () => {
+    /** The 2nd/later thumbnail's "첫 번째로 설정" accessibility action - see PhotoListEditor.tsx.
+     * With MAX_EFFECTIVE_IMAGES capped at 2, this is the only possible non-trivial reorder in a
+     * 2-photo list (index 1 -> index 0), so it exercises the exact same onReorder(1, 0) contract a
+     * real drag-past-the-midpoint gesture would - see twoSlotDrag.test.ts for the drag geometry
+     * itself (clamp/midpoint/swap), which is tested independently of any UI trigger.
+     */
+    function findReorderToFrontAction(renderer: ReactTestRenderer.ReactTestRenderer) {
+      return renderer.root.findAll(
+        node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
+      )[0];
+    }
+
     it('dragging the uploaded image to the front persists it as the cover', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
@@ -375,11 +386,10 @@ describe('ItemDetailsScreen', () => {
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
       const renderer = await renderScreen();
-      const dragList = renderer.root.findByType(DragList);
 
-      // [auto, uploaded] -> dragging index 1 to index 0.
+      // [auto, uploaded] -> reordering index 1 to index 0.
       await act(async () => {
-        await dragList.props.onReordered(1, 0);
+        findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
       });
 
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
@@ -395,11 +405,10 @@ describe('ItemDetailsScreen', () => {
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
       const renderer = await renderScreen();
-      const dragList = renderer.root.findByType(DragList);
 
-      // Cover is already set, so the list renders as [uploaded, auto] - dragging index 1 (auto) to index 0.
+      // Cover is already set, so the list renders as [uploaded, auto] - reordering index 1 (auto) to index 0.
       await act(async () => {
-        await dragList.props.onReordered(1, 0);
+        findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
       });
 
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, null);
@@ -412,33 +421,14 @@ describe('ItemDetailsScreen', () => {
       jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
       jest.mocked(setItemCoverImage).mockRejectedValue(new Error('network error'));
       const renderer = await renderScreen();
-      const dragList = renderer.root.findByType(DragList);
 
       await act(async () => {
-        await dragList.props.onReordered(1, 0);
+        findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
       });
 
       expect(renderer.root.findByProps({ children: '사진 순서를 변경할 수 없습니다.' })).toBeTruthy();
       // Rolled back - the auto preview is still first (its Image is still present at all, and no
       // cover was actually persisted).
-      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
-    });
-
-    it('the "첫 번째로 설정" accessibility action reorders without a real drag gesture', async () => {
-      jest.mocked(getItemDetails).mockResolvedValue(
-        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
-      );
-      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
-      jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-
-      const secondThumbnail = renderer.root.findAll(
-        node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
-      )[0];
-      await act(async () => {
-        secondThumbnail.props.onAccessibilityAction();
-      });
-
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
     });
 

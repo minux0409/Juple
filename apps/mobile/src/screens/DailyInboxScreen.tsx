@@ -25,11 +25,12 @@ import { LinkIcon } from '../icons/LinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
   deleteItem,
-  getItemHistoryByDate,
+  getItemHistory,
   type ItemHistoryEntry,
 } from '../items/api/itemsApi';
 import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
+import { filterTodayItemsPage } from '../items/todayItemsFilter';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
@@ -141,15 +142,21 @@ export function DailyInboxScreen() {
       try {
         // Recomputed on every load (not cached in state) so the app staying open across local
         // midnight picks up the new day on its next focus/refresh instead of continuing to show
-        // yesterday's date.
+        // yesterday's date. Always the device's own live local date - see todayItemsFilter.ts's
+        // own remarks on why this screen no longer asks the server to do this filtering (its
+        // stored-TimeZoneId-based window can go stale and silently exclude items that are
+        // unambiguously "today" on the device right now).
         const today = formatDateOnly(new Date());
-        const result = await getItemHistoryByDate(authenticatedRequest, today, { limit: PAGE_LIMIT });
+        const page = await getItemHistory(authenticatedRequest, { limit: PAGE_LIMIT });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setDate(result.date);
-        setItems(result.items);
-        setNextCursor(result.nextCursor);
+        const { todayItems, canLoadMoreToday } = filterTodayItemsPage(
+          page.items, page.nextCursor !== null, today,
+        );
+        setDate(today);
+        setItems(todayItems);
+        setNextCursor(canLoadMoreToday ? page.nextCursor : null);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -178,19 +185,19 @@ export function DailyInboxScreen() {
 
     (async () => {
       try {
-        const result = await getItemHistoryByDate(authenticatedRequest, date, {
-          limit: PAGE_LIMIT,
-          cursor: nextCursor,
-        });
+        const page = await getItemHistory(authenticatedRequest, { limit: PAGE_LIMIT, cursor: nextCursor });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
+        const { todayItems, canLoadMoreToday } = filterTodayItemsPage(
+          page.items, page.nextCursor !== null, date,
+        );
         setItems(previousItems => {
           const seenIds = new Set(previousItems.map(item => item.id));
-          const additionalItems = result.items.filter(item => !seenIds.has(item.id));
+          const additionalItems = todayItems.filter(item => !seenIds.has(item.id));
           return [...previousItems, ...additionalItems];
         });
-        setNextCursor(result.nextCursor);
+        setNextCursor(canLoadMoreToday ? page.nextCursor : null);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
           setError(getInboxErrorMessage(caughtError, false, t));

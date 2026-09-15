@@ -1,6 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ScrollView, Text, TextInput, View } from 'react-native';
-import DragList from 'react-native-draglist';
+import { ScrollView, Text, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
@@ -89,6 +88,28 @@ function findByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer,
   return renderer.root.findAll(node => node.props.accessibilityLabel === label)[0];
 }
 
+/** Opens the shared "카테고리 선택" picker modal (see CategoryField/CategoryPickerModal) - the same
+ * component ItemDetailsScreen uses, reached by tapping the category summary row's own
+ * accessibilityLabel (item.categoryEditA11y). Fetches the collection pool on open (no mount-time
+ * fetch unless preselectedCollectionId is set - see this screen's own remarks), so callers must
+ * flush a microtask afterward before the modal's option rows are queryable. */
+async function openCategoryPicker(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
+  await act(async () => {
+    findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))?.props.onPress();
+    await Promise.resolve();
+  });
+}
+
+/** The 2nd photo thumbnail's "첫 번째로 설정" accessibility action - see PhotoListEditor.tsx. With
+ * MAX_EFFECTIVE_IMAGES capped at 2, this is the only possible non-trivial reorder in a 2-photo
+ * list (index 1 -> index 0), so it exercises the exact same onReorder(1, 0) contract a real
+ * drag-past-the-midpoint gesture would - see twoSlotDrag.test.ts for the drag geometry itself. */
+function findReorderToFrontAction(renderer: ReactTestRenderer.ReactTestRenderer) {
+  return renderer.root.findAll(
+    node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
+  )[0];
+}
+
 /** The Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to
  * the nearest onPress-bearing ancestor. Returns onPress()'s own result so a caller whose save()
  * does real async work (e.g. a staged photo upload) can await full completion; existing callers
@@ -122,9 +143,9 @@ describe('NewLinkReviewScreen', () => {
   it('prefills the url and title from route params', async () => {
     const { renderer } = await renderScreen();
 
-    const [urlInput, titleInput] = renderer.root.findAllByType(TextInput);
-    expect(urlInput.props.value).toBe('https://example.com/shared');
+    const [titleInput, urlInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('Shared title');
+    expect(urlInput.props.value).toBe('https://example.com/shared');
   });
 
   it('never calls any Item API before Save is tapped', async () => {
@@ -149,10 +170,7 @@ describe('NewLinkReviewScreen', () => {
     jest.mocked(addItemToCollection).mockResolvedValue(undefined);
 
     const { renderer, navigation } = await renderScreen();
-    // Flush the initial getCollections load.
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await openCategoryPicker(renderer);
 
     await act(async () => {
       findByAccessibilityLabel(renderer, '영화').props.onPress();
@@ -208,7 +226,7 @@ describe('NewLinkReviewScreen', () => {
     });
 
     expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
-    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    const [titleInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('Shared title');
     const previewImages = renderer.root
       .findAllByType(require('react-native').Image)
@@ -225,7 +243,7 @@ describe('NewLinkReviewScreen', () => {
     });
 
     expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
-    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    const [titleInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('Metadata Title');
   });
 
@@ -246,7 +264,7 @@ describe('NewLinkReviewScreen', () => {
       await Promise.resolve();
     });
 
-    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    const [titleInput] = renderer.root.findAllByType(TextInput);
     await act(async () => {
       titleInput.props.onChangeText('User typed title');
     });
@@ -257,7 +275,7 @@ describe('NewLinkReviewScreen', () => {
       await Promise.resolve();
     });
 
-    const [, titleInputAfter] = renderer.root.findAllByType(TextInput);
+    const [titleInputAfter] = renderer.root.findAllByType(TextInput);
     expect(titleInputAfter.props.value).toBe('User typed title');
   });
 
@@ -275,7 +293,7 @@ describe('NewLinkReviewScreen', () => {
       await Promise.resolve();
     });
 
-    const [, titleInput] = renderer.root.findAllByType(TextInput);
+    const [titleInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('');
 
     await act(async () => {
@@ -380,9 +398,9 @@ describe('NewLinkReviewScreen', () => {
       await act(async () => {
         await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
       });
-      // [auto, staged] -> drag index 1 to index 0.
+      // [auto, staged] -> reordering index 1 to index 0.
       await act(async () => {
-        await renderer.root.findByType(DragList).props.onReordered(1, 0);
+        await findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
       });
 
       await act(async () => {
@@ -450,26 +468,47 @@ describe('NewLinkReviewScreen', () => {
     expect(renderer.root.findByProps({ children: i18n.t('inbox.errorSaveFallback') })).toBeTruthy();
   });
 
-  it('lays out categories as a single horizontally-scrolling row, not wrapping chips', async () => {
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '' }],
-      nextCursor: null,
-    });
+  it('uses the same shared category picker row ItemDetailsScreen uses - not the old horizontal chip list', async () => {
+    const { renderer } = await renderScreen();
+
+    // The shared CategoryField summary row (see collections/CategoryField.tsx) - a single
+    // Pressable found by its accessibilityLabel, exactly like ItemDetailsScreen's own category row.
+    expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
+    // The old per-screen horizontal chip ScrollView this replaced no longer exists at all.
+    expect(renderer.root.findAllByType(ScrollView).some(node => node.props.horizontal === true)).toBe(false);
+  });
+
+  it('the category summary row stays present and untouched whether or not an async preview image has arrived - never disturbed by the photo section', async () => {
+    let resolveMetadata!: (value: {
+      title: string | null;
+      source: UrlMetadataSource | null;
+      previewImageUrl: string | null;
+    }) => void;
+    jest.mocked(resolveUrlMetadata).mockReturnValue(
+      new Promise(resolve => {
+        resolveMetadata = resolve;
+      }),
+    );
+
     const { renderer } = await renderScreen();
     await act(async () => {
       await Promise.resolve();
     });
 
-    const categoryScroller = renderer.root
-      .findAllByType(ScrollView)
-      .find(node => node.props.horizontal === true);
-    expect(categoryScroller).toBeTruthy();
+    // Before the preview image resolves (0 photos yet).
+    expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
+    expect(renderer.root.findByProps({ children: '사진 (0/2)' })).toBeTruthy();
 
-    const flattenedContentStyle = Object.assign(
-      {},
-      ...[categoryScroller!.props.contentContainerStyle].flat(),
-    );
-    expect(flattenedContentStyle.flexWrap).not.toBe('wrap');
+    await act(async () => {
+      resolveMetadata({ title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg' });
+      await Promise.resolve();
+    });
+
+    // After the preview image has arrived (now 1 photo, PhotoListEditor renders it below) - the
+    // category row is still there, completely unaffected (the originally-reported bug: the photo
+    // appearing made the category section disappear/get pushed off-screen).
+    expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
+    expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
   });
 
   it('creating a new category adds it to the list and auto-selects it', async () => {
@@ -489,16 +528,7 @@ describe('NewLinkReviewScreen', () => {
     jest.mocked(addItemToCollection).mockResolvedValue(undefined);
 
     const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    await act(async () => {
-      const addNewButton = renderer.root.findAll(
-        node => typeof node.props.onPress === 'function' && node.findAllByType(Text).some(t => t.props.children === i18n.t('collections.addNew')),
-      )[0];
-      addNewButton.props.onPress();
-    });
+    await openCategoryPicker(renderer);
 
     const nameInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('collections.namePlaceholder'))!;
     await act(async () => {

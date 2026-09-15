@@ -9,7 +9,7 @@ import { DailyInboxScreen } from '../DailyInboxScreen';
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-import { deleteItem, getItemHistoryByDate, updateItemDetails, type ItemHistoryEntry } from '../../items/api/itemsApi';
+import { deleteItem, getItemHistory, updateItemDetails, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
@@ -33,7 +33,7 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 }));
 
 jest.mock('../../items/api/itemsApi', () => ({
-  getItemHistoryByDate: jest.fn(),
+  getItemHistory: jest.fn(),
   deleteItem: jest.fn(),
   updateItemDetails: jest.fn(),
   setItemPreviewImage: jest.fn(),
@@ -69,8 +69,7 @@ function makeItem(overrides: Partial<ItemHistoryEntry>): ItemHistoryEntry {
 }
 
 function setUpItems(items: readonly ItemHistoryEntry[]): void {
-  jest.mocked(getItemHistoryByDate).mockResolvedValue({
-    date: '2026-09-10',
+  jest.mocked(getItemHistory).mockResolvedValue({
     items,
     nextCursor: null,
   });
@@ -305,5 +304,70 @@ describe('DailyInboxScreen header', () => {
     const renderer = await renderScreen();
 
     expect(renderer.root.findByProps({ children: '3개' })).toBeTruthy();
+  });
+});
+
+describe('DailyInboxScreen recent-items data source', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // Regression test for the "History shows 3, Home shows 0" bug: Home used to call a dedicated
+  // server-side-date-filtered endpoint whose window depended on the User's stored TimeZoneId and
+  // could silently return nothing even though items were genuinely saved today. Home now calls the
+  // exact same plain, unfiltered feed History uses (getItemHistory), and filters "today" itself -
+  // so any item History's own "오늘" section would show must also render here.
+  it('fetches from the plain getItemHistory feed (the same source History uses), not a date-scoped endpoint', async () => {
+    setUpItems([makeItem({ id: 1 })]);
+    await renderScreen();
+
+    expect(getItemHistory).toHaveBeenCalledWith(expect.anything(), { limit: 50 });
+  });
+
+  it('renders every item the feed returns whose SavedAtUtc falls on today\'s local date', async () => {
+    const todayItems = [makeItem({ id: 1, title: 'Today A' }), makeItem({ id: 2, title: 'Today B' }), makeItem({ id: 3, title: 'Today C' })];
+    setUpItems(todayItems);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ children: '3개' })).toBeTruthy();
+    for (const item of todayItems) {
+      expect(renderer.root.findAllByProps({ children: item.title }).length).toBeGreaterThan(0);
+    }
+  });
+
+  // The plain feed is not itself date-filtered server-side, so Home must filter client-side - this
+  // is what actually keeps Home in sync with History's own client-side "오늘" bucketing instead of
+  // trusting a server date window that (as confirmed for this bug) can be wrong.
+  it('excludes items whose SavedAtUtc is not today, even though the feed itself returns them', async () => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const items = [
+      makeItem({ id: 1, title: 'Today item' }),
+      makeItem({ id: 2, title: 'Yesterday item', savedAtUtc: yesterday.toISOString() }),
+    ];
+    setUpItems(items);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ children: '1개' })).toBeTruthy();
+    expect(renderer.root.findAllByProps({ children: 'Today item' }).length).toBeGreaterThan(0);
+    expect(renderer.root.findAllByProps({ children: 'Yesterday item' })).toHaveLength(0);
+  });
+
+  it('refetches on (re-)focus and picks up a newly-saved item (e.g. after Quick Save or NewLinkReview)', async () => {
+    setUpItems([]);
+    const first = await renderScreen();
+    expect(first.root.findByProps({ children: '0개' })).toBeTruthy();
+    await act(async () => {
+      first.unmount();
+    });
+
+    // Simulate a save that happened elsewhere (Quick Save ON, or Quick Save OFF -> NewLinkReview ->
+    // Save) while Home was unfocused, then the user returning to the Home tab - which remounts
+    // (and thus re-fires useFocusEffect on) this screen, exactly like React Navigation does.
+    setUpItems([makeItem({ id: 42, title: 'Newly saved' })]);
+    const second = await renderScreen();
+
+    expect(second.root.findByProps({ children: '1개' })).toBeTruthy();
+    expect(second.root.findAllByProps({ children: 'Newly saved' }).length).toBeGreaterThan(0);
   });
 });

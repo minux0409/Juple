@@ -3,9 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Linking,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,16 +17,16 @@ import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import {
   addItemToCollection,
-  createCollection,
   getCollections,
   removeItemFromCollection,
   type Collection,
 } from '../collections/api/collectionsApi';
+import { CategoryField } from '../collections/CategoryField';
+import { CategoryPickerModal } from '../collections/CategoryPickerModal';
+import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import {
   deleteItemImage,
@@ -57,8 +55,6 @@ import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/t
 import { checkUrlSafety } from '../urlSafety/api/urlSafetyApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
-/** How many selected-category chips the compact summary row shows before collapsing the rest into a "+N" chip. */
-const CATEGORY_SUMMARY_MAX_CHIPS = 3;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
@@ -93,33 +89,6 @@ function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): stri
     return t('errors.unauthorized');
   }
   return t('collections.errorMembershipFallback');
-}
-
-function getCollectionCreateErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'conflict') {
-      return t('collections.errorNameConflict');
-    }
-    if (error.kind === 'badRequest') {
-      return t('collections.errorNameInvalid');
-    }
-    if (error.kind === 'unauthorized') {
-      return t('errors.unauthorized');
-    }
-  }
-  return t('collections.errorCreateFallback');
-}
-
-/** Mirrors the backend's CollectionNameNormalizer: trim, required, 100-character limit. */
-function getCollectionNameValidationError(name: string, t: TFunction): string | null {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return t('collections.errorNameRequired');
-  }
-  if (trimmedName.length > 100) {
-    return t('collections.errorNameTooLong');
-  }
-  return null;
 }
 
 function getImageListErrorMessage(error: unknown, t: TFunction): string {
@@ -221,19 +190,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isLoadingItemCollections, setIsLoadingItemCollections] = useState(true);
   const [itemCollectionsError, setItemCollectionsError] = useState<string | null>(null);
   const itemCollectionsRequestIdRef = useRef(0);
-
-  const [isCollectionModalVisible, setIsCollectionModalVisible] = useState(false);
-  // The raw fetched pool of the user's Collections (no server-side excludeItemId anymore - the
-  // "addable" set must reflect the current *staged* selection, not the last-persisted membership,
-  // so it is computed below by filtering this pool against selectedCategories on every render).
-  const [collectionPool, setCollectionPool] = useState<readonly Collection[]>([]);
-  const [collectionPoolNextCursor, setCollectionPoolNextCursor] = useState<string | null>(null);
-  const [isLoadingCollectionOptions, setIsLoadingCollectionOptions] = useState(false);
-  const [isLoadingMoreCollectionOptions, setIsLoadingMoreCollectionOptions] = useState(false);
-  const loadingMoreCollectionOptionsRef = useRef(false);
-  const [collectionModalError, setCollectionModalError] = useState<string | null>(null);
-  const [newCollectionName, setNewCollectionName] = useState('');
-  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
 
   const isSavingRef = useRef(isSaving);
   useEffect(() => {
@@ -505,65 +461,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setSelectedCategories(previous => previous.filter(option => option.id !== collectionId));
   };
 
-  const openCollectionModal = async () => {
-    setIsCollectionModalVisible(true);
-    setCollectionModalError(null);
-    setNewCollectionName('');
-    setIsLoadingCollectionOptions(true);
-    try {
-      // No itemId/excludeItemId here on purpose - this modal shows every Collection with a
-      // selected/unselected toggle (see selectedCategoryIds), which must reflect the current
-      // staged selection, not a server-side filter the server has no notion of.
-      const page = await getCollections(authenticatedRequest, { limit: COLLECTION_OPTIONS_PAGE_LIMIT });
-      setCollectionPool(page.items);
-      setCollectionPoolNextCursor(page.nextCursor);
-    } catch (caughtError) {
-      setCollectionModalError(getItemCollectionsListErrorMessage(caughtError, t));
-    } finally {
-      setIsLoadingCollectionOptions(false);
-    }
-  };
-
-  const closeCollectionModal = () => {
-    if (isCreatingCollection) {
-      return;
-    }
-    setIsCollectionModalVisible(false);
-  };
-
-  const loadMoreCollectionOptions = () => {
-    if (
-      loadingMoreCollectionOptionsRef.current ||
-      isLoadingCollectionOptions ||
-      !collectionPoolNextCursor
-    ) {
-      return;
-    }
-
-    loadingMoreCollectionOptionsRef.current = true;
-    setIsLoadingMoreCollectionOptions(true);
-
-    (async () => {
-      try {
-        const page = await getCollections(authenticatedRequest, {
-          limit: COLLECTION_OPTIONS_PAGE_LIMIT,
-          cursor: collectionPoolNextCursor,
-        });
-        setCollectionPool(previous => {
-          const seenIds = new Set(previous.map(option => option.id));
-          const additional = page.items.filter(option => !seenIds.has(option.id));
-          return [...previous, ...additional];
-        });
-        setCollectionPoolNextCursor(page.nextCursor);
-      } catch (caughtError) {
-        setCollectionModalError(getItemCollectionsListErrorMessage(caughtError, t));
-      } finally {
-        loadingMoreCollectionOptionsRef.current = false;
-        setIsLoadingMoreCollectionOptions(false);
-      }
-    })();
-  };
-
   const stageAddCategory = (option: Collection) => {
     setJustSaved(false);
     setSelectedCategories(previous =>
@@ -571,34 +468,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     );
   };
 
-  const submitNewCollection = async () => {
-    if (isCreatingCollection) {
-      return;
-    }
-
-    const validationError = getCollectionNameValidationError(newCollectionName, t);
-    if (validationError) {
-      setCollectionModalError(validationError);
-      return;
-    }
-    const trimmedName = newCollectionName.trim();
-
-    setIsCreatingCollection(true);
-    setCollectionModalError(null);
-    try {
-      // Creating the category itself is not part of this Item's staged membership edit - it is an
-      // immediate, item-independent action (like creating a folder to file into later); only
-      // actually adding this Item to it is staged, via stageAddCategory below.
-      const created = await createCollection(authenticatedRequest, trimmedName);
-      setCollectionPool(previous => [...previous, created]);
-      setNewCollectionName('');
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-    } catch (caughtError) {
-      setCollectionModalError(getCollectionCreateErrorMessage(caughtError, t));
-    } finally {
-      setIsCreatingCollection(false);
-    }
-  };
+  // Creating a category itself is not part of this Item's staged membership edit - it is an
+  // immediate, item-independent action (like creating a folder to file into later); only actually
+  // adding this Item to it is staged, via stageAddCategory. Unlike NewLinkReviewScreen, creating a
+  // category here has never auto-selected it for the current Item (see useCategoryPickerModal's
+  // own remarks) - this round preserves that exactly.
+  const categoryPicker = useCategoryPickerModal(authenticatedRequest, t);
 
   const deleteItemAction = async () => {
     if (itemActionInFlightRef.current) {
@@ -786,7 +661,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>{t('item.titleLabel')}</Text>
+        <Text style={styles.firstLabel}>{t('item.titleLabel')}</Text>
         <TextInput
           onChangeText={text => {
             setTitle(text);
@@ -825,46 +700,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </View>
         {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
 
-        <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
-        {isLoadingItemCollections ? (
-          <ActivityIndicator style={styles.purchasesLoading} />
-        ) : (
-          <Pressable
-            accessibilityLabel={t('item.categoryEditA11y')}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isSaving }}
-            disabled={isSaving}
-            onPress={openCollectionModal}
-            style={styles.categorySummaryRow}
-          >
-            <View style={styles.categorySummaryChips}>
-              {selectedCategories.length === 0 ? (
-                <Text style={styles.purchasesEmpty}>{t('collections.itemSectionEmpty')}</Text>
-              ) : (
-                <>
-                  {selectedCategories.slice(0, CATEGORY_SUMMARY_MAX_CHIPS).map(option => (
-                    <View key={option.id} style={styles.categorySummaryChip}>
-                      <Text numberOfLines={1} style={styles.categorySummaryChipLabel}>
-                        {option.name}
-                      </Text>
-                    </View>
-                  ))}
-                  {selectedCategories.length > CATEGORY_SUMMARY_MAX_CHIPS ? (
-                    <View style={styles.categorySummaryChip}>
-                      <Text style={styles.categorySummaryChipLabel}>
-                        {`+${selectedCategories.length - CATEGORY_SUMMARY_MAX_CHIPS}`}
-                      </Text>
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </View>
-            <View style={styles.iconButton}>
-              <EditIcon color={colors.textPrimary} size={20} />
-            </View>
-          </Pressable>
-        )}
-        {itemCollectionsError ? <Text style={styles.error}>{itemCollectionsError}</Text> : null}
+        <CategoryField
+          disabled={isSaving}
+          error={itemCollectionsError}
+          isLoading={isLoadingItemCollections}
+          onPress={categoryPicker.open}
+          selectedCollections={selectedCategories}
+        />
 
         <Text style={styles.label}>{t('item.memo')}</Text>
         <TextInput
@@ -984,99 +826,24 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         visible={isUnsavedChangesDialogVisible}
       />
 
-      <Modal
-        animationType="slide"
-        onRequestClose={closeCollectionModal}
-        transparent
-        visible={isCollectionModalVisible}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { paddingBottom: 24 + insets.bottom }]}>
-            <Text style={styles.modalTitle}>{t('collections.selectTitle')}</Text>
-
-            {isLoadingCollectionOptions ? (
-              <ActivityIndicator style={styles.modalLoading} />
-            ) : (
-              <FlatList
-                data={collectionPool}
-                extraData={selectedCategoryIds}
-                keyExtractor={option => option.id.toString()}
-                onEndReached={loadMoreCollectionOptions}
-                onEndReachedThreshold={0.5}
-                ListEmptyComponent={
-                  <Text style={styles.manageEmpty}>{t('collections.addModalEmpty')}</Text>
-                }
-                renderItem={({ item: option }) => {
-                  const isSelected = selectedCategoryIds.has(option.id);
-                  return (
-                    <Pressable
-                      accessibilityLabel={option.name}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      onPress={() =>
-                        isSelected ? stageRemoveCategory(option.id) : stageAddCategory(option)
-                      }
-                      style={styles.categoryOptionRow}
-                    >
-                      <Text numberOfLines={1} style={styles.categoryOptionLabel}>
-                        {option.name}
-                      </Text>
-                      <View style={[styles.categoryOptionCheckCircle, isSelected && styles.categoryOptionCheckCircleSelected]}>
-                        {isSelected ? <Text style={styles.categoryOptionCheckMark}>✓</Text> : null}
-                      </View>
-                    </Pressable>
-                  );
-                }}
-                ListFooterComponent={
-                  isLoadingMoreCollectionOptions ? (
-                    <View style={styles.modalFooterLoading}>
-                      <ActivityIndicator />
-                    </View>
-                  ) : undefined
-                }
-                style={styles.categoryOptionList}
-              />
-            )}
-
-            {collectionModalError ? <Text style={styles.error}>{collectionModalError}</Text> : null}
-
-            <Text style={styles.label}>{t('collections.create')}</Text>
-            <View style={styles.newCategoryRow}>
-              <TextInput
-                editable={!isCreatingCollection}
-                onChangeText={setNewCollectionName}
-                placeholder={t('collections.namePlaceholder')}
-                style={styles.newCategoryInput}
-                value={newCollectionName}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: !newCollectionName.trim() || isCreatingCollection,
-                  busy: isCreatingCollection,
-                }}
-                disabled={!newCollectionName.trim() || isCreatingCollection}
-                onPress={submitNewCollection}
-                style={[
-                  styles.newCategoryButton,
-                  (!newCollectionName.trim() || isCreatingCollection) && styles.disabledButton,
-                ]}
-              >
-                <Text style={styles.newCategoryButtonLabel}>{t('collections.create')}</Text>
-              </Pressable>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={isCreatingCollection}
-              onPress={closeCollectionModal}
-              style={styles.modalCloseButton}
-            >
-              <Text style={styles.modalCloseLabel}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      <CategoryPickerModal
+        bottomInset={insets.bottom}
+        collectionPool={categoryPicker.collectionPool}
+        error={categoryPicker.error}
+        isCreatingCollection={categoryPicker.isCreatingCollection}
+        isLoadingMore={categoryPicker.isLoadingMore}
+        isLoadingOptions={categoryPicker.isLoadingOptions}
+        newCollectionName={categoryPicker.newCollectionName}
+        onChangeNewCollectionName={categoryPicker.setNewCollectionName}
+        onClose={categoryPicker.close}
+        onLoadMore={categoryPicker.loadMore}
+        onSubmitNewCollection={categoryPicker.submitNewCollection}
+        onToggle={option =>
+          selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option)
+        }
+        selectedIds={selectedCategoryIds}
+        visible={categoryPicker.isVisible}
+      />
     </View>
   );
 }
@@ -1094,12 +861,26 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     padding: 24,
+    // Top only - see firstLabel's own remarks on why the very first field doesn't also add its
+    // usual marginTop on top of this (mirrors NewLinkReviewScreen's identical fix).
+    paddingTop: spacing.md,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: '#666666',
     marginTop: 20,
+    marginBottom: 6,
+  },
+  // Same as `label`, but with no marginTop - used only for the very first field in the scroll
+  // content (제목). `label`'s marginTop exists to separate a field from the one *before* it;
+  // stacked on top of `content`'s own paddingTop that doubled the gap between the header and the
+  // first field for no reason (every other field still keeps the normal `label` spacing from the
+  // field above it).
+  firstLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666666',
     marginBottom: 6,
   },
   titleInput: {
@@ -1193,146 +974,5 @@ const styles = StyleSheet.create({
   },
   imagesLoading: {
     marginTop: 12,
-  },
-  // Compact summary row: at most CATEGORY_SUMMARY_MAX_CHIPS selected-category chips (+ a "+N"
-  // chip for the rest), never the full list - tapping anywhere in the row opens the picker Modal,
-  // which is where the full list/add/remove actually lives (see the Modal below). This is what
-  // keeps this screen's own height independent of how many categories are selected.
-  categorySummaryRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  categorySummaryChips: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginEnd: 12,
-  },
-  categorySummaryChip: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 6,
-    // Caps a single chip's width so one long category name can never push the "+N" chip or the
-    // edit icon off-screen - it truncates with an ellipsis (numberOfLines=1) instead.
-    maxWidth: 140,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  categorySummaryChipLabel: {
-    color: '#111111',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  purchasesLoading: {
-    marginTop: 8,
-  },
-  purchasesEmpty: {
-    color: '#666666',
-    fontSize: 14,
-  },
-  modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: '80%',
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  modalLoading: {
-    marginVertical: 20,
-  },
-  modalFooterLoading: {
-    paddingVertical: 12,
-  },
-  categoryOptionList: {
-    maxHeight: 260,
-  },
-  categoryOptionRow: {
-    alignItems: 'center',
-    borderTopColor: colors.divider,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-  },
-  categoryOptionLabel: {
-    color: colors.textPrimary,
-    flex: 1,
-    fontSize: 15,
-    marginEnd: spacing.md,
-  },
-  // A check-circle (empty outline when unselected, filled brand-colored circle with a white
-  // checkmark when selected) - replaces the old full-row gray background + bare "✓" character,
-  // which read as an accidental disabled-row state rather than an intentional selection control.
-  categoryOptionCheckCircle: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    height: 22,
-    justifyContent: 'center',
-    width: 22,
-  },
-  categoryOptionCheckCircleSelected: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
-  },
-  categoryOptionCheckMark: {
-    color: colors.surface,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  newCategoryRow: {
-    flexDirection: 'row',
-  },
-  newCategoryInput: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    fontSize: 15,
-    marginEnd: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  newCategoryButton: {
-    alignItems: 'center',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  newCategoryButtonLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  manageEmpty: {
-    color: '#666666',
-    fontSize: 14,
-    paddingVertical: 16,
-  },
-  modalCloseButton: {
-    alignItems: 'center',
-    borderColor: '#111111',
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 20,
-    paddingVertical: 12,
-  },
-  modalCloseLabel: {
-    color: '#111111',
-    fontSize: 15,
-    fontWeight: '600',
   },
 });
