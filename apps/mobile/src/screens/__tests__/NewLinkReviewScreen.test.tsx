@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 import DragList from 'react-native-draglist';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
@@ -450,7 +450,7 @@ describe('NewLinkReviewScreen', () => {
     expect(renderer.root.findByProps({ children: i18n.t('inbox.errorSaveFallback') })).toBeTruthy();
   });
 
-  it('lays out categories as wrapping chips, not a horizontal scroller', async () => {
+  it('lays out categories as a single horizontally-scrolling row, not wrapping chips', async () => {
     jest.mocked(getCollections).mockResolvedValue({
       items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '' }],
       nextCursor: null,
@@ -460,12 +460,16 @@ describe('NewLinkReviewScreen', () => {
       await Promise.resolve();
     });
 
-    const wrappingRow = renderer.root.findAllByType(View).find(node => {
-      const style = node.props.style;
-      const flattened = Array.isArray(style) ? Object.assign({}, ...style) : style;
-      return flattened?.flexWrap === 'wrap';
-    });
-    expect(wrappingRow).toBeTruthy();
+    const categoryScroller = renderer.root
+      .findAllByType(ScrollView)
+      .find(node => node.props.horizontal === true);
+    expect(categoryScroller).toBeTruthy();
+
+    const flattenedContentStyle = Object.assign(
+      {},
+      ...[categoryScroller!.props.contentContainerStyle].flat(),
+    );
+    expect(flattenedContentStyle.flexWrap).not.toBe('wrap');
   });
 
   it('creating a new category adds it to the list and auto-selects it', async () => {

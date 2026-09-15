@@ -2,7 +2,15 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // react-native-get-random-values is imported once at the app entry point before anything else can
@@ -454,135 +462,135 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.label}>{t('item.url')}</Text>
-      <TextInput
-        autoCapitalize="none"
-        autoCorrect={false}
-        editable={!isSaving}
-        keyboardType="url"
-        onChangeText={setUrl}
-        style={[styles.urlInput, ltrTextStyle]}
-        value={url}
-      />
-      {urlSafetyState ? (
-        <Text
-          style={[
-            styles.urlSafetyStatus,
-            urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
-          ]}
-        >
-          {getUrlSafetyStatusLabel(urlSafetyState, t)}
-        </Text>
-      ) : null}
-
-      <View style={styles.titleLabelRow}>
-        <Text style={styles.label}>{t('item.titleLabel')}</Text>
-        {isResolvingMetadataTitle ? <ActivityIndicator size="small" /> : null}
-      </View>
-      <TextInput
-        editable={!isSaving}
-        onChangeText={handleTitleChange}
-        placeholder={t('item.titlePlaceholder')}
-        style={styles.titleInput}
-        value={title}
-      />
-
-      <Text style={styles.label}>{t('item.memo')}</Text>
-      <TextInput
-        editable={!isSaving}
-        multiline
-        onChangeText={setMemo}
-        placeholder={t('item.memoPlaceholder')}
-        style={styles.memoInput}
-        value={memo}
-      />
-
-      <PhotoListEditor
-        deletingKeys={EMPTY_DELETING_KEYS}
-        images={photoOrder}
-        isAdding={isPickingPhoto}
-        onAddPhoto={pickAndStagePhoto}
-        onDeleteImage={removeStagedPhoto}
-        onReorder={handlePhotoReordered}
-      />
-      {photosError ? <Text style={styles.error}>{photosError}</Text> : null}
-
-      <View style={styles.categoryHeaderRow}>
-        <Text style={styles.categoryHeaderLabel}>{t('quickSaveComposer.categoryLabel')}</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setIsCreatingCategoryFormVisible(previous => !previous)}
-          style={styles.addCategoryButton}
-        >
-          <Text style={styles.addCategoryButtonLabel}>{t('collections.addNew')}</Text>
-        </Pressable>
-      </View>
-
-      {isCreatingCategoryFormVisible ? (
-        <View style={styles.newCategoryRow}>
-          <TextInput
-            autoFocus
-            editable={!isCreatingCollection}
-            onChangeText={setNewCollectionName}
-            placeholder={t('collections.namePlaceholder')}
-            style={styles.newCategoryInput}
-            value={newCollectionName}
-          />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{
-              disabled: !newCollectionName.trim() || isCreatingCollection,
-              busy: isCreatingCollection,
-            }}
-            disabled={!newCollectionName.trim() || isCreatingCollection}
-            onPress={submitNewCollection}
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <Text style={styles.firstLabel}>{t('item.url')}</Text>
+        <TextInput
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isSaving}
+          keyboardType="url"
+          onChangeText={setUrl}
+          style={[styles.urlInput, ltrTextStyle]}
+          value={url}
+        />
+        {urlSafetyState ? (
+          <Text
             style={[
-              styles.newCategoryButton,
-              (!newCollectionName.trim() || isCreatingCollection) && styles.disabledButton,
+              styles.urlSafetyStatus,
+              urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
             ]}
           >
-            <Text style={styles.newCategoryButtonLabel}>{t('collections.create')}</Text>
+            {getUrlSafetyStatusLabel(urlSafetyState, t)}
+          </Text>
+        ) : null}
+
+        <View style={styles.titleLabelRow}>
+          <Text style={styles.label}>{t('item.titleLabel')}</Text>
+          {isResolvingMetadataTitle ? <ActivityIndicator size="small" /> : null}
+        </View>
+        <TextInput
+          editable={!isSaving}
+          onChangeText={handleTitleChange}
+          placeholder={t('item.titlePlaceholder')}
+          style={styles.titleInput}
+          value={title}
+        />
+
+        <Text style={styles.label}>{t('item.memo')}</Text>
+        <TextInput
+          editable={!isSaving}
+          multiline
+          onChangeText={setMemo}
+          placeholder={t('item.memoPlaceholder')}
+          style={styles.memoInput}
+          value={memo}
+        />
+
+        <PhotoListEditor
+          deletingKeys={EMPTY_DELETING_KEYS}
+          images={photoOrder}
+          isAdding={isPickingPhoto}
+          onAddPhoto={pickAndStagePhoto}
+          onDeleteImage={removeStagedPhoto}
+          onReorder={handlePhotoReordered}
+        />
+        {photosError ? <Text style={styles.error}>{photosError}</Text> : null}
+
+        <View style={styles.categoryHeaderRow}>
+          <Text style={styles.categoryHeaderLabel}>{t('quickSaveComposer.categoryLabel')}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsCreatingCategoryFormVisible(previous => !previous)}
+            style={styles.addCategoryButton}
+          >
+            <Text style={styles.addCategoryButtonLabel}>{t('collections.addNew')}</Text>
           </Pressable>
         </View>
-      ) : null}
-      {collectionCreateError ? <Text style={styles.error}>{collectionCreateError}</Text> : null}
 
-      {isLoadingCollections ? (
-        <ActivityIndicator style={styles.categoriesLoading} />
-      ) : (
-        <View style={styles.categoryRow}>
-          <CategoryChip
-            isSelected={selectedCollectionId === null}
-            label={t('quickSaveComposer.categoryNone')}
-            onPress={() => setSelectedCollectionId(null)}
-          />
-          {collections.map(collection => (
-            <CategoryChip
-              key={collection.id}
-              isSelected={selectedCollectionId === collection.id}
-              label={collection.name}
-              onPress={() => setSelectedCollectionId(collection.id)}
+        {isCreatingCategoryFormVisible ? (
+          <View style={styles.newCategoryRow}>
+            <TextInput
+              autoFocus
+              editable={!isCreatingCollection}
+              onChangeText={setNewCollectionName}
+              placeholder={t('collections.namePlaceholder')}
+              style={styles.newCategoryInput}
+              value={newCollectionName}
             />
-          ))}
-        </View>
-      )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled: !newCollectionName.trim() || isCreatingCollection,
+                busy: isCreatingCollection,
+              }}
+              disabled={!newCollectionName.trim() || isCreatingCollection}
+              onPress={submitNewCollection}
+              style={[
+                styles.newCategoryButton,
+                (!newCollectionName.trim() || isCreatingCollection) && styles.disabledButton,
+              ]}
+            >
+              <Text style={styles.newCategoryButtonLabel}>{t('collections.create')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {collectionCreateError ? <Text style={styles.error}>{collectionCreateError}</Text> : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {isLoadingCollections ? (
+          <ActivityIndicator style={styles.categoriesLoading} />
+        ) : (
+          <ScrollView contentContainerStyle={styles.categoryRow} horizontal showsHorizontalScrollIndicator={false}>
+            <CategoryChip
+              isSelected={selectedCollectionId === null}
+              label={t('quickSaveComposer.categoryNone')}
+              onPress={() => setSelectedCollectionId(null)}
+            />
+            {collections.map(collection => (
+              <CategoryChip
+                key={collection.id}
+                isSelected={selectedCollectionId === collection.id}
+                label={collection.name}
+                onPress={() => setSelectedCollectionId(collection.id)}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </ScrollView>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !url.trim() || isSaving, busy: isSaving }}
-        disabled={!url.trim() || isSaving}
-        onPress={save}
-        style={[styles.saveButton, (!url.trim() || isSaving) && styles.disabledButton]}
-      >
-        <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
-      </Pressable>
-    </ScrollView>
+      <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !url.trim() || isSaving, busy: isSaving }}
+          disabled={!url.trim() || isSaving}
+          onPress={save}
+          style={[styles.saveButton, (!url.trim() || isSaving) && styles.disabledButton]}
+        >
+          <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -609,15 +617,32 @@ function CategoryChip({ label, isSelected, onPress }: CategoryChipProps) {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   content: {
     flexGrow: 1,
     padding: 24,
+    // Top only - see firstLabel's own remarks on why the very first field doesn't also add its
+    // usual marginTop on top of this.
+    paddingTop: spacing.md,
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
     marginTop: 20,
+    marginBottom: 6,
+  },
+  // Same as `label`, but with no marginTop - used only for the URL field's label, the very first
+  // thing in the scroll content. `label`'s marginTop exists to separate a field from the one
+  // *before* it; stacked on top of `content`'s own paddingTop that doubled the gap between the
+  // header and the first field for no reason (every other field still keeps the normal `label`
+  // spacing from the field above it).
+  firstLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
     marginBottom: 6,
   },
   titleLabelRow: {
@@ -708,9 +733,11 @@ const styles = StyleSheet.create({
   categoriesLoading: {
     marginTop: spacing.sm,
   },
+  // A horizontal ScrollView's contentContainerStyle - no flexWrap (that was the multi-row layout
+  // this replaces): chips now stay in one row and scroll sideways instead of wrapping to a second
+  // line and pushing the rest of the screen down.
   categoryRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
@@ -737,11 +764,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 16,
   },
+  // Fixed footer, outside the ScrollView (see this screen's return statement) - the save button
+  // used to be the ScrollView's last child with insets.bottom folded into the content's own
+  // paddingBottom, which only reserved that much *scrollable* space rather than actually pinning
+  // the button above the real bottom edge: on a short screen the content never scrolled far enough
+  // for that padding to matter, so the button rendered wherever the content naturally ended - which
+  // could still be behind the translucent system navigation bar. A fixed sibling bar with its own
+  // insets.bottom-aware padding (the same pattern ItemDetailsScreen's bottomBar already uses) is
+  // always measured from the screen's actual bottom edge regardless of scroll position or content
+  // length, and - since it's a sibling of the ScrollView within a flex:1 column, not inside it -
+  // Android's adjustResize keeps it pinned above the keyboard too.
+  bottomBar: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.divider,
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+  },
   saveButton: {
     alignItems: 'center',
     backgroundColor: colors.textPrimary,
     borderRadius: radii.md,
-    marginTop: 24,
+    marginTop: spacing.sm,
     paddingVertical: 12,
   },
   saveButtonLabel: {

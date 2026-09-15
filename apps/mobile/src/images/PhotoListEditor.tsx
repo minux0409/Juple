@@ -70,11 +70,25 @@ export function PhotoListEditor({
 
       {images.length > 0 ? (
         <DragList
+          containerStyle={styles.listContainer}
           contentContainerStyle={styles.listContent}
           data={[...images]}
           horizontal
           keyExtractor={effectiveImageKey}
           onReordered={onReorder}
+          // With at most MAX_EFFECTIVE_IMAGES (2) thumbnails, the row never needs to scroll - and
+          // leaving react-native-draglist's default scrollEnabled=true meant a drag used its
+          // large-list codepath (auto-scroll + an unclamped drag position past the row's own
+          // bounds) instead of the short-list one, which is what let a dragged thumbnail visually
+          // fly off past the last item or outside the row entirely. scrollEnabled={false} switches
+          // it to that other, already-built-in codepath, which clamps the drag position to the
+          // *wrapping view's own measured width* - which is why containerStyle (below) also has to
+          // shrink-wrap to the row's actual content width (alignSelf: 'flex-start') instead of
+          // stretching to the full screen width like a plain View does by default inside this
+          // column layout: with the default full-width wrapper, that clamp still let a drag travel
+          // most of the way across the screen before stopping, not just to the edge of the second
+          // thumbnail - with no new gesture dependency.
+          scrollEnabled={false}
           renderItem={({ item, index, onDragStart, onDragEnd, isActive }) => {
             const url = effectiveImageUrl(item);
             const key = effectiveImageKey(item);
@@ -87,7 +101,7 @@ export function PhotoListEditor({
                   index > 0 ? [{ name: 'activate', label: t('item.setAsFirstPhotoA11y') }] : undefined
                 }
                 accessibilityHint={index > 0 ? t('item.setAsFirstPhotoA11y') : undefined}
-                delayLongPress={350}
+                delayLongPress={200}
                 onAccessibilityAction={() => onReorder(index, 0)}
                 onLongPress={onDragStart}
                 onPressOut={isActive ? onDragEnd : undefined}
@@ -149,6 +163,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 4,
   },
+  listContainer: {
+    alignSelf: 'flex-start',
+  },
   listContent: {
     paddingVertical: 8,
   },
@@ -156,8 +173,19 @@ const styles = StyleSheet.create({
     marginEnd: 10,
     position: 'relative',
   },
+  // Deliberately a large, immediate jump (not an animated transition) the instant a drag starts,
+  // so "this is now movable" never depends on the user noticing a gradual change - scale/shadow/
+  // border together (not just one) so it still reads clearly on both light and dark thumbnails.
   thumbnailWrapperActive: {
-    opacity: 0.8,
+    borderColor: colors.brand,
+    borderRadius: radii.md,
+    borderWidth: 2,
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    transform: [{ scale: 1.08 }],
   },
   thumbnail: {
     borderRadius: radii.md,
