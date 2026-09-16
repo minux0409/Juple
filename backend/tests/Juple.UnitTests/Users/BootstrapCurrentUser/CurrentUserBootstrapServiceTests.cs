@@ -21,6 +21,31 @@ public sealed class CurrentUserBootstrapServiceTests
     }
 
     [Fact]
+    public async Task BootstrapAsync_WhenIdentityExists_DelegatesTimeZoneSyncWithValidatedTimeZone()
+    {
+        var store = new FakeProvisioningStore { IdentityExists = true };
+        var service = CreateService(store);
+
+        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        var syncCall = Assert.Single(store.TimeZoneSyncCalls);
+        Assert.Equal(ExternalIdentity, syncCall.ExternalIdentity);
+        Assert.Equal("Asia/Seoul", syncCall.TimeZoneId);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_WhenTimeZoneIsInvalid_NeverCallsTimeZoneSync()
+    {
+        var store = new FakeProvisioningStore { IdentityExists = true };
+        var service = CreateService(store);
+
+        await Assert.ThrowsAsync<InvalidCurrentUserBootstrapRequestException>(
+            () => service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Invalid/TimeZone")));
+
+        Assert.Empty(store.TimeZoneSyncCalls);
+    }
+
+    [Fact]
     public async Task BootstrapAsync_WhenIdentityIsNew_CreatesUserAndExternalIdentity()
     {
         var store = new FakeProvisioningStore();
@@ -64,11 +89,15 @@ public sealed class CurrentUserBootstrapServiceTests
     private static CurrentUserBootstrapService CreateService(FakeProvisioningStore store) =>
         new(store, new FixedTimeProvider());
 
+    private sealed record TimeZoneSyncCall(ExternalIdentityPrincipal ExternalIdentity, string TimeZoneId);
+
     private sealed class FakeProvisioningStore : ICurrentUserProvisioningStore
     {
         public bool IdentityExists { get; init; }
 
         public List<CurrentUserBootstrapData> CreatedUsers { get; } = [];
+
+        public List<TimeZoneSyncCall> TimeZoneSyncCalls { get; } = [];
 
         public Task<bool> ExternalIdentityExistsAsync(
             ExternalIdentityPrincipal externalIdentity,
@@ -81,6 +110,21 @@ public sealed class CurrentUserBootstrapServiceTests
         {
             CreatedUsers.Add(data);
             return Task.CompletedTask;
+        }
+
+        public Task<bool> TrySyncTimeZoneIfExistingAsync(
+            ExternalIdentityPrincipal externalIdentity,
+            string timeZoneId,
+            DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IdentityExists)
+            {
+                return Task.FromResult(false);
+            }
+
+            TimeZoneSyncCalls.Add(new TimeZoneSyncCall(externalIdentity, timeZoneId));
+            return Task.FromResult(true);
         }
     }
 

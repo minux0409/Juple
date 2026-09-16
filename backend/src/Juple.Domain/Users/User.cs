@@ -33,4 +33,10 @@ public sealed class User
     public DateTimeOffset UpdatedAtUtc { get; private set; }
 
     public byte[] RowVersion { get; private set; } = [];
+
+    public void UpdateTimeZone(string timeZoneId, DateTimeOffset updatedAtUtc)
+    {
+        TimeZoneId = timeZoneId;
+        UpdatedAtUtc = updatedAtUtc;
+    }
 }

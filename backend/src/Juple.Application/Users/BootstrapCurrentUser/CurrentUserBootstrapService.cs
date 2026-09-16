@@ -15,14 +15,20 @@ public sealed class CurrentUserBootstrapService(
         BootstrapCurrentUserCommand command,
         CancellationToken cancellationToken = default)
     {
-        if (await provisioningStore.ExternalIdentityExistsAsync(externalIdentity, cancellationToken))
+        var timeZoneId = ValidateTimeZoneId(command.TimeZoneId);
+        var utcNow = timeProvider.GetUtcNow();
+
+        // Device timezone can legitimately change after a User already exists (travel, or the
+        // device simply had a wrong/default zone at first bootstrap) - re-sync it here on every
+        // bootstrap call instead of only setting it once at creation. Best-effort: only writes
+        // when the value actually differs, and never touches PreferredLocale for an existing User.
+        if (await provisioningStore.TrySyncTimeZoneIfExistingAsync(
+                externalIdentity, timeZoneId, utcNow, cancellationToken))
         {
             return;
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
-        var timeZoneId = ValidateTimeZoneId(command.TimeZoneId);
-        var createdAtUtc = timeProvider.GetUtcNow();
 
         await provisioningStore.CreateOrGetAsync(
             new CurrentUserBootstrapData(
@@ -30,7 +36,7 @@ public sealed class CurrentUserBootstrapService(
                 preferredLocale,
                 timeZoneId,
                 DefaultCurrencyCode: null,
-                createdAtUtc),
+                utcNow),
             cancellationToken);
     }
 

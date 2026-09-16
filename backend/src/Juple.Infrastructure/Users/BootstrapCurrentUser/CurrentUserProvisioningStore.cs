@@ -20,6 +20,34 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 && identity.ObjectId == externalIdentity.ObjectId,
             cancellationToken);
 
+    public async Task<bool> TrySyncTimeZoneIfExistingAsync(
+        ExternalIdentityPrincipal externalIdentity,
+        string timeZoneId,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await (
+            from identity in dbContext.Set<ExternalIdentity>()
+            join existingUser in dbContext.Users on identity.UserId equals existingUser.Id
+            where identity.TenantId == externalIdentity.TenantId
+                && identity.ObjectId == externalIdentity.ObjectId
+            select existingUser)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (user is null)
+        {
+            return false;
+        }
+
+        if (!string.Equals(user.TimeZoneId, timeZoneId, StringComparison.Ordinal))
+        {
+            user.UpdateTimeZone(timeZoneId, updatedAtUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return true;
+    }
+
     public async Task CreateOrGetAsync(
         CurrentUserBootstrapData data,
         CancellationToken cancellationToken = default)
