@@ -52,7 +52,9 @@ param replicaRetryLimit int = 0
 param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
 
-var jobName = 'caj-juple-instagram-metadata-retry-${environmentName}'
+// Shortened from the natural "caj-juple-instagram-metadata-retry-{env}" (39 chars for "dev") -
+// Container Apps Job names are capped at 32 characters.
+var jobName = 'caj-juple-ig-metadata-retry-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 
 resource instagramMetadataRetryJob 'Microsoft.App/jobs@2024-03-01' = {

@@ -409,7 +409,8 @@ Mobile 앱은 Item 저장 직후 URL metadata를 한 번 best-effort로 resolve�
 - `infra/azure/instagram-metadata-retry-job/main.bicep` - Push/Blob cleanup Job과 완전히
   분리된 별도 리소스. Blob Storage/Firebase parameter가 없다 - SQL 접근과 (API Container App과
   동일한) outbound HTTPS(Instagram fetch)만 필요.
-- Resource: `Microsoft.App/jobs@2024-03-01`, 이름 `caj-juple-instagram-metadata-retry-{environmentName}`.
+- Resource: `Microsoft.App/jobs@2024-03-01`, 이름 `caj-juple-ig-metadata-retry-{environmentName}`(Container
+  Apps Job 이름 32자 제한 때문에 축약됨).
 - 같은 `cae-juple-dev` Environment, 같은 backend 이미지 재사용, `args:
   ["--run-instagram-metadata-retry"]`만 전달(Program.cs의 one-shot 분기, `--run-blob-cleanup-retry`와
   동일한 패턴).
