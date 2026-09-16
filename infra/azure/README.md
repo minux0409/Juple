@@ -123,6 +123,20 @@ az deployment group create `
     storageBlobServiceUri=$foundation.storageBlobServiceUri.value `
     sqlConnectionString=$env:SQL_CONNECTION_STRING
 
+# 5.5 Instagram metadata retry Job (resource group scope) - Blob cleanup Job과 완전히 별개
+# 리소스/secret 네임스페이스. Blob Storage/Firebase 관련 parameter가 전혀 없다 - 이 Job은 SQL
+# 접근과 (API Container App과 동일한) outbound HTTPS만 필요하다(아래 "Instagram metadata retry
+# scheduled Job" 참고).
+az deployment group create `
+  --resource-group $foundation.resourceGroupName.value `
+  --template-file infra/azure/instagram-metadata-retry-job/main.bicep `
+  --parameters `
+    acrLoginServer=$foundation.acrLoginServer.value `
+    imageTag=<App과 동일한 tag> `
+    containerAppsEnvironmentId=$foundation.containerAppsEnvironmentId.value `
+    managedIdentityResourceId=$foundation.managedIdentityResourceId.value `
+    sqlConnectionString=$env:SQL_CONNECTION_STRING
+
 # 6. Web (resource group scope) - apps/web (Public Collection Sharing Web Viewer), API/Job과
 # 완전히 별개 리소스/이미지, secret 없음. 이미지는 환경과 무관하게 빌드된다 - build-arg가
 # 전혀 없다(아래 "Web Container App" 섹션 참고) - 그래서 Dev/Staging/Prod가 같은 tag를 그대로
@@ -378,6 +392,40 @@ mutation(`RecordFailedAttemptAsync`/`ScheduleFinalSweepAsync`/`DeleteAsync`)은 
 행에 대해 조용히 no-op한다(인터페이스 자체에 문서화됨). 즉 두 execution이 같은 pending task를
 동시에 처리해도 데이터 손상이 없다 - `replicaTimeout`을 schedule 간격보다 짧게 둔 것은 이 안전성에
 의존하기 위해서가 아니라 겹침 자체를 굳이 유발하지 않기 위한 예방적 선택이다.
+
+### Instagram metadata retry scheduled Job
+
+Mobile 앱은 Item 저장 직후 URL metadata를 한 번 best-effort로 resolve해서 title/preview image를
+채운다(`enrichItemTitleFromUrlMetadata`/`enrichItemPreviewImageFromUrlMetadata`). 여러 차례의
+실기기 조사로, 공개 Instagram post에 대해 이 첫 시도가 간헐적으로 빈 결과를 받는 것은 **Juple 쪽
+요청 방식(cookie/URL canonicalization/network origin)의 결함이 아니라 Instagram 쪽의 일시적
+동작**임이 확인됐다 - 동일한 URL이 어떤 시점엔 실패하고 몇 분 뒤 재요청하면 그대로 성공한다.
+`InstagramMetadataRetryTask`/`InstagramMetadataRetryService`는 이 최초 시도가 비어 있는 채로
+끝난 공개 Instagram Item에게 **최대 2번의 추가 backend 시도**(Item 저장 후 약 1분, 약 5분 시점)를
+주는 durable backstop이다 - Item 저장 자체는 이 기능과 무관하게 항상 즉시 성공한다(이미 그랬다).
+
+**설계**:
+
+- `infra/azure/instagram-metadata-retry-job/main.bicep` - Push/Blob cleanup Job과 완전히
+  분리된 별도 리소스. Blob Storage/Firebase parameter가 없다 - SQL 접근과 (API Container App과
+  동일한) outbound HTTPS(Instagram fetch)만 필요.
+- Resource: `Microsoft.App/jobs@2024-03-01`, 이름 `caj-juple-instagram-metadata-retry-{environmentName}`.
+- 같은 `cae-juple-dev` Environment, 같은 backend 이미지 재사용, `args:
+  ["--run-instagram-metadata-retry"]`만 전달(Program.cs의 one-shot 분기, `--run-blob-cleanup-retry`와
+  동일한 패턴).
+- `triggerType: Schedule`, cron `* * * * *`(**UTC**, 매분) - Blob cleanup Job의 5분보다 촘촘한
+  이유는 1분/5분 시점의 재시도 스케줄을 놓치지 않기 위해서다. `parallelism: 1`,
+  `replicaCompletionCount: 1`, `replicaTimeout: 45`초(1분 주기보다 짧게), `replicaRetryLimit: 0`
+  (다음 분의 스케줄 실행 자체가 재시도 역할).
+- **동시성**: `InstagramMetadataRetryStore.TryClaimAsync`가 `ClaimedAtUtc IS NULL` 조건의 단일
+  atomic UPDATE로 두 execution이 같은 task를 동시에 처리하는 것을 막는다(claim은 매 attempt
+  이후 해제되고, 죽은 worker의 stale claim은 2분 뒤 재claim 가능). 신규 후보 discovery는
+  `ItemId`의 unique index로 동시 등록을 방어한다.
+- **Storage**: `items.InstagramMetadataRetryTasks` 신규 테이블 하나만 추가(migration
+  `AddInstagramMetadataRetryTask`) - `Items.Title`/`Items.PreviewImageUrl` 컬럼은 그대로 재사용,
+  새 컬럼 없음.
+
+Dev 배포/실기기 검증 상태는 이 문서가 마지막으로 갱신된 커밋의 커밋 메시지와 배포 로그를 참고.
 
 ### Web Container App - IaC 준비 완료, Azure 리소스 미생성
 

@@ -29,6 +29,7 @@ using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetRecentlyOpenedLinks;
+using Juple.Application.Items.InstagramMetadataRetry;
 using Juple.Application.Items.RecordItemOpen;
 using Juple.Application.Items.SetItemCoverImage;
 using Juple.Application.Items.SetItemPreviewImage;
@@ -62,7 +63,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Job's IaC once this is confirmed to no longer be needed.
 var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordinal);
 var isBlobCleanupRetryJob = args.Contains("--run-blob-cleanup-retry", StringComparer.Ordinal);
-var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob;
+var isInstagramMetadataRetryJob = args.Contains("--run-instagram-metadata-retry", StringComparer.Ordinal);
+var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob;
 
 // Never required, and never validated, for either Job - RequireScope still needs a non-null value
 // to register the policy below, but that policy is only ever evaluated by the ASP.NET Core
@@ -204,6 +206,17 @@ if (isBlobCleanupRetryJob)
     return await RunBlobCleanupRetryOnceAsync(app.Services);
 }
 
+// One-shot execution mode for the Instagram metadata retry Job (see
+// InstagramMetadataRetryService/InstagramMetadataRetryTask's own remarks). Same rationale as the
+// Blob cleanup retry Job above: the client's own synchronous best-effort metadata resolution
+// (right after an Item is saved) is allowed to come back empty - confirmed to be genuinely
+// transient, Instagram-side behavior - so this Job is what gives an affected Item up to two more
+// backend-side tries on a schedule, never blocking the original save.
+if (isInstagramMetadataRetryJob)
+{
+    return await RunInstagramMetadataRetryOnceAsync(app.Services);
+}
+
 // Forces PublicCollectionCursor:EncryptionKey validation (see PublicCollectionItemPageCursorCodec's
 // constructor) at startup rather than on the first public "load more" request.
 app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();
@@ -245,6 +258,33 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
         // Same rationale as RunPushDispatchOnceAsync's own catch block - a scheduled Job's exit
         // code is how Azure reports failure.
         logger.LogError(exception, "Blob cleanup retry run failed.");
+        return 1;
+    }
+}
+
+static async Task<int> RunInstagramMetadataRetryOnceAsync(IServiceProvider rootServices)
+{
+    await using var scope = rootServices.CreateAsyncScope();
+    var retryService = scope.ServiceProvider.GetRequiredService<IInstagramMetadataRetryService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("InstagramMetadataRetryJob");
+
+    try
+    {
+        var result = await retryService.RunOnceAsync();
+        logger.LogInformation(
+            "Instagram metadata retry run complete. Due={Due} Resolved={Resolved} " +
+            "Rescheduled={Rescheduled} GaveUp={GaveUp} AlreadySatisfied={AlreadySatisfied} " +
+            "SkippedNotClaimed={SkippedNotClaimed}",
+            result.DueTaskCount, result.Resolved, result.Rescheduled, result.GaveUp,
+            result.AlreadySatisfied, result.SkippedNotClaimed);
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        // Same rationale as RunBlobCleanupRetryOnceAsync's own catch block - a scheduled Job's exit
+        // code is how Azure reports failure.
+        logger.LogError(exception, "Instagram metadata retry run failed.");
         return 1;
     }
 }
