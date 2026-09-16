@@ -28,6 +28,24 @@ public sealed class ResolveUrlMetadataServiceTests
         Assert.Equal("Resolved Title", result.Title);
     }
 
+    /// <summary>
+    /// Regression coverage: a real Instagram app share produces a tokenized URL
+    /// (?igsh=... or similar) - ValidateUrl must only ever trim surrounding whitespace, never
+    /// touch the query string, or that token (needed for Instagram to resolve the actual shared
+    /// post rather than a generic page) would be silently dropped before the resolver ever sees it.
+    /// </summary>
+    [Fact]
+    public async Task ResolveAsync_PreservesTheFullQueryStringUnchanged_IncludingATokenizedShareParameter()
+    {
+        var resolver = new FakeUrlMetadataResolver();
+        var service = new ResolveUrlMetadataService(resolver);
+        const string tokenizedUrl = "https://www.instagram.com/p/ABC123xyz/?igsh=dGVzdHRva2Vu&utm_source=ig_web_copy_link";
+
+        await service.ResolveAsync(new ResolveUrlMetadataCommand(tokenizedUrl));
+
+        Assert.Equal(tokenizedUrl, resolver.LastUrl);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

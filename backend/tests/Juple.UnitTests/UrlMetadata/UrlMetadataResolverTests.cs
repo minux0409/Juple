@@ -310,6 +310,318 @@ public sealed class UrlMetadataResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_ForwardsSetCookieFromARedirectResponse_ToTheNextHopsRequest()
+    {
+        string? cookieHeaderSeenOnFinalHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "session=abc123; Path=/; HttpOnly");
+                    return redirect;
+                }
+
+                cookieHeaderSeenOnFinalHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>Final Page</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/start");
+
+            Assert.Equal("Final Page", result.Title);
+            // Only the "name=value" pair - never Path/HttpOnly/other Set-Cookie attributes, which a
+            // request-side Cookie header must not repeat.
+            Assert.Equal("session=abc123", cookieHeaderSeenOnFinalHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_AccumulatesCookiesAcrossMultipleRedirectHops()
+    {
+        string? cookieHeaderSeenOnFinalHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/hop2") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "first=one");
+                    return redirect;
+                }
+
+                if (callCount == 2)
+                {
+                    Assert.Equal("first=one", request.Headers.GetValues("Cookie").Single());
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "second=two");
+                    return redirect;
+                }
+
+                cookieHeaderSeenOnFinalHop = request.Headers.GetValues("Cookie").Single();
+                return HtmlResponse("<html><head><title>Final Page</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://example.com/start");
+
+            // Both hops' cookies present by the final request - a real browser completing the same
+            // redirect chain accumulates cookies the same way.
+            Assert.Contains("first=one", cookieHeaderSeenOnFinalHop);
+            Assert.Contains("second=two", cookieHeaderSeenOnFinalHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenNoRedirectOccurs_NeverSendsACookieHeader()
+    {
+        bool? cookieHeaderPresent = null;
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                cookieHeaderPresent = request.Headers.Contains("Cookie");
+                return HtmlResponse("<html><head><title>No Redirect Here</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://example.com/direct");
+
+            Assert.False(cookieHeaderPresent);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NeverCarriesCookiesFromOneResolveCallIntoTheNextOnTheSameResolverInstance()
+    {
+        bool? cookieHeaderPresentOnSecondCallsFirstRequest = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/first-final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "leftover=shouldNotSurvive");
+                    return redirect;
+                }
+
+                if (callCount == 2)
+                {
+                    return HtmlResponse("<html><head><title>First Call Final</title></head></html>");
+                }
+
+                // Third call: a brand new ResolveAsync for a DIFFERENT url, same resolver/HttpClient
+                // instance - must start with no cookie jar at all from the previous call.
+                cookieHeaderPresentOnSecondCallsFirstRequest = request.Headers.Contains("Cookie");
+                return HtmlResponse("<html><head><title>Second Call</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://example.com/first-start");
+            await resolver.ResolveAsync("https://example.com/second-start");
+
+            Assert.False(cookieHeaderPresentOnSecondCallsFirstRequest);
+        }
+    }
+
+    // Cross-origin cookie-scoping security regression suite. The cookie continuity above exists
+    // to fix a real Instagram redirect issue (see this file's own remarks), but a redirect chain
+    // can just as easily cross from one host to a completely different one - a plain
+    // name/value map with no Domain/Path/Secure awareness would forward EVERY cookie collected so
+    // far to that unrelated host too, an actual cookie-leak vulnerability. UrlMetadataResolver
+    // uses a real System.Net.CookieContainer (RFC 6265 Domain/Path/Secure/Expires matching) per
+    // ResolveAsync call specifically to make that structurally impossible, not just
+    // policy-avoided - these tests assert the actual per-hop Cookie header, not just that
+    // "something" was forwarded.
+    [Fact]
+    public async Task ResolveAsync_CookieScoped_ToTheIssuingHost_IsForwardedToTheSameHost()
+    {
+        string? cookieHeaderOnSecondHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://a.example/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "session=onA; Domain=a.example; Path=/");
+                    return redirect;
+                }
+
+                cookieHeaderOnSecondHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>A Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.Equal("session=onA", cookieHeaderOnSecondHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_HostOnlyCookie_IsNeverForwardedToADifferentHostLaterInTheRedirectChain()
+    {
+        bool? cookieHeaderPresentOnOtherHost = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    // No Domain attribute at all -> RFC 6265 host-only cookie, valid for a.example
+                    // exactly, never any other host, not even a redirect target.
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://b.example/other") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "secret=onlyForA");
+                    return redirect;
+                }
+
+                cookieHeaderPresentOnOtherHost = request.Headers.Contains("Cookie");
+                return HtmlResponse("<html><head><title>B Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.False(cookieHeaderPresentOnOtherHost);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ExplicitParentDomainCookie_IsForwardedToASubdomain_PerRfc6265()
+    {
+        string? cookieHeaderOnSubdomainHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://sub.example.com/final") },
+                    };
+                    // Domain=.example.com (or example.com, RFC 6265 treats a leading dot as
+                    // optional) explicitly opts into being visible to subdomains too.
+                    redirect.Headers.Add("Set-Cookie", "wide=domainScoped; Domain=example.com; Path=/");
+                    return redirect;
+                }
+
+                cookieHeaderOnSubdomainHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>Sub Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://www.example.com/start");
+
+            Assert.Equal("wide=domainScoped", cookieHeaderOnSubdomainHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_PathScopedCookie_IsForwardedUnderThatPath_ButNotOutsideIt()
+    {
+        var cookieHeadersSeen = new List<string?>();
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://a.example/foo/bar") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "scoped=underFoo; Path=/foo");
+                    return redirect;
+                }
+
+                if (callCount == 2)
+                {
+                    // /foo/bar is under the cookie's /foo path scope - must be forwarded.
+                    cookieHeadersSeen.Add(request.Headers.TryGetValues("Cookie", out var v1) ? v1.Single() : null);
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://a.example/other") },
+                    };
+                    return redirect;
+                }
+
+                // /other is a sibling of /foo, not under it - must NOT be forwarded.
+                cookieHeadersSeen.Add(request.Headers.Contains("Cookie") ? "present" : null);
+                return HtmlResponse("<html><head><title>Other</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.Equal("scoped=underFoo", cookieHeadersSeen[0]);
+            Assert.Null(cookieHeadersSeen[1]);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_SecureCookie_IsForwardedOverHttps_ButNeverOverPlainHttp()
+    {
+        string? cookieHeaderOnHttpHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    // Same host, but the redirect target itself drops to plain http - a Secure
+                    // cookie must never be sent over that downgraded connection.
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("http://a.example/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "secureOnly=value; Secure; Path=/");
+                    return redirect;
+                }
+
+                cookieHeaderOnHttpHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>Http Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.Null(cookieHeaderOnHttpHop);
+        }
+    }
+
+    [Fact]
     public async Task ResolveAsync_CachesResult_SecondCallForSameUrlDoesNotRefetch()
     {
         var resolver = CreateResolver(

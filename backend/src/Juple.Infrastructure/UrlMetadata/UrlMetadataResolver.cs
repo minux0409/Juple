@@ -66,6 +66,28 @@ public sealed class UrlMetadataResolver(
         try
         {
             var currentUri = initialUri;
+            // Carries any Set-Cookie a hop issues to a later hop's request within this one
+            // ResolveAsync call only - a fresh, empty container per call, never persisted past
+            // this method and never shared across calls/users (the injected HttpClient itself
+            // still has UseCookies=false, so nothing here creates a cross-request cookie jar; see
+            // AddUrlMetadataResolver's own remarks). A real System.Net.CookieContainer, not a flat
+            // name/value map - SetCookies/GetCookieHeader below apply RFC 6265 Domain/Path/Secure/
+            // Expires scoping per hop's own URI, so a cookie set by one host on the redirect chain
+            // is never forwarded to a different, unrelated host later in the same chain (see this
+            // class's own test suite for the cross-origin cases this specifically guards against).
+            // Exists because disabling HttpClient's automatic redirect handling (see this class's
+            // own remarks on why - hop counting/re-validation) also disabled the cookie continuity
+            // a browser completing the same redirect chain gets for free: a real production
+            // comparison (Azure Dev container logs, 2026-09) showed Instagram consistently serving
+            // full post og:tags when no redirect was needed (RedirectCount=0) but a generic
+            // interstitial page once our own hop-by-hop fetch had to follow one (RedirectCount=1,
+            // 6/6 observed), which is exactly the signature of a server that expects the
+            // Set-Cookie from its own redirect response to come back on the very next request.
+            // Restoring that within a single resolve operation is standard single-navigation HTTP
+            // behavior (what AllowAutoRedirect=true would already do automatically) - not a
+            // persistent session, a login, or a CAPTCHA/bot-detection bypass.
+            var cookieContainer = new CookieContainer();
+
             while (true)
             {
                 if (!IsAllowedRequestUri(currentUri))
@@ -76,8 +98,39 @@ public sealed class UrlMetadataResolver(
                 lastAttemptedHost = currentUri.Host;
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
+                var cookieHeader = cookieContainer.GetCookieHeader(currentUri);
+                if (!string.IsNullOrEmpty(cookieHeader))
+                {
+                    request.Headers.TryAddWithoutValidation("Cookie", cookieHeader);
+                }
+
                 using var response = await httpClient.SendAsync(
                     request, HttpCompletionOption.ResponseHeadersRead, budgetCts.Token);
+
+                if (response.Headers.TryGetValues("Set-Cookie", out var setCookieValues))
+                {
+                    foreach (var setCookie in setCookieValues)
+                    {
+                        try
+                        {
+                            // Scoped against currentUri (the URI that actually issued this
+                            // Set-Cookie) - CookieContainer itself enforces that a Domain
+                            // attribute must be the issuing host or a valid parent of it (RFC
+                            // 6265 domain-matching), and defaults to a host-only cookie when no
+                            // Domain is given at all, so a malicious/misconfigured redirect target
+                            // can never plant a cookie that CookieContainer would later hand to a
+                            // different, unrelated host.
+                            cookieContainer.SetCookies(currentUri, setCookie);
+                        }
+                        catch (CookieException)
+                        {
+                            // Malformed Set-Cookie (invalid Domain scope, unparseable attribute,
+                            // ...) - best-effort only, exactly like every other piece of metadata
+                            // extraction in this class; never let a bad response header fail the
+                            // whole resolve.
+                        }
+                    }
+                }
 
                 if (IsRedirectStatus(response.StatusCode))
                 {
