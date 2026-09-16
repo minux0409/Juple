@@ -2,6 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { ScrollView, Text, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
 import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
@@ -100,14 +101,22 @@ async function openCategoryPicker(renderer: ReactTestRenderer.ReactTestRenderer)
   });
 }
 
-/** The 2nd photo thumbnail's "첫 번째로 설정" accessibility action - see PhotoListEditor.tsx. With
- * MAX_EFFECTIVE_IMAGES capped at 2, this is the only possible non-trivial reorder in a 2-photo
- * list (index 1 -> index 0), so it exercises the exact same onReorder(1, 0) contract a real
- * drag-past-the-midpoint gesture would - see twoSlotDrag.test.ts for the drag geometry itself. */
-function findReorderToFrontAction(renderer: ReactTestRenderer.ReactTestRenderer) {
+/** Taps the 2nd (non-representative) photo thumbnail - see PhotoListEditor.tsx's tap+confirm UX.
+ * With MAX_EFFECTIVE_IMAGES capped at 2, this is the only possible photo tap in a 2-photo list,
+ * always index 1 -> index 0. Does not by itself change anything - see confirmSetRepresentative. */
+function tapSecondPhoto(renderer: ReactTestRenderer.ReactTestRenderer) {
+  findByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))?.props.onPress();
+}
+
+function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer, title: string) {
   return renderer.root.findAll(
-    node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
+    node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === title,
   )[0];
+}
+
+/** Confirms the currently-visible "set as representative" ConfirmDialog. */
+function confirmSetRepresentative(renderer: ReactTestRenderer.ReactTestRenderer) {
+  findVisibleConfirmDialog(renderer, i18n.t('item.setRepresentativeConfirmTitle'))?.props.onConfirm();
 }
 
 /** The Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to
@@ -398,9 +407,12 @@ describe('NewLinkReviewScreen', () => {
       await act(async () => {
         await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
       });
-      // [auto, staged] -> reordering index 1 to index 0.
+      // [auto, staged] -> confirming makes index 1 the representative.
       await act(async () => {
-        await findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
+        tapSecondPhoto(renderer);
+      });
+      await act(async () => {
+        confirmSetRepresentative(renderer);
       });
 
       await act(async () => {

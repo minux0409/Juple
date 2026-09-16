@@ -316,10 +316,12 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     setPhotoOrder(previous => previous.filter(entry => !(entry.kind === 'staged' && entry.stagedId === image.stagedId)));
   };
 
-  /** Purely local - nothing to persist yet (there is no Item until Save), so unlike
-   * ItemDetailsScreen's own reorder this never calls an API and never fails. */
-  const handlePhotoReordered = (fromIndex: number, toIndex: number) => {
-    setPhotoOrder(previous => reorderList(previous, fromIndex, toIndex));
+  /** The user confirmed making the photo at `index` the new representative/cover photo (see
+   * PhotoListEditor's own tap+confirm UX) - purely local, nothing to persist yet (there is no
+   * Item until Save), so unlike ItemDetailsScreen's own version this never calls an API and never
+   * fails. */
+  const setPhotoAsRepresentative = (index: number) => {
+    setPhotoOrder(previous => reorderList(previous, index, 0));
   };
 
   const save = async () => {
@@ -486,7 +488,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           isAdding={isPickingPhoto}
           onAddPhoto={pickAndStagePhoto}
           onDeleteImage={removeStagedPhoto}
-          onReorder={handlePhotoReordered}
+          onSetRepresentative={setPhotoAsRepresentative}
         />
         {photosError ? <Text style={styles.error}>{photosError}</Text> : null}
       </ScrollView>

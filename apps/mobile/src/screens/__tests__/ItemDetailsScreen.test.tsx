@@ -366,20 +366,53 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
-  describe('photo reorder (drag persists via setItemCoverImage - the same field, now purely an ordering detail)', () => {
-    /** The 2nd/later thumbnail's "첫 번째로 설정" accessibility action - see PhotoListEditor.tsx.
-     * With MAX_EFFECTIVE_IMAGES capped at 2, this is the only possible non-trivial reorder in a
-     * 2-photo list (index 1 -> index 0), so it exercises the exact same onReorder(1, 0) contract a
-     * real drag-past-the-midpoint gesture would - see twoSlotDrag.test.ts for the drag geometry
-     * itself (clamp/midpoint/swap), which is tested independently of any UI trigger.
-     */
-    function findReorderToFrontAction(renderer: ReactTestRenderer.ReactTestRenderer) {
-      return renderer.root.findAll(
-        node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
-      )[0];
+  describe('photo representative selection (tap + confirm persists via setItemCoverImage - the same field as before)', () => {
+    /** Taps the 2nd (non-representative) thumbnail - see PhotoListEditor.tsx's tap+confirm UX,
+     * which replaced the earlier drag-based reorder entirely. With MAX_EFFECTIVE_IMAGES capped at
+     * 2, this is the only possible photo tap in a 2-photo list, always index 1 -> index 0. */
+    function tapSecondPhoto(renderer: ReactTestRenderer.ReactTestRenderer) {
+      findPressableByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))?.props.onPress();
     }
 
-    it('dragging the uploaded image to the front persists it as the cover', async () => {
+    /** Confirms the currently-visible "set as representative" ConfirmDialog. */
+    function confirmSetRepresentative(renderer: ReactTestRenderer.ReactTestRenderer) {
+      findVisibleConfirmDialog(renderer, i18n.t('item.setRepresentativeConfirmTitle'))?.props.onConfirm();
+    }
+
+    it('does not show the dialog or call setItemCoverImage on tap alone - only after confirming', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        tapSecondPhoto(renderer);
+      });
+
+      expect(findVisibleConfirmDialog(renderer, i18n.t('item.setRepresentativeConfirmTitle'))).toBeTruthy();
+      expect(setItemCoverImage).not.toHaveBeenCalled();
+    });
+
+    it('cancelling the dialog leaves the order and cover unchanged', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(
+        makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
+      );
+      jest.mocked(getItemImages).mockResolvedValue([makeImage({ id: 7, readUrl: 'https://blob.example/7.jpg' })]);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        tapSecondPhoto(renderer);
+      });
+      await act(async () => {
+        findVisibleConfirmDialog(renderer, i18n.t('item.setRepresentativeConfirmTitle'))?.props.onCancel();
+      });
+
+      expect(findVisibleConfirmDialog(renderer, i18n.t('item.setRepresentativeConfirmTitle'))).toBeFalsy();
+      expect(setItemCoverImage).not.toHaveBeenCalled();
+    });
+
+    it('confirming makes the uploaded image the representative and persists it as the cover', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
       );
@@ -387,15 +420,19 @@ describe('ItemDetailsScreen', () => {
       jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
       const renderer = await renderScreen();
 
-      // [auto, uploaded] -> reordering index 1 to index 0.
+      // [auto, uploaded] -> confirming makes index 1 (uploaded) the representative.
       await act(async () => {
-        findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
+        tapSecondPhoto(renderer);
+      });
+      await act(async () => {
+        confirmSetRepresentative(renderer);
       });
 
+      expect(setItemCoverImage).toHaveBeenCalledTimes(1);
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, 7);
     });
 
-    it('dragging the auto preview back to the front clears the cover (null)', async () => {
+    it('confirming makes the auto preview the representative again, clearing the cover (null)', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({
           previewImageUrl: 'https://cdn.example.com/preview.jpg',
@@ -406,15 +443,19 @@ describe('ItemDetailsScreen', () => {
       jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
       const renderer = await renderScreen();
 
-      // Cover is already set, so the list renders as [uploaded, auto] - reordering index 1 (auto) to index 0.
+      // Cover is already set, so the list renders as [uploaded, auto] - confirming makes index 1
+      // (auto) the representative again.
       await act(async () => {
-        findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
+        tapSecondPhoto(renderer);
+      });
+      await act(async () => {
+        confirmSetRepresentative(renderer);
       });
 
       expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 1, null);
     });
 
-    it('a failed reorder rolls back the displayed order and shows an error', async () => {
+    it('a failed persistence rolls back the displayed order and shows an error', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(
         makeItemDetails({ previewImageUrl: 'https://cdn.example.com/preview.jpg' }),
       );
@@ -423,7 +464,10 @@ describe('ItemDetailsScreen', () => {
       const renderer = await renderScreen();
 
       await act(async () => {
-        findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
+        tapSecondPhoto(renderer);
+      });
+      await act(async () => {
+        confirmSetRepresentative(renderer);
       });
 
       expect(renderer.root.findByProps({ children: '사진 순서를 변경할 수 없습니다.' })).toBeTruthy();
