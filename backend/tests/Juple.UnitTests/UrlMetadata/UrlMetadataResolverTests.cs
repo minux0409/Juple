@@ -333,6 +333,26 @@ public sealed class UrlMetadataResolverTests
         }
     }
 
+    // Real-device regression: a manually-saved /live/{videoId}?si=... URL got its title but no
+    // thumbnail - traced to that path shape not being recognized by the video-ID URL extractor at
+    // all (see YouTubeThumbnailResolverTests' own /live/ cases for the extractor-level coverage).
+    [Fact]
+    public async Task ResolveAsync_YouTubeLiveUrl_WithShareTrackingQuery_StillResolvesTheThumbnail_FromTheVideoIdInTheUrl()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                : HtmlResponse("<html><head><title>A Live Stream - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/live/abc123XYZ_?si=someTrackingToken");
+
+            Assert.Equal("A Live Stream - YouTube", result.Title);
+            Assert.Equal("https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg", result.PreviewImageUrl);
+        }
+    }
+
     [Fact]
     public async Task ResolveAsync_WhenHtmlHasNoImageMetaTags_AndNoQualityExistsEither_PreviewImageUrlIsNull_NotAGuess()
     {

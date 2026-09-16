@@ -159,6 +159,14 @@ public sealed class YouTubeThumbnailResolverTests
     [InlineData("https://youtu.be/dQw4w9WgXcQ?t=30", "dQw4w9WgXcQ")]
     [InlineData("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
     [InlineData("https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    // /live/{videoId} - a real-device regression: manual-save of a live-stream watch page (title
+    // resolved fine, thumbnail never did) traced to this path shape simply not being recognized
+    // at all, so the URL-based fallback below never even attempted to extract a video ID for it.
+    // The trailing "?si=..." share-tracking query (YouTube's own live-share parameter) must never
+    // affect extraction - only Uri.AbsolutePath is inspected for this shape.
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ?si=someTrackingToken", "dQw4w9WgXcQ")]
+    [InlineData("https://youtube.com/live/dQw4w9WgXcQ?si=abc&feature=share", "dQw4w9WgXcQ")]
     public void TryExtractVideoIdFromPageUrl_ExtractsTheVideoId_FromEveryRealYouTubeUrlShape(
         string pageUrl, string expectedVideoId)
     {
@@ -173,6 +181,8 @@ public sealed class YouTubeThumbnailResolverTests
     [InlineData("https://www.youtube.com/")] // no video id anywhere
     [InlineData("https://www.youtube.com/results?search_query=cats")] // a non-video YouTube page
     [InlineData("https://www.youtube.com/watch?v=")] // empty v= value
+    [InlineData("https://www.youtube.com/live/")] // malformed /live/ - no video id segment at all
+    [InlineData("https://www.youtube.com/live/?si=abc")] // malformed /live/ - query only, still no id
     public void TryExtractVideoIdFromPageUrl_ReturnsFalse_WhenNoVideoIdCanBeFound(string pageUrl)
     {
         var success = YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl(new Uri(pageUrl), out var videoId);

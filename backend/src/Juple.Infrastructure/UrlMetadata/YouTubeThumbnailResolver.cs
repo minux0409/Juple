@@ -90,9 +90,11 @@ public static partial class YouTubeThumbnailResolver
 
     /// <summary>
     /// Extracts a YouTube video ID directly from the page URL's own structure
-    /// (watch?v=/&lt;youtu.be&gt;/shorts//embed/) - never from response content. Used only when
-    /// the fetched HTML gave HtmlTitleExtractor no image candidate to start from at all (see
-    /// ResolveExistingThumbnailForVideoIdAsync). The video ID character set/length mirrors
+    /// (watch?v=/&lt;youtu.be&gt;/shorts//embed//live/) - never from response content, and never
+    /// affected by any trailing query string (e.g. live's own "?si=..." share-tracking
+    /// parameter) since only Uri.AbsolutePath is ever inspected for the path-based forms. Used
+    /// only when the fetched HTML gave HtmlTitleExtractor no image candidate to start from at all
+    /// (see ResolveExistingThumbnailForVideoIdAsync). The video ID character set/length mirrors
     /// YtimgThumbnailUrlRegex's own, since both ultimately name the same i.ytimg.com path segment.
     /// </summary>
     public static bool TryExtractVideoIdFromPageUrl(Uri pageUri, out string? videoId)
@@ -114,7 +116,7 @@ public static partial class YouTubeThumbnailResolver
             return true;
         }
 
-        var pathMatch = ShortsOrEmbedPathRegex().Match(pageUri.AbsolutePath);
+        var pathMatch = ShortsEmbedOrLivePathRegex().Match(pageUri.AbsolutePath);
         return pathMatch.Success && TryValidateVideoId(pathMatch.Groups["videoId"].Value, out videoId);
     }
 
@@ -179,6 +181,6 @@ public static partial class YouTubeThumbnailResolver
     [GeneratedRegex(@"^[\w-]{6,20}$")]
     private static partial Regex VideoIdRegex();
 
-    [GeneratedRegex(@"^/(?:shorts|embed)/(?<videoId>[\w-]{6,20})")]
-    private static partial Regex ShortsOrEmbedPathRegex();
+    [GeneratedRegex(@"^/(?:shorts|embed|live)/(?<videoId>[\w-]{6,20})")]
+    private static partial Regex ShortsEmbedOrLivePathRegex();
 }
