@@ -309,6 +309,122 @@ public sealed class UrlMetadataResolverTests
         }
     }
 
+    // Regression coverage for the real Azure Dev root cause: the fetched HTML's <title> parses
+    // fine but its whole og: meta block (including og:image) is absent, which previously skipped
+    // YouTubeThumbnailResolver entirely (it was only ever invoked with an HTML-derived candidate).
+    // The video ID itself comes from the page URL's own structure, not from HTML, so thumbnail
+    // enrichment must still run - see YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl.
+    [Fact]
+    public async Task ResolveAsync_WhenHtmlHasNoImageMetaTagsAtAll_StillResolvesTheThumbnail_FromTheVideoIdInTheUrl()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                // No og:image/twitter:image/JSON-LD anywhere - only a plain <title>, exactly the
+                // shape observed from Azure Dev's real YouTube fetches.
+                : HtmlResponse("<html><head><title>A Video - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("A Video - YouTube", result.Title);
+            Assert.Equal("https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenHtmlHasNoImageMetaTags_AndNoQualityExistsEither_PreviewImageUrlIsNull_NotAGuess()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                : HtmlResponse("<html><head><title>A Video - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=deadbeef1234");
+
+            Assert.Equal("A Video - YouTube", result.Title);
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenHtmlHasNoImageMetaTags_AndUrlHasNoVideoId_NeverAttemptsAnyThumbnailRequest()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? throw new InvalidOperationException("Must never probe a thumbnail with no video ID.")
+                : HtmlResponse("<html><head><title>Search results - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/results?search_query=cats");
+
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    // Instagram's own generic/login-wall/interstitial shell page still declares a syntactically
+    // valid og:image - its own static UI-asset icon, always served from static.cdninstagram.com,
+    // confirmed via real Azure Dev production data (every PreviewImageUrl saved from an Instagram
+    // share so far resolved to exactly this host). That must never be persisted as if it were the
+    // real post's photo - "no preview" is correct, a wrong preview is not (docs' "모르면 모른다고
+    // 한다" trust principle).
+    [Fact]
+    public async Task ResolveAsync_Instagram_NeverPersistsTheGenericStaticAssetCdnImage_AsAPostPreview()
+    {
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><meta property=\"og:title\" content=\"Instagram\" />"
+                + "<meta property=\"og:image\" content=\"https://static.cdninstagram.com/rsrc.php/v3/y3/r/some-generic-icon.png\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.instagram.com/p/ABC123xyz/");
+
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Instagram_StillPersistsTheRealPostMediaImage_FromTheActualContentCdn()
+    {
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><meta property=\"og:title\" content=\"someuser on Instagram\" />"
+                + "<meta property=\"og:image\" content=\"https://scontent.cdninstagram.com/v/t51/some-real-post-photo.jpg\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.instagram.com/p/ABC123xyz/");
+
+            Assert.Equal("https://scontent.cdninstagram.com/v/t51/some-real-post-photo.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NonInstagramHost_UsingStaticCdninstagramLookingImage_IsUnaffected()
+    {
+        // The generic-asset rejection is gated on the RESPONSE's own host being Instagram - an
+        // unrelated site that happens to reference a static.cdninstagram.com image (e.g. an
+        // embed) must not have its own, real image rejected.
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><meta property=\"og:image\" content=\"https://static.cdninstagram.com/rsrc.php/v3/y3/r/some-generic-icon.png\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/embeds-instagram-icon");
+
+            Assert.Equal("https://static.cdninstagram.com/rsrc.php/v3/y3/r/some-generic-icon.png", result.PreviewImageUrl);
+        }
+    }
+
     [Fact]
     public async Task ResolveAsync_ForwardsSetCookieFromARedirectResponse_ToTheNextHopsRequest()
     {

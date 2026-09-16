@@ -172,6 +172,30 @@ public sealed class UrlMetadataResolver(
                 var (title, source, previewImageUrl, previewImageSource) =
                     await HtmlTitleExtractor.ExtractAsync(html, budgetCts.Token, currentUri.Host);
 
+                // Instagram's own generic/login-wall/interstitial shell page (served instead of
+                // the real post - see this class's own remarks on redirect/cookie continuity,
+                // which turned out NOT to be sufficient to avoid it) still declares a
+                // syntactically valid og:image: Instagram's own static UI-asset icon, always
+                // served from static.cdninstagram.com - never the real post's photo (real
+                // post/reel media comes from a different subdomain family entirely,
+                // e.g. scontent.cdninstagram.com/*.fbcdn.net). Confirmed via real Azure Dev
+                // production data (2026-09): every observed PreviewImageUrl saved from an
+                // Instagram share so far resolved to exactly this host. Persisting it would be an
+                // actively wrong, misleading preview - not "no data", a WRONG one - so it is
+                // rejected the same way a missing image is, never stored. This is a structural
+                // host check against Instagram's own stable, public CDN topology (the same kind
+                // of platform-aware check YouTubeThumbnailResolver already does for i.ytimg.com),
+                // not a guess about any single response's content, and it never touches
+                // InstagramMetadataNormalizer's username/caption parsing at all.
+                if (previewImageUrl is not null
+                    && InstagramMetadataNormalizer.IsInstagramHost(currentUri.Host)
+                    && Uri.TryCreate(previewImageUrl, UriKind.Absolute, out var previewImageUri)
+                    && previewImageUri.Host.Equals("static.cdninstagram.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    previewImageUrl = null;
+                    previewImageSource = null;
+                }
+
                 // A YouTube og:image candidate unconditionally names maxresdefault.jpg even when
                 // that specific resolution was never generated for the video (see
                 // YouTubeThumbnailResolver's own remarks) - verify it actually exists (falling back
@@ -183,6 +207,20 @@ public sealed class UrlMetadataResolver(
                     (previewImageUrl, youTubeImageVariantForDiagnostics) =
                         await YouTubeThumbnailResolver.ResolveExistingThumbnailAsync(
                             httpClient, extractedImageUrl, budgetCts.Token);
+                }
+                else if (YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl(currentUri, out var videoId))
+                {
+                    // The fetched HTML had no og:image/twitter:image/JSON-LD image at all for
+                    // HtmlTitleExtractor to hand us a candidate from (observed on Azure Dev: the
+                    // response's <title> parses fine, but its whole og: meta block is missing) -
+                    // that must not mean thumbnail enrichment is skipped outright. The video ID
+                    // itself comes from the page URL's own structure, always available regardless
+                    // of what the fetched HTML did or didn't contain, so the exact same
+                    // existence-verified quality-fallback this class already uses for an
+                    // HTML-derived candidate can still run from it.
+                    (previewImageUrl, youTubeImageVariantForDiagnostics) =
+                        await YouTubeThumbnailResolver.ResolveExistingThumbnailForVideoIdAsync(
+                            httpClient, videoId!, budgetCts.Token);
                 }
 
                 result = new UrlMetadataResult(title, source, previewImageUrl);
