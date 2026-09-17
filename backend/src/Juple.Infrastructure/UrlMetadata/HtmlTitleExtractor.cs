@@ -75,8 +75,9 @@ public static partial class HtmlTitleExtractor
     }
 
     /// <summary>
-    /// Instagram-only (see InstagramMetadataNormalizer) - looks at the same document's og:description/
-    /// twitter:description for the real "(@handle)" marker alongside the already-selected title.
+    /// Instagram-only (see InstagramMetadataNormalizer) - looks at the same document's og:url (the
+    /// canonical post/reel URL, checked first) and og:description/twitter:description (the
+    /// likes/comments-prefix fallback) for the real handle alongside the already-selected title.
     /// </summary>
     private static string ApplyInstagramUsername(string host, string title, IDocument document)
     {
@@ -89,7 +90,9 @@ public static partial class HtmlTitleExtractor
             document.QuerySelector("meta[property='og:description']")?.GetAttribute("content")
             ?? document.QuerySelector("meta[name='twitter:description']")?.GetAttribute("content");
 
-        return InstagramMetadataNormalizer.ApplyRealUsername(title, description);
+        var canonicalUrl = document.QuerySelector("meta[property='og:url']")?.GetAttribute("content");
+
+        return InstagramMetadataNormalizer.ApplyRealUsername(title, description, canonicalUrl);
     }
 
     /// <summary>
