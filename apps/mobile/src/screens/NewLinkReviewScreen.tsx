@@ -120,6 +120,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [urlSafetyState, setUrlSafetyState] = useState<UrlSafetyDisplayState | null>(null);
 
   const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
+  // Set only when the metadata fetch itself throws (network/timeout/server error) - never for a
+  // clean resolution that simply found no title/image, which is not a failure worth surfacing.
+  // Shown as a small, non-blocking hint once resolution finishes; never re-blocks Save.
+  const [metadataResolutionFailed, setMetadataResolutionFailed] = useState(false);
   // Set only by the user actually typing in the title field (see handleTitleChange) - never by
   // the metadata auto-fill below - so a later-arriving metadata result can tell "the user started
   // typing" apart from "the field is still exactly what it started as".
@@ -203,6 +207,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
     let isMounted = true;
     setIsResolvingMetadataTitle(true);
+    setMetadataResolutionFailed(false);
     resolveUrlMetadata(authenticatedRequest, route.params.url)
       .then(metadata => {
         if (!isMounted) {
@@ -227,7 +232,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         const resolvedTitle = metadata.title;
         setTitle(current => (current === '' ? resolvedTitle : current));
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (isMounted) {
+          setMetadataResolutionFailed(true);
+        }
+      })
       .finally(() => {
         if (isMounted) {
           setIsResolvingMetadataTitle(false);
@@ -380,21 +389,26 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       }
 
       // If the user dragged a staged (now-uploaded) photo ahead of the auto preview, persist that
-      // as the cover - mirrors ItemDetailsScreen's own reorder-to-cover mapping. Best-effort: a
-      // failure here only means the Home thumbnail defaults back to the auto preview, never a
-      // reason to fail the whole Save (the Item and its photo are already safely persisted).
+      // as the cover - mirrors ItemDetailsScreen's own reorder-to-cover mapping. Best-effort in the
+      // sense that a failure here never fails the whole Save (the Item and its photo are already
+      // safely persisted) - but still AWAITED before navigating back. Firing this without awaiting
+      // it used to let navigation.goBack() run immediately, which hands control straight back to
+      // Home's own useFocusEffect refetch - a real race that intermittently showed a just-saved
+      // Item with no thumbnail until a later, unrelated refresh caught up. Awaiting here (even
+      // though the outcome is only ever best-effort) guarantees Home's refetch, once it does run,
+      // always sees this write already committed.
       const front = photoOrder[0];
       if (front?.kind === 'staged') {
         const uploadedFront = uploadedByStagedId.get(front.stagedId);
         if (uploadedFront) {
-          setItemCoverImage(authenticatedRequest, savedEntry.id, uploadedFront.id).catch(() => undefined);
+          await setItemCoverImage(authenticatedRequest, savedEntry.id, uploadedFront.id).catch(() => undefined);
         }
       }
 
       // Best-effort, from the same mount-time metadata fetch the title above already used - never
-      // blocks/fails Save itself.
+      // blocks/fails Save itself, but still awaited for the same reason as setItemCoverImage above.
       if (previewImageUrl) {
-        setItemPreviewImage(authenticatedRequest, savedEntry.id, previewImageUrl).catch(() => undefined);
+        await setItemPreviewImage(authenticatedRequest, savedEntry.id, previewImageUrl).catch(() => undefined);
       }
 
       navigation.goBack();
@@ -432,10 +446,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           of PhotoListEditor in document order means it already has its final layout before that
           async state change can ever touch it.
         */}
-        <View style={styles.titleLabelRow}>
-          <Text style={styles.firstLabel}>{t('item.titleLabel')}</Text>
-          {isResolvingMetadataTitle ? <ActivityIndicator size="small" /> : null}
-        </View>
+        <Text style={styles.firstLabel}>{t('item.titleLabel')}</Text>
         <TextInput
           editable={!isSaving}
           onChangeText={handleTitleChange}
@@ -443,6 +454,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           style={styles.titleInput}
           value={title}
         />
+        {!isResolvingMetadataTitle && metadataResolutionFailed ? (
+          <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
+        ) : null}
 
         <Text style={styles.label}>{t('item.url')}</Text>
         <TextInput
@@ -497,14 +511,24 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: !url.trim() || isSaving, busy: isSaving }}
-          disabled={!url.trim() || isSaving}
+          accessibilityState={{ disabled: !url.trim() || isSaving || isResolvingMetadataTitle, busy: isSaving }}
+          disabled={!url.trim() || isSaving || isResolvingMetadataTitle}
           onPress={save}
-          style={[styles.saveButton, (!url.trim() || isSaving) && styles.disabledButton]}
+          style={[
+            styles.saveButton,
+            (!url.trim() || isSaving || isResolvingMetadataTitle) && styles.disabledButton,
+          ]}
         >
           <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
         </Pressable>
       </View>
+
+      {isResolvingMetadataTitle ? (
+        <View pointerEvents="auto" style={styles.metadataLoadingOverlay}>
+          <ActivityIndicator color={colors.surface} size="large" />
+          <Text style={styles.metadataLoadingOverlayText}>{t('item.resolvingMetadataOverlay')}</Text>
+        </View>
+      ) : null}
 
       <CategoryPickerModal
         bottomInset={insets.bottom}
@@ -555,11 +579,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 6,
   },
-  titleLabelRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
   urlInput: {
     borderColor: colors.border,
     borderRadius: radii.md,
@@ -599,6 +618,39 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     marginTop: 16,
+  },
+  metadataResolutionFailedHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: spacing.xs,
+  },
+  // Absolutely positioned over the whole screen (a sibling of the ScrollView/bottomBar, not inside
+  // either) so it covers both the fields and the Save button regardless of scroll position -
+  // deliberately just a translucent backdrop plus a centered spinner/label, not a Modal: this is a
+  // transient, in-place loading state for a screen already on top of the stack, not a separate
+  // layer that needs its own back-button/backdrop-dismiss semantics. Same backdrop tone as
+  // ConfirmDialog's own overlay for a consistent, already-established "something is blocking
+  // interaction" visual language.
+  metadataLoadingOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  metadataLoadingOverlayText: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: spacing.md,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
   // Fixed footer, outside the ScrollView (see this screen's return statement) - the save button
   // used to be the ScrollView's last child with insets.bottom folded into the content's own

@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "تعذّر اختيار الصورة.",
     "urlSafetyThreatTitle": "هذا الرابط يتطلب الحذر",
     "urlSafetyThreatMessage": "رصدنا إشارة تهديد معروفة لهذا الرابط. هل تريد فتحه على أي حال؟",
-    "urlSafetyGoAnyway": "فتحه على أي حال"
+    "urlSafetyGoAnyway": "فتحه على أي حال",
+    "resolvingMetadataOverlay": "جارٍ تحميل معلومات الرابط...",
+    "metadataResolutionFailedHint": "تعذّر تحميل معلومات الرابط. يمكنك إدخالها يدويًا والحفظ."
   },
   "urlSafety": {
     "checking": "جارٍ الفحص...",

@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "无法选择照片。",
     "urlSafetyThreatTitle": "此链接需要注意",
     "urlSafetyThreatMessage": "检测到此链接存在已知风险信号，仍要打开吗？",
-    "urlSafetyGoAnyway": "仍要打开"
+    "urlSafetyGoAnyway": "仍要打开",
+    "resolvingMetadataOverlay": "正在加载链接信息…",
+    "metadataResolutionFailedHint": "无法加载链接信息。您可以自行输入后保存。"
   },
   "urlSafety": {
     "checking": "正在检查...",

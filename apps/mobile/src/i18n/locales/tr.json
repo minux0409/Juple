@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Fotoğraf seçilemedi.",
     "urlSafetyThreatTitle": "Bu bağlantı dikkat gerektiriyor",
     "urlSafetyThreatMessage": "Bu bağlantı için bilinen bir tehdit sinyali tespit ettik. Yine de açılsın mı?",
-    "urlSafetyGoAnyway": "Yine de aç"
+    "urlSafetyGoAnyway": "Yine de aç",
+    "resolvingMetadataOverlay": "Bağlantı bilgileri yükleniyor...",
+    "metadataResolutionFailedHint": "Bağlantı bilgileri yüklenemedi. Kendiniz girip kaydedebilirsiniz."
   },
   "urlSafety": {
     "checking": "Kontrol ediliyor...",

@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Не удалось выбрать фото.",
     "urlSafetyThreatTitle": "Эта ссылка требует осторожности",
     "urlSafetyThreatMessage": "Мы обнаружили известный сигнал угрозы для этой ссылки. Всё равно открыть?",
-    "urlSafetyGoAnyway": "Всё равно открыть"
+    "urlSafetyGoAnyway": "Всё равно открыть",
+    "resolvingMetadataOverlay": "Загрузка информации о ссылке…",
+    "metadataResolutionFailedHint": "Не удалось загрузить информацию о ссылке. Вы можете ввести её вручную и сохранить."
   },
   "urlSafety": {
     "checking": "Проверка...",

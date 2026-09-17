@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Không thể chọn ảnh.",
     "urlSafetyThreatTitle": "Liên kết này cần thận trọng",
     "urlSafetyThreatMessage": "Chúng tôi phát hiện tín hiệu nguy hiểm đã biết ở liên kết này. Vẫn muốn mở?",
-    "urlSafetyGoAnyway": "Vẫn mở"
+    "urlSafetyGoAnyway": "Vẫn mở",
+    "resolvingMetadataOverlay": "Đang tải thông tin liên kết...",
+    "metadataResolutionFailedHint": "Không thể tải thông tin liên kết. Bạn có thể tự nhập và lưu."
   },
   "urlSafety": {
     "checking": "Đang kiểm tra...",

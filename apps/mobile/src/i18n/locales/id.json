@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Tidak dapat memilih foto.",
     "urlSafetyThreatTitle": "Tautan ini perlu diwaspadai",
     "urlSafetyThreatMessage": "Kami mendeteksi sinyal ancaman yang dikenal pada tautan ini. Tetap buka?",
-    "urlSafetyGoAnyway": "Tetap buka"
+    "urlSafetyGoAnyway": "Tetap buka",
+    "resolvingMetadataOverlay": "Memuat info tautan...",
+    "metadataResolutionFailedHint": "Info tautan tidak dapat dimuat. Anda bisa memasukkannya sendiri lalu simpan."
   },
   "urlSafety": {
     "checking": "Memeriksa...",

@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "फ़ोटो चुनी नहीं जा सकी।",
     "urlSafetyThreatTitle": "इस लिंक में सावधानी की आवश्यकता है",
     "urlSafetyThreatMessage": "हमें इस लिंक के लिए एक ज्ञात खतरे का संकेत मिला है। फिर भी खोलना है?",
-    "urlSafetyGoAnyway": "फिर भी खोलें"
+    "urlSafetyGoAnyway": "फिर भी खोलें",
+    "resolvingMetadataOverlay": "लिंक जानकारी लोड हो रही है...",
+    "metadataResolutionFailedHint": "लिंक जानकारी लोड नहीं हो सकी। आप इसे स्वयं दर्ज करके सहेज सकते हैं।"
   },
   "urlSafety": {
     "checking": "जांच हो रही है...",

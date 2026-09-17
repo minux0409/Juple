@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Couldn't select the photo.",
     "urlSafetyThreatTitle": "This link needs caution",
     "urlSafetyThreatMessage": "We detected a known threat signal for this link. Open it anyway?",
-    "urlSafetyGoAnyway": "Open anyway"
+    "urlSafetyGoAnyway": "Open anyway",
+    "resolvingMetadataOverlay": "Loading link info...",
+    "metadataResolutionFailedHint": "We couldn't load link info. You can enter it yourself and save."
   },
   "urlSafety": {
     "checking": "Checking...",

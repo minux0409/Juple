@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "사진을 선택할 수 없습니다.",
     "urlSafetyThreatTitle": "주의가 필요한 링크입니다",
     "urlSafetyThreatMessage": "알려진 위험 신호가 감지되었습니다. 그래도 이동할까요?",
-    "urlSafetyGoAnyway": "그래도 이동"
+    "urlSafetyGoAnyway": "그래도 이동",
+    "resolvingMetadataOverlay": "링크 정보를 불러오는 중...",
+    "metadataResolutionFailedHint": "링크 정보를 불러오지 못했어요. 직접 입력해서 저장할 수 있어요."
   },
   "urlSafety": {
     "checking": "검사 중...",

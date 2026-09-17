@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "ไม่สามารถเลือกรูปภาพได้",
     "urlSafetyThreatTitle": "ลิงก์นี้ต้องใช้ความระมัดระวัง",
     "urlSafetyThreatMessage": "เราตรวจพบสัญญาณความเสี่ยงที่รู้จักในลิงก์นี้ ยังต้องการเปิดหรือไม่?",
-    "urlSafetyGoAnyway": "เปิดต่อไป"
+    "urlSafetyGoAnyway": "เปิดต่อไป",
+    "resolvingMetadataOverlay": "กำลังโหลดข้อมูลลิงก์...",
+    "metadataResolutionFailedHint": "โหลดข้อมูลลิงก์ไม่สำเร็จ คุณสามารถกรอกข้อมูลเองแล้วบันทึกได้"
   },
   "urlSafety": {
     "checking": "กำลังตรวจสอบ...",

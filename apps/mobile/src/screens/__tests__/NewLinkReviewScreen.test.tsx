@@ -313,6 +313,123 @@ describe('NewLinkReviewScreen', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
+  describe('metadata loading overlay', () => {
+    function findSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
+      let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findAll(
+        n => n.props.children === i18n.t('common.save'),
+      )[0];
+      while (node && typeof node.props.disabled === 'undefined') {
+        node = node.parent;
+      }
+      return node!;
+    }
+
+    it('shows the centered loading overlay and disables Save while metadata is resolving, never the old small inline spinner', async () => {
+      let resolveMetadata!: (value: {
+        title: string | null;
+        source: UrlMetadataSource | null;
+        previewImageUrl: string | null;
+      }) => void;
+      jest.mocked(resolveUrlMetadata).mockReturnValue(
+        new Promise(resolve => {
+          resolveMetadata = resolve;
+        }),
+      );
+
+      const { renderer } = await renderScreen({ initialTitle: null });
+
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('item.resolvingMetadataOverlay')).length).toBeGreaterThan(0);
+      expect(findSaveButton(renderer).props.disabled).toBe(true);
+      // The old per-field small spinner (react-native's own ActivityIndicator directly beside the
+      // title label, size="small") is gone - only the overlay's large one remains.
+      const smallIndicators = renderer.root
+        .findAllByType(require('react-native').ActivityIndicator)
+        .filter(node => node.props.size === 'small');
+      expect(smallIndicators).toHaveLength(0);
+
+      await act(async () => {
+        resolveMetadata({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg' });
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('item.resolvingMetadataOverlay')).length).toBe(0);
+      expect(findSaveButton(renderer).props.disabled).toBe(false);
+      const [titleInput] = renderer.root.findAllByType(TextInput);
+      expect(titleInput.props.value).toBe('Metadata Title');
+      const previewImages = renderer.root
+        .findAllByType(require('react-native').Image)
+        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+      expect(previewImages).toHaveLength(1);
+    });
+
+    it('hides the overlay, re-enables Save, and shows the small failure hint when metadata resolution fails - manual save still works', async () => {
+      jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
+      jest.mocked(saveInboxEntry).mockResolvedValue({
+        id: 71,
+        url: 'https://example.com/shared',
+        savedAtUtc: '2026-01-01T00:00:00Z',
+      });
+
+      const { renderer, navigation } = await renderScreen({ initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('item.resolvingMetadataOverlay')).length).toBe(0);
+      expect(findSaveButton(renderer).props.disabled).toBe(false);
+      expect(renderer.root.findByProps({ children: i18n.t('item.metadataResolutionFailedHint') })).toBeTruthy();
+
+      await act(async () => {
+        pressSaveButton(renderer);
+      });
+
+      expect(saveInboxEntry).toHaveBeenCalled();
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('never navigates back until the preview-image/cover-image persistence calls settle - the fix for the intermittent missing Home thumbnail (a race between an un-awaited persistence call and Home refetching on focus)', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
+    jest.mocked(saveInboxEntry).mockResolvedValue({
+      id: 90, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
+    });
+
+    let resolveSetPreviewImage!: () => void;
+    jest.mocked(setItemPreviewImage).mockReturnValue(
+      new Promise(resolve => {
+        resolveSetPreviewImage = () => resolve(undefined);
+      }),
+    );
+
+    const { renderer, navigation } = await renderScreen({ initialTitle: null });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    let savePromise!: Promise<void>;
+    await act(async () => {
+      savePromise = pressSaveButton(renderer);
+      // Let every already-queued microtask (saveInboxEntry, etc.) run - setItemPreviewImage is
+      // still deliberately unresolved at this point.
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 90, 'https://cdn.example.com/preview.jpg');
+    expect(navigation.goBack).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveSetPreviewImage();
+      await savePromise;
+    });
+
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
   describe('preview image shown before Save (Quick Save OFF)', () => {
     it('shows the auto-resolved preview image in the photo list before Save is even pressed', async () => {
       jest.mocked(resolveUrlMetadata).mockResolvedValue({

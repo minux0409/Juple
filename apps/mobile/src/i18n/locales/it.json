@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Impossibile selezionare la foto.",
     "urlSafetyThreatTitle": "Questo link richiede attenzione",
     "urlSafetyThreatMessage": "Abbiamo rilevato un segnale di minaccia nota per questo link. Aprirlo comunque?",
-    "urlSafetyGoAnyway": "Apri comunque"
+    "urlSafetyGoAnyway": "Apri comunque",
+    "resolvingMetadataOverlay": "Caricamento informazioni del link…",
+    "metadataResolutionFailedHint": "Impossibile caricare le informazioni del link. Puoi inserirle tu stesso e salvare."
   },
   "urlSafety": {
     "checking": "Verifica in corso...",

@@ -218,7 +218,9 @@
     "errorImagePickerFallback": "Das Foto konnte nicht ausgewählt werden.",
     "urlSafetyThreatTitle": "Bei diesem Link ist Vorsicht geboten",
     "urlSafetyThreatMessage": "Wir haben ein bekanntes Risikosignal für diesen Link erkannt. Trotzdem öffnen?",
-    "urlSafetyGoAnyway": "Trotzdem öffnen"
+    "urlSafetyGoAnyway": "Trotzdem öffnen",
+    "resolvingMetadataOverlay": "Linkinformationen werden geladen …",
+    "metadataResolutionFailedHint": "Linkinformationen konnten nicht geladen werden. Du kannst sie selbst eingeben und speichern."
   },
   "urlSafety": {
     "checking": "Wird überprüft...",
