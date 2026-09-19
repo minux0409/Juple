@@ -189,6 +189,8 @@
     "memoPlaceholder": "Notiz eingeben",
     "photosHeader": "Fotos ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Als erstes festlegen",
+    "representativePhotoA11y": "Titelbild",
+    "representativeBadge": "Titelbild",
     "deletePhotoA11y": "Foto löschen",
     "uploading": "Wird hochgeladen...",
     "photoLimitButton": "Sie können bis zu {{max}} Fotos hinzufügen",
@@ -197,6 +199,9 @@
     "saved": "Gespeichert.",
     "deletePhotoConfirmTitle": "Dieses Foto löschen?",
     "deletePhotoConfirmMessage": "Ein gelöschtes Foto kann nicht wiederhergestellt werden.",
+    "setRepresentativeConfirmTitle": "Titelbild ändern",
+    "setRepresentativeConfirmMessage": "Dieses Foto als Titelbild festlegen?",
+    "setRepresentativeConfirm": "Ändern",
     "deleteItemConfirmTitle": "Diesen Eintrag löschen?",
     "deleteItemConfirmMessage": "Ein gelöschter Eintrag kann nicht wiederhergestellt werden.",
     "unsavedChangesTitle": "Nicht gespeicherte Änderungen",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Das Foto konnte nicht ausgewählt werden.",
     "urlSafetyThreatTitle": "Bei diesem Link ist Vorsicht geboten",
     "urlSafetyThreatMessage": "Wir haben ein bekanntes Risikosignal für diesen Link erkannt. Trotzdem öffnen?",
-    "urlSafetyGoAnyway": "Trotzdem öffnen"
+    "urlSafetyGoAnyway": "Trotzdem öffnen",
+    "resolvingMetadataOverlay": "Linkinformationen werden geladen …",
+    "metadataResolutionFailedHint": "Linkinformationen konnten nicht geladen werden. Du kannst sie selbst eingeben und speichern."
   },
   "urlSafety": {
     "checking": "Wird überprüft...",

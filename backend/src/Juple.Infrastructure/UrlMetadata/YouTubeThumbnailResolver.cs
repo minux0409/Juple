@@ -48,8 +48,28 @@ public static partial class YouTubeThumbnailResolver
             return (candidateImageUrl, null);
         }
 
-        var videoId = match.Groups["videoId"].Value;
-        var startIndex = Array.IndexOf(QualityFallbackOrder, match.Groups["quality"].Value.ToLowerInvariant());
+        return await ResolveExistingThumbnailForVideoAsync(
+            httpClient, match.Groups["videoId"].Value, match.Groups["quality"].Value, cancellationToken);
+    }
+
+    /// <summary>
+    /// Same quality-fallback verification as ResolveExistingThumbnailAsync, but starting from a
+    /// video ID directly rather than an already-extracted i.ytimg.com candidate URL - for when the
+    /// fetched page's HTML had no og:image/twitter:image/JSON-LD image at all to extract one from
+    /// in the first place (observed on Azure Dev: the response's &lt;title&gt; parses fine but its
+    /// og: meta block is absent, so HtmlTitleExtractor's own image extraction never runs), which
+    /// must not mean thumbnail enrichment is skipped entirely - see
+    /// TryExtractVideoIdFromPageUrl/UrlMetadataResolver's own remarks. Always starts from the
+    /// highest quality (maxresdefault), exactly like a normal og:image candidate would.
+    /// </summary>
+    public static Task<(string? Url, string? Variant)> ResolveExistingThumbnailForVideoIdAsync(
+        HttpClient httpClient, string videoId, CancellationToken cancellationToken) =>
+        ResolveExistingThumbnailForVideoAsync(httpClient, videoId, QualityFallbackOrder[0], cancellationToken);
+
+    private static async Task<(string? Url, string? Variant)> ResolveExistingThumbnailForVideoAsync(
+        HttpClient httpClient, string videoId, string startingQuality, CancellationToken cancellationToken)
+    {
+        var startIndex = Array.IndexOf(QualityFallbackOrder, startingQuality.ToLowerInvariant());
         if (startIndex < 0)
         {
             startIndex = 0;
@@ -66,6 +86,67 @@ public static partial class YouTubeThumbnailResolver
         }
 
         return (null, null);
+    }
+
+    /// <summary>
+    /// Extracts a YouTube video ID directly from the page URL's own structure
+    /// (watch?v=/&lt;youtu.be&gt;/shorts//embed//live/) - never from response content, and never
+    /// affected by any trailing query string (e.g. live's own "?si=..." share-tracking
+    /// parameter) since only Uri.AbsolutePath is ever inspected for the path-based forms. Used
+    /// only when the fetched HTML gave HtmlTitleExtractor no image candidate to start from at all
+    /// (see ResolveExistingThumbnailForVideoIdAsync). The video ID character set/length mirrors
+    /// YtimgThumbnailUrlRegex's own, since both ultimately name the same i.ytimg.com path segment.
+    /// </summary>
+    public static bool TryExtractVideoIdFromPageUrl(Uri pageUri, out string? videoId)
+    {
+        videoId = null;
+        if (!IsYouTubeHost(pageUri.Host))
+        {
+            return false;
+        }
+
+        if (pageUri.Host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryValidateVideoId(pageUri.AbsolutePath.Trim('/'), out videoId);
+        }
+
+        var queryVideoId = GetQueryParameter(pageUri.Query, "v");
+        if (queryVideoId is not null && TryValidateVideoId(queryVideoId, out videoId))
+        {
+            return true;
+        }
+
+        var pathMatch = ShortsEmbedOrLivePathRegex().Match(pageUri.AbsolutePath);
+        return pathMatch.Success && TryValidateVideoId(pathMatch.Groups["videoId"].Value, out videoId);
+    }
+
+    private static bool IsYouTubeHost(string host) =>
+        host.Equals("www.youtube.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("m.youtube.com", StringComparison.OrdinalIgnoreCase)
+        || host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryValidateVideoId(string candidate, out string? videoId)
+    {
+        videoId = VideoIdRegex().IsMatch(candidate) ? candidate : null;
+        return videoId is not null;
+    }
+
+    /// <summary>Minimal, dependency-free query-string lookup - avoids pulling in System.Web/
+    /// Microsoft.AspNetCore.WebUtilities just for a single "v" parameter read.</summary>
+    private static string? GetQueryParameter(string query, string name)
+    {
+        foreach (var pair in query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separatorIndex = pair.IndexOf('=');
+            var key = separatorIndex >= 0 ? pair[..separatorIndex] : pair;
+            if (Uri.UnescapeDataString(key) == name)
+            {
+                return separatorIndex >= 0 ? Uri.UnescapeDataString(pair[(separatorIndex + 1)..]) : string.Empty;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<bool> ExistsAsync(HttpClient httpClient, string url, CancellationToken cancellationToken)
@@ -96,4 +177,10 @@ public static partial class YouTubeThumbnailResolver
         @"^https?://i\.ytimg\.com/vi/(?<videoId>[\w-]{6,20})/(?<quality>maxresdefault|sddefault|hqdefault|mqdefault|default)\.jpg$",
         RegexOptions.IgnoreCase)]
     private static partial Regex YtimgThumbnailUrlRegex();
+
+    [GeneratedRegex(@"^[\w-]{6,20}$")]
+    private static partial Regex VideoIdRegex();
+
+    [GeneratedRegex(@"^/(?:shorts|embed|live)/(?<videoId>[\w-]{6,20})")]
+    private static partial Regex ShortsEmbedOrLivePathRegex();
 }

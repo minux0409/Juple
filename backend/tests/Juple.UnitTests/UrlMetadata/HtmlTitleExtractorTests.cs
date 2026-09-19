@@ -518,6 +518,104 @@ public sealed class HtmlTitleExtractorTests
     }
 
     [Fact]
+    public async Task ExtractAsync_Instagram_PrefersCanonicalUrlHandle_OverLikesCommentsDescription_WhenBothPresentAndDiffer()
+    {
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="Display Name on Instagram: &quot;caption&quot;" />
+            <meta property="og:description" content="10 likes, 2 comments - handlefromdescription on January 1, 2026: &quot;caption&quot;" />
+            <meta property="og:url" content="https://www.instagram.com/handlefromurl/p/Abc123/" />
+            </head></html>
+            """;
+
+        var (title, _, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.instagram.com");
+
+        Assert.Equal("handlefromurl on Instagram: \"caption\"", title);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_Instagram_UsesCanonicalUrlHandle_WhenLikesCommentsTemplateIsAbsent()
+    {
+        // The exact real-world bug this fix addresses: og:title carries a Korean display name
+        // ("정치크러쉬") instead of the real handle ("politics_crush"), and og:description has no
+        // likes/comments prefix to fall back on (confirmed via direct production fetch,
+        // device verification 2026-09-17 - some accounts' engagement counts are not exposed in
+        // this template at all). og:url still carries the real handle in its canonical path.
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="정치크러쉬 on Instagram: &quot;caption&quot;" />
+            <meta property="og:description" content="some other description text with no likes/comments prefix at all: &quot;caption&quot;" />
+            <meta property="og:url" content="https://www.instagram.com/politics_crush/p/DckbdWumlVg/" />
+            </head></html>
+            """;
+
+        var (title, _, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.instagram.com");
+
+        Assert.Equal("politics_crush on Instagram: \"caption\"", title);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_Instagram_WhenCanonicalUrlHasNoHandleSegment_FallsBackToLikesCommentsDescription()
+    {
+        // al:android:url/the plain <link rel="canonical"> shape - "/p/{shortcode}/" with no handle
+        // segment at all - must not be mistaken for a handle-bearing canonical URL.
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="Display Name on Instagram: &quot;caption&quot;" />
+            <meta property="og:description" content="5 likes, 1 comment - realhandle on January 1, 2026: &quot;caption&quot;" />
+            <meta property="og:url" content="https://www.instagram.com/p/Abc123/" />
+            </head></html>
+            """;
+
+        var (title, _, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.instagram.com");
+
+        Assert.Equal("realhandle on Instagram: \"caption\"", title);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_Instagram_WhenNeitherCanonicalUrlNorDescriptionHasATrustworthyHandle_NeverGuesses()
+    {
+        // Neither signal is usable - og:url has no handle segment, og:description has no
+        // likes/comments prefix - the display-name title must be left exactly as-is, never a
+        // guessed/inferred handle.
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="정치크러쉬 on Instagram: &quot;caption&quot;" />
+            <meta property="og:description" content="some description with no likes/comments prefix: &quot;caption&quot;" />
+            <meta property="og:url" content="https://www.instagram.com/p/DckbdWumlVg/" />
+            </head></html>
+            """;
+
+        var (title, _, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.instagram.com");
+
+        Assert.Equal("정치크러쉬 on Instagram: \"caption\"", title);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_Instagram_CanonicalUrlHandle_NeverInferredFromCaptionMention()
+    {
+        // The existing caption-mention-misattribution guard must still hold even with the new
+        // og:url source in play - a reel URL for account "_tripgoing" whose caption credits
+        // "(@thekfa)" must never end up with "thekfa" as the author via either source.
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="_tripgoing on Instagram: &quot;대한축구협회(@thekfa)는 오늘...&quot;" />
+            <meta property="og:description" content="360 likes, 11 comments - _tripgoing on September 14, 2026: &quot;대한축구협회(@thekfa)는 오늘...&quot;" />
+            <meta property="og:url" content="https://www.instagram.com/_tripgoing/reel/Xyz789/" />
+            </head></html>
+            """;
+
+        var (title, _, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.instagram.com");
+
+        Assert.Equal("_tripgoing on Instagram: \"대한축구협회(@thekfa)는 오늘...\"", title);
+    }
+
+    [Fact]
     public async Task ExtractAsync_Instagram_NeverAppliesUsernameSwap_OnNonInstagramHost()
     {
         const string html = """

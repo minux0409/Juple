@@ -2,7 +2,7 @@ namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
 
 /// <summary>
 /// Default Collections seeded once for every newly-provisioned User (see
-/// CurrentUserProvisioningStore.CreateOrGetAsync) - plain Collection.Name values like any
+/// CurrentUserProvisioningStore.CreateAsync) - plain Collection.Name values like any
 /// user-typed name, not i18n keys or a translation layer. Names are picked once at seed time from
 /// the new user's PreferredLocale and never re-translated afterward; the seeded Collections are
 /// then ordinary, fully renamable/deletable rows with no "system category" flag.

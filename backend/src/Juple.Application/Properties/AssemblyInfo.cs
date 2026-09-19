@@ -1,4 +1,3 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("Juple.UnitTests")]
-[assembly: InternalsVisibleTo("Juple.IntegrationTests")]

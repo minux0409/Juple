@@ -1,29 +1,13 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Image, PanResponder } from 'react-native';
+import { Image, Text } from 'react-native';
 import i18n from '../../i18n';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { PhotoListEditor } from '../PhotoListEditor';
 import type { EffectiveImage } from '../../items/effectiveImages';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-
-// PanResponder.create's real implementation derives its own gestureState (dx/dy/...) from raw
-// touch history, which isn't meaningfully reproducible through react-test-renderer's synthetic
-// events. Stubbed (for the drag-gesture describe block below only) to expose the exact
-// onPanResponder* config object as panHandlers instead, so those tests can call
-// onPanResponderGrant/-Move/-Release directly with a hand-built gestureState - testing PhotoTrack's
-// own reorder decision logic, not RN's touch tracking (already covered by twoSlotDrag.test.ts, and
-// not what the stale-closure bug under test is about).
-function stubPanResponderCreate(): jest.SpyInstance {
-  return jest.spyOn(PanResponder, 'create').mockImplementation(
-    config =>
-      ({
-        panHandlers: config as unknown as Record<string, unknown>,
-        getInteractionHandle: () => undefined,
-      }) as unknown as ReturnType<typeof PanResponder.create>,
-  );
-}
 
 function makeUploaded(id: number, readUrl: string): EffectiveImage {
   return { kind: 'uploaded', image: { id, contentType: 'image/jpeg', byteLength: 1, sortOrder: 0, createdAtUtc: '', readUrl } };
@@ -35,7 +19,7 @@ interface RenderOverrides {
   readonly isAdding?: boolean;
   readonly onAddPhoto?: () => void;
   readonly onDeleteImage?: (image: EffectiveImage) => void;
-  readonly onReorder?: (fromIndex: number, toIndex: number) => void;
+  readonly onSetRepresentative?: (index: number) => void;
 }
 
 function renderPhotoListEditor(overrides: RenderOverrides = {}) {
@@ -48,41 +32,52 @@ function renderPhotoListEditor(overrides: RenderOverrides = {}) {
         isAdding={overrides.isAdding ?? false}
         onAddPhoto={overrides.onAddPhoto ?? jest.fn()}
         onDeleteImage={overrides.onDeleteImage ?? jest.fn()}
-        onReorder={overrides.onReorder ?? jest.fn()}
+        onSetRepresentative={overrides.onSetRepresentative ?? jest.fn()}
       />,
     );
   });
   return renderer;
 }
 
+// react-test-renderer's tree includes both a composite component instance and its underlying
+// host instance for the same logical element, and both often carry the same props (e.g. a
+// composite Pressable and its rendered host View both expose the accessibilityLabel it was
+// given). Requiring `onPress` to actually be a function isolates the one real interactive
+// Pressable instance, exactly like this file's own delete-button lookups already do below.
+function findPressableByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  return renderer.root.findAll(
+    node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function',
+  )[0];
+}
+
+function findAllPressablesByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  return renderer.root.findAll(
+    node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function',
+  );
+}
+
 function findByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
   return renderer.root.findAll(node => node.props.accessibilityLabel === label)[0];
 }
 
-/** The 2nd thumbnail's "첫 번째로 설정" accessibility action, if present. */
-function findReorderToFrontAction(renderer: ReactTestRenderer.ReactTestRenderer) {
-  return renderer.root.findAll(
-    node => Array.isArray(node.props.accessibilityActions) && node.props.accessibilityActions.length > 0,
-  )[0];
+function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer) {
+  return renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true)[0];
 }
 
-/** Every `transform` array anywhere in the rendered tree - used to assert `translateY` never
- * appears anywhere in this component, structurally (not just "wasn't observed to move" at
- * runtime): see twoSlotDrag.ts's own remarks on why only X is ever computed at all. */
-function collectTransformKeys(renderer: ReactTestRenderer.ReactTestRenderer): readonly string[] {
-  const keys: string[] = [];
-  for (const node of renderer.root.findAll(() => true)) {
-    const style = node.props.style;
-    const flattened = Array.isArray(style) ? style : [style];
-    for (const entry of flattened) {
-      if (entry && Array.isArray(entry.transform)) {
-        for (const transformEntry of entry.transform) {
-          keys.push(...Object.keys(transformEntry));
-        }
-      }
-    }
-  }
-  return keys;
+/** Every rendered representative-badge Text - filtered to the composite `Text` component itself
+ * (not its underlying host instance, which duplicates the same `children` prop). */
+function findRepresentativeBadges(renderer: ReactTestRenderer.ReactTestRenderer) {
+  return renderer.root.findAll(node => node.type === Text && node.props.children === '대표');
+}
+
+/** Taps the 2nd (non-representative) photo - the only photo PhotoListEditor ever wires a press
+ * handler to (see PhotoThumbnail's own remarks: the representative photo is a plain, non-
+ * interactive View). This opens the confirm dialog; it does not by itself call
+ * onSetRepresentative. */
+function tapSecondPhoto(renderer: ReactTestRenderer.ReactTestRenderer) {
+  act(() => {
+    findPressableByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))?.props.onPress();
+  });
 }
 
 describe('PhotoListEditor - 0 photos', () => {
@@ -98,11 +93,23 @@ describe('PhotoListEditor - 0 photos', () => {
 describe('PhotoListEditor - 1 photo', () => {
   const images = [makeUploaded(1, 'https://blob.example/1.jpg')];
 
-  it('renders a single static thumbnail with no reorder affordance', () => {
+  it('renders one thumbnail, automatically shown as the representative', () => {
     const renderer = renderPhotoListEditor({ images });
 
     expect(renderer.root.findAllByType(Image)).toHaveLength(1);
-    expect(findReorderToFrontAction(renderer)).toBeUndefined();
+    expect(findRepresentativeBadges(renderer)).toHaveLength(1);
+    expect(findByAccessibilityLabel(renderer, '대표 이미지')).toBeTruthy();
+  });
+
+  it('tapping the single (representative) photo does nothing - no dialog, no callback', () => {
+    const onSetRepresentative = jest.fn();
+    const renderer = renderPhotoListEditor({ images, onSetRepresentative });
+
+    // The representative photo is a plain View, not a Pressable - there is no "첫 번째로 설정"
+    // labeled element to tap at all for a 1-photo list.
+    expect(findByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))).toBeUndefined();
+    expect(findVisibleConfirmDialog(renderer)).toBeFalsy();
+    expect(onSetRepresentative).not.toHaveBeenCalled();
   });
 
   it('deletes the single photo via its × button', () => {
@@ -117,7 +124,7 @@ describe('PhotoListEditor - 1 photo', () => {
   });
 });
 
-describe('PhotoListEditor - 2 photos (fixed 2-slot row)', () => {
+describe('PhotoListEditor - 2 photos (tap + confirm to change representative)', () => {
   const images = [makeUploaded(1, 'https://blob.example/1.jpg'), makeUploaded(2, 'https://blob.example/2.jpg')];
 
   it('renders exactly two thumbnails', () => {
@@ -134,15 +141,63 @@ describe('PhotoListEditor - 2 photos (fixed 2-slot row)', () => {
     expect(renderer.root.findByProps({ children: i18n.t('item.photoLimitButton', { max: 2 }) })).toBeTruthy();
   });
 
-  it('the 2nd thumbnail\'s "첫 번째로 설정" accessibility action reorders it to the front', () => {
-    const onReorder = jest.fn();
-    const renderer = renderPhotoListEditor({ images, onReorder });
+  it('only the first photo shows the representative badge', () => {
+    const renderer = renderPhotoListEditor({ images });
 
+    expect(findRepresentativeBadges(renderer)).toHaveLength(1);
+    expect(renderer.root.findAll(node => node.props.accessibilityLabel === '대표 이미지')).not.toHaveLength(0);
+  });
+
+  it('tapping the first (representative) photo does nothing - no dialog, no callback', () => {
+    const onSetRepresentative = jest.fn();
+    const renderer = renderPhotoListEditor({ images, onSetRepresentative });
+
+    // Only ONE real Pressable carries the "첫 번째로 설정" label (the 2nd photo) - the
+    // representative photo is a plain View, never wired to onPress at all.
+    expect(findAllPressablesByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))).toHaveLength(1);
+    expect(findVisibleConfirmDialog(renderer)).toBeFalsy();
+    expect(onSetRepresentative).not.toHaveBeenCalled();
+  });
+
+  it('tapping the second photo shows the confirm dialog, without calling onSetRepresentative yet', () => {
+    const onSetRepresentative = jest.fn();
+    const renderer = renderPhotoListEditor({ images, onSetRepresentative });
+
+    tapSecondPhoto(renderer);
+
+    const dialog = findVisibleConfirmDialog(renderer);
+    expect(dialog).toBeTruthy();
+    expect(dialog.props.title).toBe(i18n.t('item.setRepresentativeConfirmTitle'));
+    expect(dialog.props.message).toBe(i18n.t('item.setRepresentativeConfirmMessage'));
+    expect(dialog.props.confirmLabel).toBe(i18n.t('item.setRepresentativeConfirm'));
+    expect(onSetRepresentative).not.toHaveBeenCalled();
+  });
+
+  it('cancelling the dialog closes it and never calls onSetRepresentative', () => {
+    const onSetRepresentative = jest.fn();
+    const renderer = renderPhotoListEditor({ images, onSetRepresentative });
+
+    tapSecondPhoto(renderer);
     act(() => {
-      findReorderToFrontAction(renderer)?.props.onAccessibilityAction();
+      findVisibleConfirmDialog(renderer).props.onCancel();
     });
 
-    expect(onReorder).toHaveBeenCalledWith(1, 0);
+    expect(findVisibleConfirmDialog(renderer)).toBeFalsy();
+    expect(onSetRepresentative).not.toHaveBeenCalled();
+  });
+
+  it('confirming calls onSetRepresentative exactly once, with the tapped photo\'s index', () => {
+    const onSetRepresentative = jest.fn();
+    const renderer = renderPhotoListEditor({ images, onSetRepresentative });
+
+    tapSecondPhoto(renderer);
+    act(() => {
+      findVisibleConfirmDialog(renderer).props.onConfirm();
+    });
+
+    expect(onSetRepresentative).toHaveBeenCalledTimes(1);
+    expect(onSetRepresentative).toHaveBeenCalledWith(1);
+    expect(findVisibleConfirmDialog(renderer)).toBeFalsy();
   });
 
   it('deletes the correct photo when its own × button is pressed', () => {
@@ -170,7 +225,7 @@ describe('PhotoListEditor - 2 photos (fixed 2-slot row)', () => {
     expect(deleteButtons).toHaveLength(1);
   });
 
-  it('re-rendering with only 1 remaining photo after a delete drops back to the single, non-draggable layout', () => {
+  it('re-rendering with only 1 remaining photo after a delete drops back to the single, non-tappable layout', () => {
     const renderer = renderPhotoListEditor({ images });
 
     act(() => {
@@ -181,180 +236,49 @@ describe('PhotoListEditor - 2 photos (fixed 2-slot row)', () => {
           isAdding={false}
           onAddPhoto={jest.fn()}
           onDeleteImage={jest.fn()}
-          onReorder={jest.fn()}
+          onSetRepresentative={jest.fn()}
         />,
       );
     });
 
     expect(renderer.root.findAllByType(Image)).toHaveLength(1);
-    // The remaining photo (image 1) is now in the single-slot position - no reorder action left.
-    expect(findReorderToFrontAction(renderer)).toBeUndefined();
+    expect(findByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))).toBeUndefined();
   });
 
-  it('never positions anything via translateY - only translateX/scale ever appear', () => {
-    const renderer = renderPhotoListEditor({ images });
+  it('a second confirmed selection after the parent re-renders (a new onSetRepresentative closure) uses the NEW callback', () => {
+    const firstOnSetRepresentative = jest.fn();
+    const renderer = renderPhotoListEditor({ images, onSetRepresentative: firstOnSetRepresentative });
 
-    const transformKeys = collectTransformKeys(renderer);
-    expect(transformKeys.length).toBeGreaterThan(0);
-    expect(transformKeys).not.toContain('translateY');
-    expect(transformKeys.every(key => key === 'translateX' || key === 'scale')).toBe(true);
-  });
-});
+    tapSecondPhoto(renderer);
+    act(() => {
+      findVisibleConfirmDialog(renderer).props.onConfirm();
+    });
+    expect(firstOnSetRepresentative).toHaveBeenCalledTimes(1);
 
-/** The two slot elements' onPanResponder* config, in slot order (0, then 1) - see the
- * PanResponder.create mock above: panHandlers IS the config object passed to createResponderFor.
- * Animated.View forwards the spread panHandlers through several internal wrapper layers (composite
- * -> forwardRef -> host View), so the SAME config object shows up on multiple fiber nodes per slot -
- * deduped here by object identity (not by node count, which varies by RN/Animated internals) so
- * exactly one entry per slot survives, in slot order. */
-function findSlotResponderConfigs(renderer: ReactTestRenderer.ReactTestRenderer) {
-  const withRelease = renderer.root.findAll(
-    node => typeof node.props.onPanResponderRelease === 'function',
-  );
-  const seen = new Set<unknown>();
-  const configs: unknown[] = [];
-  for (const node of withRelease) {
-    // Dedupe by the handler function reference itself (identical across every wrapper layer),
-    // not the per-layer props object (Animated.View's internal layers each pass through a
-    // distinct spread object even though the functions inside are the same reference).
-    if (!seen.has(node.props.onPanResponderRelease)) {
-      seen.add(node.props.onPanResponderRelease);
-      configs.push(node.props);
-    }
-  }
-  return configs as Array<Record<string, (...args: unknown[]) => void>>;
-}
-
-function fireTrackLayout(renderer: ReactTestRenderer.ReactTestRenderer, width: number) {
-  const trackView = renderer.root.findAll(node => typeof node.props.onLayout === 'function')[0];
-  act(() => {
-    trackView.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width, height: 104 } } });
-  });
-}
-
-/** Long-press-activates slot `fromIndex`, then releases it at gestureState.dx - mirrors a real
- * drag+drop without needing to reproduce RN's own touch-history gesture tracking (see the
- * PanResponder mock above). Assumes fireTrackLayout was already called so slotPitch/track math is
- * live (release computes drop as null otherwise - see PhotoListEditor.tsx's own trackWidthRef<=0
- * guard). */
-function dragAndRelease(
-  renderer: ReactTestRenderer.ReactTestRenderer,
-  fromIndex: 0 | 1,
-  dx: number,
-) {
-  act(() => {
-    const config = findSlotResponderConfigs(renderer)[fromIndex];
-    config.onPanResponderGrant({}, { dx: 0, dy: 0 });
-    jest.advanceTimersByTime(200);
-  });
-  act(() => {
-    const config = findSlotResponderConfigs(renderer)[fromIndex];
-    config.onPanResponderMove({}, { dx, dy: 0 });
-    config.onPanResponderRelease({}, { dx, dy: 0 });
-  });
-}
-
-describe('PhotoListEditor - drag gesture (PanResponder)', () => {
-  const images = [makeUploaded(1, 'https://blob.example/1.jpg'), makeUploaded(2, 'https://blob.example/2.jpg')];
-  // Fallback slot pitch (no real onLayout measurement) is THUMBNAIL_SIZE + THUMBNAIL_GAP = 98,
-  // giving slot0 center 49 / slot1 center 147 for a 2-slot track at trackWidth=300 (see
-  // twoSlotDrag.ts's computeSlotPitch/slotCenterX) - a large dx safely crosses either way, a small
-  // one safely doesn't.
-  const TRACK_WIDTH = 300;
-  const CROSSING_DX = 200;
-  const NON_CROSSING_DX = 5;
-
-  let panResponderSpy: jest.SpyInstance;
-
-  beforeEach(() => {
-    jest.useFakeTimers();
-    panResponderSpy = stubPanResponderCreate();
-  });
-
-  afterEach(() => {
-    panResponderSpy.mockRestore();
-    jest.useRealTimers();
-  });
-
-  it('crossing the other photo\'s center calls onReorder exactly once, with the correct [from, to]', () => {
-    const onReorder = jest.fn();
-    const renderer = renderPhotoListEditor({ images, onReorder });
-    fireTrackLayout(renderer, TRACK_WIDTH);
-
-    dragAndRelease(renderer, 0, CROSSING_DX);
-
-    expect(onReorder).toHaveBeenCalledTimes(1);
-    expect(onReorder).toHaveBeenCalledWith(0, 1);
-  });
-
-  it('never crossing the other photo\'s center calls onReorder 0 times', () => {
-    const onReorder = jest.fn();
-    const renderer = renderPhotoListEditor({ images, onReorder });
-    fireTrackLayout(renderer, TRACK_WIDTH);
-
-    dragAndRelease(renderer, 0, NON_CROSSING_DX);
-
-    expect(onReorder).not.toHaveBeenCalled();
-  });
-
-  it('dragging slot 0 past slot 1 (A -> B) reports [0, 1]', () => {
-    const onReorder = jest.fn();
-    const renderer = renderPhotoListEditor({ images, onReorder });
-    fireTrackLayout(renderer, TRACK_WIDTH);
-
-    dragAndRelease(renderer, 0, CROSSING_DX);
-
-    expect(onReorder).toHaveBeenCalledWith(0, 1);
-  });
-
-  it('dragging slot 1 past slot 0 (B -> A) reports [1, 0]', () => {
-    const onReorder = jest.fn();
-    const renderer = renderPhotoListEditor({ images, onReorder });
-    fireTrackLayout(renderer, TRACK_WIDTH);
-
-    dragAndRelease(renderer, 1, -CROSSING_DX);
-
-    expect(onReorder).toHaveBeenCalledWith(1, 0);
-  });
-
-  // Regression test for the actual real-device bug: PhotoTrack's responder0/responder1 are built
-  // once (useRef(createResponderFor(index)).current - see PhotoListEditor.tsx's own remarks) and
-  // must keep calling the LATEST onReorder prop on every release, not the one captured when they
-  // were first created - otherwise a second reorder silently reuses stale data from the very first
-  // render and can look like it "always reverts" (confirmed via real-device logs: before this fix,
-  // a second drag's onReorder call closed over the pre-first-reorder image order and coverImageId,
-  // recomputing the same already-current target regardless of drag direction).
-  it('a second reorder after the parent re-renders (a new onReorder closure) uses the NEW onReorder, not the one captured at mount', () => {
-    const firstOnReorder = jest.fn();
-    const renderer = renderPhotoListEditor({ images, onReorder: firstOnReorder });
-    fireTrackLayout(renderer, TRACK_WIDTH);
-
-    dragAndRelease(renderer, 0, CROSSING_DX);
-    expect(firstOnReorder).toHaveBeenCalledTimes(1);
-
-    // Simulates the parent (ItemDetailsScreen) re-rendering with a brand new onReorder closure -
-    // e.g. after setItem() following the first reorder's optimistic update - while `images` itself
-    // is left as the caller passed it (PhotoListEditor/PhotoTrack never reorders its own `images`
-    // prop locally; the parent is solely responsible for that on the next render).
-    const secondOnReorder = jest.fn();
+    // Simulates the parent (ItemDetailsScreen) re-rendering with a brand new callback closure and
+    // the (now server-confirmed) swapped order - PhotoListEditor never reorders `images` itself,
+    // the parent always owns that.
+    const secondOnSetRepresentative = jest.fn();
     act(() => {
       renderer.update(
         <PhotoListEditor
           deletingKeys={new Set()}
-          images={images}
+          images={[images[1], images[0]]}
           isAdding={false}
           onAddPhoto={jest.fn()}
           onDeleteImage={jest.fn()}
-          onReorder={secondOnReorder}
+          onSetRepresentative={secondOnSetRepresentative}
         />,
       );
     });
 
-    dragAndRelease(renderer, 0, CROSSING_DX);
+    tapSecondPhoto(renderer);
+    act(() => {
+      findVisibleConfirmDialog(renderer).props.onConfirm();
+    });
 
-    expect(secondOnReorder).toHaveBeenCalledTimes(1);
-    expect(secondOnReorder).toHaveBeenCalledWith(0, 1);
-    // The stale-closure bug would have called the FIRST render's onReorder again here instead.
-    expect(firstOnReorder).toHaveBeenCalledTimes(1);
+    expect(secondOnSetRepresentative).toHaveBeenCalledTimes(1);
+    expect(secondOnSetRepresentative).toHaveBeenCalledWith(1);
+    expect(firstOnSetRepresentative).toHaveBeenCalledTimes(1);
   });
 });

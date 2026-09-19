@@ -24,6 +24,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<ItemImage> ItemImages => Set<ItemImage>();
 
+    public DbSet<InstagramMetadataRetryTask> InstagramMetadataRetryTasks => Set<InstagramMetadataRetryTask>();
+
     public DbSet<AccountDeletionBlobCleanup> AccountDeletionBlobCleanups => Set<AccountDeletionBlobCleanup>();
 
     public DbSet<Purchase> Purchases => Set<Purchase>();

@@ -12,18 +12,32 @@ namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
 public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
     : ICurrentUserProvisioningStore
 {
-    public async Task<UserPlan?> FindPlanAsync(
+    public async Task<UserPlan?> TrySyncTimeZoneAndGetPlanAsync(
         ExternalIdentityPrincipal externalIdentity,
+        string timeZoneId,
+        DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default)
     {
-        var match = await (
+        var user = await (
             from identity in dbContext.Set<ExternalIdentity>()
-            join user in dbContext.Set<User>() on identity.UserId equals user.Id
-            where identity.TenantId == externalIdentity.TenantId && identity.ObjectId == externalIdentity.ObjectId
-            select new { user.Plan }
-        ).FirstOrDefaultAsync(cancellationToken);
+            join existingUser in dbContext.Users on identity.UserId equals existingUser.Id
+            where identity.TenantId == externalIdentity.TenantId
+                && identity.ObjectId == externalIdentity.ObjectId
+            select existingUser)
+            .SingleOrDefaultAsync(cancellationToken);
 
-        return match?.Plan;
+        if (user is null)
+        {
+            return null;
+        }
+
+        if (!string.Equals(user.TimeZoneId, timeZoneId, StringComparison.Ordinal))
+        {
+            user.UpdateTimeZone(timeZoneId, updatedAtUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        return user.Plan;
     }
 
     public async Task<UserPlan> CreateAsync(
@@ -79,7 +93,7 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 dbContext.ChangeTracker.Clear,
                 async raceCancellationToken =>
                 {
-                    recoveredPlan = await FindPlanAsync(data.ExternalIdentity, raceCancellationToken);
+                    recoveredPlan = await FindPlanOnlyAsync(data.ExternalIdentity, raceCancellationToken);
                     return recoveredPlan is not null;
                 },
                 cancellationToken);
@@ -89,5 +103,24 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
             // just defensive, never actually exercised.
             return recoveredPlan ?? UserPlan.Free;
         }
+    }
+
+    /// <summary>
+    /// Plan-only lookup used solely by the race-recovery path above - no timezone sync there, since
+    /// the concurrent call that actually won the race already ran its own full bootstrap (including
+    /// any timezone sync a *future* call would perform).
+    /// </summary>
+    private async Task<UserPlan?> FindPlanOnlyAsync(
+        ExternalIdentityPrincipal externalIdentity,
+        CancellationToken cancellationToken)
+    {
+        var match = await (
+            from identity in dbContext.Set<ExternalIdentity>()
+            join user in dbContext.Set<User>() on identity.UserId equals user.Id
+            where identity.TenantId == externalIdentity.TenantId && identity.ObjectId == externalIdentity.ObjectId
+            select new { user.Plan }
+        ).FirstOrDefaultAsync(cancellationToken);
+
+        return match?.Plan;
     }
 }

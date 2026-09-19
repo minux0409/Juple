@@ -189,6 +189,8 @@
     "memoPlaceholder": "Enter a memo",
     "photosHeader": "Photos ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Set as first",
+    "representativePhotoA11y": "Cover photo",
+    "representativeBadge": "Cover",
     "deletePhotoA11y": "Delete photo",
     "uploading": "Uploading...",
     "photoLimitButton": "You can add up to {{max}} photos",
@@ -197,6 +199,9 @@
     "saved": "Saved.",
     "deletePhotoConfirmTitle": "Delete this photo?",
     "deletePhotoConfirmMessage": "A deleted photo can't be recovered.",
+    "setRepresentativeConfirmTitle": "Change cover photo",
+    "setRepresentativeConfirmMessage": "Set this photo as the cover photo?",
+    "setRepresentativeConfirm": "Change",
     "deleteItemConfirmTitle": "Delete this item?",
     "deleteItemConfirmMessage": "A deleted item can't be recovered.",
     "unsavedChangesTitle": "Unsaved changes",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Couldn't select the photo.",
     "urlSafetyThreatTitle": "This link needs caution",
     "urlSafetyThreatMessage": "We detected a known threat signal for this link. Open it anyway?",
-    "urlSafetyGoAnyway": "Open anyway"
+    "urlSafetyGoAnyway": "Open anyway",
+    "resolvingMetadataOverlay": "Loading link info...",
+    "metadataResolutionFailedHint": "We couldn't load link info. You can enter it yourself and save."
   },
   "urlSafety": {
     "checking": "Checking...",

@@ -4,6 +4,7 @@ using Juple.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Juple.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(JupleDbContext))]
-    partial class JupleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916091140_AddInstagramMetadataRetryTask")]
+    partial class AddInstagramMetadataRetryTask
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -738,12 +741,6 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<string>("DefaultCurrencyCode")
                         .IsUnicode(false)
                         .HasColumnType("char(3)");
-
-                    b.Property<string>("Plan")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("varchar(10)")
-                        .HasDefaultValue("Free");
 
                     b.Property<string>("PreferredLocale")
                         .IsRequired()

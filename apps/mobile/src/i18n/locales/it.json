@@ -189,6 +189,8 @@
     "memoPlaceholder": "Inserisci una nota",
     "photosHeader": "Foto ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Imposta come prima",
+    "representativePhotoA11y": "Foto di copertina",
+    "representativeBadge": "Copertina",
     "deletePhotoA11y": "Elimina foto",
     "uploading": "Caricamento...",
     "photoLimitButton": "Puoi aggiungere fino a {{max}} foto",
@@ -197,6 +199,9 @@
     "saved": "Salvato.",
     "deletePhotoConfirmTitle": "Eliminare questa foto?",
     "deletePhotoConfirmMessage": "Una foto eliminata non può essere recuperata.",
+    "setRepresentativeConfirmTitle": "Cambia foto di copertina",
+    "setRepresentativeConfirmMessage": "Impostare questa foto come foto di copertina?",
+    "setRepresentativeConfirm": "Cambia",
     "deleteItemConfirmTitle": "Eliminare questo elemento?",
     "deleteItemConfirmMessage": "Un elemento eliminato non può essere recuperato.",
     "unsavedChangesTitle": "Modifiche non salvate",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Impossibile selezionare la foto.",
     "urlSafetyThreatTitle": "Questo link richiede attenzione",
     "urlSafetyThreatMessage": "Abbiamo rilevato un segnale di minaccia nota per questo link. Aprirlo comunque?",
-    "urlSafetyGoAnyway": "Apri comunque"
+    "urlSafetyGoAnyway": "Apri comunque",
+    "resolvingMetadataOverlay": "Caricamento informazioni del link…",
+    "metadataResolutionFailedHint": "Impossibile caricare le informazioni del link. Puoi inserirle tu stesso e salvare."
   },
   "urlSafety": {
     "checking": "Verifica in corso...",

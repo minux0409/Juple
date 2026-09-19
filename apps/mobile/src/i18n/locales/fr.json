@@ -189,6 +189,8 @@
     "memoPlaceholder": "Saisissez une note",
     "photosHeader": "Photos ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Définir comme première",
+    "representativePhotoA11y": "Photo de couverture",
+    "representativeBadge": "Couverture",
     "deletePhotoA11y": "Supprimer la photo",
     "uploading": "Téléversement...",
     "photoLimitButton": "Vous pouvez ajouter jusqu'à {{max}} photos",
@@ -197,6 +199,9 @@
     "saved": "Enregistré.",
     "deletePhotoConfirmTitle": "Supprimer cette photo ?",
     "deletePhotoConfirmMessage": "Une photo supprimée ne peut pas être récupérée.",
+    "setRepresentativeConfirmTitle": "Changer la photo de couverture",
+    "setRepresentativeConfirmMessage": "Définir cette photo comme photo de couverture ?",
+    "setRepresentativeConfirm": "Changer",
     "deleteItemConfirmTitle": "Supprimer cet élément ?",
     "deleteItemConfirmMessage": "Un élément supprimé ne peut pas être récupéré.",
     "unsavedChangesTitle": "Modifications non enregistrées",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Impossible de sélectionner la photo.",
     "urlSafetyThreatTitle": "Ce lien nécessite de la prudence",
     "urlSafetyThreatMessage": "Nous avons détecté un signal de menace connu pour ce lien. L'ouvrir quand même ?",
-    "urlSafetyGoAnyway": "Ouvrir quand même"
+    "urlSafetyGoAnyway": "Ouvrir quand même",
+    "resolvingMetadataOverlay": "Chargement des informations du lien…",
+    "metadataResolutionFailedHint": "Impossible de charger les informations du lien. Vous pouvez les saisir vous-même et enregistrer."
   },
   "urlSafety": {
     "checking": "Vérification...",

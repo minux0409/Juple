@@ -189,6 +189,8 @@
     "memoPlaceholder": "Digite uma nota",
     "photosHeader": "Fotos ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Definir como primeira",
+    "representativePhotoA11y": "Foto de capa",
+    "representativeBadge": "Capa",
     "deletePhotoA11y": "Excluir foto",
     "uploading": "Enviando...",
     "photoLimitButton": "Você pode adicionar até {{max}} fotos",
@@ -197,6 +199,9 @@
     "saved": "Salvo.",
     "deletePhotoConfirmTitle": "Excluir esta foto?",
     "deletePhotoConfirmMessage": "Uma foto excluída não pode ser recuperada.",
+    "setRepresentativeConfirmTitle": "Alterar foto de capa",
+    "setRepresentativeConfirmMessage": "Definir esta foto como a foto de capa?",
+    "setRepresentativeConfirm": "Alterar",
     "deleteItemConfirmTitle": "Excluir este item?",
     "deleteItemConfirmMessage": "Um item excluído não pode ser recuperado.",
     "unsavedChangesTitle": "Alterações não salvas",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Não foi possível selecionar a foto.",
     "urlSafetyThreatTitle": "Este link exige cuidado",
     "urlSafetyThreatMessage": "Detectamos um sinal de ameaça conhecida neste link. Abrir mesmo assim?",
-    "urlSafetyGoAnyway": "Abrir mesmo assim"
+    "urlSafetyGoAnyway": "Abrir mesmo assim",
+    "resolvingMetadataOverlay": "Carregando informações do link...",
+    "metadataResolutionFailedHint": "Não foi possível carregar as informações do link. Você pode inserir manualmente e salvar."
   },
   "urlSafety": {
     "checking": "Verificando...",

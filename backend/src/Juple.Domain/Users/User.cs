@@ -52,4 +52,10 @@ public sealed class User
         Plan = plan;
         UpdatedAtUtc = updatedAtUtc;
     }
+
+    public void UpdateTimeZone(string timeZoneId, DateTimeOffset updatedAtUtc)
+    {
+        TimeZoneId = timeZoneId;
+        UpdatedAtUtc = updatedAtUtc;
+    }
 }

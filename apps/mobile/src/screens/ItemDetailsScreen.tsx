@@ -125,7 +125,7 @@ function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
   return t('item.errorImageDeleteFallback');
 }
 
-/** Covers both an explicit reorder-drop and the accessibility "첫 번째로 설정" action - both persist via the same setItemCoverImage call. */
+/** Covers a confirmed "set as representative photo" action (see PhotoListEditor's tap+confirm UX) - persists via setItemCoverImage. */
 function getPhotoReorderErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
@@ -173,8 +173,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [deletingImageIds, setDeletingImageIds] = useState<ReadonlySet<number>>(new Set());
   const [imagesError, setImagesError] = useState<string | null>(null);
-  // A reorder (drag, or the "첫 번째로 설정" accessibility action) persists via the same
-  // setItemCoverImage call the old cover picker used - see handlePhotoReordered.
+  // Setting a new representative photo persists via the same setItemCoverImage call the old
+  // cover picker used - see setPhotoAsRepresentative.
   const [isReorderingPhotos, setIsReorderingPhotos] = useState(false);
   const [photoReorderError, setPhotoReorderError] = useState<string | null>(null);
   const isReorderingPhotosRef = useRef(false);
@@ -418,18 +418,21 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   /**
-   * A drag-drop (or the "첫 번째로 설정" accessibility action) - optimistically reflects the new
-   * order immediately (matching CollectionDetailsScreen's own reorder precedent), persists via the
-   * exact same setItemCoverImage endpoint the old cover-picker modal used, and rolls back to the
-   * prior cover on failure. Never touches SortOrder - only which image is first is ever affected
-   * (see effectiveImages.ts).
+   * The user confirmed making the photo at `index` (always the non-representative one - see
+   * PhotoListEditor's own tap+confirm UX) the new representative/cover photo - optimistically
+   * reflects the new order immediately (matching CollectionDetailsScreen's own reorder
+   * precedent), persists via the exact same setItemCoverImage endpoint the old cover-picker modal
+   * used, and rolls back to the prior cover on failure. Never touches SortOrder - only which
+   * image is first is ever affected (see effectiveImages.ts). Still expressed as a from/to
+   * reorder internally (reorderList(images, index, 0)) - unchanged from the prior drag-based UX -
+   * since that's still exactly what "make this one the representative" means for this list.
    */
-  const handlePhotoReordered = async (fromIndex: number, toIndex: number) => {
-    if (isReorderingPhotosRef.current || fromIndex === toIndex) {
+  const setPhotoAsRepresentative = async (index: number) => {
+    if (isReorderingPhotosRef.current || index === 0) {
       return;
     }
 
-    const reordered = reorderList(effectivePhotoImages, fromIndex, toIndex);
+    const reordered = reorderList(effectivePhotoImages, index, 0);
     const front = reordered[0];
     const newCoverImageId = coverImageIdForFront(reordered);
     if (newCoverImageId === (item?.coverImage?.id ?? null)) {
@@ -730,7 +733,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             isAdding={isUploadingImage || isReorderingPhotos}
             onAddPhoto={pickAndUploadImage}
             onDeleteImage={confirmDeleteImage}
-            onReorder={handlePhotoReordered}
+            onSetRepresentative={setPhotoAsRepresentative}
           />
         )}
         {photoReorderError ? <Text style={styles.error}>{photoReorderError}</Text> : null}

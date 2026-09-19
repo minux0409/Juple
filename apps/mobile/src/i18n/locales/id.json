@@ -189,6 +189,8 @@
     "memoPlaceholder": "Masukkan catatan",
     "photosHeader": "Foto ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Jadikan yang pertama",
+    "representativePhotoA11y": "Foto sampul",
+    "representativeBadge": "Sampul",
     "deletePhotoA11y": "Hapus foto",
     "uploading": "Mengunggah...",
     "photoLimitButton": "Anda dapat menambahkan hingga {{max}} foto",
@@ -197,6 +199,9 @@
     "saved": "Tersimpan.",
     "deletePhotoConfirmTitle": "Hapus foto ini?",
     "deletePhotoConfirmMessage": "Foto yang dihapus tidak dapat dipulihkan.",
+    "setRepresentativeConfirmTitle": "Ubah foto sampul",
+    "setRepresentativeConfirmMessage": "Jadikan foto ini sebagai foto sampul?",
+    "setRepresentativeConfirm": "Ubah",
     "deleteItemConfirmTitle": "Hapus item ini?",
     "deleteItemConfirmMessage": "Item yang dihapus tidak dapat dipulihkan.",
     "unsavedChangesTitle": "Perubahan belum disimpan",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Tidak dapat memilih foto.",
     "urlSafetyThreatTitle": "Tautan ini perlu diwaspadai",
     "urlSafetyThreatMessage": "Kami mendeteksi sinyal ancaman yang dikenal pada tautan ini. Tetap buka?",
-    "urlSafetyGoAnyway": "Tetap buka"
+    "urlSafetyGoAnyway": "Tetap buka",
+    "resolvingMetadataOverlay": "Memuat info tautan...",
+    "metadataResolutionFailedHint": "Info tautan tidak dapat dimuat. Anda bisa memasukkannya sendiri lalu simpan."
   },
   "urlSafety": {
     "checking": "Memeriksa...",

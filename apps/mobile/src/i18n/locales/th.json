@@ -189,6 +189,8 @@
     "memoPlaceholder": "กรอกบันทึกช่วยจำ",
     "photosHeader": "รูปภาพ ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "ตั้งเป็นรูปแรก",
+    "representativePhotoA11y": "รูปหน้าปก",
+    "representativeBadge": "หน้าปก",
     "deletePhotoA11y": "ลบรูปภาพ",
     "uploading": "กำลังอัปโหลด...",
     "photoLimitButton": "คุณสามารถเพิ่มรูปภาพได้สูงสุด {{max}} รูป",
@@ -197,6 +199,9 @@
     "saved": "บันทึกแล้ว",
     "deletePhotoConfirmTitle": "ลบรูปภาพนี้หรือไม่?",
     "deletePhotoConfirmMessage": "รูปภาพที่ลบแล้วไม่สามารถกู้คืนได้",
+    "setRepresentativeConfirmTitle": "เปลี่ยนรูปหน้าปก",
+    "setRepresentativeConfirmMessage": "ตั้งรูปนี้เป็นรูปหน้าปกหรือไม่?",
+    "setRepresentativeConfirm": "เปลี่ยน",
     "deleteItemConfirmTitle": "ลบรายการนี้หรือไม่?",
     "deleteItemConfirmMessage": "รายการที่ลบแล้วไม่สามารถกู้คืนได้",
     "unsavedChangesTitle": "มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "ไม่สามารถเลือกรูปภาพได้",
     "urlSafetyThreatTitle": "ลิงก์นี้ต้องใช้ความระมัดระวัง",
     "urlSafetyThreatMessage": "เราตรวจพบสัญญาณความเสี่ยงที่รู้จักในลิงก์นี้ ยังต้องการเปิดหรือไม่?",
-    "urlSafetyGoAnyway": "เปิดต่อไป"
+    "urlSafetyGoAnyway": "เปิดต่อไป",
+    "resolvingMetadataOverlay": "กำลังโหลดข้อมูลลิงก์...",
+    "metadataResolutionFailedHint": "โหลดข้อมูลลิงก์ไม่สำเร็จ คุณสามารถกรอกข้อมูลเองแล้วบันทึกได้"
   },
   "urlSafety": {
     "checking": "กำลังตรวจสอบ...",

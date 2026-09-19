@@ -189,6 +189,8 @@
     "memoPlaceholder": "Introduce una nota",
     "photosHeader": "Fotos ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Establecer como primera",
+    "representativePhotoA11y": "Foto de portada",
+    "representativeBadge": "Portada",
     "deletePhotoA11y": "Eliminar foto",
     "uploading": "Subiendo...",
     "photoLimitButton": "Puedes añadir hasta {{max}} fotos",
@@ -197,6 +199,9 @@
     "saved": "Guardado.",
     "deletePhotoConfirmTitle": "¿Eliminar esta foto?",
     "deletePhotoConfirmMessage": "Una foto eliminada no se puede recuperar.",
+    "setRepresentativeConfirmTitle": "Cambiar foto de portada",
+    "setRepresentativeConfirmMessage": "¿Establecer esta foto como la foto de portada?",
+    "setRepresentativeConfirm": "Cambiar",
     "deleteItemConfirmTitle": "¿Eliminar este elemento?",
     "deleteItemConfirmMessage": "Un elemento eliminado no se puede recuperar.",
     "unsavedChangesTitle": "Cambios sin guardar",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "No se pudo seleccionar la foto.",
     "urlSafetyThreatTitle": "Este enlace requiere precaución",
     "urlSafetyThreatMessage": "Detectamos una señal de amenaza conocida en este enlace. ¿Abrir de todos modos?",
-    "urlSafetyGoAnyway": "Abrir de todos modos"
+    "urlSafetyGoAnyway": "Abrir de todos modos",
+    "resolvingMetadataOverlay": "Cargando información del enlace…",
+    "metadataResolutionFailedHint": "No se pudo cargar la información del enlace. Puedes ingresarla tú mismo y guardar."
   },
   "urlSafety": {
     "checking": "Comprobando...",

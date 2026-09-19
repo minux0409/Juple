@@ -16,21 +16,26 @@ public sealed class CurrentUserBootstrapService(
         BootstrapCurrentUserCommand command,
         CancellationToken cancellationToken = default)
     {
-        // Deliberately checked - and returned on - before validating command below: an already-
-        // provisioned user must keep getting a successful (now Plan-carrying) response every time
-        // this runs (every app launch/sign-in - see mobile's AuthContext), even if the device
-        // happens to report a preferredLocale/timeZoneId that would fail validation. That was
-        // already true of the old exists-check-then-early-return shape; only building a new User
-        // actually needs valid locale/time zone data.
-        var existingPlan = await provisioningStore.FindPlanAsync(externalIdentity, cancellationToken);
+        // timeZoneId is validated unconditionally, before the existing-identity check below -
+        // unlike preferredLocale, it's needed either way: to sync an already-provisioned User's
+        // timezone (device timezone can legitimately change after first bootstrap - travel, or a
+        // stale/placeholder initial value), or to create a brand-new one.
+        var timeZoneId = ValidateTimeZoneId(command.TimeZoneId);
+        var utcNow = timeProvider.GetUtcNow();
+
+        // Deliberately checked - and returned on - before validating preferredLocale below: an
+        // already-provisioned user must keep getting a successful (Plan-carrying) response every
+        // time this runs (every app launch/sign-in - see mobile's AuthContext), even if the device
+        // happens to report a preferredLocale that would fail validation - only building a new
+        // User actually needs a valid locale.
+        var existingPlan = await provisioningStore.TrySyncTimeZoneAndGetPlanAsync(
+            externalIdentity, timeZoneId, utcNow, cancellationToken);
         if (existingPlan is { } plan)
         {
             return plan;
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
-        var timeZoneId = ValidateTimeZoneId(command.TimeZoneId);
-        var createdAtUtc = timeProvider.GetUtcNow();
 
         return await provisioningStore.CreateAsync(
             new CurrentUserBootstrapData(
@@ -38,7 +43,7 @@ public sealed class CurrentUserBootstrapService(
                 preferredLocale,
                 timeZoneId,
                 DefaultCurrencyCode: null,
-                createdAtUtc),
+                utcNow),
             cancellationToken);
     }
 

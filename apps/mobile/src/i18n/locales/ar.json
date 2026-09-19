@@ -189,6 +189,8 @@
     "memoPlaceholder": "أدخل ملاحظة",
     "photosHeader": "الصور ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "تعيين كأول صورة",
+    "representativePhotoA11y": "صورة الغلاف",
+    "representativeBadge": "الغلاف",
     "deletePhotoA11y": "حذف الصورة",
     "uploading": "جارٍ الرفع...",
     "photoLimitButton": "يمكنك إضافة حتى {{max}} صورة",
@@ -197,6 +199,9 @@
     "saved": "تم الحفظ.",
     "deletePhotoConfirmTitle": "هل تريد حذف هذه الصورة؟",
     "deletePhotoConfirmMessage": "لا يمكن استرجاع الصورة بعد حذفها.",
+    "setRepresentativeConfirmTitle": "تغيير صورة الغلاف",
+    "setRepresentativeConfirmMessage": "هل تريد تعيين هذه الصورة كصورة الغلاف؟",
+    "setRepresentativeConfirm": "تغيير",
     "deleteItemConfirmTitle": "هل تريد حذف هذا العنصر؟",
     "deleteItemConfirmMessage": "لا يمكن استرجاع العنصر بعد حذفه.",
     "unsavedChangesTitle": "تغييرات غير محفوظة",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "تعذّر اختيار الصورة.",
     "urlSafetyThreatTitle": "هذا الرابط يتطلب الحذر",
     "urlSafetyThreatMessage": "رصدنا إشارة تهديد معروفة لهذا الرابط. هل تريد فتحه على أي حال؟",
-    "urlSafetyGoAnyway": "فتحه على أي حال"
+    "urlSafetyGoAnyway": "فتحه على أي حال",
+    "resolvingMetadataOverlay": "جارٍ تحميل معلومات الرابط...",
+    "metadataResolutionFailedHint": "تعذّر تحميل معلومات الرابط. يمكنك إدخالها يدويًا والحفظ."
   },
   "urlSafety": {
     "checking": "جارٍ الفحص...",

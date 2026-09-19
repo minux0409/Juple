@@ -189,6 +189,8 @@
     "memoPlaceholder": "Bir not girin",
     "photosHeader": "Fotoğraflar ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Birinci olarak ayarla",
+    "representativePhotoA11y": "Kapak fotoğrafı",
+    "representativeBadge": "Kapak",
     "deletePhotoA11y": "Fotoğrafı sil",
     "uploading": "Yükleniyor...",
     "photoLimitButton": "En fazla {{max}} fotoğraf ekleyebilirsiniz",
@@ -197,6 +199,9 @@
     "saved": "Kaydedildi.",
     "deletePhotoConfirmTitle": "Bu fotoğraf silinsin mi?",
     "deletePhotoConfirmMessage": "Silinen bir fotoğraf geri alınamaz.",
+    "setRepresentativeConfirmTitle": "Kapak fotoğrafını değiştir",
+    "setRepresentativeConfirmMessage": "Bu fotoğraf kapak fotoğrafı olarak ayarlansın mı?",
+    "setRepresentativeConfirm": "Değiştir",
     "deleteItemConfirmTitle": "Bu öğe silinsin mi?",
     "deleteItemConfirmMessage": "Silinen bir öğe geri alınamaz.",
     "unsavedChangesTitle": "Kaydedilmemiş değişiklikler",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Fotoğraf seçilemedi.",
     "urlSafetyThreatTitle": "Bu bağlantı dikkat gerektiriyor",
     "urlSafetyThreatMessage": "Bu bağlantı için bilinen bir tehdit sinyali tespit ettik. Yine de açılsın mı?",
-    "urlSafetyGoAnyway": "Yine de aç"
+    "urlSafetyGoAnyway": "Yine de aç",
+    "resolvingMetadataOverlay": "Bağlantı bilgileri yükleniyor...",
+    "metadataResolutionFailedHint": "Bağlantı bilgileri yüklenemedi. Kendiniz girip kaydedebilirsiniz."
   },
   "urlSafety": {
     "checking": "Kontrol ediliyor...",

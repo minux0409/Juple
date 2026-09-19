@@ -189,6 +189,8 @@
     "memoPlaceholder": "Введите заметку",
     "photosHeader": "Фото ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "Сделать первым",
+    "representativePhotoA11y": "Фото обложки",
+    "representativeBadge": "Обложка",
     "deletePhotoA11y": "Удалить фото",
     "uploading": "Загрузка...",
     "photoLimitButton": "Можно добавить не более {{max}} фото",
@@ -197,6 +199,9 @@
     "saved": "Сохранено.",
     "deletePhotoConfirmTitle": "Удалить это фото?",
     "deletePhotoConfirmMessage": "Удалённое фото невозможно восстановить.",
+    "setRepresentativeConfirmTitle": "Изменить обложку",
+    "setRepresentativeConfirmMessage": "Сделать это фото обложкой?",
+    "setRepresentativeConfirm": "Изменить",
     "deleteItemConfirmTitle": "Удалить этот элемент?",
     "deleteItemConfirmMessage": "Удалённый элемент невозможно восстановить.",
     "unsavedChangesTitle": "Несохранённые изменения",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "Не удалось выбрать фото.",
     "urlSafetyThreatTitle": "Эта ссылка требует осторожности",
     "urlSafetyThreatMessage": "Мы обнаружили известный сигнал угрозы для этой ссылки. Всё равно открыть?",
-    "urlSafetyGoAnyway": "Всё равно открыть"
+    "urlSafetyGoAnyway": "Всё равно открыть",
+    "resolvingMetadataOverlay": "Загрузка информации о ссылке…",
+    "metadataResolutionFailedHint": "Не удалось загрузить информацию о ссылке. Вы можете ввести её вручную и сохранить."
   },
   "urlSafety": {
     "checking": "Проверка...",

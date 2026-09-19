@@ -189,6 +189,8 @@
     "memoPlaceholder": "請輸入備註",
     "photosHeader": "照片 ({{count}}/{{max}})",
     "setAsFirstPhotoA11y": "設為第一張",
+    "representativePhotoA11y": "封面照片",
+    "representativeBadge": "封面",
     "deletePhotoA11y": "刪除照片",
     "uploading": "上傳中...",
     "photoLimitButton": "最多可新增 {{max}} 張照片",
@@ -197,6 +199,9 @@
     "saved": "已儲存。",
     "deletePhotoConfirmTitle": "確定要刪除這張照片嗎？",
     "deletePhotoConfirmMessage": "刪除的照片無法復原。",
+    "setRepresentativeConfirmTitle": "更改封面照片",
+    "setRepresentativeConfirmMessage": "要將這張照片設為封面照片嗎?",
+    "setRepresentativeConfirm": "更改",
     "deleteItemConfirmTitle": "確定要刪除此項目嗎？",
     "deleteItemConfirmMessage": "刪除的項目無法復原。",
     "unsavedChangesTitle": "有尚未儲存的變更",
@@ -218,7 +223,9 @@
     "errorImagePickerFallback": "無法選取照片。",
     "urlSafetyThreatTitle": "此連結需要留意",
     "urlSafetyThreatMessage": "偵測到此連結有已知風險訊號，仍要開啟嗎？",
-    "urlSafetyGoAnyway": "仍要開啟"
+    "urlSafetyGoAnyway": "仍要開啟",
+    "resolvingMetadataOverlay": "正在載入連結資訊…",
+    "metadataResolutionFailedHint": "無法載入連結資訊。您可以自行輸入後儲存。"
   },
   "urlSafety": {
     "checking": "檢查中...",

@@ -23,6 +23,32 @@ public sealed class CurrentUserBootstrapServiceTests
     }
 
     [Fact]
+    public async Task BootstrapAsync_WhenIdentityExists_DelegatesTimeZoneSyncWithValidatedTimeZone()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+        var service = CreateService(store);
+
+        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        var syncCall = Assert.Single(store.TimeZoneSyncCalls);
+        Assert.Equal(ExternalIdentity, syncCall.ExternalIdentity);
+        Assert.Equal("Asia/Seoul", syncCall.TimeZoneId);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_WhenTimeZoneIsInvalid_NeverAttemptsSyncOrCreate()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+        var service = CreateService(store);
+
+        await Assert.ThrowsAsync<InvalidCurrentUserBootstrapRequestException>(
+            () => service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Invalid/TimeZone")));
+
+        Assert.Empty(store.TimeZoneSyncCalls);
+        Assert.Empty(store.CreatedUsers);
+    }
+
+    [Fact]
     public async Task BootstrapAsync_WhenIdentityIsNew_CreatesUserAndExternalIdentityAndReturnsFree()
     {
         var store = new FakeProvisioningStore();
@@ -67,16 +93,30 @@ public sealed class CurrentUserBootstrapServiceTests
     private static CurrentUserBootstrapService CreateService(FakeProvisioningStore store) =>
         new(store, new FixedTimeProvider());
 
+    private sealed record TimeZoneSyncCall(ExternalIdentityPrincipal ExternalIdentity, string TimeZoneId);
+
     private sealed class FakeProvisioningStore : ICurrentUserProvisioningStore
     {
         public UserPlan? ExistingPlan { get; init; }
 
         public List<CurrentUserBootstrapData> CreatedUsers { get; } = [];
 
-        public Task<UserPlan?> FindPlanAsync(
+        public List<TimeZoneSyncCall> TimeZoneSyncCalls { get; } = [];
+
+        public Task<UserPlan?> TrySyncTimeZoneAndGetPlanAsync(
             ExternalIdentityPrincipal externalIdentity,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(ExistingPlan);
+            string timeZoneId,
+            DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default)
+        {
+            if (ExistingPlan is not { } plan)
+            {
+                return Task.FromResult<UserPlan?>(null);
+            }
+
+            TimeZoneSyncCalls.Add(new TimeZoneSyncCall(externalIdentity, timeZoneId));
+            return Task.FromResult<UserPlan?>(plan);
+        }
 
         public Task<UserPlan> CreateAsync(
             CurrentUserBootstrapData data,

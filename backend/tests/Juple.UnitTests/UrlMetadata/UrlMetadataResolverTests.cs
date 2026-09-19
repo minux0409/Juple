@@ -309,6 +309,454 @@ public sealed class UrlMetadataResolverTests
         }
     }
 
+    // Regression coverage for the real Azure Dev root cause: the fetched HTML's <title> parses
+    // fine but its whole og: meta block (including og:image) is absent, which previously skipped
+    // YouTubeThumbnailResolver entirely (it was only ever invoked with an HTML-derived candidate).
+    // The video ID itself comes from the page URL's own structure, not from HTML, so thumbnail
+    // enrichment must still run - see YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl.
+    [Fact]
+    public async Task ResolveAsync_WhenHtmlHasNoImageMetaTagsAtAll_StillResolvesTheThumbnail_FromTheVideoIdInTheUrl()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                // No og:image/twitter:image/JSON-LD anywhere - only a plain <title>, exactly the
+                // shape observed from Azure Dev's real YouTube fetches.
+                : HtmlResponse("<html><head><title>A Video - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("A Video - YouTube", result.Title);
+            Assert.Equal("https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    // Real-device regression: a manually-saved /live/{videoId}?si=... URL got its title but no
+    // thumbnail - traced to that path shape not being recognized by the video-ID URL extractor at
+    // all (see YouTubeThumbnailResolverTests' own /live/ cases for the extractor-level coverage).
+    [Fact]
+    public async Task ResolveAsync_YouTubeLiveUrl_WithShareTrackingQuery_StillResolvesTheThumbnail_FromTheVideoIdInTheUrl()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                : HtmlResponse("<html><head><title>A Live Stream - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/live/abc123XYZ_?si=someTrackingToken");
+
+            Assert.Equal("A Live Stream - YouTube", result.Title);
+            Assert.Equal("https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenHtmlHasNoImageMetaTags_AndNoQualityExistsEither_PreviewImageUrlIsNull_NotAGuess()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                : HtmlResponse("<html><head><title>A Video - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=deadbeef1234");
+
+            Assert.Equal("A Video - YouTube", result.Title);
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenHtmlHasNoImageMetaTags_AndUrlHasNoVideoId_NeverAttemptsAnyThumbnailRequest()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.Method == HttpMethod.Head
+                ? throw new InvalidOperationException("Must never probe a thumbnail with no video ID.")
+                : HtmlResponse("<html><head><title>Search results - YouTube</title></head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/results?search_query=cats");
+
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    // Instagram's own generic/login-wall/interstitial shell page still declares a syntactically
+    // valid og:image - its own static UI-asset icon, always served from static.cdninstagram.com,
+    // confirmed via real Azure Dev production data (every PreviewImageUrl saved from an Instagram
+    // share so far resolved to exactly this host). That must never be persisted as if it were the
+    // real post's photo - "no preview" is correct, a wrong preview is not (docs' "모르면 모른다고
+    // 한다" trust principle).
+    [Fact]
+    public async Task ResolveAsync_Instagram_NeverPersistsTheGenericStaticAssetCdnImage_AsAPostPreview()
+    {
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><meta property=\"og:title\" content=\"Instagram\" />"
+                + "<meta property=\"og:image\" content=\"https://static.cdninstagram.com/rsrc.php/v3/y3/r/some-generic-icon.png\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.instagram.com/p/ABC123xyz/");
+
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_Instagram_StillPersistsTheRealPostMediaImage_FromTheActualContentCdn()
+    {
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><meta property=\"og:title\" content=\"someuser on Instagram\" />"
+                + "<meta property=\"og:image\" content=\"https://scontent.cdninstagram.com/v/t51/some-real-post-photo.jpg\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.instagram.com/p/ABC123xyz/");
+
+            Assert.Equal("https://scontent.cdninstagram.com/v/t51/some-real-post-photo.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NonInstagramHost_UsingStaticCdninstagramLookingImage_IsUnaffected()
+    {
+        // The generic-asset rejection is gated on the RESPONSE's own host being Instagram - an
+        // unrelated site that happens to reference a static.cdninstagram.com image (e.g. an
+        // embed) must not have its own, real image rejected.
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><meta property=\"og:image\" content=\"https://static.cdninstagram.com/rsrc.php/v3/y3/r/some-generic-icon.png\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/embeds-instagram-icon");
+
+            Assert.Equal("https://static.cdninstagram.com/rsrc.php/v3/y3/r/some-generic-icon.png", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ForwardsSetCookieFromARedirectResponse_ToTheNextHopsRequest()
+    {
+        string? cookieHeaderSeenOnFinalHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "session=abc123; Path=/; HttpOnly");
+                    return redirect;
+                }
+
+                cookieHeaderSeenOnFinalHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>Final Page</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/start");
+
+            Assert.Equal("Final Page", result.Title);
+            // Only the "name=value" pair - never Path/HttpOnly/other Set-Cookie attributes, which a
+            // request-side Cookie header must not repeat.
+            Assert.Equal("session=abc123", cookieHeaderSeenOnFinalHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_AccumulatesCookiesAcrossMultipleRedirectHops()
+    {
+        string? cookieHeaderSeenOnFinalHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/hop2") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "first=one");
+                    return redirect;
+                }
+
+                if (callCount == 2)
+                {
+                    Assert.Equal("first=one", request.Headers.GetValues("Cookie").Single());
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "second=two");
+                    return redirect;
+                }
+
+                cookieHeaderSeenOnFinalHop = request.Headers.GetValues("Cookie").Single();
+                return HtmlResponse("<html><head><title>Final Page</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://example.com/start");
+
+            // Both hops' cookies present by the final request - a real browser completing the same
+            // redirect chain accumulates cookies the same way.
+            Assert.Contains("first=one", cookieHeaderSeenOnFinalHop);
+            Assert.Contains("second=two", cookieHeaderSeenOnFinalHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenNoRedirectOccurs_NeverSendsACookieHeader()
+    {
+        bool? cookieHeaderPresent = null;
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                cookieHeaderPresent = request.Headers.Contains("Cookie");
+                return HtmlResponse("<html><head><title>No Redirect Here</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://example.com/direct");
+
+            Assert.False(cookieHeaderPresent);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NeverCarriesCookiesFromOneResolveCallIntoTheNextOnTheSameResolverInstance()
+    {
+        bool? cookieHeaderPresentOnSecondCallsFirstRequest = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://example.com/first-final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "leftover=shouldNotSurvive");
+                    return redirect;
+                }
+
+                if (callCount == 2)
+                {
+                    return HtmlResponse("<html><head><title>First Call Final</title></head></html>");
+                }
+
+                // Third call: a brand new ResolveAsync for a DIFFERENT url, same resolver/HttpClient
+                // instance - must start with no cookie jar at all from the previous call.
+                cookieHeaderPresentOnSecondCallsFirstRequest = request.Headers.Contains("Cookie");
+                return HtmlResponse("<html><head><title>Second Call</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://example.com/first-start");
+            await resolver.ResolveAsync("https://example.com/second-start");
+
+            Assert.False(cookieHeaderPresentOnSecondCallsFirstRequest);
+        }
+    }
+
+    // Cross-origin cookie-scoping security regression suite. The cookie continuity above exists
+    // to fix a real Instagram redirect issue (see this file's own remarks), but a redirect chain
+    // can just as easily cross from one host to a completely different one - a plain
+    // name/value map with no Domain/Path/Secure awareness would forward EVERY cookie collected so
+    // far to that unrelated host too, an actual cookie-leak vulnerability. UrlMetadataResolver
+    // uses a real System.Net.CookieContainer (RFC 6265 Domain/Path/Secure/Expires matching) per
+    // ResolveAsync call specifically to make that structurally impossible, not just
+    // policy-avoided - these tests assert the actual per-hop Cookie header, not just that
+    // "something" was forwarded.
+    [Fact]
+    public async Task ResolveAsync_CookieScoped_ToTheIssuingHost_IsForwardedToTheSameHost()
+    {
+        string? cookieHeaderOnSecondHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://a.example/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "session=onA; Domain=a.example; Path=/");
+                    return redirect;
+                }
+
+                cookieHeaderOnSecondHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>A Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.Equal("session=onA", cookieHeaderOnSecondHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_HostOnlyCookie_IsNeverForwardedToADifferentHostLaterInTheRedirectChain()
+    {
+        bool? cookieHeaderPresentOnOtherHost = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    // No Domain attribute at all -> RFC 6265 host-only cookie, valid for a.example
+                    // exactly, never any other host, not even a redirect target.
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://b.example/other") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "secret=onlyForA");
+                    return redirect;
+                }
+
+                cookieHeaderPresentOnOtherHost = request.Headers.Contains("Cookie");
+                return HtmlResponse("<html><head><title>B Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.False(cookieHeaderPresentOnOtherHost);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ExplicitParentDomainCookie_IsForwardedToASubdomain_PerRfc6265()
+    {
+        string? cookieHeaderOnSubdomainHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://sub.example.com/final") },
+                    };
+                    // Domain=.example.com (or example.com, RFC 6265 treats a leading dot as
+                    // optional) explicitly opts into being visible to subdomains too.
+                    redirect.Headers.Add("Set-Cookie", "wide=domainScoped; Domain=example.com; Path=/");
+                    return redirect;
+                }
+
+                cookieHeaderOnSubdomainHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>Sub Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://www.example.com/start");
+
+            Assert.Equal("wide=domainScoped", cookieHeaderOnSubdomainHop);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_PathScopedCookie_IsForwardedUnderThatPath_ButNotOutsideIt()
+    {
+        var cookieHeadersSeen = new List<string?>();
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://a.example/foo/bar") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "scoped=underFoo; Path=/foo");
+                    return redirect;
+                }
+
+                if (callCount == 2)
+                {
+                    // /foo/bar is under the cookie's /foo path scope - must be forwarded.
+                    cookieHeadersSeen.Add(request.Headers.TryGetValues("Cookie", out var v1) ? v1.Single() : null);
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("https://a.example/other") },
+                    };
+                    return redirect;
+                }
+
+                // /other is a sibling of /foo, not under it - must NOT be forwarded.
+                cookieHeadersSeen.Add(request.Headers.Contains("Cookie") ? "present" : null);
+                return HtmlResponse("<html><head><title>Other</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.Equal("scoped=underFoo", cookieHeadersSeen[0]);
+            Assert.Null(cookieHeadersSeen[1]);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_SecureCookie_IsForwardedOverHttps_ButNeverOverPlainHttp()
+    {
+        string? cookieHeaderOnHttpHop = null;
+        var resolver = CreateResolver(
+            (request, callCount) =>
+            {
+                if (callCount == 1)
+                {
+                    // Same host, but the redirect target itself drops to plain http - a Secure
+                    // cookie must never be sent over that downgraded connection.
+                    var redirect = new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers = { Location = new Uri("http://a.example/final") },
+                    };
+                    redirect.Headers.Add("Set-Cookie", "secureOnly=value; Secure; Path=/");
+                    return redirect;
+                }
+
+                cookieHeaderOnHttpHop = request.Headers.TryGetValues("Cookie", out var values)
+                    ? string.Join(", ", values)
+                    : null;
+                return HtmlResponse("<html><head><title>Http Final</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            await resolver.ResolveAsync("https://a.example/start");
+
+            Assert.Null(cookieHeaderOnHttpHop);
+        }
+    }
+
     [Fact]
     public async Task ResolveAsync_CachesResult_SecondCallForSameUrlDoesNotRefetch()
     {

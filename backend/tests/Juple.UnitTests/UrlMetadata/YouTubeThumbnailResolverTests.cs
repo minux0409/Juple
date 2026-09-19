@@ -146,4 +146,87 @@ public sealed class YouTubeThumbnailResolverTests
             });
         }
     }
+
+    // TryExtractVideoIdFromPageUrl - the fallback path used when the fetched HTML gave no
+    // og:image candidate at all (see UrlMetadataResolver's own remarks on why that happens on
+    // Azure Dev and must not mean thumbnail enrichment is skipped outright).
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://m.youtube.com/watch?v=dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/watch?list=PL123&v=dQw4w9WgXcQ&t=30s", "dQw4w9WgXcQ")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://youtu.be/dQw4w9WgXcQ?t=30", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    // /live/{videoId} - a real-device regression: manual-save of a live-stream watch page (title
+    // resolved fine, thumbnail never did) traced to this path shape simply not being recognized
+    // at all, so the URL-based fallback below never even attempted to extract a video ID for it.
+    // The trailing "?si=..." share-tracking query (YouTube's own live-share parameter) must never
+    // affect extraction - only Uri.AbsolutePath is inspected for this shape.
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ", "dQw4w9WgXcQ")]
+    [InlineData("https://www.youtube.com/live/dQw4w9WgXcQ?si=someTrackingToken", "dQw4w9WgXcQ")]
+    [InlineData("https://youtube.com/live/dQw4w9WgXcQ?si=abc&feature=share", "dQw4w9WgXcQ")]
+    public void TryExtractVideoIdFromPageUrl_ExtractsTheVideoId_FromEveryRealYouTubeUrlShape(
+        string pageUrl, string expectedVideoId)
+    {
+        var success = YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl(new Uri(pageUrl), out var videoId);
+
+        Assert.True(success);
+        Assert.Equal(expectedVideoId, videoId);
+    }
+
+    [Theory]
+    [InlineData("https://example.com/watch?v=dQw4w9WgXcQ")] // not a YouTube host at all
+    [InlineData("https://www.youtube.com/")] // no video id anywhere
+    [InlineData("https://www.youtube.com/results?search_query=cats")] // a non-video YouTube page
+    [InlineData("https://www.youtube.com/watch?v=")] // empty v= value
+    [InlineData("https://www.youtube.com/live/")] // malformed /live/ - no video id segment at all
+    [InlineData("https://www.youtube.com/live/?si=abc")] // malformed /live/ - query only, still no id
+    public void TryExtractVideoIdFromPageUrl_ReturnsFalse_WhenNoVideoIdCanBeFound(string pageUrl)
+    {
+        var success = YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl(new Uri(pageUrl), out var videoId);
+
+        Assert.False(success);
+        Assert.Null(videoId);
+    }
+
+    [Fact]
+    public async Task ResolveExistingThumbnailForVideoIdAsync_StartsFromMaxres_JustLikeAnHtmlDerivedCandidateWould()
+    {
+        var handler = new StubHttpMessageHandler(_ => Ok());
+        var httpClient = new HttpClient(handler);
+
+        var (url, variant) = await YouTubeThumbnailResolver.ResolveExistingThumbnailForVideoIdAsync(
+            httpClient, "dQw4w9WgXcQ", CancellationToken.None);
+
+        Assert.Equal("https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg", url);
+        Assert.Equal("maxresdefault", variant);
+    }
+
+    [Fact]
+    public async Task ResolveExistingThumbnailForVideoIdAsync_FallsBackThroughQualities_TheSameWayTheHtmlDerivedPathDoes()
+    {
+        var handler = new StubHttpMessageHandler(uri => uri.AbsoluteUri.Contains("hqdefault") ? Ok() : NotFound());
+        var httpClient = new HttpClient(handler);
+
+        var (url, variant) = await YouTubeThumbnailResolver.ResolveExistingThumbnailForVideoIdAsync(
+            httpClient, "jNQXAC9IVRw", CancellationToken.None);
+
+        Assert.Equal("https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg", url);
+        Assert.Equal("hqdefault", variant);
+    }
+
+    [Fact]
+    public async Task ResolveExistingThumbnailForVideoIdAsync_WhenNoQualityExists_ReturnsNull_NeverGuessing()
+    {
+        var handler = new StubHttpMessageHandler(_ => NotFound());
+        var httpClient = new HttpClient(handler);
+
+        var (url, variant) = await YouTubeThumbnailResolver.ResolveExistingThumbnailForVideoIdAsync(
+            httpClient, "deadbeef1234", CancellationToken.None);
+
+        Assert.Null(url);
+        Assert.Null(variant);
+    }
 }
