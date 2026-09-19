@@ -27,6 +27,14 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType("char(3)")
             .IsUnicode(false);
 
+        // Persisted as a stable string (not the enum's underlying int) - see UserPlan's own remarks
+        // on why a future member reorder must never change what an existing row means.
+        builder.Property(user => user.Plan)
+            .HasConversion<string>()
+            .HasColumnType("varchar(10)")
+            .HasDefaultValue(UserPlan.Free)
+            .IsRequired();
+
         builder.Property(user => user.CreatedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();

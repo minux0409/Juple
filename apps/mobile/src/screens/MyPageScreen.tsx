@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
@@ -11,12 +11,13 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LogoutIcon } from '../icons/LogoutIcon';
+import { StarIcon } from '../icons/StarIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
 import {
   loadQuickSaveOnSharePreference,
   saveQuickSaveOnSharePreference,
 } from '../settings/quickSaveOnSharePreference';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 function getDeleteAccountErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -34,7 +35,7 @@ function getDeleteAccountErrorMessage(error: unknown, t: TFunction): string {
 export function MyPageScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { signOut, userEmail } = useAuth();
+  const { signOut, userEmail, plan } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -110,6 +111,12 @@ export function MyPageScreen() {
     setIsSignOutDialogVisible(true);
   };
 
+  // No purchase flow exists yet (see this round's scope) - tapping the CTA is honest about that
+  // rather than leading into a dead end or a fake checkout screen.
+  const showPlusComingSoon = () => {
+    Alert.alert(t('myPage.plusTitle'), t('myPage.plusComingSoonMessage'));
+  };
+
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       {/*
@@ -143,6 +150,22 @@ export function MyPageScreen() {
           <Text style={[styles.accountStatus, userEmail && ltrTextStyle]}>
             {userEmail ?? t('myPage.loggedInAs')}
           </Text>
+
+          {/* Only ever shown once the real plan is confirmed Free - never while plan is still null
+              (not yet bootstrapped) and never for Plus, so a Plus user never sees an upgrade CTA. */}
+          {plan === 'Free' ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={showPlusComingSoon}
+              style={styles.plusCard}
+            >
+              <StarIcon color={colors.brand} filled size={20} />
+              <View style={styles.plusTextColumn}>
+                <Text style={styles.plusTitle}>{t('myPage.plusTitle')}</Text>
+                <Text style={styles.plusDescription}>{t('myPage.plusDescription')}</Text>
+              </View>
+            </Pressable>
+          ) : null}
 
           <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
           <Pressable
@@ -216,6 +239,7 @@ export function MyPageScreen() {
 
 const styles = StyleSheet.create({
   safeArea: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   // flexGrow (not flex) - this is a ScrollView's contentContainerStyle, which must be allowed to
@@ -253,6 +277,31 @@ const styles = StyleSheet.create({
   accountStatus: {
     color: colors.textPrimary,
     fontSize: 15,
+  },
+  // Not a SwipeableItemRow (see this round's remarks on why cardShadow can't be used on those) -
+  // a plain Pressable, so a real soft shadow renders here without being clipped.
+  plusCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    ...cardShadow,
+  },
+  plusTextColumn: {
+    flex: 1,
+  },
+  plusTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  plusDescription: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
   },
   settingsRow: {
     alignItems: 'center',

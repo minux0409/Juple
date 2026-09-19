@@ -12,15 +12,21 @@ namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
 public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
     : ICurrentUserProvisioningStore
 {
-    public Task<bool> ExternalIdentityExistsAsync(
+    public async Task<UserPlan?> FindPlanAsync(
         ExternalIdentityPrincipal externalIdentity,
-        CancellationToken cancellationToken = default) =>
-        dbContext.Set<ExternalIdentity>().AnyAsync(
-            identity => identity.TenantId == externalIdentity.TenantId
-                && identity.ObjectId == externalIdentity.ObjectId,
-            cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var match = await (
+            from identity in dbContext.Set<ExternalIdentity>()
+            join user in dbContext.Set<User>() on identity.UserId equals user.Id
+            where identity.TenantId == externalIdentity.TenantId && identity.ObjectId == externalIdentity.ObjectId
+            select new { user.Plan }
+        ).FirstOrDefaultAsync(cancellationToken);
 
-    public async Task CreateOrGetAsync(
+        return match?.Plan;
+    }
+
+    public async Task<UserPlan> CreateAsync(
         CurrentUserBootstrapData data,
         CancellationToken cancellationToken = default)
     {
@@ -33,7 +39,8 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 data.TimeZoneId,
                 data.DefaultCurrencyCode,
                 data.CreatedAtUtc,
-                data.CreatedAtUtc);
+                data.CreatedAtUtc,
+                UserPlan.Free);
             dbContext.Set<User>().Add(user);
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -59,17 +66,28 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 data.CreatedAtUtc));
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+
+            return UserPlan.Free;
         }
         catch (DbUpdateException exception)
         {
+            UserPlan? recoveredPlan = null;
             await ExternalIdentityRaceRecovery.RecoverOrRethrowAsync(
                 exception,
                 SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception),
                 transaction.RollbackAsync,
                 dbContext.ChangeTracker.Clear,
-                cancellationToken => ExternalIdentityExistsAsync(data.ExternalIdentity, cancellationToken),
+                async raceCancellationToken =>
+                {
+                    recoveredPlan = await FindPlanAsync(data.ExternalIdentity, raceCancellationToken);
+                    return recoveredPlan is not null;
+                },
                 cancellationToken);
-            return;
+
+            // RecoverOrRethrowAsync only returns (rather than rethrowing) once the lookup above has
+            // returned true, i.e. recoveredPlan is guaranteed non-null here - the ?? fallback is
+            // just defensive, never actually exercised.
+            return recoveredPlan ?? UserPlan.Free;
         }
     }
 }

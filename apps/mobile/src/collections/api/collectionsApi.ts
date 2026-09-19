@@ -12,7 +12,14 @@ export interface Collection {
   readonly updatedAtUtc: string;
 }
 
-/** One Item inside a Collection. SortOrder is the owner's manual display order (ascending) - see moveCollectionItem; do not re-derive numbering from array position alone once reordering is in play. */
+/**
+ * One Item inside a Collection. SortOrder is the owner's manual display order (ascending) - see
+ * moveCollectionItem; do not re-derive numbering from array position alone once reordering is in
+ * play. representativeImage/previewImageUrl/coverImage mirror ItemHistoryEntry's own three
+ * thumbnail sources exactly (see resolveEffectiveThumbnailUrl) - this used to omit the latter two,
+ * which was the root cause of Category showing no thumbnail for Items whose image came from a
+ * cover choice or metadata preview rather than an uploaded image.
+ */
 export interface CollectionItemEntry {
   readonly itemId: number;
   readonly url: string;
@@ -21,6 +28,8 @@ export interface CollectionItemEntry {
   readonly addedAtUtc: string;
   readonly sortOrder: number;
   readonly representativeImage: RepresentativeImage | null;
+  readonly previewImageUrl: string | null;
+  readonly coverImage: RepresentativeImage | null;
 }
 
 export interface CollectionItemsPage {

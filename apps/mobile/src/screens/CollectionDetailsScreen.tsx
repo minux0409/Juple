@@ -39,9 +39,13 @@ import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
 import { ShareIcon } from '../icons/ShareIcon';
+import { SiteIcon } from '../icons/SiteIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
+import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
+import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
+import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -528,23 +532,28 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               <View>
                 <View style={styles.headerTitleRow}>
                   <Text style={styles.title}>{collection.name}</Text>
+                  <Pressable
+                    accessibilityLabel={
+                      collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
+                    disabled={isTogglingFavorite}
+                    onPress={toggleFavoriteAction}
+                    style={styles.iconButton}
+                  >
+                    <StarIcon
+                      color={collection.isFavorite ? colors.warning : colors.border}
+                      filled={collection.isFavorite}
+                      size={20}
+                    />
+                  </Pressable>
+                </View>
+                <View style={styles.headerMetaRow}>
+                  <Text style={styles.itemCount}>
+                    {t('collections.detailItemCount', { count: collection.itemCount })}
+                  </Text>
                   <View style={styles.headerActions}>
-                    <Pressable
-                      accessibilityLabel={
-                        collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
-                      }
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
-                      disabled={isTogglingFavorite}
-                      onPress={toggleFavoriteAction}
-                      style={styles.iconButton}
-                    >
-                      <StarIcon
-                        color={collection.isFavorite ? colors.warning : colors.border}
-                        filled={collection.isFavorite}
-                        size={20}
-                      />
-                    </Pressable>
                     {share ? (
                       <Pressable
                         accessibilityLabel={t('collections.shareAction')}
@@ -699,33 +708,39 @@ interface CollectionItemContentProps {
 
 /**
  * Mirrors SavedLinkRow's visual language (Home/History - see components/SavedLinkRow.tsx) so
- * Category rows read as the same kind of row as the rest of the app: thumbnail, title primary /
- * URL secondary, memo, added time. The leading position number is a sibling handle rendered by
- * the caller (see CollectionDetailsScreen's renderItem), not this component - it must sit outside
- * SwipeableItemRow so its long-press-to-drag gesture never competes with the swipe gesture.
+ * Category rows read as the same kind of row as the rest of the app: thumbnail, title primary,
+ * memo, added time + a small site icon - never a raw URL (see SiteIcon.tsx/resolveSiteInfo.ts).
+ * The thumbnail now goes through the same resolveEffectiveThumbnailUrl priority Home/History use
+ * (cover choice -> metadata preview -> first-uploaded image) instead of only ever looking at
+ * representativeImage - that mismatch was the root cause of Category rows silently showing no
+ * thumbnail for Items whose image came from a cover choice or metadata preview. The leading
+ * position number is a sibling handle rendered by the caller (see CollectionDetailsScreen's
+ * renderItem), not this component - it must sit outside SwipeableItemRow so its long-press-to-drag
+ * gesture never competes with the swipe gesture.
  */
 function CollectionItemContent({ item }: CollectionItemContentProps) {
+  const primaryText = resolveSavedLinkPrimaryText(item.title, item.url);
+  const siteId = resolveSiteInfo(item.url).id;
+
   return (
     <View style={styles.rowContent}>
-      <ItemRepresentativeThumbnail imageUrl={item.representativeImage?.readUrl ?? null} />
+      <ItemRepresentativeThumbnail imageUrl={resolveEffectiveThumbnailUrl(item)} />
       <View style={styles.rowTextColumn}>
-        {/* item.title is the user's own text (any language/direction) when present; the fallback
-            to item.url below is a technical identifier and needs LTR isolation the same way
-            SavedLinkRow's equivalent fallback does. */}
+        {/* primaryText is the user's own title (any language/direction) when present, otherwise a
+            hostname fallback (see savedLinkPrimaryText.ts) - only that fallback case is a
+            technical identifier that needs LTR isolation. */}
         <Text numberOfLines={2} style={[styles.url, !item.title && ltrTextStyle]}>
-          {item.title ?? item.url}
+          {primaryText}
         </Text>
-        {item.title ? (
-          <Text numberOfLines={1} style={[styles.secondaryUrl, ltrTextStyle]}>
-            {item.url}
-          </Text>
-        ) : null}
         {item.memo ? (
-          <Text numberOfLines={2} style={styles.memoPreview}>
+          <Text numberOfLines={1} style={styles.memoPreview}>
             {item.memo}
           </Text>
         ) : null}
-        <Text style={styles.addedTime}>{formatAddedTime(item.addedAtUtc)}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.addedTime}>{formatAddedTime(item.addedAtUtc)}</Text>
+          <SiteIcon siteId={siteId} size={14} />
+        </View>
       </View>
     </View>
   );
@@ -733,6 +748,7 @@ function CollectionItemContent({ item }: CollectionItemContentProps) {
 
 const styles = StyleSheet.create({
   safeArea: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   loadingContainer: {
@@ -766,6 +782,18 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 22,
     fontWeight: '700',
+  },
+  // Item count on the start edge, share/edit/delete icons pinned to the end edge - a second row
+  // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).
+  headerMetaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  itemCount: {
+    color: colors.textSecondary,
+    fontSize: 14,
   },
   headerActions: {
     alignItems: 'center',
@@ -870,8 +898,8 @@ const styles = StyleSheet.create({
   rowContent: {
     alignItems: 'center',
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
   },
   // The drag handle - long-press starts a reorder (see renderItem's onLongPress={onDragStart}).
   // A sibling of SwipeableItemRow, not a child, so its touches never enter SwipeableItemRow's own
@@ -898,21 +926,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  secondaryUrl: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
-  },
   memoPreview: {
     color: colors.textSecondary,
     fontSize: 13,
     fontStyle: 'italic',
+    marginTop: 2,
+  },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: spacing.xs,
   },
   addedTime: {
     color: colors.textSecondary,
     fontSize: 12,
-    marginTop: spacing.xs,
   },
   disabledButton: {
     opacity: 0.5,

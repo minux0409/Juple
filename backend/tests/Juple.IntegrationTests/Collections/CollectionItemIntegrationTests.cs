@@ -69,7 +69,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collectionId, itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
         Assert.Single(page.Items);
         Assert.Equal(itemId, page.Items[0].ItemId);
     }
@@ -88,8 +88,8 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collectionB, itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var (pageA, _) = await store.GetItemsAsync(_userId, collectionA, cursor: null, limit: 50);
-        var (pageB, _) = await store.GetItemsAsync(_userId, collectionB, cursor: null, limit: 50);
+        var (pageA, _, _) = await store.GetItemsAsync(_userId, collectionA, cursor: null, limit: 50);
+        var (pageB, _, _) = await store.GetItemsAsync(_userId, collectionB, cursor: null, limit: 50);
         Assert.Single(pageA.Items, item => item.ItemId == itemId);
         Assert.Single(pageB.Items, item => item.ItemId == itemId);
     }
@@ -107,7 +107,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collectionId, itemId, DateTimeOffset.UtcNow.AddMinutes(5));
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
         Assert.Single(page.Items);
     }
 
@@ -169,7 +169,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await Assert.ThrowsAsync<CollectionNotFoundException>(
             () => store.AddAsync(_userId, theirCollection, myItem, DateTimeOffset.UtcNow));
 
-        var (page, _) = await store.GetItemsAsync(_otherUserId, theirCollection, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_otherUserId, theirCollection, cursor: null, limit: 50);
         Assert.Empty(page.Items);
     }
 
@@ -194,7 +194,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await Assert.ThrowsAsync<ItemNotFoundException>(
             () => store.AddAsync(_userId, collectionId, theirItem, DateTimeOffset.UtcNow));
 
-        var (page, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
         Assert.Empty(page.Items);
     }
 
@@ -211,7 +211,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.RemoveAsync(_userId, collectionId, itemId);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
         Assert.Empty(page.Items);
 
         var itemStillExists = await _dbContext.Items.AsNoTracking().AnyAsync(item => item.Id == itemId);
@@ -242,7 +242,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.RemoveAsync(_userId, theirCollection, theirItem);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetItemsAsync(_otherUserId, theirCollection, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_otherUserId, theirCollection, cursor: null, limit: 50);
         Assert.Single(page.Items);
     }
 
@@ -278,7 +278,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await itemStore.DeleteAsync(_userId, itemId);
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
         Assert.Empty(page.Items);
 
         var collection = await store.GetAsync(_userId, collectionId);
@@ -306,7 +306,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collectionId, third, baseTime.AddMinutes(2));
         _dbContext.ChangeTracker.Clear();
 
-        var (page, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
 
         Assert.Equal([third, second, first], page.Items.Select(item => item.ItemId));
     }
@@ -327,15 +327,15 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
             ids.Add(itemId);
         }
 
-        var (firstPage, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 2);
+        var (firstPage, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var (secondPage, _) = await store.GetItemsAsync(_userId, collectionId, firstPage.NextCursor, limit: 2);
+        var (secondPage, _, _) = await store.GetItemsAsync(_userId, collectionId, firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.NotNull(secondPage.NextCursor);
 
-        var (thirdPage, _) = await store.GetItemsAsync(_userId, collectionId, secondPage.NextCursor, limit: 2);
+        var (thirdPage, _, _) = await store.GetItemsAsync(_userId, collectionId, secondPage.NextCursor, limit: 2);
         Assert.Single(thirdPage.Items);
         Assert.Null(thirdPage.NextCursor);
 
@@ -362,11 +362,11 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
             ids.Add(itemId);
         }
 
-        var (firstPage, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 2);
+        var (firstPage, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 2);
         Assert.Equal(2, firstPage.Items.Count);
         Assert.NotNull(firstPage.NextCursor);
 
-        var (secondPage, _) = await store.GetItemsAsync(_userId, collectionId, firstPage.NextCursor, limit: 2);
+        var (secondPage, _, _) = await store.GetItemsAsync(_userId, collectionId, firstPage.NextCursor, limit: 2);
         Assert.Equal(2, secondPage.Items.Count);
         Assert.Null(secondPage.NextCursor);
 
@@ -527,7 +527,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
 
     private async Task<List<long>> GetOrderedItemIdsAsync(CollectionStore store, long userId, long collectionId)
     {
-        var (page, _) = await store.GetItemsAsync(userId, collectionId, cursor: null, limit: 50);
+        var (page, _, _) = await store.GetItemsAsync(userId, collectionId, cursor: null, limit: 50);
         return page.Items.Select(item => item.ItemId).ToList();
     }
 

@@ -233,6 +233,7 @@ export function DateHistoryScreen() {
 
 const styles = StyleSheet.create({
   safeArea: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   loadingContainer: {

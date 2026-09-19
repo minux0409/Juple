@@ -17,6 +17,9 @@ export type UserBootstrapStatus =
   | 'invalidDeviceSettings'
   | 'unavailable';
 
+/** The current user's entitlement tier, as returned by the bootstrap endpoint (see userBootstrapApi.ts) - matches backend UserPlan.ToString() exactly. */
+export type UserPlan = 'Free' | 'Plus';
+
 export interface AuthState {
   readonly isInitializing: boolean;
   readonly isSigningIn: boolean;
@@ -26,6 +29,8 @@ export interface AuthState {
   readonly userBootstrapStatus: UserBootstrapStatus;
   /** Only meaningful before backendAuthStatus leaves 'notChecked' - see bootstrapProgress.ts. */
   readonly sessionRestoreStep: SessionRestoreStep;
+  /** Null until userBootstrapStatus reaches 'ready' at least once - never guessed/defaulted client-side (see useIsPlusUser.ts). */
+  readonly plan: UserPlan | null;
 }
 
 export type { GetValidAccessTokenOptions };

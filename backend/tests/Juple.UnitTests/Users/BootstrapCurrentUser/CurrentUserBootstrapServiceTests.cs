@@ -1,5 +1,6 @@
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
+using Juple.Domain.Users;
 
 namespace Juple.UnitTests.Users.BootstrapCurrentUser;
 
@@ -10,29 +11,31 @@ public sealed class CurrentUserBootstrapServiceTests
         Guid.Parse("22222222-2222-2222-2222-222222222222"));
 
     [Fact]
-    public async Task BootstrapAsync_WhenIdentityExists_DoesNotCreateUser()
+    public async Task BootstrapAsync_WhenIdentityExists_DoesNotCreateUserAndReturnsExistingPlan()
     {
-        var store = new FakeProvisioningStore { IdentityExists = true };
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Plus };
         var service = CreateService(store);
 
-        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var plan = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
 
         Assert.Empty(store.CreatedUsers);
+        Assert.Equal(UserPlan.Plus, plan);
     }
 
     [Fact]
-    public async Task BootstrapAsync_WhenIdentityIsNew_CreatesUserAndExternalIdentity()
+    public async Task BootstrapAsync_WhenIdentityIsNew_CreatesUserAndExternalIdentityAndReturnsFree()
     {
         var store = new FakeProvisioningStore();
         var service = CreateService(store);
 
-        await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var plan = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
 
         var data = Assert.Single(store.CreatedUsers);
         Assert.Equal(ExternalIdentity, data.ExternalIdentity);
         Assert.Equal("ko-KR", data.PreferredLocale);
         Assert.Equal("Asia/Seoul", data.TimeZoneId);
         Assert.Null(data.DefaultCurrencyCode);
+        Assert.Equal(UserPlan.Free, plan);
     }
 
     [Fact]
@@ -66,21 +69,21 @@ public sealed class CurrentUserBootstrapServiceTests
 
     private sealed class FakeProvisioningStore : ICurrentUserProvisioningStore
     {
-        public bool IdentityExists { get; init; }
+        public UserPlan? ExistingPlan { get; init; }
 
         public List<CurrentUserBootstrapData> CreatedUsers { get; } = [];
 
-        public Task<bool> ExternalIdentityExistsAsync(
+        public Task<UserPlan?> FindPlanAsync(
             ExternalIdentityPrincipal externalIdentity,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(IdentityExists);
+            Task.FromResult(ExistingPlan);
 
-        public Task CreateOrGetAsync(
+        public Task<UserPlan> CreateAsync(
             CurrentUserBootstrapData data,
             CancellationToken cancellationToken = default)
         {
             CreatedUsers.Add(data);
-            return Task.CompletedTask;
+            return Task.FromResult(UserPlan.Free);
         }
     }
 

@@ -32,10 +32,15 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-function mockUseAuth(overrides: { signOut?: jest.Mock; userEmail?: string | null }) {
+function mockUseAuth(overrides: {
+  signOut?: jest.Mock;
+  userEmail?: string | null;
+  plan?: 'Free' | 'Plus' | null;
+}) {
   jest.mocked(useAuth).mockReturnValue({
     signOut: overrides.signOut ?? jest.fn(),
     userEmail: overrides.userEmail ?? null,
+    plan: 'plan' in overrides ? overrides.plan ?? null : 'Free',
     isInitializing: false,
     isSigningIn: false,
     isAuthenticated: true,
@@ -161,6 +166,33 @@ describe('MyPageScreen sign-out', () => {
     });
 
     expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe('MyPageScreen Plus CTA', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('shows the Plus CTA for a Free plan', async () => {
+    mockUseAuth({ userEmail: null, plan: 'Free' });
+    const renderer = await renderScreen();
+
+    expect(findTextValues(renderer)).toContain(i18n.t('myPage.plusTitle'));
+  });
+
+  it('hides the Plus CTA for a Plus plan', async () => {
+    mockUseAuth({ userEmail: null, plan: 'Plus' });
+    const renderer = await renderScreen();
+
+    expect(findTextValues(renderer)).not.toContain(i18n.t('myPage.plusTitle'));
+  });
+
+  it('hides the Plus CTA while the plan is not yet known (never guesses Free)', async () => {
+    mockUseAuth({ userEmail: null, plan: null });
+    const renderer = await renderScreen();
+
+    expect(findTextValues(renderer)).not.toContain(i18n.t('myPage.plusTitle'));
   });
 });
 

@@ -231,7 +231,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         }
     }
 
-    public async Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetItemsAsync(
+    public async Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
         long userId,
         long collectionId,
         CollectionItemPageCursor? cursor,
@@ -274,10 +274,15 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 item.Memo,
                 membership.AddedAtUtc,
                 membership.SortOrder,
+                item.PreviewImageUrl,
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
                     .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+                CoverImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id && image.Id == item.CoverImageId)
                     .Select(image => new { image.Id, image.BlobName })
                     .FirstOrDefault(),
             };
@@ -289,15 +294,20 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         var items = new List<CollectionItemEntryDto>(pageRows.Count);
         var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        var coverImages = new Dictionary<long, ItemRepresentativeImageRef>();
         foreach (var row in pageRows)
         {
             items.Add(new CollectionItemEntryDto(
                 row.Id, row.Url, row.Title, row.Memo, row.AddedAtUtc, row.SortOrder,
-                RepresentativeImage: null));
+                RepresentativeImage: null, row.PreviewImageUrl, CoverImage: null));
             if (row.RepresentativeImage is not null)
             {
                 representativeImages[row.Id] =
                     new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+            if (row.CoverImage is not null)
+            {
+                coverImages[row.Id] = new ItemRepresentativeImageRef(row.CoverImage.Id, row.CoverImage.BlobName);
             }
         }
 
@@ -305,7 +315,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].Id)
             : null;
 
-        return (new CollectionItemPage(items, nextCursor), representativeImages);
+        return (new CollectionItemPage(items, nextCursor), representativeImages, coverImages);
     }
 
     /// <summary>

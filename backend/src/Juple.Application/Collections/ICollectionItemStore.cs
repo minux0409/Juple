@@ -4,8 +4,8 @@ namespace Juple.Application.Collections;
 
 public interface ICollectionItemStore
 {
-    /// <summary>Throws CollectionNotFoundException when collectionId is missing or not owned by userId.</summary>
-    Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetItemsAsync(
+    /// <summary>Throws CollectionNotFoundException when collectionId is missing or not owned by userId. Each returned CollectionItemEntryDto.RepresentativeImage/CoverImage is always null - the actual signed read URL is resolved by GetCollectionItemsService from RepresentativeImages/CoverImages afterward (same split as IItemHistoryQueryStore). PreviewImageUrl (an external URL, not a Blob) is already fully populated on each CollectionItemEntryDto.</summary>
+    Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
         long userId,
         long collectionId,
         CollectionItemPageCursor? cursor,

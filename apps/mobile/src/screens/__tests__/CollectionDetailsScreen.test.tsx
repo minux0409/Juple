@@ -73,6 +73,8 @@ function makeItemEntry(overrides: Partial<CollectionItemEntry> = {}): Collection
     addedAtUtc: new Date().toISOString(),
     sortOrder: 0,
     representativeImage: null,
+    previewImageUrl: null,
+    coverImage: null,
     ...overrides,
   };
 }

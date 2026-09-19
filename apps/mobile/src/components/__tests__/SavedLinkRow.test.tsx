@@ -1,6 +1,8 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Image, Text } from 'react-native';
 import { SavedLinkRow } from '../SavedLinkRow';
+import { LinkIcon } from '../../icons/LinkIcon';
+import { YouTubeIcon } from '../../icons/YouTubeIcon';
 import type { ItemHistoryEntry } from '../../items/api/itemsApi';
 
 function makeItem(overrides: Partial<ItemHistoryEntry> = {}): ItemHistoryEntry {
@@ -50,32 +52,37 @@ describe('SavedLinkRow', () => {
     expect(renderer.root.findByProps({ children: 'youtube.com' })).toBeTruthy();
   });
 
-  it('always shows the actual URL as secondary text, whether or not there is a title', async () => {
+  it('never shows the raw URL as text, whether or not there is a title', async () => {
     const withTitle = await render(makeItem({ title: 'Has a title', url: 'https://example.com/a' }));
-    expect(withTitle.root.findByProps({ children: 'https://example.com/a' })).toBeTruthy();
+    expect(withTitle.root.findAll(node => node.props.children === 'https://example.com/a')).toHaveLength(0);
 
     const withoutTitle = await render(makeItem({ title: null, url: 'https://example.com/b' }));
-    expect(withoutTitle.root.findByProps({ children: 'https://example.com/b' })).toBeTruthy();
+    expect(withoutTitle.root.findAll(node => node.props.children === 'https://example.com/b')).toHaveLength(0);
   });
 
-  it('truncates the primary text to 2 lines and the URL to 1 line', async () => {
+  it('shows a known site icon for a recognized host, and the generic link icon otherwise', async () => {
+    const known = await render(makeItem({ url: 'https://www.youtube.com/watch?v=abc' }));
+    expect(known.root.findAllByType(YouTubeIcon)).toHaveLength(1);
+
+    const generic = await render(makeItem({ url: 'https://example.com/a' }));
+    expect(generic.root.findAllByType(LinkIcon)).toHaveLength(1);
+  });
+
+  it('truncates the primary text to 2 lines', async () => {
     const item = makeItem({ title: 'A title', url: 'https://example.com/very/long/path' });
     const renderer = await render(item);
 
     const primary = renderer.root.findByProps({ children: 'A title' });
     expect(primary.props.numberOfLines).toBe(2);
-
-    const secondaryUrl = renderer.root.findByProps({ children: 'https://example.com/very/long/path' });
-    expect(secondaryUrl.props.numberOfLines).toBe(1);
   });
 
   it('does not render a memo element when the item has no memo', async () => {
     const item = makeItem({ memo: null });
     const renderer = await render(item);
 
-    // Every Text this row can render is accounted for by title/domain, URL, and time - no
-    // fourth line of text should exist when there is no memo to show.
-    expect(renderer.root.findAllByType(Text)).toHaveLength(3);
+    // Every Text this row can render is accounted for by title/domain and time - no second line
+    // of text should exist when there is no memo to show (the site icon is an Svg, not a Text).
+    expect(renderer.root.findAllByType(Text)).toHaveLength(2);
   });
 
   it('renders the memo when present, visually separate from the URL line', async () => {

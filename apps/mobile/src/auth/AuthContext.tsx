@@ -19,11 +19,11 @@ import {
   saveAuthorizedSession,
 } from './session/authSessionManager';
 import { validateBackendSession } from './authSessionApi';
-import { bootstrapCurrentUser } from './userBootstrapApi';
+import { bootstrapCurrentUser, type UserBootstrapResult } from './userBootstrapApi';
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
 import { unregisterCurrentPushDeviceBestEffort } from '../push/pushLogoutUnregister';
 import { clearCategoryShortcutsOnLogoutBestEffort } from '../share/clearCategoryShortcutsOnLogout';
-import type { AuthContextValue, AuthState, UserBootstrapStatus } from './types';
+import type { AuthContextValue, AuthState } from './types';
 
 const INITIAL_STATE: AuthState = {
   isInitializing: true,
@@ -33,6 +33,7 @@ const INITIAL_STATE: AuthState = {
   backendAuthStatus: 'notChecked',
   userBootstrapStatus: 'notStarted',
   sessionRestoreStep: 'sessionRestore',
+  plan: null,
 };
 
 const SIGNED_OUT_STATE: AuthState = {
@@ -43,6 +44,7 @@ const SIGNED_OUT_STATE: AuthState = {
   backendAuthStatus: 'notChecked',
   userBootstrapStatus: 'notStarted',
   sessionRestoreStep: 'sessionRestore',
+  plan: null,
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -61,11 +63,11 @@ function toSafeAuthErrorMessage(caughtError: unknown, t: TFunction): string {
 
 async function bootstrapUserAccount(
   accessToken: string,
-): Promise<UserBootstrapStatus> {
+): Promise<UserBootstrapResult> {
   try {
     return await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
   } catch {
-    return 'invalidDeviceSettings';
+    return { status: 'invalidDeviceSettings', plan: null };
   }
 }
 
@@ -144,10 +146,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
           );
         }
 
-        const userBootstrapStatus = await bootstrapUserAccount(accessToken);
+        const bootstrapResult = await bootstrapUserAccount(accessToken);
         if (isMountedRef.current) {
           setState(previous =>
-            previous.isAuthenticated ? { ...previous, userBootstrapStatus } : previous,
+            previous.isAuthenticated
+              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan }
+              : previous,
           );
         }
       }
@@ -242,12 +246,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
             ? { ...previous, userBootstrapStatus: 'checking' }
             : previous,
         );
-        const userBootstrapStatus = await bootstrapUserAccount(
+        const bootstrapResult = await bootstrapUserAccount(
           result.accessToken,
         );
         setState(previous =>
           previous.isAuthenticated
-            ? { ...previous, userBootstrapStatus }
+            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan }
             : previous,
         );
       }
@@ -260,6 +264,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         error: toSafeAuthErrorMessage(caughtError, t),
         backendAuthStatus: 'notChecked',
         userBootstrapStatus: 'notStarted',
+        plan: null,
       }));
     }
   }, [t]);

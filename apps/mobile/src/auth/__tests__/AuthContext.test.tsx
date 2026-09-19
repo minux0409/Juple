@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '../AuthContext';
 import { EntraAuthError } from '../entraAuthClient';
 import { getValidAccessToken } from '../session/authSessionManager';
 import { validateBackendSession } from '../authSessionApi';
+import { bootstrapCurrentUser } from '../userBootstrapApi';
 
 jest.mock('react-native-app-auth', () => ({
   authorize: jest.fn(),
@@ -60,6 +61,12 @@ function readProbeText(renderer: ReactTestRenderer.ReactTestRenderer): string {
 }
 
 describe('AuthProvider bootstrap - session restore failure handling', () => {
+  beforeEach(() => {
+    // Only the two tests that actually reach backendAuthStatus 'valid' exercise this call - a
+    // plain default so they don't crash on an unmocked resolved value; neither asserts on plan.
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free' });
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });

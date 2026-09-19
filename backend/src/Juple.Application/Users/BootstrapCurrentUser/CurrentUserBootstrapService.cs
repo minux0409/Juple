@@ -1,5 +1,6 @@
 using System.Globalization;
 using Juple.Application.Identity;
+using Juple.Domain.Users;
 
 namespace Juple.Application.Users.BootstrapCurrentUser;
 
@@ -10,21 +11,28 @@ public sealed class CurrentUserBootstrapService(
     private const int PreferredLocaleMaxLength = 35;
     private const int TimeZoneIdMaxLength = 100;
 
-    public async Task BootstrapAsync(
+    public async Task<UserPlan> BootstrapAsync(
         ExternalIdentityPrincipal externalIdentity,
         BootstrapCurrentUserCommand command,
         CancellationToken cancellationToken = default)
     {
-        if (await provisioningStore.ExternalIdentityExistsAsync(externalIdentity, cancellationToken))
+        // Deliberately checked - and returned on - before validating command below: an already-
+        // provisioned user must keep getting a successful (now Plan-carrying) response every time
+        // this runs (every app launch/sign-in - see mobile's AuthContext), even if the device
+        // happens to report a preferredLocale/timeZoneId that would fail validation. That was
+        // already true of the old exists-check-then-early-return shape; only building a new User
+        // actually needs valid locale/time zone data.
+        var existingPlan = await provisioningStore.FindPlanAsync(externalIdentity, cancellationToken);
+        if (existingPlan is { } plan)
         {
-            return;
+            return plan;
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
         var timeZoneId = ValidateTimeZoneId(command.TimeZoneId);
         var createdAtUtc = timeProvider.GetUtcNow();
 
-        await provisioningStore.CreateOrGetAsync(
+        return await provisioningStore.CreateAsync(
             new CurrentUserBootstrapData(
                 externalIdentity,
                 preferredLocale,

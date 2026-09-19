@@ -20,11 +20,11 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     {
         try
         {
-            await bootstrapService.BootstrapAsync(
+            var plan = await bootstrapService.BootstrapAsync(
                 externalIdentityAccessor.GetRequired(),
                 new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId),
                 cancellationToken);
-            return NoContent();
+            return Ok(new BootstrapCurrentUserResponse(plan.ToString()));
         }
         catch (InvalidCurrentUserBootstrapRequestException exception)
         {
@@ -36,4 +36,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     }
 
     public sealed record BootstrapCurrentUserRequest(string? PreferredLocale, string? TimeZoneId);
+
+    /// <summary>Plan is "Free" or "Plus" (UserPlan.ToString(), matching how it's persisted - see UserConfiguration). Reuses this existing bootstrap call (already made on every app launch/sign-in) rather than adding a separate profile/entitlement endpoint.</summary>
+    public sealed record BootstrapCurrentUserResponse(string Plan);
 }

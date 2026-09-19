@@ -140,12 +140,27 @@ describe('NewLinkReviewScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('prefills the url and title from route params', async () => {
+  it('prefills the title, and shows the compact source row (not the raw URL) by default', async () => {
     const { renderer } = await renderScreen();
 
-    const [titleInput, urlInput] = renderer.root.findAllByType(TextInput);
+    const [titleInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('Shared title');
-    expect(urlInput.props.value).toBe('https://example.com/shared');
+    // Compact source row shows the hostname for a generic (unrecognized) site, never the raw URL.
+    expect(renderer.root.findByProps({ children: 'example.com' })).toBeTruthy();
+    expect(renderer.root.findAll(node => node.props.children === 'https://example.com/shared')).toHaveLength(0);
+  });
+
+  it('tapping edit on the source row reveals an editable URL field prefilled with the current value', async () => {
+    const { renderer } = await renderScreen();
+
+    await act(async () => {
+      findByAccessibilityLabel(renderer, i18n.t('common.edit')).props.onPress();
+    });
+
+    const urlInput = renderer.root
+      .findAllByType(TextInput)
+      .find(input => input.props.value === 'https://example.com/shared');
+    expect(urlInput).toBeTruthy();
   });
 
   it('never calls any Item API before Save is tapped', async () => {

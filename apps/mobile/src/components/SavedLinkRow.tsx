@@ -1,9 +1,11 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import i18n from '../i18n';
+import { SiteIcon } from '../icons/SiteIcon';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
 import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
+import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 
 function formatSavedTime(savedAtUtc: string): string {
@@ -46,8 +48,9 @@ interface SavedLinkRowProps {
  * primary vs secondary rather than each screen repeating its own (previously diverging) layout.
  *
  * Visual hierarchy, brightest/largest to most muted: title (or a domain fallback when there's no
- * title) -> the actual URL -> memo, when present -> saved time. The raw URL deliberately never
- * becomes the biggest/darkest text on the row - see savedLinkPrimaryText.ts for the fallback rule.
+ * title) -> memo, when present -> saved time + a small site icon. The raw URL is deliberately never
+ * shown on this row at all (see SiteIcon.tsx/resolveSiteInfo.ts) - only savedLinkPrimaryText's own
+ * hostname fallback ever surfaces as text, and only when there's no title.
  */
 export function SavedLinkRow({
   item,
@@ -59,6 +62,7 @@ export function SavedLinkRow({
   const thumbnailUrl = preferEffectiveThumbnail
     ? resolveEffectiveThumbnailUrl(item)
     : item.representativeImage?.readUrl ?? null;
+  const siteId = resolveSiteInfo(item.url).id;
 
   return (
     <View style={styles.row}>
@@ -72,26 +76,26 @@ export function SavedLinkRow({
       </View>
       <View style={styles.textColumn}>
         {/* primaryText is the user's own title (any language/direction - never forced) when one
-            exists, otherwise a hostname/URL fallback (see savedLinkPrimaryText.ts) - only that
-            fallback case is a technical identifier that needs LTR isolation so it never gets
-            visually reordered inside an RTL row. secondaryUrl below is always a raw URL. */}
+            exists, otherwise a hostname fallback (see savedLinkPrimaryText.ts) - only that fallback
+            case is a technical identifier that needs LTR isolation so it never gets visually
+            reordered inside an RTL row. */}
         <Text
           numberOfLines={2}
           style={[styles.primaryText, !item.title && ltrTextStyle]}
         >
           {primaryText}
         </Text>
-        <Text numberOfLines={1} style={[styles.secondaryUrl, ltrTextStyle]}>
-          {item.url}
-        </Text>
         {item.memo ? (
-          <Text numberOfLines={2} style={styles.memo}>
+          <Text numberOfLines={1} style={styles.memo}>
             {item.memo}
           </Text>
         ) : null}
-        <Text style={styles.time}>
-          {dateDisplayMode === 'dateTime' ? formatSavedDateTime(item.savedAtUtc) : formatSavedTime(item.savedAtUtc)}
-        </Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.time}>
+            {dateDisplayMode === 'dateTime' ? formatSavedDateTime(item.savedAtUtc) : formatSavedTime(item.savedAtUtc)}
+          </Text>
+          <SiteIcon siteId={siteId} size={14} />
+        </View>
       </View>
     </View>
   );
@@ -101,8 +105,8 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
   },
   thumbnailWrapper: {
     position: 'relative',
@@ -127,20 +131,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  secondaryUrl: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
-  },
   memo: {
     color: colors.textSecondary,
     fontSize: 13,
     fontStyle: 'italic',
+    marginTop: 2,
+  },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: spacing.xs,
   },
   time: {
     color: colors.textSecondary,
     fontSize: 12,
-    marginTop: spacing.xs,
   },
 });

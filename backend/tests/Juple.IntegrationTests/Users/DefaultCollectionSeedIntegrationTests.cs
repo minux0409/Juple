@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 namespace Juple.IntegrationTests.Users;
 
 /// <summary>
-/// Covers the one-time default-Category seed added to CurrentUserProvisioningStore.CreateOrGetAsync
+/// Covers the one-time default-Category seed added to CurrentUserProvisioningStore.CreateAsync
 /// (see the UI refactor plan's §5) - a brand-new external identity gets exactly 4 seeded Collections
-/// in the right locale's names, and calling CreateOrGetAsync again for the same identity (the same
+/// in the right locale's names, and calling CreateAsync again for the same identity (the same
 /// code path a concurrent race takes - see ExternalIdentityRaceRecovery) never doubles them.
 /// </summary>
 public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
@@ -80,7 +80,7 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
         var store = new CurrentUserProvisioningStore(_dbContext);
         var data = MakeBootstrapData(Guid.NewGuid(), "ko-KR");
 
-        await store.CreateOrGetAsync(data);
+        await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
         var userId = await GetSeededUserIdAsync(data.ExternalIdentity);
@@ -102,7 +102,7 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
         var store = new CurrentUserProvisioningStore(_dbContext);
         var data = MakeBootstrapData(Guid.NewGuid(), "en-US");
 
-        await store.CreateOrGetAsync(data);
+        await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
         var userId = await GetSeededUserIdAsync(data.ExternalIdentity);
@@ -122,7 +122,7 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
         var data = MakeBootstrapData(Guid.NewGuid(), "ko-KR");
 
         // First call: commits a new User + its 4 seeded Collections + the ExternalIdentity row.
-        await store.CreateOrGetAsync(data);
+        await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
         // Second call for the exact same external identity takes the same code path a genuine
@@ -131,7 +131,7 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
         // (TenantId, ObjectId) index, so the whole second transaction - User and Collections
         // included - rolls back. This must not throw (the recovery path swallows it) and must not
         // leave a second User or a second set of Collections behind.
-        await store.CreateOrGetAsync(data);
+        await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
         var identityCount = await _dbContext.ExternalIdentities.AsNoTracking()

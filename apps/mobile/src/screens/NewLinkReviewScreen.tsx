@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // react-native-get-random-values is imported once at the app entry point before anything else can
@@ -15,6 +15,9 @@ import { addItemToCollection, getCollections, type Collection } from '../collect
 import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
+import { SourceRow } from '../components/SourceRow';
+import { EditIcon } from '../icons/EditIcon';
+import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { uploadItemImage, type ItemImage } from '../images/api/imagesApi';
 import { PhotoListEditor } from '../images/PhotoListEditor';
@@ -22,7 +25,7 @@ import { MAX_EFFECTIVE_IMAGES, reorderList, type EffectiveImage } from '../items
 import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
-import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety, type UrlSafetyStatus } from '../urlSafety/api/urlSafetyApi';
 
@@ -116,6 +119,13 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Compact source row (icon + site name) by default - raw URL text only appears while the user has
+  // deliberately opened it for editing (e.g. fixing a malformed shared URL), never as a passive
+  // display. Starts collapsed even for a non-http review text (kind: 'reviewText'), which still
+  // needs to be editable the same way.
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
   const [urlSafetyState, setUrlSafetyState] = useState<UrlSafetyDisplayState | null>(null);
 
@@ -273,6 +283,16 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const handleTitleChange = (value: string) => {
     hasUserEditedTitleRef.current = true;
     setTitle(value);
+  };
+
+  /** No pre-flight safety check here (unlike ItemDetailsScreen) - urlSafetyState from the mount-time check above is already visible on screen, so this just opens the link to preview it before Save. */
+  const openUrl = async () => {
+    setUrlOpenError(null);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      setUrlOpenError(t('item.urlOpenFailed'));
+    }
   };
 
   const pickAndStagePhoto = async () => {
@@ -442,16 +462,46 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           value={title}
         />
 
-        <Text style={styles.label}>{t('item.url')}</Text>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!isSaving}
-          keyboardType="url"
-          onChangeText={setUrl}
-          style={[styles.urlInput, ltrTextStyle]}
-          value={url}
-        />
+        <Text style={styles.label}>{t('item.source')}</Text>
+        {isEditingUrl ? (
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoFocus
+            editable={!isSaving}
+            keyboardType="url"
+            onBlur={() => setIsEditingUrl(false)}
+            onChangeText={setUrl}
+            style={[styles.urlInput, ltrTextStyle]}
+            value={url}
+          />
+        ) : (
+          <SourceRow
+            trailing={
+              <View style={styles.sourceActions}>
+                <Pressable
+                  accessibilityLabel={t('item.goToUrlA11y')}
+                  accessibilityRole="button"
+                  onPress={openUrl}
+                  style={styles.iconButton}
+                >
+                  <ExternalLinkIcon color={colors.brand} size={20} />
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={t('common.edit')}
+                  accessibilityRole="button"
+                  disabled={isSaving}
+                  onPress={() => setIsEditingUrl(true)}
+                  style={[styles.iconButton, isSaving && styles.disabledButton]}
+                >
+                  <EditIcon color={colors.textSecondary} size={18} />
+                </Pressable>
+              </View>
+            }
+            url={url}
+          />
+        )}
+        {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
         {urlSafetyState ? (
           <Text
             style={[
@@ -526,6 +576,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
@@ -557,6 +608,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
+  },
+  sourceActions: {
+    flexDirection: 'row',
+  },
+  // Icon-only, no border/background box - matches ItemDetailsScreen's identical iconButton treatment.
+  iconButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    minWidth: minTouchTarget,
   },
   urlInput: {
     borderColor: colors.border,

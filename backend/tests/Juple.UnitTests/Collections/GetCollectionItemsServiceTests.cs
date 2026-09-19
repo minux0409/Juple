@@ -49,7 +49,7 @@ public sealed class GetCollectionItemsServiceTests
         var readUrl = new Uri("https://storage.example/items/17/41/img.jpg?sas=1");
         var items = new List<CollectionItemEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null, null, null),
         };
         var reference = new ItemRepresentativeImageRef(ImageId: 9, BlobName: "items/17/41/img.jpg");
         var store = new FakeCollectionItemStore
@@ -71,7 +71,7 @@ public sealed class GetCollectionItemsServiceTests
     {
         var items = new List<CollectionItemEntryDto>
         {
-            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null),
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null, null, null),
         };
         var store = new FakeCollectionItemStore { Items = items };
         var imageStorage = new FakeItemImageStorage();
@@ -81,6 +81,51 @@ public sealed class GetCollectionItemsServiceTests
 
         Assert.Null(result.Items[0].RepresentativeImage);
         Assert.Null(imageStorage.LastCreateReadUrlCall);
+    }
+
+    /// <summary>
+    /// Regression coverage for the Category-thumbnail bug: CoverImage must resolve to a signed read
+    /// URL the same way RepresentativeImage does, not stay null just because it's a different
+    /// dictionary/priority level (see resolveEffectiveThumbnailUrl on the Mobile side, which prefers
+    /// CoverImage over RepresentativeImage).
+    /// </summary>
+    [Fact]
+    public async Task GetAsync_WhenItemHasCoverImage_ResolvesReadUrl()
+    {
+        var readUrl = new Uri("https://storage.example/items/17/41/cover.jpg?sas=1");
+        var items = new List<CollectionItemEntryDto>
+        {
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null, null, null),
+        };
+        var reference = new ItemRepresentativeImageRef(ImageId: 12, BlobName: "items/17/41/cover.jpg");
+        var store = new FakeCollectionItemStore
+        {
+            Items = items,
+            CoverImages = new Dictionary<long, ItemRepresentativeImageRef> { [41] = reference },
+        };
+        var imageStorage = new FakeItemImageStorage { ReadUrl = readUrl };
+        var service = new GetCollectionItemsService(store, imageStorage);
+
+        var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
+
+        Assert.Equal(new RepresentativeImageDto(12, readUrl), result.Items[0].CoverImage);
+    }
+
+    /// <summary>PreviewImageUrl is an external URL already fully populated by the store - unlike RepresentativeImage/CoverImage it never goes through IItemImageStorage.</summary>
+    [Fact]
+    public async Task GetAsync_WhenItemHasPreviewImageUrl_PropagatesThroughUnchanged()
+    {
+        var items = new List<CollectionItemEntryDto>
+        {
+            new(41, "https://example.test/item", null, null, DateTimeOffset.UtcNow, 0, null,
+                "https://cdn.example/preview.jpg", null),
+        };
+        var store = new FakeCollectionItemStore { Items = items };
+        var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
+
+        var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
+
+        Assert.Equal("https://cdn.example/preview.jpg", result.Items[0].PreviewImageUrl);
     }
 
     private sealed class FakeCollectionItemStore : ICollectionItemStore
@@ -102,7 +147,10 @@ public sealed class GetCollectionItemsServiceTests
         public IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages { get; init; } =
             new Dictionary<long, ItemRepresentativeImageRef>();
 
-        public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages)> GetItemsAsync(
+        public IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages { get; init; } =
+            new Dictionary<long, ItemRepresentativeImageRef>();
+
+        public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
             long userId,
             long collectionId,
             CollectionItemPageCursor? cursor,
@@ -119,7 +167,7 @@ public sealed class GetCollectionItemsServiceTests
                 throw new CollectionNotFoundException();
             }
 
-            return Task.FromResult((new CollectionItemPage(Items, NextCursor), RepresentativeImages));
+            return Task.FromResult((new CollectionItemPage(Items, NextCursor), RepresentativeImages, CoverImages));
         }
 
         public Task AddAsync(

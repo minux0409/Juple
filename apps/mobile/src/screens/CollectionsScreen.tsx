@@ -462,6 +462,7 @@ function CollectionRow({
 
 const styles = StyleSheet.create({
   safeArea: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   // See DailyInboxScreen's identical remark - this tab screen's viewport already excludes the

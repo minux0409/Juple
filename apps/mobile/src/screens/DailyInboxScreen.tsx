@@ -420,6 +420,7 @@ export function DailyInboxScreen() {
 
 const styles = StyleSheet.create({
   safeArea: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   loadingContainer: {
@@ -508,15 +509,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: spacing.lg,
   },
-  // Each saved link is its own standalone card - a subtle border plus the screen's muted ambient
-  // background (not this card's own white surface) is what separates one row from the next, so no
-  // heavy shadow is needed. Vertical gaps between cards come from marginBottom here; horizontal
-  // margin deliberately isn't set here - `content`'s own padding.xl already lines every card up
-  // with the URL input/Save button above it.
+  // Each saved link is its own standalone card - a white surface against the screen's own light
+  // background (see safeArea), separated by a faint border. No shadow here: SwipeableItemRow's
+  // wrapper (which this containerStyle merges onto) needs overflow:'hidden' to clip its revealed
+  // swipe actions to the card's rounded shape, and a shadow on the same view would just get clipped
+  // away by that same overflow:hidden (both iOS shadow* and Android elevation render outside the
+  // view's own bounds) - so the background/border contrast alone carries the "card" look here.
   card: {
+    backgroundColor: colors.surface,
     borderColor: colors.divider,
     borderRadius: radii.lg,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: spacing.sm,
   },
   footerLoading: {

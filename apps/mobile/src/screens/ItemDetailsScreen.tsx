@@ -27,6 +27,7 @@ import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { SourceRow } from '../components/SourceRow';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import {
   deleteItemImage,
@@ -51,7 +52,7 @@ import {
   type ItemDetails,
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { checkUrlSafety } from '../urlSafety/api/urlSafetyApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -672,32 +673,26 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           value={title}
         />
 
-        <Text style={styles.label}>{t('item.url')}</Text>
-        <View style={styles.urlRow}>
-          {/*
-            Deliberately not `selectable`: on Android, selectable Text ignores numberOfLines
-            truncation and renders a wrapped, vertically-clipped second line instead of a
-            single-line ellipsis (long-standing React Native Android issue - reproduced on
-            narrow/split-screen widths). The URL can still be opened via the button next to it.
-          */}
-          <Text numberOfLines={1} style={[styles.url, ltrTextStyle]}>
-            {item.url}
-          </Text>
-          <Pressable
-            accessibilityLabel={t('item.goToUrlA11y')}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isCheckingUrlSafety, busy: isCheckingUrlSafety }}
-            disabled={isCheckingUrlSafety}
-            onPress={handleGoToUrlPress}
-            style={[styles.iconButton, isCheckingUrlSafety && styles.disabledButton]}
-          >
-            {isCheckingUrlSafety ? (
-              <ActivityIndicator color={colors.brand} size="small" />
-            ) : (
-              <ExternalLinkIcon color={colors.brand} size={20} />
-            )}
-          </Pressable>
-        </View>
+        <Text style={styles.label}>{t('item.source')}</Text>
+        <SourceRow
+          trailing={
+            <Pressable
+              accessibilityLabel={t('item.goToUrlA11y')}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isCheckingUrlSafety, busy: isCheckingUrlSafety }}
+              disabled={isCheckingUrlSafety}
+              onPress={handleGoToUrlPress}
+              style={[styles.iconButton, isCheckingUrlSafety && styles.disabledButton]}
+            >
+              {isCheckingUrlSafety ? (
+                <ActivityIndicator color={colors.brand} size="small" />
+              ) : (
+                <ExternalLinkIcon color={colors.brand} size={20} />
+              )}
+            </Pressable>
+          }
+          url={item.url}
+        />
         {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
 
         <CategoryField
@@ -856,6 +851,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   screen: {
+    backgroundColor: colors.background,
     flex: 1,
   },
   content: {
@@ -890,17 +886,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-  },
-  urlRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  url: {
-    color: colors.textPrimary,
-    flex: 1,
-    fontSize: 14,
-    marginEnd: spacing.md,
   },
   // Icon-only, no border/background box - shared by every secondary row action on this screen
   // (URL open / category edit / photo add) so all three share the same visual alignment and touch
