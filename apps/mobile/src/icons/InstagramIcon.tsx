@@ -1,10 +1,10 @@
-import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 interface InstagramIconProps {
   readonly size?: number;
 }
 
-/** Fixed brand gradient (not theme-driven) - recognizability matters more here than palette consistency, matching how every app shows this logo. */
+/** Fixed brand gradient (not theme-driven) - recognizability matters more here than palette consistency, matching how every app shows this logo. A small circular badge, matching this round's site-icon visual language. */
 export function InstagramIcon({ size = 24 }: InstagramIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -15,9 +15,9 @@ export function InstagramIcon({ size = 24 }: InstagramIconProps) {
           <Stop offset="1" stopColor="#5851DB" />
         </LinearGradient>
       </Defs>
-      <Rect x="1" y="1" width="22" height="22" rx="6" fill="url(#instagramGradient)" />
-      <Circle cx="12" cy="12" r="5" stroke="#FFFFFF" strokeWidth="1.75" />
-      <Circle cx="17.6" cy="6.4" r="1.1" fill="#FFFFFF" />
+      <Circle cx="12" cy="12" r="11" fill="url(#instagramGradient)" />
+      <Circle cx="12" cy="12" r="4.2" stroke="#FFFFFF" strokeWidth="1.6" />
+      <Circle cx="16.3" cy="7.7" r="1" fill="#FFFFFF" />
     </Svg>
   );
 }

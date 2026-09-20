@@ -10,6 +10,13 @@ export interface Collection {
   readonly itemCount: number;
   readonly createdAtUtc: string;
   readonly updatedAtUtc: string;
+  /**
+   * One of the fixed CollectionIcon keys the server defines (see collectionIcons.ts) - a plain
+   * string wire type, not a union, so an icon key this build doesn't yet recognize (e.g. added by a
+   * later server release) still round-trips safely and falls back to the default glyph, rather than
+   * this type itself going stale.
+   */
+  readonly icon: string;
 }
 
 /**
@@ -89,15 +96,20 @@ export async function getCollections(
   return response.body;
 }
 
-/** POSTs a new Collection; resolves with the created Collection on 201 (409 on a duplicate name). */
+/**
+ * POSTs a new Collection; resolves with the created Collection on 201 (409 on a duplicate name).
+ * icon is optional - omitting it (e.g. the New Link Review quick-create field) lets the server
+ * apply its own default (Folder) rather than this client guessing one.
+ */
 export async function createCollection(
   request: AuthenticatedApiRequest,
   name: string,
+  icon?: string,
 ): Promise<Collection> {
   const response = await request<Collection>({
     method: 'POST',
     path: '/api/v1/collections',
-    body: { name },
+    body: { name, icon },
   });
 
   if (!response.body) {
@@ -146,6 +158,25 @@ export async function setCollectionFavorite(
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/favorite`,
     body: { isFavorite },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
+}
+
+/** PUTs a Collection's icon; resolves with the updated Collection (409 on a concurrent modification). */
+export async function setCollectionIcon(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  icon: string,
+): Promise<Collection> {
+  const response = await request<Collection>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/icon`,
+    body: { icon },
   });
 
   if (!response.body) {

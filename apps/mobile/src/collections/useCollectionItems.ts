@@ -34,8 +34,10 @@ export interface UseCollectionItemsResult {
   /** Removes an Item from the in-memory list immediately after a successful remove-from-Collection call. */
   readonly removeLocally: (itemId: number) => void;
   /**
-   * Moves itemId to immediately after afterItemId (null = front) in the in-memory list, for an
-   * optimistic drag-drop update ahead of the moveCollectionItem API call actually resolving. Returns
+   * Moves itemId to immediately after afterItemId (null = front) in the in-memory list - for an
+   * optimistic update ahead of a moveCollectionItem API call actually resolving, should a future
+   * reorder UI need one (Category Details' own drag-based attempt was removed - see git history -
+   * but this helper and the backend's moveCollectionItem endpoint are kept for later reuse). Returns
    * the previous item order so the caller can roll back to it verbatim if that call fails.
    */
   readonly reorderLocally: (itemId: number, afterItemId: number | null) => readonly CollectionItemEntry[];

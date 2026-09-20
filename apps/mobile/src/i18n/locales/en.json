@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Remove from this category?",
     "unlinkConfirmMessage": "The link itself won't be deleted - only removed from this category.",
     "unlinkAction": "Remove",
-    "errorReorderTitle": "Couldn't update the order",
-    "errorReorderFallback": "Please try again in a moment.",
-    "reorderHandleA11yLabel": "Item {{position}}, long-press to reorder",
     "errorShareManagementFallback": "Couldn't update the share status.",
     "errorListFallback": "Couldn't load your categories.",
     "errorItemsLoadFallback": "Couldn't load items in this category.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "A category with this name already exists.",
     "errorNameInvalid": "Please check the category name.",
     "errorNameRequired": "Please enter a category name.",
-    "errorNameTooLong": "Category name must be 100 characters or fewer."
+    "errorNameTooLong": "Category name must be 100 characters or fewer.",
+    "iconSectionTitle": "Choose icon",
+    "errorIconUpdateFallback": "Couldn't update the icon.",
+    "iconOptionA11y": "{{icon}} icon",
+    "iconNames": {
+      "Folder": "Folder",
+      "Heart": "Heart",
+      "Plane": "Travel",
+      "Gamepad": "Gaming",
+      "Utensils": "Food",
+      "ShoppingBag": "Shopping",
+      "Home": "Home",
+      "Laptop": "Work",
+      "Globe": "Globe",
+      "Tag": "Tag"
+    }
   },
   "myPage": {
     "title": "My Page",
@@ -140,6 +152,7 @@
     "settings": "Settings",
     "plusTitle": "Juple Plus",
     "plusDescription": "Unlock more with Juple Plus",
+    "plusCta": "Get Plus",
     "plusComingSoonMessage": "Juple Plus is coming soon.",
     "signOutConfirmTitle": "Sign out?",
     "signOutConfirmMessage": "You'll need to sign in again to continue.",

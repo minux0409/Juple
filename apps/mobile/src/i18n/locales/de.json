@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Aus dieser Kategorie entfernen?",
     "unlinkConfirmMessage": "Der Link selbst wird nicht gelöscht, sondern nur aus dieser Kategorie entfernt.",
     "unlinkAction": "Entfernen",
-    "errorReorderTitle": "Die Reihenfolge konnte nicht aktualisiert werden",
-    "errorReorderFallback": "Bitte versuchen Sie es in Kürze erneut.",
-    "reorderHandleA11yLabel": "Eintrag {{position}}, zum Umsortieren gedrückt halten",
     "errorShareManagementFallback": "Der Freigabestatus konnte nicht aktualisiert werden.",
     "errorListFallback": "Ihre Kategorien konnten nicht geladen werden.",
     "errorItemsLoadFallback": "Die Einträge dieser Kategorie konnten nicht geladen werden.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Es gibt bereits eine Kategorie mit diesem Namen.",
     "errorNameInvalid": "Bitte überprüfen Sie den Kategorienamen.",
     "errorNameRequired": "Bitte geben Sie einen Kategorienamen ein.",
-    "errorNameTooLong": "Der Kategoriename darf höchstens 100 Zeichen lang sein."
+    "errorNameTooLong": "Der Kategoriename darf höchstens 100 Zeichen lang sein.",
+    "iconSectionTitle": "Symbol wählen",
+    "errorIconUpdateFallback": "Symbol konnte nicht aktualisiert werden.",
+    "iconOptionA11y": "Symbol {{icon}}",
+    "iconNames": {
+      "Folder": "Ordner",
+      "Heart": "Herz",
+      "Plane": "Reisen",
+      "Gamepad": "Gaming",
+      "Utensils": "Essen",
+      "ShoppingBag": "Einkaufen",
+      "Home": "Zuhause",
+      "Laptop": "Arbeit",
+      "Globe": "Globus",
+      "Tag": "Etikett"
+    }
   },
   "myPage": {
     "title": "Mein Bereich",
@@ -140,6 +152,7 @@
     "settings": "Einstellungen",
     "plusTitle": "Juple Plus",
     "plusDescription": "Mit Juple Plus mehr freischalten",
+    "plusCta": "Plus starten",
     "plusComingSoonMessage": "Juple Plus kommt bald.",
     "signOutConfirmTitle": "Abmelden?",
     "signOutConfirmMessage": "Sie müssen sich erneut anmelden, um fortzufahren.",

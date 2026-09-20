@@ -1,5 +1,6 @@
 using Juple.Application.Collections;
 using Juple.Application.Items;
+using Juple.Domain.Collections;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Collections;
 using Juple.Infrastructure.Items;
@@ -49,7 +50,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
     }
 
     private async Task<long> CreateCollectionAsync(CollectionStore store, long userId, string name) =>
-        (await store.CreateAsync(userId, name, name.ToUpperInvariant(), DateTimeOffset.UtcNow)).Id;
+        (await store.CreateAsync(userId, name, name.ToUpperInvariant(), CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
 
     private async Task<long> CreateItemAsync(ItemStore itemStore, long userId, string url)
     {

@@ -69,21 +69,30 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         // UX_CollectionItems_CollectionId_ItemId/IX_CollectionItems_CollectionId_AddedAtUtc_ItemId)
         // - not an N+1: SQL Server evaluates this as one round trip, not one extra query per
         // Collection. See CollectionsController's ListAsync doc for the observed generated SQL.
+        // Projects Icon as its raw (converter-mapped) enum, not .ToString() - EF cannot translate an
+        // arbitrary CLR ToString() call inside a SQL projection. The CollectionDto's plain-string
+        // Icon is built afterward, once, in memory (see the Select below), never inside the query.
         var page = await query
             .OrderByDescending(collection => collection.CreatedAtUtc)
             .ThenByDescending(collection => collection.Id)
-            .Select(collection => new CollectionDto(
+            .Select(collection => new
+            {
                 collection.Id,
                 collection.Name,
                 collection.IsFavorite,
-                dbContext.CollectionItems.Count(membership => membership.CollectionId == collection.Id),
+                ItemCount = dbContext.CollectionItems.Count(membership => membership.CollectionId == collection.Id),
                 collection.CreatedAtUtc,
-                collection.UpdatedAtUtc))
+                collection.UpdatedAtUtc,
+                collection.Icon,
+            })
             .Take(limit + 1)
             .ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
-        var pageItems = hasMore ? page.GetRange(0, limit) : page;
+        var pageItems = (hasMore ? page.GetRange(0, limit) : page)
+            .Select(row => new CollectionDto(
+                row.Id, row.Name, row.IsFavorite, row.ItemCount, row.CreatedAtUtc, row.UpdatedAtUtc, row.Icon.ToString()))
+            .ToList();
 
         var nextCursor = hasMore
             ? new CollectionPageCursor(pageItems[^1].CreatedAtUtc, pageItems[^1].Id)
@@ -96,10 +105,11 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         long userId,
         string name,
         string nameNormalized,
+        CollectionIcon icon,
         DateTimeOffset createdAtUtc,
         CancellationToken cancellationToken = default)
     {
-        var collection = new Collection(userId, name, nameNormalized, createdAtUtc);
+        var collection = new Collection(userId, name, nameNormalized, icon, createdAtUtc);
         dbContext.Collections.Add(collection);
 
         try
@@ -113,7 +123,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         }
 
         return new CollectionDto(
-            collection.Id, collection.Name, collection.IsFavorite, 0, collection.CreatedAtUtc, collection.UpdatedAtUtc);
+            collection.Id, collection.Name, collection.IsFavorite, 0, collection.CreatedAtUtc,
+            collection.UpdatedAtUtc, collection.Icon.ToString());
     }
 
     public async Task<CollectionDto> GetAsync(
@@ -134,7 +145,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
 
         return new CollectionDto(
-            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc, collection.UpdatedAtUtc);
+            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
+            collection.UpdatedAtUtc, collection.Icon.ToString());
     }
 
     public async Task RenameAsync(
@@ -200,7 +212,42 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
 
         return new CollectionDto(
-            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc, collection.UpdatedAtUtc);
+            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
+            collection.UpdatedAtUtc, collection.Icon.ToString());
+    }
+
+    public async Task<CollectionDto> SetIconAsync(
+        long userId,
+        long collectionId,
+        CollectionIcon icon,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var collection = await dbContext.Collections
+            .FirstOrDefaultAsync(
+                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+        if (collection is null)
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        collection.SetIcon(icon, updatedAtUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+
+        var itemCount = await dbContext.CollectionItems
+            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+
+        return new CollectionDto(
+            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
+            collection.UpdatedAtUtc, collection.Icon.ToString());
     }
 
     public async Task DeleteAsync(

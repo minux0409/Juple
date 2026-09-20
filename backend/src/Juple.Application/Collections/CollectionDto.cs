@@ -6,4 +6,5 @@ public sealed record CollectionDto(
     bool IsFavorite,
     int ItemCount,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    string Icon);

@@ -69,7 +69,8 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 // Juple.Application and this store intentionally doesn't take a dependency on an
                 // Application-layer service (see the seeding design note in the UI refactor plan).
                 dbContext.Set<Collection>().Add(
-                    new Collection(user.Id, name, name.Trim().ToUpperInvariant(), data.CreatedAtUtc));
+                    new Collection(
+                        user.Id, name, name.Trim().ToUpperInvariant(), CollectionIcon.Folder, data.CreatedAtUtc));
             }
             await dbContext.SaveChangesAsync(cancellationToken);
 

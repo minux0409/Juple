@@ -111,6 +111,7 @@ function makeCollection(overrides: Partial<Collection> = {}): Collection {
     itemCount: 0,
     createdAtUtc: new Date().toISOString(),
     updatedAtUtc: new Date().toISOString(),
+    icon: 'Folder',
     ...overrides,
   };
 }
@@ -528,6 +529,25 @@ describe('ItemDetailsScreen', () => {
         await findPressableByAccessibilityLabel(renderer, name)?.props.onPress();
       });
     }
+
+    it('shows each category\'s own pastel icon tile in the picker - not a plain gray outline icon', async () => {
+      jest.mocked(getCollections).mockImplementation(
+        async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            return { items: [], nextCursor: null };
+          }
+          return { items: [makeCollection({ id: 5, name: 'Wishlist', icon: 'Plane' })], nextCursor: null };
+        },
+      );
+      const renderer = await renderScreen();
+
+      await openCategoryModal(renderer);
+
+      const { PlaneIcon } = require('../../icons/PlaneIcon');
+      const { FolderIcon } = require('../../icons/FolderIcon');
+      expect(renderer.root.findAllByType(PlaneIcon).length).toBeGreaterThan(0);
+      expect(renderer.root.findAllByType(FolderIcon)).toHaveLength(0);
+    });
 
     it('category add stages locally with no immediate API call, and enables Save', async () => {
       const renderer = await renderScreen();

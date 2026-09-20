@@ -1,14 +1,17 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Text } from 'react-native';
+import { FlatList, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionsScreen } from '../CollectionsScreen';
 import {
+  createCollection,
   getCollections,
   setCollectionFavorite,
   type Collection,
   type GetCollectionsOptions,
 } from '../../collections/api/collectionsApi';
+import { HeartIcon } from '../../icons/HeartIcon';
 import { ChevronIcon } from '../../icons/ChevronIcon';
+import { FolderIcon } from '../../icons/FolderIcon';
 
 // A module-level mock (not a fresh `jest.fn()` returned from the factory on every call) so tests
 // can assert on it directly - matches the pattern already used for route-prop screens
@@ -39,6 +42,7 @@ function makeCollection(overrides: Partial<Collection>): Collection {
     itemCount: 0,
     createdAtUtc: new Date().toISOString(),
     updatedAtUtc: new Date().toISOString(),
+    icon: 'Folder',
     ...overrides,
   };
 }
@@ -73,15 +77,15 @@ describe('CollectionsScreen segmented tabs', () => {
     jest.clearAllMocks();
   });
 
-  it('shows only the "all" tab data by default, never both lists at once', async () => {
+  it('shows only the favorites tab data by default, never both lists at once', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
 
     const flatList = renderer.root.findByType(FlatList);
-    expect(flatList.props.data).toEqual(allCollections);
+    expect(flatList.props.data).toEqual(favoriteCollections);
   });
 
-  it('switches to the favorites tab data without triggering a new network call', async () => {
+  it('switches to the all tab data without triggering a new network call', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
 
@@ -94,7 +98,7 @@ describe('CollectionsScreen segmented tabs', () => {
       .findAll(node => typeof node.props.onPress === 'function')
       .filter(node => {
         const label = node.findAllByType(Text)[0]?.props.children;
-        return label === '즐겨찾기' || label === 'Favorites';
+        return label === '전체 카테고리' || label === 'All categories';
       });
     expect(segmentPressables.length).toBeGreaterThan(0);
 
@@ -103,8 +107,8 @@ describe('CollectionsScreen segmented tabs', () => {
     });
 
     const flatList = renderer.root.findByType(FlatList);
-    expect(flatList.props.data).toEqual(favoriteCollections);
-    // Switching tabs reuses the already-loaded favorites state - no additional getCollections call.
+    expect(flatList.props.data).toEqual(allCollections);
+    // Switching tabs reuses the already-loaded state - no additional getCollections call.
     expect(jest.mocked(getCollections).mock.calls.length).toBe(callCountBeforeSwitch);
   });
 });
@@ -114,6 +118,19 @@ function findRowPressableByName(renderer: ReactTestRenderer.ReactTestRenderer, n
   return renderer.root
     .findAll(node => typeof node.props.onPress === 'function')
     .find(node => node.findAllByType(Text).some(textNode => textNode.props.children === name));
+}
+
+/** Switches off the default favorites tab to the "all" tab, where non-favorite rows (e.g. All B) render. */
+async function switchToAllTab(renderer: ReactTestRenderer.ReactTestRenderer) {
+  const allTabPressable = renderer.root
+    .findAll(node => typeof node.props.onPress === 'function')
+    .find(node => {
+      const label = node.findAllByType(Text)[0]?.props.children;
+      return label === '전체 카테고리' || label === 'All categories';
+    });
+  await act(async () => {
+    allTabPressable?.props.onPress();
+  });
 }
 
 describe('CollectionsScreen row', () => {
@@ -131,6 +148,7 @@ describe('CollectionsScreen row', () => {
   it('tapping a row navigates to that Collection\'s details', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
+    await switchToAllTab(renderer);
 
     await act(async () => {
       findRowPressableByName(renderer, 'All B')?.props.onPress();
@@ -143,6 +161,7 @@ describe('CollectionsScreen row', () => {
     setUpGetCollectionsMock();
     jest.mocked(setCollectionFavorite).mockResolvedValue({ ...allCollections[1], isFavorite: true });
     const renderer = await renderScreen();
+    await switchToAllTab(renderer);
 
     const starButton = renderer.root.findAll(
       node => node.props.accessibilityLabel === i18n.t('collections.addFavorite'),
@@ -154,5 +173,110 @@ describe('CollectionsScreen row', () => {
 
     expect(setCollectionFavorite).toHaveBeenCalledWith(expect.anything(), 2, true);
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('renders each row\'s own chosen icon, not a single hardcoded glyph', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(getCollections).mockImplementation(async () => ({
+      items: [makeCollection({ id: 1, name: 'Heart one', icon: 'Heart' })],
+      nextCursor: null,
+    }));
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByType(HeartIcon)).toHaveLength(1);
+    expect(renderer.root.findAllByType(FolderIcon)).toHaveLength(0);
+  });
+});
+
+describe('CollectionsScreen create form', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  function openCreateForm(renderer: ReactTestRenderer.ReactTestRenderer) {
+    const toggleButton = renderer.root.findAll(
+      node => node.props.accessibilityLabel === i18n.t('collections.create'),
+    )[0];
+    act(() => {
+      toggleButton.props.onPress();
+    });
+  }
+
+  function getSubmitButton(renderer: ReactTestRenderer.ReactTestRenderer) {
+    return renderer.root.findAll(
+      node =>
+        typeof node.props.onPress === 'function' &&
+        node.findAllByType(Text).some(textNode => textNode.props.children === i18n.t('collections.create')),
+    )[0];
+  }
+
+  it('defaults the icon picker to Folder and creates with it when nothing else is chosen', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(createCollection).mockResolvedValue(makeCollection({ id: 9, name: 'New one' }));
+    const renderer = await renderScreen();
+
+    openCreateForm(renderer);
+    const nameInput = renderer.root.findByType(TextInput);
+    act(() => {
+      nameInput.props.onChangeText('New one');
+    });
+
+    await act(async () => {
+      await getSubmitButton(renderer).props.onPress();
+    });
+
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'New one', 'Folder');
+  });
+
+  it('creates with whichever icon the user picks from the grid', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(createCollection).mockResolvedValue(makeCollection({ id: 9, name: 'Trip', icon: 'Plane' }));
+    const renderer = await renderScreen();
+
+    openCreateForm(renderer);
+    const nameInput = renderer.root.findByType(TextInput);
+    act(() => {
+      nameInput.props.onChangeText('Trip');
+    });
+
+    const planeCell = renderer.root.findByProps({ testID: 'collection-icon-option-Plane' });
+    act(() => {
+      planeCell.props.onPress();
+    });
+
+    await act(async () => {
+      await getSubmitButton(renderer).props.onPress();
+    });
+
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'Trip', 'Plane');
+  });
+
+  it('resets the icon picker back to Folder after a successful create', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(createCollection).mockResolvedValue(makeCollection({ id: 9, name: 'Trip', icon: 'Plane' }));
+    const renderer = await renderScreen();
+
+    openCreateForm(renderer);
+    let nameInput = renderer.root.findByType(TextInput);
+    act(() => {
+      nameInput.props.onChangeText('Trip');
+    });
+    act(() => {
+      renderer.root.findByProps({ testID: 'collection-icon-option-Plane' }).props.onPress();
+    });
+    await act(async () => {
+      await getSubmitButton(renderer).props.onPress();
+    });
+
+    openCreateForm(renderer);
+    nameInput = renderer.root.findByType(TextInput);
+    act(() => {
+      nameInput.props.onChangeText('Second');
+    });
+    await act(async () => {
+      await getSubmitButton(renderer).props.onPress();
+    });
+
+    expect(createCollection).toHaveBeenLastCalledWith(expect.anything(), 'Second', 'Folder');
   });
 });

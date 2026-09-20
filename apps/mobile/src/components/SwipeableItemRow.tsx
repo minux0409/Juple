@@ -41,6 +41,17 @@ interface SwipeableItemRowProps {
    * swipe-revealed actions to the card's own shape (rounded corners included).
    */
   readonly containerStyle?: StyleProp<ViewStyle>;
+  /**
+   * Optional long-press hook on this same row content (e.g. CollectionDetailsScreen opening its
+   * explicit move-up/down menu) - deliberately just forwarded to the content Pressable rather than
+   * given its own gesture handling, since React Native's Pressability already suppresses the
+   * paired `onPress` for a release that followed a fired `onLongPress` (see Pressability.js's own
+   * `isPressCanceledByLongPress`), so a long-press-then-release here never also navigates. Omit to
+   * leave long-press unhandled, exactly like every other screen using this component today.
+   */
+  readonly onLongPress?: () => void;
+  /** Overrides the content Pressable's own accessibility label - e.g. CollectionDetailsScreen's "Item N, long-press for options", which needs the row's position, not just its content. */
+  readonly accessibilityLabel?: string;
 }
 
 /**
@@ -57,6 +68,8 @@ export function SwipeableItemRow({
   onShare,
   disabled,
   containerStyle,
+  onLongPress,
+  accessibilityLabel,
 }: SwipeableItemRowProps) {
   const { t } = useTranslation();
   const translateX = useRef(new Animated.Value(0)).current;
@@ -180,7 +193,14 @@ export function SwipeableItemRow({
         style={[styles.content, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        <Pressable accessibilityRole="button" onPress={handleContentPress} style={styles.contentPressable}>
+        <Pressable
+          accessibilityLabel={accessibilityLabel}
+          accessibilityRole="button"
+          delayLongPress={350}
+          onLongPress={onLongPress}
+          onPress={handleContentPress}
+          style={styles.contentPressable}
+        >
           {children}
         </Pressable>
       </Animated.View>

@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Убрать из этой категории?",
     "unlinkConfirmMessage": "Сама ссылка не будет удалена - она будет удалена только из этой категории.",
     "unlinkAction": "Убрать",
-    "errorReorderTitle": "Не удалось обновить порядок",
-    "errorReorderFallback": "Повторите попытку через некоторое время.",
-    "reorderHandleA11yLabel": "Элемент {{position}}, удерживайте для изменения порядка",
     "errorShareManagementFallback": "Не удалось обновить статус доступа.",
     "errorListFallback": "Не удалось загрузить ваши категории.",
     "errorItemsLoadFallback": "Не удалось загрузить элементы этой категории.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Категория с таким названием уже существует.",
     "errorNameInvalid": "Проверьте название категории.",
     "errorNameRequired": "Введите название категории.",
-    "errorNameTooLong": "Название категории должно содержать не более 100 символов."
+    "errorNameTooLong": "Название категории должно содержать не более 100 символов.",
+    "iconSectionTitle": "Выбрать значок",
+    "errorIconUpdateFallback": "Не удалось обновить значок.",
+    "iconOptionA11y": "Значок «{{icon}}»",
+    "iconNames": {
+      "Folder": "Папка",
+      "Heart": "Сердце",
+      "Plane": "Путешествия",
+      "Gamepad": "Игры",
+      "Utensils": "Еда",
+      "ShoppingBag": "Покупки",
+      "Home": "Дом",
+      "Laptop": "Работа",
+      "Globe": "Глобус",
+      "Tag": "Ярлык"
+    }
   },
   "myPage": {
     "title": "Мой профиль",
@@ -140,6 +152,7 @@
     "settings": "Настройки",
     "plusTitle": "Juple Plus",
     "plusDescription": "Откройте больше возможностей с Juple Plus",
+    "plusCta": "Подключить Plus",
     "plusComingSoonMessage": "Juple Plus скоро появится.",
     "signOutConfirmTitle": "Выйти?",
     "signOutConfirmMessage": "Для продолжения потребуется снова войти в систему.",

@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Remover desta categoria?",
     "unlinkConfirmMessage": "O link em si não será excluído, apenas removido desta categoria.",
     "unlinkAction": "Remover",
-    "errorReorderTitle": "Não foi possível atualizar a ordem",
-    "errorReorderFallback": "Tente novamente em instantes.",
-    "reorderHandleA11yLabel": "Item {{position}}, toque e segure para reordenar",
     "errorShareManagementFallback": "Não foi possível atualizar o status de compartilhamento.",
     "errorListFallback": "Não foi possível carregar suas categorias.",
     "errorItemsLoadFallback": "Não foi possível carregar os itens desta categoria.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Já existe uma categoria com este nome.",
     "errorNameInvalid": "Verifique o nome da categoria.",
     "errorNameRequired": "Digite um nome para a categoria.",
-    "errorNameTooLong": "O nome da categoria deve ter no máximo 100 caracteres."
+    "errorNameTooLong": "O nome da categoria deve ter no máximo 100 caracteres.",
+    "iconSectionTitle": "Escolher ícone",
+    "errorIconUpdateFallback": "Não foi possível atualizar o ícone.",
+    "iconOptionA11y": "Ícone de {{icon}}",
+    "iconNames": {
+      "Folder": "Pasta",
+      "Heart": "Coração",
+      "Plane": "Viagem",
+      "Gamepad": "Jogos",
+      "Utensils": "Culinária",
+      "ShoppingBag": "Compras",
+      "Home": "Casa",
+      "Laptop": "Trabalho",
+      "Globe": "Globo",
+      "Tag": "Etiqueta"
+    }
   },
   "myPage": {
     "title": "Minha página",
@@ -140,6 +152,7 @@
     "settings": "Configurações",
     "plusTitle": "Juple Plus",
     "plusDescription": "Desbloqueie mais com o Juple Plus",
+    "plusCta": "Assinar o Plus",
     "plusComingSoonMessage": "O Juple Plus estará disponível em breve.",
     "signOutConfirmTitle": "Sair?",
     "signOutConfirmMessage": "Você precisará entrar novamente para continuar.",

@@ -1,3 +1,5 @@
+using Juple.Domain.Collections;
+
 namespace Juple.Application.Collections;
 
 public interface ICollectionStore
@@ -32,6 +34,7 @@ public interface ICollectionStore
         long userId,
         string name,
         string nameNormalized,
+        CollectionIcon icon,
         DateTimeOffset createdAtUtc,
         CancellationToken cancellationToken = default);
 
@@ -54,6 +57,14 @@ public interface ICollectionStore
         long userId,
         long collectionId,
         bool isFavorite,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Same lost-update protection as SetFavoriteAsync above.</summary>
+    Task<CollectionDto> SetIconAsync(
+        long userId,
+        long collectionId,
+        CollectionIcon icon,
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default);
 

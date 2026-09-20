@@ -22,7 +22,7 @@ export function SourceRow({ url, trailing }: SourceRowProps) {
   return (
     <View style={styles.row}>
       <View style={styles.iconAndLabel}>
-        <SiteIcon siteId={site.id} size={18} />
+        <SiteIcon siteId={site.id} size={22} />
         <Text numberOfLines={1} style={[styles.label, ltrTextStyle]}>
           {site.label ?? url}
         </Text>
@@ -42,12 +42,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.sm,
     marginEnd: spacing.md,
   },
   label: {
     color: colors.textPrimary,
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // react-native-get-random-values is imported once at the app entry point before anything else can
@@ -25,7 +25,7 @@ import { MAX_EFFECTIVE_IMAGES, reorderList, type EffectiveImage } from '../items
 import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety, type UrlSafetyStatus } from '../urlSafety/api/urlSafetyApi';
 
@@ -465,69 +465,84 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           must never depend on whether an async preview image has arrived yet, and putting it ahead
           of PhotoListEditor in document order means it already has its final layout before that
           async state change can ever touch it.
-        */}
-        <Text style={styles.firstLabel}>{t('item.titleLabel')}</Text>
-        <TextInput
-          editable={!isSaving}
-          onChangeText={handleTitleChange}
-          placeholder={t('item.titlePlaceholder')}
-          style={styles.titleInput}
-          value={title}
-        />
-        {!isResolvingMetadataTitle && metadataResolutionFailed ? (
-          <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
-        ) : null}
 
-        <Text style={styles.label}>{t('item.source')}</Text>
-        {isEditingUrl ? (
-          <TextInput
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-            editable={!isSaving}
-            keyboardType="url"
-            onBlur={() => setIsEditingUrl(false)}
-            onChangeText={setUrl}
-            style={[styles.urlInput, ltrTextStyle]}
-            value={url}
-          />
-        ) : (
-          <SourceRow
-            trailing={
-              <View style={styles.sourceActions}>
-                <Pressable
-                  accessibilityLabel={t('item.goToUrlA11y')}
-                  accessibilityRole="button"
-                  onPress={openUrl}
-                  style={styles.iconButton}
-                >
-                  <ExternalLinkIcon color={colors.brand} size={20} />
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={t('common.edit')}
-                  accessibilityRole="button"
-                  disabled={isSaving}
-                  onPress={() => setIsEditingUrl(true)}
-                  style={[styles.iconButton, isSaving && styles.disabledButton]}
-                >
-                  <EditIcon color={colors.textSecondary} size={18} />
-                </Pressable>
-              </View>
-            }
-            url={url}
-          />
-        )}
-        {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
-        {urlSafetyState ? (
-          <Text
-            style={[
-              styles.urlSafetyStatus,
-              urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
-            ]}
-          >
-            {getUrlSafetyStatusLabel(urlSafetyState, t)}
-          </Text>
-        ) : null}
+          Title + source are visually grouped into one "content preview" card (this round's visual
+          redesign - "폼 입력" feel replaced with "리뷰 중인 콘텐츠 하나" feel) instead of two
+          separately labeled form fields, but their order/semantics/state are completely unchanged -
+          still the exact same editable title TextInput and the exact same SourceRow/pencil-edit-url
+          toggle as before, just presented inside a single bordered card with the resolved preview
+          image (when one exists) up top.
+        */}
+        <View style={styles.previewCard}>
+          {previewImageUrl ? (
+            <Image source={{ uri: previewImageUrl }} style={styles.previewImage} />
+          ) : null}
+          <View style={styles.previewCardBody}>
+            <TextInput
+              accessibilityLabel={t('item.titleLabel')}
+              editable={!isSaving}
+              onChangeText={handleTitleChange}
+              placeholder={t('item.titlePlaceholder')}
+              style={styles.previewTitleInput}
+              value={title}
+            />
+            {!isResolvingMetadataTitle && metadataResolutionFailed ? (
+              <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
+            ) : null}
+
+            <View style={styles.previewDivider} />
+
+            {isEditingUrl ? (
+              <TextInput
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+                editable={!isSaving}
+                keyboardType="url"
+                onBlur={() => setIsEditingUrl(false)}
+                onChangeText={setUrl}
+                style={[styles.urlInput, ltrTextStyle]}
+                value={url}
+              />
+            ) : (
+              <SourceRow
+                trailing={
+                  <View style={styles.sourceActions}>
+                    <Pressable
+                      accessibilityLabel={t('item.goToUrlA11y')}
+                      accessibilityRole="button"
+                      onPress={openUrl}
+                      style={styles.iconButton}
+                    >
+                      <ExternalLinkIcon color={colors.brand} size={20} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel={t('common.edit')}
+                      accessibilityRole="button"
+                      disabled={isSaving}
+                      onPress={() => setIsEditingUrl(true)}
+                      style={[styles.iconButton, isSaving && styles.disabledButton]}
+                    >
+                      <EditIcon color={colors.textSecondary} size={18} />
+                    </Pressable>
+                  </View>
+                }
+                url={url}
+              />
+            )}
+            {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
+            {urlSafetyState ? (
+              <Text
+                style={[
+                  styles.urlSafetyStatus,
+                  urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
+                ]}
+              >
+                {getUrlSafetyStatusLabel(urlSafetyState, t)}
+              </Text>
+            ) : null}
+          </View>
+        </View>
 
         <CategoryField
           error={categoryPicker.error}
@@ -607,28 +622,47 @@ const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    padding: 24,
-    // Top only - see firstLabel's own remarks on why the very first field doesn't also add its
-    // usual marginTop on top of this.
-    paddingTop: spacing.md,
+    padding: spacing.xl,
+    paddingTop: spacing.lg,
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textSecondary,
-    marginTop: 20,
-    marginBottom: 6,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs + 2,
   },
-  // Same as `label`, but with no marginTop - used only for the URL field's label, the very first
-  // thing in the scroll content. `label`'s marginTop exists to separate a field from the one
-  // *before* it; stacked on top of `content`'s own paddingTop that doubled the gap between the
-  // header and the first field for no reason (every other field still keeps the normal `label`
-  // spacing from the field above it).
-  firstLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
+  // The unified "content preview" card - see this screen's own remarks above. overflow:hidden so
+  // previewImage's top corners actually clip to the card's own borderRadius.
+  previewCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    ...cardShadow,
+  },
+  previewImage: {
+    backgroundColor: colors.surfaceMuted,
+    height: 180,
+    width: '100%',
+  },
+  previewCardBody: {
+    padding: spacing.md + 2,
+  },
+  // Borderless/transparent - reads as "this content's own title, which happens to be editable"
+  // rather than a boxed form field, matching the mockup's preview-card feel. Still the exact same
+  // controlled TextInput/onChangeText as before - purely a style change.
+  previewTitleInput: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
+    padding: 0,
+  },
+  previewDivider: {
+    backgroundColor: colors.divider,
+    height: 1,
+    marginVertical: spacing.sm + 2,
   },
   sourceActions: {
     flexDirection: 'row',
@@ -641,20 +675,14 @@ const styles = StyleSheet.create({
     minWidth: minTouchTarget,
   },
   urlInput: {
-    borderColor: colors.border,
+    backgroundColor: colors.background,
+    borderColor: colors.inputBorder,
     borderRadius: radii.md,
     borderWidth: 1,
+    color: colors.textPrimary,
     fontSize: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  titleInput: {
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
   },
   urlSafetyStatus: {
     color: colors.textSecondary,
@@ -666,13 +694,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   memoInput: {
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
     borderWidth: 1,
+    color: colors.textPrimary,
     fontSize: 15,
     minHeight: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.md,
     textAlignVertical: 'top',
   },
   error: {
@@ -725,17 +755,17 @@ const styles = StyleSheet.create({
   // Android's adjustResize keeps it pinned above the keyboard too.
   bottomBar: {
     backgroundColor: colors.surface,
-    borderTopColor: colors.divider,
+    borderTopColor: colors.inputBorder,
     borderTopWidth: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
   },
   saveButton: {
     alignItems: 'center',
-    backgroundColor: colors.textPrimary,
-    borderRadius: radii.md,
+    backgroundColor: colors.brand,
+    borderRadius: radii.md + 4,
     marginTop: spacing.sm,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   saveButtonLabel: {
     color: colors.surface,

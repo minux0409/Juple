@@ -1,4 +1,5 @@
 using Juple.Application.Collections;
+using Juple.Domain.Collections;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Collections;
 using Juple.Infrastructure.Persistence;
@@ -56,7 +57,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var (name, nameNormalized) = Normalize("Books to read");
         var now = DateTimeOffset.UtcNow;
 
-        var created = await store.CreateAsync(_userId, name, nameNormalized, now);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, now);
 
         Assert.Equal("Books to read", created.Name);
         Assert.Equal(0, created.ItemCount);
@@ -72,9 +73,9 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var (nameA, normalizedA) = Normalize("Books");
         var (nameB, normalizedB) = Normalize("Electronics");
         var (nameC, normalizedC) = Normalize("Recipes");
-        await store.CreateAsync(_userId, nameA, normalizedA, baseTime);
-        await store.CreateAsync(_userId, nameB, normalizedB, baseTime.AddMinutes(1));
-        await store.CreateAsync(_userId, nameC, normalizedC, baseTime.AddMinutes(2));
+        await store.CreateAsync(_userId, nameA, normalizedA, CollectionIcon.Folder, baseTime);
+        await store.CreateAsync(_userId, nameB, normalizedB, CollectionIcon.Folder, baseTime.AddMinutes(1));
+        await store.CreateAsync(_userId, nameC, normalizedC, CollectionIcon.Folder, baseTime.AddMinutes(2));
 
         var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
@@ -87,8 +88,8 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var (mineName, mineNormalized) = Normalize("Mine");
         var (theirsName, theirsNormalized) = Normalize("TheirsOnly");
-        await store.CreateAsync(_userId, mineName, mineNormalized, DateTimeOffset.UtcNow);
-        await store.CreateAsync(_otherUserId, theirsName, theirsNormalized, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, mineName, mineNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_otherUserId, theirsName, theirsNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
 
         var page = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 50);
 
@@ -102,7 +103,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books");
-        var collection = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var collection = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         var itemA = await itemStore.SaveAsync(_userId, "https://shop.example/coll-count-a", null, DateTimeOffset.UtcNow);
         var itemB = await itemStore.SaveAsync(_userId, "https://shop.example/coll-count-b", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
@@ -125,7 +126,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         for (var i = 0; i < 5; i++)
         {
             var (name, nameNormalized) = Normalize($"Collection {i}");
-            var created = await store.CreateAsync(_userId, name, nameNormalized, baseTime.AddMinutes(i));
+            var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, baseTime.AddMinutes(i));
             ids.Add(created.Id);
         }
 
@@ -159,7 +160,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         for (var i = 0; i < 4; i++)
         {
             var (name, nameNormalized) = Normalize($"Tie {i}");
-            var created = await store.CreateAsync(_userId, name, nameNormalized, sameTime);
+            var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, sameTime);
             ids.Add(created.Id);
         }
 
@@ -182,11 +183,11 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<CollectionNameConflictException>(
-            () => store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow));
+            () => store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -197,12 +198,12 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         // Category's UX_Categories_UserId_Name index, which relies on collation for this.
         var store = new CollectionStore(_dbContext);
         var (firstName, firstNormalized) = Normalize("Gift Ideas");
-        await store.CreateAsync(_userId, firstName, firstNormalized, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, firstName, firstNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var (secondName, secondNormalized) = Normalize("gift ideas");
         await Assert.ThrowsAsync<CollectionNameConflictException>(
-            () => store.CreateAsync(_userId, secondName, secondNormalized, DateTimeOffset.UtcNow));
+            () => store.CreateAsync(_userId, secondName, secondNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow));
     }
 
     [Fact]
@@ -210,10 +211,10 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        await store.CreateAsync(_otherUserId, name, nameNormalized, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_otherUserId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
 
         Assert.Equal("Books to read", created.Name);
     }
@@ -223,7 +224,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var fetched = await store.GetAsync(_userId, created.Id);
@@ -246,7 +247,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("TheirsOnly");
-        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.GetAsync(_userId, theirs.Id));
@@ -257,7 +258,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var renamedAt = DateTimeOffset.UtcNow.AddMinutes(5);
@@ -276,8 +277,8 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var (firstName, firstNormalized) = Normalize("Books to read");
         var (secondName, secondNormalized) = Normalize("Electronics");
-        await store.CreateAsync(_userId, firstName, firstNormalized, DateTimeOffset.UtcNow);
-        var second = await store.CreateAsync(_userId, secondName, secondNormalized, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, firstName, firstNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var second = await store.CreateAsync(_userId, secondName, secondNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<CollectionNameConflictException>(
@@ -299,7 +300,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Groceries");
-        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var (attackName, attackNormalized) = Normalize("Attacker");
@@ -315,7 +316,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await store.DeleteAsync(_userId, created.Id);
@@ -337,7 +338,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Groceries");
-        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await store.DeleteAsync(_userId, theirs.Id);
@@ -352,7 +353,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await store.DeleteAsync(_userId, created.Id);
@@ -365,7 +366,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var options = new DbContextOptionsBuilder<JupleDbContext>()
@@ -395,7 +396,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
 
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
 
         Assert.False(created.IsFavorite);
     }
@@ -405,7 +406,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var favoritedAt = DateTimeOffset.UtcNow.AddMinutes(5);
@@ -425,7 +426,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
         await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
@@ -449,7 +450,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Groceries");
-        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var theirs = await store.CreateAsync(_otherUserId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(
@@ -464,7 +465,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var options = new DbContextOptionsBuilder<JupleDbContext>()
@@ -495,7 +496,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
-        var created = await store.CreateAsync(_userId, name, nameNormalized, DateTimeOffset.UtcNow);
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var options = new DbContextOptionsBuilder<JupleDbContext>()
@@ -526,8 +527,8 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var (favoriteName, favoriteNormalized) = Normalize("Favorite one");
         var (otherName, otherNormalized) = Normalize("Not a favorite");
-        var favorite = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, DateTimeOffset.UtcNow);
-        await store.CreateAsync(_userId, otherName, otherNormalized, DateTimeOffset.UtcNow);
+        var favorite = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        await store.CreateAsync(_userId, otherName, otherNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
         await store.SetFavoriteAsync(_userId, favorite.Id, true, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
@@ -544,8 +545,8 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var (favoriteName, favoriteNormalized) = Normalize("Favorite one");
         var (otherName, otherNormalized) = Normalize("Not a favorite");
-        var favorite = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, DateTimeOffset.UtcNow);
-        var other = await store.CreateAsync(_userId, otherName, otherNormalized, DateTimeOffset.UtcNow);
+        var favorite = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var other = await store.CreateAsync(_userId, otherName, otherNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
         await store.SetFavoriteAsync(_userId, favorite.Id, true, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
@@ -563,8 +564,8 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
         var (favoriteName, favoriteNormalized) = Normalize("Favorite with item");
         var (otherFavoriteName, otherFavoriteNormalized) = Normalize("Favorite without item");
-        var favoriteWithItem = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, DateTimeOffset.UtcNow);
-        var favoriteWithoutItem = await store.CreateAsync(_userId, otherFavoriteName, otherFavoriteNormalized, DateTimeOffset.UtcNow);
+        var favoriteWithItem = await store.CreateAsync(_userId, favoriteName, favoriteNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var favoriteWithoutItem = await store.CreateAsync(_userId, otherFavoriteName, otherFavoriteNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         var item = await itemStore.SaveAsync(_userId, "https://shop.example/coll-favorite-itemid", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
         await store.AddAsync(_userId, favoriteWithItem.Id, item.Entry.Id, DateTimeOffset.UtcNow);
@@ -595,14 +596,14 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         for (var i = 0; i < 5; i++)
         {
             var (name, nameNormalized) = Normalize($"Favorite {i}");
-            var created = await store.CreateAsync(_userId, name, nameNormalized, baseTime.AddMinutes(i));
+            var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, baseTime.AddMinutes(i));
             _dbContext.ChangeTracker.Clear();
             await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow);
             _dbContext.ChangeTracker.Clear();
             favoriteIds.Add(created.Id);
         }
         var (unfavoritedName, unfavoritedNormalized) = Normalize("Not a favorite");
-        await store.CreateAsync(_userId, unfavoritedName, unfavoritedNormalized, baseTime.AddMinutes(10));
+        await store.CreateAsync(_userId, unfavoritedName, unfavoritedNormalized, CollectionIcon.Folder, baseTime.AddMinutes(10));
         _dbContext.ChangeTracker.Clear();
 
         var firstPage = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: true, cursor: null, limit: 2);

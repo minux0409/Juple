@@ -15,6 +15,7 @@ using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.SetCollectionFavorite;
+using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
@@ -35,6 +36,7 @@ public sealed class CollectionsController(
     IGetCollectionDetailService getCollectionDetailService,
     IRenameCollectionService renameCollectionService,
     ISetCollectionFavoriteService setCollectionFavoriteService,
+    ISetCollectionIconService setCollectionIconService,
     IDeleteCollectionService deleteCollectionService,
     IGetCollectionItemsService getCollectionItemsService,
     IAddItemToCollectionService addItemToCollectionService,
@@ -144,7 +146,7 @@ public sealed class CollectionsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var collection = await createCollectionService.CreateAsync(
-                currentUser.UserId, new CreateCollectionCommand(request.Name), cancellationToken);
+                currentUser.UserId, new CreateCollectionCommand(request.Name, request.Icon), cancellationToken);
 
             return Created($"/api/v1/collections/{collection.Id}", collection);
         }
@@ -223,6 +225,47 @@ public sealed class CollectionsController(
                 currentUser.UserId, id, new SetCollectionFavoriteCommand(request.IsFavorite), cancellationToken);
 
             return Ok(collection);
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionConcurrencyException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The Collection was modified concurrently.");
+        }
+    }
+
+    /// <summary>Same shape as SetFavoriteAsync above (returns the latest CollectionDto, no client-supplied version).</summary>
+    [HttpPut("{id:long}/icon")]
+    public async Task<IActionResult> SetIconAsync(
+        long id,
+        SetCollectionIconRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var collection = await setCollectionIconService.SetIconAsync(
+                currentUser.UserId, id, new SetCollectionIconCommand(request.Icon), cancellationToken);
+
+            return Ok(collection);
+        }
+        catch (InvalidCollectionException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -445,11 +488,13 @@ public sealed class CollectionsController(
         }
     }
 
-    public sealed record CreateCollectionRequest(string? Name);
+    public sealed record CreateCollectionRequest(string? Name, string? Icon);
 
     public sealed record RenameCollectionRequest(string? Name);
 
     public sealed record SetCollectionFavoriteRequest(bool IsFavorite);
+
+    public sealed record SetCollectionIconRequest(string? Icon);
 
     public sealed record MoveCollectionItemRequest(long? AfterItemId);
 

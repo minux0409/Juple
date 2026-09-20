@@ -52,6 +52,15 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
             .IsRequired()
             .HasDefaultValue(false);
 
+        // Persisted as its string name (not the underlying int) - see CollectionIcon's own remarks
+        // on why a future member reorder must never change what an existing row means. Mirrors
+        // UserConfiguration's Plan column exactly.
+        builder.Property(collection => collection.Icon)
+            .HasConversion<string>()
+            .HasColumnType("varchar(20)")
+            .IsRequired()
+            .HasDefaultValue(CollectionIcon.Folder);
+
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
 

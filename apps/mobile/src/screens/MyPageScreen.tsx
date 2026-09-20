@@ -10,8 +10,11 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { GlobeIcon } from '../icons/GlobeIcon';
 import { LogoutIcon } from '../icons/LogoutIcon';
+import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
+import { TrashIcon } from '../icons/TrashIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
 import {
   loadQuickSaveOnSharePreference,
@@ -154,41 +157,53 @@ export function MyPageScreen() {
           {/* Only ever shown once the real plan is confirmed Free - never while plan is still null
               (not yet bootstrapped) and never for Plus, so a Plus user never sees an upgrade CTA. */}
           {plan === 'Free' ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={showPlusComingSoon}
-              style={styles.plusCard}
-            >
-              <StarIcon color={colors.brand} filled size={20} />
-              <View style={styles.plusTextColumn}>
+            <View style={styles.plusCard}>
+              <View style={styles.plusHeaderRow}>
+                <StarIcon color={colors.brand} filled size={20} />
                 <Text style={styles.plusTitle}>{t('myPage.plusTitle')}</Text>
-                <Text style={styles.plusDescription}>{t('myPage.plusDescription')}</Text>
               </View>
-            </Pressable>
+              <Text style={styles.plusDescription}>{t('myPage.plusDescription')}</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={showPlusComingSoon}
+                style={styles.plusCtaButton}
+              >
+                <Text style={styles.plusCtaLabel}>{t('myPage.plusCta')}</Text>
+              </Pressable>
+            </View>
           ) : null}
 
           <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('LanguageSettings')}
-            style={styles.settingsRow}
-          >
-            <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
-          </Pressable>
-          <View style={styles.settingsRow}>
-            <View style={styles.settingsRowTextColumn}>
-              <Text style={styles.settingsRowLabel}>{t('settings.quickSaveOnShare')}</Text>
-              <Text style={styles.settingsRowDescription}>
-                {isQuickSaveEnabled
-                  ? t('settings.quickSaveOnShareOnDescription')
-                  : t('settings.quickSaveOnShareOffDescription')}
-              </Text>
+          <View style={styles.settingsGroup}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('LanguageSettings')}
+              style={styles.settingsRow}
+            >
+              <View style={styles.settingsRowIcon}>
+                <GlobeIcon color={colors.textSecondary} size={18} />
+              </View>
+              <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
+            </Pressable>
+            <View style={styles.settingsRowDivider} />
+            <View style={styles.settingsRow}>
+              <View style={styles.settingsRowIcon}>
+                <ShareIcon color={colors.textSecondary} size={18} />
+              </View>
+              <View style={styles.settingsRowTextColumn}>
+                <Text style={styles.settingsRowLabel}>{t('settings.quickSaveOnShare')}</Text>
+                <Text style={styles.settingsRowDescription}>
+                  {isQuickSaveEnabled
+                    ? t('settings.quickSaveOnShareOnDescription')
+                    : t('settings.quickSaveOnShareOffDescription')}
+                </Text>
+              </View>
+              <Switch
+                disabled={isTogglingQuickSave}
+                onValueChange={onToggleQuickSave}
+                value={isQuickSaveEnabled}
+              />
             </View>
-            <Switch
-              disabled={isTogglingQuickSave}
-              onValueChange={onToggleQuickSave}
-              value={isQuickSaveEnabled}
-            />
           </View>
         </View>
 
@@ -204,7 +219,10 @@ export function MyPageScreen() {
             {isDeletingAccount ? (
               <ActivityIndicator color={colors.danger} />
             ) : (
-              <Text style={styles.deleteAccountLabel}>{t('myPage.deleteAccount')}</Text>
+              <View style={styles.deleteAccountContent}>
+                <TrashIcon color={colors.danger} size={16} />
+                <Text style={styles.deleteAccountLabel}>{t('myPage.deleteAccount')}</Text>
+              </View>
             )}
           </Pressable>
         </View>
@@ -259,8 +277,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
   },
   logoutButton: {
     alignItems: 'center',
@@ -269,7 +287,8 @@ const styles = StyleSheet.create({
     minWidth: minTouchTarget,
   },
   sectionTitle: {
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: '700',
     marginTop: spacing.xl,
     marginBottom: spacing.sm,
@@ -278,42 +297,74 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
   },
-  // Not a SwipeableItemRow (see this round's remarks on why cardShadow can't be used on those) -
-  // a plain Pressable, so a real soft shadow renders here without being clipped.
+  // Soft-blue "identity" card, not a plain white one - this is the one place on the screen meant
+  // to visually stand out as an upsell, so it gets brandSoft instead of the surface/cardShadow
+  // treatment every other grouped section on this screen uses.
   plusCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.brandSoft,
     borderRadius: radii.lg,
-    flexDirection: 'row',
-    gap: spacing.sm,
     marginTop: spacing.lg,
-    padding: spacing.md,
-    ...cardShadow,
+    padding: spacing.lg,
   },
-  plusTextColumn: {
-    flex: 1,
+  plusHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
   },
   plusTitle: {
     color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
   },
   plusDescription: {
     color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
+  plusCtaButton: {
+    alignItems: 'center',
+    backgroundColor: colors.brand,
+    borderRadius: radii.md,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm + 4,
+  },
+  plusCtaLabel: {
+    color: colors.surface,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  // One grouped white card (matches Home/Categories' floating-card language) holding every
+  // settings row, rather than each row being its own separately bordered box.
+  settingsGroup: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    marginTop: spacing.sm,
+    ...cardShadow,
+  },
+  // No justifyContent:'space-between' here - the quick-save row's own settingsRowTextColumn
+  // (flex:1) already consumes all remaining width to push its Switch flush to the end regardless,
+  // and the language row (icon + bare label, no flexed spacer) needs its two children to simply
+  // sit together at the start rather than being spread across the full row width.
   settingsRow: {
     alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 4,
+  },
+  // A fixed-width leading icon slot so every row's label starts at the same horizontal position
+  // regardless of icon glyph width - neutral gray, matching this round's "너무 알록달록하지 않게,
+  // 필요한 강조만 blue/red" rule (no per-row accent colors here).
+  settingsRowIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: spacing.sm + 2,
+    width: 22,
+  },
+  settingsRowDivider: {
+    backgroundColor: colors.divider,
+    height: 1,
+    marginHorizontal: spacing.md,
   },
   settingsRowTextColumn: {
     flex: 1,
@@ -346,6 +397,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     paddingVertical: spacing.sm + 4,
+  },
+  deleteAccountContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
   },
   deleteAccountLabel: {
     color: colors.danger,

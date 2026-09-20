@@ -253,9 +253,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
+    color: colors.textPrimary,
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: spacing.md,
   },
   error: {
     color: colors.danger,
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
-    borderColor: colors.divider,
+    borderColor: colors.inputBorder,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderTopWidth: 1,
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radii.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
@@ -291,10 +292,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomLeftRadius: radii.lg,
     borderBottomRightRadius: radii.lg,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.sm + 2,
   },
   sectionHeaderLabel: {
-    color: colors.textSecondary,
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
   // screen edge by the same amount as the header/Home cards. Only the section's last item closes
   // the shape off with rounded bottom corners and the gap before the next date's card.
   historyCard: {
-    borderColor: colors.divider,
+    borderColor: colors.inputBorder,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderTopWidth: 1,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: radii.lg,
     borderBottomRightRadius: radii.lg,
     borderBottomWidth: 1,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.sm + 2,
   },
   footerLoading: {
     paddingVertical: spacing.lg,

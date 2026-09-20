@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Bu kategoriden kaldırılsın mı?",
     "unlinkConfirmMessage": "Bağlantının kendisi silinmez, yalnızca bu kategoriden kaldırılır.",
     "unlinkAction": "Kaldır",
-    "errorReorderTitle": "Sıralama güncellenemedi",
-    "errorReorderFallback": "Lütfen biraz sonra tekrar deneyin.",
-    "reorderHandleA11yLabel": "{{position}}. öğe, yeniden sıralamak için basılı tutun",
     "errorShareManagementFallback": "Paylaşım durumu güncellenemedi.",
     "errorListFallback": "Kategorileriniz yüklenemedi.",
     "errorItemsLoadFallback": "Bu kategorideki öğeler yüklenemedi.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Bu ada sahip bir kategori zaten var.",
     "errorNameInvalid": "Lütfen kategori adını kontrol edin.",
     "errorNameRequired": "Lütfen bir kategori adı girin.",
-    "errorNameTooLong": "Kategori adı en fazla 100 karakter olmalıdır."
+    "errorNameTooLong": "Kategori adı en fazla 100 karakter olmalıdır.",
+    "iconSectionTitle": "Simge seç",
+    "errorIconUpdateFallback": "Simge güncellenemedi.",
+    "iconOptionA11y": "{{icon}} simgesi",
+    "iconNames": {
+      "Folder": "Klasör",
+      "Heart": "Kalp",
+      "Plane": "Seyahat",
+      "Gamepad": "Oyun",
+      "Utensils": "Yemek",
+      "ShoppingBag": "Alışveriş",
+      "Home": "Ev",
+      "Laptop": "İş",
+      "Globe": "Küre",
+      "Tag": "Etiket"
+    }
   },
   "myPage": {
     "title": "Sayfam",
@@ -140,6 +152,7 @@
     "settings": "Ayarlar",
     "plusTitle": "Juple Plus",
     "plusDescription": "Juple Plus ile daha fazlasının kilidini açın",
+    "plusCta": "Plus'ı Başlat",
     "plusComingSoonMessage": "Juple Plus yakında geliyor.",
     "signOutConfirmTitle": "Oturum kapatılsın mı?",
     "signOutConfirmMessage": "Devam etmek için tekrar oturum açmanız gerekecek.",

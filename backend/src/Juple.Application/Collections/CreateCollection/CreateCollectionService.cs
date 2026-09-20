@@ -10,7 +10,8 @@ public sealed class CreateCollectionService(
         CancellationToken cancellationToken = default)
     {
         var (name, nameNormalized) = CollectionNameNormalizer.Normalize(command.Name);
+        var icon = CollectionIconParser.Parse(command.Icon);
         return collectionStore.CreateAsync(
-            userId, name, nameNormalized, timeProvider.GetUtcNow(), cancellationToken);
+            userId, name, nameNormalized, icon, timeProvider.GetUtcNow(), cancellationToken);
     }
 }

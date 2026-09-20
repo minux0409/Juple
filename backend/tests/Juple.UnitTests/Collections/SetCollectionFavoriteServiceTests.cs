@@ -1,5 +1,6 @@
 using Juple.Application.Collections;
 using Juple.Application.Collections.SetCollectionFavorite;
+using Juple.Domain.Collections;
 
 namespace Juple.UnitTests.Collections;
 
@@ -23,7 +24,7 @@ public sealed class SetCollectionFavoriteServiceTests
     [Fact]
     public async Task SetFavoriteAsync_ReturnsStoresUpdatedCollectionDto()
     {
-        var store = new FakeCollectionStore { ResultToReturn = new CollectionDto(41, "Reading list", true, 3, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow) };
+        var store = new FakeCollectionStore { ResultToReturn = new CollectionDto(41, "Reading list", true, 3, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "Folder") };
         var service = new SetCollectionFavoriteService(store, new FixedTimeProvider());
 
         var result = await service.SetFavoriteAsync(17, 41, new SetCollectionFavoriteCommand(true));
@@ -77,9 +78,10 @@ public sealed class SetCollectionFavoriteServiceTests
             long userId,
             string name,
             string nameNormalized,
+            CollectionIcon icon,
             DateTimeOffset createdAtUtc,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc));
+            Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString()));
 
         public Task<CollectionDto> GetAsync(
             long userId, long collectionId, CancellationToken cancellationToken = default) =>
@@ -116,8 +118,13 @@ public sealed class SetCollectionFavoriteServiceTests
                 throw new CollectionConcurrencyException(new InvalidOperationException());
             }
 
-            return Task.FromResult(ResultToReturn ?? new CollectionDto(collectionId, "Reading list", isFavorite, 0, updatedAtUtc, updatedAtUtc));
+            return Task.FromResult(ResultToReturn ?? new CollectionDto(collectionId, "Reading list", isFavorite, 0, updatedAtUtc, updatedAtUtc, "Folder"));
         }
+
+        public Task<CollectionDto> SetIconAsync(
+            long userId, long collectionId, CollectionIcon icon, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by SetCollectionFavoriteService tests.");
 
         public Task DeleteAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

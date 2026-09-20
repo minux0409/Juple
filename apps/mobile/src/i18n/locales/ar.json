@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "هل تريد الإزالة من هذه الفئة؟",
     "unlinkConfirmMessage": "لن يُحذف الرابط نفسه، بل ستتم إزالته من هذه الفئة فقط.",
     "unlinkAction": "إزالة",
-    "errorReorderTitle": "تعذّر تحديث الترتيب",
-    "errorReorderFallback": "يُرجى المحاولة مرة أخرى بعد قليل.",
-    "reorderHandleA11yLabel": "العنصر رقم {{position}}، اضغط مطولًا لإعادة الترتيب",
     "errorShareManagementFallback": "تعذّر تحديث حالة المشاركة.",
     "errorListFallback": "تعذّر تحميل فئاتك.",
     "errorItemsLoadFallback": "تعذّر تحميل عناصر هذه الفئة.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "توجد فئة بهذا الاسم بالفعل.",
     "errorNameInvalid": "يُرجى مراجعة اسم الفئة.",
     "errorNameRequired": "يُرجى إدخال اسم للفئة.",
-    "errorNameTooLong": "يجب ألا يتجاوز اسم الفئة 100 حرف."
+    "errorNameTooLong": "يجب ألا يتجاوز اسم الفئة 100 حرف.",
+    "iconSectionTitle": "اختر أيقونة",
+    "errorIconUpdateFallback": "تعذّر تحديث الأيقونة.",
+    "iconOptionA11y": "أيقونة {{icon}}",
+    "iconNames": {
+      "Folder": "مجلد",
+      "Heart": "قلب",
+      "Plane": "سفر",
+      "Gamepad": "ألعاب",
+      "Utensils": "طعام",
+      "ShoppingBag": "تسوق",
+      "Home": "منزل",
+      "Laptop": "عمل",
+      "Globe": "كرة أرضية",
+      "Tag": "وسم"
+    }
   },
   "myPage": {
     "title": "صفحتي",
@@ -140,6 +152,7 @@
     "settings": "الإعدادات",
     "plusTitle": "Juple Plus",
     "plusDescription": "افتح المزيد مع Juple Plus",
+    "plusCta": "ابدأ Plus",
     "plusComingSoonMessage": "سيتوفر Juple Plus قريبًا.",
     "signOutConfirmTitle": "هل تريد تسجيل الخروج؟",
     "signOutConfirmMessage": "ستحتاج إلى تسجيل الدخول مرة أخرى للمتابعة.",

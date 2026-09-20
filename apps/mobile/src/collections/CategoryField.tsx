@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { resolveCollectionIconComponent } from './collectionIcons';
 import { EditIcon } from '../icons/EditIcon';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 
 /** How many selected-category chips the compact summary row shows before collapsing the rest into a "+N" chip. */
@@ -46,13 +47,17 @@ export function CategoryField({ selectedCollections, isLoading, disabled, error,
               <Text style={styles.empty}>{t('collections.itemSectionEmpty')}</Text>
             ) : (
               <>
-                {selectedCollections.slice(0, CATEGORY_SUMMARY_MAX_CHIPS).map(option => (
-                  <View key={option.id} style={styles.chip}>
-                    <Text numberOfLines={1} style={styles.chipLabel}>
-                      {option.name}
-                    </Text>
-                  </View>
-                ))}
+                {selectedCollections.slice(0, CATEGORY_SUMMARY_MAX_CHIPS).map(option => {
+                  const ChipIcon = resolveCollectionIconComponent(option.icon);
+                  return (
+                    <View key={option.id} style={styles.chip}>
+                      <ChipIcon color={colors.brand} size={13} />
+                      <Text numberOfLines={1} style={styles.chipLabel}>
+                        {option.name}
+                      </Text>
+                    </View>
+                  );
+                })}
                 {selectedCollections.length > CATEGORY_SUMMARY_MAX_CHIPS ? (
                   <View style={styles.chip}>
                     <Text style={styles.chipLabel}>
@@ -76,13 +81,13 @@ export function CategoryField({ selectedCollections, isLoading, disabled, error,
 const styles = StyleSheet.create({
   label: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textSecondary,
-    marginTop: 20,
-    marginBottom: 6,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs + 2,
   },
   loading: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   row: {
     alignItems: 'center',
@@ -93,22 +98,25 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginEnd: 12,
+    gap: spacing.sm,
+    marginEnd: spacing.md,
   },
   chip: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 6,
+    alignItems: 'center',
+    backgroundColor: colors.brandSoft,
+    borderRadius: radii.sm + 2,
+    flexDirection: 'row',
+    gap: spacing.xs,
     // Caps a single chip's width so one long category name can never push the "+N" chip or the
     // edit icon off-screen - it truncates with an ellipsis (numberOfLines=1) instead.
     maxWidth: 140,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
   },
   chipLabel: {
-    color: '#111111',
+    color: colors.brand,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   empty: {
     color: colors.textSecondary,

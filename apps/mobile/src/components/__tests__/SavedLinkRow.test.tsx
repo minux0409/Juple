@@ -1,7 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Image, Text } from 'react-native';
 import { SavedLinkRow } from '../SavedLinkRow';
-import { LinkIcon } from '../../icons/LinkIcon';
+import { GlobeIcon } from '../../icons/GlobeIcon';
 import { YouTubeIcon } from '../../icons/YouTubeIcon';
 import type { ItemHistoryEntry } from '../../items/api/itemsApi';
 
@@ -60,12 +60,12 @@ describe('SavedLinkRow', () => {
     expect(withoutTitle.root.findAll(node => node.props.children === 'https://example.com/b')).toHaveLength(0);
   });
 
-  it('shows a known site icon for a recognized host, and the generic link icon otherwise', async () => {
+  it('shows a known site icon for a recognized host, and the generic globe icon otherwise', async () => {
     const known = await render(makeItem({ url: 'https://www.youtube.com/watch?v=abc' }));
     expect(known.root.findAllByType(YouTubeIcon)).toHaveLength(1);
 
     const generic = await render(makeItem({ url: 'https://example.com/a' }));
-    expect(generic.root.findAllByType(LinkIcon)).toHaveLength(1);
+    expect(generic.root.findAllByType(GlobeIcon)).toHaveLength(1);
   });
 
   it('truncates the primary text to 2 lines', async () => {

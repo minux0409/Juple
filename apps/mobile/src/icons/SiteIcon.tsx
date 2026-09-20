@@ -1,16 +1,15 @@
+import { GlobeIcon } from './GlobeIcon';
 import { InstagramIcon } from './InstagramIcon';
-import { LinkIcon } from './LinkIcon';
 import { NaverIcon } from './NaverIcon';
 import { YouTubeIcon } from './YouTubeIcon';
 import type { KnownSiteId } from '../items/resolveSiteInfo';
-import { colors } from '../theme/tokens';
 
 interface SiteIconProps {
   readonly siteId: KnownSiteId | null;
   readonly size?: number;
 }
 
-/** Renders the matching brand icon for a known site, or the generic link icon for everything else (see resolveSiteInfo.ts for the detection rule). */
+/** Renders the matching brand icon (a small circular badge) for a known site, or the generic globe badge for everything else (see resolveSiteInfo.ts for the detection rule). */
 export function SiteIcon({ siteId, size = 16 }: SiteIconProps) {
   switch (siteId) {
     case 'youtube':
@@ -20,6 +19,6 @@ export function SiteIcon({ siteId, size = 16 }: SiteIconProps) {
     case 'naver':
       return <NaverIcon size={size} />;
     default:
-      return <LinkIcon color={colors.textSecondary} size={size} strokeWidth={2} />;
+      return <GlobeIcon size={size} />;
   }
 }

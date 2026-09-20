@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Retirer de cette catégorie ?",
     "unlinkConfirmMessage": "Le lien lui-même ne sera pas supprimé, il sera seulement retiré de cette catégorie.",
     "unlinkAction": "Retirer",
-    "errorReorderTitle": "Impossible de mettre à jour l'ordre",
-    "errorReorderFallback": "Veuillez réessayer dans un instant.",
-    "reorderHandleA11yLabel": "Élément {{position}}, appuyez longuement pour réorganiser",
     "errorShareManagementFallback": "Impossible de mettre à jour le statut de partage.",
     "errorListFallback": "Impossible de charger vos catégories.",
     "errorItemsLoadFallback": "Impossible de charger les éléments de cette catégorie.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Une catégorie portant ce nom existe déjà.",
     "errorNameInvalid": "Veuillez vérifier le nom de la catégorie.",
     "errorNameRequired": "Veuillez saisir un nom de catégorie.",
-    "errorNameTooLong": "Le nom de la catégorie doit contenir 100 caractères ou moins."
+    "errorNameTooLong": "Le nom de la catégorie doit contenir 100 caractères ou moins.",
+    "iconSectionTitle": "Choisir une icône",
+    "errorIconUpdateFallback": "Impossible de mettre à jour l'icône.",
+    "iconOptionA11y": "Icône {{icon}}",
+    "iconNames": {
+      "Folder": "Dossier",
+      "Heart": "Cœur",
+      "Plane": "Voyage",
+      "Gamepad": "Jeux",
+      "Utensils": "Cuisine",
+      "ShoppingBag": "Shopping",
+      "Home": "Maison",
+      "Laptop": "Travail",
+      "Globe": "Globe",
+      "Tag": "Étiquette"
+    }
   },
   "myPage": {
     "title": "Mon compte",
@@ -140,6 +152,7 @@
     "settings": "Paramètres",
     "plusTitle": "Juple Plus",
     "plusDescription": "Débloquez plus avec Juple Plus",
+    "plusCta": "Passer à Plus",
     "plusComingSoonMessage": "Juple Plus arrive bientôt.",
     "signOutConfirmTitle": "Se déconnecter ?",
     "signOutConfirmMessage": "Vous devrez vous reconnecter pour continuer.",

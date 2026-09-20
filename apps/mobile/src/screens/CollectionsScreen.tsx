@@ -23,9 +23,13 @@ import {
   setCollectionFavorite,
   type Collection,
 } from '../collections/api/collectionsApi';
+import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { CollectionIconPicker } from '../collections/CollectionIconPicker';
+import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
+import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
 
@@ -93,7 +97,13 @@ export function CollectionsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('all');
+  // Favorites is the default-selected tab (see this round's "즐겨찾기 default selected" requirement) -
+  // the segmented control itself still renders favorites first/left, all second/right, matching.
+  const [activeTab, setActiveTab] = useState<ActiveTab>('favorites');
+  // Purely presentational toggle - the create name field + button always existed, this just hides
+  // them behind the header's "+" button until needed instead of always taking up space (this
+  // round's visual redesign). No change to the create flow/API itself.
+  const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
 
   const [collections, setCollections] = useState<readonly Collection[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -103,6 +113,7 @@ export function CollectionsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState('');
+  const [icon, setIcon] = useState<CollectionIconKey>(DEFAULT_COLLECTION_ICON);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -250,9 +261,11 @@ export function CollectionsScreen() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      const created = await createCollection(authenticatedRequest, trimmedName);
+      const created = await createCollection(authenticatedRequest, trimmedName, icon);
       setCollections(previous => [created, ...previous]);
       setName('');
+      setIcon(DEFAULT_COLLECTION_ICON);
+      setIsCreateFormVisible(false);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       setCreateError(getCreateErrorMessage(caughtError, t));
@@ -329,27 +342,42 @@ export function CollectionsScreen() {
           <View>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('collections.title')}</Text>
+              <Pressable
+                accessibilityLabel={t('collections.create')}
+                accessibilityRole="button"
+                onPress={() => setIsCreateFormVisible(previous => !previous)}
+                style={styles.addButton}
+              >
+                <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
+              </Pressable>
             </View>
 
-            <TextInput
-              editable={!isCreating}
-              onChangeText={setName}
-              placeholder={t('collections.namePlaceholder')}
-              style={styles.input}
-              value={name}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isCreating, busy: isCreating }}
-              disabled={isCreating}
-              onPress={submitCreate}
-              style={[styles.createButton, isCreating && styles.disabledButton]}
-            >
-              <Text style={styles.createButtonLabel}>
-                {isCreating ? t('common.saving') : t('collections.create')}
-              </Text>
-            </Pressable>
-            {createError ? <Text style={styles.error}>{createError}</Text> : null}
+            {isCreateFormVisible ? (
+              <View style={styles.createRow}>
+                <TextInput
+                  autoFocus
+                  editable={!isCreating}
+                  onChangeText={setName}
+                  placeholder={t('collections.namePlaceholder')}
+                  style={styles.input}
+                  value={name}
+                />
+                <Text style={styles.iconSectionTitle}>{t('collections.iconSectionTitle')}</Text>
+                <CollectionIconPicker disabled={isCreating} onSelect={setIcon} selected={icon} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isCreating, busy: isCreating }}
+                  disabled={isCreating}
+                  onPress={submitCreate}
+                  style={[styles.createButton, isCreating && styles.disabledButton]}
+                >
+                  <Text style={styles.createButtonLabel}>
+                    {isCreating ? t('common.saving') : t('collections.create')}
+                  </Text>
+                </Pressable>
+                {createError ? <Text style={styles.error}>{createError}</Text> : null}
+              </View>
+            ) : null}
 
             <View style={styles.segmentRow}>
               <Pressable
@@ -431,6 +459,9 @@ function CollectionRow({
   return (
     <View style={styles.row}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
+        <View style={styles.tileSlot}>
+          <CategoryIconTile collectionId={collection.id} icon={collection.icon} size={48} />
+        </View>
         <View style={styles.rowTextColumn}>
           <Text numberOfLines={1} style={styles.rowName}>
             {collection.name}
@@ -475,24 +506,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
     marginBottom: spacing.lg,
   },
+  title: {
+    color: colors.textPrimary,
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  addButton: {
+    alignItems: 'center',
+    backgroundColor: colors.brand,
+    borderRadius: radii.md + 4,
+    height: minTouchTarget,
+    justifyContent: 'center',
+    width: minTouchTarget,
+  },
+  createRow: {
+    marginBottom: spacing.md,
+  },
   input: {
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
     borderWidth: 1,
-    fontSize: 16,
+    fontSize: 15,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 4,
   },
+  iconSectionTitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+  },
   createButton: {
     alignItems: 'center',
-    backgroundColor: colors.textPrimary,
-    borderRadius: radii.md,
+    backgroundColor: colors.brand,
+    borderRadius: radii.md + 4,
     marginTop: spacing.sm,
     paddingVertical: spacing.sm + 4,
   },
@@ -502,7 +553,7 @@ const styles = StyleSheet.create({
   createButtonLabel: {
     color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   error: {
     color: colors.danger,
@@ -517,40 +568,53 @@ const styles = StyleSheet.create({
   tabLoading: {
     paddingVertical: spacing.lg,
   },
+  // Pill segmented control - a muted track with a solid brand-colored pill under whichever tab is
+  // active, replacing the old underline-tab treatment.
   segmentRow: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md + 6,
     flexDirection: 'row',
-    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    padding: 4,
   },
   segmentTab: {
     alignItems: 'center',
-    borderBottomColor: colors.divider,
-    borderBottomWidth: 2,
+    borderRadius: radii.md + 2,
     flex: 1,
-    paddingBottom: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   segmentTabActive: {
-    borderBottomColor: colors.brand,
+    backgroundColor: colors.brand,
   },
   segmentLabel: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   segmentLabelActive: {
-    color: colors.brand,
+    color: colors.surface,
   },
+  // Not wrapped in a SwipeableItemRow (unlike Home/History), so a real soft shadow can render here
+  // without being clipped - see this app's own remarks elsewhere on why swipeable rows can't have one.
   row: {
     alignItems: 'center',
-    borderTopColor: colors.divider,
-    borderTopWidth: 1,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    paddingVertical: spacing.sm + 4,
+    marginBottom: spacing.sm + 4,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.md + 2,
+    ...cardShadow,
   },
   rowPressable: {
     alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    marginEnd: spacing.md,
+  },
+  tileSlot: {
     marginEnd: spacing.md,
   },
   rowTextColumn: {
@@ -560,12 +624,13 @@ const styles = StyleSheet.create({
   rowName: {
     color: colors.textPrimary,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   rowItemCount: {
     color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 3,
   },
   favoriteButton: {
     alignItems: 'center',

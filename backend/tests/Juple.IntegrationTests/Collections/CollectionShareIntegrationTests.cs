@@ -1,4 +1,5 @@
 using Juple.Application.Collections;
+using Juple.Domain.Collections;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Collections;
 using Juple.Infrastructure.Persistence;
@@ -45,7 +46,7 @@ public sealed class CollectionShareIntegrationTests : IAsyncLifetime
     }
 
     private async Task<long> CreateCollectionAsync(CollectionStore store, long userId, string name) =>
-        (await store.CreateAsync(userId, name, name.ToUpperInvariant(), DateTimeOffset.UtcNow)).Id;
+        (await store.CreateAsync(userId, name, name.ToUpperInvariant(), CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
 
     private static string NewCandidatePublicId() => Guid.NewGuid().ToString("N");
 

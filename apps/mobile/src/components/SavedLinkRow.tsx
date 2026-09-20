@@ -94,7 +94,7 @@ export function SavedLinkRow({
           <Text style={styles.time}>
             {dateDisplayMode === 'dateTime' ? formatSavedDateTime(item.savedAtUtc) : formatSavedTime(item.savedAtUtc)}
           </Text>
-          <SiteIcon siteId={siteId} size={14} />
+          <SiteIcon siteId={siteId} size={15} />
         </View>
       </View>
     </View>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.md,
   },
   thumbnailWrapper: {
     position: 'relative',
@@ -124,12 +124,12 @@ const styles = StyleSheet.create({
   },
   textColumn: {
     flex: 1,
-    marginStart: spacing.sm,
   },
   primaryText: {
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
+    lineHeight: 20,
   },
   memo: {
     color: colors.textSecondary,
@@ -137,14 +137,17 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 2,
   },
+  // Time + site icon sit together as one compact unit (not stretched across the row) - matches the
+  // mockup's "오후 2:17 [icon]" grouping directly under the title.
   metaRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    gap: spacing.xs,
+    marginTop: 6,
   },
   time: {
     color: colors.textSecondary,
     fontSize: 12,
+    fontWeight: '500',
   },
 });

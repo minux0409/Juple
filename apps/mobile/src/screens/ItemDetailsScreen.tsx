@@ -52,7 +52,7 @@ import {
   type ItemDetails,
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { checkUrlSafety } from '../urlSafety/api/urlSafetyApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -718,24 +718,26 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           value={memo}
         />
 
-        {isLoadingImages ? (
-          <ActivityIndicator style={styles.imagesLoading} />
-        ) : (
-          <PhotoListEditor
-            deletingKeys={
-              new Set(
-                effectivePhotoImages
-                  .filter(image => image.kind === 'uploaded' && deletingImageIds.has(image.image.id))
-                  .map(effectiveImageKey),
-              )
-            }
-            images={effectivePhotoImages}
-            isAdding={isUploadingImage || isReorderingPhotos}
-            onAddPhoto={pickAndUploadImage}
-            onDeleteImage={confirmDeleteImage}
-            onSetRepresentative={setPhotoAsRepresentative}
-          />
-        )}
+        <View style={styles.photosCard}>
+          {isLoadingImages ? (
+            <ActivityIndicator style={styles.imagesLoading} />
+          ) : (
+            <PhotoListEditor
+              deletingKeys={
+                new Set(
+                  effectivePhotoImages
+                    .filter(image => image.kind === 'uploaded' && deletingImageIds.has(image.image.id))
+                    .map(effectiveImageKey),
+                )
+              }
+              images={effectivePhotoImages}
+              isAdding={isUploadingImage || isReorderingPhotos}
+              onAddPhoto={pickAndUploadImage}
+              onDeleteImage={confirmDeleteImage}
+              onSetRepresentative={setPhotoAsRepresentative}
+            />
+          )}
+        </View>
         {photoReorderError ? <Text style={styles.error}>{photoReorderError}</Text> : null}
 
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
@@ -866,10 +868,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-    marginTop: 20,
-    marginBottom: 6,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs + 2,
   },
   // Same as `label`, but with no marginTop - used only for the very first field in the scroll
   // content (제목). `label`'s marginTop exists to separate a field from the one *before* it;
@@ -878,17 +880,20 @@ const styles = StyleSheet.create({
   // field above it).
   firstLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-    marginBottom: 6,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: spacing.xs + 2,
   },
   titleInput: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
     borderWidth: 1,
+    color: colors.textPrimary,
     fontSize: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    fontWeight: '600',
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.md,
   },
   // Icon-only, no border/background box - shared by every secondary row action on this screen
   // (URL open / category edit / photo add) so all three share the same visual alignment and touch
@@ -902,22 +907,24 @@ const styles = StyleSheet.create({
     minWidth: minTouchTarget,
   },
   memoInput: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
     borderWidth: 1,
+    color: colors.textPrimary,
     fontSize: 15,
     minHeight: 120,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.md,
     textAlignVertical: 'top',
   },
   error: {
-    color: '#B42318',
+    color: colors.danger,
     fontSize: 14,
     marginTop: 16,
   },
   savedMessage: {
-    color: '#0F7A3D',
+    color: colors.success,
     fontSize: 14,
     marginTop: 16,
   },
@@ -926,7 +933,7 @@ const styles = StyleSheet.create({
   },
   bottomBar: {
     backgroundColor: colors.surface,
-    borderTopColor: colors.divider,
+    borderTopColor: colors.inputBorder,
     borderTopWidth: 1,
     flexDirection: 'row',
     gap: spacing.md,
@@ -936,8 +943,8 @@ const styles = StyleSheet.create({
   deleteActionButton: {
     alignItems: 'center',
     borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
+    borderRadius: radii.md + 4,
+    borderWidth: 1.5,
     flex: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget,
@@ -945,12 +952,12 @@ const styles = StyleSheet.create({
   deleteActionLabel: {
     color: colors.danger,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   saveActionButton: {
     alignItems: 'center',
-    backgroundColor: colors.textPrimary,
-    borderRadius: radii.md,
+    backgroundColor: colors.brand,
+    borderRadius: radii.md + 4,
     flex: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget,
@@ -958,9 +965,19 @@ const styles = StyleSheet.create({
   saveActionLabel: {
     color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   imagesLoading: {
-    marginTop: 12,
+    marginVertical: spacing.sm,
+  },
+  // Gives the 사진 section the same "floating white card" treatment as every other grouped section
+  // in this round's redesign, instead of the header/thumbnails sitting directly on the screen
+  // background (this round's "image section card 느낌").
+  photosCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    ...cardShadow,
   },
 });

@@ -38,10 +38,10 @@ export function ItemRepresentativeThumbnail({ imageUrl }: ItemRepresentativeThum
 
 const styles = StyleSheet.create({
   thumbnail: {
-    backgroundColor: '#E0E0E0',
-    borderRadius: 8,
-    height: 56,
+    backgroundColor: '#E7ECF3',
+    borderRadius: 14,
+    height: 60,
     marginEnd: 12,
-    width: 56,
+    width: 60,
   },
 });

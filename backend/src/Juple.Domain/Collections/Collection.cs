@@ -11,11 +11,13 @@ public sealed class Collection
     {
     }
 
-    public Collection(long userId, string name, string nameNormalized, DateTimeOffset createdAtUtc)
+    public Collection(
+        long userId, string name, string nameNormalized, CollectionIcon icon, DateTimeOffset createdAtUtc)
     {
         UserId = userId;
         Name = name;
         NameNormalized = nameNormalized;
+        Icon = icon;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = createdAtUtc;
     }
@@ -45,6 +47,9 @@ public sealed class Collection
     /// </summary>
     public bool IsFavorite { get; private set; }
 
+    /// <summary>Decorative only - see CollectionIcon. Every Collection has one; a new one defaults to Folder.</summary>
+    public CollectionIcon Icon { get; private set; }
+
     /// <summary>Callers must pass an already-normalized (trimmed, non-empty) name/nameNormalized pair.</summary>
     public void Rename(string name, string nameNormalized, DateTimeOffset updatedAtUtc)
     {
@@ -66,6 +71,17 @@ public sealed class Collection
         }
 
         IsFavorite = isFavorite;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
+    public void SetIcon(CollectionIcon icon, DateTimeOffset updatedAtUtc)
+    {
+        if (Icon == icon)
+        {
+            return;
+        }
+
+        Icon = icon;
         UpdatedAtUtc = updatedAtUtc;
     }
 }

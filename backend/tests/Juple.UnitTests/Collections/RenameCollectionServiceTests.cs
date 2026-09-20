@@ -1,5 +1,6 @@
 using Juple.Application.Collections;
 using Juple.Application.Collections.RenameCollection;
+using Juple.Domain.Collections;
 
 namespace Juple.UnitTests.Collections;
 
@@ -117,9 +118,10 @@ public sealed class RenameCollectionServiceTests
             long userId,
             string name,
             string nameNormalized,
+            CollectionIcon icon,
             DateTimeOffset createdAtUtc,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc));
+            Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString()));
 
         public Task<CollectionDto> GetAsync(
             long userId, long collectionId, CancellationToken cancellationToken = default) =>
@@ -159,6 +161,11 @@ public sealed class RenameCollectionServiceTests
 
         public Task<CollectionDto> SetFavoriteAsync(
             long userId, long collectionId, bool isFavorite, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by RenameCollectionService tests.");
+
+        public Task<CollectionDto> SetIconAsync(
+            long userId, long collectionId, CollectionIcon icon, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by RenameCollectionService tests.");
 

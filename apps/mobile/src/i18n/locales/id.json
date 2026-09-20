@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Hapus dari kategori ini?",
     "unlinkConfirmMessage": "Tautan itu sendiri tidak akan dihapus - hanya dihapus dari kategori ini.",
     "unlinkAction": "Hapus",
-    "errorReorderTitle": "Tidak dapat memperbarui urutan",
-    "errorReorderFallback": "Silakan coba lagi sesaat lagi.",
-    "reorderHandleA11yLabel": "Item {{position}}, tekan lama untuk mengurutkan ulang",
     "errorShareManagementFallback": "Tidak dapat memperbarui status berbagi.",
     "errorListFallback": "Tidak dapat memuat kategori Anda.",
     "errorItemsLoadFallback": "Tidak dapat memuat item di kategori ini.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Kategori dengan nama ini sudah ada.",
     "errorNameInvalid": "Silakan periksa nama kategori.",
     "errorNameRequired": "Masukkan nama kategori.",
-    "errorNameTooLong": "Nama kategori harus 100 karakter atau kurang."
+    "errorNameTooLong": "Nama kategori harus 100 karakter atau kurang.",
+    "iconSectionTitle": "Pilih ikon",
+    "errorIconUpdateFallback": "Tidak dapat memperbarui ikon.",
+    "iconOptionA11y": "Ikon {{icon}}",
+    "iconNames": {
+      "Folder": "Folder",
+      "Heart": "Hati",
+      "Plane": "Perjalanan",
+      "Gamepad": "Game",
+      "Utensils": "Makanan",
+      "ShoppingBag": "Belanja",
+      "Home": "Rumah",
+      "Laptop": "Kerja",
+      "Globe": "Dunia",
+      "Tag": "Label"
+    }
   },
   "myPage": {
     "title": "Halaman Saya",
@@ -140,6 +152,7 @@
     "settings": "Pengaturan",
     "plusTitle": "Juple Plus",
     "plusDescription": "Buka lebih banyak fitur dengan Juple Plus",
+    "plusCta": "Mulai Plus",
     "plusComingSoonMessage": "Juple Plus akan segera hadir.",
     "signOutConfirmTitle": "Keluar?",
     "signOutConfirmMessage": "Anda perlu masuk lagi untuk melanjutkan.",

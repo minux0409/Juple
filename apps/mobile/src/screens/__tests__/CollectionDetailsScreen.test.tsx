@@ -1,20 +1,20 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Switch } from 'react-native';
-import DragList from 'react-native-draglist';
 import i18n from '../../i18n';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import {
   deleteCollection,
   enableCollectionShare,
   getCollection,
-  getCollectionItems,
   getCollectionShare,
-  moveCollectionItem,
   removeItemFromCollection,
+  renameCollection,
   revokeCollectionShare,
+  setCollectionIcon,
   type Collection,
   type CollectionItemEntry,
 } from '../../collections/api/collectionsApi';
+import { HeartIcon } from '../../icons/HeartIcon';
 import { shareItem } from '../../items/shareItem';
 
 beforeAll(async () => {
@@ -41,11 +41,11 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   getCollection: jest.fn(),
   getCollectionItems: jest.fn().mockResolvedValue({ items: [], nextCursor: null }),
   getCollectionShare: jest.fn(),
-  moveCollectionItem: jest.fn(),
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
   revokeCollectionShare: jest.fn(),
   setCollectionFavorite: jest.fn(),
+  setCollectionIcon: jest.fn(),
 }));
 
 jest.mock('../../items/shareItem', () => ({
@@ -60,6 +60,7 @@ function makeCollection(overrides: Partial<Collection> = {}): Collection {
     itemCount: 1,
     createdAtUtc: new Date().toISOString(),
     updatedAtUtc: new Date().toISOString(),
+    icon: 'Folder',
     ...overrides,
   };
 }
@@ -95,24 +96,11 @@ async function renderScreen() {
 /**
  * Renders a single row in isolation (mirrors DailyInboxScreen.test.tsx's getRowElement pattern) so
  * the swipe action props can be invoked directly without simulating a gesture. Goes through the
- * DragList component's own `renderItem` prop directly (not the FlatList DragList wraps internally
- * - that inner FlatList's renderItem is DragList's own wrapper, which depends on DragList's
- * internal drag-tracking state and isn't meant to be called in isolation like this).
+ * FlatList's own `renderItem` prop directly rather than its internal virtualization.
  */
-function getRowElement(
-  renderer: ReactTestRenderer.ReactTestRenderer,
-  item: CollectionItemEntry,
-  index = 0,
-  dragOverrides: { onDragStart?: jest.Mock; onDragEnd?: jest.Mock; isActive?: boolean } = {},
-) {
-  const dragList = renderer.root.findByType(DragList);
-  const element = dragList.props.renderItem({
-    item,
-    index,
-    onDragStart: dragOverrides.onDragStart ?? jest.fn(),
-    onDragEnd: dragOverrides.onDragEnd ?? jest.fn(),
-    isActive: dragOverrides.isActive ?? false,
-  });
+function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
+  const flatList = renderer.root.findByType(FlatList);
+  const element = flatList.props.renderItem({ item, index: 0 });
   let rowRenderer!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
     rowRenderer = ReactTestRenderer.create(element);
@@ -122,11 +110,11 @@ function getRowElement(
 
 /**
  * Renders the FlatList's ListHeaderComponent (name/star/edit/delete, share section) in
- * isolation - same rationale as getRowElement above: FlatList's own virtualization is not something
- * these tests should depend on. The element's onPress/onValueChange props are the exact same
- * closures the mounted `renderer` created, so invoking them here still updates the real screen's
- * state (and, in turn, its ConfirmDialogs, which are siblings of the FlatList and must still be
- * queried from the main `renderer`, not this isolated one).
+ * isolation - same rationale as getRowElement above: FlatList's own virtualization is not
+ * something these tests should depend on. The element's onPress/onValueChange props are the exact
+ * same closures the mounted `renderer` created, so invoking them here still updates the real
+ * screen's state (and, in turn, its ConfirmDialogs, which are siblings of the FlatList and must
+ * still be queried from the main `renderer`, not this isolated one).
  */
 function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
   const flatList = renderer.root.findByType(FlatList);
@@ -206,10 +194,12 @@ describe('CollectionDetailsScreen', () => {
       expect(deleteCollection).not.toHaveBeenCalled();
 
       await act(async () => {
-        // Both the header's own compact 삭제 icon button (rendered in-place in the actual list
-        // tree, unlike the isolated `header` sub-renderer above) and the ConfirmDialog's confirm
-        // button now carry accessibilityLabel === '삭제' - the ConfirmDialog one is the second
-        // Pressable (onPress-bearing node) found in document order.
+        // The header's own delete button opened the confirm dialog (isDeleteConfirmVisible is set
+        // on the real screen, via the same closure the isolated `header` renderer shares - see
+        // getHeaderElement). The real FlatList genuinely mounts ListHeaderComponent into the main
+        // `renderer` tree, so there are now two elements with accessibilityLabel '삭제': the
+        // header's own compact delete button and the ConfirmDialog's confirm button - the second
+        // one is the actual confirm action.
         const confirmButtons = renderer.root.findAll(
           node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
         );
@@ -218,6 +208,122 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(deleteCollection).toHaveBeenCalledWith(expect.anything(), 1);
+    });
+  });
+
+  describe('header - icon (create/edit)', () => {
+    function openEditMode(renderer: ReactTestRenderer.ReactTestRenderer) {
+      const header = getHeaderElement(renderer);
+      const editButton = header.root.findAll(
+        node => node.props.accessibilityLabel === '수정' && typeof node.props.onPress === 'function',
+      )[0];
+      act(() => {
+        editButton.props.onPress();
+      });
+    }
+
+    function findSaveButton(header: ReactTestRenderer.ReactTestRenderer) {
+      return header.root.findAll(
+        node =>
+          typeof node.props.onPress === 'function' &&
+          node.findAll(inner => inner.props.children === i18n.t('common.save')).length > 0,
+      )[0];
+    }
+
+    it('shows the collection\'s chosen icon in the header, next to the name', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Heart' }));
+      const renderer = await renderScreen();
+      const header = getHeaderElement(renderer);
+
+      expect(header.root.findAllByType(HeartIcon)).toHaveLength(1);
+    });
+
+    it('seeds the icon picker from the collection\'s current icon when edit mode opens', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Heart' }));
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header = getHeaderElement(renderer);
+      const heartCell = header.root.findByProps({ testID: 'collection-icon-option-Heart' });
+      expect(heartCell.props.accessibilityState.selected).toBe(true);
+    });
+
+    it('changing only the icon calls setCollectionIcon but not renameCollection', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Folder' }));
+      jest.mocked(setCollectionIcon).mockResolvedValue(makeCollection({ icon: 'Plane' }));
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header1 = getHeaderElement(renderer);
+      const planeCell = header1.root.findByProps({ testID: 'collection-icon-option-Plane' });
+      act(() => {
+        planeCell.props.onPress();
+      });
+
+      const header2 = getHeaderElement(renderer);
+      const saveButton = findSaveButton(header2);
+      await act(async () => {
+        await saveButton.props.onPress();
+      });
+
+      expect(setCollectionIcon).toHaveBeenCalledWith(expect.anything(), 1, 'Plane');
+      expect(renameCollection).not.toHaveBeenCalled();
+    });
+
+    it('changing only the name calls renameCollection but not setCollectionIcon', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'Old', icon: 'Folder' }));
+      jest.mocked(renameCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header1 = getHeaderElement(renderer);
+      const nameInput = header1.root.findByProps({ value: 'Old' });
+      act(() => {
+        nameInput.props.onChangeText('New');
+      });
+
+      const header2 = getHeaderElement(renderer);
+      const saveButton = findSaveButton(header2);
+      await act(async () => {
+        await saveButton.props.onPress();
+      });
+
+      expect(renameCollection).toHaveBeenCalledWith(expect.anything(), 1, 'New');
+      expect(setCollectionIcon).not.toHaveBeenCalled();
+    });
+
+    it('changing both name and icon calls renameCollection then setCollectionIcon, never in parallel', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'Old', icon: 'Folder' }));
+      const callOrder: string[] = [];
+      jest.mocked(renameCollection).mockImplementation(async () => {
+        callOrder.push('rename');
+      });
+      jest.mocked(setCollectionIcon).mockImplementation(async () => {
+        callOrder.push('icon');
+        return makeCollection({ name: 'New', icon: 'Plane' });
+      });
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header1 = getHeaderElement(renderer);
+      const nameInput = header1.root.findByProps({ value: 'Old' });
+      act(() => {
+        nameInput.props.onChangeText('New');
+      });
+
+      const header2 = getHeaderElement(renderer);
+      const planeCell = header2.root.findByProps({ testID: 'collection-icon-option-Plane' });
+      act(() => {
+        planeCell.props.onPress();
+      });
+
+      const header3 = getHeaderElement(renderer);
+      const saveButton = findSaveButton(header3);
+      await act(async () => {
+        await saveButton.props.onPress();
+      });
+
+      expect(callOrder).toEqual(['rename', 'icon']);
     });
   });
 
@@ -317,102 +423,18 @@ describe('CollectionDetailsScreen', () => {
     });
   });
 
-  describe('drag reorder (react-native-draglist)', () => {
-    function mockThreeItems(): readonly CollectionItemEntry[] {
-      const items = [
-        makeItemEntry({ itemId: 10, title: 'First', sortOrder: 0 }),
-        makeItemEntry({ itemId: 20, title: 'Second', sortOrder: 4096 }),
-        makeItemEntry({ itemId: 30, title: 'Third', sortOrder: 8192 }),
-      ];
-      jest.mocked(getCollectionItems).mockResolvedValue({ items, nextCursor: null });
-      return items;
-    }
-
-    it('renders a long-press-only number handle as a sibling of the swipeable row content (never a plain tap)', async () => {
-      const items = mockThreeItems();
+  describe('tap to open (regression)', () => {
+    it('tapping a row navigates to that Item\'s details', async () => {
+      const item = makeItemEntry({ itemId: 42 });
       const renderer = await renderScreen();
 
-      const row = getRowElement(renderer, items[0], 0);
-      const handle = row.root.findAll(node => typeof node.props.onLongPress === 'function')[0];
-
-      expect(handle).toBeTruthy();
-      expect(handle.props.accessibilityLabel).toContain('1');
-      expect(handle.props.onPress).toBeUndefined();
-    });
-
-    it('a nearby drop calls moveCollectionItem with the item right after its new position', async () => {
-      mockThreeItems();
-      jest.mocked(moveCollectionItem).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-
-      // Move index 0 (itemId 10) to index 1 - lands right after itemId 20.
+      const row = getRowElement(renderer, item);
+      const openPressable = row.root.findAll(node => typeof node.props.onPress === 'function')[0];
       await act(async () => {
-        await renderer.root.findByType(DragList).props.onReordered(0, 1);
+        openPressable.props.onPress();
       });
 
-      expect(moveCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 10, 20);
-    });
-
-    it('moving to the very front passes afterItemId=null', async () => {
-      mockThreeItems();
-      jest.mocked(moveCollectionItem).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-
-      // Move index 2 (itemId 30) to the front.
-      await act(async () => {
-        await renderer.root.findByType(DragList).props.onReordered(2, 0);
-      });
-
-      expect(moveCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 30, null);
-    });
-
-    it('rolls back the optimistic order and shows the common single-action Dialog when the API call fails', async () => {
-      mockThreeItems();
-      jest.mocked(moveCollectionItem).mockRejectedValue(new Error('network'));
-      const renderer = await renderScreen();
-
-      await act(async () => {
-        await renderer.root.findByType(DragList).props.onReordered(0, 1);
-      });
-
-      expect(
-        renderer.root.findByProps({ children: i18n.t('collections.errorReorderTitle') }),
-      ).toBeTruthy();
-      const confirmButton = renderer.root.findAll(
-        node => node.props.accessibilityLabel === i18n.t('common.confirm'),
-      )[0];
-      expect(confirmButton).toBeTruthy();
-
-      await act(async () => {
-        confirmButton.props.onPress();
-      });
-    });
-
-    it('ignores a second reorder dropped while the first move is still in flight (no queue)', async () => {
-      mockThreeItems();
-      let resolveFirstMove: () => void = () => {};
-      jest.mocked(moveCollectionItem).mockImplementationOnce(
-        () =>
-          new Promise(resolve => {
-            resolveFirstMove = () => resolve(undefined);
-          }),
-      );
-      const renderer = await renderScreen();
-
-      let firstCallPromise!: Promise<void>;
-      await act(async () => {
-        firstCallPromise = renderer.root.findByType(DragList).props.onReordered(0, 1);
-      });
-      await act(async () => {
-        await renderer.root.findByType(DragList).props.onReordered(1, 2);
-      });
-
-      expect(moveCollectionItem).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        resolveFirstMove();
-        await firstCallPromise;
-      });
+      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 42 });
     });
   });
 });

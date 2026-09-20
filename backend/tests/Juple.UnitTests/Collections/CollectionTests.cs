@@ -9,10 +9,11 @@ public sealed class CollectionTests
     [Fact]
     public void Constructor_SetsNameAndTimestamps()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
 
         Assert.Equal("Books to read", collection.Name);
         Assert.Equal("BOOKS TO READ", collection.NameNormalized);
+        Assert.Equal(CollectionIcon.Folder, collection.Icon);
         Assert.Equal(CreatedAtUtc, collection.CreatedAtUtc);
         Assert.Equal(CreatedAtUtc, collection.UpdatedAtUtc);
     }
@@ -20,7 +21,7 @@ public sealed class CollectionTests
     [Fact]
     public void Rename_ChangesNameAndUpdatedAtUtc()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
         var renamedAtUtc = CreatedAtUtc.AddDays(1);
 
         collection.Rename("Reading list", "READING LIST", renamedAtUtc);
@@ -33,7 +34,7 @@ public sealed class CollectionTests
     [Fact]
     public void Rename_WithSameValue_IsNoOpAndDoesNotTouchUpdatedAtUtc()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
         var renamedAtUtc = CreatedAtUtc.AddDays(1);
 
         collection.Rename("Books to read", "BOOKS TO READ", renamedAtUtc);
@@ -44,7 +45,7 @@ public sealed class CollectionTests
     [Fact]
     public void Constructor_DefaultsIsFavoriteToFalse()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
 
         Assert.False(collection.IsFavorite);
     }
@@ -52,7 +53,7 @@ public sealed class CollectionTests
     [Fact]
     public void SetFavorite_ChangesIsFavoriteAndUpdatedAtUtc()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
         var favoritedAtUtc = CreatedAtUtc.AddDays(1);
 
         collection.SetFavorite(true, favoritedAtUtc);
@@ -64,7 +65,7 @@ public sealed class CollectionTests
     [Fact]
     public void SetFavorite_WithSameValue_IsNoOpAndDoesNotTouchUpdatedAtUtc()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
         var unchangedAtUtc = CreatedAtUtc.AddDays(1);
 
         collection.SetFavorite(false, unchangedAtUtc);
@@ -76,7 +77,7 @@ public sealed class CollectionTests
     [Fact]
     public void SetFavorite_TogglingBackToFalse_ChangesIsFavoriteAndUpdatedAtUtc()
     {
-        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CreatedAtUtc);
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
         collection.SetFavorite(true, CreatedAtUtc.AddDays(1));
         var unfavoritedAtUtc = CreatedAtUtc.AddDays(2);
 
@@ -84,5 +85,29 @@ public sealed class CollectionTests
 
         Assert.False(collection.IsFavorite);
         Assert.Equal(unfavoritedAtUtc, collection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SetIcon_ChangesIconAndUpdatedAtUtc()
+    {
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+        var changedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SetIcon(CollectionIcon.Plane, changedAtUtc);
+
+        Assert.Equal(CollectionIcon.Plane, collection.Icon);
+        Assert.Equal(changedAtUtc, collection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SetIcon_WithSameValue_IsNoOpAndDoesNotTouchUpdatedAtUtc()
+    {
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+        var unchangedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SetIcon(CollectionIcon.Folder, unchangedAtUtc);
+
+        Assert.Equal(CollectionIcon.Folder, collection.Icon);
+        Assert.Equal(CreatedAtUtc, collection.UpdatedAtUtc);
     }
 }

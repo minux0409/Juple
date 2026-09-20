@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "Xóa bỏ khỏi danh mục này?",
     "unlinkConfirmMessage": "Liên kết sẽ không bị xóa, chỉ bị xóa khỏi danh mục này.",
     "unlinkAction": "Xóa bỏ",
-    "errorReorderTitle": "Không thể cập nhật thứ tự",
-    "errorReorderFallback": "Vui lòng thử lại sau ít phút.",
-    "reorderHandleA11yLabel": "Mục thứ {{position}}, nhấn giữ để sắp xếp lại",
     "errorShareManagementFallback": "Không thể cập nhật trạng thái chia sẻ.",
     "errorListFallback": "Không thể tải danh sách danh mục của bạn.",
     "errorItemsLoadFallback": "Không thể tải các mục trong danh mục này.",
@@ -131,7 +128,22 @@
     "errorNameConflict": "Đã tồn tại danh mục với tên này.",
     "errorNameInvalid": "Vui lòng kiểm tra tên danh mục.",
     "errorNameRequired": "Vui lòng nhập tên danh mục.",
-    "errorNameTooLong": "Tên danh mục phải có tối đa 100 ký tự."
+    "errorNameTooLong": "Tên danh mục phải có tối đa 100 ký tự.",
+    "iconSectionTitle": "Chọn biểu tượng",
+    "errorIconUpdateFallback": "Không thể cập nhật biểu tượng.",
+    "iconOptionA11y": "Biểu tượng {{icon}}",
+    "iconNames": {
+      "Folder": "Thư mục",
+      "Heart": "Trái tim",
+      "Plane": "Du lịch",
+      "Gamepad": "Trò chơi",
+      "Utensils": "Ẩm thực",
+      "ShoppingBag": "Mua sắm",
+      "Home": "Nhà",
+      "Laptop": "Công việc",
+      "Globe": "Địa cầu",
+      "Tag": "Thẻ"
+    }
   },
   "myPage": {
     "title": "Trang của tôi",
@@ -140,6 +152,7 @@
     "settings": "Cài đặt",
     "plusTitle": "Juple Plus",
     "plusDescription": "Mở khóa nhiều hơn với Juple Plus",
+    "plusCta": "Bắt đầu Plus",
     "plusComingSoonMessage": "Juple Plus sắp ra mắt.",
     "signOutConfirmTitle": "Đăng xuất?",
     "signOutConfirmMessage": "Bạn sẽ cần đăng nhập lại để tiếp tục.",

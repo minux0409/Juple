@@ -32,7 +32,7 @@ import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import { filterTodayItemsPage } from '../items/todayItemsFilter';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 
 const PAGE_LIMIT = 50;
@@ -442,11 +442,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   brand: {
-    fontSize: 26,
-    fontWeight: '700',
+    color: colors.textPrimary,
+    fontSize: 28,
+    fontWeight: '800',
   },
   inputWrapper: {
     marginTop: spacing.md,
@@ -461,20 +462,23 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   input: {
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    fontSize: 16,
+    color: colors.textPrimary,
+    fontSize: 15,
     paddingEnd: spacing.md,
     paddingStart: spacing.xl + spacing.xs,
-    paddingVertical: spacing.sm + 4,
+    paddingVertical: spacing.md,
+    ...cardShadow,
   },
   saveButton: {
     alignItems: 'center',
-    backgroundColor: colors.textPrimary,
-    borderRadius: radii.md,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm + 4,
+    backgroundColor: colors.brand,
+    borderRadius: radii.md + 4,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
   },
   disabledButton: {
     opacity: 0.5,
@@ -482,7 +486,7 @@ const styles = StyleSheet.create({
   saveButtonLabel: {
     color: colors.surface,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   error: {
     color: colors.danger,
@@ -493,34 +497,37 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     flexDirection: 'row',
     gap: spacing.xs,
-    marginBottom: spacing.sm,
-    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+    marginTop: spacing.xl,
   },
   recentTitle: {
-    fontSize: 16,
+    color: colors.textPrimary,
+    fontSize: 17,
     fontWeight: '700',
   },
   recentCount: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '500',
   },
   empty: {
     color: colors.textSecondary,
     fontSize: 14,
     paddingVertical: spacing.lg,
   },
-  // Each saved link is its own standalone card - a white surface against the screen's own light
-  // background (see safeArea), separated by a faint border. No shadow here: SwipeableItemRow's
-  // wrapper (which this containerStyle merges onto) needs overflow:'hidden' to clip its revealed
-  // swipe actions to the card's rounded shape, and a shadow on the same view would just get clipped
-  // away by that same overflow:hidden (both iOS shadow* and Android elevation render outside the
-  // view's own bounds) - so the background/border contrast alone carries the "card" look here.
+  // Each saved link is its own standalone card - a white surface, clearly lifted off the screen's
+  // own cool-gray background (see safeArea), with a barely-visible border rather than a heavier
+  // divider line. No shadow here: SwipeableItemRow's wrapper (which this containerStyle merges
+  // onto) needs overflow:'hidden' to clip its revealed swipe actions to the card's rounded shape,
+  // and a shadow on the same view would just get clipped away by that same overflow:hidden (both
+  // iOS shadow* and Android elevation render outside the view's own bounds) - so the background/
+  // border contrast alone carries the "card" look here.
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.divider,
+    borderColor: colors.inputBorder,
     borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.sm + 2,
   },
   footerLoading: {
     paddingVertical: spacing.lg,

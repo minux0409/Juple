@@ -53,10 +53,27 @@ export function MainTabs() {
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelPosition: 'below-icon',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
         tabBarItemStyle: {
           borderRadius: radii.md,
           overflow: 'hidden',
           marginHorizontal: spacing.xs,
+        },
+        // No explicit height/padding here - the default height already accounts for the bottom
+        // safe-area inset (see this repo's own rule against duplicating inset handling); this only
+        // adds the white background + subtle top shadow the redesign calls for.
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.inputBorder,
+          borderTopWidth: 1,
+          elevation: 8,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
         },
       }}
     >

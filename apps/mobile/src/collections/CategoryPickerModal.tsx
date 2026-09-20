@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CategoryIconTile } from './CategoryIconTile';
 import { colors, radii, spacing } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 
@@ -74,9 +75,12 @@ export function CategoryPickerModal({
                     onPress={() => onToggle(option)}
                     style={styles.optionRow}
                   >
-                    <Text numberOfLines={1} style={styles.optionLabel}>
-                      {option.name}
-                    </Text>
+                    <View style={styles.optionLabelRow}>
+                      <CategoryIconTile collectionId={option.id} icon={option.icon} size={36} />
+                      <Text numberOfLines={1} style={styles.optionLabel}>
+                        {option.name}
+                      </Text>
+                    </View>
                     <View style={[styles.optionCheckCircle, isSelected && styles.optionCheckCircleSelected]}>
                       {isSelected ? <Text style={styles.optionCheckMark}>✓</Text> : null}
                     </View>
@@ -166,11 +170,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 14,
   },
+  optionLabelRow: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginEnd: spacing.md,
+  },
   optionLabel: {
     color: colors.textPrimary,
     flex: 1,
     fontSize: 15,
-    marginEnd: spacing.md,
   },
   // A check-circle (empty outline when unselected, filled brand-colored circle with a white
   // checkmark when selected) - reads as an intentional selection control, not an accidental

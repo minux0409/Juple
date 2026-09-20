@@ -115,9 +115,6 @@
     "unlinkConfirmTitle": "क्या इस श्रेणी से हटाना है?",
     "unlinkConfirmMessage": "लिंक हटाया नहीं जाएगा - इसे केवल इस श्रेणी से हटाया जाएगा।",
     "unlinkAction": "हटाएं",
-    "errorReorderTitle": "क्रम अपडेट नहीं हो सका",
-    "errorReorderFallback": "कृपया थोड़ी देर बाद फिर से प्रयास करें।",
-    "reorderHandleA11yLabel": "आइटम {{position}}, क्रम बदलने के लिए देर तक दबाएं",
     "errorShareManagementFallback": "शेयरिंग स्थिति अपडेट नहीं हो सकी।",
     "errorListFallback": "आपकी श्रेणियां लोड नहीं हो सकीं।",
     "errorItemsLoadFallback": "इस श्रेणी के आइटम लोड नहीं हो सके।",
@@ -131,7 +128,22 @@
     "errorNameConflict": "इस नाम की श्रेणी पहले से मौजूद है।",
     "errorNameInvalid": "कृपया श्रेणी का नाम जांचें।",
     "errorNameRequired": "कृपया श्रेणी का नाम दर्ज करें।",
-    "errorNameTooLong": "श्रेणी का नाम अधिकतम 100 अक्षरों का होना चाहिए।"
+    "errorNameTooLong": "श्रेणी का नाम अधिकतम 100 अक्षरों का होना चाहिए।",
+    "iconSectionTitle": "आइकन चुनें",
+    "errorIconUpdateFallback": "आइकन अपडेट नहीं हो सका।",
+    "iconOptionA11y": "{{icon}} आइकन",
+    "iconNames": {
+      "Folder": "फ़ोल्डर",
+      "Heart": "दिल",
+      "Plane": "यात्रा",
+      "Gamepad": "गेम",
+      "Utensils": "खाना",
+      "ShoppingBag": "शॉपिंग",
+      "Home": "घर",
+      "Laptop": "काम",
+      "Globe": "ग्लोब",
+      "Tag": "टैग"
+    }
   },
   "myPage": {
     "title": "मेरा पेज",
@@ -140,6 +152,7 @@
     "settings": "सेटिंग्स",
     "plusTitle": "Juple Plus",
     "plusDescription": "Juple Plus के साथ और अधिक अनलॉक करें",
+    "plusCta": "Plus शुरू करें",
     "plusComingSoonMessage": "Juple Plus जल्द आ रहा है।",
     "signOutConfirmTitle": "क्या लॉग आउट करना है?",
     "signOutConfirmMessage": "जारी रखने के लिए आपको फिर से लॉग इन करना होगा।",

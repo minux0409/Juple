@@ -1,10 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -13,9 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import DragList from 'react-native-draglist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import i18n from '../i18n';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
@@ -24,31 +23,31 @@ import {
   enableCollectionShare,
   getCollection,
   getCollectionShare,
-  moveCollectionItem,
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
   setCollectionFavorite,
+  setCollectionIcon,
   type Collection,
   type CollectionItemEntry,
   type CollectionShare,
 } from '../collections/api/collectionsApi';
+import { CollectionIconPicker } from '../collections/CollectionIconPicker';
+import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
 import { ShareIcon } from '../icons/ShareIcon';
-import { SiteIcon } from '../icons/SiteIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
-import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
-import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
-import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
-import { resolveSiteInfo } from '../items/resolveSiteInfo';
+import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -77,6 +76,13 @@ function getRenameErrorMessage(error: unknown, t: TFunction): string {
     }
   }
   return t('collections.errorRenameFallback');
+}
+
+function getIconUpdateErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('collections.errorIconUpdateFallback');
 }
 
 function getDeleteErrorMessage(error: unknown, t: TFunction): string {
@@ -132,11 +138,24 @@ function getNameValidationError(name: string, t: TFunction): string | null {
   return null;
 }
 
-function formatAddedTime(addedAtUtc: string): string {
-  return new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(addedAtUtc));
+/**
+ * Adapts a CollectionItemEntry to the shape SavedLinkRow already knows how to render (Home/
+ * History - see components/SavedLinkRow.tsx) - itemId/addedAtUtc are this endpoint's own field
+ * names for the exact same concepts ItemHistoryEntry calls id/savedAtUtc; every other field is
+ * identical. This is purely a display-shape adapter, not a new domain concept - CollectionItemEntry
+ * remains the real API type everywhere else in this screen.
+ */
+function toSavedLinkRowItem(item: CollectionItemEntry): ItemHistoryEntry {
+  return {
+    id: item.itemId,
+    url: item.url,
+    title: item.title,
+    memo: item.memo,
+    savedAtUtc: item.addedAtUtc,
+    representativeImage: item.representativeImage,
+    previewImageUrl: item.previewImageUrl,
+    coverImage: item.coverImage,
+  };
 }
 
 /**
@@ -160,6 +179,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [iconDraft, setIconDraft] = useState<CollectionIconKey>(DEFAULT_COLLECTION_ICON);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
 
@@ -183,13 +203,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
 
-  const [isReordering, setIsReordering] = useState(false);
-  const [isReorderErrorVisible, setIsReorderErrorVisible] = useState(false);
-  // Synchronous guard against a second drag being dropped while the first move's API call is
-  // still in flight - isReordering (state) drives the disabled UI, this ref is what the handler
-  // itself checks, since a state update is not guaranteed to have committed before the next call.
-  const isReorderingRef = useRef(false);
-
   const {
     items,
     isLoading,
@@ -199,8 +212,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     refresh,
     loadMore,
     removeLocally,
-    reorderLocally,
-    restoreOrder,
   } = useCollectionItems(collectionId);
 
   const loadCollection = useCallback(async () => {
@@ -242,6 +253,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       return;
     }
     setNameDraft(collection.name);
+    setIconDraft(resolveCollectionIconKey(collection.icon));
     setIsEditingName(true);
     setRenameError(null);
   };
@@ -254,8 +266,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setRenameError(null);
   };
 
+  /**
+   * Saves the name and/or icon edit fields together (one Save button - see the edit form below),
+   * but calls their two independent endpoints sequentially, never via Promise.all: both mutate the
+   * same Collection row's RowVersion (see backend CollectionStore.RenameAsync/SetIconAsync), so
+   * firing them concurrently risks one losing an optimistic-concurrency race against the other. A
+   * name change that succeeds followed by an icon change that fails is left applied (not rolled
+   * back) - the same "each attribute is its own independent action" contract this screen's
+   * favorite/share/delete actions already follow, not an all-or-nothing transaction.
+   */
   const submitRename = async () => {
-    if (isRenaming) {
+    if (isRenaming || !collection) {
       return;
     }
 
@@ -265,19 +286,42 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       return;
     }
     const trimmedName = nameDraft.trim();
+    const nameChanged = trimmedName !== collection.name;
+    const iconChanged = iconDraft !== resolveCollectionIconKey(collection.icon);
+
+    if (!nameChanged && !iconChanged) {
+      setIsEditingName(false);
+      return;
+    }
 
     setIsRenaming(true);
     setRenameError(null);
-    try {
-      await renameCollection(authenticatedRequest, collectionId, trimmedName);
-      setCollection(previous => (previous ? { ...previous, name: trimmedName } : previous));
-      setIsEditingName(false);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-    } catch (caughtError) {
-      setRenameError(getRenameErrorMessage(caughtError, t));
-    } finally {
-      setIsRenaming(false);
+
+    if (nameChanged) {
+      try {
+        await renameCollection(authenticatedRequest, collectionId, trimmedName);
+        setCollection(previous => (previous ? { ...previous, name: trimmedName } : previous));
+      } catch (caughtError) {
+        setRenameError(getRenameErrorMessage(caughtError, t));
+        setIsRenaming(false);
+        return;
+      }
     }
+
+    if (iconChanged) {
+      try {
+        const updated = await setCollectionIcon(authenticatedRequest, collectionId, iconDraft);
+        setCollection(updated);
+      } catch (caughtError) {
+        setRenameError(getIconUpdateErrorMessage(caughtError, t));
+        setIsRenaming(false);
+        return;
+      }
+    }
+
+    setIsEditingName(false);
+    syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+    setIsRenaming(false);
   };
 
   const deleteCollectionAction = async () => {
@@ -427,41 +471,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setPendingUnlinkItemId(previous => previous ?? itemId);
   };
 
-  /**
-   * Drops a drag at toIndex (react-native-draglist's own from/to-index contract - splice out at
-   * fromIndex, splice back in at toIndex, in that order). Reorders the in-memory list immediately
-   * (optimistic), fires the one anchor-based move call, and rolls back to the exact prior order on
-   * failure - never a partial/guessed order. A second reorder dropped while one is still in flight
-   * is ignored outright (no queue) - see isReorderingRef.
-   */
-  const handleReordered = async (fromIndex: number, toIndex: number) => {
-    if (isReorderingRef.current || fromIndex === toIndex) {
-      return;
-    }
-    const movingItem = items[fromIndex];
-    if (!movingItem) {
-      return;
-    }
-
-    const reordered = [...items];
-    const [moved] = reordered.splice(fromIndex, 1);
-    reordered.splice(toIndex, 0, moved);
-    const afterItemId = toIndex === 0 ? null : reordered[toIndex - 1].itemId;
-
-    isReorderingRef.current = true;
-    setIsReordering(true);
-    const previousItems = reorderLocally(movingItem.itemId, afterItemId);
-    try {
-      await moveCollectionItem(authenticatedRequest, collectionId, movingItem.itemId, afterItemId);
-    } catch {
-      restoreOrder(previousItems);
-      setIsReorderErrorVisible(true);
-    } finally {
-      isReorderingRef.current = false;
-      setIsReordering(false);
-    }
-  };
-
   const handleShareToggle = (value: boolean) => {
     if (value) {
       enableShareAction();
@@ -488,13 +497,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.safeArea}>
-      <DragList
+      <FlatList
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
-        data={[...items]}
+        data={items}
         keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        onReordered={handleReordered}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListHeaderComponent={
           <View>
@@ -507,6 +515,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                   style={styles.nameInput}
                   value={nameDraft}
                 />
+                <Text style={styles.iconSectionTitle}>{t('collections.iconSectionTitle')}</Text>
+                <CollectionIconPicker disabled={isRenaming} onSelect={setIconDraft} selected={iconDraft} />
                 <View style={styles.nameEditActions}>
                   <Pressable
                     accessibilityRole="button"
@@ -531,6 +541,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             ) : (
               <View>
                 <View style={styles.headerTitleRow}>
+                  <View style={styles.headerIconBadge}>
+                    <CategoryIconTile collectionId={collection.id} icon={collection.icon} size={32} />
+                  </View>
                   <Text style={styles.title}>{collection.name}</Text>
                   <Pressable
                     accessibilityLabel={
@@ -592,14 +605,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
             <View style={styles.shareSection}>
               <View style={styles.shareToggleRow}>
-                <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
+                <View style={styles.shareToggleTextColumn}>
+                  <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
+                  <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
+                </View>
                 <Switch
                   disabled={isManagingShare}
                   onValueChange={handleShareToggle}
                   value={share !== null}
                 />
               </View>
-              <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
             </View>
             {shareManagementError ? <Text style={styles.error}>{shareManagementError}</Text> : null}
 
@@ -613,36 +628,29 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           !isLoading && !error ? <Text style={styles.empty}>{t('collections.itemsEmpty')}</Text> : undefined
         }
         onScrollBeginDrag={closeOpenRow}
-        renderItem={({ item, index, onDragStart, onDragEnd, isActive }) => {
-          const rowDisabled = itemActionInFlightId !== null || isRefreshing || isReordering;
-          return (
-            <View style={[styles.row, isActive && styles.rowActive]}>
-              <Pressable
-                accessibilityLabel={t('collections.reorderHandleA11yLabel', { position: index + 1 })}
-                accessibilityRole="button"
-                delayLongPress={350}
-                disabled={rowDisabled}
-                onLongPress={onDragStart}
-                onPressOut={isActive ? onDragEnd : undefined}
-                style={styles.numberBadge}
-              >
-                <Text style={styles.numberBadgeLabel}>{index + 1}</Text>
-              </Pressable>
-              <View style={styles.rowSwipeWrapper}>
-                <SwipeableItemRow
-                  disabled={itemActionInFlightId !== null || isRefreshing}
-                  onDelete={() => confirmUnlinkItem(item.itemId)}
-                  onPress={() => {
-                    navigation.navigate('ItemDetails', { itemId: item.itemId });
-                  }}
-                  onShare={() => shareItemAction(item)}
-                >
-                  <CollectionItemContent item={item} />
-                </SwipeableItemRow>
-              </View>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <SwipeableItemRow
+            containerStyle={styles.row}
+            disabled={itemActionInFlightId !== null || isRefreshing}
+            onDelete={() => confirmUnlinkItem(item.itemId)}
+            onPress={() => {
+              navigation.navigate('ItemDetails', { itemId: item.itemId });
+            }}
+            onShare={() => shareItemAction(item)}
+          >
+            {/* Exactly Home/History's own row - see SavedLinkRow.tsx - so a Category's link
+                cards are visually indistinguishable from the same Item's row anywhere else in
+                the app. dateDisplayMode="dateTime" (not the default "time") because a Category's
+                items span arbitrary dates, never a single grouped day the way a History section
+                does - matches this row's own prior "always show the full date" behavior exactly. */}
+            <SavedLinkRow
+              dateDisplayMode="dateTime"
+              isActionInFlight={itemActionInFlightId === item.itemId}
+              item={toSavedLinkRowItem(item)}
+              preferEffectiveThumbnail
+            />
+          </SwipeableItemRow>
+        )}
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoading}>
@@ -690,58 +698,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         title={t('collections.unlinkConfirmTitle')}
         visible={pendingUnlinkItemId !== null}
       />
-      <ConfirmDialog
-        confirmLabel={t('common.confirm')}
-        destructive={false}
-        message={t('collections.errorReorderFallback')}
-        onConfirm={() => setIsReorderErrorVisible(false)}
-        title={t('collections.errorReorderTitle')}
-        visible={isReorderErrorVisible}
-      />
-    </View>
-  );
-}
-
-interface CollectionItemContentProps {
-  readonly item: CollectionItemEntry;
-}
-
-/**
- * Mirrors SavedLinkRow's visual language (Home/History - see components/SavedLinkRow.tsx) so
- * Category rows read as the same kind of row as the rest of the app: thumbnail, title primary,
- * memo, added time + a small site icon - never a raw URL (see SiteIcon.tsx/resolveSiteInfo.ts).
- * The thumbnail now goes through the same resolveEffectiveThumbnailUrl priority Home/History use
- * (cover choice -> metadata preview -> first-uploaded image) instead of only ever looking at
- * representativeImage - that mismatch was the root cause of Category rows silently showing no
- * thumbnail for Items whose image came from a cover choice or metadata preview. The leading
- * position number is a sibling handle rendered by the caller (see CollectionDetailsScreen's
- * renderItem), not this component - it must sit outside SwipeableItemRow so its long-press-to-drag
- * gesture never competes with the swipe gesture.
- */
-function CollectionItemContent({ item }: CollectionItemContentProps) {
-  const primaryText = resolveSavedLinkPrimaryText(item.title, item.url);
-  const siteId = resolveSiteInfo(item.url).id;
-
-  return (
-    <View style={styles.rowContent}>
-      <ItemRepresentativeThumbnail imageUrl={resolveEffectiveThumbnailUrl(item)} />
-      <View style={styles.rowTextColumn}>
-        {/* primaryText is the user's own title (any language/direction) when present, otherwise a
-            hostname fallback (see savedLinkPrimaryText.ts) - only that fallback case is a
-            technical identifier that needs LTR isolation. */}
-        <Text numberOfLines={2} style={[styles.url, !item.title && ltrTextStyle]}>
-          {primaryText}
-        </Text>
-        {item.memo ? (
-          <Text numberOfLines={1} style={styles.memoPreview}>
-            {item.memo}
-          </Text>
-        ) : null}
-        <View style={styles.metaRow}>
-          <Text style={styles.addedTime}>{formatAddedTime(item.addedAtUtc)}</Text>
-          <SiteIcon siteId={siteId} size={14} />
-        </View>
-      </View>
     </View>
   );
 }
@@ -775,13 +731,23 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
   },
+  // Spacing wrapper only - CategoryIconTile owns its own size/background/radius (see
+  // CategoryIconTile.tsx) so this Collection's icon renders identically here, in the Categories
+  // list, and in the New Link Review/Item Details category picker. The header previously showed
+  // no icon at all. Sits beside the title's own line-height, never competing with it for space
+  // (title still gets flex: 1 below).
+  headerIconBadge: {
+    marginEnd: spacing.sm,
+    marginTop: 2,
+  },
   // No numberOfLines/ellipsizeMode - a long or foreign-language category name must be fully
   // readable, never truncated (see this round's "long title must NOT be truncated").
   title: {
+    color: colors.textPrimary,
     flex: 1,
     flexShrink: 1,
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   // Item count on the start edge, share/edit/delete icons pinned to the end edge - a second row
   // below the title/favorite row (see this round's "개수 오른쪽 끝" header layout requirement).
@@ -789,11 +755,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   itemCount: {
     color: colors.textSecondary,
     fontSize: 14,
+    fontWeight: '600',
   },
   headerActions: {
     alignItems: 'center',
@@ -819,6 +786,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  iconSectionTitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+  },
   nameEditActions: {
     flexDirection: 'row',
     marginTop: 10,
@@ -836,13 +810,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // A compact, self-contained settings card (matches MyPageScreen's grouped-section language) -
+  // previously this toggle+description just sat directly in the screen's own background, reading
+  // as disconnected from everything else on the page.
   shareSection: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     marginTop: spacing.md,
+    padding: spacing.md,
+    ...cardShadow,
   },
   shareToggleRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  shareToggleTextColumn: {
+    flex: 1,
+    marginEnd: spacing.md,
   },
   shareToggleLabel: {
     color: colors.textPrimary,
@@ -864,83 +849,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 16,
   },
-  // Card treatment matching Home/History (see DailyInboxScreen's `card`/DateHistoryScreen's
-  // `historyCard`) - a rounded, bordered card with a real margin, rather than the old edge-to-edge
-  // top-border-only divider that read as a clipped rectangle. Now the outer container for the
-  // whole row unit (number handle + swipeable content) rather than just SwipeableItemRow's own
-  // wrapper, since the handle must be a layout sibling of SwipeableItemRow, not nested inside it -
-  // see CollectionDetailsScreen's renderItem.
+  // Exactly Home's own `card` (see DailyInboxScreen) - passed as SwipeableItemRow's containerStyle,
+  // the same way Home/History use it.
   row: {
-    alignItems: 'stretch',
-    borderColor: colors.divider,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    flexDirection: 'row',
-    marginTop: spacing.sm,
-    overflow: 'hidden',
-  },
-  // Clearly visible while a row is the active drag target - a colored border plus a real
-  // elevation/shadow lift, not just a faint tint, so the dragged row never reads as having
-  // vanished mid-drag.
-  rowActive: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.brand,
-    borderWidth: 2,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-  },
-  rowSwipeWrapper: {
-    flex: 1,
-  },
-  rowContent: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  // The drag handle - long-press starts a reorder (see renderItem's onLongPress={onDragStart}).
-  // A sibling of SwipeableItemRow, not a child, so its touches never enter SwipeableItemRow's own
-  // PanResponder region and vice versa (see components/SwipeableItemRow.tsx's own remarks on this
-  // exact composition pattern).
-  numberBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    width: minTouchTarget,
-  },
-  numberBadgeLabel: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  rowTextColumn: {
-    flex: 1,
-    marginStart: spacing.sm,
-  },
-  url: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  memoPreview: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  metaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-  },
-  addedTime: {
-    color: colors.textSecondary,
-    fontSize: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.sm + 2,
   },
   disabledButton: {
     opacity: 0.5,

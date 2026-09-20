@@ -182,7 +182,7 @@ describe('NewLinkReviewScreen', () => {
 
   it('saves the url/title/memo and links the selected category, in order, then goes back', async () => {
     jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '' }],
+      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder' }],
       nextCursor: null,
     });
     jest.mocked(saveInboxEntry).mockResolvedValue({
@@ -252,10 +252,13 @@ describe('NewLinkReviewScreen', () => {
     expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
     const [titleInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('Shared title');
+    // 2, not 1: this round's visual redesign shows the same resolved preview image both at the top
+    // of the content preview card and in the photo list below it - the same single resolved URL,
+    // rendered twice for two different purposes (preview vs. the editable/reorderable photo list).
     const previewImages = renderer.root
       .findAllByType(require('react-native').Image)
       .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-    expect(previewImages).toHaveLength(1);
+    expect(previewImages).toHaveLength(2);
   });
 
   it('fetches URL metadata and fills the empty title field when there is no incoming title', async () => {
@@ -374,7 +377,7 @@ describe('NewLinkReviewScreen', () => {
       const previewImages = renderer.root
         .findAllByType(require('react-native').Image)
         .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(previewImages).toHaveLength(1);
+      expect(previewImages).toHaveLength(2);
     });
 
     it('hides the overlay, re-enables Save, and shows the small failure hint when metadata resolution fails - manual save still works', async () => {
@@ -460,7 +463,7 @@ describe('NewLinkReviewScreen', () => {
       const previewImages = renderer.root
         .findAllByType(require('react-native').Image)
         .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(previewImages).toHaveLength(1);
+      expect(previewImages).toHaveLength(2);
     });
 
     it('staging a new photo appends it alongside the auto preview, up to the 2-image cap', async () => {
@@ -622,6 +625,21 @@ describe('NewLinkReviewScreen', () => {
     expect(renderer.root.findAllByType(ScrollView).some(node => node.props.horizontal === true)).toBe(false);
   });
 
+  it('shows each category\'s own pastel icon tile in the picker - not a plain gray outline icon', async () => {
+    jest.mocked(getCollections).mockResolvedValue({
+      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Heart' }],
+      nextCursor: null,
+    });
+    const { renderer } = await renderScreen();
+
+    await openCategoryPicker(renderer);
+
+    const { HeartIcon } = require('../../icons/HeartIcon');
+    const { FolderIcon } = require('../../icons/FolderIcon');
+    expect(renderer.root.findAllByType(HeartIcon).length).toBeGreaterThan(0);
+    expect(renderer.root.findAllByType(FolderIcon)).toHaveLength(0);
+  });
+
   it('the category summary row stays present and untouched whether or not an async preview image has arrived - never disturbed by the photo section', async () => {
     let resolveMetadata!: (value: {
       title: string | null;
@@ -663,6 +681,7 @@ describe('NewLinkReviewScreen', () => {
       itemCount: 0,
       createdAtUtc: '',
       updatedAtUtc: '',
+      icon: 'Folder',
     });
     jest.mocked(saveInboxEntry).mockResolvedValue({
       id: 60,

@@ -57,8 +57,8 @@ public sealed class AccountDeletionStoreIntegrationTests : IAsyncLifetime
         _dbContext.ItemImages.Add(
             new ItemImage(_itemId, $"items/{_userId}/{_itemId}/seed.jpg", "image/jpeg", 1_000, 0, now));
 
-        var collection = new Collection(_userId, "Books", "BOOKS", now);
-        var otherCollection = new Collection(_otherUserId, "Other Books", "OTHER BOOKS", now);
+        var collection = new Collection(_userId, "Books", "BOOKS", CollectionIcon.Folder, now);
+        var otherCollection = new Collection(_otherUserId, "Other Books", "OTHER BOOKS", CollectionIcon.Folder, now);
         _dbContext.Collections.AddRange(collection, otherCollection);
         await _dbContext.SaveChangesAsync();
         _collectionId = collection.Id;
