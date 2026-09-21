@@ -144,7 +144,23 @@
       "Laptop": "İş",
       "Globe": "Küre",
       "Tag": "Etiket"
-    }
+    },
+    "colorSectionTitle": "Renk seç",
+    "colorOptionA11y": "{{color}} rengi",
+    "colorNames": {
+      "Blue": "Mavi",
+      "Mint": "Nane",
+      "Rose": "Gül",
+      "Amber": "Kehribar",
+      "Purple": "Mor",
+      "Peach": "Şeftali",
+      "Teal": "Deniz Mavisi",
+      "Slate": "Arduvaz"
+    },
+    "createConfirmA11y": "Kategoriyi kaydet",
+    "errorColorUpdateFallback": "Renk güncellenemedi.",
+    "favoritesEmpty": "Favori yok.",
+    "allCollectionsEmpty": "Kategori yok."
   },
   "myPage": {
     "title": "Sayfam",

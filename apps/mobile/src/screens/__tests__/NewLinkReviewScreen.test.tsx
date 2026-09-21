@@ -189,7 +189,7 @@ describe('NewLinkReviewScreen', () => {
 
   it('saves the url/title/memo and links the selected category, in order, then goes back', async () => {
     jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder' }],
+      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null }],
       nextCursor: null,
     });
     jest.mocked(saveInboxEntry).mockResolvedValue({
@@ -634,7 +634,7 @@ describe('NewLinkReviewScreen', () => {
 
   it('shows each category\'s own pastel icon tile in the picker - not a plain gray outline icon', async () => {
     jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Heart' }],
+      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Heart', color: null }],
       nextCursor: null,
     });
     const { renderer } = await renderScreen();
@@ -689,6 +689,7 @@ describe('NewLinkReviewScreen', () => {
       createdAtUtc: '',
       updatedAtUtc: '',
       icon: 'Folder',
+      color: null,
     });
     jest.mocked(saveInboxEntry).mockResolvedValue({
       id: 60,

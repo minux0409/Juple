@@ -144,7 +144,23 @@
       "Laptop": "Trabajo",
       "Globe": "Globo",
       "Tag": "Etiqueta"
-    }
+    },
+    "colorSectionTitle": "Elegir color",
+    "colorOptionA11y": "Color {{color}}",
+    "colorNames": {
+      "Blue": "Azul",
+      "Mint": "Menta",
+      "Rose": "Rosa",
+      "Amber": "Ámbar",
+      "Purple": "Morado",
+      "Peach": "Melocotón",
+      "Teal": "Verde azulado",
+      "Slate": "Pizarra"
+    },
+    "createConfirmA11y": "Guardar categoría",
+    "errorColorUpdateFallback": "No se pudo actualizar el color.",
+    "favoritesEmpty": "No hay favoritos.",
+    "allCollectionsEmpty": "No hay categorías."
   },
   "myPage": {
     "title": "Mi página",

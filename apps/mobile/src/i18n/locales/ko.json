@@ -144,7 +144,23 @@
       "Laptop": "업무",
       "Globe": "글로브",
       "Tag": "태그"
-    }
+    },
+    "colorSectionTitle": "색상 선택",
+    "colorOptionA11y": "{{color}} 색상",
+    "colorNames": {
+      "Blue": "블루",
+      "Mint": "민트",
+      "Rose": "로즈",
+      "Amber": "앰버",
+      "Purple": "퍼플",
+      "Peach": "피치",
+      "Teal": "틸",
+      "Slate": "슬레이트"
+    },
+    "createConfirmA11y": "카테고리 저장",
+    "errorColorUpdateFallback": "색상을 업데이트하지 못했습니다.",
+    "favoritesEmpty": "즐겨찾기 항목이 없습니다.",
+    "allCollectionsEmpty": "카테고리가 없습니다."
   },
   "myPage": {
     "title": "내 페이지",

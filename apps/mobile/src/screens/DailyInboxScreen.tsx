@@ -339,7 +339,7 @@ export function DailyInboxScreen() {
               <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
             </View>
             <View style={styles.inputWrapper}>
-              <View style={styles.inputIconContainer}>
+              <View pointerEvents="none" style={styles.inputIconContainer}>
                 <LinkIcon color={colors.textSecondary} size={18} />
               </View>
               <TextInput

@@ -144,7 +144,23 @@
       "Laptop": "Travail",
       "Globe": "Globe",
       "Tag": "Étiquette"
-    }
+    },
+    "colorSectionTitle": "Choisir une couleur",
+    "colorOptionA11y": "Couleur {{color}}",
+    "colorNames": {
+      "Blue": "Bleu",
+      "Mint": "Menthe",
+      "Rose": "Rose",
+      "Amber": "Ambre",
+      "Purple": "Violet",
+      "Peach": "Pêche",
+      "Teal": "Sarcelle",
+      "Slate": "Ardoise"
+    },
+    "createConfirmA11y": "Enregistrer la catégorie",
+    "errorColorUpdateFallback": "Impossible de mettre à jour la couleur.",
+    "favoritesEmpty": "Aucun favori.",
+    "allCollectionsEmpty": "Aucune catégorie."
   },
   "myPage": {
     "title": "Mon compte",

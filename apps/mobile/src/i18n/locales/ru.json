@@ -144,7 +144,23 @@
       "Laptop": "Работа",
       "Globe": "Глобус",
       "Tag": "Ярлык"
-    }
+    },
+    "colorSectionTitle": "Выбрать цвет",
+    "colorOptionA11y": "Цвет {{color}}",
+    "colorNames": {
+      "Blue": "Синий",
+      "Mint": "Мятный",
+      "Rose": "Розовый",
+      "Amber": "Янтарный",
+      "Purple": "Фиолетовый",
+      "Peach": "Персиковый",
+      "Teal": "Бирюзовый",
+      "Slate": "Сланцевый"
+    },
+    "createConfirmA11y": "Сохранить категорию",
+    "errorColorUpdateFallback": "Не удалось обновить цвет.",
+    "favoritesEmpty": "Нет избранного.",
+    "allCollectionsEmpty": "Нет категорий."
   },
   "myPage": {
     "title": "Мой профиль",

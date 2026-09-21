@@ -1,83 +1,83 @@
 using Juple.Application.Collections;
-using Juple.Application.Collections.SetCollectionIcon;
+using Juple.Application.Collections.SetCollectionColor;
 using Juple.Domain.Collections;
 
 namespace Juple.UnitTests.Collections;
 
-public sealed class SetCollectionIconServiceTests
+public sealed class SetCollectionColorServiceTests
 {
     [Fact]
-    public async Task SetIconAsync_CallsStoreWithCurrentUserCollectionIdAndResolvedTimestamp()
+    public async Task SetColorAsync_CallsStoreWithCurrentUserCollectionIdAndResolvedTimestamp()
     {
         var now = new DateTimeOffset(2026, 9, 4, 12, 0, 0, TimeSpan.Zero);
         var store = new FakeCollectionStore();
-        var service = new SetCollectionIconService(store, new FixedTimeProvider(now));
+        var service = new SetCollectionColorService(store, new FixedTimeProvider(now));
 
-        await service.SetIconAsync(17, 41, new SetCollectionIconCommand("Plane"));
+        await service.SetColorAsync(17, 41, new SetCollectionColorCommand("Mint"));
 
         Assert.Equal(17, store.LastUserId);
         Assert.Equal(41, store.LastCollectionId);
-        Assert.Equal(CollectionIcon.Plane, store.LastIcon);
+        Assert.Equal(CollectionColor.Mint, store.LastColor);
         Assert.Equal(now, store.LastUpdatedAtUtc);
     }
 
     [Fact]
-    public async Task SetIconAsync_WhenIconIsMissing_DefaultsToFolder()
+    public async Task SetColorAsync_WhenColorIsMissing_DefaultsToBlue()
     {
         var store = new FakeCollectionStore();
-        var service = new SetCollectionIconService(store, new FixedTimeProvider());
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
 
-        await service.SetIconAsync(17, 41, new SetCollectionIconCommand(null));
+        await service.SetColorAsync(17, 41, new SetCollectionColorCommand(null));
 
-        Assert.Equal(CollectionIcon.Folder, store.LastIcon);
+        Assert.Equal(CollectionColor.Blue, store.LastColor);
     }
 
     [Fact]
-    public async Task SetIconAsync_WhenIconIsUnrecognized_ThrowsInvalidCollection()
+    public async Task SetColorAsync_WhenColorIsUnrecognized_ThrowsInvalidCollection()
     {
         var store = new FakeCollectionStore();
-        var service = new SetCollectionIconService(store, new FixedTimeProvider());
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
 
         var exception = await Assert.ThrowsAsync<InvalidCollectionException>(
-            () => service.SetIconAsync(17, 41, new SetCollectionIconCommand("NotARealIcon")));
+            () => service.SetColorAsync(17, 41, new SetCollectionColorCommand("NotARealColor")));
 
-        Assert.Equal("icon", exception.Field);
-        Assert.Null(store.LastIcon);
+        Assert.Equal("color", exception.Field);
+        Assert.Null(store.LastColor);
     }
 
     [Fact]
-    public async Task SetIconAsync_ReturnsStoresUpdatedCollectionDto()
+    public async Task SetColorAsync_ReturnsStoresUpdatedCollectionDto()
     {
         var store = new FakeCollectionStore
         {
-            ResultToReturn = new CollectionDto(41, "Reading list", false, 3, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "Plane", null),
+            ResultToReturn = new CollectionDto(41, "Reading list", false, 3, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "Folder", "Mint"),
         };
-        var service = new SetCollectionIconService(store, new FixedTimeProvider());
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
 
-        var result = await service.SetIconAsync(17, 41, new SetCollectionIconCommand("Plane"));
+        var result = await service.SetColorAsync(17, 41, new SetCollectionColorCommand("Mint"));
 
         Assert.Equal(41, result.Id);
-        Assert.Equal("Plane", result.Icon);
+        Assert.Equal("Mint", result.Color);
     }
 
     [Fact]
-    public async Task SetIconAsync_WhenCollectionNotFound_PropagatesCollectionNotFoundException()
+    public async Task SetColorAsync_WhenCollectionNotFound_PropagatesCollectionNotFoundException()
     {
         var store = new FakeCollectionStore { ThrowNotFound = true };
-        var service = new SetCollectionIconService(store, new FixedTimeProvider());
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(
-            () => service.SetIconAsync(17, 41, new SetCollectionIconCommand("Plane")));
+            () => service.SetColorAsync(17, 41, new SetCollectionColorCommand("Mint")));
     }
 
     [Fact]
-    public async Task SetIconAsync_WhenConcurrentWriteConflicts_PropagatesCollectionConcurrencyException()
+    public async Task SetColorAsync_WhenConcurrentWriteConflicts_PropagatesCollectionConcurrencyException()
     {
         var store = new FakeCollectionStore { ThrowConcurrency = true };
-        var service = new SetCollectionIconService(store, new FixedTimeProvider());
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
 
         await Assert.ThrowsAsync<CollectionConcurrencyException>(
-            () => service.SetIconAsync(17, 41, new SetCollectionIconCommand("Plane")));
+            () => service.SetColorAsync(17, 41, new SetCollectionColorCommand("Mint")));
     }
 
     private sealed class FakeCollectionStore : ICollectionStore
@@ -92,7 +92,7 @@ public sealed class SetCollectionIconServiceTests
 
         public long? LastCollectionId { get; private set; }
 
-        public CollectionIcon? LastIcon { get; private set; }
+        public CollectionColor? LastColor { get; private set; }
 
         public DateTimeOffset? LastUpdatedAtUtc { get; private set; }
 
@@ -114,7 +114,7 @@ public sealed class SetCollectionIconServiceTests
 
         public Task<CollectionDto> GetAsync(
             long userId, long collectionId, CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("Not exercised by SetCollectionIconService tests.");
+            throw new NotSupportedException("Not exercised by SetCollectionColorService tests.");
 
         public Task RenameAsync(
             long userId,
@@ -123,23 +123,28 @@ public sealed class SetCollectionIconServiceTests
             string nameNormalized,
             DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("Not exercised by SetCollectionIconService tests.");
+            throw new NotSupportedException("Not exercised by SetCollectionColorService tests.");
 
         public Task<CollectionDto> SetFavoriteAsync(
             long userId, long collectionId, bool isFavorite, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("Not exercised by SetCollectionIconService tests.");
+            throw new NotSupportedException("Not exercised by SetCollectionColorService tests.");
 
         public Task<CollectionDto> SetIconAsync(
+            long userId, long collectionId, CollectionIcon icon, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by SetCollectionColorService tests.");
+
+        public Task<CollectionDto> SetColorAsync(
             long userId,
             long collectionId,
-            CollectionIcon icon,
+            CollectionColor color,
             DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default)
         {
             LastUserId = userId;
             LastCollectionId = collectionId;
-            LastIcon = icon;
+            LastColor = color;
             LastUpdatedAtUtc = updatedAtUtc;
 
             if (ThrowNotFound)
@@ -153,13 +158,8 @@ public sealed class SetCollectionIconServiceTests
             }
 
             return Task.FromResult(
-                ResultToReturn ?? new CollectionDto(collectionId, "Reading list", false, 0, updatedAtUtc, updatedAtUtc, icon.ToString(), null));
+                ResultToReturn ?? new CollectionDto(collectionId, "Reading list", false, 0, updatedAtUtc, updatedAtUtc, "Folder", color.ToString()));
         }
-
-        public Task<CollectionDto> SetColorAsync(
-            long userId, long collectionId, CollectionColor color, DateTimeOffset updatedAtUtc,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException("Not exercised by SetCollectionIconService tests.");
 
         public Task DeleteAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;

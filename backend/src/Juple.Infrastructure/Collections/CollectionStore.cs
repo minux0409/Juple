@@ -84,6 +84,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 collection.CreatedAtUtc,
                 collection.UpdatedAtUtc,
                 collection.Icon,
+                collection.Color,
             })
             .Take(limit + 1)
             .ToListAsync(cancellationToken);
@@ -91,7 +92,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var hasMore = page.Count > limit;
         var pageItems = (hasMore ? page.GetRange(0, limit) : page)
             .Select(row => new CollectionDto(
-                row.Id, row.Name, row.IsFavorite, row.ItemCount, row.CreatedAtUtc, row.UpdatedAtUtc, row.Icon.ToString()))
+                row.Id, row.Name, row.IsFavorite, row.ItemCount, row.CreatedAtUtc, row.UpdatedAtUtc,
+                row.Icon.ToString(), row.Color?.ToString()))
             .ToList();
 
         var nextCursor = hasMore
@@ -107,9 +109,10 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         string nameNormalized,
         CollectionIcon icon,
         DateTimeOffset createdAtUtc,
+        CollectionColor? color = null,
         CancellationToken cancellationToken = default)
     {
-        var collection = new Collection(userId, name, nameNormalized, icon, createdAtUtc);
+        var collection = new Collection(userId, name, nameNormalized, icon, createdAtUtc, color);
         dbContext.Collections.Add(collection);
 
         try
@@ -124,7 +127,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, 0, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
     }
 
     public async Task<CollectionDto> GetAsync(
@@ -146,7 +149,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
     }
 
     public async Task RenameAsync(
@@ -213,7 +216,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
     }
 
     public async Task<CollectionDto> SetIconAsync(
@@ -247,7 +250,41 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
+    }
+
+    public async Task<CollectionDto> SetColorAsync(
+        long userId,
+        long collectionId,
+        CollectionColor color,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var collection = await dbContext.Collections
+            .FirstOrDefaultAsync(
+                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+        if (collection is null)
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        collection.SetColor(color, updatedAtUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+
+        var itemCount = await dbContext.CollectionItems
+            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+
+        return new CollectionDto(
+            collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
     }
 
     public async Task DeleteAsync(

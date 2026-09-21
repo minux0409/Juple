@@ -43,6 +43,7 @@ function makeCollection(overrides: Partial<Collection>): Collection {
     createdAtUtc: new Date().toISOString(),
     updatedAtUtc: new Date().toISOString(),
     icon: 'Folder',
+    color: null,
     ...overrides,
   };
 }
@@ -202,11 +203,12 @@ describe('CollectionsScreen create form', () => {
     });
   }
 
+  /** The compact checkmark confirm button (see Goal 5's create-row simplification) - icon-only, so matched by its accessibility label rather than a Text child. */
   function getSubmitButton(renderer: ReactTestRenderer.ReactTestRenderer) {
     return renderer.root.findAll(
       node =>
         typeof node.props.onPress === 'function' &&
-        node.findAllByType(Text).some(textNode => textNode.props.children === i18n.t('collections.create')),
+        node.props.accessibilityLabel === i18n.t('collections.createConfirmA11y'),
     )[0];
   }
 
@@ -233,7 +235,7 @@ describe('CollectionsScreen create form', () => {
       await getSubmitButton(renderer).props.onPress();
     });
 
-    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'New one', 'Folder');
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'New one', 'Folder', 'Blue');
   });
 
   it('creates with whichever icon the user picks from the grid', async () => {
@@ -257,7 +259,31 @@ describe('CollectionsScreen create form', () => {
       await getSubmitButton(renderer).props.onPress();
     });
 
-    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'Trip', 'Plane');
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'Trip', 'Plane', 'Blue');
+  });
+
+  it('creates with whichever color the user picks from the swatch row', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(createCollection).mockResolvedValue(makeCollection({ id: 9, name: 'Trip', color: 'Mint' }));
+    const renderer = await renderScreen();
+
+    openCreateForm(renderer);
+    const nameInput = renderer.root.findByType(TextInput);
+    act(() => {
+      nameInput.props.onChangeText('Trip');
+    });
+
+    expandIconPicker(renderer);
+    const mintSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Mint' });
+    act(() => {
+      mintSwatch.props.onPress();
+    });
+
+    await act(async () => {
+      await getSubmitButton(renderer).props.onPress();
+    });
+
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'Trip', 'Folder', 'Mint');
   });
 
   it('resets the icon picker back to Folder after a successful create', async () => {
@@ -287,6 +313,39 @@ describe('CollectionsScreen create form', () => {
       await getSubmitButton(renderer).props.onPress();
     });
 
-    expect(createCollection).toHaveBeenLastCalledWith(expect.anything(), 'Second', 'Folder');
+    expect(createCollection).toHaveBeenLastCalledWith(expect.anything(), 'Second', 'Folder', 'Blue');
+  });
+
+  it('cancels the create form via the header close button, resetting the draft name/icon/color', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+
+    openCreateForm(renderer);
+    let nameInput = renderer.root.findByType(TextInput);
+    act(() => {
+      nameInput.props.onChangeText('Abandoned');
+    });
+    expandIconPicker(renderer);
+    act(() => {
+      renderer.root.findByProps({ testID: 'collection-icon-option-Plane' }).props.onPress();
+    });
+
+    // The header's "+" button becomes a "×" while the form is open - tapping it cancels rather than
+    // just hiding the form, so reopening never resumes the abandoned draft.
+    const closeButton = renderer.root.findAll(
+      node => node.props.accessibilityLabel === i18n.t('common.close'),
+    )[0];
+    act(() => {
+      closeButton.props.onPress();
+    });
+    expect(renderer.root.findAllByType(TextInput)).toHaveLength(0);
+
+    openCreateForm(renderer);
+    nameInput = renderer.root.findByType(TextInput);
+    expect(nameInput.props.value).toBe('');
+
+    const { PlaneIcon } = require('../../icons/PlaneIcon');
+    expect(renderer.root.findAllByType(PlaneIcon)).toHaveLength(0);
+    expect(createCollection).not.toHaveBeenCalled();
   });
 });

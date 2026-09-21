@@ -144,7 +144,23 @@
       "Laptop": "Arbeit",
       "Globe": "Globus",
       "Tag": "Etikett"
-    }
+    },
+    "colorSectionTitle": "Farbe wählen",
+    "colorOptionA11y": "Farbe {{color}}",
+    "colorNames": {
+      "Blue": "Blau",
+      "Mint": "Minze",
+      "Rose": "Rosé",
+      "Amber": "Bernstein",
+      "Purple": "Lila",
+      "Peach": "Pfirsich",
+      "Teal": "Petrol",
+      "Slate": "Schiefer"
+    },
+    "createConfirmA11y": "Kategorie speichern",
+    "errorColorUpdateFallback": "Die Farbe konnte nicht aktualisiert werden.",
+    "favoritesEmpty": "Keine Favoriten.",
+    "allCollectionsEmpty": "Keine Kategorien."
   },
   "myPage": {
     "title": "Mein Bereich",

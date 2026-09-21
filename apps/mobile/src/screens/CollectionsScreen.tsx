@@ -24,7 +24,10 @@ import {
 } from '../collections/api/collectionsApi';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
+import { DEFAULT_COLLECTION_COLOR, type CollectionColorKey } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
+import { CheckIcon } from '../icons/CheckIcon';
+import { CloseIcon } from '../icons/CloseIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -113,6 +116,7 @@ export function CollectionsScreen() {
 
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<CollectionIconKey>(DEFAULT_COLLECTION_ICON);
+  const [color, setColor] = useState<CollectionColorKey>(DEFAULT_COLLECTION_COLOR);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -260,10 +264,11 @@ export function CollectionsScreen() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      const created = await createCollection(authenticatedRequest, trimmedName, icon);
+      const created = await createCollection(authenticatedRequest, trimmedName, icon, color);
       setCollections(previous => [created, ...previous]);
       setName('');
       setIcon(DEFAULT_COLLECTION_ICON);
+      setColor(DEFAULT_COLLECTION_COLOR);
       setIsCreateFormVisible(false);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
@@ -271,6 +276,18 @@ export function CollectionsScreen() {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  /** Cancels the create form: resets the draft name/icon/color (and any error) and collapses it - the header's own toggle button (now showing "×" while the form is open) calls this instead of just hiding the form, so reopening it never resumes a half-filled draft. */
+  const cancelCreate = () => {
+    if (isCreating) {
+      return;
+    }
+    setName('');
+    setIcon(DEFAULT_COLLECTION_ICON);
+    setColor(DEFAULT_COLLECTION_COLOR);
+    setCreateError(null);
+    setIsCreateFormVisible(false);
   };
 
   /**
@@ -342,37 +359,53 @@ export function CollectionsScreen() {
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('collections.title')}</Text>
               <Pressable
-                accessibilityLabel={t('collections.create')}
+                accessibilityLabel={isCreateFormVisible ? t('common.close') : t('collections.create')}
                 accessibilityRole="button"
-                onPress={() => setIsCreateFormVisible(previous => !previous)}
+                onPress={() => (isCreateFormVisible ? cancelCreate() : setIsCreateFormVisible(true))}
                 style={styles.addButton}
               >
-                <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
+                {isCreateFormVisible ? (
+                  <CloseIcon color={colors.surface} size={20} strokeWidth={2.25} />
+                ) : (
+                  <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
+                )}
               </Pressable>
             </View>
 
             {isCreateFormVisible ? (
               <View style={styles.createRow}>
-                <CategoryNameAndIconField
-                  autoFocus
-                  disabled={isCreating}
-                  icon={icon}
-                  name={name}
-                  namePlaceholder={t('collections.namePlaceholder')}
-                  onChangeIcon={setIcon}
-                  onChangeName={setName}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isCreating, busy: isCreating }}
-                  disabled={isCreating}
-                  onPress={submitCreate}
-                  style={[styles.createButton, isCreating && styles.disabledButton]}
-                >
-                  <Text style={styles.createButtonLabel}>
-                    {isCreating ? t('common.saving') : t('collections.create')}
-                  </Text>
-                </Pressable>
+                <View style={styles.createInputRow}>
+                  <View style={styles.createFieldSlot}>
+                    <CategoryNameAndIconField
+                      autoFocus
+                      color={color}
+                      disabled={isCreating}
+                      icon={icon}
+                      name={name}
+                      namePlaceholder={t('collections.namePlaceholder')}
+                      onChangeColor={setColor}
+                      onChangeIcon={setIcon}
+                      onChangeName={setName}
+                    />
+                  </View>
+                  <Pressable
+                    accessibilityLabel={t('collections.createConfirmA11y')}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isCreating || !name.trim(), busy: isCreating }}
+                    disabled={isCreating || !name.trim()}
+                    onPress={submitCreate}
+                    style={[
+                      styles.createConfirmButton,
+                      (isCreating || !name.trim()) && styles.createConfirmButtonDisabled,
+                    ]}
+                  >
+                    {isCreating ? (
+                      <ActivityIndicator color={colors.surface} size="small" />
+                    ) : (
+                      <CheckIcon color={colors.surface} size={20} strokeWidth={2.25} />
+                    )}
+                  </Pressable>
+                </View>
                 {createError ? <Text style={styles.error}>{createError}</Text> : null}
               </View>
             ) : null}
@@ -413,7 +446,11 @@ export function CollectionsScreen() {
           isActiveTabInitialLoading ? (
             <ActivityIndicator style={styles.tabLoading} />
           ) : (
-            <Text style={styles.empty}>{t('collections.empty')}</Text>
+            <View style={styles.emptyContainer}>
+              <Text style={styles.empty}>
+                {t(activeTab === 'favorites' ? 'collections.favoritesEmpty' : 'collections.allCollectionsEmpty')}
+              </Text>
+            </View>
           )
         }
         renderItem={({ item }) => (
@@ -458,7 +495,7 @@ function CollectionRow({
     <View style={styles.row}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
         <View style={styles.tileSlot}>
-          <CategoryIconTile collectionId={collection.id} icon={collection.icon} size={48} />
+          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
         </View>
         <View style={styles.rowTextColumn}>
           <Text numberOfLines={1} style={styles.rowName}>
@@ -522,30 +559,46 @@ const styles = StyleSheet.create({
   createRow: {
     marginBottom: spacing.md,
   },
-  createButton: {
+  createInputRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  createFieldSlot: {
+    flex: 1,
+  },
+  // Compact square confirm button (checkmark, not the removed "새 카테고리" CTA) - matches the icon
+  // thumbnail's own height so it sits flush alongside the icon+name row's first line, staying
+  // pinned there even while the icon/color picker panel expands below.
+  createConfirmButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
     borderRadius: radii.md + 4,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm + 4,
+    height: minTouchTarget,
+    justifyContent: 'center',
+    width: minTouchTarget,
   },
-  disabledButton: {
+  createConfirmButtonDisabled: {
     opacity: 0.5,
-  },
-  createButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '700',
   },
   error: {
     color: colors.danger,
     fontSize: 14,
     marginTop: spacing.md,
   },
+  // Centers within the remaining content area below the header/tabs (not the full screen) - flex:1
+  // lets it claim whatever vertical space is left in the FlatList's flexed content column, rather
+  // than absolute-positioning over the header.
+  emptyContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+  },
   empty: {
     color: colors.textSecondary,
     fontSize: 14,
-    paddingVertical: spacing.lg,
+    textAlign: 'center',
   },
   tabLoading: {
     paddingVertical: spacing.lg,

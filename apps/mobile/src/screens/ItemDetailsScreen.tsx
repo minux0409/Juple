@@ -27,6 +27,7 @@ import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { StatusToast } from '../components/StatusToast';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -54,7 +55,7 @@ import {
   type ItemDetails,
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { checkUrlSafety } from '../urlSafety/api/urlSafetyApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -719,33 +720,32 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           value={memo}
         />
 
-        <View style={styles.photosCard}>
-          {isLoadingImages ? (
-            <ActivityIndicator style={styles.imagesLoading} />
-          ) : (
-            <PhotoListEditor
-              deletingKeys={
-                new Set(
-                  effectivePhotoImages
-                    .filter(image => image.kind === 'uploaded' && deletingImageIds.has(image.image.id))
-                    .map(effectiveImageKey),
-                )
-              }
-              images={effectivePhotoImages}
-              isAdding={isUploadingImage || isReorderingPhotos}
-              onAddPhoto={pickAndUploadImage}
-              onDeleteImage={confirmDeleteImage}
-              onSetRepresentative={setPhotoAsRepresentative}
-            />
-          )}
-        </View>
+        {isLoadingImages ? (
+          <ActivityIndicator style={styles.imagesLoading} />
+        ) : (
+          <PhotoListEditor
+            deletingKeys={
+              new Set(
+                effectivePhotoImages
+                  .filter(image => image.kind === 'uploaded' && deletingImageIds.has(image.image.id))
+                  .map(effectiveImageKey),
+              )
+            }
+            images={effectivePhotoImages}
+            isAdding={isUploadingImage || isReorderingPhotos}
+            onAddPhoto={pickAndUploadImage}
+            onDeleteImage={confirmDeleteImage}
+            onSetRepresentative={setPhotoAsRepresentative}
+          />
+        )}
         {photoReorderError ? <Text style={styles.error}>{photoReorderError}</Text> : null}
 
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
         {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        {justSaved && !isDirty ? <Text style={styles.savedMessage}>{t('item.saved')}</Text> : null}
       </ScrollView>
+
+      {justSaved && !isDirty ? <StatusToast message={t('item.saved')} /> : null}
 
       <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
         <Pressable
@@ -900,11 +900,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 16,
   },
-  savedMessage: {
-    color: colors.success,
-    fontSize: 14,
-    marginTop: 16,
-  },
   disabledButton: {
     opacity: 0.5,
   },
@@ -946,15 +941,5 @@ const styles = StyleSheet.create({
   },
   imagesLoading: {
     marginVertical: spacing.sm,
-  },
-  // Gives the 사진 section the same "floating white card" treatment as every other grouped section
-  // in this round's redesign, instead of the header/thumbnails sitting directly on the screen
-  // background (this round's "image section card 느낌").
-  photosCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    ...cardShadow,
   },
 });

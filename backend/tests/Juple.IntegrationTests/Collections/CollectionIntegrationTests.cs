@@ -626,4 +626,63 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         Assert.Equal(5, allReturnedIds.Distinct().Count());
         Assert.Equal(favoriteIds.OrderByDescending(id => id), allReturnedIds);
     }
+
+    [Fact]
+    public async Task CreateAsync_WithNoExplicitColor_PersistsNullColor()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+
+        Assert.Null(created.Color);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithExplicitColor_PersistsAndRoundTripsColor()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+
+        var created = await store.CreateAsync(
+            _userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow, CollectionColor.Mint);
+        var fetched = await store.GetAsync(_userId, created.Id);
+
+        Assert.Equal("Mint", created.Color);
+        Assert.Equal("Mint", fetched.Color);
+    }
+
+    [Fact]
+    public async Task SetColorAsync_UpdatesColorAndUpdatedAtUtc()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Books to read");
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var updatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(1);
+
+        var updated = await store.SetColorAsync(_userId, created.Id, CollectionColor.Rose, updatedAtUtc);
+
+        Assert.Equal("Rose", updated.Color);
+        Assert.Equal(updatedAtUtc, updated.UpdatedAtUtc);
+    }
+
+    /// <summary>
+    /// The exact "기존 category의 visual을 깨뜨리지 않기" contract: a Collection created before this
+    /// feature (simulated here by never calling SetColorAsync at all) must keep reading back as a
+    /// null Color from every read path (GetAsync/ListAsync), so the client's existing
+    /// id-deterministic palette fallback stays in effect - never silently backfilled to some color.
+    /// </summary>
+    [Fact]
+    public async Task LegacyCollection_WithoutExplicitColor_StaysNullAcrossGetAndList()
+    {
+        var store = new CollectionStore(_dbContext);
+        var (name, nameNormalized) = Normalize("Legacy collection");
+        var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
+
+        var fetched = await store.GetAsync(_userId, created.Id);
+        var listed = await store.ListAsync(_userId, itemId: null, excludeItemId: null, isFavorite: null, cursor: null, limit: 10);
+
+        Assert.Null(fetched.Color);
+        Assert.Null(listed.Items.Single(item => item.Id == created.Id).Color);
+    }
 }

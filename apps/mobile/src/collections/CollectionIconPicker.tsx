@@ -1,24 +1,36 @@
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { COLLECTION_ICON_KEYS, resolveCollectionIconComponent, type CollectionIconKey } from './collectionIcons';
-import { categoryTilePalette, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+
+interface CollectionIconPickerTile {
+  readonly background: string;
+  readonly icon: string;
+}
 
 interface CollectionIconPickerProps {
   readonly selected: CollectionIconKey;
   readonly onSelect: (icon: CollectionIconKey) => void;
+  /**
+   * The single pastel {background, icon} pair every cell in this grid renders with (the currently
+   * selected/effective color - see collectionColors.ts) - icon choice and color choice are two
+   * independent decisions, so every icon must read in the same color rather than each cell picking
+   * its own from an unrelated per-index palette (that mismatch, where the grid's own colors never
+   * matched the actually-applied tile color, is exactly what motivated making color explicit).
+   */
+  readonly tile: CollectionIconPickerTile;
   readonly disabled?: boolean;
 }
 
 /** A fixed 10-icon grid (see collectionIcons.ts) for choosing a Collection's decorative icon at create/edit time - shown below the name field wherever a Collection's name can be entered. */
-export function CollectionIconPicker({ selected, onSelect, disabled }: CollectionIconPickerProps) {
+export function CollectionIconPicker({ selected, onSelect, tile, disabled }: CollectionIconPickerProps) {
   const { t } = useTranslation();
 
   return (
     <View style={styles.grid}>
-      {COLLECTION_ICON_KEYS.map((icon, index) => {
+      {COLLECTION_ICON_KEYS.map(icon => {
         const IconComponent = resolveCollectionIconComponent(icon);
         const isSelected = icon === selected;
-        const tile = categoryTilePalette[index % categoryTilePalette.length];
         return (
           <Pressable
             accessibilityLabel={t('collections.iconOptionA11y', { icon: t(`collections.iconNames.${icon}`) })}

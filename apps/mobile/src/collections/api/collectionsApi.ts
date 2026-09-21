@@ -17,6 +17,14 @@ export interface Collection {
    * this type itself going stale.
    */
   readonly icon: string;
+  /**
+   * One of the fixed CollectionColor keys the server defines (see collectionColors.ts), or null when
+   * no explicit color was ever chosen (a legacy row, or one seeded without one) - a plain nullable
+   * string wire type, not a union, for the same forward-compatibility reason as `icon`. null must be
+   * treated as "fall back to the existing id-deterministic palette" (see CategoryIconTile), never as
+   * a color choice in its own right.
+   */
+  readonly color: string | null;
 }
 
 /**
@@ -98,18 +106,20 @@ export async function getCollections(
 
 /**
  * POSTs a new Collection; resolves with the created Collection on 201 (409 on a duplicate name).
- * icon is optional - omitting it (e.g. the New Link Review quick-create field) lets the server
- * apply its own default (Folder) rather than this client guessing one.
+ * icon/color are optional - omitting either (e.g. the New Link Review quick-create field, which has
+ * no color picker) lets the server apply its own defaults (Folder / Blue) rather than this client
+ * guessing one.
  */
 export async function createCollection(
   request: AuthenticatedApiRequest,
   name: string,
   icon?: string,
+  color?: string,
 ): Promise<Collection> {
   const response = await request<Collection>({
     method: 'POST',
     path: '/api/v1/collections',
-    body: { name, icon },
+    body: { name, icon, color },
   });
 
   if (!response.body) {
@@ -177,6 +187,25 @@ export async function setCollectionIcon(
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/icon`,
     body: { icon },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
+}
+
+/** PUTs a Collection's color; resolves with the updated Collection (409 on a concurrent modification). */
+export async function setCollectionColor(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  color: string,
+): Promise<Collection> {
+  const response = await request<Collection>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/color`,
+    body: { color },
   });
 
   if (!response.body) {

@@ -36,6 +36,7 @@ public interface ICollectionStore
         string nameNormalized,
         CollectionIcon icon,
         DateTimeOffset createdAtUtc,
+        CollectionColor? color = null,
         CancellationToken cancellationToken = default);
 
     Task<CollectionDto> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
@@ -65,6 +66,14 @@ public interface ICollectionStore
         long userId,
         long collectionId,
         CollectionIcon icon,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Same lost-update protection as SetFavoriteAsync above.</summary>
+    Task<CollectionDto> SetColorAsync(
+        long userId,
+        long collectionId,
+        CollectionColor color,
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default);
 

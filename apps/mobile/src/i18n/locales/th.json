@@ -144,7 +144,23 @@
       "Laptop": "งาน",
       "Globe": "โลก",
       "Tag": "แท็ก"
-    }
+    },
+    "colorSectionTitle": "เลือกสี",
+    "colorOptionA11y": "สี{{color}}",
+    "colorNames": {
+      "Blue": "น้ำเงิน",
+      "Mint": "มินต์",
+      "Rose": "กุหลาบ",
+      "Amber": "อำพัน",
+      "Purple": "ม่วง",
+      "Peach": "พีช",
+      "Teal": "เขียวอมฟ้า",
+      "Slate": "เทาหินชนวน"
+    },
+    "createConfirmA11y": "บันทึกหมวดหมู่",
+    "errorColorUpdateFallback": "ไม่สามารถอัปเดตสีได้",
+    "favoritesEmpty": "ไม่มีรายการโปรด",
+    "allCollectionsEmpty": "ไม่มีหมวดหมู่"
   },
   "myPage": {
     "title": "หน้าของฉัน",

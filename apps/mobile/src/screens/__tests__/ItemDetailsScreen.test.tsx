@@ -113,6 +113,7 @@ function makeCollection(overrides: Partial<Collection> = {}): Collection {
     createdAtUtc: new Date().toISOString(),
     updatedAtUtc: new Date().toISOString(),
     icon: 'Folder',
+    color: null,
     ...overrides,
   };
 }

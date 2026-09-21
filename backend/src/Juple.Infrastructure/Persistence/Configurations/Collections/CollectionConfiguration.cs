@@ -61,6 +61,14 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
             .IsRequired()
             .HasDefaultValue(CollectionIcon.Folder);
 
+        // Nullable, unlike Icon - deliberately NO default value, so every row that already existed
+        // before this column was added stays NULL rather than being backfilled to some color (see
+        // Collection.Color's own remarks: NULL is what tells the client to keep using its existing
+        // id-deterministic palette fallback instead of an explicit color).
+        builder.Property(collection => collection.Color)
+            .HasConversion<string>()
+            .HasColumnType("varchar(20)");
+
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
 

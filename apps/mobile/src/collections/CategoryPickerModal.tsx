@@ -76,7 +76,7 @@ export function CategoryPickerModal({
                     style={styles.optionRow}
                   >
                     <View style={styles.optionLabelRow}>
-                      <CategoryIconTile collectionId={option.id} icon={option.icon} size={36} />
+                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} size={36} />
                       <Text numberOfLines={1} style={styles.optionLabel}>
                         {option.name}
                       </Text>

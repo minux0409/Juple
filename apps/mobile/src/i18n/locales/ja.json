@@ -144,7 +144,23 @@
       "Laptop": "仕事",
       "Globe": "地球儀",
       "Tag": "タグ"
-    }
+    },
+    "colorSectionTitle": "色を選択",
+    "colorOptionA11y": "{{color}}色",
+    "colorNames": {
+      "Blue": "ブルー",
+      "Mint": "ミント",
+      "Rose": "ローズ",
+      "Amber": "アンバー",
+      "Purple": "パープル",
+      "Peach": "ピーチ",
+      "Teal": "ティール",
+      "Slate": "スレート"
+    },
+    "createConfirmA11y": "カテゴリを保存",
+    "errorColorUpdateFallback": "色を更新できませんでした。",
+    "favoritesEmpty": "お気に入りがありません。",
+    "allCollectionsEmpty": "カテゴリがありません。"
   },
   "myPage": {
     "title": "マイページ",

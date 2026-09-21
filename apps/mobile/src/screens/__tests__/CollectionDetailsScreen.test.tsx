@@ -10,6 +10,7 @@ import {
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
+  setCollectionColor,
   setCollectionIcon,
   type Collection,
   type CollectionItemEntry,
@@ -44,6 +45,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
   revokeCollectionShare: jest.fn(),
+  setCollectionColor: jest.fn(),
   setCollectionFavorite: jest.fn(),
   setCollectionIcon: jest.fn(),
 }));
@@ -61,6 +63,7 @@ function makeCollection(overrides: Partial<Collection> = {}): Collection {
     createdAtUtc: new Date().toISOString(),
     updatedAtUtc: new Date().toISOString(),
     icon: 'Folder',
+    color: null,
     ...overrides,
   };
 }
@@ -337,6 +340,56 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(callOrder).toEqual(['rename', 'icon']);
+    });
+
+    /** A Collection with no explicit color yet must seed the picker from its currently-visible
+     * EFFECTIVE (id-deterministic fallback) color, as if it were already selected - never Blue by
+     * default regardless of id (see resolveEffectiveCollectionColorKey). */
+    it('seeds the color picker from the collection\'s effective (fallback) color when none is explicit', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ id: 3, color: null }));
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header = getHeaderElement(renderer);
+      expandIconPicker(header);
+      // id 3's deterministic fallback resolves to 'Mint' - see collectionColors.ts's own mapping.
+      const mintSwatch = header.root.findByProps({ testID: 'collection-color-option-Mint' });
+      expect(mintSwatch.props.accessibilityState.selected).toBe(true);
+    });
+
+    it('seeds the color picker from the collection\'s explicit color when one is set', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ id: 3, color: 'Teal' }));
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header = getHeaderElement(renderer);
+      expandIconPicker(header);
+      const tealSwatch = header.root.findByProps({ testID: 'collection-color-option-Teal' });
+      expect(tealSwatch.props.accessibilityState.selected).toBe(true);
+    });
+
+    it('changing only the color calls setCollectionColor but not renameCollection/setCollectionIcon', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ id: 3, icon: 'Folder', color: 'Blue' }));
+      jest.mocked(setCollectionColor).mockResolvedValue(makeCollection({ id: 3, color: 'Mint' }));
+      const renderer = await renderScreen();
+
+      openEditMode(renderer);
+      const header1 = getHeaderElement(renderer);
+      expandIconPicker(header1);
+      const mintSwatch = header1.root.findByProps({ testID: 'collection-color-option-Mint' });
+      act(() => {
+        mintSwatch.props.onPress();
+      });
+
+      const header2 = getHeaderElement(renderer);
+      const saveButton = findSaveButton(header2);
+      await act(async () => {
+        await saveButton.props.onPress();
+      });
+
+      expect(setCollectionColor).toHaveBeenCalledWith(expect.anything(), 1, 'Mint');
+      expect(renameCollection).not.toHaveBeenCalled();
+      expect(setCollectionIcon).not.toHaveBeenCalled();
     });
   });
 

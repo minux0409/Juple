@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CollectionColorPicker } from './CollectionColorPicker';
 import { CollectionIconPicker } from './CollectionIconPicker';
+import { resolveCollectionColorTile, type CollectionColorKey } from './collectionColors';
 import { resolveCollectionIconComponent, type CollectionIconKey } from './collectionIcons';
-import { categoryTilePalette, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
-
-// A not-yet-created Collection has no id to seed a pastel tile color from (see CategoryIconTile) -
-// this neutral "draft" tile is shown instead, until the real Collection (and its palette color)
-// exists.
-const DRAFT_ICON_TILE = { background: colors.surfaceMuted, icon: colors.textSecondary };
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 interface CategoryNameAndIconFieldProps {
   readonly name: string;
@@ -16,19 +13,23 @@ interface CategoryNameAndIconFieldProps {
   readonly namePlaceholder?: string;
   readonly icon: CollectionIconKey;
   readonly onChangeIcon: (icon: CollectionIconKey) => void;
+  /** The currently selected/effective color (see collectionColors.ts) - the caller resolves this
+   * up front (a fixed default for a not-yet-created Collection, or the currently-effective color -
+   * explicit or deterministic-fallback - for an existing one), so this field never has to guess one
+   * itself. Drives both the thumbnail preview and the expanded icon grid's shared tile color. */
+  readonly color: CollectionColorKey;
+  readonly onChangeColor: (color: CollectionColorKey) => void;
   readonly disabled?: boolean;
   readonly autoFocus?: boolean;
-  /** Seeds the same pastel tile color CategoryIconTile shows for this Collection everywhere else -
-   * omit while creating a not-yet-existing Collection, which shows a neutral draft tile instead. */
-  readonly collectionId?: number;
 }
 
 /**
- * The shared "이름 입력 + 아이콘 썸네일(탭하면 grid가 펼쳐짐)" field used identically by
- * CollectionsScreen (생성) and CollectionDetailsScreen (수정) - a "프로필 사진 선택"-style
- * inline-expand pattern instead of an always-open icon grid. Tapping the thumbnail toggles the
- * grid open/closed; picking an icon both applies it and collapses the grid back down (mirrors a
- * typical avatar picker's own "tap thumbnail -> pick -> collapses" flow).
+ * The shared "이름 입력 + 아이콘 썸네일(탭하면 아이콘 grid + 색상 swatch row가 함께 펼쳐짐)" field used
+ * identically by CollectionsScreen (생성) and CollectionDetailsScreen (수정) - a "프로필 사진 선택"-style
+ * inline-expand pattern instead of an always-open picker. Tapping the thumbnail toggles the panel
+ * open/closed; picking an icon or a color applies it immediately without collapsing the panel, since
+ * icon and color are two independent choices a user commonly makes back-to-back in one sitting -
+ * only re-tapping the thumbnail collapses it.
  */
 export function CategoryNameAndIconField({
   name,
@@ -36,17 +37,15 @@ export function CategoryNameAndIconField({
   namePlaceholder,
   icon,
   onChangeIcon,
+  color,
+  onChangeColor,
   disabled,
   autoFocus,
-  collectionId,
 }: CategoryNameAndIconFieldProps) {
   const { t } = useTranslation();
-  const [isIconPickerExpanded, setIsIconPickerExpanded] = useState(false);
+  const [isPickerExpanded, setIsPickerExpanded] = useState(false);
   const IconComponent = resolveCollectionIconComponent(icon);
-  const tile =
-    collectionId !== undefined
-      ? categoryTilePalette[Math.abs(collectionId) % categoryTilePalette.length]
-      : DRAFT_ICON_TILE;
+  const tile = resolveCollectionColorTile(color);
 
   return (
     <View>
@@ -54,9 +53,9 @@ export function CategoryNameAndIconField({
         <Pressable
           accessibilityLabel={t('collections.iconSectionTitle')}
           accessibilityRole="button"
-          accessibilityState={{ disabled: Boolean(disabled), expanded: isIconPickerExpanded }}
+          accessibilityState={{ disabled: Boolean(disabled), expanded: isPickerExpanded }}
           disabled={disabled}
-          onPress={() => setIsIconPickerExpanded(previous => !previous)}
+          onPress={() => setIsPickerExpanded(previous => !previous)}
           style={[styles.iconThumbnail, { backgroundColor: tile.background }, disabled && styles.disabled]}
           testID="category-icon-thumbnail-button"
         >
@@ -71,16 +70,11 @@ export function CategoryNameAndIconField({
           value={name}
         />
       </View>
-      {isIconPickerExpanded ? (
-        <View style={styles.iconGrid}>
-          <CollectionIconPicker
-            disabled={disabled}
-            onSelect={selected => {
-              onChangeIcon(selected);
-              setIsIconPickerExpanded(false);
-            }}
-            selected={icon}
-          />
+      {isPickerExpanded ? (
+        <View style={styles.pickerPanel}>
+          <CollectionIconPicker disabled={disabled} onSelect={onChangeIcon} selected={icon} tile={tile} />
+          <Text style={styles.colorSectionTitle}>{t('collections.colorSectionTitle')}</Text>
+          <CollectionColorPicker disabled={disabled} onSelect={onChangeColor} selected={color} />
         </View>
       ) : null}
     </View>
@@ -115,7 +109,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 4,
   },
-  iconGrid: {
+  pickerPanel: {
     marginTop: spacing.sm + 4,
+  },
+  colorSectionTitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: spacing.xs + 2,
+    marginTop: spacing.md,
   },
 });

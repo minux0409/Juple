@@ -144,7 +144,23 @@
       "Laptop": "工作",
       "Globe": "地球",
       "Tag": "标签"
-    }
+    },
+    "colorSectionTitle": "选择颜色",
+    "colorOptionA11y": "{{color}}色",
+    "colorNames": {
+      "Blue": "蓝色",
+      "Mint": "薄荷绿",
+      "Rose": "玫瑰色",
+      "Amber": "琥珀色",
+      "Purple": "紫色",
+      "Peach": "桃色",
+      "Teal": "青绿色",
+      "Slate": "石板灰"
+    },
+    "createConfirmA11y": "保存分类",
+    "errorColorUpdateFallback": "无法更新颜色。",
+    "favoritesEmpty": "没有收藏。",
+    "allCollectionsEmpty": "没有分类。"
   },
   "myPage": {
     "title": "我的",

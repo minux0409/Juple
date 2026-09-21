@@ -11,13 +11,22 @@ public sealed class Collection
     {
     }
 
+    // color trails with a default (unlike icon) so every existing positional call site that never
+    // cared about color (test fixtures, seeding) keeps compiling unchanged - see Collection.Color's
+    // own remarks on why null ("no explicit color") is itself a completely valid, common state.
     public Collection(
-        long userId, string name, string nameNormalized, CollectionIcon icon, DateTimeOffset createdAtUtc)
+        long userId,
+        string name,
+        string nameNormalized,
+        CollectionIcon icon,
+        DateTimeOffset createdAtUtc,
+        CollectionColor? color = null)
     {
         UserId = userId;
         Name = name;
         NameNormalized = nameNormalized;
         Icon = icon;
+        Color = color;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = createdAtUtc;
     }
@@ -49,6 +58,10 @@ public sealed class Collection
 
     /// <summary>Decorative only - see CollectionIcon. Every Collection has one; a new one defaults to Folder.</summary>
     public CollectionIcon Icon { get; private set; }
+
+    /// <summary>Decorative only - see CollectionColor's own remarks on why this is nullable (unlike
+    /// Icon): null means "fall back to the existing id-deterministic palette", not "no color".</summary>
+    public CollectionColor? Color { get; private set; }
 
     /// <summary>Callers must pass an already-normalized (trimmed, non-empty) name/nameNormalized pair.</summary>
     public void Rename(string name, string nameNormalized, DateTimeOffset updatedAtUtc)
@@ -82,6 +95,19 @@ public sealed class Collection
         }
 
         Icon = icon;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
+    /// <summary>Always sets an explicit, non-null color - there is no "clear back to the
+    /// deterministic-palette fallback" action once a Collection has one (mirrors SetIcon).</summary>
+    public void SetColor(CollectionColor color, DateTimeOffset updatedAtUtc)
+    {
+        if (Color == color)
+        {
+            return;
+        }
+
+        Color = color;
         UpdatedAtUtc = updatedAtUtc;
     }
 }

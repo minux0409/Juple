@@ -144,7 +144,23 @@
       "Laptop": "Công việc",
       "Globe": "Địa cầu",
       "Tag": "Thẻ"
-    }
+    },
+    "colorSectionTitle": "Chọn màu",
+    "colorOptionA11y": "Màu {{color}}",
+    "colorNames": {
+      "Blue": "Xanh dương",
+      "Mint": "Bạc hà",
+      "Rose": "Hồng",
+      "Amber": "Hổ phách",
+      "Purple": "Tím",
+      "Peach": "Đào",
+      "Teal": "Xanh mòng két",
+      "Slate": "Xám đá phiến"
+    },
+    "createConfirmA11y": "Lưu danh mục",
+    "errorColorUpdateFallback": "Không thể cập nhật màu.",
+    "favoritesEmpty": "Không có mục yêu thích.",
+    "allCollectionsEmpty": "Không có danh mục."
   },
   "myPage": {
     "title": "Trang của tôi",

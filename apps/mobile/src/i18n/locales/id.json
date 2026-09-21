@@ -144,7 +144,23 @@
       "Laptop": "Kerja",
       "Globe": "Dunia",
       "Tag": "Label"
-    }
+    },
+    "colorSectionTitle": "Pilih warna",
+    "colorOptionA11y": "Warna {{color}}",
+    "colorNames": {
+      "Blue": "Biru",
+      "Mint": "Mint",
+      "Rose": "Merah Muda",
+      "Amber": "Amber",
+      "Purple": "Ungu",
+      "Peach": "Persik",
+      "Teal": "Teal",
+      "Slate": "Abu-abu Batu"
+    },
+    "createConfirmA11y": "Simpan kategori",
+    "errorColorUpdateFallback": "Gagal memperbarui warna.",
+    "favoritesEmpty": "Tidak ada favorit.",
+    "allCollectionsEmpty": "Tidak ada kategori."
   },
   "myPage": {
     "title": "Halaman Saya",

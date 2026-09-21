@@ -68,6 +68,9 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 // normalization is inlined here (trim+uppercase) since it's `internal` to
                 // Juple.Application and this store intentionally doesn't take a dependency on an
                 // Application-layer service (see the seeding design note in the UI refactor plan).
+                // No explicit color (defaults to null) - these system-seeded defaults rely on the
+                // same id-deterministic palette fallback as any other pre-existing row (see
+                // Collection.Color's own remarks), not a color picked through the create UI.
                 dbContext.Set<Collection>().Add(
                     new Collection(
                         user.Id, name, name.Trim().ToUpperInvariant(), CollectionIcon.Folder, data.CreatedAtUtc));

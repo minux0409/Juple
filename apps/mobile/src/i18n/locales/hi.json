@@ -144,7 +144,23 @@
       "Laptop": "काम",
       "Globe": "ग्लोब",
       "Tag": "टैग"
-    }
+    },
+    "colorSectionTitle": "रंग चुनें",
+    "colorOptionA11y": "{{color}} रंग",
+    "colorNames": {
+      "Blue": "नीला",
+      "Mint": "मिंट",
+      "Rose": "गुलाबी",
+      "Amber": "एम्बर",
+      "Purple": "बैंगनी",
+      "Peach": "आड़ू",
+      "Teal": "टील",
+      "Slate": "स्लेट"
+    },
+    "createConfirmA11y": "श्रेणी सहेजें",
+    "errorColorUpdateFallback": "रंग अपडेट नहीं हो सका।",
+    "favoritesEmpty": "कोई पसंदीदा नहीं है।",
+    "allCollectionsEmpty": "कोई श्रेणी नहीं है।"
   },
   "myPage": {
     "title": "मेरा पेज",

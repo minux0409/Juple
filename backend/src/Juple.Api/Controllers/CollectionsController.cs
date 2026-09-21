@@ -14,6 +14,7 @@ using Juple.Application.Collections.MoveCollectionItem;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
+using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Identity;
@@ -37,6 +38,7 @@ public sealed class CollectionsController(
     IRenameCollectionService renameCollectionService,
     ISetCollectionFavoriteService setCollectionFavoriteService,
     ISetCollectionIconService setCollectionIconService,
+    ISetCollectionColorService setCollectionColorService,
     IDeleteCollectionService deleteCollectionService,
     IGetCollectionItemsService getCollectionItemsService,
     IAddItemToCollectionService addItemToCollectionService,
@@ -146,7 +148,9 @@ public sealed class CollectionsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var collection = await createCollectionService.CreateAsync(
-                currentUser.UserId, new CreateCollectionCommand(request.Name, request.Icon), cancellationToken);
+                currentUser.UserId,
+                new CreateCollectionCommand(request.Name, request.Icon, request.Color),
+                cancellationToken);
 
             return Created($"/api/v1/collections/{collection.Id}", collection);
         }
@@ -257,6 +261,47 @@ public sealed class CollectionsController(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var collection = await setCollectionIconService.SetIconAsync(
                 currentUser.UserId, id, new SetCollectionIconCommand(request.Icon), cancellationToken);
+
+            return Ok(collection);
+        }
+        catch (InvalidCollectionException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionConcurrencyException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The Collection was modified concurrently.");
+        }
+    }
+
+    /// <summary>Same shape as SetIconAsync above (returns the latest CollectionDto, no client-supplied version).</summary>
+    [HttpPut("{id:long}/color")]
+    public async Task<IActionResult> SetColorAsync(
+        long id,
+        SetCollectionColorRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var collection = await setCollectionColorService.SetColorAsync(
+                currentUser.UserId, id, new SetCollectionColorCommand(request.Color), cancellationToken);
 
             return Ok(collection);
         }
@@ -488,13 +533,15 @@ public sealed class CollectionsController(
         }
     }
 
-    public sealed record CreateCollectionRequest(string? Name, string? Icon);
+    public sealed record CreateCollectionRequest(string? Name, string? Icon, string? Color);
 
     public sealed record RenameCollectionRequest(string? Name);
 
     public sealed record SetCollectionFavoriteRequest(bool IsFavorite);
 
     public sealed record SetCollectionIconRequest(string? Icon);
+
+    public sealed record SetCollectionColorRequest(string? Color);
 
     public sealed record MoveCollectionItemRequest(long? AfterItemId);
 

@@ -110,4 +110,61 @@ public sealed class CollectionTests
         Assert.Equal(CollectionIcon.Folder, collection.Icon);
         Assert.Equal(CreatedAtUtc, collection.UpdatedAtUtc);
     }
+
+    [Fact]
+    public void Constructor_WithoutExplicitColor_DefaultsColorToNull()
+    {
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+
+        Assert.Null(collection.Color);
+    }
+
+    [Fact]
+    public void Constructor_WithExplicitColor_SetsColor()
+    {
+        var collection = new Collection(
+            17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc, CollectionColor.Mint);
+
+        Assert.Equal(CollectionColor.Mint, collection.Color);
+    }
+
+    [Fact]
+    public void SetColor_ChangesColorAndUpdatedAtUtc()
+    {
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+        var changedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SetColor(CollectionColor.Rose, changedAtUtc);
+
+        Assert.Equal(CollectionColor.Rose, collection.Color);
+        Assert.Equal(changedAtUtc, collection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SetColor_FromNull_ChangesColorAndUpdatedAtUtc()
+    {
+        // The migration-created "no explicit color" state (null) must be settable to an explicit
+        // color just like any other value - never a special/blocked transition.
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+        Assert.Null(collection.Color);
+        var changedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SetColor(CollectionColor.Blue, changedAtUtc);
+
+        Assert.Equal(CollectionColor.Blue, collection.Color);
+        Assert.Equal(changedAtUtc, collection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SetColor_WithSameValue_IsNoOpAndDoesNotTouchUpdatedAtUtc()
+    {
+        var collection = new Collection(
+            17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc, CollectionColor.Teal);
+        var unchangedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SetColor(CollectionColor.Teal, unchangedAtUtc);
+
+        Assert.Equal(CollectionColor.Teal, collection.Color);
+        Assert.Equal(CreatedAtUtc, collection.UpdatedAtUtc);
+    }
 }

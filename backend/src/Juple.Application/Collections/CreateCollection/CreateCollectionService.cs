@@ -11,7 +11,8 @@ public sealed class CreateCollectionService(
     {
         var (name, nameNormalized) = CollectionNameNormalizer.Normalize(command.Name);
         var icon = CollectionIconParser.Parse(command.Icon);
+        var color = CollectionColorParser.Parse(command.Color);
         return collectionStore.CreateAsync(
-            userId, name, nameNormalized, icon, timeProvider.GetUtcNow(), cancellationToken);
+            userId, name, nameNormalized, icon, timeProvider.GetUtcNow(), color, cancellationToken);
     }
 }

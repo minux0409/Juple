@@ -22,6 +22,7 @@ function makeCollection(overrides: Partial<Collection>): Collection {
     createdAtUtc: '2026-01-01T00:00:00Z',
     updatedAtUtc: '2026-01-01T00:00:00Z',
     icon: 'Folder',
+    color: null,
     ...overrides,
   };
 }

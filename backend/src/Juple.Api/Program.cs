@@ -15,6 +15,7 @@ using Juple.Application.Collections.Public;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
+using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Identity;
@@ -99,6 +100,7 @@ builder.Services.AddScoped<IGetCollectionDetailService, GetCollectionDetailServi
 builder.Services.AddScoped<IRenameCollectionService, RenameCollectionService>();
 builder.Services.AddScoped<ISetCollectionFavoriteService, SetCollectionFavoriteService>();
 builder.Services.AddScoped<ISetCollectionIconService, SetCollectionIconService>();
+builder.Services.AddScoped<ISetCollectionColorService, SetCollectionColorService>();
 builder.Services.AddScoped<IDeleteCollectionService, DeleteCollectionService>();
 builder.Services.AddScoped<IGetCollectionItemsService, GetCollectionItemsService>();
 builder.Services.AddScoped<IAddItemToCollectionService, AddItemToCollectionService>();

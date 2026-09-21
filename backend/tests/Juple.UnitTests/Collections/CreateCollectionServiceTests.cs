@@ -12,7 +12,7 @@ public sealed class CreateCollectionServiceTests
         var store = new FakeCollectionStore();
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
-        await service.CreateAsync(17, new CreateCollectionCommand("  Books to read  ", null));
+        await service.CreateAsync(17, new CreateCollectionCommand("  Books to read  ", null, null));
 
         Assert.Equal("Books to read", store.LastCreatedName);
     }
@@ -23,7 +23,7 @@ public sealed class CreateCollectionServiceTests
         var store = new FakeCollectionStore();
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
-        await service.CreateAsync(17, new CreateCollectionCommand("  Books to read  ", null));
+        await service.CreateAsync(17, new CreateCollectionCommand("  Books to read  ", null, null));
 
         Assert.Equal("BOOKS TO READ", store.LastCreatedNameNormalized);
     }
@@ -38,7 +38,7 @@ public sealed class CreateCollectionServiceTests
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
         var exception = await Assert.ThrowsAsync<InvalidCollectionException>(
-            () => service.CreateAsync(17, new CreateCollectionCommand(name, null)));
+            () => service.CreateAsync(17, new CreateCollectionCommand(name, null, null)));
 
         Assert.Equal("name", exception.Field);
         Assert.False(store.WasCreateCalled);
@@ -52,7 +52,7 @@ public sealed class CreateCollectionServiceTests
         var tooLongName = new string('a', 101);
 
         var exception = await Assert.ThrowsAsync<InvalidCollectionException>(
-            () => service.CreateAsync(17, new CreateCollectionCommand(tooLongName, null)));
+            () => service.CreateAsync(17, new CreateCollectionCommand(tooLongName, null, null)));
 
         Assert.Equal("name", exception.Field);
         Assert.False(store.WasCreateCalled);
@@ -65,7 +65,7 @@ public sealed class CreateCollectionServiceTests
         var service = new CreateCollectionService(store, new FixedTimeProvider());
         var maxLengthName = new string('a', 100);
 
-        await service.CreateAsync(17, new CreateCollectionCommand(maxLengthName, null));
+        await service.CreateAsync(17, new CreateCollectionCommand(maxLengthName, null, null));
 
         Assert.Equal(maxLengthName, store.LastCreatedName);
     }
@@ -77,7 +77,7 @@ public sealed class CreateCollectionServiceTests
         var store = new FakeCollectionStore();
         var service = new CreateCollectionService(store, new FixedTimeProvider(now));
 
-        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null));
+        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, null));
 
         Assert.Equal(17, store.LastUserId);
         Assert.Equal(now, store.LastCreatedAtUtc);
@@ -90,7 +90,7 @@ public sealed class CreateCollectionServiceTests
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
         await Assert.ThrowsAsync<CollectionNameConflictException>(
-            () => service.CreateAsync(17, new CreateCollectionCommand("Books to read", null)));
+            () => service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, null)));
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class CreateCollectionServiceTests
         var store = new FakeCollectionStore();
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
-        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null));
+        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, null));
 
         Assert.Equal(CollectionIcon.Folder, store.LastCreatedIcon);
     }
@@ -110,7 +110,7 @@ public sealed class CreateCollectionServiceTests
         var store = new FakeCollectionStore();
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
-        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", "Plane"));
+        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", "Plane", null));
 
         Assert.Equal(CollectionIcon.Plane, store.LastCreatedIcon);
     }
@@ -122,9 +122,44 @@ public sealed class CreateCollectionServiceTests
         var service = new CreateCollectionService(store, new FixedTimeProvider());
 
         var exception = await Assert.ThrowsAsync<InvalidCollectionException>(
-            () => service.CreateAsync(17, new CreateCollectionCommand("Books to read", "NotARealIcon")));
+            () => service.CreateAsync(17, new CreateCollectionCommand("Books to read", "NotARealIcon", null)));
 
         Assert.Equal("icon", exception.Field);
+        Assert.False(store.WasCreateCalled);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenColorIsNotProvided_DefaultsToBlue()
+    {
+        var store = new FakeCollectionStore();
+        var service = new CreateCollectionService(store, new FixedTimeProvider());
+
+        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, null));
+
+        Assert.Equal(CollectionColor.Blue, store.LastCreatedColor);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenColorIsProvided_PassesResolvedColorToStore()
+    {
+        var store = new FakeCollectionStore();
+        var service = new CreateCollectionService(store, new FixedTimeProvider());
+
+        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, "Mint"));
+
+        Assert.Equal(CollectionColor.Mint, store.LastCreatedColor);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenColorIsUnrecognized_ThrowsInvalidCollection()
+    {
+        var store = new FakeCollectionStore();
+        var service = new CreateCollectionService(store, new FixedTimeProvider());
+
+        var exception = await Assert.ThrowsAsync<InvalidCollectionException>(
+            () => service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, "NotARealColor")));
+
+        Assert.Equal("color", exception.Field);
         Assert.False(store.WasCreateCalled);
     }
 
@@ -142,6 +177,8 @@ public sealed class CreateCollectionServiceTests
 
         public CollectionIcon? LastCreatedIcon { get; private set; }
 
+        public CollectionColor? LastCreatedColor { get; private set; }
+
         public DateTimeOffset? LastCreatedAtUtc { get; private set; }
 
         public Task<CollectionPage> ListAsync(
@@ -155,6 +192,7 @@ public sealed class CreateCollectionServiceTests
             string nameNormalized,
             CollectionIcon icon,
             DateTimeOffset createdAtUtc,
+            CollectionColor? color = null,
             CancellationToken cancellationToken = default)
         {
             WasCreateCalled = true;
@@ -162,6 +200,7 @@ public sealed class CreateCollectionServiceTests
             LastCreatedName = name;
             LastCreatedNameNormalized = nameNormalized;
             LastCreatedIcon = icon;
+            LastCreatedColor = color;
             LastCreatedAtUtc = createdAtUtc;
 
             if (ThrowNameConflict)
@@ -169,7 +208,8 @@ public sealed class CreateCollectionServiceTests
                 throw new CollectionNameConflictException();
             }
 
-            return Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString()));
+            return Task.FromResult(
+                new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString(), color?.ToString()));
         }
 
         public Task<CollectionDto> GetAsync(
@@ -192,6 +232,11 @@ public sealed class CreateCollectionServiceTests
 
         public Task<CollectionDto> SetIconAsync(
             long userId, long collectionId, CollectionIcon icon, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by CreateCollectionService tests.");
+
+        public Task<CollectionDto> SetColorAsync(
+            long userId, long collectionId, CollectionColor color, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by CreateCollectionService tests.");
 

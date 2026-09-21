@@ -144,7 +144,23 @@
       "Laptop": "عمل",
       "Globe": "كرة أرضية",
       "Tag": "وسم"
-    }
+    },
+    "colorSectionTitle": "اختر اللون",
+    "colorOptionA11y": "لون {{color}}",
+    "colorNames": {
+      "Blue": "أزرق",
+      "Mint": "نعناعي",
+      "Rose": "وردي",
+      "Amber": "كهرماني",
+      "Purple": "بنفسجي",
+      "Peach": "خوخي",
+      "Teal": "أزرق مخضر",
+      "Slate": "رمادي أردوازي"
+    },
+    "createConfirmA11y": "حفظ الفئة",
+    "errorColorUpdateFallback": "تعذّر تحديث اللون.",
+    "favoritesEmpty": "لا توجد عناصر مفضلة.",
+    "allCollectionsEmpty": "لا توجد فئات."
   },
   "myPage": {
     "title": "صفحتي",

@@ -144,7 +144,23 @@
       "Laptop": "Work",
       "Globe": "Globe",
       "Tag": "Tag"
-    }
+    },
+    "colorSectionTitle": "Choose color",
+    "colorOptionA11y": "{{color}} color",
+    "colorNames": {
+      "Blue": "Blue",
+      "Mint": "Mint",
+      "Rose": "Rose",
+      "Amber": "Amber",
+      "Purple": "Purple",
+      "Peach": "Peach",
+      "Teal": "Teal",
+      "Slate": "Slate"
+    },
+    "createConfirmA11y": "Save category",
+    "errorColorUpdateFallback": "Couldn't update the color.",
+    "favoritesEmpty": "No favorites.",
+    "allCollectionsEmpty": "No categories."
   },
   "myPage": {
     "title": "My Page",

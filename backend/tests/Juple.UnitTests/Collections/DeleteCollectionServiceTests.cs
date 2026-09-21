@@ -46,8 +46,10 @@ public sealed class DeleteCollectionServiceTests
             string nameNormalized,
             CollectionIcon icon,
             DateTimeOffset createdAtUtc,
+            CollectionColor? color = null,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult(new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString()));
+            Task.FromResult(
+                new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString(), color?.ToString()));
 
         public Task<CollectionDto> GetAsync(
             long userId, long collectionId, CancellationToken cancellationToken = default) =>
@@ -69,6 +71,11 @@ public sealed class DeleteCollectionServiceTests
 
         public Task<CollectionDto> SetIconAsync(
             long userId, long collectionId, CollectionIcon icon, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Not exercised by DeleteCollectionService tests.");
+
+        public Task<CollectionDto> SetColorAsync(
+            long userId, long collectionId, CollectionColor color, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by DeleteCollectionService tests.");
 

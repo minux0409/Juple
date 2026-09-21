@@ -25,6 +25,7 @@ import {
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
+  setCollectionColor,
   setCollectionFavorite,
   setCollectionIcon,
   type Collection,
@@ -33,13 +34,20 @@ import {
 } from '../collections/api/collectionsApi';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
+import {
+  DEFAULT_COLLECTION_COLOR,
+  resolveEffectiveCollectionColorKey,
+  type CollectionColorKey,
+} from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { StatusToast } from '../components/StatusToast';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
+import { GlobeIcon } from '../icons/GlobeIcon';
 import { InfoIcon } from '../icons/InfoIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
@@ -47,7 +55,7 @@ import { TrashIcon } from '../icons/TrashIcon';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -83,6 +91,13 @@ function getIconUpdateErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('collections.errorIconUpdateFallback');
+}
+
+function getColorUpdateErrorMessage(error: unknown, t: TFunction): string {
+  if (error instanceof ApiError && error.kind === 'unauthorized') {
+    return t('errors.unauthorized');
+  }
+  return t('collections.errorColorUpdateFallback');
 }
 
 function getDeleteErrorMessage(error: unknown, t: TFunction): string {
@@ -180,8 +195,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [iconDraft, setIconDraft] = useState<CollectionIconKey>(DEFAULT_COLLECTION_ICON);
+  const [colorDraft, setColorDraft] = useState<CollectionColorKey>(DEFAULT_COLLECTION_COLOR);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
+  // Shown via the shared StatusToast (always visible regardless of scroll position), not inline
+  // near the Save/Cancel buttons like renameError - a color-update failure is otherwise easy to
+  // miss (see this round's fix).
+  const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -257,8 +277,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     setNameDraft(collection.name);
     setIconDraft(resolveCollectionIconKey(collection.icon));
+    setColorDraft(resolveEffectiveCollectionColorKey(collection.color, collection.id));
     setIsEditingName(true);
     setRenameError(null);
+    setColorUpdateError(null);
   };
 
   const cancelEditName = () => {
@@ -267,15 +289,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     setIsEditingName(false);
     setRenameError(null);
+    setColorUpdateError(null);
   };
 
   /**
-   * Saves the name and/or icon edit fields together (one Save button - see the edit form below),
-   * but calls their two independent endpoints sequentially, never via Promise.all: both mutate the
-   * same Collection row's RowVersion (see backend CollectionStore.RenameAsync/SetIconAsync), so
-   * firing them concurrently risks one losing an optimistic-concurrency race against the other. A
-   * name change that succeeds followed by an icon change that fails is left applied (not rolled
-   * back) - the same "each attribute is its own independent action" contract this screen's
+   * Saves the name/icon/color edit fields together (one Save button - see the edit form below), but
+   * calls their independent endpoints sequentially, never via Promise.all: all three mutate the same
+   * Collection row's RowVersion (see backend CollectionStore.RenameAsync/SetIconAsync/SetColorAsync),
+   * so firing them concurrently risks one losing an optimistic-concurrency race against another. A
+   * name change that succeeds followed by an icon or color change that fails is left applied (not
+   * rolled back) - the same "each attribute is its own independent action" contract this screen's
    * favorite/share/delete actions already follow, not an all-or-nothing transaction.
    */
   const submitRename = async () => {
@@ -291,14 +314,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const trimmedName = nameDraft.trim();
     const nameChanged = trimmedName !== collection.name;
     const iconChanged = iconDraft !== resolveCollectionIconKey(collection.icon);
+    const colorChanged = colorDraft !== resolveEffectiveCollectionColorKey(collection.color, collection.id);
 
-    if (!nameChanged && !iconChanged) {
+    if (!nameChanged && !iconChanged && !colorChanged) {
       setIsEditingName(false);
       return;
     }
 
     setIsRenaming(true);
     setRenameError(null);
+    setColorUpdateError(null);
 
     if (nameChanged) {
       try {
@@ -317,6 +342,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         setCollection(updated);
       } catch (caughtError) {
         setRenameError(getIconUpdateErrorMessage(caughtError, t));
+        setIsRenaming(false);
+        return;
+      }
+    }
+
+    if (colorChanged) {
+      try {
+        const updated = await setCollectionColor(authenticatedRequest, collectionId, colorDraft);
+        setCollection(updated);
+      } catch (caughtError) {
+        setColorUpdateError(getColorUpdateErrorMessage(caughtError, t));
         setIsRenaming(false);
         return;
       }
@@ -513,10 +549,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               <View>
                 <CategoryNameAndIconField
                   autoFocus
-                  collectionId={collection.id}
+                  color={colorDraft}
                   disabled={isRenaming}
                   icon={iconDraft}
                   name={nameDraft}
+                  onChangeColor={setColorDraft}
                   onChangeIcon={setIconDraft}
                   onChangeName={setNameDraft}
                 />
@@ -545,7 +582,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               <View>
                 <View style={styles.headerTitleRow}>
                   <View style={styles.headerIconBadge}>
-                    <CategoryIconTile collectionId={collection.id} icon={collection.icon} size={32} />
+                    <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={32} />
                   </View>
                   <Text style={styles.title}>{collection.name}</Text>
                   <Pressable
@@ -608,6 +645,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
             <View style={styles.shareSection}>
               <View style={styles.shareToggleRow}>
+                <GlobeIcon color={colors.textSecondary} size={16} />
                 <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
                 <Pressable
                   accessibilityLabel={t('collections.publicShareInfoA11y')}
@@ -675,6 +713,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           ) : undefined
         }
       />
+      {colorUpdateError ? <StatusToast message={colorUpdateError} tone="error" /> : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -810,31 +849,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  // A compact single-line setting row (label + info + switch), not the old always-expanded
-  // description card - matches MyPageScreen's grouped-section language with a slim card boundary,
-  // but the description itself is now hidden until the info icon is tapped (see
-  // isShareInfoExpanded/shareInfoBubble below).
+  // Deliberately NOT the "white floating card + shadow" treatment every link/content card on this
+  // screen uses (see `row` below) - a muted, low-elevation setting row reads unambiguously as
+  // "설정", never mistaken for another content card. No shadow/elevation at all, and a compact
+  // single-line height - the always-expanded description card this replaced is now hidden behind
+  // the info icon (see isShareInfoExpanded/shareInfoBubble below), so this section takes up
+  // almost no vertical space by default.
   shareSection: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    ...cardShadow,
+    paddingVertical: spacing.sm,
   },
   shareToggleRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: spacing.xs + 2,
+    minHeight: 32,
   },
   shareToggleLabel: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   shareInfoButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginStart: spacing.xs,
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
   },
@@ -843,16 +884,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // The "말풍선/도움말 박스" - a muted inline panel directly under the row, only rendered while
-  // isShareInfoExpanded is true.
+  // isShareInfoExpanded is true. A touch lighter than the row's own surfaceMuted so it still
+  // reads as a nested callout rather than blending into the row above it.
   shareInfoBubble: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md,
-    marginTop: spacing.sm,
-    padding: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    marginTop: spacing.xs,
+    padding: spacing.sm,
   },
   shareDescription: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 12,
   },
   error: {
     color: '#B42318',
