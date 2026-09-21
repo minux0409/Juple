@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Nach dem Aufheben der Freigabe zeigt der bestehende Link diese Kategorie nicht mehr an.",
     "publicShareLabel": "Öffentliche Freigabe",
     "publicShareDescription": "Erstellt einen Freigabelink für diese Kategorie. Jeder mit diesem Link kann den Inhalt ansehen.",
+    "publicShareInfoA11y": "Über die öffentliche Freigabe",
     "addNew": "+ Neue Kategorie",
     "unlinkConfirmTitle": "Aus dieser Kategorie entfernen?",
     "unlinkConfirmMessage": "Der Link selbst wird nicht gelöscht, sondern nur aus dieser Kategorie entfernt.",

@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Paylaşım kaldırıldıktan sonra mevcut bağlantı artık bu kategoriyi göstermeyecek.",
     "publicShareLabel": "Herkese açık paylaşım",
     "publicShareDescription": "Bu kategori için bir paylaşım bağlantısı oluşturur. Bağlantıya sahip olan herkes içeriği görüntüleyebilir.",
+    "publicShareInfoA11y": "Herkese açık paylaşım hakkında",
     "addNew": "+ Yeni kategori",
     "unlinkConfirmTitle": "Bu kategoriden kaldırılsın mı?",
     "unlinkConfirmMessage": "Bağlantının kendisi silinmez, yalnızca bu kategoriden kaldırılır.",

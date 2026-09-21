@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "共有を解除すると、既存のリンクからこのカテゴリを見られなくなります。",
     "publicShareLabel": "公開共有",
     "publicShareDescription": "このカテゴリの共有リンクを作成し、リンクを受け取った人が内容を閲覧できるようにします。",
+    "publicShareInfoA11y": "公開共有について",
     "addNew": "+ 新規作成",
     "unlinkConfirmTitle": "このカテゴリから削除しますか？",
     "unlinkConfirmMessage": "リンク自体は削除されず、このカテゴリからのみ削除されます。",

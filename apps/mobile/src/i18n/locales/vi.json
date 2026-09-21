@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Sau khi ngừng chia sẻ, liên kết hiện có sẽ không còn hiển thị danh mục này nữa.",
     "publicShareLabel": "Chia sẻ công khai",
     "publicShareDescription": "Tạo liên kết chia sẻ cho danh mục này. Bất kỳ ai có liên kết đều có thể xem nội dung.",
+    "publicShareInfoA11y": "Về chia sẻ công khai",
     "addNew": "+ Danh mục mới",
     "unlinkConfirmTitle": "Xóa bỏ khỏi danh mục này?",
     "unlinkConfirmMessage": "Liên kết sẽ không bị xóa, chỉ bị xóa khỏi danh mục này.",

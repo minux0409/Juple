@@ -2,7 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // react-native-get-random-values is imported once at the app entry point before anything else can
@@ -15,6 +15,7 @@ import { addItemToCollection, getCollections, type Collection } from '../collect
 import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
+import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -25,7 +26,7 @@ import { MAX_EFFECTIVE_IMAGES, reorderList, type EffectiveImage } from '../items
 import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
-import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import { checkUrlSafety, type UrlSafetyStatus } from '../urlSafety/api/urlSafetyApi';
 
@@ -473,76 +474,69 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           toggle as before, just presented inside a single bordered card with the resolved preview
           image (when one exists) up top.
         */}
-        <View style={styles.previewCard}>
-          {previewImageUrl ? (
-            <Image source={{ uri: previewImageUrl }} style={styles.previewImage} />
-          ) : null}
-          <View style={styles.previewCardBody}>
-            <TextInput
-              accessibilityLabel={t('item.titleLabel')}
-              editable={!isSaving}
-              onChangeText={handleTitleChange}
-              placeholder={t('item.titlePlaceholder')}
-              style={styles.previewTitleInput}
-              value={title}
-            />
-            {!isResolvingMetadataTitle && metadataResolutionFailed ? (
+        <ContentPreviewCard
+          onChangeTitle={handleTitleChange}
+          previewImageUrl={previewImageUrl}
+          titleAccessibilityLabel={t('item.titleLabel')}
+          titleEditable={!isSaving}
+          titleHint={
+            !isResolvingMetadataTitle && metadataResolutionFailed ? (
               <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
-            ) : null}
-
-            <View style={styles.previewDivider} />
-
-            {isEditingUrl ? (
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-                editable={!isSaving}
-                keyboardType="url"
-                onBlur={() => setIsEditingUrl(false)}
-                onChangeText={setUrl}
-                style={[styles.urlInput, ltrTextStyle]}
-                value={url}
-              />
-            ) : (
-              <SourceRow
-                trailing={
-                  <View style={styles.sourceActions}>
-                    <Pressable
-                      accessibilityLabel={t('item.goToUrlA11y')}
-                      accessibilityRole="button"
-                      onPress={openUrl}
-                      style={styles.iconButton}
-                    >
-                      <ExternalLinkIcon color={colors.brand} size={20} />
-                    </Pressable>
-                    <Pressable
-                      accessibilityLabel={t('common.edit')}
-                      accessibilityRole="button"
-                      disabled={isSaving}
-                      onPress={() => setIsEditingUrl(true)}
-                      style={[styles.iconButton, isSaving && styles.disabledButton]}
-                    >
-                      <EditIcon color={colors.textSecondary} size={18} />
-                    </Pressable>
-                  </View>
-                }
-                url={url}
-              />
-            )}
-            {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
-            {urlSafetyState ? (
-              <Text
-                style={[
-                  styles.urlSafetyStatus,
-                  urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
-                ]}
-              >
-                {getUrlSafetyStatusLabel(urlSafetyState, t)}
-              </Text>
-            ) : null}
-          </View>
-        </View>
+            ) : null
+          }
+          titlePlaceholder={t('item.titlePlaceholder')}
+          titleValue={title}
+        >
+          {isEditingUrl ? (
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              editable={!isSaving}
+              keyboardType="url"
+              onBlur={() => setIsEditingUrl(false)}
+              onChangeText={setUrl}
+              style={[styles.urlInput, ltrTextStyle]}
+              value={url}
+            />
+          ) : (
+            <SourceRow
+              trailing={
+                <View style={styles.sourceActions}>
+                  <Pressable
+                    accessibilityLabel={t('item.goToUrlA11y')}
+                    accessibilityRole="button"
+                    onPress={openUrl}
+                    style={styles.iconButton}
+                  >
+                    <ExternalLinkIcon color={colors.brand} size={20} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityLabel={t('common.edit')}
+                    accessibilityRole="button"
+                    disabled={isSaving}
+                    onPress={() => setIsEditingUrl(true)}
+                    style={[styles.iconButton, isSaving && styles.disabledButton]}
+                  >
+                    <EditIcon color={colors.textSecondary} size={18} />
+                  </Pressable>
+                </View>
+              }
+              url={url}
+            />
+          )}
+          {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
+          {urlSafetyState ? (
+            <Text
+              style={[
+                styles.urlSafetyStatus,
+                urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
+              ]}
+            >
+              {getUrlSafetyStatusLabel(urlSafetyState, t)}
+            </Text>
+          ) : null}
+        </ContentPreviewCard>
 
         <CategoryField
           error={categoryPicker.error}
@@ -631,38 +625,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.lg,
     marginBottom: spacing.xs + 2,
-  },
-  // The unified "content preview" card - see this screen's own remarks above. overflow:hidden so
-  // previewImage's top corners actually clip to the card's own borderRadius.
-  previewCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    overflow: 'hidden',
-    ...cardShadow,
-  },
-  previewImage: {
-    backgroundColor: colors.surfaceMuted,
-    height: 180,
-    width: '100%',
-  },
-  previewCardBody: {
-    padding: spacing.md + 2,
-  },
-  // Borderless/transparent - reads as "this content's own title, which happens to be editable"
-  // rather than a boxed form field, matching the mockup's preview-card feel. Still the exact same
-  // controlled TextInput/onChangeText as before - purely a style change.
-  previewTitleInput: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    padding: 0,
-  },
-  previewDivider: {
-    backgroundColor: colors.divider,
-    height: 1,
-    marginVertical: spacing.sm + 2,
   },
   sourceActions: {
     flexDirection: 'row',

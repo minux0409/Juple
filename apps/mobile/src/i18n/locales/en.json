@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "After unsharing, the existing link will no longer show this category.",
     "publicShareLabel": "Public sharing",
     "publicShareDescription": "Creates a share link for this category. Anyone with the link can view its contents.",
+    "publicShareInfoA11y": "About public sharing",
     "addNew": "+ New category",
     "unlinkConfirmTitle": "Remove from this category?",
     "unlinkConfirmMessage": "The link itself won't be deleted - only removed from this category.",

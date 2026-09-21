@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Al dejar de compartir, el enlace existente ya no mostrará esta categoría.",
     "publicShareLabel": "Compartir públicamente",
     "publicShareDescription": "Crea un enlace para compartir esta categoría. Cualquiera con el enlace podrá ver su contenido.",
+    "publicShareInfoA11y": "Acerca de la compartición pública",
     "addNew": "+ Nueva categoría",
     "unlinkConfirmTitle": "¿Quitar de esta categoría?",
     "unlinkConfirmMessage": "El enlace en sí no se eliminará, solo se quitará de esta categoría.",

@@ -3,6 +3,7 @@ import { Linking, Text, TextInput } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ContentPreviewCard } from '../../components/ContentPreviewCard';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
 import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 import {
@@ -183,6 +184,14 @@ describe('ItemDetailsScreen', () => {
     jest.clearAllMocks();
   });
 
+  describe('unified content preview card (shared with NewLinkReviewScreen)', () => {
+    it('renders the title/source using the shared ContentPreviewCard component, not a separately structured form', async () => {
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findAllByType(ContentPreviewCard)).toHaveLength(1);
+    });
+  });
+
   describe('title/memo', () => {
     it('keeps Save disabled until title or memo actually changes', async () => {
       const renderer = await renderScreen();
@@ -324,10 +333,13 @@ describe('ItemDetailsScreen', () => {
       expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
       expect(renderer.root.findAllByProps({ children: '대표 이미지' })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ children: '추가 이미지' })).toHaveLength(0);
+      // Renders twice by design (see ContentPreviewCard/goal #1 of the UI structure round): once
+      // as the top preview card's own representative image, once in the 사진 list below it -
+      // the same content shown at two points on the same screen, not a duplication bug.
       const previewImages = renderer.root
         .findAllByType(require('react-native').Image)
         .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(previewImages).toHaveLength(1);
+      expect(previewImages).toHaveLength(2);
       expect(findPressableByAccessibilityLabel(renderer, '사진 삭제')).toBeFalsy();
     });
 

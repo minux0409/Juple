@@ -210,6 +210,14 @@ describe('CollectionsScreen create form', () => {
     )[0];
   }
 
+  /** The icon grid (see CategoryNameAndIconField) is hidden until its thumbnail button is tapped -
+   * mirrors a "profile picture picker" inline-expand pattern instead of an always-open grid. */
+  function expandIconPicker(renderer: ReactTestRenderer.ReactTestRenderer) {
+    act(() => {
+      renderer.root.findByProps({ testID: 'category-icon-thumbnail-button' }).props.onPress();
+    });
+  }
+
   it('defaults the icon picker to Folder and creates with it when nothing else is chosen', async () => {
     setUpGetCollectionsMock();
     jest.mocked(createCollection).mockResolvedValue(makeCollection({ id: 9, name: 'New one' }));
@@ -239,6 +247,7 @@ describe('CollectionsScreen create form', () => {
       nameInput.props.onChangeText('Trip');
     });
 
+    expandIconPicker(renderer);
     const planeCell = renderer.root.findByProps({ testID: 'collection-icon-option-Plane' });
     act(() => {
       planeCell.props.onPress();
@@ -261,6 +270,7 @@ describe('CollectionsScreen create form', () => {
     act(() => {
       nameInput.props.onChangeText('Trip');
     });
+    expandIconPicker(renderer);
     act(() => {
       renderer.root.findByProps({ testID: 'collection-icon-option-Plane' }).props.onPress();
     });

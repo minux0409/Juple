@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,8 +31,8 @@ import {
   type CollectionItemEntry,
   type CollectionShare,
 } from '../collections/api/collectionsApi';
-import { CollectionIconPicker } from '../collections/CollectionIconPicker';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
 import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -41,6 +40,7 @@ import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
+import { InfoIcon } from '../icons/InfoIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -200,6 +200,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isManagingShare, setIsManagingShare] = useState(false);
   const [shareManagementError, setShareManagementError] = useState<string | null>(null);
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
+  // Purely presentational - the help text itself (publicShareDescription) is unchanged, only
+  // whether it's shown inline below the row is toggled by tapping the info icon.
+  const [isShareInfoExpanded, setIsShareInfoExpanded] = useState(false);
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
 
@@ -508,15 +511,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           <View>
             {isEditingName ? (
               <View>
-                <TextInput
+                <CategoryNameAndIconField
                   autoFocus
-                  editable={!isRenaming}
-                  onChangeText={setNameDraft}
-                  style={styles.nameInput}
-                  value={nameDraft}
+                  collectionId={collection.id}
+                  disabled={isRenaming}
+                  icon={iconDraft}
+                  name={nameDraft}
+                  onChangeIcon={setIconDraft}
+                  onChangeName={setNameDraft}
                 />
-                <Text style={styles.iconSectionTitle}>{t('collections.iconSectionTitle')}</Text>
-                <CollectionIconPicker disabled={isRenaming} onSelect={setIconDraft} selected={iconDraft} />
                 <View style={styles.nameEditActions}>
                   <Pressable
                     accessibilityRole="button"
@@ -605,16 +608,29 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
             <View style={styles.shareSection}>
               <View style={styles.shareToggleRow}>
-                <View style={styles.shareToggleTextColumn}>
-                  <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
-                  <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
-                </View>
+                <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
+                <Pressable
+                  accessibilityLabel={t('collections.publicShareInfoA11y')}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isShareInfoExpanded }}
+                  hitSlop={8}
+                  onPress={() => setIsShareInfoExpanded(previous => !previous)}
+                  style={styles.shareInfoButton}
+                >
+                  <InfoIcon color={colors.textSecondary} size={16} />
+                </Pressable>
+                <View style={styles.shareToggleSpacer} />
                 <Switch
                   disabled={isManagingShare}
                   onValueChange={handleShareToggle}
                   value={share !== null}
                 />
               </View>
+              {isShareInfoExpanded ? (
+                <View style={styles.shareInfoBubble}>
+                  <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
+                </View>
+              ) : null}
             </View>
             {shareManagementError ? <Text style={styles.error}>{shareManagementError}</Text> : null}
 
@@ -777,22 +793,6 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
   },
-  nameInput: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  iconSectionTitle: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
   nameEditActions: {
     flexDirection: 'row',
     marginTop: 10,
@@ -810,34 +810,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  // A compact, self-contained settings card (matches MyPageScreen's grouped-section language) -
-  // previously this toggle+description just sat directly in the screen's own background, reading
-  // as disconnected from everything else on the page.
+  // A compact single-line setting row (label + info + switch), not the old always-expanded
+  // description card - matches MyPageScreen's grouped-section language with a slim card boundary,
+  // but the description itself is now hidden until the info icon is tapped (see
+  // isShareInfoExpanded/shareInfoBubble below).
   shareSection: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     marginTop: spacing.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 4,
     ...cardShadow,
   },
   shareToggleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  shareToggleTextColumn: {
-    flex: 1,
-    marginEnd: spacing.md,
   },
   shareToggleLabel: {
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
   },
+  shareInfoButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginStart: spacing.xs,
+    minHeight: minTouchTarget,
+    minWidth: minTouchTarget,
+  },
+  // Pushes the Switch flush to the row's end edge regardless of label/info width.
+  shareToggleSpacer: {
+    flex: 1,
+  },
+  // The "말풍선/도움말 박스" - a muted inline panel directly under the row, only rendered while
+  // isShareInfoExpanded is true.
+  shareInfoBubble: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    marginTop: spacing.sm,
+    padding: spacing.sm + 2,
+  },
   shareDescription: {
     color: colors.textSecondary,
     fontSize: 13,
-    marginTop: spacing.xs,
   },
   error: {
     color: '#B42318',

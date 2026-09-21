@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "بعد إلغاء المشاركة، لن يعرض الرابط الحالي هذه الفئة بعد الآن.",
     "publicShareLabel": "مشاركة عامة",
     "publicShareDescription": "ينشئ رابط مشاركة لهذه الفئة. يمكن لأي شخص لديه الرابط عرض محتواها.",
+    "publicShareInfoA11y": "حول المشاركة العامة",
     "addNew": "+ فئة جديدة",
     "unlinkConfirmTitle": "هل تريد الإزالة من هذه الفئة؟",
     "unlinkConfirmMessage": "لن يُحذف الرابط نفسه، بل ستتم إزالته من هذه الفئة فقط.",

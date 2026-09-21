@@ -10,7 +10,6 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +23,7 @@ import {
   type Collection,
 } from '../collections/api/collectionsApi';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
-import { CollectionIconPicker } from '../collections/CollectionIconPicker';
+import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
@@ -354,16 +353,15 @@ export function CollectionsScreen() {
 
             {isCreateFormVisible ? (
               <View style={styles.createRow}>
-                <TextInput
+                <CategoryNameAndIconField
                   autoFocus
-                  editable={!isCreating}
-                  onChangeText={setName}
-                  placeholder={t('collections.namePlaceholder')}
-                  style={styles.input}
-                  value={name}
+                  disabled={isCreating}
+                  icon={icon}
+                  name={name}
+                  namePlaceholder={t('collections.namePlaceholder')}
+                  onChangeIcon={setIcon}
+                  onChangeName={setName}
                 />
-                <Text style={styles.iconSectionTitle}>{t('collections.iconSectionTitle')}</Text>
-                <CollectionIconPicker disabled={isCreating} onSelect={setIcon} selected={icon} />
                 <Pressable
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isCreating, busy: isCreating }}
@@ -523,22 +521,6 @@ const styles = StyleSheet.create({
   },
   createRow: {
     marginBottom: spacing.md,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md + 4,
-    borderWidth: 1,
-    fontSize: 15,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-  },
-  iconSectionTitle: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
   },
   createButton: {
     alignItems: 'center',

@@ -133,18 +133,7 @@ export function MyPageScreen() {
       */}
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mainContent}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{t('myPage.title')}</Text>
-            <Pressable
-              accessibilityLabel={t('auth.logout')}
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={confirmSignOut}
-              style={styles.logoutButton}
-            >
-              <LogoutIcon color={colors.textPrimary} size={22} />
-            </Pressable>
-          </View>
+          <Text style={styles.title}>{t('myPage.title')}</Text>
 
           <Text style={styles.sectionTitle}>{t('myPage.account')}</Text>
           {/* An email address is a technical identifier and needs LTR isolation; the fallback
@@ -204,6 +193,17 @@ export function MyPageScreen() {
                 value={isQuickSaveEnabled}
               />
             </View>
+            <View style={styles.settingsRowDivider} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={confirmSignOut}
+              style={styles.settingsRow}
+            >
+              <View style={styles.settingsRowIcon}>
+                <LogoutIcon color={colors.textSecondary} size={18} />
+              </View>
+              <Text style={styles.settingsRowLabel}>{t('auth.logout')}</Text>
+            </Pressable>
           </View>
         </View>
 
@@ -271,20 +271,9 @@ const styles = StyleSheet.create({
   mainContent: {
     flexShrink: 0,
   },
-  titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   title: {
     fontSize: 24,
     fontWeight: '800',
-  },
-  logoutButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
   },
   sectionTitle: {
     color: colors.textSecondary,

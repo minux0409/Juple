@@ -94,11 +94,16 @@ function isInsideModal(node: ReactTestRenderer.ReactTestInstance): boolean {
   return false;
 }
 
-/** The header's sign-out icon button shares its accessibilityLabel (로그아웃) with the sign-out ConfirmDialog's confirm button - excluding anything inside a Modal disambiguates the two. */
-function findHeaderLogoutButton(renderer: ReactTestRenderer.ReactTestRenderer) {
+/** The settings-list sign-out row (see MyPageScreen's own settingsGroup) shares its label text
+ * (로그아웃) with the sign-out ConfirmDialog's confirm button - excluding anything inside a Modal
+ * disambiguates the two. The row itself has no accessibilityLabel (same as every other
+ * settingsRow, e.g. 언어) - it's found by its onPress-bearing ancestor containing that label Text. */
+function findSignOutRow(renderer: ReactTestRenderer.ReactTestRenderer) {
   return renderer.root
     .findAll(
-      node => typeof node.props.onPress === 'function' && node.props.accessibilityLabel === i18n.t('auth.logout'),
+      node =>
+        typeof node.props.onPress === 'function' &&
+        node.findAll(inner => inner.props.children === i18n.t('auth.logout')).length > 0,
     )
     .find(node => !isInsideModal(node));
 }
@@ -134,11 +139,11 @@ describe('MyPageScreen sign-out', () => {
 
     const renderer = await renderScreen();
 
-    const logoutButton = findHeaderLogoutButton(renderer);
-    expect(logoutButton).toBeDefined();
+    const signOutRow = findSignOutRow(renderer);
+    expect(signOutRow).toBeDefined();
 
     await act(async () => {
-      logoutButton!.props.onPress();
+      signOutRow!.props.onPress();
     });
 
     expect(signOut).not.toHaveBeenCalled();
@@ -155,10 +160,10 @@ describe('MyPageScreen sign-out', () => {
     mockUseAuth({ signOut, userEmail: null });
     const renderer = await renderScreen();
 
-    const logoutButton = findHeaderLogoutButton(renderer);
+    const signOutRow = findSignOutRow(renderer);
 
     await act(async () => {
-      logoutButton!.props.onPress();
+      signOutRow!.props.onPress();
     });
 
     await act(async () => {

@@ -230,6 +230,16 @@ describe('CollectionDetailsScreen', () => {
       )[0];
     }
 
+    /** The icon grid (see CategoryNameAndIconField) is hidden until its thumbnail button is
+     * tapped - must operate on the SAME already-obtained header instance the icon option is then
+     * queried from (a fresh getHeaderElement() call re-mounts CategoryNameAndIconField, resetting
+     * its own local expand state back to collapsed). */
+    function expandIconPicker(header: ReactTestRenderer.ReactTestRenderer) {
+      act(() => {
+        header.root.findByProps({ testID: 'category-icon-thumbnail-button' }).props.onPress();
+      });
+    }
+
     it('shows the collection\'s chosen icon in the header, next to the name', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Heart' }));
       const renderer = await renderScreen();
@@ -244,6 +254,7 @@ describe('CollectionDetailsScreen', () => {
 
       openEditMode(renderer);
       const header = getHeaderElement(renderer);
+      expandIconPicker(header);
       const heartCell = header.root.findByProps({ testID: 'collection-icon-option-Heart' });
       expect(heartCell.props.accessibilityState.selected).toBe(true);
     });
@@ -255,6 +266,7 @@ describe('CollectionDetailsScreen', () => {
 
       openEditMode(renderer);
       const header1 = getHeaderElement(renderer);
+      expandIconPicker(header1);
       const planeCell = header1.root.findByProps({ testID: 'collection-icon-option-Plane' });
       act(() => {
         planeCell.props.onPress();
@@ -312,6 +324,7 @@ describe('CollectionDetailsScreen', () => {
       });
 
       const header2 = getHeaderElement(renderer);
+      expandIconPicker(header2);
       const planeCell = header2.root.findByProps({ testID: 'collection-icon-option-Plane' });
       act(() => {
         planeCell.props.onPress();
@@ -348,6 +361,29 @@ describe('CollectionDetailsScreen', () => {
       const header = getHeaderElement(renderer);
 
       expect(header.root.findAllByType(Switch)).toHaveLength(1);
+    });
+
+    it('hides the description by default and reveals it inline only after the info icon is tapped', async () => {
+      const renderer = await renderScreen();
+      const header1 = getHeaderElement(renderer);
+
+      expect(
+        header1.root.findAll(node => node.props.children === i18n.t('collections.publicShareDescription')),
+      ).toHaveLength(0);
+
+      const infoButton = header1.root.findByProps({
+        accessibilityLabel: i18n.t('collections.publicShareInfoA11y'),
+      });
+      act(() => {
+        infoButton.props.onPress();
+      });
+
+      // isShareInfoExpanded lives on the real screen component (unlike CategoryNameAndIconField's
+      // own local expand state) - re-fetching the header picks up its latest value.
+      const header2 = getHeaderElement(renderer);
+      expect(
+        header2.root.findAll(node => node.props.children === i18n.t('collections.publicShareDescription')).length,
+      ).toBeGreaterThan(0);
     });
 
     it('turning the switch ON calls enableCollectionShare without opening the OS share sheet', async () => {

@@ -27,6 +27,7 @@ import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import {
@@ -40,6 +41,7 @@ import {
   buildEffectiveImages,
   coverImageIdForFront,
   effectiveImageKey,
+  effectiveImageUrl,
   MAX_EFFECTIVE_IMAGES,
   reorderList,
   type EffectiveImage,
@@ -665,38 +667,37 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.firstLabel}>{t('item.titleLabel')}</Text>
-        <TextInput
-          onChangeText={text => {
+        <ContentPreviewCard
+          onChangeTitle={text => {
             setTitle(text);
             setJustSaved(false);
           }}
-          placeholder={t('item.titlePlaceholder')}
-          style={styles.titleInput}
-          value={title}
-        />
-
-        <Text style={styles.label}>{t('item.source')}</Text>
-        <SourceRow
-          trailing={
-            <Pressable
-              accessibilityLabel={t('item.goToUrlA11y')}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isCheckingUrlSafety, busy: isCheckingUrlSafety }}
-              disabled={isCheckingUrlSafety}
-              onPress={handleGoToUrlPress}
-              style={[styles.iconButton, isCheckingUrlSafety && styles.disabledButton]}
-            >
-              {isCheckingUrlSafety ? (
-                <ActivityIndicator color={colors.brand} size="small" />
-              ) : (
-                <ExternalLinkIcon color={colors.brand} size={20} />
-              )}
-            </Pressable>
-          }
-          url={item.url}
-        />
-        {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
+          previewImageUrl={effectivePhotoImages[0] ? effectiveImageUrl(effectivePhotoImages[0]) : null}
+          titleAccessibilityLabel={t('item.titleLabel')}
+          titlePlaceholder={t('item.titlePlaceholder')}
+          titleValue={title}
+        >
+          <SourceRow
+            trailing={
+              <Pressable
+                accessibilityLabel={t('item.goToUrlA11y')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isCheckingUrlSafety, busy: isCheckingUrlSafety }}
+                disabled={isCheckingUrlSafety}
+                onPress={handleGoToUrlPress}
+                style={[styles.iconButton, isCheckingUrlSafety && styles.disabledButton]}
+              >
+                {isCheckingUrlSafety ? (
+                  <ActivityIndicator color={colors.brand} size="small" />
+                ) : (
+                  <ExternalLinkIcon color={colors.brand} size={20} />
+                )}
+              </Pressable>
+            }
+            url={item.url}
+          />
+          {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
+        </ContentPreviewCard>
 
         <CategoryField
           disabled={isSaving}
@@ -862,8 +863,6 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     padding: 24,
-    // Top only - see firstLabel's own remarks on why the very first field doesn't also add its
-    // usual marginTop on top of this (mirrors NewLinkReviewScreen's identical fix).
     paddingTop: spacing.md,
   },
   label: {
@@ -872,28 +871,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.lg,
     marginBottom: spacing.xs + 2,
-  },
-  // Same as `label`, but with no marginTop - used only for the very first field in the scroll
-  // content (제목). `label`'s marginTop exists to separate a field from the one *before* it;
-  // stacked on top of `content`'s own paddingTop that doubled the gap between the header and the
-  // first field for no reason (every other field still keeps the normal `label` spacing from the
-  // field above it).
-  firstLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginBottom: spacing.xs + 2,
-  },
-  titleInput: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md + 4,
-    borderWidth: 1,
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.md,
   },
   // Icon-only, no border/background box - shared by every secondary row action on this screen
   // (URL open / category edit / photo add) so all three share the same visual alignment and touch

@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Une fois le partage désactivé, le lien existant n'affichera plus cette catégorie.",
     "publicShareLabel": "Partage public",
     "publicShareDescription": "Crée un lien de partage pour cette catégorie. Toute personne disposant du lien peut en voir le contenu.",
+    "publicShareInfoA11y": "À propos du partage public",
     "addNew": "+ Nouvelle catégorie",
     "unlinkConfirmTitle": "Retirer de cette catégorie ?",
     "unlinkConfirmMessage": "Le lien lui-même ne sera pas supprimé, il sera seulement retiré de cette catégorie.",

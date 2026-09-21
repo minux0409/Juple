@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Dopo l'annullamento, il link esistente non mostrerà più questa categoria.",
     "publicShareLabel": "Condivisione pubblica",
     "publicShareDescription": "Crea un link di condivisione per questa categoria. Chiunque abbia il link potrà vederne il contenuto.",
+    "publicShareInfoA11y": "Informazioni sulla condivisione pubblica",
     "addNew": "+ Nuova categoria",
     "unlinkConfirmTitle": "Rimuovere da questa categoria?",
     "unlinkConfirmMessage": "Il link non verrà eliminato, ma solo rimosso da questa categoria.",

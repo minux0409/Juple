@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "Setelah berbagi dibatalkan, tautan yang ada tidak akan lagi menampilkan kategori ini.",
     "publicShareLabel": "Bagikan secara publik",
     "publicShareDescription": "Membuat tautan berbagi untuk kategori ini. Siapa pun yang memiliki tautan dapat melihat isinya.",
+    "publicShareInfoA11y": "Tentang berbagi publik",
     "addNew": "+ Kategori baru",
     "unlinkConfirmTitle": "Hapus dari kategori ini?",
     "unlinkConfirmMessage": "Tautan itu sendiri tidak akan dihapus - hanya dihapus dari kategori ini.",

@@ -3,6 +3,7 @@ import { ScrollView, Text, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ContentPreviewCard } from '../../components/ContentPreviewCard';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
 import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
@@ -147,6 +148,12 @@ describe('NewLinkReviewScreen', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('renders the title/source using the shared ContentPreviewCard component (also used by ItemDetailsScreen)', async () => {
+    const { renderer } = await renderScreen();
+
+    expect(renderer.root.findAllByType(ContentPreviewCard)).toHaveLength(1);
   });
 
   it('prefills the title, and shows the compact source row (not the raw URL) by default', async () => {

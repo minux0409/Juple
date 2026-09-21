@@ -111,6 +111,7 @@
     "unshareConfirmMessage": "取消分享后，原有链接将无法再查看此分类。",
     "publicShareLabel": "公开分享",
     "publicShareDescription": "为此分类创建分享链接，获得链接的人都可以查看其中的内容。",
+    "publicShareInfoA11y": "关于公开分享",
     "addNew": "+ 新建分类",
     "unlinkConfirmTitle": "确定从此分类中移除吗？",
     "unlinkConfirmMessage": "链接本身不会被删除，只会从此分类中移除。",
