@@ -156,6 +156,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const { itemId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
+  // The fixed bottom action bar's height isn't a fixed constant (button text can wrap under long
+  // translations/font scaling), so it's measured via onLayout (see the bottomBar View below)
+  // rather than guessed - a Toast's bottomOffset needs this exact value to sit above the bar
+  // instead of overlapping it.
+  const [bottomBarHeight, setBottomBarHeight] = useState(0);
   const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
@@ -745,7 +750,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
-      <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
+      <View
+        onLayout={event => setBottomBarHeight(event.nativeEvent.layout.height)}
+        style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
@@ -771,7 +779,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       </View>
 
       {justSaved && !isDirty ? (
-        <NotificationToast message={t('item.saved')} onDismiss={() => setJustSaved(false)} />
+        <NotificationToast bottomOffset={bottomBarHeight} message={t('item.saved')} onDismiss={() => setJustSaved(false)} />
       ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}

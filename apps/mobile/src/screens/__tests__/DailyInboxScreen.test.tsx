@@ -2,6 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { DailyInboxScreen } from '../DailyInboxScreen';
+import { UndoToast } from '../../components/UndoToast';
 
 // The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
 // otherwise resolve to English by default - pinned to Korean so this file's label assertions are
@@ -9,7 +10,7 @@ import { DailyInboxScreen } from '../DailyInboxScreen';
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-import { deleteItem, getItemHistory, updateItemDetails, type ItemHistoryEntry } from '../../items/api/itemsApi';
+import { deleteItem, getItemHistory, restoreItem, updateItemDetails, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
@@ -26,6 +27,7 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 jest.mock('../../inbox/api/inboxApi', () => ({
@@ -35,6 +37,7 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 jest.mock('../../items/api/itemsApi', () => ({
   getItemHistory: jest.fn(),
   deleteItem: jest.fn(),
+  restoreItem: jest.fn(),
   updateItemDetails: jest.fn(),
   setItemPreviewImage: jest.fn(),
 }));
@@ -178,6 +181,96 @@ describe('DailyInboxScreen swipe actions', () => {
     });
 
     expect(deleteItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('DailyInboxScreen delete undo', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: ItemHistoryEntry) {
+    const row = getRowElement(renderer, item);
+    const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
+    await act(async () => {
+      deleteAction.props.onPress();
+    });
+    await act(async () => {
+      getConfirmDialogButton(renderer, '삭제').props.onPress();
+    });
+  }
+
+  it('removes the row, decreases the count, and shows the undo toast after a successful delete', async () => {
+    const item = makeItem({ id: 30, title: 'Removable' });
+    setUpItems([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    expect(renderer.root.findAllByProps({ children: 'Removable' })).toHaveLength(0);
+    expect(renderer.root.findByProps({ children: '0개' })).toBeTruthy();
+    expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toBeTruthy();
+    // This screen's own scene view already ends exactly at the tab bar's top edge (React
+    // Navigation sizes it that way), so the toast's bottomOffset is 0, not the tab bar's height -
+    // using the tab bar's height here would double-count it and float the toast too high.
+    expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(0);
+  });
+
+  it('restores the row and count after undo succeeds', async () => {
+    const item = makeItem({ id: 31, title: 'Restorable' });
+    setUpItems([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    jest.mocked(restoreItem).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    await act(async () => {
+      renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(restoreItem).toHaveBeenCalledWith(expect.anything(), item.id);
+    expect(renderer.root.findAllByProps({ children: 'Restorable' }).length).toBeGreaterThan(0);
+    expect(renderer.root.findByProps({ children: '1개' })).toBeTruthy();
+    expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+  });
+
+  it('keeps the deleted state and shows the shared notice dialog when undo fails', async () => {
+    const item = makeItem({ id: 32, title: 'Stuck deleted' });
+    setUpItems([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    jest.mocked(restoreItem).mockRejectedValue(new Error('no'));
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    await act(async () => {
+      renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(renderer.root.findAllByProps({ children: 'Stuck deleted' })).toHaveLength(0);
+    expect(renderer.root.findByProps({ children: '0개' })).toBeTruthy();
+    expect(renderer.root.findByProps({ children: i18n.t('toast.undoDeleteError') })).toBeTruthy();
+  });
+
+  it('does not send a second restore request while the first undo is still pending', async () => {
+    const item = makeItem({ id: 33, title: 'Double tap' });
+    setUpItems([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    let resolveRestore!: () => void;
+    jest.mocked(restoreItem).mockImplementation(() => new Promise<void>(resolve => { resolveRestore = resolve; }));
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    const undo = renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress;
+    await act(async () => { undo(); undo(); });
+    expect(restoreItem).toHaveBeenCalledTimes(1);
+
+    await act(async () => { resolveRestore(); await Promise.resolve(); });
   });
 });
 

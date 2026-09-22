@@ -11,8 +11,9 @@ beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
 import { useItemHistory, type UseItemHistoryResult } from '../../items/useItemHistory';
-import { deleteItem, type ItemHistoryEntry } from '../../items/api/itemsApi';
+import { deleteItem, restoreItem, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
+import { UndoToast } from '../../components/UndoToast';
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
@@ -20,6 +21,7 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 jest.mock('../../items/useItemHistory');
@@ -27,6 +29,7 @@ jest.mock('../../items/useItemHistory');
 jest.mock('../../items/api/itemsApi', () => ({
   ...jest.requireActual('../../items/api/itemsApi'),
   deleteItem: jest.fn(),
+  restoreItem: jest.fn(),
 }));
 
 jest.mock('../../items/shareItem', () => ({
@@ -61,8 +64,16 @@ function mockUseItemHistory(items: readonly ItemHistoryEntry[]): void {
   } satisfies UseItemHistoryResult);
 }
 
-/** Backed by real useState so removeItem actually re-renders the screen with a shorter list - for tests exercising delete's on-screen effect. */
-function mockUseItemHistoryStateful(initialItems: readonly ItemHistoryEntry[]): void {
+/**
+ * Backed by real useState so removeItem actually re-renders the screen with a shorter list - for
+ * tests exercising delete's on-screen effect. `refreshItems` (defaults to `initialItems`) is what
+ * `refresh()` sets the list back to - it stands in for a real refetch picking the restored item
+ * back up, exactly like undoDelete's own `await refresh()` call does against the live server.
+ */
+function mockUseItemHistoryStateful(
+  initialItems: readonly ItemHistoryEntry[],
+  refreshItems: readonly ItemHistoryEntry[] = initialItems,
+): void {
   jest.mocked(useItemHistory).mockImplementation(() => {
     const [items, setItems] = useState(initialItems);
     return {
@@ -71,7 +82,7 @@ function mockUseItemHistoryStateful(initialItems: readonly ItemHistoryEntry[]): 
       isRefreshing: false,
       isLoadingMore: false,
       error: null,
-      refresh: jest.fn(),
+      refresh: jest.fn(async () => { setItems(refreshItems); }),
       loadMore: jest.fn(),
       removeItem: (itemId: number) =>
         setItems(previous => previous.filter(item => item.id !== itemId)),
@@ -266,5 +277,93 @@ describe('DateHistoryScreen swipe actions', () => {
     });
 
     expect(deleteItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('DateHistoryScreen delete undo', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: ItemHistoryEntry) {
+    const row = getRowElement(renderer, item);
+    const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
+    await act(async () => {
+      deleteAction.props.onPress();
+    });
+    await act(async () => {
+      getConfirmDialogButton(renderer, '삭제').props.onPress();
+    });
+  }
+
+  it('shows the undo toast after a successful delete', async () => {
+    const item = makeItem({ id: 51, title: 'Removable' });
+    mockUseItemHistoryStateful([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toBeTruthy();
+    // This screen's own scene view already ends exactly at the tab bar's top edge (React
+    // Navigation sizes it that way), so the toast's bottomOffset is 0, not the tab bar's height -
+    // using the tab bar's height here would double-count it and float the toast too high.
+    expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(0);
+  });
+
+  it('restores the row (via refresh, matching the date section it was saved under) after undo succeeds', async () => {
+    const item = makeItem({ id: 52, title: 'Restorable' });
+    mockUseItemHistoryStateful([item], [item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    jest.mocked(restoreItem).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    await act(async () => {
+      renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+      await Promise.resolve();
+    });
+
+    expect(restoreItem).toHaveBeenCalledWith(expect.anything(), item.id);
+    const sectionList = renderer.root.findByType(SectionList);
+    expect(sectionList.props.sections).toHaveLength(1);
+    expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+  });
+
+  it('keeps the deleted state and shows the shared notice dialog when undo fails', async () => {
+    const item = makeItem({ id: 53, title: 'Stuck deleted' });
+    mockUseItemHistoryStateful([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    jest.mocked(restoreItem).mockRejectedValue(new Error('no'));
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    await act(async () => {
+      renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+      await Promise.resolve();
+    });
+
+    const sectionList = renderer.root.findByType(SectionList);
+    expect(sectionList.props.sections).toHaveLength(0);
+    expect(renderer.root.findByProps({ children: i18n.t('toast.undoDeleteError') })).toBeTruthy();
+  });
+
+  it('does not send a second restore request while the first undo is still pending', async () => {
+    const item = makeItem({ id: 54, title: 'Double tap' });
+    mockUseItemHistoryStateful([item]);
+    jest.mocked(deleteItem).mockResolvedValue(undefined);
+    let resolveRestore!: () => void;
+    jest.mocked(restoreItem).mockImplementation(() => new Promise<void>(resolve => { resolveRestore = resolve; }));
+    const renderer = await renderScreen();
+
+    await deleteViaSwipe(renderer, item);
+
+    const undo = renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress;
+    await act(async () => { undo(); undo(); });
+    expect(restoreItem).toHaveBeenCalledTimes(1);
+
+    await act(async () => { resolveRestore(); await Promise.resolve(); });
   });
 });

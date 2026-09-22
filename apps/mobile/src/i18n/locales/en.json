@@ -181,7 +181,7 @@
     "mergeError": "Couldn't merge the category.",
     "errorTargetLoadFallback": "Couldn't load categories."
   },
-  "toast": { "moveSuccess": "Moved.", "undoAction": "Undo", "undoMoveError": "Couldn't undo the move." },
+  "toast": { "moveSuccess": "Moved.", "undoAction": "Undo", "undoMoveError": "Couldn't undo the move.", "deleteSuccess": "Deleted.", "undoDeleteError": "Couldn't undo the delete." },
   "myPage": {
     "title": "My Page",
     "account": "Account",

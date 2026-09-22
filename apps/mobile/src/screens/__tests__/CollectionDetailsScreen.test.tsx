@@ -23,6 +23,8 @@ import {
 } from '../../collections/api/collectionsApi';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { shareItem } from '../../items/shareItem';
+import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { UndoToast } from '../../components/UndoToast';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -557,6 +559,22 @@ describe('CollectionDetailsScreen', () => {
       expect((navigation as { navigate: jest.Mock }).navigate).not.toHaveBeenCalled();
       expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') })).toBeTruthy();
     });
+    // Full item delete used to live in this same menu (see the removed "CollectionDetailsScreen
+    // item delete undo" test block) - product policy now restricts general item delete to
+    // Home/History only, so this menu goes back to offering only Add/Move.
+    it('offers only Add/Move in the link More menu - no Delete option', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      const renderer = await renderScreen();
+      const row = getRowElement(renderer, item);
+      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+
+      const itemMenu = renderer.root.findAllByType(ActionMenuDialog).find(
+        node => node.props.actions.some((action: { label: string }) => action.label === i18n.t('collections.addToOther')),
+      );
+      expect(itemMenu).toBeTruthy();
+      const labels = itemMenu!.props.actions.map((action: { label: string }) => action.label);
+      expect(labels).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+    });
     it('adds to another category and keeps the source row', async () => {
       jest.mocked(addItemToCollection).mockResolvedValue(undefined);
       const renderer = await renderScreen(); await openItemMenu(renderer);
@@ -586,6 +604,10 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
       expect(renderer.root.findByProps({ children: i18n.t('toast.moveSuccess') })).toBeTruthy();
+      // Stack screen with no bottom tab bar and no fixed bottom action bar - the toast floats
+      // directly above the safe-area inset (mocked to 0 here - see useSafeAreaInsets mock above),
+      // not some tab-bar/action-bar height.
+      expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(0);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress());
       expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, true);
     });

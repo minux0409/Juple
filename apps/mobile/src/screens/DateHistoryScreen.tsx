@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -19,11 +19,12 @@ import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { UndoToast } from '../components/UndoToast';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { groupHistoryByLocalDate, todayDateKey } from '../items/historyDateGrouping';
 import { useItemHistory } from '../items/useItemHistory';
-import { deleteItem, type ItemHistoryEntry } from '../items/api/itemsApi';
+import { deleteItem, restoreItem, type ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, radii, spacing } from '../theme/tokens';
@@ -66,6 +67,13 @@ export function DateHistoryScreen() {
   // Delete confirmation is a declarative ConfirmDialog keyed off this - null means closed, an id
   // means the dialog is open for that item (mirrors DailyInboxScreen's same pattern).
   const [pendingDeleteItemId, setPendingDeleteItemId] = useState<number | null>(null);
+  const [pendingDeleteUndo, setPendingDeleteUndo] = useState<number | null>(null);
+  const [isUndoingDelete, setIsUndoingDelete] = useState(false);
+  const isUndoingDeleteRef = useRef(false);
+  // Undo failure is reported via the shared single-button ConfirmDialog (see notice below),
+  // never the inline actionError Text used for delete/share failures - mirrors
+  // CollectionDetailsScreen's undoMove failure handling exactly.
+  const [notice, setNotice] = useState<string | null>(null);
 
   const runDelete = async (itemId: number) => {
     if (actionInFlightItemId !== null) {
@@ -77,10 +85,31 @@ export function DateHistoryScreen() {
     try {
       await deleteItem(authenticatedRequest, itemId);
       removeItem(itemId);
+      setPendingDeleteUndo(itemId);
     } catch (caughtError) {
       setActionError(getHistoryDeleteErrorMessage(caughtError, t));
     } finally {
       setActionInFlightItemId(null);
+    }
+  };
+
+  const undoDelete = async () => {
+    if (pendingDeleteUndo === null || isUndoingDeleteRef.current) {
+      return;
+    }
+
+    isUndoingDeleteRef.current = true;
+    setIsUndoingDelete(true);
+    try {
+      await restoreItem(authenticatedRequest, pendingDeleteUndo);
+      setPendingDeleteUndo(null);
+      await refresh();
+    } catch {
+      setPendingDeleteUndo(null);
+      setNotice(t('toast.undoDeleteError'));
+    } finally {
+      isUndoingDeleteRef.current = false;
+      setIsUndoingDelete(false);
     }
   };
 
@@ -228,6 +257,11 @@ export function DateHistoryScreen() {
         title={t('history.deleteConfirmTitle')}
         visible={pendingDeleteItemId !== null}
       />
+      {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
+      {/* This screen's scene view already ends exactly at the tab bar's top edge (see the
+          SectionList content padding remark below), so the toast's own bottom:0 origin IS the tab
+          bar top - bottomOffset={0} here, not the tab bar's height (that would double it). */}
+      {pendingDeleteUndo !== null ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={0} isUndoing={isUndoingDelete} message={t('toast.deleteSuccess')} onDismiss={() => setPendingDeleteUndo(null)} onUndo={() => void undoDelete()} /> : null}
     </SafeAreaView>
   );
 }

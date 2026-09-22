@@ -164,7 +164,7 @@
     "favoritesEmpty": "沒有收藏。",
     "allCollectionsEmpty": "沒有分類。", "manageAction": "管理分類", "itemManageAction": "更多連結操作", "addToOther": "新增至其他分類", "moveToOther": "移至其他分類", "mergeWithOther": "與其他分類合併", "targetPickerTitle": "選擇分類", "addSuccess": "已新增至分類。", "addError": "無法新增至分類。", "moveTitle": "移動連結", "moveAction": "移動", "moveConfirmMessage": "要將此連結移至\"{{target}}\"嗎？", "moveError": "無法移動連結。", "mergeTitle": "合併分類", "mergeAction": "合併", "mergeConfirmMessage": "要將\"{{source}}\"合併到\"{{target}}\"嗎？連結將會合併，且此分類將被刪除。", "mergeError": "無法合併分類。", "errorTargetLoadFallback": "無法載入分類。"
   },
-  "toast": { "moveSuccess": "已移動。", "undoAction": "復原", "undoMoveError": "無法復原移動。" },
+  "toast": { "moveSuccess": "已移動。", "undoAction": "復原", "undoMoveError": "無法復原移動。", "deleteSuccess": "已刪除。", "undoDeleteError": "無法復原刪除。" },
   "myPage": {
     "title": "我的",
     "account": "帳號",

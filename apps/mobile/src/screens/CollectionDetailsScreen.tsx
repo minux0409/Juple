@@ -881,8 +881,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
       <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
-      {notification ? <NotificationToast message={notification} onDismiss={() => setNotification(null)} /> : null}
-      {pendingMoveUndo ? <UndoToast actionLabel={t('toast.undoAction')} isUndoing={isUndoingMove} message={t('toast.moveSuccess')} onDismiss={() => setPendingMoveUndo(null)} onUndo={() => void undoMove()} /> : null}
+      {notification ? <NotificationToast bottomOffset={insets.bottom} message={notification} onDismiss={() => setNotification(null)} /> : null}
+      {pendingMoveUndo ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={insets.bottom} isUndoing={isUndoingMove} message={t('toast.moveSuccess')} onDismiss={() => setPendingMoveUndo(null)} onUndo={() => void undoMove()} /> : null}
     </View>
   );
 }
