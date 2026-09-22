@@ -1,5 +1,5 @@
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useBottomTabBarHeight, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -106,9 +106,12 @@ export function CollectionsScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   // This screen never shows a Toast itself, but the Collection Delete Undo toast (shown from
   // CollectionDetailsScreen just before it navigates back here) stays alive across that
-  // navigation - it must reposition to this tab's own anchor (0, same as Home/History) rather
-  // than keep CollectionDetails' safe-area-only offset.
-  useToastBottomAnchor(0);
+  // navigation - it must reposition to this tab's own anchor (the actual tab bar height, same as
+  // Home/History) rather than keep CollectionDetails' safe-area-only offset. AppToastHost renders
+  // above NavigationContainer (root coordinate space), so 0 would put it under the tab bar, over
+  // the Android system navigation area.
+  const tabBarHeight = useBottomTabBarHeight();
+  useToastBottomAnchor(tabBarHeight);
 
   // Favorites is the default-selected tab (see this round's "즐겨찾기 default selected" requirement) -
   // the segmented control itself still renders favorites first/left, all second/right, matching.

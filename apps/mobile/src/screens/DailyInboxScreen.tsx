@@ -1,4 +1,5 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -93,10 +94,11 @@ export function DailyInboxScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showUndoToast } = useAppToast();
-  // Scene view already ends exactly at the tab bar's top edge (see the FlatList content padding
-  // remark below), so this screen's own bottom anchor is 0 - the tab bar's height itself belongs
-  // to MainTabs, not this screen.
-  useToastBottomAnchor(0);
+  // AppToastHost renders above NavigationContainer (root coordinate space), so unlike a
+  // screen-local Toast this needs the actual bottom tab bar height, not 0 - otherwise the Toast
+  // sits under the tab bar, over the Android system navigation area.
+  const tabBarHeight = useBottomTabBarHeight();
+  useToastBottomAnchor(tabBarHeight);
   const [date, setDate] = useState<string | null>(null);
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);

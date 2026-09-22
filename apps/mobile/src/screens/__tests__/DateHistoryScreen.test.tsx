@@ -28,6 +28,10 @@ jest.mock('@react-navigation/native', () => ({
   },
 }));
 
+jest.mock('@react-navigation/bottom-tabs', () => ({
+  useBottomTabBarHeight: () => 80,
+}));
+
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -321,10 +325,10 @@ describe('DateHistoryScreen delete undo', () => {
     await deleteViaSwipe(renderer, item);
 
     expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toBeTruthy();
-    // This screen's own scene view already ends exactly at the tab bar's top edge (React
-    // Navigation sizes it that way), so the toast's bottomOffset is 0, not the tab bar's height -
-    // using the tab bar's height here would double-count it and float the toast too high.
-    expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(0);
+    // AppToastHost renders above NavigationContainer (root coordinate space), not inside this
+    // screen's own scene, so the toast's bottomOffset must be the actual tab bar height (mocked
+    // to 80 above), not 0 - 0 would put the toast under the tab bar.
+    expect(renderer.root.findByType(UndoToast).props.bottomOffset).toBe(80);
   });
 
   it('restores the row (via refresh, matching the date section it was saved under) after undo succeeds', async () => {
