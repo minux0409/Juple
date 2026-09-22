@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "Xóa mục này? Không thể hoàn tác sau khi xóa.",
     "errorBadRequest": "Vui lòng nhập địa chỉ http hoặc https hợp lệ.",
     "errorForbidden": "Không thể xác nhận quyền thực hiện thao tác này.",
-    "errorUnsafeUrl": "URL này được xác định là không an toàn và không thể lưu.",
-    "errorSafetyUnavailable": "Không thể kiểm tra độ an toàn của URL này. Vui lòng thử lại sau.",
     "errorSaveFallback": "Không thể lưu liên kết.",
     "errorLoadFallback": "Không thể tải liên kết đã lưu hôm nay.",
     "errorDeleteFallback": "Không thể xóa mục này."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "Không thể xóa mục này.",
     "errorImagePickerPermission": "Cần quyền truy cập thư viện ảnh.",
     "errorImagePickerFallback": "Không thể chọn ảnh.",
-    "urlSafetyThreatTitle": "Liên kết này cần thận trọng",
-    "urlSafetyThreatMessage": "Chúng tôi phát hiện tín hiệu nguy hiểm đã biết ở liên kết này. Vẫn muốn mở?",
-    "urlSafetyGoAnyway": "Vẫn mở",
     "resolvingMetadataOverlay": "Đang tải thông tin liên kết...",
     "metadataResolutionFailedHint": "Không thể tải thông tin liên kết. Bạn có thể tự nhập và lưu."
-  },
-  "urlSafety": {
-    "checking": "Đang kiểm tra...",
-    "noKnownThreat": "Không phát hiện nguy cơ nào đã biết.",
-    "threatDetected": "Liên kết này cần thận trọng.",
-    "checkUnavailable": "Hiện không thể kiểm tra độ an toàn."
   },
   "sharedCollection": {
     "itemsEmpty": "Danh mục được chia sẻ này chưa có liên kết nào được lưu.",

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text;
 using Juple.Application.UrlMetadata;
-using Juple.Application.UrlSafety;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -20,15 +19,13 @@ namespace Juple.Infrastructure.UrlMetadata;
 ///
 /// Always best-effort - every expected failure (SSRF-blocked, timeout, oversized, wrong content
 /// type, no title found) resolves to UrlMetadataResult(null, null) rather than throwing, so a
-/// caller's own save flow is unaffected by fetch failures. Redirect reputation failures instead
-/// throw UrlSafetyCheckException and must stop saving. See UrlMetadataOperationException.
+/// caller's own save flow is never affected by this. See UrlMetadataOperationException.
 /// </summary>
 public sealed class UrlMetadataResolver(
     HttpClient httpClient,
     IMemoryCache memoryCache,
     TimeProvider timeProvider,
-    ILogger<UrlMetadataResolver> logger,
-    IUrlSafetyChecker urlSafetyChecker) : IUrlMetadataResolver
+    ILogger<UrlMetadataResolver> logger) : IUrlMetadataResolver
 {
     private const int MaxRedirects = 5;
     private const long MaxResponseBytes = 1024 * 1024; // 1 MB - enough for metadata typically near the top of <head>.
@@ -59,7 +56,6 @@ public sealed class UrlMetadataResolver(
         var result = none;
         string? failureCategory = null;
         var redirectCount = 0;
-        var redirectChainComplete = false;
         var lastAttemptedHost = initialUri.Host;
         UrlMetadataImageSource? imageSourceForDiagnostics = null;
         string? youTubeImageVariantForDiagnostics = null;
@@ -103,22 +99,6 @@ public sealed class UrlMetadataResolver(
                 }
 
                 lastAttemptedHost = currentUri.Host;
-
-                if (redirectCount > 0)
-                {
-                    // A safe short link can redirect to a known threat. Do not turn a failed
-                    // redirect reputation check into an ordinary best-effort metadata failure.
-                    UrlSafetyResult safety;
-                    try
-                    {
-                        safety = await urlSafetyChecker.CheckAsync(currentUri.AbsoluteUri, budgetCts.Token);
-                    }
-                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                    {
-                        safety = UrlSafetyResult.Unavailable;
-                    }
-                    UrlSafetyCheckException.ThrowIfNotAllowed(safety);
-                }
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
                 var cookieHeader = cookieContainer.GetCookieHeader(currentUri);
@@ -174,7 +154,6 @@ public sealed class UrlMetadataResolver(
                     continue;
                 }
 
-                redirectChainComplete = true;
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new UrlMetadataOperationException($"http_status_{(int)response.StatusCode}");
@@ -270,14 +249,7 @@ public sealed class UrlMetadataResolver(
             lastAttemptedHost, result, imageSourceForDiagnostics, youTubeImageVariantForDiagnostics,
             failureCategory, redirectCount, elapsedMs);
 
-        // An unfinished chain (limit, loop, blocked host, timeout) cannot approve a link whose
-        // eventual destination was never checked. Never persist it as an ordinary metadata miss.
-        if (redirectCount > 0 && !redirectChainComplete)
-            UrlSafetyCheckException.ThrowIfNotAllowed(UrlSafetyResult.Unavailable);
-
-        // A cached redirect chain must not bypass destination reputation checks on later saves.
-        if (redirectCount == 0)
-            memoryCache.Set(cacheKey, result, CacheEntryOptions);
+        memoryCache.Set(cacheKey, result, CacheEntryOptions);
         return result;
     }
 

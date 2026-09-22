@@ -1,6 +1,3 @@
-import { ApiError } from '../../api/ApiError';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { requestApi } from '../../api/apiClient';
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, TextInput } from 'react-native';
@@ -312,33 +309,6 @@ describe('DailyInboxScreen direct URL save', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  it.each([
-    ['unsafe_url', '안전하지 않은 URL로 확인되어 저장할 수 없습니다.'],
-    ['url_safety_check_unavailable', 'URL의 안전 여부를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.'],
-  ])('shows %s in ConfirmDialog without metadata fetch', async (code, message) => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = jest.fn().mockResolvedValue({ status: 400, json: async () => ({ status: 400, code }) });
-    let apiError: unknown;
-    try {
-      await requestApi({ method: 'POST', path: '/api/v1/inbox', body: { url: 'https://example.com' } });
-    } catch (error) {
-      apiError = error;
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-    expect(apiError).toBeInstanceOf(ApiError);
-    jest.mocked(saveInboxEntry).mockRejectedValue(apiError);
-    const renderer = await renderScreen();
-    await act(async () => { renderer.root.findByType(TextInput).props.onChangeText('https://example.com'); });
-    await act(async () => { pressHomeSaveButton(renderer); await flushMicrotasks(); });
-    const dialog = renderer.root.findAllByType(ConfirmDialog).find(node => node.props.visible);
-    expect(dialog?.props.message).toBe(message);
-    expect(resolveUrlMetadata).not.toHaveBeenCalled();
-    expect(renderer.root.findByType(TextInput).props.value).toBe('https://example.com');
-    await act(async () => { dialog?.props.onConfirm(); });
-    expect(renderer.root.findAllByType(ConfirmDialog).some(node => node.props.visible)).toBe(false);
   });
 
   it('saves the URL and best-effort resolves URL metadata (Home never collects a title itself)', async () => {

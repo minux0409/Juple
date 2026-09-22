@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
     "errorBadRequest": "Lütfen geçerli bir http veya https adresi girin.",
     "errorForbidden": "Bu işlem için izni onaylayamadık.",
-    "errorUnsafeUrl": "Bu URL güvensiz olarak tespit edildi ve kaydedilemez.",
-    "errorSafetyUnavailable": "Bu URL’nin güvenli olup olmadığı kontrol edilemedi. Lütfen daha sonra tekrar deneyin.",
     "errorSaveFallback": "Bağlantı kaydedilemedi.",
     "errorLoadFallback": "Bugün kaydedilen bağlantılar yüklenemedi.",
     "errorDeleteFallback": "Öğe silinemedi."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "Öğe silinemedi.",
     "errorImagePickerPermission": "Fotoğraf kitaplığına erişim izni gerekiyor.",
     "errorImagePickerFallback": "Fotoğraf seçilemedi.",
-    "urlSafetyThreatTitle": "Bu bağlantı dikkat gerektiriyor",
-    "urlSafetyThreatMessage": "Bu bağlantı için bilinen bir tehdit sinyali tespit ettik. Yine de açılsın mı?",
-    "urlSafetyGoAnyway": "Yine de aç",
     "resolvingMetadataOverlay": "Bağlantı bilgileri yükleniyor...",
     "metadataResolutionFailedHint": "Bağlantı bilgileri yüklenemedi. Kendiniz girip kaydedebilirsiniz."
-  },
-  "urlSafety": {
-    "checking": "Kontrol ediliyor...",
-    "noKnownThreat": "Bilinen bir tehdit bulunamadı.",
-    "threatDetected": "Bu bağlantı dikkat gerektiriyor.",
-    "checkUnavailable": "Güvenlik kontrolü şu anda kullanılamıyor."
   },
   "sharedCollection": {
     "itemsEmpty": "Bu paylaşılan kategoride henüz kaydedilmiş bağlantı yok.",

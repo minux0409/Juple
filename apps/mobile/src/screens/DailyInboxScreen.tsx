@@ -45,8 +45,6 @@ const PAGE_LIMIT = 50;
 
 function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
-    if (error.code === 'unsafe_url') return t('inbox.errorUnsafeUrl');
-    if (error.code === 'url_safety_check_unavailable') return t('inbox.errorSafetyUnavailable');
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');
     }

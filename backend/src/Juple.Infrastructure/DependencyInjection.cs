@@ -16,7 +16,6 @@ using Juple.Application.Items;
 using Juple.Application.Items.InstagramMetadataRetry;
 using Juple.Application.Push;
 using Juple.Application.UrlMetadata;
-using Juple.Application.UrlSafety;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
@@ -28,7 +27,6 @@ using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Push;
 using Juple.Infrastructure.Storage;
 using Juple.Infrastructure.UrlMetadata;
-using Juple.Infrastructure.UrlSafety;
 using Juple.Infrastructure.Users.BootstrapCurrentUser;
 using Juple.Infrastructure.Users.CurrentUser;
 using Juple.Infrastructure.Users.DeleteAccount;
@@ -91,7 +89,6 @@ public static class DependencyInjection
         services.AddSingleton<UserDelegationKeyCache>();
 
         AddUrlMetadataResolver(services);
-        AddUrlSafetyChecker(services, configuration);
 
         return services;
     }
@@ -126,8 +123,7 @@ public static class DependencyInjection
             // path (which can itself carry sensitive/identifying content) would otherwise leak
             // into Production logs verbatim. RemoveAllLoggers() (Microsoft.Extensions.Http,
             // confirmed present in this exact package version) strips those two handlers from
-            // *only* this named/typed client's pipeline - no other HttpClient (e.g.
-            // IUrlSafetyChecker) and no global Logging:LogLevel setting is touched - leaving
+            // *only* this named/typed client's pipeline and no global Logging:LogLevel setting is touched - leaving
             // UrlMetadataResolver's own hostname-only LogOutcome as the sole log output for this
             // feature.
             .RemoveAllLoggers()
@@ -158,38 +154,6 @@ public static class DependencyInjection
                         }
                     }, cancellationToken),
                 };
-            });
-    }
-
-    /// <summary>
-    /// Unlike AddUrlMetadataResolver, no ConnectCallback/DNS guard here - WebRiskUrlSafetyChecker
-    /// only ever sends the URL string to Google's own fixed BaseAddress below, never connects to
-    /// the caller-supplied URL itself, so there is no SSRF surface to defend. MaxConnectionsPerServer
-    /// bounds concurrent outbound calls to Web Risk (a paid, rate-limited external API) - matching
-    /// this round's "endpoint-level abuse protection, not a new global architecture" scope; the
-    /// short Timeout keeps a slow/unavailable provider from holding up a request (URL safety is
-    /// required before saving a URL). Reuses the
-    /// IMemoryCache already registered by AddUrlMetadataResolver above (same SizeLimit budget,
-    /// distinct "UrlSafety:" key prefix - see WebRiskUrlSafetyChecker) rather than registering a
-    /// second cache.
-    /// </summary>
-    private static void AddUrlSafetyChecker(IServiceCollection services, IConfiguration configuration)
-    {
-        var apiKey = configuration["UrlSafety:WebRisk:ApiKey"];
-        services.AddSingleton(new WebRiskOptions(apiKey));
-
-        services.AddHttpClient<IUrlSafetyChecker, WebRiskUrlSafetyChecker>(client =>
-            {
-                client.BaseAddress = new Uri("https://webrisk.googleapis.com/");
-                client.Timeout = TimeSpan.FromSeconds(4);
-                client.MaxResponseContentBufferSize = 64 * 1024;
-            })
-            .RemoveAllLoggers()
-            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-            {
-                AllowAutoRedirect = false,
-                UseCookies = false,
-                MaxConnectionsPerServer = 10,
             });
     }
 

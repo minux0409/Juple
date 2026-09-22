@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
     "errorBadRequest": "Masukkan alamat http atau https yang valid.",
     "errorForbidden": "Kami tidak dapat mengonfirmasi izin untuk tindakan ini.",
-    "errorUnsafeUrl": "URL ini teridentifikasi tidak aman dan tidak dapat disimpan.",
-    "errorSafetyUnavailable": "Keamanan URL ini tidak dapat diperiksa. Silakan coba lagi nanti.",
     "errorSaveFallback": "Tidak dapat menyimpan tautan.",
     "errorLoadFallback": "Tidak dapat memuat tautan yang disimpan hari ini.",
     "errorDeleteFallback": "Tidak dapat menghapus item."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "Tidak dapat menghapus item.",
     "errorImagePickerPermission": "Akses ke galeri foto diperlukan.",
     "errorImagePickerFallback": "Tidak dapat memilih foto.",
-    "urlSafetyThreatTitle": "Tautan ini perlu diwaspadai",
-    "urlSafetyThreatMessage": "Kami mendeteksi sinyal ancaman yang dikenal pada tautan ini. Tetap buka?",
-    "urlSafetyGoAnyway": "Tetap buka",
     "resolvingMetadataOverlay": "Memuat info tautan...",
     "metadataResolutionFailedHint": "Info tautan tidak dapat dimuat. Anda bisa memasukkannya sendiri lalu simpan."
-  },
-  "urlSafety": {
-    "checking": "Memeriksa...",
-    "noKnownThreat": "Tidak ditemukan ancaman yang dikenal.",
-    "threatDetected": "Tautan ini perlu diwaspadai.",
-    "checkUnavailable": "Pemeriksaan keamanan saat ini tidak tersedia."
   },
   "sharedCollection": {
     "itemsEmpty": "Kategori bersama ini belum memiliki tautan yang disimpan.",

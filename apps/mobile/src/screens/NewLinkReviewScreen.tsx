@@ -28,7 +28,6 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
-import { checkUrlSafety, type UrlSafetyStatus } from '../urlSafety/api/urlSafetyApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 // Staged photo removal is instant/local (no server round-trip - see removeStagedPhoto), so
@@ -80,23 +79,6 @@ function getPhotoUploadErrorMessage(error: unknown, t: TFunction): string {
   return t('item.errorImageUploadFallback');
 }
 
-type UrlSafetyDisplayState = 'checking' | UrlSafetyStatus;
-
-function getUrlSafetyStatusLabel(state: UrlSafetyDisplayState | null, t: TFunction): string | null {
-  switch (state) {
-    case 'checking':
-      return t('urlSafety.checking');
-    case 'noKnownThreat':
-      return t('urlSafety.noKnownThreat');
-    case 'threatDetected':
-      return t('urlSafety.threatDetected');
-    case 'checkUnavailable':
-      return t('urlSafety.checkUnavailable');
-    default:
-      return null;
-  }
-}
-
 /**
  * Reached only via IncomingShareRouter (Quick Save OFF, or a leftover Quick Save ON share that
  * still needs review) - never navigated to any other way, and never pre-creates the Item. Save is
@@ -127,8 +109,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // needs to be editable the same way.
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
-
-  const [urlSafetyState, setUrlSafetyState] = useState<UrlSafetyDisplayState | null>(null);
 
   const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
   // Set only when the metadata fetch itself throws (network/timeout/server error) - never for a
@@ -260,42 +240,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
   }, []);
 
-  // Best-effort and mount-only for the initial URL, same policy as the metadata title fetch above
-  // (never re-run as the user edits the url field) - never blocks Save, which reads url/isSaving
-  // only, not this state. A rejected/failed check is shown as checkUnavailable rather than left
-  // blank, so the user always sees a definite (if non-committal) outcome instead of a silently
-  // stuck spinner.
-  useEffect(() => {
-    if (!isHttpUrl(route.params.url)) {
-      return;
-    }
-
-    let isMounted = true;
-    setUrlSafetyState('checking');
-    checkUrlSafety(authenticatedRequest, route.params.url)
-      .then(result => {
-        if (isMounted) {
-          setUrlSafetyState(result.status);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setUrlSafetyState('checkUnavailable');
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
-  }, []);
-
   const handleTitleChange = (value: string) => {
     hasUserEditedTitleRef.current = true;
     setTitle(value);
   };
 
-  /** No pre-flight safety check here (unlike ItemDetailsScreen) - urlSafetyState from the mount-time check above is already visible on screen, so this just opens the link to preview it before Save. */
   const openUrl = async () => {
     setUrlOpenError(null);
     try {
@@ -526,16 +475,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
             />
           )}
           {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
-          {urlSafetyState ? (
-            <Text
-              style={[
-                styles.urlSafetyStatus,
-                urlSafetyState === 'threatDetected' && styles.urlSafetyStatusWarning,
-              ]}
-            >
-              {getUrlSafetyStatusLabel(urlSafetyState, t)}
-            </Text>
-          ) : null}
         </ContentPreviewCard>
 
         <CategoryField
@@ -645,15 +584,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-  },
-  urlSafetyStatus: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: spacing.xs,
-  },
-  urlSafetyStatusWarning: {
-    color: colors.danger,
-    fontWeight: '600',
   },
   memoInput: {
     backgroundColor: colors.surface,

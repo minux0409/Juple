@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "Удалить этот элемент? Это действие нельзя отменить.",
     "errorBadRequest": "Введите корректный адрес http или https.",
     "errorForbidden": "Не удалось подтвердить разрешение на это действие.",
-    "errorUnsafeUrl": "Этот URL признан небезопасным и не может быть сохранён.",
-    "errorSafetyUnavailable": "Не удалось проверить безопасность этого URL. Повторите попытку позже.",
     "errorSaveFallback": "Не удалось сохранить ссылку.",
     "errorLoadFallback": "Не удалось загрузить ссылки, сохранённые сегодня.",
     "errorDeleteFallback": "Не удалось удалить элемент."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "Не удалось удалить элемент.",
     "errorImagePickerPermission": "Требуется доступ к галерее фото.",
     "errorImagePickerFallback": "Не удалось выбрать фото.",
-    "urlSafetyThreatTitle": "Эта ссылка требует осторожности",
-    "urlSafetyThreatMessage": "Мы обнаружили известный сигнал угрозы для этой ссылки. Всё равно открыть?",
-    "urlSafetyGoAnyway": "Всё равно открыть",
     "resolvingMetadataOverlay": "Загрузка информации о ссылке…",
     "metadataResolutionFailedHint": "Не удалось загрузить информацию о ссылке. Вы можете ввести её вручную и сохранить."
-  },
-  "urlSafety": {
-    "checking": "Проверка...",
-    "noKnownThreat": "Известных угроз не обнаружено.",
-    "threatDetected": "Эта ссылка требует осторожности.",
-    "checkUnavailable": "Проверка безопасности сейчас недоступна."
   },
   "sharedCollection": {
     "itemsEmpty": "В этой общей категории пока нет сохранённых ссылок.",

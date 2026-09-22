@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
     "errorBadRequest": "Bitte geben Sie eine gültige http- oder https-Adresse ein.",
     "errorForbidden": "Die Berechtigung für diese Aktion konnte nicht bestätigt werden.",
-    "errorUnsafeUrl": "Diese URL wurde als unsicher erkannt und kann nicht gespeichert werden.",
-    "errorSafetyUnavailable": "Die Sicherheit dieser URL konnte nicht überprüft werden. Bitte versuche es später erneut.",
     "errorSaveFallback": "Der Link konnte nicht gespeichert werden.",
     "errorLoadFallback": "Die heute gespeicherten Links konnten nicht geladen werden.",
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "Der Eintrag konnte nicht gelöscht werden.",
     "errorImagePickerPermission": "Zugriff auf die Fotomediathek ist erforderlich.",
     "errorImagePickerFallback": "Das Foto konnte nicht ausgewählt werden.",
-    "urlSafetyThreatTitle": "Bei diesem Link ist Vorsicht geboten",
-    "urlSafetyThreatMessage": "Wir haben ein bekanntes Risikosignal für diesen Link erkannt. Trotzdem öffnen?",
-    "urlSafetyGoAnyway": "Trotzdem öffnen",
     "resolvingMetadataOverlay": "Linkinformationen werden geladen …",
     "metadataResolutionFailedHint": "Linkinformationen konnten nicht geladen werden. Du kannst sie selbst eingeben und speichern."
-  },
-  "urlSafety": {
-    "checking": "Wird überprüft...",
-    "noKnownThreat": "Keine bekannten Risiken gefunden.",
-    "threatDetected": "Bei diesem Link ist Vorsicht geboten.",
-    "checkUnavailable": "Die Sicherheitsprüfung ist derzeit nicht verfügbar."
   },
   "sharedCollection": {
     "itemsEmpty": "In dieser geteilten Kategorie sind noch keine Links gespeichert.",

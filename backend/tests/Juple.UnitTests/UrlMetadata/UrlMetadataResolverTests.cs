@@ -2,9 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using Juple.Infrastructure.UrlMetadata;
-using Juple.Application.UrlSafety;
-using Juple.Application.Inbox;
-using Juple.Application.Inbox.SaveInboxEntry;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -19,80 +16,6 @@ namespace Juple.UnitTests.UrlMetadata;
 /// </summary>
 public sealed class UrlMetadataResolverTests
 {
-    private sealed class RedirectSafetyChecker(Func<string, UrlSafetyResult> check) : IUrlSafetyChecker
-    {
-        public Task<UrlSafetyResult> CheckAsync(string url, CancellationToken cancellationToken = default) =>
-            Task.FromResult(check(url));
-    }
-
-    private sealed class NeverSaveStore : IInboxEntryStore
-    {
-        public Task<InboxEntrySaveResult> SaveAsync(long userId, string url, Guid? clientRequestId,
-            DateTimeOffset savedAtUtc, CancellationToken cancellationToken = default) =>
-            throw new InvalidOperationException("Unchecked redirect must never reach persistence.");
-    }
-
-    [Theory]
-    [InlineData(UrlSafetyStatus.ThreatDetected, "unsafe_url")]
-    [InlineData(UrlSafetyStatus.CheckUnavailable, "url_safety_check_unavailable")]
-    public async Task SaveAsync_UnsafeRedirectNeverFetchesDestinationOrPersists(UrlSafetyStatus status, string code)
-    {
-        var checker = new RedirectSafetyChecker(url =>
-        {
-            Assert.Equal("https://malicious.example/target", url);
-            return new UrlSafetyResult(status, []);
-        });
-        var resolver = CreateResolver((_, _) => new HttpResponseMessage(HttpStatusCode.Found)
-        { Headers = { Location = new Uri("https://malicious.example/target") } }, out var handler, out var cache, checker);
-        using (cache)
-        {
-            var service = new InboxEntrySaveService(new NeverSaveStore(), TimeProvider.System, new FakeUrlSafetyChecker(), resolver);
-            var error = await Assert.ThrowsAsync<UrlSafetyCheckException>(() =>
-                service.SaveAsync(1, new SaveInboxEntryCommand("https://example.com/start")));
-            Assert.Equal(code, error.Code);
-            Assert.Equal(1, handler.CallCount);
-        }
-    }
-
-    [Fact]
-    public async Task ResolveAsync_RedirectCheckCancellationCannotBecomeSuccessfulMetadataMiss()
-    {
-        var resolver = CreateResolver((_, _) => new HttpResponseMessage(HttpStatusCode.Found)
-        { Headers = { Location = new Uri("/target", UriKind.Relative) } }, out var handler, out var cache,
-            new RedirectSafetyChecker(_ => throw new OperationCanceledException()));
-        using (cache)
-        {
-            var error = await Assert.ThrowsAsync<UrlSafetyCheckException>(() => resolver.ResolveAsync("https://example.com/start"));
-            Assert.Equal("url_safety_check_unavailable", error.Code);
-            Assert.Equal(1, handler.CallCount);
-        }
-    }
-
-    [Fact]
-    public async Task ResolveAsync_CachedRedirectMetadataCannotBypassLaterThreatCheck()
-    {
-        var status = UrlSafetyStatus.NoKnownThreat;
-        var checks = 0;
-        var resolver = CreateResolver((_, count) => count % 2 == 1
-            ? new HttpResponseMessage(HttpStatusCode.Found) { Headers = { Location = new Uri("/target", UriKind.Relative) } }
-            : HtmlResponse("<title>Target</title>"), out var handler, out var cache,
-            new RedirectSafetyChecker(url =>
-            {
-                Assert.Equal("https://example.com/target", url);
-                checks++;
-                return new UrlSafetyResult(status, []);
-            }));
-        using (cache)
-        {
-            Assert.Equal("Target", (await resolver.ResolveAsync("https://example.com/start")).Title);
-            status = UrlSafetyStatus.ThreatDetected;
-            var error = await Assert.ThrowsAsync<UrlSafetyCheckException>(() => resolver.ResolveAsync("https://example.com/start"));
-            Assert.Equal("unsafe_url", error.Code);
-            Assert.Equal(2, checks);
-            Assert.Equal(3, handler.CallCount);
-        }
-    }
-
     private sealed class EndlessHtmlStream(int maxChunkBytes) : Stream
     {
         public long BytesRead { get; private set; }
@@ -163,7 +86,7 @@ public sealed class UrlMetadataResolverTests
         }, out _, out var cache);
         using (cache)
         {
-            await Assert.ThrowsAsync<UrlSafetyCheckException>(() => resolver.ResolveAsync("https://example.com/start"));
+            Assert.Null((await resolver.ResolveAsync("https://example.com/start")).Title);
             Assert.False(reachedTarget);
         }
     }
@@ -184,15 +107,13 @@ public sealed class UrlMetadataResolverTests
     private static UrlMetadataResolver CreateResolver(
         Func<HttpRequestMessage, int, HttpResponseMessage> handler,
         out StubHttpMessageHandler stubHandler,
-        out IMemoryCache memoryCache,
-        IUrlSafetyChecker? safetyChecker = null)
+        out IMemoryCache memoryCache)
     {
         stubHandler = new StubHttpMessageHandler(handler);
         var httpClient = new HttpClient(stubHandler) { BaseAddress = null };
         memoryCache = new MemoryCache(new MemoryCacheOptions());
         return new UrlMetadataResolver(
-            httpClient, memoryCache, TimeProvider.System, NullLogger<UrlMetadataResolver>.Instance,
-            safetyChecker ?? new FakeUrlSafetyChecker());
+            httpClient, memoryCache, TimeProvider.System, NullLogger<UrlMetadataResolver>.Instance);
     }
 
     private static HttpResponseMessage HtmlResponse(string html, string mediaType = "text/html")
@@ -240,7 +161,7 @@ public sealed class UrlMetadataResolverTests
     }
 
     [Fact]
-    public async Task ResolveAsync_WhenRedirectsExceedLimit_RejectsUncheckedChain()
+    public async Task ResolveAsync_WhenRedirectsExceedLimit_ReturnsNoTitle()
     {
         var resolver = CreateResolver(
             (_, callCount) => new HttpResponseMessage(HttpStatusCode.Found)
@@ -250,15 +171,35 @@ public sealed class UrlMetadataResolverTests
             out var handler, out var cache);
         using (cache)
         {
-            var error = await Assert.ThrowsAsync<UrlSafetyCheckException>(() => resolver.ResolveAsync("https://example.com/start"));
-            Assert.Equal("url_safety_check_unavailable", error.Code);
+            var result = await resolver.ResolveAsync("https://example.com/start");
+            Assert.Null(result.Title);
             // 1 initial + 5 allowed redirects = 6 calls before the 6th redirect is rejected as over-limit.
             Assert.Equal(6, handler.CallCount);
         }
     }
 
     [Fact]
-    public async Task ResolveAsync_WhenRedirectTargetHasNonDefaultPort_RejectsUncheckedChain()
+    public async Task ResolveAsync_WhenRedirectChainRevisitsAnEarlierUri_ReturnsNoTitle_WithoutRequestingItAgain()
+    {
+        var resolver = CreateResolver(
+            (request, callCount) => new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                // A short A -> B -> A cycle, well under MaxRedirects - only the loop check (not the
+                // redirect-count limit) can catch this.
+                Headers = { Location = new Uri(request.RequestUri!.AbsoluteUri.EndsWith("/start") ? "https://example.com/a" : "https://example.com/start") },
+            },
+            out var handler, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/start");
+            Assert.Null(result.Title);
+            // /start then /a - the loop is detected before a third request would re-request /start.
+            Assert.Equal(2, handler.CallCount);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenRedirectTargetHasNonDefaultPort_ReturnsNoTitle_AndNeverRequestsIt()
     {
         var resolver = CreateResolver(
             (_, callCount) => callCount == 1
@@ -270,8 +211,8 @@ public sealed class UrlMetadataResolverTests
             out var handler, out var cache);
         using (cache)
         {
-            var error = await Assert.ThrowsAsync<UrlSafetyCheckException>(() => resolver.ResolveAsync("https://example.com/start"));
-            Assert.Equal("url_safety_check_unavailable", error.Code);
+            var result = await resolver.ResolveAsync("https://example.com/start");
+            Assert.Null(result.Title);
             Assert.Equal(1, handler.CallCount);
         }
     }

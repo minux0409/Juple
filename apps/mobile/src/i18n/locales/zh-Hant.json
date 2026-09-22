@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "確定要刪除此項目嗎？刪除後無法復原。",
     "errorBadRequest": "請輸入有效的 http 或 https 網址。",
     "errorForbidden": "無法確認此操作的權限。",
-    "errorUnsafeUrl": "此 URL 被確認為不安全，無法儲存。",
-    "errorSafetyUnavailable": "無法確認此 URL 是否安全。請稍後再試。",
     "errorSaveFallback": "無法儲存該連結。",
     "errorLoadFallback": "無法載入今日儲存的連結。",
     "errorDeleteFallback": "無法刪除該項目。"
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "無法刪除該項目。",
     "errorImagePickerPermission": "需要照片庫的存取權限。",
     "errorImagePickerFallback": "無法選取照片。",
-    "urlSafetyThreatTitle": "此連結需要留意",
-    "urlSafetyThreatMessage": "偵測到此連結有已知風險訊號，仍要開啟嗎？",
-    "urlSafetyGoAnyway": "仍要開啟",
     "resolvingMetadataOverlay": "正在載入連結資訊…",
     "metadataResolutionFailedHint": "無法載入連結資訊。您可以自行輸入後儲存。"
-  },
-  "urlSafety": {
-    "checking": "檢查中...",
-    "noKnownThreat": "未發現已知風險。",
-    "threatDetected": "此連結需要留意。",
-    "checkUnavailable": "目前無法完成安全檢查。"
   },
   "sharedCollection": {
     "itemsEmpty": "這個共用分類中還沒有儲存的連結。",

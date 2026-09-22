@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "ลบรายการนี้หรือไม่? ไม่สามารถย้อนกลับได้หลังจากลบแล้ว",
     "errorBadRequest": "โปรดกรอกที่อยู่ http หรือ https ที่ถูกต้อง",
     "errorForbidden": "ไม่สามารถยืนยันสิทธิ์สำหรับการดำเนินการนี้ได้",
-    "errorUnsafeUrl": "URL นี้ถูกระบุว่าไม่ปลอดภัยและไม่สามารถบันทึกได้",
-    "errorSafetyUnavailable": "ไม่สามารถตรวจสอบความปลอดภัยของ URL นี้ได้ โปรดลองอีกครั้งภายหลัง",
     "errorSaveFallback": "ไม่สามารถบันทึกลิงก์ได้",
     "errorLoadFallback": "ไม่สามารถโหลดลิงก์ที่บันทึกวันนี้ได้",
     "errorDeleteFallback": "ไม่สามารถลบรายการได้"
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "ไม่สามารถลบรายการนี้ได้",
     "errorImagePickerPermission": "ต้องได้รับสิทธิ์เข้าถึงคลังรูปภาพ",
     "errorImagePickerFallback": "ไม่สามารถเลือกรูปภาพได้",
-    "urlSafetyThreatTitle": "ลิงก์นี้ต้องใช้ความระมัดระวัง",
-    "urlSafetyThreatMessage": "เราตรวจพบสัญญาณความเสี่ยงที่รู้จักในลิงก์นี้ ยังต้องการเปิดหรือไม่?",
-    "urlSafetyGoAnyway": "เปิดต่อไป",
     "resolvingMetadataOverlay": "กำลังโหลดข้อมูลลิงก์...",
     "metadataResolutionFailedHint": "โหลดข้อมูลลิงก์ไม่สำเร็จ คุณสามารถกรอกข้อมูลเองแล้วบันทึกได้"
-  },
-  "urlSafety": {
-    "checking": "กำลังตรวจสอบ...",
-    "noKnownThreat": "ไม่พบความเสี่ยงที่รู้จัก",
-    "threatDetected": "ลิงก์นี้ต้องใช้ความระมัดระวัง",
-    "checkUnavailable": "ขณะนี้ไม่สามารถตรวจสอบความปลอดภัยได้"
   },
   "sharedCollection": {
     "itemsEmpty": "หมวดหมู่ที่แชร์นี้ยังไม่มีลิงก์ที่บันทึกไว้",

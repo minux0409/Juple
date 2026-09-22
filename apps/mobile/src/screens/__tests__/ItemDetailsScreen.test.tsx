@@ -6,7 +6,6 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ContentPreviewCard } from '../../components/ContentPreviewCard';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
 import { AppToastProvider } from '../../components/AppToast';
-import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 import {
   deleteItem,
   getItemDetails,
@@ -73,11 +72,7 @@ jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
 }));
 
-jest.mock('../../urlSafety/api/urlSafetyApi', () => ({
-  checkUrlSafety: jest.fn(),
-}));
-
-const route = { key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1 } } as never;
+const route ={ key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1 } } as never;
 const navigation = { goBack: jest.fn() } as never;
 
 function makeItemDetails(overrides: Partial<ItemDetails> = {}): ItemDetails {
@@ -808,6 +803,17 @@ describe('ItemDetailsScreen', () => {
       expect(findPressableByText(renderer, i18n.t('item.goToUrl'))).toBeFalsy();
       expect(findPressableByText(renderer, i18n.t('item.share'))).toBeFalsy();
     });
+
+    it('opens the original URL directly when the URL-open action is pressed', async () => {
+      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
+      });
+
+      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
+    });
   });
 
   describe('bottom action row - Delete/Save', () => {
@@ -908,78 +914,4 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
-  describe('URL safety check on the URL-open action', () => {
-    it('opens the URL directly when the safety check finds no known threat', async () => {
-      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
-      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
-      const renderer = await renderScreen();
-
-      await act(async () => {
-        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
-      });
-
-      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
-      expect(findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'))).toBeFalsy();
-    });
-
-    it('opens the URL directly (non-blocking) when the safety check itself fails', async () => {
-      jest.mocked(checkUrlSafety).mockRejectedValue(new Error('network down'));
-      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
-      const renderer = await renderScreen();
-
-      await act(async () => {
-        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
-      });
-
-      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
-    });
-
-    it('shows a ConfirmDialog instead of opening the URL when a known threat is detected', async () => {
-      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
-      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
-      const renderer = await renderScreen();
-
-      await act(async () => {
-        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
-      });
-
-      expect(openUrlSpy).not.toHaveBeenCalled();
-      expect(findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'))).toBeTruthy();
-    });
-
-    it('cancelling the threat ConfirmDialog closes it without opening the URL', async () => {
-      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
-      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
-      const renderer = await renderScreen();
-
-      await act(async () => {
-        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
-      });
-      const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'));
-
-      await act(async () => {
-        dialog.props.onCancel();
-      });
-
-      expect(openUrlSpy).not.toHaveBeenCalled();
-      expect(findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'))).toBeFalsy();
-    });
-
-    it('confirming the threat ConfirmDialog opens the original URL', async () => {
-      jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
-      const openUrlSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
-      const renderer = await renderScreen();
-
-      await act(async () => {
-        await findPressableByAccessibilityLabel(renderer, i18n.t('item.goToUrlA11y'))?.props.onPress();
-      });
-      const dialog = findVisibleConfirmDialog(renderer, i18n.t('item.urlSafetyThreatTitle'));
-
-      await act(async () => {
-        dialog.props.onConfirm();
-      });
-
-      expect(openUrlSpy).toHaveBeenCalledWith('https://example.com');
-    });
-  });
 });

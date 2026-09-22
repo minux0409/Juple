@@ -1,5 +1,4 @@
 using Juple.Application.UrlMetadata;
-using Juple.Application.UrlSafety;
 using Juple.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,8 +23,6 @@ public sealed class UrlMetadataTransportTests
         Assert.NotNull(metadata.ConnectCallback);
         Assert.Null(metadata.SslOptions.RemoteCertificateValidationCallback);
         Assert.Equal(TimeSpan.FromSeconds(5), metadata.ConnectTimeout);
-        var reputation = Primary(factory.CreateHandler(nameof(IUrlSafetyChecker)));
-        Assert.False(reputation.AllowAutoRedirect);
     }
 
     private static SocketsHttpHandler Primary(HttpMessageHandler handler)

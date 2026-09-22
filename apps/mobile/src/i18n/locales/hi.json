@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "क्या इस आइटम को हटाना है? यह वापस नहीं किया जा सकता।",
     "errorBadRequest": "कृपया एक मान्य http या https पता दर्ज करें।",
     "errorForbidden": "हम इस कार्रवाई की अनुमति की पुष्टि नहीं कर सके।",
-    "errorUnsafeUrl": "यह URL असुरक्षित पाया गया है और इसे सहेजा नहीं जा सकता।",
-    "errorSafetyUnavailable": "इस URL की सुरक्षा की जाँच नहीं हो सकी। कृपया कुछ देर बाद फिर कोशिश करें।",
     "errorSaveFallback": "लिंक सेव नहीं हो सका।",
     "errorLoadFallback": "आज सेव किए गए लिंक लोड नहीं हो सके।",
     "errorDeleteFallback": "आइटम हटाया नहीं जा सका।"
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "आइटम हटाया नहीं जा सका।",
     "errorImagePickerPermission": "फ़ोटो लाइब्रेरी एक्सेस की अनुमति आवश्यक है।",
     "errorImagePickerFallback": "फ़ोटो चुनी नहीं जा सकी।",
-    "urlSafetyThreatTitle": "इस लिंक में सावधानी की आवश्यकता है",
-    "urlSafetyThreatMessage": "हमें इस लिंक के लिए एक ज्ञात खतरे का संकेत मिला है। फिर भी खोलना है?",
-    "urlSafetyGoAnyway": "फिर भी खोलें",
     "resolvingMetadataOverlay": "लिंक जानकारी लोड हो रही है...",
     "metadataResolutionFailedHint": "लिंक जानकारी लोड नहीं हो सकी। आप इसे स्वयं दर्ज करके सहेज सकते हैं।"
-  },
-  "urlSafety": {
-    "checking": "जांच हो रही है...",
-    "noKnownThreat": "कोई ज्ञात खतरा नहीं मिला।",
-    "threatDetected": "इस लिंक में सावधानी की आवश्यकता है।",
-    "checkUnavailable": "सुरक्षा जांच अभी उपलब्ध नहीं है।"
   },
   "sharedCollection": {
     "itemsEmpty": "इस साझा श्रेणी में अभी तक कोई सेव किया गया लिंक नहीं है।",

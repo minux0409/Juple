@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.",
     "errorBadRequest": "يُرجى إدخال عنوان http أو https صالح.",
     "errorForbidden": "تعذّر تأكيد الإذن لهذا الإجراء.",
-    "errorUnsafeUrl": "تم تحديد عنوان URL هذا على أنه غير آمن ولا يمكن حفظه.",
-    "errorSafetyUnavailable": "تعذر التحقق من أمان عنوان URL هذا. يرجى المحاولة لاحقًا.",
     "errorSaveFallback": "تعذّر حفظ الرابط.",
     "errorLoadFallback": "تعذّر تحميل الروابط المحفوظة اليوم.",
     "errorDeleteFallback": "تعذّر حذف العنصر."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "تعذّر حذف العنصر.",
     "errorImagePickerPermission": "الإذن بالوصول إلى مكتبة الصور مطلوب.",
     "errorImagePickerFallback": "تعذّر اختيار الصورة.",
-    "urlSafetyThreatTitle": "هذا الرابط يتطلب الحذر",
-    "urlSafetyThreatMessage": "رصدنا إشارة تهديد معروفة لهذا الرابط. هل تريد فتحه على أي حال؟",
-    "urlSafetyGoAnyway": "فتحه على أي حال",
     "resolvingMetadataOverlay": "جارٍ تحميل معلومات الرابط...",
     "metadataResolutionFailedHint": "تعذّر تحميل معلومات الرابط. يمكنك إدخالها يدويًا والحفظ."
-  },
-  "urlSafety": {
-    "checking": "جارٍ الفحص...",
-    "noKnownThreat": "لم يُعثر على أي تهديدات معروفة.",
-    "threatDetected": "هذا الرابط يتطلب الحذر.",
-    "checkUnavailable": "فحص الأمان غير متاح حاليًا."
   },
   "sharedCollection": {
     "itemsEmpty": "لا توجد روابط محفوظة في هذه الفئة المشتركة بعد.",

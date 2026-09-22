@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "¿Eliminar este elemento? Esta acción no se puede deshacer.",
     "errorBadRequest": "Introduce una dirección http o https válida.",
     "errorForbidden": "No pudimos confirmar el permiso para esta acción.",
-    "errorUnsafeUrl": "Esta URL se ha identificado como no segura y no se puede guardar.",
-    "errorSafetyUnavailable": "No pudimos comprobar si esta URL es segura. Inténtalo de nuevo más tarde.",
     "errorSaveFallback": "No se pudo guardar el enlace.",
     "errorLoadFallback": "No se pudieron cargar los enlaces guardados hoy.",
     "errorDeleteFallback": "No se pudo eliminar el elemento."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "No se pudo eliminar el elemento.",
     "errorImagePickerPermission": "Se requiere acceso a la biblioteca de fotos.",
     "errorImagePickerFallback": "No se pudo seleccionar la foto.",
-    "urlSafetyThreatTitle": "Este enlace requiere precaución",
-    "urlSafetyThreatMessage": "Detectamos una señal de amenaza conocida en este enlace. ¿Abrir de todos modos?",
-    "urlSafetyGoAnyway": "Abrir de todos modos",
     "resolvingMetadataOverlay": "Cargando información del enlace…",
     "metadataResolutionFailedHint": "No se pudo cargar la información del enlace. Puedes ingresarla tú mismo y guardar."
-  },
-  "urlSafety": {
-    "checking": "Comprobando...",
-    "noKnownThreat": "No se encontraron amenazas conocidas.",
-    "threatDetected": "Este enlace requiere precaución.",
-    "checkUnavailable": "La comprobación de seguridad no está disponible en este momento."
   },
   "sharedCollection": {
     "itemsEmpty": "Esta categoría compartida aún no tiene enlaces guardados.",

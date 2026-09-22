@@ -1,8 +1,6 @@
-using Juple.Application.UrlSafety;
-
 namespace Juple.Application.UrlMetadata.ResolveUrlMetadata;
 
-public sealed class ResolveUrlMetadataService(IUrlMetadataResolver urlMetadataResolver, IUrlSafetyChecker urlSafetyChecker)
+public sealed class ResolveUrlMetadataService(IUrlMetadataResolver urlMetadataResolver)
     : IResolveUrlMetadataService
 {
     public async Task<UrlMetadataResult> ResolveAsync(
@@ -10,7 +8,6 @@ public sealed class ResolveUrlMetadataService(IUrlMetadataResolver urlMetadataRe
         CancellationToken cancellationToken = default)
     {
         var url = ValidateUrl(command.Url);
-        UrlSafetyCheckException.ThrowIfNotAllowed(await urlSafetyChecker.CheckAsync(url, cancellationToken));
         return await urlMetadataResolver.ResolveAsync(url, cancellationToken);
     }
 

@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "确定删除此项目吗？删除后无法恢复。",
     "errorBadRequest": "请输入有效的 http 或 https 地址。",
     "errorForbidden": "无法确认此操作的权限。",
-    "errorUnsafeUrl": "此 URL 被确认为不安全，无法保存。",
-    "errorSafetyUnavailable": "无法确认此 URL 是否安全。请稍后重试。",
     "errorSaveFallback": "无法保存该链接。",
     "errorLoadFallback": "无法加载今日保存的链接。",
     "errorDeleteFallback": "无法删除该项目。"
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "无法删除该项目。",
     "errorImagePickerPermission": "需要访问照片库的权限。",
     "errorImagePickerFallback": "无法选择照片。",
-    "urlSafetyThreatTitle": "此链接需要注意",
-    "urlSafetyThreatMessage": "检测到此链接存在已知风险信号，仍要打开吗？",
-    "urlSafetyGoAnyway": "仍要打开",
     "resolvingMetadataOverlay": "正在加载链接信息…",
     "metadataResolutionFailedHint": "无法加载链接信息。您可以自行输入后保存。"
-  },
-  "urlSafety": {
-    "checking": "正在检查...",
-    "noKnownThreat": "未发现已知风险。",
-    "threatDetected": "此链接需要注意。",
-    "checkUnavailable": "目前无法完成安全检查。"
   },
   "sharedCollection": {
     "itemsEmpty": "这个共享分类中还没有保存的链接。",

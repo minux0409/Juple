@@ -1,4 +1,3 @@
-using Juple.Application.UrlSafety;
 using Juple.Application.UrlMetadata;
 
 namespace Juple.Application.Inbox.SaveInboxEntry;
@@ -6,7 +5,6 @@ namespace Juple.Application.Inbox.SaveInboxEntry;
 public sealed class InboxEntrySaveService(
     IInboxEntryStore inboxEntryStore,
     TimeProvider timeProvider,
-    IUrlSafetyChecker urlSafetyChecker,
     IUrlMetadataResolver urlMetadataResolver) : IInboxEntrySaveService
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
@@ -15,9 +13,7 @@ public sealed class InboxEntrySaveService(
         CancellationToken cancellationToken = default)
     {
         var url = ValidateUrl(command.Url);
-        UrlSafetyCheckException.ThrowIfNotAllowed(await urlSafetyChecker.CheckAsync(url, cancellationToken));
-        // Best-effort metadata runs only after reputation approval. The existing client backfill
-        // consumes the resolver's cached result; persistence and its replay contract stay unchanged.
+        // Best-effort metadata fetch is guarded by the resolver's SSRF/DNS protections.
         await urlMetadataResolver.ResolveAsync(url, cancellationToken);
         return await inboxEntryStore.SaveAsync(
             userId,

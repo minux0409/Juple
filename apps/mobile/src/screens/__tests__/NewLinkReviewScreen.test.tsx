@@ -10,7 +10,6 @@ import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
 import { uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
 import { resolveUrlMetadata, type UrlMetadataSource } from '../../urlMetadata/api/urlMetadataApi';
-import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -46,10 +45,6 @@ jest.mock('react-native-image-picker', () => ({
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
   resolveUrlMetadata: jest.fn(),
-}));
-
-jest.mock('../../urlSafety/api/urlSafetyApi', () => ({
-  checkUrlSafety: jest.fn(),
 }));
 
 function makeUploadedImage(overrides: Partial<ItemImage> = {}): ItemImage {
@@ -138,7 +133,6 @@ describe('NewLinkReviewScreen', () => {
   beforeEach(() => {
     jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
     jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-    jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'noKnownThreat', threats: [] });
     // Both are fire-and-forget (.catch()'d, never awaited) in save() - a bare jest.fn() (no
     // resolved value) would make that .catch() itself throw synchronously on undefined, so every
     // test needs a real resolved Promise here even when it never asserts on these calls directly.
@@ -723,61 +717,4 @@ describe('NewLinkReviewScreen', () => {
     expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 60);
   });
 
-  it('shows a checking indicator, then the no-known-threat text once the safety check resolves', async () => {
-    let resolveSafety!: (value: { status: 'noKnownThreat'; threats: [] }) => void;
-    jest.mocked(checkUrlSafety).mockReturnValue(
-      new Promise(resolve => {
-        resolveSafety = resolve;
-      }),
-    );
-
-    const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(renderer.root.findAll(node => node.props.children === i18n.t('urlSafety.checking')).length).toBeGreaterThan(0);
-
-    await act(async () => {
-      resolveSafety({ status: 'noKnownThreat', threats: [] });
-      await Promise.resolve();
-    });
-
-    expect(renderer.root.findAll(node => node.props.children === i18n.t('urlSafety.noKnownThreat')).length).toBeGreaterThan(0);
-  });
-
-  it('shows the threat-detected warning text when the safety check finds a known threat', async () => {
-    jest.mocked(checkUrlSafety).mockResolvedValue({ status: 'threatDetected', threats: ['malware'] });
-
-    const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(renderer.root.findAll(node => node.props.children === i18n.t('urlSafety.threatDetected')).length).toBeGreaterThan(0);
-  });
-
-  it('shows check-unavailable text on safety check failure and still allows Save', async () => {
-    jest.mocked(checkUrlSafety).mockRejectedValue(new Error('network down'));
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 61,
-      url: 'https://example.com/shared',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-
-    const { renderer, navigation } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(renderer.root.findAll(node => node.props.children === i18n.t('urlSafety.checkUnavailable')).length).toBeGreaterThan(0);
-
-    await act(async () => {
-      pressSaveButton(renderer);
-    });
-
-    expect(saveInboxEntry).toHaveBeenCalled();
-    expect(navigation.goBack).toHaveBeenCalledTimes(1);
-  });
 });

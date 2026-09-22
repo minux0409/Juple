@@ -68,8 +68,6 @@
     "deleteConfirmMessage": "Eliminare questo elemento? L'operazione non può essere annullata.",
     "errorBadRequest": "Inserisci un indirizzo http o https valido.",
     "errorForbidden": "Non è stato possibile confermare l'autorizzazione per questa azione.",
-    "errorUnsafeUrl": "Questo URL è stato identificato come non sicuro e non può essere salvato.",
-    "errorSafetyUnavailable": "Non è stato possibile verificare la sicurezza di questo URL. Riprova più tardi.",
     "errorSaveFallback": "Impossibile salvare il link.",
     "errorLoadFallback": "Impossibile caricare i link salvati oggi.",
     "errorDeleteFallback": "Impossibile eliminare l'elemento."
@@ -257,17 +255,8 @@
     "errorItemDeleteFallback": "Impossibile eliminare l'elemento.",
     "errorImagePickerPermission": "È richiesto l'accesso alla libreria foto.",
     "errorImagePickerFallback": "Impossibile selezionare la foto.",
-    "urlSafetyThreatTitle": "Questo link richiede attenzione",
-    "urlSafetyThreatMessage": "Abbiamo rilevato un segnale di minaccia nota per questo link. Aprirlo comunque?",
-    "urlSafetyGoAnyway": "Apri comunque",
     "resolvingMetadataOverlay": "Caricamento informazioni del link…",
     "metadataResolutionFailedHint": "Impossibile caricare le informazioni del link. Puoi inserirle tu stesso e salvare."
-  },
-  "urlSafety": {
-    "checking": "Verifica in corso...",
-    "noKnownThreat": "Nessuna minaccia nota rilevata.",
-    "threatDetected": "Questo link richiede attenzione.",
-    "checkUnavailable": "Il controllo di sicurezza non è disponibile al momento."
   },
   "sharedCollection": {
     "itemsEmpty": "Questa categoria condivisa non ha ancora link salvati.",
