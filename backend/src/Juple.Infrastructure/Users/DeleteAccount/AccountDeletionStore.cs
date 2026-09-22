@@ -55,6 +55,14 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
                 .Where(entry => entry.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // CollectionMergeOperations has NoAction FKs to both Users and Collections (see
+            // CollectionMergeOperationConfiguration) - must be cleared before either delete below,
+            // or a user who ever merged a Collection could never delete their account. Cascades
+            // away any remaining CollectionMergeCreatedMemberships rows with it.
+            await dbContext.CollectionMergeOperations
+                .Where(operation => operation.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // Collections -> cascades CollectionItems and CollectionShares. This is what makes
             // this user's public share links stop resolving.
             await dbContext.Collections

@@ -38,6 +38,10 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<CollectionShare> CollectionShares => Set<CollectionShare>();
 
+    public DbSet<CollectionMergeOperation> CollectionMergeOperations => Set<CollectionMergeOperation>();
+
+    public DbSet<CollectionMergeCreatedMembership> CollectionMergeCreatedMemberships => Set<CollectionMergeCreatedMembership>();
+
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();

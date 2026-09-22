@@ -1,4 +1,5 @@
 using Juple.Application.Collections;
+using Juple.Application.Collections.Public;
 using Juple.Application.Items;
 using Juple.Domain.Collections;
 using Juple.Domain.Users;
@@ -38,6 +39,12 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        // Must run before the Collections delete below - CollectionMergeOperations has a NoAction
+        // FK to Collections/Users (see CollectionMergeOperationConfiguration), so a leftover
+        // operation row would otherwise block those deletes. Cascades away any
+        // CollectionMergeCreatedMemberships rows with it.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM collections.CollectionMergeOperations WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM collections.CollectionItems WHERE CollectionId IN (SELECT Id FROM collections.Collections WHERE UserId = {_userId} OR UserId = {_otherUserId})");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
@@ -910,7 +917,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MergeAsync_UnionsAllMemberships_IncludingDeletedItems_AndDeletesSource()
+    public async Task MergeAsync_UnionsAllMemberships_IncludingDeletedItems_AndSoftDeletesSource()
     {
         var store = new CollectionStore(_dbContext);
         var itemStore = new ItemStore(_dbContext);
@@ -933,11 +940,21 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         }
         await itemStore.DeleteAsync(_userId, deleted, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
+        var deletedAtUtcBeforeMerge = await _dbContext.Items.AsNoTracking()
+            .Where(x => x.Id == deleted).Select(x => x.DeletedAtUtc).SingleAsync();
 
-        await store.MergeAsync(_userId, source, target);
+        var result = await store.MergeAsync(_userId, source, target);
         _dbContext.ChangeTracker.Clear();
 
-        Assert.False(await _dbContext.Collections.AnyAsync(x => x.Id == source));
+        // Soft-deleted, not hard-deleted - metadata and every source membership (including the
+        // soft-deleted Item's) survive, and Undo has something to restore.
+        Assert.NotNull(result.UndoOperationId);
+        var sourceAfterMerge = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == source);
+        Assert.NotNull(sourceAfterMerge.DeletedAtUtc);
+        var sourceMembershipIds = await _dbContext.CollectionItems.AsNoTracking()
+            .Where(x => x.CollectionId == source).Select(x => x.ItemId).ToListAsync();
+        Assert.Equal(new[] { first, duplicate, deleted }.OrderBy(x => x), sourceMembershipIds.OrderBy(x => x));
+
         var targetAfter = await store.GetAsync(_userId, target);
         Assert.Equal(targetBefore.Name, targetAfter.Name);
         Assert.Equal(targetBefore.IsFavorite, targetAfter.IsFavorite);
@@ -947,6 +964,12 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
             .Select(x => x.ItemId).ToListAsync();
         Assert.Equal(4, targetIds.Distinct().Count());
         Assert.Contains(deleted, targetIds);
+
+        // Merge/Undo never touches the Item itself, only CollectionItem membership rows.
+        var deletedAtUtcAfterMerge = await _dbContext.Items.AsNoTracking()
+            .Where(x => x.Id == deleted).Select(x => x.DeletedAtUtc).SingleAsync();
+        Assert.Equal(deletedAtUtcBeforeMerge, deletedAtUtcAfterMerge);
+
         await itemStore.RestoreAsync(_userId, deleted);
         _dbContext.ChangeTracker.Clear();
         var (page, _, _) = await store.GetItemsAsync(_userId, target, null, 50);
@@ -962,7 +985,8 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.MergeAsync(_userId, source, target));
 
-        Assert.True(await _dbContext.Collections.AnyAsync(x => x.Id == source));
+        var sourceAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == source);
+        Assert.Null(sourceAfter.DeletedAtUtc);
     }
 
     [Fact]
@@ -975,10 +999,206 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collection, item, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await store.MergeAsync(_userId, collection, collection);
+        var result = await store.MergeAsync(_userId, collection, collection);
         _dbContext.ChangeTracker.Clear();
 
-        Assert.True(await _dbContext.Collections.AnyAsync(x => x.Id == collection));
+        Assert.Null(result.UndoOperationId);
+        var collectionAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == collection);
+        Assert.Null(collectionAfter.DeletedAtUtc);
         Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == collection && x.ItemId == item));
+    }
+
+    /// <summary>
+    /// The task spec's own canonical example: Source has Item1/2/3, Target already has Item2/4.
+    /// Shared by every UndoMergeAsync test below that needs this exact starting shape.
+    /// </summary>
+    private async Task<(CollectionStore Store, long Source, long Target, long FirstItem, long SecondItem, long ThirdItem, long FourthItem, Guid UndoOperationId)>
+        MergeCanonicalExampleAsync()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Undo source");
+        var target = await CreateCollectionAsync(store, _userId, "Undo target");
+        var item1 = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-item1");
+        var item2 = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-item2");
+        var item3 = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-item3");
+        var item4 = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-item4");
+        foreach (var item in new[] { item1, item2, item3 })
+        {
+            await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+            _dbContext.ChangeTracker.Clear();
+        }
+        foreach (var item in new[] { item2, item4 })
+        {
+            await store.AddAsync(_userId, target, item, DateTimeOffset.UtcNow);
+            _dbContext.ChangeTracker.Clear();
+        }
+
+        var result = await store.MergeAsync(_userId, source, target);
+        _dbContext.ChangeTracker.Clear();
+        Assert.NotNull(result.UndoOperationId);
+
+        return (store, source, target, item1, item2, item3, item4, result.UndoOperationId.Value);
+    }
+
+    private async Task<List<long>> GetMembershipItemIdsAsync(long collectionId) =>
+        await _dbContext.CollectionItems.AsNoTracking()
+            .Where(x => x.CollectionId == collectionId).Select(x => x.ItemId).ToListAsync();
+
+    [Fact]
+    public async Task UndoMergeAsync_RestoresSourceAndRemovesOnlyMergeCreatedTargetMemberships()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+
+        var sourceAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == source);
+        Assert.Null(sourceAfter.DeletedAtUtc);
+        var sourceItems = await GetMembershipItemIdsAsync(source);
+        Assert.Equal(new[] { item1, item2, item3 }.OrderBy(x => x), sourceItems.OrderBy(x => x));
+        var targetItems = await GetMembershipItemIdsAsync(target);
+        Assert.Equal(new[] { item2, item4 }.OrderBy(x => x), targetItems.OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_PreservesExactPreexistingTargetMembershipRow()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+        var preexistingRowId = await _dbContext.CollectionItems.AsNoTracking()
+            .Where(x => x.CollectionId == target && x.ItemId == item2).Select(x => x.Id).SingleAsync();
+
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+
+        // Same row, not "removed by Undo and coincidentally still absent" - Undo must never have
+        // touched Item2's Target membership at all, since it predates the merge.
+        var rowIdAfterUndo = await _dbContext.CollectionItems.AsNoTracking()
+            .Where(x => x.CollectionId == target && x.ItemId == item2).Select(x => x.Id).SingleAsync();
+        Assert.Equal(preexistingRowId, rowIdAfterUndo);
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_PreservesUnrelatedMembershipAddedAfterMerge()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+        var itemStore = new ItemStore(_dbContext);
+        var item5 = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-item5");
+        await store.AddAsync(_userId, target, item5, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+
+        var targetItems = await GetMembershipItemIdsAsync(target);
+        Assert.Equal(new[] { item2, item4, item5 }.OrderBy(x => x), targetItems.OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_PreservesMembershipRemovedThenDirectlyReAddedAfterMerge()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+
+        // Item1's Target membership was created by the merge - unlink it, then the user directly
+        // re-adds it themselves. The re-added row gets a brand new Id (see
+        // CollectionMergeCreatedMembership's own remarks), so Undo must leave it alone.
+        await store.RemoveAsync(_userId, target, item1);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, target, item1, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+
+        var targetItems = await GetMembershipItemIdsAsync(target);
+        // Item1 (re-added directly) and Item2/4 (preexisting) survive; only Item3 (merge-created,
+        // never touched afterward) is removed by Undo.
+        Assert.Equal(new[] { item1, item2, item4 }.OrderBy(x => x), targetItems.OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_WhenTargetIsSoftDeleted_LeavesTargetDeletedButStillCleansUpMemberships()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+
+        await store.DeleteAsync(_userId, target);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+
+        var sourceAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == source);
+        Assert.Null(sourceAfter.DeletedAtUtc);
+        // Target itself is never restored by a Merge Undo - only the memberships it created.
+        var targetAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == target);
+        Assert.NotNull(targetAfter.DeletedAtUtc);
+        var targetItems = await GetMembershipItemIdsAsync(target);
+        Assert.Equal(new[] { item2, item4 }.OrderBy(x => x), targetItems.OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_RestoresPublicShareAvailability_WithoutMintingANewPublicId()
+    {
+        var store = new CollectionStore(_dbContext);
+        var shareStore = new CollectionShareStore(_dbContext);
+        var publicStore = new PublicCollectionStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Shared merge source");
+        var target = await CreateCollectionAsync(store, _userId, "Shared merge target");
+        var share = await shareStore.EnableAsync(_userId, source, "merge-share-public-id", DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var result = await store.MergeAsync(_userId, source, target);
+        _dbContext.ChangeTracker.Clear();
+
+        // Source soft-deleted by the merge - the existing public URL stops resolving.
+        Assert.Null(await publicStore.GetCollectionAsync(share.PublicId));
+
+        await store.UndoMergeAsync(_userId, result.UndoOperationId!.Value);
+        _dbContext.ChangeTracker.Clear();
+
+        // Same PublicId resolves again - never a freshly minted share.
+        var publicCollection = await publicStore.GetCollectionAsync(share.PublicId);
+        Assert.NotNull(publicCollection);
+        var activeShare = await shareStore.GetActiveAsync(_userId, source);
+        Assert.Equal(share.PublicId, activeShare?.PublicId);
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_RejectsOtherUsersOperation_LeavingAllMergeStateUnchanged()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.UndoMergeAsync(_otherUserId, undoOperationId));
+        _dbContext.ChangeTracker.Clear();
+
+        // Representative transaction-rollback check: a rejected Undo must leave every piece of
+        // state it would have touched exactly as it was, not just the first one checked.
+        var sourceAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == source);
+        Assert.NotNull(sourceAfter.DeletedAtUtc);
+        var targetItems = await GetMembershipItemIdsAsync(target);
+        Assert.Equal(new[] { item1, item2, item3, item4 }.OrderBy(x => x), targetItems.OrderBy(x => x));
+        var operationAfter = await _dbContext.CollectionMergeOperations.AsNoTracking()
+            .SingleAsync(x => x.OperationToken == undoOperationId);
+        Assert.Null(operationAfter.UndoneAtUtc);
+    }
+
+    [Fact]
+    public async Task UndoMergeAsync_CalledTwice_IsIdempotent()
+    {
+        var (store, source, target, item1, item2, item3, item4, undoOperationId) = await MergeCanonicalExampleAsync();
+
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+        var targetItemsAfterFirstUndo = await GetMembershipItemIdsAsync(target);
+
+        // A retried request (e.g. a client timeout/retry) must never re-restore or re-clean-up.
+        await store.UndoMergeAsync(_userId, undoOperationId);
+        _dbContext.ChangeTracker.Clear();
+
+        var sourceAfter = await _dbContext.Collections.AsNoTracking().SingleAsync(x => x.Id == source);
+        Assert.Null(sourceAfter.DeletedAtUtc);
+        var targetItemsAfterSecondUndo = await GetMembershipItemIdsAsync(target);
+        Assert.Equal(targetItemsAfterFirstUndo.OrderBy(x => x), targetItemsAfterSecondUndo.OrderBy(x => x));
     }
 }

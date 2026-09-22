@@ -36,6 +36,12 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        // Must run before the Collections delete below - CollectionMergeOperations has a NoAction
+        // FK to Collections/Users (see CollectionMergeOperationConfiguration), so a leftover
+        // operation row would otherwise block those deletes. Cascades away any
+        // CollectionMergeCreatedMemberships rows with it.
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"DELETE FROM collections.CollectionMergeOperations WHERE UserId = {_userId} OR UserId = {_otherUserId}");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
             $"DELETE FROM collections.CollectionItems WHERE CollectionId IN (SELECT Id FROM collections.Collections WHERE UserId = {_userId} OR UserId = {_otherUserId})");
         await _dbContext.Database.ExecuteSqlInterpolatedAsync(
