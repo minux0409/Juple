@@ -25,8 +25,14 @@ const READY_LINGER_MS = 450;
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   ItemDetails: { itemId: number };
-  /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
-  CollectionDetails: { collectionId: number };
+  /**
+   * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
+   * refreshToken is optional and only ever meaningful when this exact screen might already be the
+   * focused one (e.g. a Merge Undo toast navigating back to the Collection it just merged into) -
+   * mirrors CollectionsScreen's own refreshToken param, needed because React Navigation does not
+   * re-fire useFocusEffect for a `navigate` call that lands back on an already-focused screen.
+   */
+  CollectionDetails: { collectionId: number; refreshToken?: number };
   /**
    * Reached only via IncomingShareRouter's explicit navigate call, never a prefilled tab - see that
    * file. preselectedCollectionId/initialTitle are just the starting values for editable fields, not

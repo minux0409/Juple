@@ -181,7 +181,7 @@
     "mergeError": "Couldn't merge the category.",
     "errorTargetLoadFallback": "Couldn't load categories."
   },
-  "toast": { "moveSuccess": "Moved.", "undoAction": "Undo", "undoMoveError": "Couldn't undo the move.", "deleteSuccess": "Deleted.", "undoDeleteError": "Couldn't undo the delete.", "unlinkSuccess": "Removed from the category.", "undoUnlinkError": "Couldn't undo removing from the category.", "collectionDeleteSuccess": "Category deleted.", "undoCollectionDeleteError": "Couldn't undo deleting the category." },
+  "toast": { "moveSuccess": "Moved.", "undoAction": "Undo", "undoMoveError": "Couldn't undo the move.", "deleteSuccess": "Deleted.", "undoDeleteError": "Couldn't undo the delete.", "unlinkSuccess": "Removed from the category.", "undoUnlinkError": "Couldn't undo removing from the category.", "collectionDeleteSuccess": "Category deleted.", "undoCollectionDeleteError": "Couldn't undo deleting the category.", "collectionMergeSuccess": "Category merged.", "undoCollectionMergeError": "Couldn't undo merging the category." },
   "myPage": {
     "title": "My Page",
     "account": "Account",

@@ -286,15 +286,9 @@ describe('DailyInboxScreen delete undo', () => {
   });
 });
 
-/** Home's Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to the nearest onPress-bearing ancestor - mirrors NewLinkReviewScreen.test.tsx's own pressSaveButton helper. */
+/** Home's Save button is the CheckIcon button trailing the URL input, identified by its accessibilityLabel (icon-only, no visible label Text - see DailyInboxScreen). */
 function pressHomeSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
-  let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findAll(
-    n => n.props.children === i18n.t('common.save'),
-  )[0];
-  while (node && typeof node.props.onPress !== 'function') {
-    node = node.parent;
-  }
-  node!.props.onPress();
+  renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress();
 }
 
 describe('DailyInboxScreen direct URL save', () => {
@@ -378,6 +372,29 @@ describe('DailyInboxScreen direct URL save', () => {
     expect(saveInboxEntry).toHaveBeenCalled();
     expect(updateItemDetails).not.toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('shows the save action as a CheckIcon button next to the URL input (no separate text CTA), disabled while empty or saving', async () => {
+    let resolveSave!: (value: { id: number; url: string; savedAtUtc: string }) => void;
+    jest.mocked(saveInboxEntry).mockImplementation(() => new Promise(resolve => { resolveSave = resolve; }));
+    const renderer = await renderScreen();
+
+    // The old full-width "저장" text CTA is gone - only the accessibilityLabel identifies the action now.
+    expect(renderer.root.findAll(n => n.props.children === i18n.t('common.save'))).toHaveLength(0);
+    expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.disabled).toBe(true);
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => { urlInput.props.onChangeText('https://example.com'); });
+    expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.disabled).toBe(false);
+
+    await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress(); });
+    expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.disabled).toBe(true);
+    expect(saveInboxEntry).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSave({ id: 40, url: 'https://example.com', savedAtUtc: '2026-01-01T00:00:00Z' });
+      await Promise.resolve();
+    });
   });
 });
 

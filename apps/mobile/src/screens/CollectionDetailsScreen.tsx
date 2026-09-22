@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -33,6 +33,7 @@ import {
   setCollectionFavorite,
   setCollectionIcon,
   transferCollectionItem,
+  undoCollectionMerge,
   undoTransferCollectionItem,
   type Collection,
   type CollectionItemEntry,
@@ -293,6 +294,19 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       loadShareStatus();
     }, [loadCollection, loadShareStatus]),
   );
+
+  // Refresh signaling deliberately separate from AppToast state: revisiting this screen must never
+  // recreate a toast or reset its timer - mirrors CollectionsScreen's own refreshToken effect,
+  // needed because a Merge Undo toast's navigate() call back to this exact Collection can land on
+  // an already-focused screen, which the useFocusEffect above will not re-fire for.
+  useEffect(() => {
+    if (route.params.refreshToken === undefined) {
+      return;
+    }
+    navigation.setParams({ refreshToken: undefined });
+    loadCollection();
+    refresh();
+  }, [route.params.refreshToken, navigation, loadCollection, refresh]);
 
   const startEditName = () => {
     if (!collection || isRenaming) {
@@ -609,8 +623,28 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setIsMembershipMutation(true);
     try {
       if (targetMode === 'merge') {
-        await mergeCollection(authenticatedRequest, collectionId, pendingTarget.id);
-        navigation.replace('CollectionDetails', { collectionId: pendingTarget.id });
+        const targetCollectionId = pendingTarget.id;
+        const merge = await mergeCollection(authenticatedRequest, collectionId, targetCollectionId);
+        // null only for the source-equals-target no-op (see MergeCollectionResult) - nothing was
+        // merged, so there is nothing to offer an Undo for.
+        if (merge.undoOperationId) {
+          const undoOperationId = merge.undoOperationId;
+          showUndoToast({
+            actionLabel: t('toast.undoAction'),
+            message: t('toast.collectionMergeSuccess'),
+            onUndo: async () => {
+              await undoCollectionMerge(authenticatedRequest, undoOperationId);
+              // Backend is the sole source of truth for the restored membership state - this only
+              // re-navigates to (and, via refreshToken, force-refreshes) the target Collection,
+              // never reconstructs a local membership snapshot.
+              navigation.navigate('CollectionDetails', { collectionId: targetCollectionId, refreshToken: Date.now() });
+            },
+            undoErrorMessage: t('toast.undoCollectionMergeError'),
+            noticeTitle: t('common.notice'),
+            confirmLabel: t('common.confirm'),
+          });
+        }
+        navigation.replace('CollectionDetails', { collectionId: targetCollectionId });
       } else if (actionMenuItem) {
         const move = await transferCollectionItem(authenticatedRequest, collectionId, actionMenuItem.itemId, pendingTarget.id);
         removeLocally(actionMenuItem.itemId);

@@ -329,8 +329,20 @@ export async function undoTransferCollectionItem(request: AuthenticatedApiReques
   await request<void>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move/undo`, body: { targetCollectionId, targetMembershipCreated } });
 }
 
-export async function mergeCollection(request: AuthenticatedApiRequest, sourceCollectionId: number, targetCollectionId: number): Promise<void> {
-  await request<void>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/merge`, body: { targetCollectionId } });
+/** undoOperationId is null only for the source-equals-target no-op - nothing was merged, so there is nothing to undo (see undoCollectionMerge). */
+export type MergeCollectionResult = { readonly undoOperationId: string | null };
+
+export async function mergeCollection(request: AuthenticatedApiRequest, sourceCollectionId: number, targetCollectionId: number): Promise<MergeCollectionResult> {
+  const response = await request<MergeCollectionResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/merge`, body: { targetCollectionId } });
+  if (!response.body) {
+    throw new Error('Juple API returned no collection merge body.');
+  }
+  return response.body;
+}
+
+/** Reverses a single Merge server-side (restores the source Collection, removes only the Target memberships that merge itself created) - see backend CollectionStore.UndoMergeAsync. */
+export async function undoCollectionMerge(request: AuthenticatedApiRequest, undoOperationId: string): Promise<void> {
+  await request<void>({ method: 'POST', path: '/api/v1/collections/merge/undo', body: { undoOperationId } });
 }
 
 /** A Collection's public share - ShareUrl is the full, ready-to-share HTTPS link (composed server-side; never assembled here from a separately-known base URL). */

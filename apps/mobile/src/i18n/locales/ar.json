@@ -164,7 +164,7 @@
     "favoritesEmpty": "لا توجد عناصر مفضلة.",
     "allCollectionsEmpty": "لا توجد فئات.", "manageAction": "إدارة الفئة", "itemManageAction": "المزيد من إجراءات الرابط", "addToOther": "إضافة إلى فئة أخرى", "moveToOther": "نقل إلى فئة أخرى", "mergeWithOther": "دمج مع فئة أخرى", "targetPickerTitle": "اختر فئة", "addSuccess": "تمت الإضافة إلى الفئة.", "addError": "تعذّرت الإضافة إلى الفئة.", "moveTitle": "نقل الرابط", "moveAction": "نقل", "moveConfirmMessage": "هل تريد نقل هذا الرابط إلى \"{{target}}\"؟", "moveError": "تعذّر نقل الرابط.", "mergeTitle": "دمج الفئات", "mergeAction": "دمج", "mergeConfirmMessage": "هل تريد دمج \"{{source}}\" في \"{{target}}\"؟ ستُدمج الروابط وستُحذف هذه الفئة.", "mergeError": "تعذّر دمج الفئة.", "errorTargetLoadFallback": "تعذّر تحميل الفئات."
   },
-  "toast": { "moveSuccess": "تم النقل.", "undoAction": "تراجع", "undoMoveError": "تعذّر التراجع عن النقل.", "deleteSuccess": "تم الحذف.", "undoDeleteError": "تعذّر التراجع عن الحذف.", "unlinkSuccess": "أُزيل من الفئة.", "undoUnlinkError": "تعذّر التراجع عن الإزالة من الفئة.", "collectionDeleteSuccess": "تم حذف الفئة.", "undoCollectionDeleteError": "تعذّر التراجع عن حذف الفئة." },
+  "toast": { "moveSuccess": "تم النقل.", "undoAction": "تراجع", "undoMoveError": "تعذّر التراجع عن النقل.", "deleteSuccess": "تم الحذف.", "undoDeleteError": "تعذّر التراجع عن الحذف.", "unlinkSuccess": "أُزيل من الفئة.", "undoUnlinkError": "تعذّر التراجع عن الإزالة من الفئة.", "collectionDeleteSuccess": "تم حذف الفئة.", "undoCollectionDeleteError": "تعذّر التراجع عن حذف الفئة.", "collectionMergeSuccess": "تم دمج الفئة.", "undoCollectionMergeError": "تعذّر التراجع عن دمج الفئة." },
   "myPage": {
     "title": "صفحتي",
     "account": "الحساب",

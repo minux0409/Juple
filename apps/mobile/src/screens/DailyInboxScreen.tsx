@@ -25,6 +25,7 @@ import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { CheckIcon } from '../icons/CheckIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
@@ -37,7 +38,7 @@ import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import { filterTodayItemsPage } from '../items/todayItemsFilter';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { cardShadow, colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 
 const PAGE_LIMIT = 50;
@@ -369,19 +370,20 @@ export function DailyInboxScreen() {
                 style={[styles.input, url && ltrTextStyle]}
                 value={url}
               />
+              <Pressable
+                accessibilityLabel={t('common.save')}
+                accessibilityRole="button"
+                disabled={isSaving || !url.trim()}
+                onPress={() => {
+                  saveUrl();
+                }}
+                style={[styles.saveIconButton, (isSaving || !url.trim()) ? styles.disabledButton : null]}
+              >
+                {isSaving
+                  ? <ActivityIndicator color={colors.brand} size="small" />
+                  : <CheckIcon color={colors.brand} size={20} />}
+              </Pressable>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={isSaving}
-              onPress={() => {
-                saveUrl();
-              }}
-              style={[styles.saveButton, isSaving ? styles.disabledButton : null]}
-            >
-              <Text style={styles.saveButtonLabel}>
-                {isSaving ? t('common.saving') : t('common.save')}
-              </Text>
-            </Pressable>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.recentHeaderRow}>
               <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
@@ -486,25 +488,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.textPrimary,
     fontSize: 15,
-    paddingEnd: spacing.md,
+    paddingEnd: minTouchTarget + spacing.xs,
     paddingStart: spacing.xl + spacing.xs,
     paddingVertical: spacing.md,
     ...cardShadow,
   },
-  saveButton: {
+  // Overlays the input's own trailing edge (mirrors inputIconContainer's leading-edge overlay
+  // above) - a real Pressable, unlike that purely decorative icon, so it also needs its own
+  // z-index to stay tappable above the TextInput and a minTouchTarget hit area.
+  saveIconButton: {
     alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: radii.md + 4,
-    marginTop: spacing.md,
-    paddingVertical: spacing.md,
+    bottom: 0,
+    end: 0,
+    height: minTouchTarget,
+    justifyContent: 'center',
+    position: 'absolute',
+    top: 0,
+    width: minTouchTarget,
+    zIndex: 1,
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  saveButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '700',
   },
   error: {
     color: colors.danger,

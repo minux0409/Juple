@@ -13,6 +13,7 @@ import {
   transferCollectionItem,
   undoTransferCollectionItem,
   mergeCollection,
+  undoCollectionMerge,
   removeItemFromCollection,
   renameCollection,
   restoreCollection,
@@ -66,6 +67,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   transferCollectionItem: jest.fn(),
   undoTransferCollectionItem: jest.fn(),
   mergeCollection: jest.fn(),
+  undoCollectionMerge: jest.fn(),
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
   restoreCollection: jest.fn(),
@@ -911,8 +913,16 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
       expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.moveError')).length).toBeGreaterThan(0);
     });
-    it('merges only after confirmation and replaces the detail route', async () => {
-      jest.mocked(mergeCollection).mockResolvedValue(undefined);
+    /** Drives the whole merge confirm flow (manage menu -> merge action -> pick target -> confirm) up to and including the mergeCollection call. */
+    async function performMerge(renderer: ReactTestRenderer.ReactTestRenderer) {
+      const header = getHeaderElement(renderer);
+      await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
+    }
+
+    it('merges only after confirmation, replaces the detail route, and shows the global undo toast with the received undoOperationId', async () => {
+      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: 'merge-op-1' });
       const renderer = await renderScreen(); const header = getHeaderElement(renderer);
       await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
@@ -920,15 +930,46 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
       expect(mergeCollection).toHaveBeenCalledWith(expect.anything(), 1, 2);
       expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2 });
+      const undoToast = renderer.root.findByType(UndoToast);
+      expect(undoToast.props.message).toBe(i18n.t('toast.collectionMergeSuccess'));
+      expect(typeof undoToast.props.onUndo).toBe('function');
     });
     it('keeps the source screen and shows an error when merge fails', async () => {
       jest.mocked(mergeCollection).mockRejectedValue(new Error('no'));
-      const renderer = await renderScreen(); const header = getHeaderElement(renderer);
-      await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
+      const renderer = await renderScreen();
+      await performMerge(renderer);
       expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
       expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.mergeError')).length).toBeGreaterThan(0);
+      expect(renderer.root.findAllByType(UndoToast)).toHaveLength(0);
+    });
+    it('does not show an undo toast when undoOperationId is null (source-equals-target no-op)', async () => {
+      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: null });
+      const renderer = await renderScreen();
+      await performMerge(renderer);
+      expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2 });
+      expect(renderer.root.findAllByType(UndoToast)).toHaveLength(0);
+    });
+    it('undoing a merge calls undoCollectionMerge exactly once and navigates back to the target with a refresh signal, without any extra success message', async () => {
+      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: 'merge-op-2' });
+      jest.mocked(undoCollectionMerge).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+      await performMerge(renderer);
+      await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
+      expect(undoCollectionMerge).toHaveBeenCalledTimes(1);
+      expect(undoCollectionMerge).toHaveBeenCalledWith(expect.anything(), 'merge-op-2');
+      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith(
+        'CollectionDetails', expect.objectContaining({ collectionId: 2, refreshToken: expect.any(Number) }));
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('toast.collectionMergeSuccess')).length).toBe(0);
+    });
+    it('keeps the merged state and shows the existing error dialog when undoing a merge fails', async () => {
+      jest.mocked(mergeCollection).mockResolvedValue({ undoOperationId: 'merge-op-3' });
+      jest.mocked(undoCollectionMerge).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen();
+      await performMerge(renderer);
+      await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('toast.undoCollectionMergeError') })).toBeTruthy();
     });
     it('loads the next cursor page when the first page contains only the source, then shows a selectable target', async () => {
       jest.mocked(getCollections)
