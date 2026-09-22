@@ -6,6 +6,8 @@ public interface IUrlMetadataResolver
     /// <summary>
     /// Best-effort: never throws for an ordinary "no title found"/SSRF-blocked/unreachable/timed-out
     /// outcome - all of those resolve to UrlMetadataResult(null, null); see that type's remarks.
+    /// Redirect reputation failures or an incomplete redirect chain throw UrlSafetyCheckException
+    /// so save callers cannot treat an unchecked destination as a harmless metadata miss.
     /// url must already be a validated absolute http/https URL on its default port (see
     /// ResolveUrlMetadataService.ValidateUrl) - this only guards the network-level safety of
     /// actually fetching it, not the request shape.

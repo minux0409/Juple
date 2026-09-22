@@ -137,17 +137,18 @@ public static class DependencyInjection
                 return new SocketsHttpHandler
                 {
                     AllowAutoRedirect = false,
+                    // Every hop resolves afresh and connects only to a checked address, never a proxy.
+                    UseProxy = false,
+                    PooledConnectionLifetime = TimeSpan.Zero,
                     UseCookies = false,
                     ConnectTimeout = TimeSpan.FromSeconds(5),
-                    ConnectCallback = async (context, cancellationToken) =>
+                    ConnectCallback = (context, cancellationToken) =>
+                        UrlMetadataConnectGuard.ConnectAsync(dnsResolver, context.DnsEndPoint, async (endpoint, token) =>
                     {
-                        var validatedIp = await UrlMetadataConnectGuard.ResolveAndValidateAsync(
-                            dnsResolver, context.DnsEndPoint.Host, cancellationToken);
                         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
                         try
                         {
-                            await socket.ConnectAsync(
-                                new IPEndPoint(validatedIp, context.DnsEndPoint.Port), cancellationToken);
+                            await socket.ConnectAsync(endpoint, token);
                             return new NetworkStream(socket, ownsSocket: true);
                         }
                         catch
@@ -155,7 +156,7 @@ public static class DependencyInjection
                             socket.Dispose();
                             throw;
                         }
-                    },
+                    }, cancellationToken),
                 };
             });
     }
@@ -167,7 +168,7 @@ public static class DependencyInjection
     /// bounds concurrent outbound calls to Web Risk (a paid, rate-limited external API) - matching
     /// this round's "endpoint-level abuse protection, not a new global architecture" scope; the
     /// short Timeout keeps a slow/unavailable provider from holding up a request (URL safety is
-    /// never a hard dependency of saving a URL - see IUrlSafetyChecker's own remarks). Reuses the
+    /// required before saving a URL). Reuses the
     /// IMemoryCache already registered by AddUrlMetadataResolver above (same SizeLimit budget,
     /// distinct "UrlSafety:" key prefix - see WebRiskUrlSafetyChecker) rather than registering a
     /// second cache.
@@ -181,9 +182,13 @@ public static class DependencyInjection
             {
                 client.BaseAddress = new Uri("https://webrisk.googleapis.com/");
                 client.Timeout = TimeSpan.FromSeconds(4);
+                client.MaxResponseContentBufferSize = 64 * 1024;
             })
+            .RemoveAllLoggers()
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
+                AllowAutoRedirect = false,
+                UseCookies = false,
                 MaxConnectionsPerServer = 10,
             });
     }

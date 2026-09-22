@@ -7,6 +7,7 @@ public sealed class PrivateNetworkAddressGuardTests
 {
     [Theory]
     [InlineData("127.0.0.1")]
+    [InlineData("168.63.129.16")]
     [InlineData("127.5.5.5")]
     [InlineData("10.0.0.1")]
     [InlineData("10.255.255.255")]
@@ -34,6 +35,11 @@ public sealed class PrivateNetworkAddressGuardTests
 
     [Theory]
     [InlineData("::1")] // loopback
+    [InlineData("::127.0.0.1")]
+    [InlineData("64:ff9b::a00:1")]
+    [InlineData("2002:7f00:1::")]
+    [InlineData("2001::1")]
+    [InlineData("3fff::1")]
     [InlineData("::")] // unspecified
     [InlineData("fe80::1")] // link-local
     [InlineData("fc00::1")] // unique local

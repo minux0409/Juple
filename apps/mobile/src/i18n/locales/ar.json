@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.",
     "errorBadRequest": "يُرجى إدخال عنوان http أو https صالح.",
     "errorForbidden": "تعذّر تأكيد الإذن لهذا الإجراء.",
+    "errorUnsafeUrl": "تم تحديد عنوان URL هذا على أنه غير آمن ولا يمكن حفظه.",
+    "errorSafetyUnavailable": "تعذر التحقق من أمان عنوان URL هذا. يرجى المحاولة لاحقًا.",
     "errorSaveFallback": "تعذّر حفظ الرابط.",
     "errorLoadFallback": "تعذّر تحميل الروابط المحفوظة اليوم.",
     "errorDeleteFallback": "تعذّر حذف العنصر."

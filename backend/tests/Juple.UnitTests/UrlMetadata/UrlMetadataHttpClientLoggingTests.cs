@@ -109,6 +109,7 @@ public sealed class UrlMetadataHttpClientLoggingTests
         });
         services.AddMemoryCache();
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<Juple.Application.UrlSafety.IUrlSafetyChecker>(new FakeUrlSafetyChecker());
 
         var builder2 = services.AddHttpClient<IUrlMetadataResolver, UrlMetadataResolver>();
         if (applyRemoveAllLoggers)

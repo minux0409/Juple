@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
     "errorBadRequest": "Masukkan alamat http atau https yang valid.",
     "errorForbidden": "Kami tidak dapat mengonfirmasi izin untuk tindakan ini.",
+    "errorUnsafeUrl": "URL ini teridentifikasi tidak aman dan tidak dapat disimpan.",
+    "errorSafetyUnavailable": "Keamanan URL ini tidak dapat diperiksa. Silakan coba lagi nanti.",
     "errorSaveFallback": "Tidak dapat menyimpan tautan.",
     "errorLoadFallback": "Tidak dapat memuat tautan yang disimpan hari ini.",
     "errorDeleteFallback": "Tidak dapat menghapus item."

@@ -11,6 +11,34 @@ namespace Juple.UnitTests.UrlMetadata;
 /// </summary>
 public sealed class UrlMetadataConnectGuardTests
 {
+    [Fact]
+    public async Task ConnectAsync_PassesOnlyTheCheckedIpAndOriginalPortToSocket_WithoutResolvingAgain()
+    {
+        var dns = new RebindingDnsResolver();
+        IPEndPoint? connected = null;
+        using var cancellation = new CancellationTokenSource();
+        using var stream = await UrlMetadataConnectGuard.ConnectAsync(dns, new DnsEndPoint("public.example", 443),
+            (endpoint, token) =>
+            {
+                Assert.Equal(cancellation.Token, token);
+                connected = endpoint;
+                return ValueTask.FromResult<Stream>(new MemoryStream());
+            }, cancellation.Token);
+        Assert.Equal(new IPEndPoint(IPAddress.Parse("8.8.8.8"), 443), connected);
+        Assert.Equal(1, dns.Calls);
+        await Assert.ThrowsAsync<UrlMetadataOperationException>(async () =>
+            await UrlMetadataConnectGuard.ConnectAsync(dns, new DnsEndPoint("public.example", 443),
+                (_, _) => throw new InvalidOperationException("Rebound host must never connect."), cancellation.Token));
+        Assert.Equal(2, dns.Calls);
+    }
+
+    private sealed class RebindingDnsResolver : IDnsResolver
+    {
+        public int Calls { get; private set; }
+        public Task<IPAddress[]> ResolveAsync(string host, CancellationToken cancellationToken) =>
+            Task.FromResult(new[] { ++Calls == 1 ? IPAddress.Parse("8.8.8.8") : IPAddress.Loopback });
+    }
+
     private sealed class FakeDnsResolver(params IPAddress[] addresses) : IDnsResolver
     {
         public Task<IPAddress[]> ResolveAsync(string host, CancellationToken cancellationToken) =>

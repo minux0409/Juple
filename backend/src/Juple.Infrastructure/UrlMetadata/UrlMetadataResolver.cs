@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Juple.Application.UrlMetadata;
+using Juple.Application.UrlSafety;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -19,13 +20,15 @@ namespace Juple.Infrastructure.UrlMetadata;
 ///
 /// Always best-effort - every expected failure (SSRF-blocked, timeout, oversized, wrong content
 /// type, no title found) resolves to UrlMetadataResult(null, null) rather than throwing, so a
-/// caller's own save flow is never affected by this. See UrlMetadataOperationException.
+/// caller's own save flow is unaffected by fetch failures. Redirect reputation failures instead
+/// throw UrlSafetyCheckException and must stop saving. See UrlMetadataOperationException.
 /// </summary>
 public sealed class UrlMetadataResolver(
     HttpClient httpClient,
     IMemoryCache memoryCache,
     TimeProvider timeProvider,
-    ILogger<UrlMetadataResolver> logger) : IUrlMetadataResolver
+    ILogger<UrlMetadataResolver> logger,
+    IUrlSafetyChecker urlSafetyChecker) : IUrlMetadataResolver
 {
     private const int MaxRedirects = 5;
     private const long MaxResponseBytes = 1024 * 1024; // 1 MB - enough for metadata typically near the top of <head>.
@@ -56,6 +59,7 @@ public sealed class UrlMetadataResolver(
         var result = none;
         string? failureCategory = null;
         var redirectCount = 0;
+        var redirectChainComplete = false;
         var lastAttemptedHost = initialUri.Host;
         UrlMetadataImageSource? imageSourceForDiagnostics = null;
         string? youTubeImageVariantForDiagnostics = null;
@@ -66,6 +70,7 @@ public sealed class UrlMetadataResolver(
         try
         {
             var currentUri = initialUri;
+            var visited = new HashSet<Uri>();
             // Carries any Set-Cookie a hop issues to a later hop's request within this one
             // ResolveAsync call only - a fresh, empty container per call, never persisted past
             // this method and never shared across calls/users (the injected HttpClient itself
@@ -90,12 +95,30 @@ public sealed class UrlMetadataResolver(
 
             while (true)
             {
+                if (!visited.Add(currentUri))
+                    throw new UrlMetadataOperationException("redirect_loop");
                 if (!IsAllowedRequestUri(currentUri))
                 {
                     throw new UrlMetadataOperationException("disallowed_scheme_or_port");
                 }
 
                 lastAttemptedHost = currentUri.Host;
+
+                if (redirectCount > 0)
+                {
+                    // A safe short link can redirect to a known threat. Do not turn a failed
+                    // redirect reputation check into an ordinary best-effort metadata failure.
+                    UrlSafetyResult safety;
+                    try
+                    {
+                        safety = await urlSafetyChecker.CheckAsync(currentUri.AbsoluteUri, budgetCts.Token);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        safety = UrlSafetyResult.Unavailable;
+                    }
+                    UrlSafetyCheckException.ThrowIfNotAllowed(safety);
+                }
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
                 var cookieHeader = cookieContainer.GetCookieHeader(currentUri);
@@ -134,10 +157,10 @@ public sealed class UrlMetadataResolver(
 
                 if (IsRedirectStatus(response.StatusCode))
                 {
+                    redirectCount++;
                     var location = response.Headers.Location
                         ?? throw new UrlMetadataOperationException("redirect_missing_location");
 
-                    redirectCount++;
                     if (redirectCount > MaxRedirects)
                     {
                         throw new UrlMetadataOperationException("redirect_limit_exceeded");
@@ -151,6 +174,7 @@ public sealed class UrlMetadataResolver(
                     continue;
                 }
 
+                redirectChainComplete = true;
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new UrlMetadataOperationException($"http_status_{(int)response.StatusCode}");
@@ -246,13 +270,21 @@ public sealed class UrlMetadataResolver(
             lastAttemptedHost, result, imageSourceForDiagnostics, youTubeImageVariantForDiagnostics,
             failureCategory, redirectCount, elapsedMs);
 
-        memoryCache.Set(cacheKey, result, CacheEntryOptions);
+        // An unfinished chain (limit, loop, blocked host, timeout) cannot approve a link whose
+        // eventual destination was never checked. Never persist it as an ordinary metadata miss.
+        if (redirectCount > 0 && !redirectChainComplete)
+            UrlSafetyCheckException.ThrowIfNotAllowed(UrlSafetyResult.Unavailable);
+
+        // A cached redirect chain must not bypass destination reputation checks on later saves.
+        if (redirectCount == 0)
+            memoryCache.Set(cacheKey, result, CacheEntryOptions);
         return result;
     }
 
     /// <summary>Only http/https on their default port (80/443) - see ResolveUrlMetadataService.ValidateUrl for the same rule at the request-shape level; this re-checks it per redirect hop.</summary>
     private static bool IsAllowedRequestUri(Uri uri) =>
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && uri.IsDefaultPort;
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+        && !string.IsNullOrEmpty(uri.Host) && uri.IsDefaultPort;
 
     private static bool IsRedirectStatus(HttpStatusCode status) =>
         status is HttpStatusCode.MovedPermanently or HttpStatusCode.Found or HttpStatusCode.SeeOther
@@ -276,7 +308,8 @@ public sealed class UrlMetadataResolver(
         var buffer = new byte[8192];
         int bytesRead;
         while (buffered.Length < MaxResponseBytes
-            && (bytesRead = await stream.ReadAsync(buffer, cancellationToken)) > 0)
+            && (bytesRead = await stream.ReadAsync(
+                buffer.AsMemory(0, (int)Math.Min(buffer.Length, MaxResponseBytes - buffered.Length)), cancellationToken)) > 0)
         {
             var remaining = MaxResponseBytes - buffered.Length;
             var toWrite = (int)Math.Min(bytesRead, remaining);

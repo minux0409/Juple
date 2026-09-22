@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "确定删除此项目吗？删除后无法恢复。",
     "errorBadRequest": "请输入有效的 http 或 https 地址。",
     "errorForbidden": "无法确认此操作的权限。",
+    "errorUnsafeUrl": "此 URL 被确认为不安全，无法保存。",
+    "errorSafetyUnavailable": "无法确认此 URL 是否安全。请稍后重试。",
     "errorSaveFallback": "无法保存该链接。",
     "errorLoadFallback": "无法加载今日保存的链接。",
     "errorDeleteFallback": "无法删除该项目。"

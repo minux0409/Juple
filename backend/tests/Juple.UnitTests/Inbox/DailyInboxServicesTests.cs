@@ -1,3 +1,5 @@
+using Juple.Application.UrlMetadata;
+using Juple.Application.UrlSafety;
 using Juple.Application.Inbox;
 using Juple.Application.Inbox.GetDailyInbox;
 using Juple.Application.Inbox.SaveInboxEntry;
@@ -11,8 +13,10 @@ public sealed class DailyInboxServicesTests
     [InlineData("http://shop.example/item")]
     public async Task SaveAsync_WhenUrlUsesHttpOrHttps_SavesTrimmedUrl(string url)
     {
-        var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var checker = new FakeUrlSafetyChecker();
+        var metadata = new SaveMetadataResolver(beforeFetch: () => Assert.Equal(url, checker.LastUrl));
+        var store = new FakeInboxEntryStore(beforeSave: () => Assert.Equal(url, metadata.LastUrl));
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), checker, metadata);
 
         await service.SaveAsync(17, new SaveInboxEntryCommand($"  {url}  "));
 
@@ -25,14 +29,21 @@ public sealed class DailyInboxServicesTests
     [InlineData("javascript:alert(1)")]
     [InlineData("file:///local/file")]
     [InlineData("data:text/plain,content")]
+    [InlineData("https://")]
+    [InlineData("ftp://example.com")]
+    [InlineData("blob:https://example.com/id")]
+    [InlineData("intent://example.com")]
+    [InlineData("content://example.com")]
     public async Task SaveAsync_WhenUrlIsNotHttpOrHttps_RejectsRequest(string url)
     {
-        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider());
+        var checker = new FakeUrlSafetyChecker();
+        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider(), checker, new SaveMetadataResolver(shouldFetch: false));
 
         var exception = await Assert.ThrowsAsync<InvalidInboxRequestException>(
             () => service.SaveAsync(17, new SaveInboxEntryCommand(url)));
 
         Assert.Equal("url", exception.Field);
+        Assert.Null(checker.LastUrl);
     }
 
     [Fact]
@@ -40,7 +51,7 @@ public sealed class DailyInboxServicesTests
     {
         const string url = "https://shop.example/item?id=1&variant=500ml";
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         await service.SaveAsync(17, new SaveInboxEntryCommand(url));
 
@@ -52,7 +63,7 @@ public sealed class DailyInboxServicesTests
     {
         var url = "https://a.co/" + new string('a', 4083);
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         await service.SaveAsync(17, new SaveInboxEntryCommand(url));
 
@@ -63,7 +74,7 @@ public sealed class DailyInboxServicesTests
     public async Task SaveAsync_WhenUrlExceeds4096Characters_RejectsRequest()
     {
         var url = "https://a.co/" + new string('a', 4084);
-        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider());
+        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         var exception = await Assert.ThrowsAsync<InvalidInboxRequestException>(
             () => service.SaveAsync(17, new SaveInboxEntryCommand(url)));
@@ -76,7 +87,7 @@ public sealed class DailyInboxServicesTests
     {
         const string url = "https://shop.example/item";
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         var first = await service.SaveAsync(17, new SaveInboxEntryCommand(url));
         var second = await service.SaveAsync(17, new SaveInboxEntryCommand(url));
@@ -90,7 +101,7 @@ public sealed class DailyInboxServicesTests
     public async Task SaveAsync_WhenClientRequestIdIsNew_ReturnsCreatedTrue()
     {
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         var result = await service.SaveAsync(
             17,
@@ -105,7 +116,7 @@ public sealed class DailyInboxServicesTests
         const string url = "https://shop.example/item";
         var clientRequestId = Guid.NewGuid();
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         var first = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
         var replay = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
@@ -120,7 +131,7 @@ public sealed class DailyInboxServicesTests
     {
         var clientRequestId = Guid.NewGuid();
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         await service.SaveAsync(
             17, new SaveInboxEntryCommand("https://shop.example/item-a", clientRequestId));
@@ -136,7 +147,7 @@ public sealed class DailyInboxServicesTests
         const string url = "https://shop.example/item";
         var clientRequestId = Guid.NewGuid();
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(), new SaveMetadataResolver());
 
         var userOneResult = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
         var userTwoResult = await service.SaveAsync(23, new SaveInboxEntryCommand(url, clientRequestId));
@@ -156,7 +167,32 @@ public sealed class DailyInboxServicesTests
         Assert.Equal(TimeSpan.FromHours(23), range.ToUtc - range.FromUtc);
     }
 
-    private sealed class FakeInboxEntryStore : IInboxEntryStore
+    [Theory]
+    [InlineData(UrlSafetyStatus.ThreatDetected, "unsafe_url")]
+    [InlineData(UrlSafetyStatus.CheckUnavailable, "url_safety_check_unavailable")]
+    public async Task SaveAsync_RejectsNonSafeUrlBeforeStore(UrlSafetyStatus status, string code)
+    {
+        var store = new FakeInboxEntryStore();
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new FakeUrlSafetyChecker(status), new SaveMetadataResolver(shouldFetch: false));
+        var error = await Assert.ThrowsAsync<UrlSafetyCheckException>(() =>
+            service.SaveAsync(17, new SaveInboxEntryCommand("https://example.com/")));
+        Assert.Equal(code, error.Code);
+        Assert.Null(store.SavedUrl);
+    }
+
+    private sealed class SaveMetadataResolver(bool shouldFetch = true, Action? beforeFetch = null) : IUrlMetadataResolver
+    {
+        public string? LastUrl { get; private set; }
+        public Task<UrlMetadataResult> ResolveAsync(string url, CancellationToken cancellationToken = default)
+        {
+            Assert.True(shouldFetch, "Unsafe or unavailable checks must never fetch metadata.");
+            beforeFetch?.Invoke();
+            LastUrl = url;
+            return Task.FromResult(new UrlMetadataResult(null, null, null));
+        }
+    }
+
+    private sealed class FakeInboxEntryStore(Action? beforeSave = null) : IInboxEntryStore
     {
         private readonly Dictionary<(long UserId, Guid ClientRequestId), InboxEntryDto> _byClientRequestId = [];
         private long _nextId = 1;
@@ -172,6 +208,7 @@ public sealed class DailyInboxServicesTests
             DateTimeOffset savedAtUtc,
             CancellationToken cancellationToken = default)
         {
+            beforeSave?.Invoke();
             SavedUserId = userId;
             SavedUrl = url;
 

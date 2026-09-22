@@ -3,6 +3,7 @@ using Juple.Application.Identity;
 using Juple.Application.Inbox;
 using Juple.Application.Inbox.SaveInboxEntry;
 using Juple.Application.Users.CurrentUser;
+using Juple.Application.UrlSafety;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,6 +34,12 @@ public sealed class InboxController : ControllerBase
             return result.Created
                 ? Created($"/api/v1/inbox/{result.Entry.Id}", result.Entry)
                 : Ok(result.Entry);
+        }
+        catch (UrlSafetyCheckException exception)
+        {
+            var problem = new ProblemDetails { Status = 400, Title = exception.Message };
+            problem.Extensions["code"] = exception.Code;
+            return BadRequest(problem);
         }
         catch (InvalidInboxRequestException exception)
         {

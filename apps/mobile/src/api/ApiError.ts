@@ -8,7 +8,7 @@ export type ApiErrorKind =
   | 'unavailable';
 
 export class ApiError extends Error {
-  constructor(readonly kind: ApiErrorKind, readonly status?: number) {
+  constructor(readonly kind: ApiErrorKind, readonly status?: number, readonly code?: string) {
     super('Juple API request failed.');
     this.name = 'ApiError';
   }

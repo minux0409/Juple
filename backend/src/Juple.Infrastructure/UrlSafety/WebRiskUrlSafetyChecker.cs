@@ -38,6 +38,7 @@ public sealed class WebRiskUrlSafetyChecker(
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
     private static readonly MemoryCacheEntryOptions NoThreatCacheEntryOptions = new()
@@ -101,7 +102,7 @@ public sealed class WebRiskUrlSafetyChecker(
             failureCategory = "timeout";
             result = UrlSafetyResult.Unavailable;
         }
-        catch (HttpRequestException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException)
         {
             failureCategory = "network_error";
             result = UrlSafetyResult.Unavailable;
@@ -126,8 +127,13 @@ public sealed class WebRiskUrlSafetyChecker(
     /// </summary>
     private UrlSafetyResult ToResult(UrisSearchResponse? response, string cacheKey)
     {
-        var threat = response?.Threat;
+        if (response is null) return UrlSafetyResult.Unavailable;
+        var threat = response.Threat;
+        if (response.ThreatFieldCount > 1 || (response.ThreatFieldCount == 1 && threat is null))
+            return UrlSafetyResult.Unavailable;
         var threatTypes = threat?.ThreatTypes;
+        if (threat is not null && (threatTypes is not { Count: > 0 } || threatTypes.Any(string.IsNullOrWhiteSpace)))
+            return UrlSafetyResult.Unavailable;
         if (threatTypes is not { Count: > 0 })
         {
             var noThreatResult = new UrlSafetyResult(UrlSafetyStatus.NoKnownThreat, []);
@@ -195,8 +201,16 @@ public sealed class WebRiskUrlSafetyChecker(
 
     private sealed class UrisSearchResponse
     {
+        private ThreatMatch? _threat;
+        [JsonIgnore]
+        public int ThreatFieldCount { get; private set; }
+
         [JsonPropertyName("threat")]
-        public ThreatMatch? Threat { get; set; }
+        public ThreatMatch? Threat
+        {
+            get => _threat;
+            set { ThreatFieldCount++; _threat = value; }
+        }
     }
 
     private sealed class ThreatMatch

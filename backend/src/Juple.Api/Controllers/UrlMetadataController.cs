@@ -1,5 +1,6 @@
 using Juple.Api.Authentication;
 using Juple.Application.UrlMetadata;
+using Juple.Application.UrlSafety;
 using Juple.Application.UrlMetadata.ResolveUrlMetadata;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,6 +30,12 @@ public sealed class UrlMetadataController : ControllerBase
                 new ResolveUrlMetadataCommand(request.Url), cancellationToken);
 
             return Ok(new ResolveUrlMetadataResponse(result.Title, result.Source?.ToString(), result.PreviewImageUrl));
+        }
+        catch (UrlSafetyCheckException exception)
+        {
+            var problem = new ProblemDetails { Status = 400, Title = exception.Message };
+            problem.Extensions["code"] = exception.Code;
+            return BadRequest(problem);
         }
         catch (InvalidUrlMetadataRequestException exception)
         {

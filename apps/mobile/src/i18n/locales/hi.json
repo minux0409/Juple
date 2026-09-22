@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "क्या इस आइटम को हटाना है? यह वापस नहीं किया जा सकता।",
     "errorBadRequest": "कृपया एक मान्य http या https पता दर्ज करें।",
     "errorForbidden": "हम इस कार्रवाई की अनुमति की पुष्टि नहीं कर सके।",
+    "errorUnsafeUrl": "यह URL असुरक्षित पाया गया है और इसे सहेजा नहीं जा सकता।",
+    "errorSafetyUnavailable": "इस URL की सुरक्षा की जाँच नहीं हो सकी। कृपया कुछ देर बाद फिर कोशिश करें।",
     "errorSaveFallback": "लिंक सेव नहीं हो सका।",
     "errorLoadFallback": "आज सेव किए गए लिंक लोड नहीं हो सके।",
     "errorDeleteFallback": "आइटम हटाया नहीं जा सका।"

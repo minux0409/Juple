@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "¿Eliminar este elemento? Esta acción no se puede deshacer.",
     "errorBadRequest": "Introduce una dirección http o https válida.",
     "errorForbidden": "No pudimos confirmar el permiso para esta acción.",
+    "errorUnsafeUrl": "Esta URL se ha identificado como no segura y no se puede guardar.",
+    "errorSafetyUnavailable": "No pudimos comprobar si esta URL es segura. Inténtalo de nuevo más tarde.",
     "errorSaveFallback": "No se pudo guardar el enlace.",
     "errorLoadFallback": "No se pudieron cargar los enlaces guardados hoy.",
     "errorDeleteFallback": "No se pudo eliminar el elemento."

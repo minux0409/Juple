@@ -76,6 +76,20 @@ public sealed class WebRiskUrlSafetyCheckerTests
         return response;
     }
 
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{\"threat\":null}")]
+    [InlineData("{\"threat\":{\"threatTypes\":[\"MALWARE\"]},\"threat\":null}")]
+    [InlineData("{\"error\":\"unexpected\"}")]
+    [InlineData("{\"threat\":{}}")]
+    [InlineData("{\"threat\":{\"threatTypes\":[null]}}")]
+    public async Task CheckAsync_MalformedSuccessFailsClosed(string json)
+    {
+        var checker = CreateChecker((_, _) => JsonResponse(json), out _, out var cache, out _);
+        using (cache)
+            Assert.Equal(UrlSafetyStatus.CheckUnavailable, (await checker.CheckAsync("https://example.com")).Status);
+    }
+
     [Fact]
     public async Task CheckAsync_WhenProviderReportsThreats_NormalizesStatusAndCategories()
     {

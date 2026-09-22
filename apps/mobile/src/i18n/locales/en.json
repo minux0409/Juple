@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "Delete this item? This can't be undone.",
     "errorBadRequest": "Please enter a valid http or https address.",
     "errorForbidden": "We couldn't confirm permission for this action.",
+    "errorUnsafeUrl": "This URL was identified as unsafe and cannot be saved.",
+    "errorSafetyUnavailable": "We could not check whether this URL is safe. Please try again later.",
     "errorSaveFallback": "Couldn't save the link.",
     "errorLoadFallback": "Couldn't load today's saved links.",
     "errorDeleteFallback": "Couldn't delete the item."

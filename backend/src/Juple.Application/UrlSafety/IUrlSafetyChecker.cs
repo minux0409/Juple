@@ -6,8 +6,8 @@ namespace Juple.Application.UrlSafety;
 /// depend only on this interface and UrlSafetyResult, never on provider-specific types, request
 /// shapes, or credentials. Implementations must never throw for an ordinary "provider unavailable"
 /// outcome (timeout, non-success status, malformed response, missing credential) - those all
-/// resolve to UrlSafetyResult.Unavailable, matching UrlSafety's "never a hard dependency of saving
-/// a URL" principle.
+/// resolve to UrlSafetyResult.Unavailable. Saving and metadata resolution require NoKnownThreat;
+/// unavailable results must stop those operations.
 /// </summary>
 public interface IUrlSafetyChecker
 {

@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
     "errorBadRequest": "Lütfen geçerli bir http veya https adresi girin.",
     "errorForbidden": "Bu işlem için izni onaylayamadık.",
+    "errorUnsafeUrl": "Bu URL güvensiz olarak tespit edildi ve kaydedilemez.",
+    "errorSafetyUnavailable": "Bu URL’nin güvenli olup olmadığı kontrol edilemedi. Lütfen daha sonra tekrar deneyin.",
     "errorSaveFallback": "Bağlantı kaydedilemedi.",
     "errorLoadFallback": "Bugün kaydedilen bağlantılar yüklenemedi.",
     "errorDeleteFallback": "Öğe silinemedi."

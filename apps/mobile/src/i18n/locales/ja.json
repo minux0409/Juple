@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "この項目を削除しますか？この操作は取り消せません。",
     "errorBadRequest": "有効な http または https のアドレスを入力してください。",
     "errorForbidden": "この操作の権限を確認できませんでした。",
+    "errorUnsafeUrl": "安全でないURLと判定されたため、保存できません。",
+    "errorSafetyUnavailable": "URLの安全性を確認できませんでした。しばらくしてから再試行してください。",
     "errorSaveFallback": "リンクを保存できませんでした。",
     "errorLoadFallback": "今日保存したリンクを読み込めませんでした。",
     "errorDeleteFallback": "項目を削除できませんでした。"

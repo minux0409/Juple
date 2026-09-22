@@ -120,7 +120,16 @@ export async function requestApi<T>({
   }
 
   if (response.status === 400) {
-    throw new ApiError('badRequest', response.status);
+    let code: string | undefined;
+    try {
+      const problem: unknown = await response.json();
+      if (problem && typeof problem === 'object' && 'code' in problem && typeof problem.code === 'string') {
+        code = problem.code;
+      }
+    } catch {
+      // Preserve status-based errors for responses without a ProblemDetails body.
+    }
+    throw new ApiError('badRequest', response.status, code);
   }
 
   if (response.status === 401) {

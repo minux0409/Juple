@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
     "errorBadRequest": "Bitte geben Sie eine gültige http- oder https-Adresse ein.",
     "errorForbidden": "Die Berechtigung für diese Aktion konnte nicht bestätigt werden.",
+    "errorUnsafeUrl": "Diese URL wurde als unsicher erkannt und kann nicht gespeichert werden.",
+    "errorSafetyUnavailable": "Die Sicherheit dieser URL konnte nicht überprüft werden. Bitte versuche es später erneut.",
     "errorSaveFallback": "Der Link konnte nicht gespeichert werden.",
     "errorLoadFallback": "Die heute gespeicherten Links konnten nicht geladen werden.",
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."

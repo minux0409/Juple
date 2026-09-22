@@ -53,6 +53,7 @@ public static class PrivateNetworkAddressGuard
         if (b[0] == 127) return false; // 127.0.0.0/8 - loopback (defense in depth alongside IsLoopback above)
         if (b[0] == 100 && b[1] is >= 64 and <= 127) return false; // 100.64.0.0/10 - CGNAT
         if (b[0] == 169 && b[1] == 254) return false; // 169.254.0.0/16 - link-local (incl. cloud metadata IP)
+        if (b[0] == 168 && b[1] == 63 && b[2] == 129 && b[3] == 16) return false; // Azure platform virtual IP
         if (b[0] == 172 && b[1] is >= 16 and <= 31) return false; // 172.16.0.0/12
         if (b[0] == 192 && b[1] == 0 && b[2] == 0) return false; // 192.0.0.0/24 - IETF protocol assignments
         if (b[0] == 192 && b[1] == 0 && b[2] == 2) return false; // 192.0.2.0/24 - TEST-NET-1
@@ -68,6 +69,12 @@ public static class PrivateNetworkAddressGuard
     private static bool IsPublicIPv6(IPAddress address)
     {
         var b = address.GetAddressBytes();
+
+        // Only global unicast; reject IPv4-compatible, NAT64 and other translation ranges.
+        if ((b[0] & 0xE0) != 0x20 || address.ScopeId != 0) return false;
+        if (b[0] == 0x20 && b[1] == 0x02) return false; // 6to4 embeds IPv4 destinations
+        if (b[0] == 0x20 && b[1] == 0x01 && b[2] < 2) return false; // special-purpose incl. Teredo
+        if (b[0] == 0x3F && b[1] == 0xFF && (b[2] & 0xF0) == 0) return false; // documentation /20
 
         if ((b[0] & 0xFE) == 0xFC) return false; // fc00::/7 - unique local (fc00::/8, fd00::/8)
         if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x0D && b[3] == 0xB8) return false; // 2001:db8::/32 - documentation

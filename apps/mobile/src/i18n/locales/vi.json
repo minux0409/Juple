@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "Xóa mục này? Không thể hoàn tác sau khi xóa.",
     "errorBadRequest": "Vui lòng nhập địa chỉ http hoặc https hợp lệ.",
     "errorForbidden": "Không thể xác nhận quyền thực hiện thao tác này.",
+    "errorUnsafeUrl": "URL này được xác định là không an toàn và không thể lưu.",
+    "errorSafetyUnavailable": "Không thể kiểm tra độ an toàn của URL này. Vui lòng thử lại sau.",
     "errorSaveFallback": "Không thể lưu liên kết.",
     "errorLoadFallback": "Không thể tải liên kết đã lưu hôm nay.",
     "errorDeleteFallback": "Không thể xóa mục này."

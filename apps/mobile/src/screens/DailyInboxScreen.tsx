@@ -45,6 +45,8 @@ const PAGE_LIMIT = 50;
 
 function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
+    if (error.code === 'unsafe_url') return t('inbox.errorUnsafeUrl');
+    if (error.code === 'url_safety_check_unavailable') return t('inbox.errorSafetyUnavailable');
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');
     }
@@ -109,6 +111,7 @@ export function DailyInboxScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
   // Delete confirmation is a declarative ConfirmDialog keyed off this - null means closed, an id
   // means the dialog is open for that item. Mirrors the old isDeleteConfirmationOpenRef guard: a
@@ -270,7 +273,7 @@ export function DailyInboxScreen() {
         loadToday('refresh'),
       );
     } catch (caughtError) {
-      setError(getInboxErrorMessage(caughtError, true, t));
+      setSaveError(getInboxErrorMessage(caughtError, true, t));
     } finally {
       setIsSaving(false);
     }
@@ -419,6 +422,16 @@ export function DailyInboxScreen() {
           ) : undefined
         }
       />
+      {saveError !== null && (
+        <ConfirmDialog
+          visible
+          title={t('common.notice')}
+          message={saveError}
+          confirmLabel={t('common.confirm')}
+          onConfirm={() => setSaveError(null)}
+          destructive={false}
+        />
+      )}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

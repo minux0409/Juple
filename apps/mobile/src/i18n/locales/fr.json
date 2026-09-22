@@ -68,6 +68,8 @@
     "deleteConfirmMessage": "Supprimer cet élément ? Cette action est irréversible.",
     "errorBadRequest": "Veuillez saisir une adresse http ou https valide.",
     "errorForbidden": "Nous n'avons pas pu confirmer l'autorisation pour cette action.",
+    "errorUnsafeUrl": "Cette URL a été identifiée comme dangereuse et ne peut pas être enregistrée.",
+    "errorSafetyUnavailable": "Impossible de vérifier la sécurité de cette URL. Réessayez plus tard.",
     "errorSaveFallback": "Impossible d'enregistrer le lien.",
     "errorLoadFallback": "Impossible de charger les liens enregistrés aujourd'hui.",
     "errorDeleteFallback": "Impossible de supprimer l'élément."

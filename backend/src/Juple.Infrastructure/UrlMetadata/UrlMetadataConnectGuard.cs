@@ -13,6 +13,15 @@ namespace Juple.Infrastructure.UrlMetadata;
 /// </summary>
 public static class UrlMetadataConnectGuard
 {
+    public static async ValueTask<Stream> ConnectAsync(
+        IDnsResolver dnsResolver, DnsEndPoint destination,
+        Func<IPEndPoint, CancellationToken, ValueTask<Stream>> connectSocket,
+        CancellationToken cancellationToken)
+    {
+        var address = await ResolveAndValidateAsync(dnsResolver, destination.Host, cancellationToken);
+        return await connectSocket(new IPEndPoint(address, destination.Port), cancellationToken);
+    }
+
     public static async Task<IPAddress> ResolveAndValidateAsync(
         IDnsResolver dnsResolver,
         string host,
