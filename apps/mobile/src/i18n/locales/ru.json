@@ -10,7 +10,8 @@
     "confirm": "ОК",
     "edit": "Изменить",
     "processing": "Обработка...",
-    "none": "Нет"
+    "none": "Нет",
+    "notice": "Уведомление"
   },
   "errors": {
     "unauthorized": "Не удалось повторно подтвердить статус входа.",
@@ -51,7 +52,7 @@
     "languageSettings": "Язык",
     "sharedCollection": "Общая категория",
     "newLinkReview": "Проверка новой ссылки",
-    "trash": "Корзина"
+    "trash": "Недавно удалённые"
   },
   "inbox": {
     "title": "Ссылки, сохранённые сегодня",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Сохранять сразу при отправке",
     "quickSaveOnShareOnDescription": "При отправке ссылки из YouTube, Instagram и других приложений она сразу сохраняется в Juple без открытия приложения.",
     "quickSaveOnShareOffDescription": "После отправки откроется Juple, где вы сможете проверить сведения о ссылке и выбрать категорию перед сохранением.",
-    "trash": "Корзина"
+    "trash": "Недавно удалённые"
   },
   "language": {
     "system": "Использовать язык системы",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Очистить",
-    "empty": "Корзина пуста.",
-    "loadError": "Не удалось загрузить корзину.",
+    "empty": "Нет недавно удалённых ссылок.",
+    "loadError": "Не удалось загрузить историю удалений.",
     "restoreA11y": "Восстановить",
     "restoreSuccess": "Восстановлено.",
     "restoreError": "Не удалось восстановить.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Окончательно удалённую ссылку восстановить нельзя.",
     "permanentDeleteSuccess": "Удалено навсегда.",
     "permanentDeleteError": "Не удалось удалить.",
-    "emptyTrashConfirmTitle": "Очистить корзину?",
-    "emptyTrashConfirmMessage": "Все ссылки в корзине будут окончательно удалены без возможности восстановления.",
-    "emptyTrashSuccess": "Корзина очищена.",
-    "emptyTrashError": "Не удалось очистить корзину.",
+    "emptyTrashConfirmTitle": "Очистить историю удалений?",
+    "emptyTrashConfirmMessage": "Все ссылки здесь будут окончательно удалены без возможности восстановления.",
+    "emptyTrashSuccess": "История очищена.",
+    "emptyTrashError": "Не удалось очистить.",
     "freeLimitNotice": "Показывает до 10 последних удалённых ссылок.",
-    "plusLimitNotice": "Показывает до 100 последних удалённых ссылок."
+    "plusLimitNotice": "Показывает до 100 последних удалённых ссылок.",
+    "restoreConfirmTitle": "Восстановить?",
+    "restoreConfirmMessage": "Удалённая ссылка будет восстановлена.",
+    "restoreConfirmAction": "Восстановить"
   }
 }

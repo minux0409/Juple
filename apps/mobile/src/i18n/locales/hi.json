@@ -10,7 +10,8 @@
     "confirm": "ठीक है",
     "edit": "संपादित करें",
     "processing": "प्रोसेस हो रहा है...",
-    "none": "कोई नहीं"
+    "none": "कोई नहीं",
+    "notice": "सूचना"
   },
   "errors": {
     "unauthorized": "हम आपकी लॉगिन स्थिति की दोबारा पुष्टि नहीं कर सके।",
@@ -51,7 +52,7 @@
     "languageSettings": "भाषा",
     "sharedCollection": "साझा श्रेणी",
     "newLinkReview": "नया लिंक जांचें",
-    "trash": "ट्रैश"
+    "trash": "हाल ही में हटाए गए"
   },
   "inbox": {
     "title": "आज सेव किए गए लिंक",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "शेयर करते ही तुरंत सेव करें",
     "quickSaveOnShareOnDescription": "YouTube, Instagram और अन्य ऐप्स से लिंक शेयर करने पर, ऐप खोले बिना यह तुरंत Juple में सेव हो जाता है।",
     "quickSaveOnShareOffDescription": "शेयर करने के बाद, सेव करने से पहले लिंक विवरण जांचने और श्रेणी चुनने के लिए Juple खुल जाता है।",
-    "trash": "ट्रैश"
+    "trash": "हाल ही में हटाए गए"
   },
   "language": {
     "system": "सिस्टम सेटिंग का उपयोग करें",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "खाली करें",
-    "empty": "ट्रैश खाली है।",
-    "loadError": "ट्रैश लोड नहीं हो सका।",
+    "empty": "हाल ही में कोई लिंक नहीं हटाया गया।",
+    "loadError": "हटाने का इतिहास लोड नहीं हो सका।",
     "restoreA11y": "पुनर्स्थापित करें",
     "restoreSuccess": "पुनर्स्थापित किया गया।",
     "restoreError": "पुनर्स्थापित नहीं हो सका।",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "स्थायी रूप से हटाया गया लिंक पुनर्स्थापित नहीं किया जा सकता।",
     "permanentDeleteSuccess": "स्थायी रूप से हटाया गया।",
     "permanentDeleteError": "हटाया नहीं जा सका।",
-    "emptyTrashConfirmTitle": "ट्रैश खाली करें?",
-    "emptyTrashConfirmMessage": "ट्रैश के सभी लिंक स्थायी रूप से हटा दिए जाएंगे और पुनर्स्थापित नहीं किए जा सकेंगे।",
-    "emptyTrashSuccess": "ट्रैश खाली कर दिया गया।",
-    "emptyTrashError": "ट्रैश खाली नहीं हो सका।",
+    "emptyTrashConfirmTitle": "हटाने का इतिहास खाली करें?",
+    "emptyTrashConfirmMessage": "यहां के सभी लिंक स्थायी रूप से हटा दिए जाएंगे और पुनर्स्थापित नहीं किए जा सकेंगे।",
+    "emptyTrashSuccess": "इतिहास खाली कर दिया गया।",
+    "emptyTrashError": "खाली नहीं हो सका।",
     "freeLimitNotice": "हाल ही में हटाए गए 10 लिंक तक दिखाता है।",
-    "plusLimitNotice": "हाल ही में हटाए गए 100 लिंक तक दिखाता है।"
+    "plusLimitNotice": "हाल ही में हटाए गए 100 लिंक तक दिखाता है।",
+    "restoreConfirmTitle": "पुनर्स्थापित करें?",
+    "restoreConfirmMessage": "हटाया गया लिंक पुनर्स्थापित किया जाएगा।",
+    "restoreConfirmAction": "पुनर्स्थापित करें"
   }
 }

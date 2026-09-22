@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "Edit",
     "processing": "Processing...",
-    "none": "None"
+    "none": "None",
+    "notice": "Notice"
   },
   "errors": {
     "unauthorized": "We couldn't re-verify your sign-in status.",
@@ -51,7 +52,7 @@
     "languageSettings": "Language",
     "sharedCollection": "Shared Category",
     "newLinkReview": "Review New Link",
-    "trash": "Trash"
+    "trash": "Recently Deleted"
   },
   "inbox": {
     "title": "Links saved today",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Save instantly on share",
     "quickSaveOnShareOnDescription": "Sharing a link from YouTube, Instagram, and other apps saves it to Juple right away without opening the app.",
     "quickSaveOnShareOffDescription": "After sharing, Juple opens so you can review the link details and choose a category before saving.",
-    "trash": "Trash"
+    "trash": "Recently Deleted"
   },
   "language": {
     "system": "Use system setting",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Empty",
-    "empty": "Trash is empty.",
-    "loadError": "Couldn't load the trash.",
+    "empty": "No recently deleted links.",
+    "loadError": "Couldn't load recently deleted links.",
     "restoreA11y": "Restore",
     "restoreSuccess": "Restored.",
     "restoreError": "Couldn't restore.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "A permanently deleted link cannot be restored.",
     "permanentDeleteSuccess": "Permanently deleted.",
     "permanentDeleteError": "Couldn't delete.",
-    "emptyTrashConfirmTitle": "Empty the trash?",
-    "emptyTrashConfirmMessage": "Every link in the trash will be permanently deleted and cannot be restored.",
-    "emptyTrashSuccess": "Trash emptied.",
-    "emptyTrashError": "Couldn't empty the trash.",
+    "emptyTrashConfirmTitle": "Clear recently deleted?",
+    "emptyTrashConfirmMessage": "Every link here will be permanently deleted and cannot be restored.",
+    "emptyTrashSuccess": "Cleared.",
+    "emptyTrashError": "Couldn't clear.",
     "freeLimitNotice": "Shows up to the 10 most recently deleted links.",
-    "plusLimitNotice": "Shows up to the 100 most recently deleted links."
+    "plusLimitNotice": "Shows up to the 100 most recently deleted links.",
+    "restoreConfirmTitle": "Restore this link?",
+    "restoreConfirmMessage": "The deleted link will be restored.",
+    "restoreConfirmAction": "Restore"
   }
 }

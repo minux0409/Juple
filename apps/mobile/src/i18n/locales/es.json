@@ -10,7 +10,8 @@
     "confirm": "Aceptar",
     "edit": "Editar",
     "processing": "Procesando...",
-    "none": "Ninguno"
+    "none": "Ninguno",
+    "notice": "Aviso"
   },
   "errors": {
     "unauthorized": "No pudimos volver a verificar tu inicio de sesión.",
@@ -51,7 +52,7 @@
     "languageSettings": "Idioma",
     "sharedCollection": "Categoría compartida",
     "newLinkReview": "Revisar nuevo enlace",
-    "trash": "Papelera"
+    "trash": "Eliminados recientemente"
   },
   "inbox": {
     "title": "Enlaces guardados hoy",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Guardar al instante al compartir",
     "quickSaveOnShareOnDescription": "Compartir un enlace desde YouTube, Instagram y otras apps lo guarda en Juple al instante sin abrir la app.",
     "quickSaveOnShareOffDescription": "Tras compartir, se abre Juple para que revises los detalles del enlace y elijas una categoría antes de guardar.",
-    "trash": "Papelera"
+    "trash": "Eliminados recientemente"
   },
   "language": {
     "system": "Usar idioma del sistema",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Vaciar",
-    "empty": "La papelera está vacía.",
-    "loadError": "No se pudo cargar la papelera.",
+    "empty": "No hay enlaces eliminados recientemente.",
+    "loadError": "No se pudo cargar el historial de eliminados.",
     "restoreA11y": "Restaurar",
     "restoreSuccess": "Restaurado.",
     "restoreError": "No se pudo restaurar.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Un enlace eliminado permanentemente no se puede restaurar.",
     "permanentDeleteSuccess": "Eliminado permanentemente.",
     "permanentDeleteError": "No se pudo eliminar.",
-    "emptyTrashConfirmTitle": "¿Vaciar la papelera?",
-    "emptyTrashConfirmMessage": "Todos los enlaces de la papelera se eliminarán permanentemente y no se podrán restaurar.",
-    "emptyTrashSuccess": "Papelera vaciada.",
-    "emptyTrashError": "No se pudo vaciar la papelera.",
+    "emptyTrashConfirmTitle": "¿Vaciar el historial de eliminados?",
+    "emptyTrashConfirmMessage": "Todos los enlaces aquí se eliminarán permanentemente y no se podrán restaurar.",
+    "emptyTrashSuccess": "Historial vaciado.",
+    "emptyTrashError": "No se pudo vaciar.",
     "freeLimitNotice": "Muestra hasta los 10 enlaces eliminados más recientes.",
-    "plusLimitNotice": "Muestra hasta los 100 enlaces eliminados más recientes."
+    "plusLimitNotice": "Muestra hasta los 100 enlaces eliminados más recientes.",
+    "restoreConfirmTitle": "¿Restaurar?",
+    "restoreConfirmMessage": "Se restaurará el enlace eliminado.",
+    "restoreConfirmAction": "Restaurar"
   }
 }

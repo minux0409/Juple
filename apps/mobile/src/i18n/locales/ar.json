@@ -10,7 +10,8 @@
     "confirm": "موافق",
     "edit": "تعديل",
     "processing": "جارٍ المعالجة...",
-    "none": "بلا"
+    "none": "بلا",
+    "notice": "تنبيه"
   },
   "errors": {
     "unauthorized": "تعذّر التحقق من حالة تسجيل دخولك مرة أخرى.",
@@ -51,7 +52,7 @@
     "languageSettings": "اللغة",
     "sharedCollection": "فئة مشتركة",
     "newLinkReview": "مراجعة رابط جديد",
-    "trash": "سلة المحذوفات"
+    "trash": "المحذوفة مؤخرًا"
   },
   "inbox": {
     "title": "الروابط المحفوظة اليوم",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "الحفظ فورًا عند المشاركة",
     "quickSaveOnShareOnDescription": "عند مشاركة رابط من YouTube أو Instagram أو تطبيقات أخرى إلى Juple، يتم حفظه فورًا دون فتح التطبيق.",
     "quickSaveOnShareOffDescription": "بعد المشاركة، يفتح Juple لمراجعة تفاصيل الرابط واختيار فئة قبل الحفظ.",
-    "trash": "سلة المحذوفات"
+    "trash": "المحذوفة مؤخرًا"
   },
   "language": {
     "system": "استخدام إعداد النظام",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "إفراغ",
-    "empty": "سلة المحذوفات فارغة.",
-    "loadError": "تعذّر تحميل سلة المحذوفات.",
+    "empty": "لا توجد روابط محذوفة مؤخرًا.",
+    "loadError": "تعذّر تحميل سجل الحذف.",
     "restoreA11y": "استعادة",
     "restoreSuccess": "تمت الاستعادة.",
     "restoreError": "تعذّرت الاستعادة.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "لا يمكن استعادة رابط تم حذفه نهائيًا.",
     "permanentDeleteSuccess": "تم الحذف نهائيًا.",
     "permanentDeleteError": "تعذّر الحذف.",
-    "emptyTrashConfirmTitle": "هل تريد إفراغ سلة المحذوفات؟",
-    "emptyTrashConfirmMessage": "سيتم حذف جميع الروابط في سلة المحذوفات نهائيًا ولن يمكن استعادتها.",
-    "emptyTrashSuccess": "تم إفراغ سلة المحذوفات.",
-    "emptyTrashError": "تعذّر إفراغ سلة المحذوفات.",
+    "emptyTrashConfirmTitle": "هل تريد إفراغ سجل الحذف؟",
+    "emptyTrashConfirmMessage": "سيتم حذف جميع الروابط هنا نهائيًا ولن يمكن استعادتها.",
+    "emptyTrashSuccess": "تم إفراغ السجل.",
+    "emptyTrashError": "تعذّر الإفراغ.",
     "freeLimitNotice": "يعرض ما يصل إلى آخر 10 روابط محذوفة.",
-    "plusLimitNotice": "يعرض ما يصل إلى آخر 100 رابط محذوف."
+    "plusLimitNotice": "يعرض ما يصل إلى آخر 100 رابط محذوف.",
+    "restoreConfirmTitle": "هل تريد الاستعادة؟",
+    "restoreConfirmMessage": "سيتم استعادة الرابط المحذوف.",
+    "restoreConfirmAction": "استعادة"
   }
 }

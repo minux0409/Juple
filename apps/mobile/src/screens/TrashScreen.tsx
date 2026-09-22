@@ -3,13 +3,11 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { useAuth } from '../auth/AuthContext';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { StatusToast } from '../components/StatusToast';
+import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { RestoreIcon } from '../icons/RestoreIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import {
@@ -44,7 +42,8 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
 }
 
 /**
- * 휴지통: soft-deleted Items (see backend Item.DeletedAtUtc), newest-deleted-first. The server
+ * 삭제 이력 (user-facing name; backend/internal naming stays "trash" - see itemsApi.ts): soft-deleted
+ * Items (see backend Item.DeletedAtUtc), newest-deleted-first. The server
  * already caps the list by the current user's Plan (Free 10 / Plus 100 - see getTrashItems), so
  * this screen never computes or truncates a limit itself. Restore/permanent-delete/empty-trash all
  * update local state directly on success rather than refetching the whole list.
@@ -52,16 +51,18 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
 export function TrashScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
-  const { plan } = useAuth();
-  const insets = useSafeAreaInsets();
 
   const [items, setItems] = useState<readonly ItemTrashEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [actionInFlightId, setActionInFlightId] = useState<number | null>(null);
-  const [statusMessage, setStatusMessage] = useState<{ text: string; tone: 'success' | 'error' } | null>(null);
+  // Only ever an error notice (no success dialog - see restoreAction/permanentlyDeleteAction/
+  // emptyTrashAction's own remarks: each is already gated behind its own ConfirmDialog, and the
+  // list change on success is sufficient feedback on its own).
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [pendingRestoreId, setPendingRestoreId] = useState<number | null>(null);
   const [pendingPermanentDeleteId, setPendingPermanentDeleteId] = useState<number | null>(null);
   const [isEmptyTrashConfirmVisible, setIsEmptyTrashConfirmVisible] = useState(false);
   const [isEmptyingTrash, setIsEmptyingTrash] = useState(false);
@@ -90,13 +91,15 @@ export function TrashScreen() {
       return;
     }
     setActionInFlightId(itemId);
-    setStatusMessage(null);
+    setErrorMessage(null);
     try {
       await restoreItem(authenticatedRequest, itemId);
+      // No success notice - the row disappearing is already sufficient feedback, and the user just
+      // gave explicit confirmation via ConfirmDialog immediately before this (see restoreAction's
+      // caller).
       setItems(previous => previous.filter(item => item.id !== itemId));
-      setStatusMessage({ text: t('trash.restoreSuccess'), tone: 'success' });
     } catch {
-      setStatusMessage({ text: t('trash.restoreError'), tone: 'error' });
+      setErrorMessage(t('trash.restoreError'));
     } finally {
       setActionInFlightId(null);
     }
@@ -107,13 +110,13 @@ export function TrashScreen() {
       return;
     }
     setActionInFlightId(itemId);
-    setStatusMessage(null);
+    setErrorMessage(null);
     try {
       await permanentlyDeleteItem(authenticatedRequest, itemId);
+      // No success notice - same rationale as restoreAction above.
       setItems(previous => previous.filter(item => item.id !== itemId));
-      setStatusMessage({ text: t('trash.permanentDeleteSuccess'), tone: 'success' });
     } catch {
-      setStatusMessage({ text: t('trash.permanentDeleteError'), tone: 'error' });
+      setErrorMessage(t('trash.permanentDeleteError'));
     } finally {
       setActionInFlightId(null);
     }
@@ -124,28 +127,26 @@ export function TrashScreen() {
       return;
     }
     setIsEmptyingTrash(true);
-    setStatusMessage(null);
+    setErrorMessage(null);
     try {
       // A single call - the server empties the caller's entire trash (up to 100 retained items),
       // not just the (possibly Free-capped) 10 rows this screen happens to be showing.
       await emptyTrash(authenticatedRequest);
+      // No success notice - same rationale as restoreAction above.
       setItems([]);
-      setStatusMessage({ text: t('trash.emptyTrashSuccess'), tone: 'success' });
     } catch {
-      setStatusMessage({ text: t('trash.emptyTrashError'), tone: 'error' });
+      setErrorMessage(t('trash.emptyTrashError'));
     } finally {
       setIsEmptyingTrash(false);
     }
   };
 
-  const limitNotice =
-    plan === 'Free' ? t('trash.freeLimitNotice') : plan === 'Plus' ? t('trash.plusLimitNotice') : null;
-
   return (
-    <View style={styles.screen}>
+    <StackScreenSafeArea style={styles.screen}>
       <FlatList
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+        contentContainerStyle={styles.content}
         data={items}
+        style={styles.list}
         keyExtractor={item => item.id.toString()}
         ListHeaderComponent={
           items.length > 0 ? (
@@ -188,7 +189,7 @@ export function TrashScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ disabled: actionInFlightId !== null }}
                 disabled={actionInFlightId !== null}
-                onPress={() => restoreAction(item.id)}
+                onPress={() => setPendingRestoreId(item.id)}
                 style={styles.actionButton}
               >
                 <RestoreIcon color={colors.brand} size={18} />
@@ -206,15 +207,34 @@ export function TrashScreen() {
             </View>
           </View>
         )}
-        ListFooterComponent={
-          !isLoading && items.length > 0 && limitNotice ? (
-            <Text style={styles.limitNotice}>{limitNotice}</Text>
-          ) : undefined
-        }
       />
       {loadError ? <Text style={styles.loadErrorText}>{loadError}</Text> : null}
-      {statusMessage ? <StatusToast message={statusMessage.text} tone={statusMessage.tone} /> : null}
 
+      {errorMessage !== null ? (
+        <ConfirmDialog
+          confirmLabel={t('common.confirm')}
+          message={errorMessage}
+          onConfirm={() => setErrorMessage(null)}
+          title={t('common.notice')}
+          visible
+        />
+      ) : null}
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('trash.restoreConfirmAction')}
+        destructive={false}
+        message={t('trash.restoreConfirmMessage')}
+        onCancel={() => setPendingRestoreId(null)}
+        onConfirm={() => {
+          const itemId = pendingRestoreId;
+          setPendingRestoreId(null);
+          if (itemId !== null) {
+            restoreAction(itemId);
+          }
+        }}
+        title={t('trash.restoreConfirmTitle')}
+        visible={pendingRestoreId !== null}
+      />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -242,13 +262,18 @@ export function TrashScreen() {
         title={t('trash.emptyTrashConfirmTitle')}
         visible={isEmptyTrashConfirmVisible}
       />
-    </View>
+    </StackScreenSafeArea>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
+    flex: 1,
+  },
+  // flex:1 so the FlatList fills the space StackScreenSafeArea's own bottom padding already leaves
+  // above the system nav bar - see that component's own remarks.
+  list: {
     flex: 1,
   },
   content: {
@@ -272,12 +297,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     fontWeight: '700',
-  },
-  limitNotice: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: spacing.sm,
-    textAlign: 'center',
   },
   loading: {
     paddingVertical: spacing.lg,

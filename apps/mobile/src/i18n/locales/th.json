@@ -10,7 +10,8 @@
     "confirm": "ตกลง",
     "edit": "แก้ไข",
     "processing": "กำลังดำเนินการ...",
-    "none": "ไม่มี"
+    "none": "ไม่มี",
+    "notice": "แจ้งเตือน"
   },
   "errors": {
     "unauthorized": "ไม่สามารถยืนยันสถานะการเข้าสู่ระบบของคุณอีกครั้งได้",
@@ -51,7 +52,7 @@
     "languageSettings": "ภาษา",
     "sharedCollection": "หมวดหมู่ที่แชร์",
     "newLinkReview": "ตรวจสอบลิงก์ใหม่",
-    "trash": "ถังขยะ"
+    "trash": "ลบล่าสุด"
   },
   "inbox": {
     "title": "ลิงก์ที่บันทึกวันนี้",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "บันทึกทันทีเมื่อแชร์",
     "quickSaveOnShareOnDescription": "เมื่อแชร์ลิงก์จาก YouTube, Instagram และแอปอื่น ๆ มายัง Juple จะบันทึกทันทีโดยไม่ต้องเปิดแอป",
     "quickSaveOnShareOffDescription": "หลังจากแชร์ Juple จะเปิดขึ้นเพื่อให้คุณตรวจสอบรายละเอียดลิงก์และเลือกหมวดหมู่ก่อนบันทึก",
-    "trash": "ถังขยะ"
+    "trash": "ลบล่าสุด"
   },
   "language": {
     "system": "ใช้การตั้งค่าของระบบ",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "ล้าง",
-    "empty": "ถังขยะว่างเปล่า",
-    "loadError": "ไม่สามารถโหลดถังขยะได้",
+    "empty": "ไม่มีลิงก์ที่ลบล่าสุด",
+    "loadError": "ไม่สามารถโหลดประวัติการลบได้",
     "restoreA11y": "กู้คืน",
     "restoreSuccess": "กู้คืนแล้ว",
     "restoreError": "ไม่สามารถกู้คืนได้",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "ลิงก์ที่ลบถาวรแล้วจะไม่สามารถกู้คืนได้",
     "permanentDeleteSuccess": "ลบถาวรแล้ว",
     "permanentDeleteError": "ไม่สามารถลบได้",
-    "emptyTrashConfirmTitle": "ล้างถังขยะหรือไม่?",
-    "emptyTrashConfirmMessage": "ลิงก์ทั้งหมดในถังขยะจะถูกลบถาวรและไม่สามารถกู้คืนได้",
-    "emptyTrashSuccess": "ล้างถังขยะแล้ว",
-    "emptyTrashError": "ไม่สามารถล้างถังขยะได้",
+    "emptyTrashConfirmTitle": "ล้างประวัติการลบหรือไม่?",
+    "emptyTrashConfirmMessage": "ลิงก์ทั้งหมดที่นี่จะถูกลบถาวรและไม่สามารถกู้คืนได้",
+    "emptyTrashSuccess": "ล้างประวัติแล้ว",
+    "emptyTrashError": "ไม่สามารถล้างได้",
     "freeLimitNotice": "แสดงลิงก์ที่ลบล่าสุดสูงสุด 10 รายการ",
-    "plusLimitNotice": "แสดงลิงก์ที่ลบล่าสุดสูงสุด 100 รายการ"
+    "plusLimitNotice": "แสดงลิงก์ที่ลบล่าสุดสูงสุด 100 รายการ",
+    "restoreConfirmTitle": "กู้คืนหรือไม่?",
+    "restoreConfirmMessage": "ลิงก์ที่ลบจะถูกกู้คืน",
+    "restoreConfirmAction": "กู้คืน"
   }
 }

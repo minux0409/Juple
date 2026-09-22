@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "Modifica",
     "processing": "Elaborazione...",
-    "none": "Nessuna"
+    "none": "Nessuna",
+    "notice": "Avviso"
   },
   "errors": {
     "unauthorized": "Non è stato possibile verificare nuovamente il tuo accesso.",
@@ -51,7 +52,7 @@
     "languageSettings": "Lingua",
     "sharedCollection": "Categoria condivisa",
     "newLinkReview": "Verifica nuovo link",
-    "trash": "Cestino"
+    "trash": "Eliminati di recente"
   },
   "inbox": {
     "title": "Link salvati oggi",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Salva istantaneamente alla condivisione",
     "quickSaveOnShareOnDescription": "Condividere un link da YouTube, Instagram e altre app lo salva subito in Juple senza aprire l'app.",
     "quickSaveOnShareOffDescription": "Dopo la condivisione, Juple si apre per permetterti di verificare i dettagli del link e scegliere una categoria prima di salvare.",
-    "trash": "Cestino"
+    "trash": "Eliminati di recente"
   },
   "language": {
     "system": "Usa le impostazioni di sistema",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Svuota",
-    "empty": "Il cestino è vuoto.",
-    "loadError": "Impossibile caricare il cestino.",
+    "empty": "Nessun link eliminato di recente.",
+    "loadError": "Impossibile caricare la cronologia eliminazioni.",
     "restoreA11y": "Ripristina",
     "restoreSuccess": "Ripristinato.",
     "restoreError": "Impossibile ripristinare.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Un link eliminato definitivamente non può essere ripristinato.",
     "permanentDeleteSuccess": "Eliminato definitivamente.",
     "permanentDeleteError": "Impossibile eliminare.",
-    "emptyTrashConfirmTitle": "Svuotare il cestino?",
-    "emptyTrashConfirmMessage": "Tutti i link nel cestino verranno eliminati definitivamente e non potranno essere ripristinati.",
-    "emptyTrashSuccess": "Cestino svuotato.",
-    "emptyTrashError": "Impossibile svuotare il cestino.",
+    "emptyTrashConfirmTitle": "Svuotare la cronologia eliminazioni?",
+    "emptyTrashConfirmMessage": "Tutti i link qui verranno eliminati definitivamente e non potranno essere ripristinati.",
+    "emptyTrashSuccess": "Cronologia svuotata.",
+    "emptyTrashError": "Impossibile svuotare.",
     "freeLimitNotice": "Mostra fino ai 10 link eliminati più di recente.",
-    "plusLimitNotice": "Mostra fino ai 100 link eliminati più di recente."
+    "plusLimitNotice": "Mostra fino ai 100 link eliminati più di recente.",
+    "restoreConfirmTitle": "Ripristinare?",
+    "restoreConfirmMessage": "Il link eliminato verrà ripristinato.",
+    "restoreConfirmAction": "Ripristina"
   }
 }

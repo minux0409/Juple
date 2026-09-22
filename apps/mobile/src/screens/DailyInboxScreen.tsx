@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
@@ -373,7 +374,7 @@ export function DailyInboxScreen() {
             </View>
           </View>
         }
-        ListEmptyComponent={<Text style={styles.empty}>{t('inbox.empty')}</Text>}
+        ListEmptyComponent={<CenteredEmptyState message={t('inbox.empty')} />}
         renderItem={({ item }) => (
           <SwipeableItemRow
             containerStyle={styles.card}
@@ -509,11 +510,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '500',
-  },
-  empty: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    paddingVertical: spacing.lg,
   },
   // Each saved link is its own standalone card - a white surface, clearly lifted off the screen's
   // own cool-gray background (see safeArea), with a barely-visible border rather than a heavier

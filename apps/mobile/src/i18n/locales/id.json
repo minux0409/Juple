@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "Edit",
     "processing": "Memproses...",
-    "none": "Tidak ada"
+    "none": "Tidak ada",
+    "notice": "Pemberitahuan"
   },
   "errors": {
     "unauthorized": "Kami tidak dapat memverifikasi ulang status masuk Anda.",
@@ -51,7 +52,7 @@
     "languageSettings": "Bahasa",
     "sharedCollection": "Kategori Bersama",
     "newLinkReview": "Tinjau Tautan Baru",
-    "trash": "Sampah"
+    "trash": "Baru Dihapus"
   },
   "inbox": {
     "title": "Tautan yang disimpan hari ini",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Simpan instan saat berbagi",
     "quickSaveOnShareOnDescription": "Membagikan tautan dari YouTube, Instagram, dan aplikasi lain akan langsung menyimpannya ke Juple tanpa membuka aplikasi.",
     "quickSaveOnShareOffDescription": "Setelah berbagi, Juple akan terbuka agar Anda dapat meninjau detail tautan dan memilih kategori sebelum menyimpan.",
-    "trash": "Sampah"
+    "trash": "Baru Dihapus"
   },
   "language": {
     "system": "Gunakan pengaturan sistem",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Kosongkan",
-    "empty": "Sampah kosong.",
-    "loadError": "Tidak dapat memuat sampah.",
+    "empty": "Tidak ada tautan yang baru dihapus.",
+    "loadError": "Tidak dapat memuat riwayat penghapusan.",
     "restoreA11y": "Pulihkan",
     "restoreSuccess": "Dipulihkan.",
     "restoreError": "Tidak dapat memulihkan.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Tautan yang dihapus permanen tidak dapat dipulihkan.",
     "permanentDeleteSuccess": "Dihapus permanen.",
     "permanentDeleteError": "Tidak dapat menghapus.",
-    "emptyTrashConfirmTitle": "Kosongkan sampah?",
-    "emptyTrashConfirmMessage": "Semua tautan di sampah akan dihapus permanen dan tidak dapat dipulihkan.",
-    "emptyTrashSuccess": "Sampah dikosongkan.",
-    "emptyTrashError": "Tidak dapat mengosongkan sampah.",
+    "emptyTrashConfirmTitle": "Kosongkan riwayat penghapusan?",
+    "emptyTrashConfirmMessage": "Semua tautan di sini akan dihapus permanen dan tidak dapat dipulihkan.",
+    "emptyTrashSuccess": "Riwayat dikosongkan.",
+    "emptyTrashError": "Tidak dapat mengosongkan.",
     "freeLimitNotice": "Menampilkan hingga 10 tautan yang paling baru dihapus.",
-    "plusLimitNotice": "Menampilkan hingga 100 tautan yang paling baru dihapus."
+    "plusLimitNotice": "Menampilkan hingga 100 tautan yang paling baru dihapus.",
+    "restoreConfirmTitle": "Pulihkan?",
+    "restoreConfirmMessage": "Tautan yang dihapus akan dipulihkan.",
+    "restoreConfirmAction": "Pulihkan"
   }
 }

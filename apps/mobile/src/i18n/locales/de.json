@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "Bearbeiten",
     "processing": "Wird verarbeitet...",
-    "none": "Keine"
+    "none": "Keine",
+    "notice": "Hinweis"
   },
   "errors": {
     "unauthorized": "Ihr Anmeldestatus konnte nicht erneut überprüft werden.",
@@ -51,7 +52,7 @@
     "languageSettings": "Sprache",
     "sharedCollection": "Geteilte Kategorie",
     "newLinkReview": "Neuen Link prüfen",
-    "trash": "Papierkorb"
+    "trash": "Kürzlich gelöscht"
   },
   "inbox": {
     "title": "Heute gespeicherte Links",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Beim Teilen sofort speichern",
     "quickSaveOnShareOnDescription": "Wenn Sie einen Link aus YouTube, Instagram oder anderen Apps teilen, wird er sofort in Juple gespeichert, ohne die App zu öffnen.",
     "quickSaveOnShareOffDescription": "Nach dem Teilen öffnet sich Juple, damit Sie die Linkdetails prüfen und vor dem Speichern eine Kategorie wählen können.",
-    "trash": "Papierkorb"
+    "trash": "Kürzlich gelöscht"
   },
   "language": {
     "system": "Systemeinstellung verwenden",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Leeren",
-    "empty": "Der Papierkorb ist leer.",
-    "loadError": "Papierkorb konnte nicht geladen werden.",
+    "empty": "Keine kürzlich gelöschten Links.",
+    "loadError": "Verlauf gelöschter Links konnte nicht geladen werden.",
     "restoreA11y": "Wiederherstellen",
     "restoreSuccess": "Wiederhergestellt.",
     "restoreError": "Konnte nicht wiederhergestellt werden.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Ein endgültig gelöschter Link kann nicht wiederhergestellt werden.",
     "permanentDeleteSuccess": "Endgültig gelöscht.",
     "permanentDeleteError": "Konnte nicht gelöscht werden.",
-    "emptyTrashConfirmTitle": "Papierkorb leeren?",
-    "emptyTrashConfirmMessage": "Alle Links im Papierkorb werden endgültig gelöscht und können nicht wiederhergestellt werden.",
-    "emptyTrashSuccess": "Papierkorb geleert.",
-    "emptyTrashError": "Papierkorb konnte nicht geleert werden.",
+    "emptyTrashConfirmTitle": "Verlauf gelöschter Links leeren?",
+    "emptyTrashConfirmMessage": "Alle Links hier werden endgültig gelöscht und können nicht wiederhergestellt werden.",
+    "emptyTrashSuccess": "Verlauf geleert.",
+    "emptyTrashError": "Konnte nicht geleert werden.",
     "freeLimitNotice": "Zeigt bis zu die 10 zuletzt gelöschten Links.",
-    "plusLimitNotice": "Zeigt bis zu die 100 zuletzt gelöschten Links."
+    "plusLimitNotice": "Zeigt bis zu die 100 zuletzt gelöschten Links.",
+    "restoreConfirmTitle": "Wiederherstellen?",
+    "restoreConfirmMessage": "Der gelöschte Link wird wiederhergestellt.",
+    "restoreConfirmAction": "Wiederherstellen"
   }
 }

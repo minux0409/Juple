@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "Editar",
     "processing": "Processando...",
-    "none": "Nenhuma"
+    "none": "Nenhuma",
+    "notice": "Aviso"
   },
   "errors": {
     "unauthorized": "Não foi possível verificar novamente seu status de login.",
@@ -51,7 +52,7 @@
     "languageSettings": "Idioma",
     "sharedCollection": "Categoria compartilhada",
     "newLinkReview": "Revisar novo link",
-    "trash": "Lixeira"
+    "trash": "Excluídos recentemente"
   },
   "inbox": {
     "title": "Links salvos hoje",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Salvar instantaneamente ao compartilhar",
     "quickSaveOnShareOnDescription": "Compartilhar um link do YouTube, Instagram e outros apps salva-o na Juple na hora, sem abrir o app.",
     "quickSaveOnShareOffDescription": "Após compartilhar, a Juple abre para você revisar os detalhes do link e escolher uma categoria antes de salvar.",
-    "trash": "Lixeira"
+    "trash": "Excluídos recentemente"
   },
   "language": {
     "system": "Usar idioma do sistema",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Esvaziar",
-    "empty": "A lixeira está vazia.",
-    "loadError": "Não foi possível carregar a lixeira.",
+    "empty": "Nenhum link excluído recentemente.",
+    "loadError": "Não foi possível carregar o histórico de exclusões.",
     "restoreA11y": "Restaurar",
     "restoreSuccess": "Restaurado.",
     "restoreError": "Não foi possível restaurar.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Um link excluído permanentemente não pode ser restaurado.",
     "permanentDeleteSuccess": "Excluído permanentemente.",
     "permanentDeleteError": "Não foi possível excluir.",
-    "emptyTrashConfirmTitle": "Esvaziar a lixeira?",
-    "emptyTrashConfirmMessage": "Todos os links da lixeira serão excluídos permanentemente e não poderão ser restaurados.",
-    "emptyTrashSuccess": "Lixeira esvaziada.",
-    "emptyTrashError": "Não foi possível esvaziar a lixeira.",
+    "emptyTrashConfirmTitle": "Limpar o histórico de exclusões?",
+    "emptyTrashConfirmMessage": "Todos os links aqui serão excluídos permanentemente e não poderão ser restaurados.",
+    "emptyTrashSuccess": "Histórico limpo.",
+    "emptyTrashError": "Não foi possível limpar.",
     "freeLimitNotice": "Mostra até os 10 links excluídos mais recentes.",
-    "plusLimitNotice": "Mostra até os 100 links excluídos mais recentes."
+    "plusLimitNotice": "Mostra até os 100 links excluídos mais recentes.",
+    "restoreConfirmTitle": "Restaurar?",
+    "restoreConfirmMessage": "O link excluído será restaurado.",
+    "restoreConfirmAction": "Restaurar"
   }
 }

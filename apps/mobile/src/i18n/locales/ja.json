@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "編集",
     "processing": "処理中...",
-    "none": "なし"
+    "none": "なし",
+    "notice": "お知らせ"
   },
   "errors": {
     "unauthorized": "ログイン状態を再確認できませんでした。",
@@ -51,7 +52,7 @@
     "languageSettings": "言語",
     "sharedCollection": "共有カテゴリ",
     "newLinkReview": "新しいリンクを確認",
-    "trash": "ゴミ箱"
+    "trash": "削除履歴"
   },
   "inbox": {
     "title": "今日保存したリンク",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "共有時に即保存",
     "quickSaveOnShareOnDescription": "YouTube や Instagram などから Juple にリンクを共有すると、アプリを開かずにすぐ保存されます。",
     "quickSaveOnShareOffDescription": "共有後に Juple が開き、リンク情報とカテゴリを確認してから保存します。",
-    "trash": "ゴミ箱"
+    "trash": "削除履歴"
   },
   "language": {
     "system": "システム設定を使用",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "空にする",
-    "empty": "ゴミ箱は空です。",
-    "loadError": "ゴミ箱を読み込めませんでした。",
+    "empty": "削除履歴はありません。",
+    "loadError": "削除履歴を読み込めませんでした。",
     "restoreA11y": "復元",
     "restoreSuccess": "復元しました。",
     "restoreError": "復元できませんでした。",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "削除したリンクは元に戻せません。",
     "permanentDeleteSuccess": "完全に削除しました。",
     "permanentDeleteError": "削除できませんでした。",
-    "emptyTrashConfirmTitle": "ゴミ箱を空にしますか?",
-    "emptyTrashConfirmMessage": "ゴミ箱内のリンクがすべて完全に削除され、元に戻せなくなります。",
-    "emptyTrashSuccess": "ゴミ箱を空にしました。",
-    "emptyTrashError": "ゴミ箱を空にできませんでした。",
+    "emptyTrashConfirmTitle": "削除履歴を空にしますか?",
+    "emptyTrashConfirmMessage": "削除履歴内のリンクがすべて完全に削除され、元に戻せなくなります。",
+    "emptyTrashSuccess": "削除履歴を空にしました。",
+    "emptyTrashError": "削除履歴を空にできませんでした。",
     "freeLimitNotice": "直近に削除されたリンクを最大10件表示します。",
-    "plusLimitNotice": "直近に削除されたリンクを最大100件表示します。"
+    "plusLimitNotice": "直近に削除されたリンクを最大100件表示します。",
+    "restoreConfirmTitle": "復元しますか?",
+    "restoreConfirmMessage": "削除したリンクを復元します。",
+    "restoreConfirmAction": "復元"
   }
 }

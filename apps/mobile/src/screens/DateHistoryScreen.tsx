@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
@@ -157,7 +158,7 @@ export function DateHistoryScreen() {
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
           </View>
         }
-        ListEmptyComponent={!error ? <Text style={styles.empty}>{t('history.empty')}</Text> : undefined}
+        ListEmptyComponent={!error ? <CenteredEmptyState message={t('history.empty')} /> : undefined}
         renderSectionHeader={({ section }) => {
           const isExpanded = expandedDateKeys?.has(section.dateKey) ?? false;
           return (
@@ -262,11 +263,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     marginTop: spacing.md,
-  },
-  empty: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    paddingVertical: spacing.lg,
   },
   // A date section reads as one grouped card: the header always rounds its top corners, and only
   // rounds its bottom corners (and gets a matching gap below) when collapsed - i.e. when it's the

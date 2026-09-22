@@ -10,7 +10,8 @@
     "confirm": "확인",
     "edit": "수정",
     "processing": "처리 중...",
-    "none": "없음"
+    "none": "없음",
+    "notice": "알림"
   },
   "errors": {
     "unauthorized": "인증 상태를 다시 확인할 수 없습니다.",
@@ -51,7 +52,7 @@
     "languageSettings": "언어",
     "sharedCollection": "공유된 카테고리",
     "newLinkReview": "새 링크 검토",
-    "trash": "휴지통"
+    "trash": "삭제 이력"
   },
   "inbox": {
     "title": "오늘 저장한 링크",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "공유 즉시 저장",
     "quickSaveOnShareOnDescription": "YouTube나 Instagram 등에서 Juple로 링크를 공유하면 앱을 열지 않고 바로 저장합니다.",
     "quickSaveOnShareOffDescription": "공유 후 Juple을 열어 링크 정보와 카테고리를 확인한 뒤 저장합니다.",
-    "trash": "휴지통"
+    "trash": "삭제 이력"
   },
   "language": {
     "system": "시스템 설정 사용",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "비우기",
-    "empty": "휴지통이 비어 있습니다.",
-    "loadError": "휴지통을 불러오지 못했습니다.",
+    "empty": "삭제 이력이 없습니다.",
+    "loadError": "삭제 이력을 불러오지 못했습니다.",
     "restoreA11y": "복구",
     "restoreSuccess": "복구되었습니다.",
     "restoreError": "복구하지 못했습니다.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "삭제된 링크는 다시 복구할 수 없습니다.",
     "permanentDeleteSuccess": "영구 삭제되었습니다.",
     "permanentDeleteError": "삭제하지 못했습니다.",
-    "emptyTrashConfirmTitle": "휴지통을 비울까요?",
-    "emptyTrashConfirmMessage": "휴지통의 링크가 모두 영구 삭제되며 다시 복구할 수 없습니다.",
-    "emptyTrashSuccess": "휴지통을 비웠습니다.",
-    "emptyTrashError": "휴지통을 비우지 못했습니다.",
+    "emptyTrashConfirmTitle": "삭제 이력을 비울까요?",
+    "emptyTrashConfirmMessage": "삭제 이력의 링크가 모두 영구 삭제되며 다시 복구할 수 없습니다.",
+    "emptyTrashSuccess": "삭제 이력을 비웠습니다.",
+    "emptyTrashError": "삭제 이력을 비우지 못했습니다.",
     "freeLimitNotice": "최근 삭제된 링크 10개까지 표시됩니다.",
-    "plusLimitNotice": "최근 삭제된 링크 100개까지 표시됩니다."
+    "plusLimitNotice": "최근 삭제된 링크 100개까지 표시됩니다.",
+    "restoreConfirmTitle": "복구할까요?",
+    "restoreConfirmMessage": "삭제된 링크를 다시 복구합니다.",
+    "restoreConfirmAction": "복구"
   }
 }

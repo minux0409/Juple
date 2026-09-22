@@ -10,7 +10,8 @@
     "confirm": "Tamam",
     "edit": "Düzenle",
     "processing": "İşleniyor...",
-    "none": "Yok"
+    "none": "Yok",
+    "notice": "Bildirim"
   },
   "errors": {
     "unauthorized": "Oturum açma durumunuzu yeniden doğrulayamadık.",
@@ -51,7 +52,7 @@
     "languageSettings": "Dil",
     "sharedCollection": "Paylaşılan Kategori",
     "newLinkReview": "Yeni Bağlantıyı İncele",
-    "trash": "Çöp Kutusu"
+    "trash": "Son Silinenler"
   },
   "inbox": {
     "title": "Bugün kaydedilen bağlantılar",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Paylaşırken anında kaydet",
     "quickSaveOnShareOnDescription": "YouTube, Instagram ve diğer uygulamalardan bir bağlantı paylaşmak, uygulamayı açmadan onu hemen Juple'a kaydeder.",
     "quickSaveOnShareOffDescription": "Paylaşımdan sonra, kaydetmeden önce bağlantı ayrıntılarını incelemeniz ve bir kategori seçmeniz için Juple açılır.",
-    "trash": "Çöp Kutusu"
+    "trash": "Son Silinenler"
   },
   "language": {
     "system": "Sistem ayarını kullan",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Boşalt",
-    "empty": "Çöp kutusu boş.",
-    "loadError": "Çöp kutusu yüklenemedi.",
+    "empty": "Son silinen bağlantı yok.",
+    "loadError": "Silme geçmişi yüklenemedi.",
     "restoreA11y": "Geri yükle",
     "restoreSuccess": "Geri yüklendi.",
     "restoreError": "Geri yüklenemedi.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Kalıcı olarak silinen bir bağlantı geri yüklenemez.",
     "permanentDeleteSuccess": "Kalıcı olarak silindi.",
     "permanentDeleteError": "Silinemedi.",
-    "emptyTrashConfirmTitle": "Çöp kutusu boşaltılsın mı?",
-    "emptyTrashConfirmMessage": "Çöp kutusundaki tüm bağlantılar kalıcı olarak silinecek ve geri yüklenemeyecek.",
-    "emptyTrashSuccess": "Çöp kutusu boşaltıldı.",
-    "emptyTrashError": "Çöp kutusu boşaltılamadı.",
+    "emptyTrashConfirmTitle": "Silme geçmişi boşaltılsın mı?",
+    "emptyTrashConfirmMessage": "Buradaki tüm bağlantılar kalıcı olarak silinecek ve geri yüklenemeyecek.",
+    "emptyTrashSuccess": "Geçmiş boşaltıldı.",
+    "emptyTrashError": "Boşaltılamadı.",
     "freeLimitNotice": "En son silinen 10 bağlantıya kadar gösterir.",
-    "plusLimitNotice": "En son silinen 100 bağlantıya kadar gösterir."
+    "plusLimitNotice": "En son silinen 100 bağlantıya kadar gösterir.",
+    "restoreConfirmTitle": "Geri yüklensin mi?",
+    "restoreConfirmMessage": "Silinen bağlantı geri yüklenecek.",
+    "restoreConfirmAction": "Geri yükle"
   }
 }

@@ -41,9 +41,9 @@ import {
 } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
 import { useCollectionItems } from '../collections/useCollectionItems';
+import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { StatusToast } from '../components/StatusToast';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
@@ -198,9 +198,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [colorDraft, setColorDraft] = useState<CollectionColorKey>(DEFAULT_COLLECTION_COLOR);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
-  // Shown via the shared StatusToast (always visible regardless of scroll position), not inline
-  // near the Save/Cancel buttons like renameError - a color-update failure is otherwise easy to
-  // miss (see this round's fix).
+  // Shown via the shared single-button ConfirmDialog (a notice, not inline near the Save/Cancel
+  // buttons like renameError) - a color-update failure is otherwise easy to miss.
   const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
@@ -679,7 +678,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? <Text style={styles.empty}>{t('collections.itemsEmpty')}</Text> : undefined
+          !isLoading && !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined
         }
         onScrollBeginDrag={closeOpenRow}
         renderItem={({ item }) => (
@@ -713,7 +712,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           ) : undefined
         }
       />
-      {colorUpdateError ? <StatusToast message={colorUpdateError} tone="error" /> : null}
+      {colorUpdateError !== null ? (
+        <ConfirmDialog
+          confirmLabel={t('common.confirm')}
+          message={colorUpdateError}
+          onConfirm={() => setColorUpdateError(null)}
+          title={t('common.notice')}
+          visible
+        />
+      ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -900,11 +907,6 @@ const styles = StyleSheet.create({
     color: '#B42318',
     fontSize: 14,
     marginTop: 12,
-  },
-  empty: {
-    color: '#666666',
-    fontSize: 14,
-    paddingVertical: 16,
   },
   // Exactly Home's own `card` (see DailyInboxScreen) - passed as SwipeableItemRow's containerStyle,
   // the same way Home/History use it.

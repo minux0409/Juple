@@ -27,7 +27,6 @@ import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { StatusToast } from '../components/StatusToast';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -745,8 +744,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
-      {justSaved && !isDirty ? <StatusToast message={t('item.saved')} /> : null}
-
       <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
         <Pressable
           accessibilityRole="button"
@@ -772,6 +769,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
+      {justSaved && !isDirty ? (
+        <ConfirmDialog
+          confirmLabel={t('common.confirm')}
+          message={t('item.saved')}
+          onConfirm={() => setJustSaved(false)}
+          title={t('common.notice')}
+          visible
+        />
+      ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

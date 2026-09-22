@@ -2,7 +2,6 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { TrashScreen } from '../TrashScreen';
-import { useAuth } from '../../auth/AuthContext';
 import {
   emptyTrash,
   getTrashItems,
@@ -21,11 +20,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-}));
-
-jest.mock('../../auth/AuthContext', () => ({
-  useAuth: jest.fn(),
+  SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 jest.mock('../../items/api/itemsApi', () => ({
@@ -34,24 +29,6 @@ jest.mock('../../items/api/itemsApi', () => ({
   permanentlyDeleteItem: jest.fn(),
   emptyTrash: jest.fn(),
 }));
-
-function mockPlan(plan: 'Free' | 'Plus' | null) {
-  jest.mocked(useAuth).mockReturnValue({
-    plan,
-    userEmail: null,
-    signOut: jest.fn(),
-    isInitializing: false,
-    isSigningIn: false,
-    isAuthenticated: true,
-    error: null,
-    backendAuthStatus: 'valid',
-    userBootstrapStatus: 'ready',
-    sessionRestoreStep: 'sessionRestore',
-    signIn: jest.fn(),
-    getValidAccessToken: jest.fn(),
-    retryBootstrap: jest.fn(),
-  } as unknown as ReturnType<typeof useAuth>);
-}
 
 function makeEntry(overrides: Partial<ItemTrashEntry> = {}): ItemTrashEntry {
   return {
@@ -98,7 +75,6 @@ describe('TrashScreen empty state', () => {
   });
 
   it('shows the empty-state text when there are no deleted items', async () => {
-    mockPlan('Free');
     jest.mocked(getTrashItems).mockResolvedValue([]);
 
     const renderer = await renderScreen();
@@ -113,7 +89,6 @@ describe('TrashScreen list rendering', () => {
   });
 
   it('renders a row for each item GET /trash returns', async () => {
-    mockPlan('Free');
     jest.mocked(getTrashItems).mockResolvedValue([
       makeEntry({ id: 1, title: 'First' }),
       makeEntry({ id: 2, title: 'Second' }),
@@ -131,20 +106,54 @@ describe('TrashScreen restore', () => {
     jest.clearAllMocks();
   });
 
-  it('on success, removes the row from the list without a refetch', async () => {
-    mockPlan('Free');
+  it('gates the call behind the shared ConfirmDialog and does not call the API on tap alone', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
     jest.mocked(restoreItem).mockResolvedValue(undefined);
     const renderer = await renderScreen();
 
     const restoreButton = renderer.root.findByProps({ accessibilityLabel: i18n.t('trash.restoreA11y') });
     await act(async () => {
-      await restoreButton.props.onPress();
+      restoreButton.props.onPress();
+    });
+
+    expect(restoreItem).not.toHaveBeenCalled();
+  });
+
+  it('on confirm, calls the API and removes the row from the list without a refetch or a success toast', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
+    jest.mocked(restoreItem).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+
+    const restoreButton = renderer.root.findByProps({ accessibilityLabel: i18n.t('trash.restoreA11y') });
+    await act(async () => {
+      restoreButton.props.onPress();
+    });
+
+    await act(async () => {
+      await getConfirmDialogButton(renderer, i18n.t('trash.restoreConfirmAction')).props.onPress();
     });
 
     expect(restoreItem).toHaveBeenCalledWith(expect.anything(), 1);
     expect(getTrashItems).toHaveBeenCalledTimes(1);
     expect(findTextValues(renderer)).not.toContain('First');
+    expect(findTextValues(renderer)).not.toContain(i18n.t('trash.restoreSuccess'));
+  });
+
+  it('does not restore when the ConfirmDialog is cancelled', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
+    const renderer = await renderScreen();
+
+    const restoreButton = renderer.root.findByProps({ accessibilityLabel: i18n.t('trash.restoreA11y') });
+    await act(async () => {
+      restoreButton.props.onPress();
+    });
+
+    await act(async () => {
+      getConfirmDialogButton(renderer, i18n.t('common.cancel')).props.onPress();
+    });
+
+    expect(restoreItem).not.toHaveBeenCalled();
+    expect(findTextValues(renderer)).toContain('First');
   });
 });
 
@@ -154,7 +163,6 @@ describe('TrashScreen permanent delete', () => {
   });
 
   it('gates the call behind the shared ConfirmDialog, then removes the row on success', async () => {
-    mockPlan('Free');
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1, title: 'First' })]);
     jest.mocked(permanentlyDeleteItem).mockResolvedValue(undefined);
     const renderer = await renderScreen();
@@ -174,6 +182,7 @@ describe('TrashScreen permanent delete', () => {
 
     expect(permanentlyDeleteItem).toHaveBeenCalledWith(expect.anything(), 1);
     expect(findTextValues(renderer)).not.toContain('First');
+    expect(findTextValues(renderer)).not.toContain(i18n.t('trash.permanentDeleteSuccess'));
   });
 });
 
@@ -183,7 +192,6 @@ describe('TrashScreen empty trash', () => {
   });
 
   it('gates the call behind the shared ConfirmDialog, then calls the API exactly once', async () => {
-    mockPlan('Free');
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 }), makeEntry({ id: 2 })]);
     jest.mocked(emptyTrash).mockResolvedValue(undefined);
     const renderer = await renderScreen();
@@ -201,5 +209,6 @@ describe('TrashScreen empty trash', () => {
 
     expect(emptyTrash).toHaveBeenCalledTimes(1);
     expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
+    expect(findTextValues(renderer)).not.toContain(i18n.t('trash.emptyTrashSuccess'));
   });
 });

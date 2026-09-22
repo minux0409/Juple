@@ -10,7 +10,8 @@
     "confirm": "OK",
     "edit": "Chỉnh sửa",
     "processing": "Đang xử lý...",
-    "none": "Không có"
+    "none": "Không có",
+    "notice": "Thông báo"
   },
   "errors": {
     "unauthorized": "Không thể xác minh lại trạng thái đăng nhập của bạn.",
@@ -51,7 +52,7 @@
     "languageSettings": "Ngôn ngữ",
     "sharedCollection": "Danh mục được chia sẻ",
     "newLinkReview": "Xem lại liên kết mới",
-    "trash": "Thùng rác"
+    "trash": "Đã xóa gần đây"
   },
   "inbox": {
     "title": "Liên kết đã lưu hôm nay",
@@ -184,7 +185,7 @@
     "quickSaveOnShare": "Lưu ngay khi chia sẻ",
     "quickSaveOnShareOnDescription": "Khi chia sẻ liên kết từ YouTube, Instagram và các ứng dụng khác, Juple sẽ lưu ngay mà không cần mở ứng dụng.",
     "quickSaveOnShareOffDescription": "Sau khi chia sẻ, Juple sẽ mở lên để bạn xem lại thông tin liên kết và chọn danh mục trước khi lưu.",
-    "trash": "Thùng rác"
+    "trash": "Đã xóa gần đây"
   },
   "language": {
     "system": "Dùng ngôn ngữ hệ thống",
@@ -290,8 +291,8 @@
   },
   "trash": {
     "emptyAction": "Dọn sạch",
-    "empty": "Thùng rác trống.",
-    "loadError": "Không thể tải thùng rác.",
+    "empty": "Không có liên kết đã xóa gần đây.",
+    "loadError": "Không thể tải lịch sử xóa.",
     "restoreA11y": "Khôi phục",
     "restoreSuccess": "Đã khôi phục.",
     "restoreError": "Không thể khôi phục.",
@@ -300,11 +301,14 @@
     "permanentDeleteConfirmMessage": "Liên kết đã xóa vĩnh viễn không thể khôi phục.",
     "permanentDeleteSuccess": "Đã xóa vĩnh viễn.",
     "permanentDeleteError": "Không thể xóa.",
-    "emptyTrashConfirmTitle": "Dọn sạch thùng rác?",
-    "emptyTrashConfirmMessage": "Tất cả liên kết trong thùng rác sẽ bị xóa vĩnh viễn và không thể khôi phục.",
-    "emptyTrashSuccess": "Đã dọn sạch thùng rác.",
-    "emptyTrashError": "Không thể dọn sạch thùng rác.",
+    "emptyTrashConfirmTitle": "Xóa lịch sử xóa?",
+    "emptyTrashConfirmMessage": "Tất cả liên kết ở đây sẽ bị xóa vĩnh viễn và không thể khôi phục.",
+    "emptyTrashSuccess": "Đã dọn lịch sử.",
+    "emptyTrashError": "Không thể dọn.",
     "freeLimitNotice": "Hiển thị tối đa 10 liên kết đã xóa gần đây nhất.",
-    "plusLimitNotice": "Hiển thị tối đa 100 liên kết đã xóa gần đây nhất."
+    "plusLimitNotice": "Hiển thị tối đa 100 liên kết đã xóa gần đây nhất.",
+    "restoreConfirmTitle": "Khôi phục?",
+    "restoreConfirmMessage": "Liên kết đã xóa sẽ được khôi phục.",
+    "restoreConfirmAction": "Khôi phục"
   }
 }
