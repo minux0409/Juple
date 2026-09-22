@@ -50,7 +50,8 @@
     "collectionDetails": "หมวดหมู่",
     "languageSettings": "ภาษา",
     "sharedCollection": "หมวดหมู่ที่แชร์",
-    "newLinkReview": "ตรวจสอบลิงก์ใหม่"
+    "newLinkReview": "ตรวจสอบลิงก์ใหม่",
+    "trash": "ถังขยะ"
   },
   "inbox": {
     "title": "ลิงก์ที่บันทึกวันนี้",
@@ -182,7 +183,8 @@
     "language": "ภาษา",
     "quickSaveOnShare": "บันทึกทันทีเมื่อแชร์",
     "quickSaveOnShareOnDescription": "เมื่อแชร์ลิงก์จาก YouTube, Instagram และแอปอื่น ๆ มายัง Juple จะบันทึกทันทีโดยไม่ต้องเปิดแอป",
-    "quickSaveOnShareOffDescription": "หลังจากแชร์ Juple จะเปิดขึ้นเพื่อให้คุณตรวจสอบรายละเอียดลิงก์และเลือกหมวดหมู่ก่อนบันทึก"
+    "quickSaveOnShareOffDescription": "หลังจากแชร์ Juple จะเปิดขึ้นเพื่อให้คุณตรวจสอบรายละเอียดลิงก์และเลือกหมวดหมู่ก่อนบันทึก",
+    "trash": "ถังขยะ"
   },
   "language": {
     "system": "ใช้การตั้งค่าของระบบ",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "ไม่สามารถบันทึกได้ โปรดตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง",
     "permanentFailureMessage": "ไม่สามารถบันทึกลิงก์นี้ได้",
     "loadFailureMessage": "ไม่สามารถโหลดเนื้อหาที่แชร์ได้"
+  },
+  "trash": {
+    "emptyAction": "ล้าง",
+    "empty": "ถังขยะว่างเปล่า",
+    "loadError": "ไม่สามารถโหลดถังขยะได้",
+    "restoreA11y": "กู้คืน",
+    "restoreSuccess": "กู้คืนแล้ว",
+    "restoreError": "ไม่สามารถกู้คืนได้",
+    "permanentDeleteA11y": "ลบถาวร",
+    "permanentDeleteConfirmTitle": "ลบถาวรหรือไม่?",
+    "permanentDeleteConfirmMessage": "ลิงก์ที่ลบถาวรแล้วจะไม่สามารถกู้คืนได้",
+    "permanentDeleteSuccess": "ลบถาวรแล้ว",
+    "permanentDeleteError": "ไม่สามารถลบได้",
+    "emptyTrashConfirmTitle": "ล้างถังขยะหรือไม่?",
+    "emptyTrashConfirmMessage": "ลิงก์ทั้งหมดในถังขยะจะถูกลบถาวรและไม่สามารถกู้คืนได้",
+    "emptyTrashSuccess": "ล้างถังขยะแล้ว",
+    "emptyTrashError": "ไม่สามารถล้างถังขยะได้",
+    "freeLimitNotice": "แสดงลิงก์ที่ลบล่าสุดสูงสุด 10 รายการ",
+    "plusLimitNotice": "แสดงลิงก์ที่ลบล่าสุดสูงสุด 100 รายการ"
   }
 }

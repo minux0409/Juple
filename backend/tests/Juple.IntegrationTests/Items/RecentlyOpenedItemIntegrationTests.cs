@@ -388,7 +388,9 @@ public sealed class RecentlyOpenedItemIntegrationTests : IAsyncLifetime
         await store.RecordOpenAsync(_userId, itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await itemStore.DeleteAsync(_userId, itemId);
+        await itemStore.DeleteAsync(_userId, itemId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await itemStore.PermanentDeleteAsync(_userId, itemId);
         _dbContext.ChangeTracker.Clear();
 
         var rowCount = await _dbContext.RecentlyOpenedItems

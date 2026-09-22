@@ -9,7 +9,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Juple.Infrastructure.Items;
 
 public sealed class ItemStore(JupleDbContext dbContext) :
-    IInboxEntryStore, IItemLifecycleStore, IItemDetailsStore, IItemDetailQueryStore, IItemHistoryQueryStore
+    IInboxEntryStore, IItemLifecycleStore, IItemDetailsStore, IItemDetailQueryStore, IItemHistoryQueryStore,
+    IItemTrashQueryStore
 {
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -170,15 +171,82 @@ public sealed class ItemStore(JupleDbContext dbContext) :
     public async Task DeleteAsync(
         long userId,
         long itemId,
+        DateTimeOffset deletedAtUtc,
         CancellationToken cancellationToken = default)
     {
-        // Deliberately does not touch ItemSaveRequests: that ledger is independent of the
-        // Item's lifecycle and must survive this delete (see ItemSaveRequestConfiguration).
+        // Deliberately does not touch ItemSaveRequests, CollectionItems, or ItemImages - a soft
+        // delete only flips DeletedAtUtc (see Item.SoftDelete), so every other row survives intact
+        // for RestoreAsync to bring back exactly as it was.
         var item = await dbContext.Items
             .FirstOrDefaultAsync(item => item.Id == itemId && item.UserId == userId, cancellationToken);
         if (item is null)
         {
             return;
+        }
+
+        item.SoftDelete(deletedAtUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            dbContext.ChangeTracker.Clear();
+            var stillActive = await dbContext.Items
+                .AsNoTracking()
+                .AnyAsync(
+                    item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc == null,
+                    cancellationToken);
+            if (stillActive)
+            {
+                throw new ItemConcurrencyException(exception);
+            }
+
+            // Already moved to trash (or gone entirely) by a concurrent call by the time this
+            // SaveChanges ran - the desired end state was already reached, so this is not a
+            // conflict.
+        }
+    }
+
+    public async Task RestoreAsync(
+        long userId,
+        long itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(
+                item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc != null,
+                cancellationToken);
+        if (item is null)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        item.Restore();
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ItemConcurrencyException(exception);
+        }
+    }
+
+    public async Task PermanentDeleteAsync(
+        long userId,
+        long itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(
+                item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc != null,
+                cancellationToken);
+        if (item is null)
+        {
+            throw new ItemNotFoundException();
         }
 
         dbContext.Items.Remove(item);
@@ -198,10 +266,106 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 throw new ItemConcurrencyException(exception);
             }
 
-            // The Item was gone by the time the DELETE ran (a concurrent delete of the same
-            // Item) - the desired end state (absent) was already reached, so this is not a
-            // conflict.
+            // Gone by the time this ran (a concurrent permanent delete of the same Item) - the
+            // desired end state was already reached.
         }
+    }
+
+    public async Task<IReadOnlyList<long>> EmptyTrashAsync(
+        long userId,
+        CancellationToken cancellationToken = default)
+    {
+        var deletedItems = await dbContext.Items
+            .Where(item => item.UserId == userId && item.DeletedAtUtc != null)
+            .ToListAsync(cancellationToken);
+        if (deletedItems.Count == 0)
+        {
+            return [];
+        }
+
+        dbContext.Items.RemoveRange(deletedItems);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return deletedItems.Select(item => item.Id).ToList();
+    }
+
+    public async Task<IReadOnlyList<long>> PurgeOldestDeletedBeyondRetentionAsync(
+        long userId,
+        int maxRetained,
+        CancellationToken cancellationToken = default)
+    {
+        var deletedCount = await dbContext.Items
+            .AsNoTracking()
+            .CountAsync(item => item.UserId == userId && item.DeletedAtUtc != null, cancellationToken);
+        var overflow = deletedCount - maxRetained;
+        if (overflow <= 0)
+        {
+            return [];
+        }
+
+        var oldestOverflow = await dbContext.Items
+            .Where(item => item.UserId == userId && item.DeletedAtUtc != null)
+            .OrderBy(item => item.DeletedAtUtc)
+            .ThenBy(item => item.Id)
+            .Take(overflow)
+            .ToListAsync(cancellationToken);
+
+        dbContext.Items.RemoveRange(oldestOverflow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return oldestOverflow.Select(item => item.Id).ToList();
+    }
+
+    public async Task<(IReadOnlyList<ItemTrashEntryDto> Items, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> ListTrashAsync(
+        long userId,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var query =
+            from item in dbContext.Items.AsNoTracking()
+            where item.UserId == userId && item.DeletedAtUtc != null
+            orderby item.DeletedAtUtc descending, item.Id descending
+            select new
+            {
+                item.Id,
+                item.Url,
+                item.Title,
+                item.DeletedAtUtc,
+                item.PreviewImageUrl,
+                RepresentativeImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id)
+                    .OrderBy(image => image.SortOrder)
+                    .ThenBy(image => image.Id)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+                CoverImage = dbContext.ItemImages
+                    .Where(image => image.ItemId == item.Id && image.Id == item.CoverImageId)
+                    .Select(image => new { image.Id, image.BlobName })
+                    .FirstOrDefault(),
+            };
+
+        var rows = await query.Take(limit).ToListAsync(cancellationToken);
+
+        var items = new List<ItemTrashEntryDto>(rows.Count);
+        var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        var coverImages = new Dictionary<long, ItemRepresentativeImageRef>();
+        foreach (var row in rows)
+        {
+            items.Add(new ItemTrashEntryDto(
+                row.Id, row.Url, row.Title, row.DeletedAtUtc!.Value,
+                RepresentativeImage: null, row.PreviewImageUrl, CoverImage: null));
+            if (row.RepresentativeImage is not null)
+            {
+                representativeImages[row.Id] =
+                    new ItemRepresentativeImageRef(row.RepresentativeImage.Id, row.RepresentativeImage.BlobName);
+            }
+            if (row.CoverImage is not null)
+            {
+                coverImages[row.Id] = new ItemRepresentativeImageRef(row.CoverImage.Id, row.CoverImage.BlobName);
+            }
+        }
+
+        return (items, representativeImages, coverImages);
     }
 
     public async Task<(ItemDetailsDto? Details, ItemRepresentativeImageRef? RepresentativeImage, ItemRepresentativeImageRef? CoverImage)> GetDetailsAsync(
@@ -211,7 +375,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
     {
         var query =
             from item in dbContext.Items.AsNoTracking()
-            where item.Id == itemId && item.UserId == userId
+            where item.Id == itemId && item.UserId == userId && item.DeletedAtUtc == null
             select new
             {
                 item.Id,
@@ -261,7 +425,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         // IX_Items_UserId_SavedAtUtc_Id index - no new index needed.
         var itemsQuery = dbContext.Items
             .AsNoTracking()
-            .Where(item => item.UserId == userId);
+            .Where(item => item.UserId == userId && item.DeletedAtUtc == null);
 
         if (cursor is not null)
         {
@@ -337,7 +501,9 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         // same keyset cursor pagination as GetHistoryAsync.
         var itemsQuery = dbContext.Items
             .AsNoTracking()
-            .Where(item => item.UserId == userId && item.SavedAtUtc >= fromUtc && item.SavedAtUtc < toUtc);
+            .Where(item =>
+                item.UserId == userId && item.DeletedAtUtc == null
+                && item.SavedAtUtc >= fromUtc && item.SavedAtUtc < toUtc);
 
         if (cursor is not null)
         {

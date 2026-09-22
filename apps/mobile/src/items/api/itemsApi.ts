@@ -196,3 +196,63 @@ export async function setItemCoverImage(
     body: { imageId },
   });
 }
+
+/**
+ * One Trash row - the Item as it was when deleted. Deliberately no `memo` (unlike ItemHistoryEntry)
+ * - see backend ItemTrashEntryDto, which intentionally excludes it from this endpoint's response.
+ */
+export interface ItemTrashEntry {
+  readonly id: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly deletedAtUtc: string;
+  readonly representativeImage: RepresentativeImage | null;
+  readonly previewImageUrl: string | null;
+  readonly coverImage: RepresentativeImage | null;
+}
+
+interface ItemTrashResponse {
+  readonly items: readonly ItemTrashEntry[];
+}
+
+/**
+ * The caller's most-recently-deleted Items - the server already caps this by the current user's
+ * Plan (Free 10 / Plus 100, see backend ItemTrashLimits), so this never accepts a limit/cursor: a
+ * Free user cannot request a larger page than the server allows.
+ */
+export async function getTrashItems(request: AuthenticatedApiRequest): Promise<readonly ItemTrashEntry[]> {
+  const response = await request<ItemTrashResponse>({
+    method: 'GET',
+    path: '/api/v1/items/trash',
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Item trash body.');
+  }
+
+  return response.body.items;
+}
+
+/** Restores a trashed Item back to active; resolves on 204 (404 if the Item isn't currently in the trash). */
+export async function restoreItem(request: AuthenticatedApiRequest, itemId: number): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/items/${itemId}/restore`,
+  });
+}
+
+/** Permanently deletes a single trashed Item; resolves on 204 (404 if the Item isn't currently in the trash - an active Item can never be permanently deleted this way). */
+export async function permanentlyDeleteItem(request: AuthenticatedApiRequest, itemId: number): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/items/${itemId}/permanent`,
+  });
+}
+
+/** Permanently deletes every one of the caller's trashed Items in one call - the whole server-side trash, not just what a Free-plan list shows. Resolves on 204. */
+export async function emptyTrash(request: AuthenticatedApiRequest): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: '/api/v1/items/trash',
+  });
+}

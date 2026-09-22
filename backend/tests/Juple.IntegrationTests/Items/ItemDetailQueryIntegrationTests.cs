@@ -95,4 +95,19 @@ public sealed class ItemDetailQueryIntegrationTests : IAsyncLifetime
 
         Assert.Null(details);
     }
+
+    [Fact]
+    public async Task GetDetailsAsync_WhenItemIsSoftDeleted_ReturnsNull()
+    {
+        var store = new ItemStore(_dbContext);
+        var saved = await store.SaveAsync(
+            _userId, "https://shop.example/detail-deleted", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var (details, _, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
+
+        Assert.Null(details);
+    }
 }

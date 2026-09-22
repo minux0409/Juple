@@ -50,7 +50,8 @@
     "collectionDetails": "Kategori",
     "languageSettings": "Bahasa",
     "sharedCollection": "Kategori Bersama",
-    "newLinkReview": "Tinjau Tautan Baru"
+    "newLinkReview": "Tinjau Tautan Baru",
+    "trash": "Sampah"
   },
   "inbox": {
     "title": "Tautan yang disimpan hari ini",
@@ -182,7 +183,8 @@
     "language": "Bahasa",
     "quickSaveOnShare": "Simpan instan saat berbagi",
     "quickSaveOnShareOnDescription": "Membagikan tautan dari YouTube, Instagram, dan aplikasi lain akan langsung menyimpannya ke Juple tanpa membuka aplikasi.",
-    "quickSaveOnShareOffDescription": "Setelah berbagi, Juple akan terbuka agar Anda dapat meninjau detail tautan dan memilih kategori sebelum menyimpan."
+    "quickSaveOnShareOffDescription": "Setelah berbagi, Juple akan terbuka agar Anda dapat meninjau detail tautan dan memilih kategori sebelum menyimpan.",
+    "trash": "Sampah"
   },
   "language": {
     "system": "Gunakan pengaturan sistem",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Tidak dapat menyimpan. Periksa koneksi Anda lalu coba lagi.",
     "permanentFailureMessage": "Tautan ini tidak dapat disimpan.",
     "loadFailureMessage": "Tidak dapat memuat konten yang dibagikan."
+  },
+  "trash": {
+    "emptyAction": "Kosongkan",
+    "empty": "Sampah kosong.",
+    "loadError": "Tidak dapat memuat sampah.",
+    "restoreA11y": "Pulihkan",
+    "restoreSuccess": "Dipulihkan.",
+    "restoreError": "Tidak dapat memulihkan.",
+    "permanentDeleteA11y": "Hapus permanen",
+    "permanentDeleteConfirmTitle": "Hapus permanen?",
+    "permanentDeleteConfirmMessage": "Tautan yang dihapus permanen tidak dapat dipulihkan.",
+    "permanentDeleteSuccess": "Dihapus permanen.",
+    "permanentDeleteError": "Tidak dapat menghapus.",
+    "emptyTrashConfirmTitle": "Kosongkan sampah?",
+    "emptyTrashConfirmMessage": "Semua tautan di sampah akan dihapus permanen dan tidak dapat dipulihkan.",
+    "emptyTrashSuccess": "Sampah dikosongkan.",
+    "emptyTrashError": "Tidak dapat mengosongkan sampah.",
+    "freeLimitNotice": "Menampilkan hingga 10 tautan yang paling baru dihapus.",
+    "plusLimitNotice": "Menampilkan hingga 100 tautan yang paling baru dihapus."
   }
 }

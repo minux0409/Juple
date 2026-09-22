@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IItemDetailsStore, ItemStore>();
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
         services.AddScoped<IItemHistoryQueryStore, ItemStore>();
+        services.AddScoped<IItemTrashQueryStore, ItemStore>();
         services.AddScoped<IInstagramMetadataRetryStore, InstagramMetadataRetryStore>();
         services.AddScoped<IInstagramMetadataRetryService, InstagramMetadataRetryService>();
         services.AddScoped<IRecentlyOpenedItemStore, RecentlyOpenedItemStore>();

@@ -50,7 +50,8 @@
     "collectionDetails": "分類",
     "languageSettings": "語言",
     "sharedCollection": "共用分類",
-    "newLinkReview": "確認新連結"
+    "newLinkReview": "確認新連結",
+    "trash": "資源回收桶"
   },
   "inbox": {
     "title": "今日儲存的連結",
@@ -182,7 +183,8 @@
     "language": "語言",
     "quickSaveOnShare": "分享時立即儲存",
     "quickSaveOnShareOnDescription": "從 YouTube、Instagram 等應用程式分享連結到 Juple 時，不需開啟應用程式即可立即儲存。",
-    "quickSaveOnShareOffDescription": "分享後會開啟 Juple，供您確認連結資訊並選擇分類後再儲存。"
+    "quickSaveOnShareOffDescription": "分享後會開啟 Juple，供您確認連結資訊並選擇分類後再儲存。",
+    "trash": "資源回收桶"
   },
   "language": {
     "system": "使用系統設定",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "儲存失敗，請檢查網路連線後再試一次。",
     "permanentFailureMessage": "無法儲存此連結。",
     "loadFailureMessage": "無法載入分享的內容。"
+  },
+  "trash": {
+    "emptyAction": "清空",
+    "empty": "資源回收桶是空的。",
+    "loadError": "無法載入資源回收桶。",
+    "restoreA11y": "復原",
+    "restoreSuccess": "已復原。",
+    "restoreError": "復原失敗。",
+    "permanentDeleteA11y": "永久刪除",
+    "permanentDeleteConfirmTitle": "要永久刪除嗎?",
+    "permanentDeleteConfirmMessage": "已刪除的連結將無法復原。",
+    "permanentDeleteSuccess": "已永久刪除。",
+    "permanentDeleteError": "刪除失敗。",
+    "emptyTrashConfirmTitle": "要清空資源回收桶嗎?",
+    "emptyTrashConfirmMessage": "資源回收桶中的所有連結都將被永久刪除且無法復原。",
+    "emptyTrashSuccess": "資源回收桶已清空。",
+    "emptyTrashError": "清空資源回收桶失敗。",
+    "freeLimitNotice": "最多顯示最近刪除的10個連結。",
+    "plusLimitNotice": "最多顯示最近刪除的100個連結。"
   }
 }

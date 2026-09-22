@@ -196,6 +196,17 @@ export function MyPageScreen() {
             <View style={styles.settingsRowDivider} />
             <Pressable
               accessibilityRole="button"
+              onPress={() => navigation.navigate('Trash')}
+              style={styles.settingsRow}
+            >
+              <View style={styles.settingsRowIcon}>
+                <TrashIcon color={colors.textSecondary} size={18} />
+              </View>
+              <Text style={styles.settingsRowLabel}>{t('settings.trash')}</Text>
+            </Pressable>
+            <View style={styles.settingsRowDivider} />
+            <Pressable
+              accessibilityRole="button"
               onPress={confirmSignOut}
               style={styles.settingsRow}
             >

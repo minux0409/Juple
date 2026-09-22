@@ -50,7 +50,8 @@
     "collectionDetails": "Category",
     "languageSettings": "Language",
     "sharedCollection": "Shared Category",
-    "newLinkReview": "Review New Link"
+    "newLinkReview": "Review New Link",
+    "trash": "Trash"
   },
   "inbox": {
     "title": "Links saved today",
@@ -182,7 +183,8 @@
     "language": "Language",
     "quickSaveOnShare": "Save instantly on share",
     "quickSaveOnShareOnDescription": "Sharing a link from YouTube, Instagram, and other apps saves it to Juple right away without opening the app.",
-    "quickSaveOnShareOffDescription": "After sharing, Juple opens so you can review the link details and choose a category before saving."
+    "quickSaveOnShareOffDescription": "After sharing, Juple opens so you can review the link details and choose a category before saving.",
+    "trash": "Trash"
   },
   "language": {
     "system": "Use system setting",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Couldn't save. Please check your connection and try again.",
     "permanentFailureMessage": "This link couldn't be saved.",
     "loadFailureMessage": "Couldn't load the shared content."
+  },
+  "trash": {
+    "emptyAction": "Empty",
+    "empty": "Trash is empty.",
+    "loadError": "Couldn't load the trash.",
+    "restoreA11y": "Restore",
+    "restoreSuccess": "Restored.",
+    "restoreError": "Couldn't restore.",
+    "permanentDeleteA11y": "Delete permanently",
+    "permanentDeleteConfirmTitle": "Delete permanently?",
+    "permanentDeleteConfirmMessage": "A permanently deleted link cannot be restored.",
+    "permanentDeleteSuccess": "Permanently deleted.",
+    "permanentDeleteError": "Couldn't delete.",
+    "emptyTrashConfirmTitle": "Empty the trash?",
+    "emptyTrashConfirmMessage": "Every link in the trash will be permanently deleted and cannot be restored.",
+    "emptyTrashSuccess": "Trash emptied.",
+    "emptyTrashError": "Couldn't empty the trash.",
+    "freeLimitNotice": "Shows up to the 10 most recently deleted links.",
+    "plusLimitNotice": "Shows up to the 100 most recently deleted links."
   }
 }

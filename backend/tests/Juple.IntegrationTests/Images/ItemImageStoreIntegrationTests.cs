@@ -3,6 +3,7 @@ using Juple.Application.Images;
 using Juple.Application.Images.UploadItemImage;
 using Juple.Application.Items;
 using Juple.Application.Items.DeleteItem;
+using Juple.Application.Items.PermanentlyDeleteItem;
 using Juple.Domain.Images;
 using Juple.Domain.Items;
 using Juple.Domain.Users;
@@ -264,15 +265,14 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteItemService_DeleteAsync_RemovesImageRowsAndBlobsViaOrchestration()
+    public async Task DeleteItemService_DeleteAsync_MovesItemToTrashWithoutTouchingImagesOrBlobs()
     {
-        // Exercises the Application-orchestration design: ItemStore (Infrastructure) knows
-        // nothing about Blob Storage - DeleteItemService deletes the Item via IItemLifecycleStore,
-        // then hands userId/itemId to IItemImageStorage, which cleans up by listing the Item's own
-        // Blob prefix rather than trusting any pre-delete snapshot of names.
+        // A soft delete (the ordinary per-item DELETE) must leave images/Blobs completely
+        // untouched - RestoreAsync depends on them still being there. Cleanup only ever happens
+        // for an Item that is actually hard-deleted (see the permanent-delete test below).
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
-        var deleteItemService = new DeleteItemService(itemStore, imageStore);
+        var deleteItemService = new DeleteItemService(itemStore, imageStore, TimeProvider.System);
 
         var firstImage = await imageStore.UploadAsync(
             _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
@@ -286,6 +286,39 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
 
         await deleteItemService.DeleteAsync(_userId, _itemId);
+
+        Assert.Equal(2, await _dbContext.ItemImages.CountAsync(
+            row => row.Id == firstImage.Id || row.Id == secondImage.Id));
+        foreach (var blobName in blobNames)
+        {
+            Assert.True(await _blobContainerClient.GetBlobClient(blobName).ExistsAsync());
+        }
+    }
+
+    [Fact]
+    public async Task PermanentlyDeleteItemService_DeleteAsync_RemovesImageRowsAndBlobsViaOrchestration()
+    {
+        // Exercises the Application-orchestration design: ItemStore (Infrastructure) knows
+        // nothing about Blob Storage - PermanentlyDeleteItemService hard-deletes the Item via
+        // IItemLifecycleStore, then hands userId/itemId to IItemImageStorage, which cleans up by
+        // listing the Item's own Blob prefix rather than trusting any pre-delete snapshot of names.
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var itemStore = new ItemStore(_dbContext);
+        var permanentlyDeleteItemService = new PermanentlyDeleteItemService(itemStore, imageStore);
+
+        var firstImage = await imageStore.UploadAsync(
+            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var secondImage = await imageStore.UploadAsync(
+            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var blobNames = await _dbContext.ItemImages
+            .AsNoTracking()
+            .Where(row => row.ItemId == _itemId)
+            .Select(row => row.BlobName)
+            .ToListAsync();
+        await itemStore.DeleteAsync(_userId, _itemId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await permanentlyDeleteItemService.DeleteAsync(_userId, _itemId);
 
         Assert.Equal(0, await _dbContext.ItemImages.CountAsync(
             row => row.Id == firstImage.Id || row.Id == secondImage.Id));
@@ -304,7 +337,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // separate ownership check needed to guarantee that.
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
-        var deleteItemService = new DeleteItemService(itemStore, imageStore);
+        var deleteItemService = new DeleteItemService(itemStore, imageStore, TimeProvider.System);
 
         var image = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var blobName = (await _dbContext.ItemImages.AsNoTracking().SingleAsync(row => row.Id == image.Id)).BlobName;
@@ -317,7 +350,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteItemService_DeleteAsync_RemovesOrphanBlobsUnderTheItemPrefixWithNoDbRow()
+    public async Task PermanentlyDeleteItemService_DeleteAsync_RemovesOrphanBlobsUnderTheItemPrefixWithNoDbRow()
     {
         // Deterministic reproduction of the race this fix targets: a Blob can exist under the
         // Item's prefix with no corresponding ItemImages row (e.g. an upload whose DB insert
@@ -325,7 +358,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         // even though no DB row ever pointed at it.
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
-        var deleteItemService = new DeleteItemService(itemStore, imageStore);
+        var permanentlyDeleteItemService = new PermanentlyDeleteItemService(itemStore, imageStore);
 
         var trackedImage = await imageStore.UploadAsync(
             _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
@@ -334,9 +367,10 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
 
         var orphanBlobName = $"items/{_userId}/{_itemId}/{Guid.NewGuid():N}.jpg";
         await _blobContainerClient.GetBlobClient(orphanBlobName).UploadAsync(new MemoryStream(JpegBytes));
+        await itemStore.DeleteAsync(_userId, _itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await deleteItemService.DeleteAsync(_userId, _itemId);
+        await permanentlyDeleteItemService.DeleteAsync(_userId, _itemId);
 
         Assert.Equal(0, await _dbContext.ItemImages.CountAsync(row => row.ItemId == _itemId));
         Assert.False(await _blobContainerClient.GetBlobClient(trackedBlobName).ExistsAsync());
@@ -358,23 +392,25 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteItemService_DeleteAsync_WhenBlobEnumerationFails_StillDeletesTheDbRowSuccessfully()
+    public async Task PermanentlyDeleteItemService_DeleteAsync_WhenBlobEnumerationFails_StillDeletesTheDbRowSuccessfully()
     {
         // End-to-end version of the enumeration-failure guard above: the DB Item delete must
-        // succeed and DeleteItemService.DeleteAsync must not throw, even though the Blob cleanup
-        // step it triggers afterward cannot reach Storage at all.
+        // succeed and PermanentlyDeleteItemService.DeleteAsync must not throw, even though the
+        // Blob cleanup step it triggers afterward cannot reach Storage at all.
         var missingContainerClient = TestBlobContainerClientFactory.CreateForMissingContainer();
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, missingContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
-        var deleteItemService = new DeleteItemService(itemStore, imageStore);
+        var permanentlyDeleteItemService = new PermanentlyDeleteItemService(itemStore, imageStore);
+        await itemStore.DeleteAsync(_userId, _itemId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
 
-        await deleteItemService.DeleteAsync(_userId, _itemId);
+        await permanentlyDeleteItemService.DeleteAsync(_userId, _itemId);
 
         Assert.False(await _dbContext.Items.AsNoTracking().AnyAsync(item => item.Id == _itemId));
     }
 
     [Fact]
-    public async Task DeleteItemService_ConcurrentWithUpload_LeavesNoOrphanBlobUnderThePrefix()
+    public async Task PermanentlyDeleteItemService_ConcurrentWithUpload_LeavesNoOrphanBlobUnderThePrefix()
     {
         // The exact race this fix targets: an upload and an Item delete running truly
         // concurrently against the same Item. Whichever wins, no Blob may survive under the
@@ -388,10 +424,15 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var uploadStore = new ItemImageStore(uploadDbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var deleteImageStore = new ItemImageStore(deleteDbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var deleteItemStore = new ItemStore(deleteDbContext);
-        var deleteItemService = new DeleteItemService(deleteItemStore, deleteImageStore);
+        var permanentlyDeleteItemService = new PermanentlyDeleteItemService(deleteItemStore, deleteImageStore);
+        // Soft-delete first (outside the race itself) so the item is already trashed when the
+        // race below runs - the race is specifically between the upload and the permanent
+        // (hard) delete's cleanup, matching PermanentlyDeleteItemService's own real-world trigger.
+        await deleteItemStore.DeleteAsync(_userId, _itemId, DateTimeOffset.UtcNow);
+        deleteDbContext.ChangeTracker.Clear();
 
         var uploadTask = uploadStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var deleteTask = deleteItemService.DeleteAsync(_userId, _itemId);
+        var deleteTask = permanentlyDeleteItemService.DeleteAsync(_userId, _itemId);
 
         // The upload racing a concurrent Item delete has three legitimate outcomes: it succeeds
         // (delete runs after); it throws ItemNotFoundException (the Item was already gone by its

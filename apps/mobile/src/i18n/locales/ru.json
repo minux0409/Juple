@@ -50,7 +50,8 @@
     "collectionDetails": "Категория",
     "languageSettings": "Язык",
     "sharedCollection": "Общая категория",
-    "newLinkReview": "Проверка новой ссылки"
+    "newLinkReview": "Проверка новой ссылки",
+    "trash": "Корзина"
   },
   "inbox": {
     "title": "Ссылки, сохранённые сегодня",
@@ -182,7 +183,8 @@
     "language": "Язык",
     "quickSaveOnShare": "Сохранять сразу при отправке",
     "quickSaveOnShareOnDescription": "При отправке ссылки из YouTube, Instagram и других приложений она сразу сохраняется в Juple без открытия приложения.",
-    "quickSaveOnShareOffDescription": "После отправки откроется Juple, где вы сможете проверить сведения о ссылке и выбрать категорию перед сохранением."
+    "quickSaveOnShareOffDescription": "После отправки откроется Juple, где вы сможете проверить сведения о ссылке и выбрать категорию перед сохранением.",
+    "trash": "Корзина"
   },
   "language": {
     "system": "Использовать язык системы",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Не удалось сохранить. Проверьте подключение и повторите попытку.",
     "permanentFailureMessage": "Не удалось сохранить эту ссылку.",
     "loadFailureMessage": "Не удалось загрузить переданное содержимое."
+  },
+  "trash": {
+    "emptyAction": "Очистить",
+    "empty": "Корзина пуста.",
+    "loadError": "Не удалось загрузить корзину.",
+    "restoreA11y": "Восстановить",
+    "restoreSuccess": "Восстановлено.",
+    "restoreError": "Не удалось восстановить.",
+    "permanentDeleteA11y": "Удалить навсегда",
+    "permanentDeleteConfirmTitle": "Удалить навсегда?",
+    "permanentDeleteConfirmMessage": "Окончательно удалённую ссылку восстановить нельзя.",
+    "permanentDeleteSuccess": "Удалено навсегда.",
+    "permanentDeleteError": "Не удалось удалить.",
+    "emptyTrashConfirmTitle": "Очистить корзину?",
+    "emptyTrashConfirmMessage": "Все ссылки в корзине будут окончательно удалены без возможности восстановления.",
+    "emptyTrashSuccess": "Корзина очищена.",
+    "emptyTrashError": "Не удалось очистить корзину.",
+    "freeLimitNotice": "Показывает до 10 последних удалённых ссылок.",
+    "plusLimitNotice": "Показывает до 100 последних удалённых ссылок."
   }
 }

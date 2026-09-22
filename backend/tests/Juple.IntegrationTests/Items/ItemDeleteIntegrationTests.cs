@@ -45,19 +45,22 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteAsync_ExistingItem_RemovesFromHistory()
+    public async Task DeleteAsync_ExistingItem_SetsDeletedAtUtcAndRemovesFromHistory()
     {
         var store = new ItemStore(_dbContext);
         var saved = await store.SaveAsync(_userId, "https://shop.example/delete-history", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
+        var deletedAtUtc = DateTimeOffset.UtcNow;
 
-        await store.DeleteAsync(_userId, saved.Entry.Id);
+        await store.DeleteAsync(_userId, saved.Entry.Id, deletedAtUtc);
         _dbContext.ChangeTracker.Clear();
 
         var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
 
         Assert.DoesNotContain(page.Items, item => item.Id == saved.Entry.Id);
-        Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
+        Assert.Equal(1, await CountItemsAsync(saved.Entry.Id));
+        var row = await _dbContext.Items.AsNoTracking().SingleAsync(item => item.Id == saved.Entry.Id);
+        Assert.Equal(deletedAtUtc, row.DeletedAtUtc);
     }
 
     [Fact]
@@ -65,22 +68,25 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
     {
         var store = new ItemStore(_dbContext);
 
-        await store.DeleteAsync(_userId, itemId: -1);
+        await store.DeleteAsync(_userId, itemId: -1, DateTimeOffset.UtcNow);
     }
 
     [Fact]
-    public async Task DeleteAsync_CalledTwice_SecondCallCompletesWithoutExceptionAndNoSideEffect()
+    public async Task DeleteAsync_CalledTwice_SecondCallCompletesWithoutExceptionAndKeepsFirstDeletedAtUtc()
     {
         var store = new ItemStore(_dbContext);
         var saved = await store.SaveAsync(
             _userId, "https://shop.example/delete-repeat", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
+        var firstDeletedAtUtc = DateTimeOffset.UtcNow;
 
-        await store.DeleteAsync(_userId, saved.Entry.Id);
+        await store.DeleteAsync(_userId, saved.Entry.Id, firstDeletedAtUtc);
         _dbContext.ChangeTracker.Clear();
-        await store.DeleteAsync(_userId, saved.Entry.Id);
+        await store.DeleteAsync(_userId, saved.Entry.Id, firstDeletedAtUtc.AddMinutes(1));
+        _dbContext.ChangeTracker.Clear();
 
-        Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
+        var row = await _dbContext.Items.AsNoTracking().SingleAsync(item => item.Id == saved.Entry.Id);
+        Assert.Equal(firstDeletedAtUtc, row.DeletedAtUtc);
     }
 
     [Fact]
@@ -91,13 +97,14 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
             _otherUserId, "https://shop.example/delete-other-user", null, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await store.DeleteAsync(_userId, ownersItem.Entry.Id);
+        await store.DeleteAsync(_userId, ownersItem.Entry.Id, DateTimeOffset.UtcNow);
 
-        Assert.Equal(1, await CountItemsAsync(ownersItem.Entry.Id));
+        var row = await _dbContext.Items.AsNoTracking().SingleAsync(item => item.Id == ownersItem.Entry.Id);
+        Assert.Null(row.DeletedAtUtc);
     }
 
     [Fact]
-    public async Task DeleteAsync_ShareCreatedItem_RemovesItemButKeepsLedgerRow()
+    public async Task DeleteAsync_ShareCreatedItem_SoftDeletesItemButKeepsLedgerRow()
     {
         var store = new ItemStore(_dbContext);
         var clientRequestId = Guid.NewGuid();
@@ -106,9 +113,9 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var ledgerCountBefore = await CountSaveRequestsAsync(clientRequestId);
 
-        await store.DeleteAsync(_userId, saved.Entry.Id);
+        await store.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
 
-        Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
+        Assert.Equal(1, await CountItemsAsync(saved.Entry.Id));
         Assert.Equal(ledgerCountBefore, await CountSaveRequestsAsync(clientRequestId));
         Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
     }
@@ -139,13 +146,14 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
         await _dbContext.SaveChangesAsync();
 
         await Assert.ThrowsAsync<ItemConcurrencyException>(
-            () => otherStore.DeleteAsync(_userId, saved.Entry.Id));
+            () => otherStore.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow));
 
-        Assert.Equal(1, await CountItemsAsync(saved.Entry.Id));
+        var row = await _dbContext.Items.AsNoTracking().SingleAsync(item => item.Id == saved.Entry.Id);
+        Assert.Null(row.DeletedAtUtc);
     }
 
     [Fact]
-    public async Task DeleteAsync_ConcurrentDeleteOfSameItem_BothCompleteWithoutException()
+    public async Task DeleteAsync_ConcurrentDeleteOfSameItem_BothCompleteWithoutExceptionAndItemEndsUpDeleted()
     {
         var store = new ItemStore(_dbContext);
         var saved = await store.SaveAsync(
@@ -162,12 +170,170 @@ public sealed class ItemDeleteIntegrationTests : IAsyncLifetime
 
         // Both requests race to delete the same Item; the DB's optimistic-concurrency check (not
         // an app-level lock) decides the winner. Neither call may surface an exception: the
-        // loser's DbUpdateConcurrencyException must be normalized to "already absent".
+        // loser's DbUpdateConcurrencyException must be normalized to "already deleted".
         await Task.WhenAll(
-            storeA.DeleteAsync(_userId, saved.Entry.Id),
-            storeB.DeleteAsync(_userId, saved.Entry.Id));
+            storeA.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow),
+            storeB.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow));
+
+        var row = await _dbContext.Items.AsNoTracking().SingleAsync(item => item.Id == saved.Entry.Id);
+        Assert.NotNull(row.DeletedAtUtc);
+    }
+
+    [Fact]
+    public async Task RestoreAsync_DeletedItem_ClearsDeletedAtUtcAndReappearsInHistory()
+    {
+        var store = new ItemStore(_dbContext);
+        var saved = await store.SaveAsync(_userId, "https://shop.example/restore-a", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.RestoreAsync(_userId, saved.Entry.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        var row = await _dbContext.Items.AsNoTracking().SingleAsync(item => item.Id == saved.Entry.Id);
+        Assert.Null(row.DeletedAtUtc);
+        var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
+        Assert.Contains(page.Items, item => item.Id == saved.Entry.Id);
+    }
+
+    [Fact]
+    public async Task RestoreAsync_ItemThatIsNotDeleted_ThrowsItemNotFoundException()
+    {
+        var store = new ItemStore(_dbContext);
+        var saved = await store.SaveAsync(_userId, "https://shop.example/restore-active", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(() => store.RestoreAsync(_userId, saved.Entry.Id));
+    }
+
+    [Fact]
+    public async Task RestoreAsync_OtherUsersDeletedItem_ThrowsItemNotFoundException()
+    {
+        var store = new ItemStore(_dbContext);
+        var ownersItem = await store.SaveAsync(
+            _otherUserId, "https://shop.example/restore-other-user", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_otherUserId, ownersItem.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(() => store.RestoreAsync(_userId, ownersItem.Entry.Id));
+    }
+
+    [Fact]
+    public async Task PermanentDeleteAsync_DeletedItem_RemovesRow()
+    {
+        var store = new ItemStore(_dbContext);
+        var saved = await store.SaveAsync(_userId, "https://shop.example/permanent-a", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.PermanentDeleteAsync(_userId, saved.Entry.Id);
 
         Assert.Equal(0, await CountItemsAsync(saved.Entry.Id));
+    }
+
+    [Fact]
+    public async Task PermanentDeleteAsync_ActiveItem_ThrowsItemNotFoundExceptionAndDoesNotDelete()
+    {
+        var store = new ItemStore(_dbContext);
+        var saved = await store.SaveAsync(_userId, "https://shop.example/permanent-active", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(() => store.PermanentDeleteAsync(_userId, saved.Entry.Id));
+
+        Assert.Equal(1, await CountItemsAsync(saved.Entry.Id));
+    }
+
+    [Fact]
+    public async Task PermanentDeleteAsync_OtherUsersDeletedItem_ThrowsItemNotFoundExceptionAndDoesNotDelete()
+    {
+        var store = new ItemStore(_dbContext);
+        var ownersItem = await store.SaveAsync(
+            _otherUserId, "https://shop.example/permanent-other-user", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_otherUserId, ownersItem.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(() => store.PermanentDeleteAsync(_userId, ownersItem.Entry.Id));
+
+        Assert.Equal(1, await CountItemsAsync(ownersItem.Entry.Id));
+    }
+
+    [Fact]
+    public async Task EmptyTrashAsync_RemovesOnlyCallersDeletedItems()
+    {
+        var store = new ItemStore(_dbContext);
+        var deletedA = await store.SaveAsync(_userId, "https://shop.example/empty-a", null, DateTimeOffset.UtcNow);
+        var deletedB = await store.SaveAsync(_userId, "https://shop.example/empty-b", null, DateTimeOffset.UtcNow);
+        var activeItem = await store.SaveAsync(_userId, "https://shop.example/empty-active", null, DateTimeOffset.UtcNow);
+        var otherUsersDeletedItem = await store.SaveAsync(
+            _otherUserId, "https://shop.example/empty-other-user", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_userId, deletedA.Entry.Id, DateTimeOffset.UtcNow);
+        await store.DeleteAsync(_userId, deletedB.Entry.Id, DateTimeOffset.UtcNow);
+        await store.DeleteAsync(_otherUserId, otherUsersDeletedItem.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var purgedIds = await store.EmptyTrashAsync(_userId);
+
+        Assert.Equal([deletedA.Entry.Id, deletedB.Entry.Id], purgedIds.OrderBy(id => id));
+        Assert.Equal(0, await CountItemsAsync(deletedA.Entry.Id));
+        Assert.Equal(0, await CountItemsAsync(deletedB.Entry.Id));
+        Assert.Equal(1, await CountItemsAsync(activeItem.Entry.Id));
+        Assert.Equal(1, await CountItemsAsync(otherUsersDeletedItem.Entry.Id));
+    }
+
+    [Fact]
+    public async Task EmptyTrashAsync_WhenTrashIsEmpty_ReturnsEmptyListAndDoesNothing()
+    {
+        var store = new ItemStore(_dbContext);
+        var activeItem = await store.SaveAsync(_userId, "https://shop.example/empty-noop", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var purgedIds = await store.EmptyTrashAsync(_userId);
+
+        Assert.Empty(purgedIds);
+        Assert.Equal(1, await CountItemsAsync(activeItem.Entry.Id));
+    }
+
+    [Fact]
+    public async Task PurgeOldestDeletedBeyondRetentionAsync_PurgesOnlyTheOldestOverflowingItems()
+    {
+        var store = new ItemStore(_dbContext);
+        var oldest = await store.SaveAsync(_userId, "https://shop.example/retention-1", null, DateTimeOffset.UtcNow);
+        var middle = await store.SaveAsync(_userId, "https://shop.example/retention-2", null, DateTimeOffset.UtcNow);
+        var newest = await store.SaveAsync(_userId, "https://shop.example/retention-3", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        var baseTime = DateTimeOffset.UtcNow;
+        await store.DeleteAsync(_userId, oldest.Entry.Id, baseTime);
+        await store.DeleteAsync(_userId, middle.Entry.Id, baseTime.AddMinutes(1));
+        await store.DeleteAsync(_userId, newest.Entry.Id, baseTime.AddMinutes(2));
+        _dbContext.ChangeTracker.Clear();
+
+        // maxRetained=2 with 3 deleted items -> the single oldest-by-DeletedAtUtc must be purged.
+        var purgedIds = await store.PurgeOldestDeletedBeyondRetentionAsync(_userId, maxRetained: 2);
+
+        Assert.Equal([oldest.Entry.Id], purgedIds);
+        Assert.Equal(0, await CountItemsAsync(oldest.Entry.Id));
+        Assert.Equal(1, await CountItemsAsync(middle.Entry.Id));
+        Assert.Equal(1, await CountItemsAsync(newest.Entry.Id));
+    }
+
+    [Fact]
+    public async Task PurgeOldestDeletedBeyondRetentionAsync_WhenAtOrUnderRetention_PurgesNothing()
+    {
+        var store = new ItemStore(_dbContext);
+        var deleted = await store.SaveAsync(_userId, "https://shop.example/retention-noop", null, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.DeleteAsync(_userId, deleted.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var purgedIds = await store.PurgeOldestDeletedBeyondRetentionAsync(_userId, maxRetained: 100);
+
+        Assert.Empty(purgedIds);
+        Assert.Equal(1, await CountItemsAsync(deleted.Entry.Id));
     }
 
     private async Task<int> CountItemsAsync(long itemId) =>

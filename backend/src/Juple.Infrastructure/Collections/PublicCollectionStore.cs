@@ -56,7 +56,8 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
 
         var pagedQuery =
             from membership in membershipQuery
-            join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
+            join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
+                on membership.ItemId equals item.Id
             orderby membership.SortOrder ascending, membership.ItemId ascending
             select new { item.Title, item.Url, membership.SortOrder, membership.ItemId };
 

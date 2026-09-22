@@ -125,10 +125,13 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
         var first = await store.SaveAsync(_userId, url, clientRequestId, savedAt);
         _dbContext.ChangeTracker.Clear();
 
-        // Uses the real Item.DeleteAsync path (not a raw SQL simulation) to prove the ledger is
-        // fully independent of the Item's own lifecycle - this is the core success criterion of
-        // the idempotency-ledger refactor.
-        await store.DeleteAsync(_userId, first.Entry.Id);
+        // Uses the real Item soft-delete + permanent-delete path (not a raw SQL simulation) to
+        // prove the ledger is fully independent of the Item's own lifecycle, even once the Item
+        // row is truly gone - this is the core success criterion of the idempotency-ledger
+        // refactor.
+        await store.DeleteAsync(_userId, first.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.PermanentDeleteAsync(_userId, first.Entry.Id);
         _dbContext.ChangeTracker.Clear();
 
         var replay = await store.SaveAsync(_userId, url, clientRequestId, DateTimeOffset.UtcNow);
@@ -150,7 +153,9 @@ public sealed class ItemIdempotencyIntegrationTests : IAsyncLifetime
             _userId, "https://shop.example/idempotency-deleted-c1", clientRequestId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await store.DeleteAsync(_userId, first.Entry.Id);
+        await store.DeleteAsync(_userId, first.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.PermanentDeleteAsync(_userId, first.Entry.Id);
         _dbContext.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<InboxEntryClientRequestConflictException>(() =>

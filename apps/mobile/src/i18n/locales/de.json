@@ -50,7 +50,8 @@
     "collectionDetails": "Kategorie",
     "languageSettings": "Sprache",
     "sharedCollection": "Geteilte Kategorie",
-    "newLinkReview": "Neuen Link prüfen"
+    "newLinkReview": "Neuen Link prüfen",
+    "trash": "Papierkorb"
   },
   "inbox": {
     "title": "Heute gespeicherte Links",
@@ -182,7 +183,8 @@
     "language": "Sprache",
     "quickSaveOnShare": "Beim Teilen sofort speichern",
     "quickSaveOnShareOnDescription": "Wenn Sie einen Link aus YouTube, Instagram oder anderen Apps teilen, wird er sofort in Juple gespeichert, ohne die App zu öffnen.",
-    "quickSaveOnShareOffDescription": "Nach dem Teilen öffnet sich Juple, damit Sie die Linkdetails prüfen und vor dem Speichern eine Kategorie wählen können."
+    "quickSaveOnShareOffDescription": "Nach dem Teilen öffnet sich Juple, damit Sie die Linkdetails prüfen und vor dem Speichern eine Kategorie wählen können.",
+    "trash": "Papierkorb"
   },
   "language": {
     "system": "Systemeinstellung verwenden",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Speichern fehlgeschlagen. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "permanentFailureMessage": "Dieser Link konnte nicht gespeichert werden.",
     "loadFailureMessage": "Der geteilte Inhalt konnte nicht geladen werden."
+  },
+  "trash": {
+    "emptyAction": "Leeren",
+    "empty": "Der Papierkorb ist leer.",
+    "loadError": "Papierkorb konnte nicht geladen werden.",
+    "restoreA11y": "Wiederherstellen",
+    "restoreSuccess": "Wiederhergestellt.",
+    "restoreError": "Konnte nicht wiederhergestellt werden.",
+    "permanentDeleteA11y": "Endgültig löschen",
+    "permanentDeleteConfirmTitle": "Endgültig löschen?",
+    "permanentDeleteConfirmMessage": "Ein endgültig gelöschter Link kann nicht wiederhergestellt werden.",
+    "permanentDeleteSuccess": "Endgültig gelöscht.",
+    "permanentDeleteError": "Konnte nicht gelöscht werden.",
+    "emptyTrashConfirmTitle": "Papierkorb leeren?",
+    "emptyTrashConfirmMessage": "Alle Links im Papierkorb werden endgültig gelöscht und können nicht wiederhergestellt werden.",
+    "emptyTrashSuccess": "Papierkorb geleert.",
+    "emptyTrashError": "Papierkorb konnte nicht geleert werden.",
+    "freeLimitNotice": "Zeigt bis zu die 10 zuletzt gelöschten Links.",
+    "plusLimitNotice": "Zeigt bis zu die 100 zuletzt gelöschten Links."
   }
 }

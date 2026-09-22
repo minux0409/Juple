@@ -58,8 +58,19 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(item => item.CoverImageId)
             .HasColumnType("bigint");
 
+        // Deliberately no default value: existing rows must migrate to NULL (active), never a
+        // backfilled non-null value - see Item.DeletedAtUtc's own remarks.
+        builder.Property(item => item.DeletedAtUtc)
+            .HasColumnType("datetimeoffset");
+
         builder.HasIndex(item => new { item.UserId, item.SavedAtUtc, item.Id })
             .HasDatabaseName("IX_Items_UserId_SavedAtUtc_Id");
+
+        // Supports both the trash list query (UserId + DeletedAtUtc IS NOT NULL, ordered by
+        // DeletedAtUtc) and the per-user deleted-item COUNT the retention purge runs after every
+        // delete.
+        builder.HasIndex(item => new { item.UserId, item.DeletedAtUtc, item.Id })
+            .HasDatabaseName("IX_Items_UserId_DeletedAtUtc_Id");
 
         builder.HasOne<User>()
             .WithMany()

@@ -50,7 +50,8 @@
     "collectionDetails": "Catégorie",
     "languageSettings": "Langue",
     "sharedCollection": "Catégorie partagée",
-    "newLinkReview": "Vérifier le nouveau lien"
+    "newLinkReview": "Vérifier le nouveau lien",
+    "trash": "Corbeille"
   },
   "inbox": {
     "title": "Liens enregistrés aujourd'hui",
@@ -182,7 +183,8 @@
     "language": "Langue",
     "quickSaveOnShare": "Enregistrer instantanément au partage",
     "quickSaveOnShareOnDescription": "Le partage d'un lien depuis YouTube, Instagram et d'autres apps l'enregistre immédiatement dans Juple sans ouvrir l'app.",
-    "quickSaveOnShareOffDescription": "Après le partage, Juple s'ouvre pour que vous puissiez vérifier les détails du lien et choisir une catégorie avant d'enregistrer."
+    "quickSaveOnShareOffDescription": "Après le partage, Juple s'ouvre pour que vous puissiez vérifier les détails du lien et choisir une catégorie avant d'enregistrer.",
+    "trash": "Corbeille"
   },
   "language": {
     "system": "Utiliser la langue du système",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Impossible d'enregistrer. Veuillez vérifier votre connexion et réessayer.",
     "permanentFailureMessage": "Ce lien n'a pas pu être enregistré.",
     "loadFailureMessage": "Impossible de charger le contenu partagé."
+  },
+  "trash": {
+    "emptyAction": "Vider",
+    "empty": "La corbeille est vide.",
+    "loadError": "Impossible de charger la corbeille.",
+    "restoreA11y": "Restaurer",
+    "restoreSuccess": "Restauré.",
+    "restoreError": "Impossible de restaurer.",
+    "permanentDeleteA11y": "Supprimer définitivement",
+    "permanentDeleteConfirmTitle": "Supprimer définitivement ?",
+    "permanentDeleteConfirmMessage": "Un lien supprimé définitivement ne peut pas être restauré.",
+    "permanentDeleteSuccess": "Supprimé définitivement.",
+    "permanentDeleteError": "Impossible de supprimer.",
+    "emptyTrashConfirmTitle": "Vider la corbeille ?",
+    "emptyTrashConfirmMessage": "Tous les liens de la corbeille seront définitivement supprimés et ne pourront pas être restaurés.",
+    "emptyTrashSuccess": "Corbeille vidée.",
+    "emptyTrashError": "Impossible de vider la corbeille.",
+    "freeLimitNotice": "Affiche jusqu’aux 10 liens supprimés les plus récents.",
+    "plusLimitNotice": "Affiche jusqu’aux 100 liens supprimés les plus récents."
   }
 }

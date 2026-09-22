@@ -50,7 +50,8 @@
     "collectionDetails": "Kategori",
     "languageSettings": "Dil",
     "sharedCollection": "Paylaşılan Kategori",
-    "newLinkReview": "Yeni Bağlantıyı İncele"
+    "newLinkReview": "Yeni Bağlantıyı İncele",
+    "trash": "Çöp Kutusu"
   },
   "inbox": {
     "title": "Bugün kaydedilen bağlantılar",
@@ -182,7 +183,8 @@
     "language": "Dil",
     "quickSaveOnShare": "Paylaşırken anında kaydet",
     "quickSaveOnShareOnDescription": "YouTube, Instagram ve diğer uygulamalardan bir bağlantı paylaşmak, uygulamayı açmadan onu hemen Juple'a kaydeder.",
-    "quickSaveOnShareOffDescription": "Paylaşımdan sonra, kaydetmeden önce bağlantı ayrıntılarını incelemeniz ve bir kategori seçmeniz için Juple açılır."
+    "quickSaveOnShareOffDescription": "Paylaşımdan sonra, kaydetmeden önce bağlantı ayrıntılarını incelemeniz ve bir kategori seçmeniz için Juple açılır.",
+    "trash": "Çöp Kutusu"
   },
   "language": {
     "system": "Sistem ayarını kullan",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Kaydedilemedi. Lütfen bağlantınızı kontrol edip tekrar deneyin.",
     "permanentFailureMessage": "Bu bağlantı kaydedilemedi.",
     "loadFailureMessage": "Paylaşılan içerik yüklenemedi."
+  },
+  "trash": {
+    "emptyAction": "Boşalt",
+    "empty": "Çöp kutusu boş.",
+    "loadError": "Çöp kutusu yüklenemedi.",
+    "restoreA11y": "Geri yükle",
+    "restoreSuccess": "Geri yüklendi.",
+    "restoreError": "Geri yüklenemedi.",
+    "permanentDeleteA11y": "Kalıcı olarak sil",
+    "permanentDeleteConfirmTitle": "Kalıcı olarak silinsin mi?",
+    "permanentDeleteConfirmMessage": "Kalıcı olarak silinen bir bağlantı geri yüklenemez.",
+    "permanentDeleteSuccess": "Kalıcı olarak silindi.",
+    "permanentDeleteError": "Silinemedi.",
+    "emptyTrashConfirmTitle": "Çöp kutusu boşaltılsın mı?",
+    "emptyTrashConfirmMessage": "Çöp kutusundaki tüm bağlantılar kalıcı olarak silinecek ve geri yüklenemeyecek.",
+    "emptyTrashSuccess": "Çöp kutusu boşaltıldı.",
+    "emptyTrashError": "Çöp kutusu boşaltılamadı.",
+    "freeLimitNotice": "En son silinen 10 bağlantıya kadar gösterir.",
+    "plusLimitNotice": "En son silinen 100 bağlantıya kadar gösterir."
   }
 }

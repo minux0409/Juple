@@ -306,7 +306,7 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var publicStore = new PublicCollectionStore(_dbContext);
 
-        await itemStore.DeleteAsync(_userId, itemId);
+        await itemStore.DeleteAsync(_userId, itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var afterDelete = await publicStore.GetItemsAsync(share.PublicId, cursor: null, limit: 50);

@@ -5,10 +5,14 @@ using Juple.Application.Identity;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Items.DeleteItem;
+using Juple.Application.Items.EmptyItemTrash;
 using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
+using Juple.Application.Items.GetItemTrash;
+using Juple.Application.Items.PermanentlyDeleteItem;
 using Juple.Application.Items.RecordItemOpen;
+using Juple.Application.Items.RestoreItem;
 using Juple.Application.Items.SetItemCoverImage;
 using Juple.Application.Items.SetItemPreviewImage;
 using Juple.Application.Items.UpdateItemDetails;
@@ -31,7 +35,11 @@ public sealed class ItemsController(
     IGetItemDetailService getItemDetailService,
     IGetItemHistoryService getItemHistoryService,
     IGetItemHistoryByDateService getItemHistoryByDateService,
-    IRecordItemOpenService recordItemOpenService) : ControllerBase
+    IRecordItemOpenService recordItemOpenService,
+    IGetItemTrashService getItemTrashService,
+    IRestoreItemService restoreItemService,
+    IPermanentlyDeleteItemService permanentlyDeleteItemService,
+    IEmptyItemTrashService emptyItemTrashService) : ControllerBase
 {
     /// <summary>
     /// All Items the user has ever saved, newest-saved-first. See docs/product-overview.md
@@ -143,6 +151,30 @@ public sealed class ItemsController(
         }
     }
 
+    /// <summary>
+    /// The caller's most-recently-deleted Items (the trash) - size capped server-side by the
+    /// caller's Plan (Free 10 / Plus up to 100, see ItemTrashLimits), never by a client-supplied
+    /// limit, so a Free user cannot bypass the cap by requesting a larger one.
+    /// </summary>
+    [HttpGet("trash")]
+    public async Task<IActionResult> GetTrashAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var items = await getItemTrashService.GetAsync(currentUser.UserId, currentUser.Plan, cancellationToken);
+
+            return Ok(new ItemTrashResponse(items));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
+
     [HttpGet("{id:long}")]
     public async Task<IActionResult> GetDetailAsync(long id, CancellationToken cancellationToken)
     {
@@ -174,11 +206,46 @@ public sealed class ItemsController(
         }
     }
 
+    /// <summary>Moves the Item to the trash (soft delete) - see DeleteItemService.</summary>
     [HttpDelete("{id:long}")]
     public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
         TransitionAsync(
             userId => deleteItemService.DeleteAsync(userId, id, cancellationToken),
             cancellationToken);
+
+    /// <summary>Restores a trashed Item back to active. Not-currently-deleted (including never-deleted) is a 404, unlike DELETE's idempotent no-op.</summary>
+    [HttpPost("{id:long}/restore")]
+    public Task<IActionResult> RestoreAsync(long id, CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => restoreItemService.RestoreAsync(userId, id, cancellationToken),
+            cancellationToken);
+
+    /// <summary>Hard-deletes a single trashed Item. An active (not yet soft-deleted) Item is rejected with a 404 - see PermanentlyDeleteItemService.</summary>
+    [HttpDelete("{id:long}/permanent")]
+    public Task<IActionResult> PermanentlyDeleteAsync(long id, CancellationToken cancellationToken) =>
+        TransitionAsync(
+            userId => permanentlyDeleteItemService.DeleteAsync(userId, id, cancellationToken),
+            cancellationToken);
+
+    /// <summary>Hard-deletes every one of the caller's trashed Items - the whole server-side trash, not just what a Free-plan trash list shows.</summary>
+    [HttpDelete("trash")]
+    public async Task<IActionResult> EmptyTrashAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            await emptyItemTrashService.EmptyAsync(currentUser.UserId, cancellationToken);
+
+            return NoContent();
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
 
     /// <summary>
     /// Records that the user opened this Item's original URL (My Page → "최근 본 링크" /
@@ -284,6 +351,8 @@ public sealed class ItemsController(
     }
 
     public sealed record ItemHistoryPageResponse(IReadOnlyList<ItemHistoryEntryDto> Items, string? NextCursor);
+
+    public sealed record ItemTrashResponse(IReadOnlyList<ItemTrashEntryDto> Items);
 
     public sealed record ItemHistoryByDateResponse(
         DateOnly Date,

@@ -50,7 +50,8 @@
     "collectionDetails": "Categoria",
     "languageSettings": "Idioma",
     "sharedCollection": "Categoria compartilhada",
-    "newLinkReview": "Revisar novo link"
+    "newLinkReview": "Revisar novo link",
+    "trash": "Lixeira"
   },
   "inbox": {
     "title": "Links salvos hoje",
@@ -182,7 +183,8 @@
     "language": "Idioma",
     "quickSaveOnShare": "Salvar instantaneamente ao compartilhar",
     "quickSaveOnShareOnDescription": "Compartilhar um link do YouTube, Instagram e outros apps salva-o na Juple na hora, sem abrir o app.",
-    "quickSaveOnShareOffDescription": "Após compartilhar, a Juple abre para você revisar os detalhes do link e escolher uma categoria antes de salvar."
+    "quickSaveOnShareOffDescription": "Após compartilhar, a Juple abre para você revisar os detalhes do link e escolher uma categoria antes de salvar.",
+    "trash": "Lixeira"
   },
   "language": {
     "system": "Usar idioma do sistema",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Não foi possível salvar. Verifique sua conexão e tente novamente.",
     "permanentFailureMessage": "Não foi possível salvar este link.",
     "loadFailureMessage": "Não foi possível carregar o conteúdo compartilhado."
+  },
+  "trash": {
+    "emptyAction": "Esvaziar",
+    "empty": "A lixeira está vazia.",
+    "loadError": "Não foi possível carregar a lixeira.",
+    "restoreA11y": "Restaurar",
+    "restoreSuccess": "Restaurado.",
+    "restoreError": "Não foi possível restaurar.",
+    "permanentDeleteA11y": "Excluir permanentemente",
+    "permanentDeleteConfirmTitle": "Excluir permanentemente?",
+    "permanentDeleteConfirmMessage": "Um link excluído permanentemente não pode ser restaurado.",
+    "permanentDeleteSuccess": "Excluído permanentemente.",
+    "permanentDeleteError": "Não foi possível excluir.",
+    "emptyTrashConfirmTitle": "Esvaziar a lixeira?",
+    "emptyTrashConfirmMessage": "Todos os links da lixeira serão excluídos permanentemente e não poderão ser restaurados.",
+    "emptyTrashSuccess": "Lixeira esvaziada.",
+    "emptyTrashError": "Não foi possível esvaziar a lixeira.",
+    "freeLimitNotice": "Mostra até os 10 links excluídos mais recentes.",
+    "plusLimitNotice": "Mostra até os 100 links excluídos mais recentes."
   }
 }

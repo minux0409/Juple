@@ -70,7 +70,7 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
         var deletedItem = await SaveAsync(
             store, "https://shop.example/history-date-delete-removed", fromUtc.AddHours(2));
 
-        await store.DeleteAsync(_userId, deletedItem);
+        await store.DeleteAsync(_userId, deletedItem, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var (page, _, _) = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);

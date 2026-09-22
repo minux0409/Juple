@@ -71,4 +71,56 @@ public sealed class ItemTests
         Assert.Null(item.Title);
         Assert.Null(item.Memo);
     }
+
+    [Fact]
+    public void Constructor_DefaultsDeletedAtUtcToNull()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+
+        Assert.Null(item.DeletedAtUtc);
+    }
+
+    [Fact]
+    public void SoftDelete_SetsDeletedAtUtc()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+        var deletedAtUtc = SavedAt.AddDays(1);
+
+        item.SoftDelete(deletedAtUtc);
+
+        Assert.Equal(deletedAtUtc, item.DeletedAtUtc);
+    }
+
+    [Fact]
+    public void SoftDelete_WhenAlreadyDeleted_IsNoOpAndKeepsFirstTimestamp()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+        var firstDeletedAtUtc = SavedAt.AddDays(1);
+        item.SoftDelete(firstDeletedAtUtc);
+
+        item.SoftDelete(firstDeletedAtUtc.AddDays(1));
+
+        Assert.Equal(firstDeletedAtUtc, item.DeletedAtUtc);
+    }
+
+    [Fact]
+    public void Restore_ClearsDeletedAtUtc()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+        item.SoftDelete(SavedAt.AddDays(1));
+
+        item.Restore();
+
+        Assert.Null(item.DeletedAtUtc);
+    }
+
+    [Fact]
+    public void Restore_WhenNotDeleted_IsNoOp()
+    {
+        var item = new Item(17, "https://shop.example/item", SavedAt);
+
+        item.Restore();
+
+        Assert.Null(item.DeletedAtUtc);
+    }
 }

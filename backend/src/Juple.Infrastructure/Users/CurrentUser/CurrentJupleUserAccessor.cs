@@ -17,7 +17,7 @@ public sealed class CurrentJupleUserAccessor(JupleDbContext dbContext) : ICurren
             join user in dbContext.Users on identity.UserId equals user.Id
             where identity.TenantId == externalIdentity.TenantId
                 && identity.ObjectId == externalIdentity.ObjectId
-            select new CurrentJupleUser(user.Id, user.TimeZoneId))
+            select new CurrentJupleUser(user.Id, user.TimeZoneId, user.Plan))
             .SingleOrDefaultAsync(cancellationToken);
 
         return currentUser ?? throw new CurrentJupleUserNotFoundException();

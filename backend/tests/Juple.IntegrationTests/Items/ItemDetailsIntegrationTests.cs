@@ -99,9 +99,11 @@ public sealed class ItemDetailsIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var ledgerCountBefore = await CountSaveRequestsAsync(clientRequestId);
 
-        await store.DeleteAsync(_userId, saved.Entry.Id);
+        await store.DeleteAsync(_userId, saved.Entry.Id, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
 
-        Assert.Equal(0, await _dbContext.Items.Where(item => item.Id == saved.Entry.Id).CountAsync());
+        var (details, _, _) = await store.GetDetailsAsync(_userId, saved.Entry.Id);
+        Assert.Null(details);
         Assert.Equal(ledgerCountBefore, await CountSaveRequestsAsync(clientRequestId));
         Assert.Equal(1, await CountSaveRequestsAsync(clientRequestId));
     }

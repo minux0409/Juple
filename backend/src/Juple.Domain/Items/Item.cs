@@ -53,6 +53,16 @@ public sealed class Item
     public long? CoverImageId { get; private set; }
 
     /// <summary>
+    /// Null while active; set to the moment this Item was moved to the trash otherwise. Deliberately
+    /// not a separate Trash table/row - Home/History/Item-detail/Category-item-list/Public-share
+    /// queries simply filter on this being null (see the various query store implementations), and
+    /// Collection memberships, uploaded images, and every other row are left completely untouched by
+    /// SoftDelete/Restore, so Restore brings the Item back exactly as it was, including any
+    /// still-existing Collection memberships.
+    /// </summary>
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+
+    /// <summary>
     /// Replaces the user-owned Title/Memo. Callers must pass already-normalized values (trimmed,
     /// empty collapsed to null) - this method only applies them and is a no-op when both are
     /// already at the requested values, so an unchanged edit does not touch RowVersion.
@@ -96,5 +106,32 @@ public sealed class Item
         }
 
         CoverImageId = coverImageId;
+    }
+
+    /// <summary>
+    /// Moves this Item to the trash. No-op if already deleted - mirrors the idempotent-DELETE
+    /// contract the endpoint above this already had before it became a soft delete.
+    /// </summary>
+    public void SoftDelete(DateTimeOffset deletedAtUtc)
+    {
+        if (DeletedAtUtc is not null)
+        {
+            return;
+        }
+
+        DeletedAtUtc = deletedAtUtc;
+    }
+
+    /// <summary>
+    /// Brings this Item back out of the trash. No-op if not currently deleted.
+    /// </summary>
+    public void Restore()
+    {
+        if (DeletedAtUtc is null)
+        {
+            return;
+        }
+
+        DeletedAtUtc = null;
     }
 }

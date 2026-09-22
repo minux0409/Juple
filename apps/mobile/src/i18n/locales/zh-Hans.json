@@ -50,7 +50,8 @@
     "collectionDetails": "分类",
     "languageSettings": "语言",
     "sharedCollection": "共享分类",
-    "newLinkReview": "确认新链接"
+    "newLinkReview": "确认新链接",
+    "trash": "回收站"
   },
   "inbox": {
     "title": "今日保存的链接",
@@ -182,7 +183,8 @@
     "language": "语言",
     "quickSaveOnShare": "分享时立即保存",
     "quickSaveOnShareOnDescription": "从 YouTube、Instagram 等应用分享链接到 Juple 时，无需打开应用即可立即保存。",
-    "quickSaveOnShareOffDescription": "分享后会打开 Juple，供您确认链接信息并选择分类后再保存。"
+    "quickSaveOnShareOffDescription": "分享后会打开 Juple，供您确认链接信息并选择分类后再保存。",
+    "trash": "回收站"
   },
   "language": {
     "system": "跟随系统设置",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "保存失败，请检查网络连接后重试。",
     "permanentFailureMessage": "无法保存此链接。",
     "loadFailureMessage": "无法加载分享的内容。"
+  },
+  "trash": {
+    "emptyAction": "清空",
+    "empty": "回收站是空的。",
+    "loadError": "无法加载回收站。",
+    "restoreA11y": "恢复",
+    "restoreSuccess": "已恢复。",
+    "restoreError": "恢复失败。",
+    "permanentDeleteA11y": "永久删除",
+    "permanentDeleteConfirmTitle": "要永久删除吗?",
+    "permanentDeleteConfirmMessage": "已删除的链接将无法恢复。",
+    "permanentDeleteSuccess": "已永久删除。",
+    "permanentDeleteError": "删除失败。",
+    "emptyTrashConfirmTitle": "要清空回收站吗?",
+    "emptyTrashConfirmMessage": "回收站中的所有链接都将被永久删除且无法恢复。",
+    "emptyTrashSuccess": "回收站已清空。",
+    "emptyTrashError": "清空回收站失败。",
+    "freeLimitNotice": "最多显示最近删除的10个链接。",
+    "plusLimitNotice": "最多显示最近删除的100个链接。"
   }
 }

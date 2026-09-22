@@ -80,7 +80,12 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 collection.Id,
                 collection.Name,
                 collection.IsFavorite,
-                ItemCount = dbContext.CollectionItems.Count(membership => membership.CollectionId == collection.Id),
+                // Excludes memberships whose Item is in the trash - matches GetItemsAsync's own
+                // join filter, so the displayed count never disagrees with the list it describes.
+                ItemCount = dbContext.CollectionItems
+                    .Where(membership => membership.CollectionId == collection.Id)
+                    .Count(membership => dbContext.Items.Any(
+                        item => item.Id == membership.ItemId && item.DeletedAtUtc == null)),
                 collection.CreatedAtUtc,
                 collection.UpdatedAtUtc,
                 collection.Icon,
@@ -144,8 +149,16 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             throw new CollectionNotFoundException();
         }
 
+        // Excludes memberships whose Item is in the trash - matches GetItemsAsync's own join
+        // filter, so the displayed count never disagrees with the list it describes.
         var itemCount = await dbContext.CollectionItems
-            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+            .Where(membership => membership.CollectionId == collectionId)
+            .Join(
+                dbContext.Items.Where(item => item.DeletedAtUtc == null),
+                membership => membership.ItemId,
+                item => item.Id,
+                (membership, item) => membership)
+            .CountAsync(cancellationToken);
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
@@ -211,8 +224,16 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             throw new CollectionConcurrencyException(exception);
         }
 
+        // Excludes memberships whose Item is in the trash - matches GetItemsAsync's own join
+        // filter, so the displayed count never disagrees with the list it describes.
         var itemCount = await dbContext.CollectionItems
-            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+            .Where(membership => membership.CollectionId == collectionId)
+            .Join(
+                dbContext.Items.Where(item => item.DeletedAtUtc == null),
+                membership => membership.ItemId,
+                item => item.Id,
+                (membership, item) => membership)
+            .CountAsync(cancellationToken);
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
@@ -245,8 +266,16 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             throw new CollectionConcurrencyException(exception);
         }
 
+        // Excludes memberships whose Item is in the trash - matches GetItemsAsync's own join
+        // filter, so the displayed count never disagrees with the list it describes.
         var itemCount = await dbContext.CollectionItems
-            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+            .Where(membership => membership.CollectionId == collectionId)
+            .Join(
+                dbContext.Items.Where(item => item.DeletedAtUtc == null),
+                membership => membership.ItemId,
+                item => item.Id,
+                (membership, item) => membership)
+            .CountAsync(cancellationToken);
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
@@ -279,8 +308,16 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             throw new CollectionConcurrencyException(exception);
         }
 
+        // Excludes memberships whose Item is in the trash - matches GetItemsAsync's own join
+        // filter, so the displayed count never disagrees with the list it describes.
         var itemCount = await dbContext.CollectionItems
-            .CountAsync(membership => membership.CollectionId == collectionId, cancellationToken);
+            .Where(membership => membership.CollectionId == collectionId)
+            .Join(
+                dbContext.Items.Where(item => item.DeletedAtUtc == null),
+                membership => membership.ItemId,
+                item => item.Id,
+                (membership, item) => membership)
+            .CountAsync(cancellationToken);
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
@@ -347,7 +384,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             // userId is redundant given every CollectionItem row for a userId-owned Collection can
             // only ever reference a userId-owned Item (see AddAsync) - kept anyway as a defense-in-
             // depth ownership check, not just a join condition.
-            join item in dbContext.Items.AsNoTracking().Where(item => item.UserId == userId)
+            join item in dbContext.Items.AsNoTracking()
+                .Where(item => item.UserId == userId && item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
             orderby membership.SortOrder ascending, membership.ItemId ascending
             select new

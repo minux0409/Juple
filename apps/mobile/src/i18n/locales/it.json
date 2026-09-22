@@ -50,7 +50,8 @@
     "collectionDetails": "Categoria",
     "languageSettings": "Lingua",
     "sharedCollection": "Categoria condivisa",
-    "newLinkReview": "Verifica nuovo link"
+    "newLinkReview": "Verifica nuovo link",
+    "trash": "Cestino"
   },
   "inbox": {
     "title": "Link salvati oggi",
@@ -182,7 +183,8 @@
     "language": "Lingua",
     "quickSaveOnShare": "Salva istantaneamente alla condivisione",
     "quickSaveOnShareOnDescription": "Condividere un link da YouTube, Instagram e altre app lo salva subito in Juple senza aprire l'app.",
-    "quickSaveOnShareOffDescription": "Dopo la condivisione, Juple si apre per permetterti di verificare i dettagli del link e scegliere una categoria prima di salvare."
+    "quickSaveOnShareOffDescription": "Dopo la condivisione, Juple si apre per permetterti di verificare i dettagli del link e scegliere una categoria prima di salvare.",
+    "trash": "Cestino"
   },
   "language": {
     "system": "Usa le impostazioni di sistema",
@@ -285,5 +287,24 @@
     "retryableFailureMessage": "Impossibile salvare. Controlla la connessione e riprova.",
     "permanentFailureMessage": "Impossibile salvare questo link.",
     "loadFailureMessage": "Impossibile caricare il contenuto condiviso."
+  },
+  "trash": {
+    "emptyAction": "Svuota",
+    "empty": "Il cestino è vuoto.",
+    "loadError": "Impossibile caricare il cestino.",
+    "restoreA11y": "Ripristina",
+    "restoreSuccess": "Ripristinato.",
+    "restoreError": "Impossibile ripristinare.",
+    "permanentDeleteA11y": "Elimina definitivamente",
+    "permanentDeleteConfirmTitle": "Eliminare definitivamente?",
+    "permanentDeleteConfirmMessage": "Un link eliminato definitivamente non può essere ripristinato.",
+    "permanentDeleteSuccess": "Eliminato definitivamente.",
+    "permanentDeleteError": "Impossibile eliminare.",
+    "emptyTrashConfirmTitle": "Svuotare il cestino?",
+    "emptyTrashConfirmMessage": "Tutti i link nel cestino verranno eliminati definitivamente e non potranno essere ripristinati.",
+    "emptyTrashSuccess": "Cestino svuotato.",
+    "emptyTrashError": "Impossibile svuotare il cestino.",
+    "freeLimitNotice": "Mostra fino ai 10 link eliminati più di recente.",
+    "plusLimitNotice": "Mostra fino ai 100 link eliminati più di recente."
   }
 }

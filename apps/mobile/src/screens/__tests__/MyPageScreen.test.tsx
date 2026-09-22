@@ -18,8 +18,10 @@ jest.mock('../../settings/quickSaveOnSharePreference', () => ({
   saveQuickSaveOnSharePreference: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockNavigate = jest.fn();
+
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => {
@@ -125,6 +127,31 @@ describe('MyPageScreen account section', () => {
     const renderer = await renderScreen();
 
     expect(findTextValues(renderer)).toContain(i18n.t('myPage.loggedInAs'));
+  });
+});
+
+describe('MyPageScreen trash entry point', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('navigates to Trash when the settings row is tapped', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    const trashRow = renderer.root
+      .findAll(
+        node =>
+          typeof node.props.onPress === 'function' &&
+          node.findAll(inner => inner.props.children === i18n.t('settings.trash')).length > 0,
+      )
+      .find(node => !isInsideModal(node));
+
+    await act(async () => {
+      trashRow!.props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('Trash');
   });
 });
 

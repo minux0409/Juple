@@ -9,6 +9,7 @@ import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { StartupProgressScreen } from '../screens/StartupProgressScreen';
+import { TrashScreen } from '../screens/TrashScreen';
 import { IncomingShareRouter } from '../share/IncomingShareRouter';
 import { MainTabs } from './MainTabs';
 
@@ -36,6 +37,7 @@ export type RootStackParamList = {
     preselectedCollectionId: number | null;
   };
   LanguageSettings: undefined;
+  Trash: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
@@ -106,6 +108,7 @@ export function RootStack() {
               name="LanguageSettings"
               options={{ title: t('nav.languageSettings') }}
             />
+            <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash') }} />
           </Stack.Group>
         ) : isInitializing || isAuthenticated ? (
           <Stack.Screen

@@ -276,7 +276,7 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, collectionId, itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await itemStore.DeleteAsync(_userId, itemId);
+        await itemStore.DeleteAsync(_userId, itemId, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
@@ -284,6 +284,28 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
 
         var collection = await store.GetAsync(_userId, collectionId);
         Assert.Equal(0, collection.ItemCount);
+    }
+
+    [Fact]
+    public async Task RestoreItem_MembershipReappearsInListAndCount()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(store, _userId, "Books");
+        var itemId = await CreateItemAsync(itemStore, _userId, "https://shop.example/coll-restore-item");
+        await store.AddAsync(_userId, collectionId, itemId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await itemStore.DeleteAsync(_userId, itemId, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await itemStore.RestoreAsync(_userId, itemId);
+        _dbContext.ChangeTracker.Clear();
+
+        var (page, _, _) = await store.GetItemsAsync(_userId, collectionId, cursor: null, limit: 50);
+        Assert.Contains(page.Items, item => item.ItemId == itemId);
+
+        var collection = await store.GetAsync(_userId, collectionId);
+        Assert.Equal(1, collection.ItemCount);
     }
 
     [Fact]

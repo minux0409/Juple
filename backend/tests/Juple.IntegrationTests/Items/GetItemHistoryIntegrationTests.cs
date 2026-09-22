@@ -61,7 +61,7 @@ public sealed class GetItemHistoryIntegrationTests : IAsyncLifetime
         var keptItem = await SaveAsync(store, "https://shop.example/history-delete-kept");
         var deletedItem = await SaveAsync(store, "https://shop.example/history-delete-removed");
 
-        await store.DeleteAsync(_userId, deletedItem);
+        await store.DeleteAsync(_userId, deletedItem, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
         var (page, _, _) = await store.GetHistoryAsync(_userId, cursor: null, limit: 50);
