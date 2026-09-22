@@ -79,8 +79,10 @@ public interface ICollectionStore
 
     /// <summary>
     /// A missing or other-user's Collection is treated as already deleted and completes without
-    /// error. Removes only this Collection and its CollectionItem membership rows (via cascade) -
-    /// never the Items themselves.
+    /// error. Soft-deletes only this Collection; its memberships, share, and Items remain intact.
     /// </summary>
     Task DeleteAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
+
+    Task RestoreAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
+        throw new CollectionNotFoundException();
 }

@@ -48,6 +48,8 @@ public sealed class Collection
 
     public DateTimeOffset UpdatedAtUtc { get; private set; }
 
+    public DateTimeOffset? DeletedAtUtc { get; private set; }
+
     public byte[] RowVersion { get; private set; } = [];
 
     /// <summary>
@@ -109,5 +111,18 @@ public sealed class Collection
 
         Color = color;
         UpdatedAtUtc = updatedAtUtc;
+    }
+
+    public void SoftDelete(DateTimeOffset deletedAtUtc)
+    {
+        if (DeletedAtUtc is null)
+        {
+            DeletedAtUtc = deletedAtUtc;
+        }
+    }
+
+    public void Restore()
+    {
+        DeletedAtUtc = null;
     }
 }

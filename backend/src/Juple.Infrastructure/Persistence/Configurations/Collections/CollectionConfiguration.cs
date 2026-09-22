@@ -43,6 +43,9 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
             .HasColumnType("datetimeoffset")
             .IsRequired();
 
+        builder.Property(collection => collection.DeletedAtUtc)
+            .HasColumnType("datetimeoffset");
+
         builder.Property(collection => collection.RowVersion)
             .IsRowVersion()
             .IsConcurrencyToken();
@@ -71,6 +74,9 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
 
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
+
+        builder.HasIndex(collection => new { collection.UserId, collection.DeletedAtUtc, collection.Id })
+            .HasDatabaseName("IX_Collections_UserId_DeletedAtUtc_Id");
 
         builder.HasIndex(collection => new { collection.UserId, collection.NameNormalized })
             .IsUnique()

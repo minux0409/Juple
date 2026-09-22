@@ -31,7 +31,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
     {
         var query = dbContext.Collections
             .AsNoTracking()
-            .Where(collection => collection.UserId == userId);
+            .Where(collection => collection.UserId == userId && collection.DeletedAtUtc == null);
 
         if (isFavorite is { } requestedIsFavorite)
         {
@@ -144,7 +144,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var collection = await dbContext.Collections
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (collection is null)
         {
             throw new CollectionNotFoundException();
@@ -176,7 +176,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
     {
         var collection = await dbContext.Collections
             .FirstOrDefaultAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (collection is null)
         {
             throw new CollectionNotFoundException();
@@ -208,7 +208,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
     {
         var collection = await dbContext.Collections
             .FirstOrDefaultAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (collection is null)
         {
             throw new CollectionNotFoundException();
@@ -250,7 +250,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
     {
         var collection = await dbContext.Collections
             .FirstOrDefaultAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (collection is null)
         {
             throw new CollectionNotFoundException();
@@ -292,7 +292,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
     {
         var collection = await dbContext.Collections
             .FirstOrDefaultAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (collection is null)
         {
             throw new CollectionNotFoundException();
@@ -332,15 +332,13 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
     {
         var collection = await dbContext.Collections
             .FirstOrDefaultAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (collection is null)
         {
             return;
         }
 
-        // CollectionItem rows for this Collection cascade-delete at the database level (see
-        // CollectionItemConfiguration) - the Items they reference are never touched.
-        dbContext.Collections.Remove(collection);
+        collection.SoftDelete(DateTimeOffset.UtcNow);
 
         try
         {
@@ -363,7 +361,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var collectionOwned = await dbContext.Collections
             .AsNoTracking()
             .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             throw new CollectionNotFoundException();
@@ -459,7 +457,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var collectionOwned = await dbContext.Collections
             .AsNoTracking()
             .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             throw new CollectionNotFoundException();
@@ -516,7 +514,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var collectionOwned = await dbContext.Collections
             .AsNoTracking()
             .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             return;
@@ -543,6 +541,20 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             // already removed this membership row - the desired end state (absent) was already
             // reached.
         }
+    }
+
+    public async Task RestoreAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
+    {
+        var collection = await dbContext.Collections.FirstOrDefaultAsync(
+            collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc != null,
+            cancellationToken);
+        if (collection is null)
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        collection.Restore();
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<TransferCollectionItemResult> TransferItemAsync(
@@ -701,7 +713,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var ownedIds = await dbContext.Collections
             .FromSqlInterpolated($"SELECT * FROM collections.Collections WITH (UPDLOCK, HOLDLOCK) WHERE Id IN ({sourceCollectionId}, {targetCollectionId})")
             .AsNoTracking()
-            .Where(collection => collection.UserId == userId)
+            .Where(collection => collection.UserId == userId && collection.DeletedAtUtc == null)
             .Select(collection => collection.Id)
             .ToListAsync(cancellationToken);
         if (!ownedIds.Contains(sourceCollectionId) || !ownedIds.Contains(targetCollectionId))
@@ -731,7 +743,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var collectionOwned = await dbContext.Collections
             .FromSqlInterpolated($"SELECT * FROM collections.Collections WITH (UPDLOCK, HOLDLOCK) WHERE Id = {collectionId}")
             .AsNoTracking()
-            .AnyAsync(collection => collection.UserId == userId, cancellationToken);
+            .AnyAsync(collection => collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             throw new CollectionNotFoundException();

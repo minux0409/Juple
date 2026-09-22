@@ -64,6 +64,30 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SoftDeletedCollection_HidesPublicShareUntilRestoreWithoutChangingPublicId()
+    {
+        var collectionStore = new CollectionStore(_dbContext);
+        var collectionId = await CreateCollectionAsync(collectionStore, "Shared soft delete");
+        var shareStore = new CollectionShareStore(_dbContext);
+        var share = await shareStore.EnableAsync(_userId, collectionId, NewCandidatePublicId(), DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        var publicStore = new PublicCollectionStore(_dbContext);
+
+        Assert.NotNull(await publicStore.GetCollectionAsync(share.PublicId));
+        await collectionStore.DeleteAsync(_userId, collectionId);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Null(await publicStore.GetCollectionAsync(share.PublicId));
+        Assert.Null(await publicStore.GetItemsAsync(share.PublicId, null, 50));
+        Assert.True(await _dbContext.CollectionShares.AnyAsync(s => s.CollectionId == collectionId && s.PublicId == share.PublicId));
+
+        await collectionStore.RestoreAsync(_userId, collectionId);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.NotNull(await publicStore.GetCollectionAsync(share.PublicId));
+    }
+
+    [Fact]
     public async Task GetCollectionAsync_WhenActive_ReturnsNameOnly()
     {
         var collectionStore = new CollectionStore(_dbContext);

@@ -18,7 +18,7 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         var collectionOwned = await dbContext.Collections
             .AsNoTracking()
             .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             throw new CollectionNotFoundException();
@@ -65,7 +65,7 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         var collectionOwned = await dbContext.Collections
             .AsNoTracking()
             .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             throw new CollectionNotFoundException();
@@ -88,7 +88,7 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         var collectionOwned = await dbContext.Collections
             .AsNoTracking()
             .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId, cancellationToken);
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
         if (!collectionOwned)
         {
             throw new CollectionNotFoundException();

@@ -15,6 +15,7 @@ using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
+using Juple.Application.Collections.RestoreCollection;
 using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
@@ -43,6 +44,7 @@ public sealed class CollectionsController(
     ISetCollectionIconService setCollectionIconService,
     ISetCollectionColorService setCollectionColorService,
     IDeleteCollectionService deleteCollectionService,
+    IRestoreCollectionService restoreCollectionService,
     IGetCollectionItemsService getCollectionItemsService,
     IAddItemToCollectionService addItemToCollectionService,
     IRemoveItemFromCollectionService removeItemFromCollectionService,
@@ -492,6 +494,10 @@ public sealed class CollectionsController(
         ExecuteAsync(
             userId => moveCollectionItemService.MoveAsync(userId, id, itemId, request.AfterItemId, cancellationToken),
             cancellationToken);
+
+    [HttpPost("{id:long}/restore")]
+    public Task<IActionResult> RestoreAsync(long id, CancellationToken cancellationToken) =>
+        ExecuteAsync(userId => restoreCollectionService.RestoreAsync(userId, id, cancellationToken), cancellationToken);
 
     /// <summary>Moves one active Item membership to another owned Collection atomically.</summary>
     [HttpPost("{sourceCollectionId:long}/items/{itemId:long}/move")]

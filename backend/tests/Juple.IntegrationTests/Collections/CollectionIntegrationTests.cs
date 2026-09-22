@@ -51,6 +51,77 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         (name, name.ToUpperInvariant());
 
     [Fact]
+    public async Task SoftDeleteAndRestore_PreservesRowsMetadataAndMembership()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
+        var (name, normalized) = Normalize("Soft-delete collection");
+        var collection = await store.CreateAsync(_userId, name, normalized, CollectionIcon.Plane, DateTimeOffset.UtcNow, CollectionColor.Mint);
+        var item = await itemStore.SaveAsync(_userId, "https://example.test/soft-delete", null, DateTimeOffset.UtcNow);
+        await store.AddAsync(_userId, collection.Id, item.Entry.Id, DateTimeOffset.UtcNow);
+        await store.SetFavoriteAsync(_userId, collection.Id, true, DateTimeOffset.UtcNow);
+
+        await store.DeleteAsync(_userId, collection.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        var deleted = await _dbContext.Collections.SingleAsync(c => c.Id == collection.Id);
+        Assert.NotNull(deleted.DeletedAtUtc);
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(m => m.CollectionId == collection.Id && m.ItemId == item.Entry.Id));
+        Assert.True(await _dbContext.Items.AnyAsync(i => i.Id == item.Entry.Id));
+        Assert.Empty((await store.ListAsync(_userId, null, null, null, null, 50)).Items);
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.GetAsync(_userId, collection.Id));
+
+        await store.RestoreAsync(_userId, collection.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        var restored = await store.GetAsync(_userId, collection.Id);
+        Assert.Equal(name, restored.Name);
+        Assert.Equal("Plane", restored.Icon);
+        Assert.Equal("Mint", restored.Color);
+        Assert.True(restored.IsFavorite);
+        Assert.Single((await store.GetItemsAsync(_userId, collection.Id, null, 50)).Page.Items);
+    }
+
+    [Fact]
+    public async Task DeletedCollection_RejectsAddAndMoveOrMergeTargets()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
+        var source = await store.CreateAsync(_userId, "Source", "SOURCE", CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var deletedTarget = await store.CreateAsync(_userId, "Deleted target", "DELETED TARGET", CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var item = await itemStore.SaveAsync(_userId, "https://example.test/deleted-target", null, DateTimeOffset.UtcNow);
+        await store.AddAsync(_userId, source.Id, item.Entry.Id, DateTimeOffset.UtcNow);
+        await store.DeleteAsync(_userId, deletedTarget.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.AddAsync(_userId, deletedTarget.Id, item.Entry.Id, DateTimeOffset.UtcNow));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.TransferItemAsync(_userId, source.Id, item.Entry.Id, deletedTarget.Id));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.MergeAsync(_userId, source.Id, deletedTarget.Id));
+    }
+
+    [Fact]
+    public async Task CollectionRestore_DoesNotChangeSoftDeletedItemAndPreservesItsMembership()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
+        var collection = await store.CreateAsync(_userId, "Item independence", "ITEM INDEPENDENCE", CollectionIcon.Folder, DateTimeOffset.UtcNow);
+        var item = await itemStore.SaveAsync(_userId, "https://example.test/item-independence", null, DateTimeOffset.UtcNow);
+        await store.AddAsync(_userId, collection.Id, item.Entry.Id, DateTimeOffset.UtcNow);
+        await itemStore.DeleteAsync(_userId, item.Entry.Id, DateTimeOffset.UtcNow);
+        await store.DeleteAsync(_userId, collection.Id);
+        await store.RestoreAsync(_userId, collection.Id);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.NotNull((await _dbContext.Items.SingleAsync(i => i.Id == item.Entry.Id)).DeletedAtUtc);
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(m => m.CollectionId == collection.Id && m.ItemId == item.Entry.Id));
+        Assert.Empty((await store.GetItemsAsync(_userId, collection.Id, null, 50)).Page.Items);
+
+        await itemStore.RestoreAsync(_userId, item.Entry.Id);
+        _dbContext.ChangeTracker.Clear();
+        Assert.Single((await store.GetItemsAsync(_userId, collection.Id, null, 50)).Page.Items);
+    }
+
+    [Fact]
     public async Task CreateAsync_PersistsCollectionWithZeroItemCount()
     {
         var store = new CollectionStore(_dbContext);

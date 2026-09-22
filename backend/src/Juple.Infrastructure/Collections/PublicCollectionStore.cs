@@ -23,6 +23,7 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             where share.PublicId == publicId && share.IsActive
             join collection in dbContext.Collections.AsNoTracking()
                 on share.CollectionId equals collection.Id
+            where collection.DeletedAtUtc == null
             select new PublicCollectionDto(collection.Name)
         ).FirstOrDefaultAsync(cancellationToken);
     }
@@ -33,10 +34,12 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
         int limit,
         CancellationToken cancellationToken = default)
     {
-        var activeShare = await dbContext.CollectionShares
-            .AsNoTracking()
-            .Where(share => share.PublicId == publicId && share.IsActive)
-            .Select(share => new { share.CollectionId })
+        var activeShare = await (
+            from share in dbContext.CollectionShares.AsNoTracking()
+            where share.PublicId == publicId && share.IsActive
+            join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
+                on share.CollectionId equals collection.Id
+            select new { share.CollectionId })
             .FirstOrDefaultAsync(cancellationToken);
         if (activeShare is null)
         {

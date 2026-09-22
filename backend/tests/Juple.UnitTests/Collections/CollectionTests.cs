@@ -167,4 +167,34 @@ public sealed class CollectionTests
         Assert.Equal(CollectionColor.Teal, collection.Color);
         Assert.Equal(CreatedAtUtc, collection.UpdatedAtUtc);
     }
+
+    [Fact]
+    public void SoftDelete_ThenRestore_PreservesCollectionMetadata()
+    {
+        var collection = new Collection(
+            17, "Books to read", "BOOKS TO READ", CollectionIcon.Plane, CreatedAtUtc, CollectionColor.Mint);
+        collection.SetFavorite(true, CreatedAtUtc.AddMinutes(1));
+        var deletedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SoftDelete(deletedAtUtc);
+        collection.Restore();
+
+        Assert.Null(collection.DeletedAtUtc);
+        Assert.Equal("Books to read", collection.Name);
+        Assert.Equal(CollectionIcon.Plane, collection.Icon);
+        Assert.Equal(CollectionColor.Mint, collection.Color);
+        Assert.True(collection.IsFavorite);
+    }
+
+    [Fact]
+    public void SoftDelete_IsIdempotent()
+    {
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+        var deletedAtUtc = CreatedAtUtc.AddDays(1);
+
+        collection.SoftDelete(deletedAtUtc);
+        collection.SoftDelete(deletedAtUtc.AddDays(1));
+
+        Assert.Equal(deletedAtUtc, collection.DeletedAtUtc);
+    }
 }
