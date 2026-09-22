@@ -19,9 +19,10 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useAppToast } from '../components/AppToast';
+import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { UndoToast } from '../components/UndoToast';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { LinkIcon } from '../icons/LinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
@@ -91,6 +92,11 @@ export function DailyInboxScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { showUndoToast } = useAppToast();
+  // Scene view already ends exactly at the tab bar's top edge (see the FlatList content padding
+  // remark below), so this screen's own bottom anchor is 0 - the tab bar's height itself belongs
+  // to MainTabs, not this screen.
+  useToastBottomAnchor(0);
   const [date, setDate] = useState<string | null>(null);
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -105,12 +111,6 @@ export function DailyInboxScreen() {
   // means the dialog is open for that item. Mirrors the old isDeleteConfirmationOpenRef guard: a
   // second delete tap while one is already open is a no-op instead of opening a second dialog.
   const [pendingDeleteItemId, setPendingDeleteItemId] = useState<number | null>(null);
-  const [pendingDeleteUndo, setPendingDeleteUndo] = useState<ItemHistoryEntry | null>(null);
-  const [isUndoingDelete, setIsUndoingDelete] = useState(false);
-  // Undo failure is reported via the shared single-button ConfirmDialog (see notice below),
-  // never the inline error Text used for load/save/delete failures - mirrors CollectionDetailsScreen's
-  // undoMove failure handling exactly.
-  const [notice, setNotice] = useState<string | null>(null);
 
   // Mirrors of the latest state/refs for use inside the Delete confirmation callbacks, which are
   // constructed once when the dialog opens and must not read stale values captured at that moment
@@ -125,7 +125,6 @@ export function DailyInboxScreen() {
   // focuses (such as returning from ItemDetails after an edit) use the lighter refresh indicator.
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
-  const isUndoingDeleteRef = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -290,34 +289,15 @@ export function DailyInboxScreen() {
       const deletedItem = itemsRef.current.find(item => item.id === itemId);
       setItems(previousItems => previousItems.filter(item => item.id !== itemId));
       if (deletedItem) {
-        setPendingDeleteUndo(deletedItem);
+        showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => {
+          await restoreItem(authenticatedRequest, deletedItem.id);
+          setItems(previous => previous.some(item => item.id === deletedItem.id) ? previous : [deletedItem, ...previous]);
+        } });
       }
     } catch (caughtError) {
       setError(getDeleteErrorMessage(caughtError, t));
     } finally {
       setActionInFlightItemId(null);
-    }
-  };
-
-  const undoDelete = async () => {
-    if (!pendingDeleteUndo || isUndoingDeleteRef.current) {
-      return;
-    }
-
-    isUndoingDeleteRef.current = true;
-    setIsUndoingDelete(true);
-    try {
-      await restoreItem(authenticatedRequest, pendingDeleteUndo.id);
-      setPendingDeleteUndo(null);
-      setItems(previousItems => previousItems.some(item => item.id === pendingDeleteUndo.id)
-        ? previousItems
-        : [pendingDeleteUndo, ...previousItems]);
-    } catch {
-      setPendingDeleteUndo(null);
-      setNotice(t('toast.undoDeleteError'));
-    } finally {
-      isUndoingDeleteRef.current = false;
-      setIsUndoingDelete(false);
     }
   };
 
@@ -450,11 +430,6 @@ export function DailyInboxScreen() {
         title={t('inbox.deleteConfirmTitle')}
         visible={pendingDeleteItemId !== null}
       />
-      {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
-      {/* This screen's scene view already ends exactly at the tab bar's top edge (see the FlatList
-          content padding remark below), so the toast's own bottom:0 origin IS the tab bar top -
-          bottomOffset={0} here, not the tab bar's height (that would double it). */}
-      {pendingDeleteUndo ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={0} isUndoing={isUndoingDelete} message={t('toast.deleteSuccess')} onDismiss={() => setPendingDeleteUndo(null)} onUndo={() => void undoDelete()} /> : null}
     </SafeAreaView>
   );
 }

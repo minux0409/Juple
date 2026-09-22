@@ -28,6 +28,7 @@ import {
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
+  restoreCollection,
   setCollectionColor,
   setCollectionFavorite,
   setCollectionIcon,
@@ -48,8 +49,8 @@ import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconK
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { NotificationToast } from '../components/NotificationToast';
-import { UndoToast } from '../components/UndoToast';
+import { useAppToast } from '../components/AppToast';
+import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
@@ -193,10 +194,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const { collectionId } = route.params;
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
+  const { showNotificationToast, showUndoToast } = useAppToast();
   // A stack screen, not a tab screen - there is no Juple tab bar below it reserving the system
   // nav/gesture-area inset for itself, so (unlike the tab screens) this needs the raw inset
   // directly, the same way ItemDetailsScreen/NewLinkReviewScreen already do.
   const insets = useSafeAreaInsets();
+  useToastBottomAnchor(insets.bottom);
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
@@ -213,7 +216,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
 
   // Mirrors DailyInboxScreen/DateHistoryScreen's SwipeableItemRow usage: one shared in-flight id
@@ -246,13 +248,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [pendingTarget, setPendingTarget] = useState<Collection | null>(null);
   const [isMembershipMutation, setIsMembershipMutation] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [notification, setNotification] = useState<string | null>(null);
-  const [pendingMoveUndo, setPendingMoveUndo] = useState<{ readonly itemId: number; readonly targetCollectionId: number; readonly targetMembershipCreated: boolean } | null>(null);
-  const [isUndoingMove, setIsUndoingMove] = useState(false);
-  const isUndoingMoveRef = useRef(false);
-  const [pendingUnlinkUndo, setPendingUnlinkUndo] = useState<number | null>(null);
-  const [isUndoingUnlink, setIsUndoingUnlink] = useState(false);
-  const isUndoingUnlinkRef = useRef(false);
 
   const {
     items,
@@ -397,13 +392,25 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
 
     setIsDeletingCollection(true);
-    setDeleteError(null);
     try {
       await deleteCollection(authenticatedRequest, collectionId);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-      navigation.goBack();
+      showUndoToast({
+        actionLabel: t('toast.undoAction'),
+        message: t('toast.collectionDeleteSuccess'),
+        onUndo: async () => {
+          await restoreCollection(authenticatedRequest, collectionId);
+          syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+          navigation.navigate('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
+        },
+        undoErrorMessage: t('toast.undoCollectionDeleteError'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'),
+      });
+      navigation.replace('MainTabs', {
+        screen: 'Collections',
+        params: { refreshToken: Date.now() },
+      });
     } catch (caughtError) {
-      setDeleteError(getDeleteErrorMessage(caughtError, t));
+      setNotice(getDeleteErrorMessage(caughtError, t));
     } finally {
       setIsDeletingCollection(false);
     }
@@ -429,30 +436,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       setCollection(previous =>
         previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous,
       );
-      setPendingMoveUndo(null);
-      setPendingUnlinkUndo(itemId);
+      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.unlinkSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoUnlinkError'), onUndo: async () => {
+        await addItemToCollection(authenticatedRequest, collectionId, itemId);
+        setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
+        await refresh();
+      } });
     } catch (caughtError) {
       setRemoveError(getRemoveItemErrorMessage(caughtError, t));
     } finally {
       setItemActionInFlightId(null);
-    }
-  };
-
-  const undoUnlink = async () => {
-    if (pendingUnlinkUndo === null || isUndoingUnlinkRef.current) return;
-    isUndoingUnlinkRef.current = true;
-    setIsUndoingUnlink(true);
-    try {
-      await addItemToCollection(authenticatedRequest, collectionId, pendingUnlinkUndo);
-      setPendingUnlinkUndo(null);
-      setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
-      await refresh();
-    } catch {
-      setPendingUnlinkUndo(null);
-      setNotice(t('toast.undoUnlinkError'));
-    } finally {
-      isUndoingUnlinkRef.current = false;
-      setIsUndoingUnlink(false);
     }
   };
 
@@ -607,7 +599,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const addToTarget = async (target: Collection) => {
     if (!actionMenuItem || isMembershipMutation) return;
     setIsMembershipMutation(true); setTargetMode(null);
-    try { await addItemToCollection(authenticatedRequest, target.id, actionMenuItem.itemId); setNotification(t('collections.addSuccess')); }
+    try { await addItemToCollection(authenticatedRequest, target.id, actionMenuItem.itemId); showNotificationToast(t('collections.addSuccess')); }
     catch { setNotice(t('collections.addError')); }
     finally { setActionMenuItem(null); setTargetMode(null); setIsMembershipMutation(false); }
   };
@@ -623,26 +615,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         const move = await transferCollectionItem(authenticatedRequest, collectionId, actionMenuItem.itemId, pendingTarget.id);
         removeLocally(actionMenuItem.itemId);
         setCollection(previous => previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous);
-        setPendingUnlinkUndo(null);
-        setPendingMoveUndo({ itemId: actionMenuItem.itemId, targetCollectionId: pendingTarget.id, targetMembershipCreated: move.targetMembershipCreated });
+        const itemId = actionMenuItem.itemId;
+        const targetCollectionId = pendingTarget.id;
+        const targetMembershipCreated = move.targetMembershipCreated;
+        showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.moveSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoMoveError'), onUndo: async () => {
+          await undoTransferCollectionItem(authenticatedRequest, collectionId, itemId, targetCollectionId, targetMembershipCreated);
+          setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
+          await refresh();
+        } });
       }
     } catch { setNotice(t(targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError')); }
     finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
-  };
-
-  const undoMove = async () => {
-    if (!pendingMoveUndo || isUndoingMoveRef.current) return;
-    isUndoingMoveRef.current = true;
-    setIsUndoingMove(true);
-    try {
-      await undoTransferCollectionItem(authenticatedRequest, collectionId, pendingMoveUndo.itemId, pendingMoveUndo.targetCollectionId, pendingMoveUndo.targetMembershipCreated);
-      setPendingMoveUndo(null);
-      setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
-      await refresh();
-    } catch {
-      setPendingMoveUndo(null);
-      setNotice(t('toast.undoMoveError'));
-    } finally { isUndoingMoveRef.current = false; setIsUndoingMove(false); }
   };
 
   const handleShareToggle = (value: boolean) => {
@@ -779,7 +762,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             )}
             {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-            {deleteError ? <Text style={styles.error}>{deleteError}</Text> : null}
 
             <View style={styles.shareSection}>
               <View style={styles.shareToggleRow}>
@@ -905,9 +887,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
       <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
-      {notification ? <NotificationToast bottomOffset={insets.bottom} message={notification} onDismiss={() => setNotification(null)} /> : null}
-      {pendingMoveUndo ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={insets.bottom} isUndoing={isUndoingMove} message={t('toast.moveSuccess')} onDismiss={() => setPendingMoveUndo(null)} onUndo={() => void undoMove()} /> : null}
-      {pendingUnlinkUndo !== null ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={insets.bottom} isUndoing={isUndoingUnlink} message={t('toast.unlinkSuccess')} onDismiss={() => setPendingUnlinkUndo(null)} onUndo={() => void undoUnlink()} /> : null}
     </View>
   );
 }

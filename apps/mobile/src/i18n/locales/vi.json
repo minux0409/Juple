@@ -164,7 +164,7 @@
     "favoritesEmpty": "Không có mục yêu thích.",
     "allCollectionsEmpty": "Không có danh mục.", "manageAction": "Quản lý danh mục", "itemManageAction": "Thao tác khác với liên kết", "addToOther": "Thêm vào danh mục khác", "moveToOther": "Chuyển sang danh mục khác", "mergeWithOther": "Gộp với danh mục khác", "targetPickerTitle": "Chọn danh mục", "addSuccess": "Đã thêm vào danh mục.", "addError": "Không thể thêm vào danh mục.", "moveTitle": "Chuyển liên kết", "moveAction": "Chuyển", "moveConfirmMessage": "Chuyển liên kết này sang \"{{target}}\"?", "moveError": "Không thể chuyển liên kết.", "mergeTitle": "Gộp danh mục", "mergeAction": "Gộp", "mergeConfirmMessage": "Gộp \"{{source}}\" vào \"{{target}}\"? Các liên kết sẽ được gộp và danh mục này sẽ bị xóa.", "mergeError": "Không thể gộp danh mục.", "errorTargetLoadFallback": "Không thể tải danh mục."
   },
-  "toast": { "moveSuccess": "Đã chuyển.", "undoAction": "Hoàn tác", "undoMoveError": "Không thể hoàn tác việc chuyển.", "deleteSuccess": "Đã xóa.", "undoDeleteError": "Không thể hoàn tác việc xóa.", "unlinkSuccess": "Đã xóa khỏi danh mục.", "undoUnlinkError": "Không thể hoàn tác việc xóa khỏi danh mục." },
+  "toast": { "moveSuccess": "Đã chuyển.", "undoAction": "Hoàn tác", "undoMoveError": "Không thể hoàn tác việc chuyển.", "deleteSuccess": "Đã xóa.", "undoDeleteError": "Không thể hoàn tác việc xóa.", "unlinkSuccess": "Đã xóa khỏi danh mục.", "undoUnlinkError": "Không thể hoàn tác việc xóa khỏi danh mục.", "collectionDeleteSuccess": "Đã xóa danh mục.", "undoCollectionDeleteError": "Không thể hoàn tác việc xóa danh mục." },
   "myPage": {
     "title": "Trang của tôi",
     "account": "Tài khoản",

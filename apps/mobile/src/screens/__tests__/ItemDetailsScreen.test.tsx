@@ -5,6 +5,7 @@ import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ContentPreviewCard } from '../../components/ContentPreviewCard';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
+import { AppToastProvider } from '../../components/AppToast';
 import { checkUrlSafety } from '../../urlSafety/api/urlSafetyApi';
 import {
   deleteItem,
@@ -141,11 +142,16 @@ function latestPreventRemoveIsDirty(): boolean {
   return calls[calls.length - 1]?.[0];
 }
 
+// Wrapped in the real AppToastProvider (not mocked) - the save-success Notification now shows via
+// the global AppToast Host (see useAppToast), so these tests exercise the real Provider and
+// assert on what it actually renders, exactly as a real app screen would.
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <ItemDetailsScreen navigation={navigation} route={route} />,
+      <AppToastProvider>
+        <ItemDetailsScreen navigation={navigation} route={route} />
+      </AppToastProvider>,
     );
   });
   return renderer;

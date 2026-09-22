@@ -215,7 +215,7 @@ export async function setCollectionColor(
   return response.body;
 }
 
-/** DELETEs a Collection; resolves on 204. Items inside it are never deleted, only the membership. */
+/** Soft-deletes a Collection; resolves on 204. Its Items and memberships are retained for restore. */
 export async function deleteCollection(
   request: AuthenticatedApiRequest,
   collectionId: number,
@@ -223,6 +223,17 @@ export async function deleteCollection(
   await request<void>({
     method: 'DELETE',
     path: `/api/v1/collections/${collectionId}`,
+  });
+}
+
+/** Restores a soft-deleted Collection; resolves on 204. */
+export async function restoreCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/restore`,
   });
 }
 

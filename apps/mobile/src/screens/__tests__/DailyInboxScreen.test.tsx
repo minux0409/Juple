@@ -3,6 +3,7 @@ import { FlatList, Modal, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { DailyInboxScreen } from '../DailyInboxScreen';
 import { UndoToast } from '../../components/UndoToast';
+import { AppToastProvider } from '../../components/AppToast';
 
 // The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
 // otherwise resolve to English by default - pinned to Korean so this file's label assertions are
@@ -78,10 +79,17 @@ function setUpItems(items: readonly ItemHistoryEntry[]): void {
   });
 }
 
+// Wrapped in the real AppToastProvider (not mocked) - Delete Undo now shows via the global
+// AppToast Host (see useAppToast), so these tests exercise the real Provider and assert on the
+// actual UndoToast/ConfirmDialog it renders, exactly as a real app screen would.
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(<DailyInboxScreen />);
+    renderer = ReactTestRenderer.create(
+      <AppToastProvider>
+        <DailyInboxScreen />
+      </AppToastProvider>,
+    );
   });
   return renderer;
 }

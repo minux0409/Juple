@@ -1,6 +1,8 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import type { RouteProp } from '@react-navigation/native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -24,12 +26,14 @@ import {
 } from '../collections/api/collectionsApi';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
+import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorKey } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
+import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -97,7 +101,14 @@ function getNameValidationError(name: string, t: TFunction): string | null {
 export function CollectionsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Collections'>>();
+  const route = useRoute<RouteProp<MainTabParamList, 'Collections'>>();
   const authenticatedRequest = useAuthenticatedApi();
+  // This screen never shows a Toast itself, but the Collection Delete Undo toast (shown from
+  // CollectionDetailsScreen just before it navigates back here) stays alive across that
+  // navigation - it must reposition to this tab's own anchor (0, same as Home/History) rather
+  // than keep CollectionDetails' safe-area-only offset.
+  useToastBottomAnchor(0);
 
   // Favorites is the default-selected tab (see this round's "즐겨찾기 default selected" requirement) -
   // the segmented control itself still renders favorites first/left, all second/right, matching.
@@ -129,6 +140,7 @@ export function CollectionsScreen() {
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
   const favoritesRequestIdRef = useRef(0);
+
 
   const hasLoadedOnceRef = useRef(false);
   const loadRequestIdRef = useRef(0);
@@ -213,6 +225,16 @@ export function CollectionsScreen() {
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     }, [authenticatedRequest, load, loadFavorites]),
   );
+
+  // Refresh signaling is deliberately separate from AppToast state: revisiting this tab must
+  // never recreate a toast or reset its timer.
+  useEffect(() => {
+    if (route.params?.refreshToken === undefined) {
+      return;
+    }
+    tabNavigation.setParams({ refreshToken: undefined });
+    void Promise.all([load('refresh'), loadFavorites()]);
+  }, [load, loadFavorites, route.params?.refreshToken, tabNavigation]);
 
   const loadMore = useCallback(() => {
     if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor) {

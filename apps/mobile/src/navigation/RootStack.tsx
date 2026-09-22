@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
@@ -11,7 +12,7 @@ import { SignInScreen } from '../screens/SignInScreen';
 import { StartupProgressScreen } from '../screens/StartupProgressScreen';
 import { TrashScreen } from '../screens/TrashScreen';
 import { IncomingShareRouter } from '../share/IncomingShareRouter';
-import { MainTabs } from './MainTabs';
+import { MainTabs, type MainTabParamList } from './MainTabs';
 
 /**
  * Keeps the completed Startup Progress step ("준비가 완료되었습니다" at a full bar) on screen
@@ -22,7 +23,7 @@ import { MainTabs } from './MainTabs';
 const READY_LINGER_MS = 450;
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   ItemDetails: { itemId: number };
   /** collectionId only - the screen fetches the current Collection and its Item list itself via GET. */
   CollectionDetails: { collectionId: number };

@@ -27,7 +27,8 @@ import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { NotificationToast } from '../components/NotificationToast';
+import { useAppToast } from '../components/AppToast';
+import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -153,6 +154,7 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
 
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
+  const { showNotificationToast } = useAppToast();
   const { itemId } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
@@ -161,6 +163,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // rather than guessed - a Toast's bottomOffset needs this exact value to sit above the bar
   // instead of overlapping it.
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
+  useToastBottomAnchor(bottomBarHeight);
   const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
@@ -171,7 +174,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [justSaved, setJustSaved] = useState(false);
 
   // Images (and their order/cover) are an immediate server mutation, deliberately never staged -
   // unlike title/memo/categories, there is no locally-staged image state for Save to ever commit
@@ -362,9 +364,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     isUploadingImageRef.current = true;
     setIsUploadingImage(true);
     setImagesError(null);
-    // A stale "저장되었습니다." from an earlier title/memo/category save no longer describes the
-    // screen once something else has changed - mirrors title/memo's own onChangeText clearing it.
-    setJustSaved(false);
     try {
       // asset.type is whatever the picker actually reports post-conversion - never assumed or
       // overridden to 'image/jpeg' here. The server independently verifies the real format via
@@ -397,7 +396,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     deletingImageIdsRef.current.add(imageId);
     setDeletingImageIds(new Set(deletingImageIdsRef.current));
     setImagesError(null);
-    setJustSaved(false);
     try {
       await deleteItemImage(authenticatedRequest, itemId, imageId);
       setImages(previous => previous.filter(image => image.id !== imageId));
@@ -469,12 +467,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   };
 
   const stageRemoveCategory = (collectionId: number) => {
-    setJustSaved(false);
     setSelectedCategories(previous => previous.filter(option => option.id !== collectionId));
   };
 
   const stageAddCategory = (option: Collection) => {
-    setJustSaved(false);
     setSelectedCategories(previous =>
       previous.some(existing => existing.id === option.id) ? previous : [...previous, option],
     );
@@ -555,7 +551,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
     setIsSaving(true);
     setError(null);
-    setJustSaved(false);
 
     const failureMessages: string[] = [];
 
@@ -600,7 +595,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       // sentence over and over.
       setError([...new Set(failureMessages)].join('\n'));
     } else {
-      setJustSaved(true);
+      showNotificationToast(t('item.saved'));
     }
   };
 
@@ -676,7 +671,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         <ContentPreviewCard
           onChangeTitle={text => {
             setTitle(text);
-            setJustSaved(false);
           }}
           previewImageUrl={effectivePhotoImages[0] ? effectiveImageUrl(effectivePhotoImages[0]) : null}
           titleAccessibilityLabel={t('item.titleLabel')}
@@ -718,7 +712,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           multiline
           onChangeText={text => {
             setMemo(text);
-            setJustSaved(false);
           }}
           placeholder={t('item.memoPlaceholder')}
           style={styles.memoInput}
@@ -778,9 +771,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
-      {justSaved && !isDirty ? (
-        <NotificationToast bottomOffset={bottomBarHeight} message={t('item.saved')} onDismiss={() => setJustSaved(false)} />
-      ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

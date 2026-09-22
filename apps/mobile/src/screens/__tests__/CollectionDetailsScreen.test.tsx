@@ -15,6 +15,7 @@ import {
   mergeCollection,
   removeItemFromCollection,
   renameCollection,
+  restoreCollection,
   revokeCollectionShare,
   setCollectionColor,
   setCollectionIcon,
@@ -26,6 +27,7 @@ import { shareItem } from '../../items/shareItem';
 import { deleteItem, restoreItem } from '../../items/api/itemsApi';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { UndoToast } from '../../components/UndoToast';
+import { AppToastProvider } from '../../components/AppToast';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -66,6 +68,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   mergeCollection: jest.fn(),
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
+  restoreCollection: jest.fn(),
   revokeCollectionShare: jest.fn(),
   setCollectionColor: jest.fn(),
   setCollectionFavorite: jest.fn(),
@@ -108,11 +111,17 @@ function makeItemEntry(overrides: Partial<CollectionItemEntry> = {}): Collection
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
 const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn() } as never;
 
+// Wrapped in the real AppToastProvider (not mocked) - Move/Unlink/Collection-Delete Undo now show
+// via the global AppToast Host (see useAppToast), so these tests exercise the real Provider and
+// assert on the actual UndoToast/NotificationToast/ConfirmDialog it renders, exactly as a real app
+// screen would.
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
     renderer = ReactTestRenderer.create(
-      <CollectionDetailsScreen navigation={navigation} route={route} />,
+      <AppToastProvider>
+        <CollectionDetailsScreen navigation={navigation} route={route} />
+      </AppToastProvider>,
     );
   });
   return renderer;
@@ -366,6 +375,99 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(deleteCollection).toHaveBeenCalledWith(expect.anything(), 1);
+      // Collections re-fetches on any refreshToken bump (see CollectionsScreen's own route.params
+      // effect) rather than trusting a one-shot deletedCollectionId param - the global AppToast
+      // Host owns the Undo toast itself, shown before this navigate call.
+      expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('MainTabs', {
+        screen: 'Collections',
+        params: { refreshToken: expect.any(Number) },
+      });
+      expect(renderer.root.findByProps({ children: i18n.t('toast.collectionDeleteSuccess') })).toBeTruthy();
+    });
+
+    it('keeps the detail screen open and shows the existing one-button notice when delete fails', async () => {
+      jest.mocked(deleteCollection).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen();
+      const header = getHeaderElement(renderer);
+      const buttons = header.root.findAll(
+        node => node.props.accessibilityLabel === i18n.t('common.delete') && typeof node.props.onPress === 'function',
+      );
+      expect(buttons).toHaveLength(1);
+
+      await act(async () => buttons[0].props.onPress());
+      await act(async () => {
+        renderer.root
+          .findAll(node => node.props.accessibilityLabel === i18n.t('common.delete') && typeof node.props.onPress === 'function')[1]
+          .props.onPress();
+        await Promise.resolve();
+      });
+
+      expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
+      expect(renderer.root.findByProps({ children: i18n.t('collections.errorDeleteFallback') })).toBeTruthy();
+    });
+  });
+
+  describe('collection delete undo', () => {
+    async function deleteCollectionViaHeader(renderer: ReactTestRenderer.ReactTestRenderer) {
+      const header = getHeaderElement(renderer);
+      const deleteButton = header.root.findAll(
+        node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
+      )[0];
+      await act(async () => deleteButton.props.onPress());
+      await act(async () => {
+        const confirmButtons = renderer.root.findAll(
+          node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
+        );
+        confirmButtons[1].props.onPress();
+      });
+    }
+
+    it('restores the Collection via restoreCollection (not deleteItem/restoreItem) and dismisses the toast after undo succeeds', async () => {
+      jest.mocked(deleteCollection).mockResolvedValue(undefined);
+      jest.mocked(restoreCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await deleteCollectionViaHeader(renderer);
+      expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toBeTruthy();
+
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(restoreCollection).toHaveBeenCalledWith(expect.anything(), 1);
+      expect(deleteItem).not.toHaveBeenCalled();
+      expect(restoreItem).not.toHaveBeenCalled();
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+    });
+
+    it('shows the shared one-button notice when the undo restore fails', async () => {
+      jest.mocked(deleteCollection).mockResolvedValue(undefined);
+      jest.mocked(restoreCollection).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen();
+
+      await deleteCollectionViaHeader(renderer);
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('toast.undoCollectionDeleteError') })).toBeTruthy();
+    });
+
+    it('sends exactly one restore request while the delete undo is pending', async () => {
+      jest.mocked(deleteCollection).mockResolvedValue(undefined);
+      let resolveRestore!: () => void;
+      jest.mocked(restoreCollection).mockImplementation(() => new Promise<void>(resolve => { resolveRestore = resolve; }));
+      const renderer = await renderScreen();
+
+      await deleteCollectionViaHeader(renderer);
+      const undo = renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress;
+      await act(async () => { undo(); undo(); });
+      expect(restoreCollection).toHaveBeenCalledTimes(1);
+
+      await act(async () => { resolveRestore(); await Promise.resolve(); });
     });
   });
 

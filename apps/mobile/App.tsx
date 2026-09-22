@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { AppToastProvider } from './src/components/AppToast';
 import { useCategorySnapshotBootstrapSync } from './src/categories/useCategorySnapshotBootstrapSync';
 // Runs i18next.init() at module load, before RootStack ever renders, so there is no untranslated
 // first frame - see src/i18n/index.ts.
@@ -52,7 +53,7 @@ function App() {
         <AuthProvider>
           <PushRegistrationSync />
           <CategorySnapshotSync />
-          <AppNavigation />
+          <AppToastProvider><AppNavigation /></AppToastProvider>
         </AuthProvider>
       ) : (
         <View style={styles.container}>

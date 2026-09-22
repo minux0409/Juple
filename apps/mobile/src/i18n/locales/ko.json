@@ -165,7 +165,7 @@
     "allCollectionsEmpty": "카테고리가 없습니다.",
     "manageAction": "카테고리 관리", "itemManageAction": "링크 더보기", "addToOther": "다른 카테고리에 추가", "moveToOther": "다른 카테고리로 이동", "mergeWithOther": "다른 카테고리와 병합", "targetPickerTitle": "카테고리 선택", "addSuccess": "카테고리에 추가했습니다.", "addError": "카테고리에 추가하지 못했습니다.", "moveTitle": "링크 이동", "moveAction": "이동", "moveConfirmMessage": "이 링크를 \"{{target}}\" 카테고리로 이동할까요?", "moveError": "링크를 이동하지 못했습니다.", "mergeTitle": "카테고리 병합", "mergeAction": "병합", "mergeConfirmMessage": "\"{{source}}\" 카테고리를 \"{{target}}\"에 병합할까요? 링크가 합쳐지고 현재 카테고리는 삭제됩니다.", "mergeError": "카테고리를 병합하지 못했습니다.", "errorTargetLoadFallback": "카테고리를 불러오지 못했습니다."
   },
-  "toast": { "moveSuccess": "이동했습니다.", "undoAction": "되돌리기", "undoMoveError": "이동을 되돌리지 못했습니다.", "deleteSuccess": "삭제했습니다.", "undoDeleteError": "삭제를 되돌리지 못했습니다.", "unlinkSuccess": "카테고리에서 제거했습니다.", "undoUnlinkError": "카테고리 제거를 되돌리지 못했습니다." },
+  "toast": { "moveSuccess": "이동했습니다.", "undoAction": "되돌리기", "undoMoveError": "이동을 되돌리지 못했습니다.", "deleteSuccess": "삭제했습니다.", "undoDeleteError": "삭제를 되돌리지 못했습니다.", "unlinkSuccess": "카테고리에서 제거했습니다.", "undoUnlinkError": "카테고리 제거를 되돌리지 못했습니다.", "collectionDeleteSuccess": "카테고리를 삭제했습니다.", "undoCollectionDeleteError": "카테고리 삭제를 되돌리지 못했습니다." },
   "myPage": {
     "title": "내 페이지",
     "account": "계정",

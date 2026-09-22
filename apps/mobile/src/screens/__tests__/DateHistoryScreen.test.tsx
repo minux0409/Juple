@@ -14,9 +14,18 @@ import { useItemHistory, type UseItemHistoryResult } from '../../items/useItemHi
 import { deleteItem, restoreItem, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
 import { UndoToast } from '../../components/UndoToast';
+import { AppToastProvider } from '../../components/AppToast';
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
+  // Only useToastBottomAnchor (via useAppToast) needs this now - DateHistoryScreen itself has no
+  // other focus-driven effect (its data comes from the separately-mocked useItemHistory hook).
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      return callback();
+    }, [callback]);
+  },
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -90,10 +99,17 @@ function mockUseItemHistoryStateful(
   });
 }
 
+// Wrapped in the real AppToastProvider (not mocked) - Delete Undo now shows via the global
+// AppToast Host (see useAppToast), so these tests exercise the real Provider and assert on the
+// actual UndoToast/ConfirmDialog it renders, exactly as a real app screen would.
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(<DateHistoryScreen />);
+    renderer = ReactTestRenderer.create(
+      <AppToastProvider>
+        <DateHistoryScreen />
+      </AppToastProvider>,
+    );
   });
   return renderer;
 }

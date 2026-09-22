@@ -13,7 +13,7 @@ import { colors, radii, spacing } from '../theme/tokens';
 export type MainTabParamList = {
   Home: undefined;
   History: undefined;
-  Collections: undefined;
+  Collections: { refreshToken?: number } | undefined;
   MyPage: undefined;
 };
 

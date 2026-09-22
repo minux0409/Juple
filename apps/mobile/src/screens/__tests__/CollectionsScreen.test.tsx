@@ -17,9 +17,13 @@ import { FolderIcon } from '../../icons/FolderIcon';
 // can assert on it directly - matches the pattern already used for route-prop screens
 // (see CollectionDetailsScreen.test.tsx's own `navigation` constant).
 const mockNavigate = jest.fn();
+const mockSetParams = jest.fn();
+const mockNavigation = { navigate: mockNavigate, setParams: mockSetParams };
+let mockRouteParams: { refreshToken?: number } | undefined;
 
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate }),
+  useNavigation: () => mockNavigation,
+  useRoute: () => ({ params: mockRouteParams }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => {
@@ -76,6 +80,7 @@ async function renderScreen() {
 describe('CollectionsScreen segmented tabs', () => {
   afterEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = undefined;
   });
 
   it('shows only the favorites tab data by default, never both lists at once', async () => {
@@ -137,6 +142,7 @@ async function switchToAllTab(renderer: ReactTestRenderer.ReactTestRenderer) {
 describe('CollectionsScreen row', () => {
   afterEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = undefined;
   });
 
   it('renders no chevron disclosure icon on any row - the whole row is already the navigation target', async () => {
@@ -192,6 +198,7 @@ describe('CollectionsScreen row', () => {
 describe('CollectionsScreen create form', () => {
   afterEach(() => {
     jest.clearAllMocks();
+    mockRouteParams = undefined;
   });
 
   function openCreateForm(renderer: ReactTestRenderer.ReactTestRenderer) {
@@ -347,5 +354,28 @@ describe('CollectionsScreen create form', () => {
     const { PlaneIcon } = require('../../icons/PlaneIcon');
     expect(renderer.root.findAllByType(PlaneIcon)).toHaveLength(0);
     expect(createCollection).not.toHaveBeenCalled();
+  });
+});
+
+// Collection Delete Undo (the global AppToast, restoreCollection call, rapid-tap guard, and
+// failure ConfirmDialog) is now owned entirely by CollectionDetailsScreen - see that screen's own
+// "collection delete undo" tests. This screen no longer shows any Toast of its own; it only ever
+// reacts to the refreshToken route param CollectionDetailsScreen bumps right before navigating
+// back here (see MainTabs' own Collections param type).
+describe('CollectionsScreen refresh signal', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  it('consumes a refreshToken route param (e.g. after a Collection delete/undo elsewhere) by clearing it and refetching', async () => {
+    mockRouteParams = { refreshToken: 123 };
+    setUpGetCollectionsMock();
+
+    await renderScreen();
+
+    expect(mockSetParams).toHaveBeenCalledWith({ refreshToken: undefined });
+    // Once for the focus-driven initial load, once more for the refreshToken-triggered refetch.
+    expect(jest.mocked(getCollections).mock.calls.length).toBeGreaterThan(1);
   });
 });
