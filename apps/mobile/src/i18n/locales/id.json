@@ -164,7 +164,7 @@
     "favoritesEmpty": "Tidak ada favorit.",
     "allCollectionsEmpty": "Tidak ada kategori.", "manageAction": "Kelola kategori", "itemManageAction": "Tindakan link lainnya", "addToOther": "Tambahkan ke kategori lain", "moveToOther": "Pindahkan ke kategori lain", "mergeWithOther": "Gabungkan dengan kategori lain", "targetPickerTitle": "Pilih kategori", "addSuccess": "Ditambahkan ke kategori.", "addError": "Tidak dapat menambahkan ke kategori.", "moveTitle": "Pindahkan link", "moveAction": "Pindahkan", "moveConfirmMessage": "Pindahkan link ini ke \"{{target}}\"?", "moveError": "Tidak dapat memindahkan link.", "mergeTitle": "Gabungkan kategori", "mergeAction": "Gabungkan", "mergeConfirmMessage": "Gabungkan \"{{source}}\" ke \"{{target}}\"? Link akan digabungkan dan kategori ini akan dihapus.", "mergeError": "Tidak dapat menggabungkan kategori.", "errorTargetLoadFallback": "Tidak dapat memuat kategori."
   },
-  "toast": { "moveSuccess": "Dipindahkan.", "undoAction": "Urungkan", "undoMoveError": "Tidak dapat mengurungkan pemindahan.", "deleteSuccess": "Dihapus.", "undoDeleteError": "Tidak dapat mengurungkan penghapusan." },
+  "toast": { "moveSuccess": "Dipindahkan.", "undoAction": "Urungkan", "undoMoveError": "Tidak dapat mengurungkan pemindahan.", "deleteSuccess": "Dihapus.", "undoDeleteError": "Tidak dapat mengurungkan penghapusan.", "unlinkSuccess": "Dihapus dari kategori.", "undoUnlinkError": "Tidak dapat mengurungkan penghapusan dari kategori." },
   "myPage": {
     "title": "Halaman Saya",
     "account": "Akun",

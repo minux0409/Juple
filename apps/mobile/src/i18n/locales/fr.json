@@ -164,7 +164,7 @@
     "favoritesEmpty": "Aucun favori.",
     "allCollectionsEmpty": "Aucune catégorie.", "manageAction": "Gérer la catégorie", "itemManageAction": "Autres actions du lien", "addToOther": "Ajouter à une autre catégorie", "moveToOther": "Déplacer vers une autre catégorie", "mergeWithOther": "Fusionner avec une autre catégorie", "targetPickerTitle": "Sélectionner une catégorie", "addSuccess": "Ajouté à la catégorie.", "addError": "Impossible d’ajouter à la catégorie.", "moveTitle": "Déplacer le lien", "moveAction": "Déplacer", "moveConfirmMessage": "Déplacer ce lien vers \"{{target}}\" ?", "moveError": "Impossible de déplacer le lien.", "mergeTitle": "Fusionner les catégories", "mergeAction": "Fusionner", "mergeConfirmMessage": "Fusionner \"{{source}}\" dans \"{{target}}\" ? Les liens seront regroupés et cette catégorie sera supprimée.", "mergeError": "Impossible de fusionner la catégorie.", "errorTargetLoadFallback": "Impossible de charger les catégories."
   },
-  "toast": { "moveSuccess": "Déplacé.", "undoAction": "Annuler", "undoMoveError": "Impossible d’annuler le déplacement.", "deleteSuccess": "Supprimé.", "undoDeleteError": "Impossible d’annuler la suppression." },
+  "toast": { "moveSuccess": "Déplacé.", "undoAction": "Annuler", "undoMoveError": "Impossible d’annuler le déplacement.", "deleteSuccess": "Supprimé.", "undoDeleteError": "Impossible d’annuler la suppression.", "unlinkSuccess": "Retiré de la catégorie.", "undoUnlinkError": "Impossible d’annuler le retrait de la catégorie." },
   "myPage": {
     "title": "Mon compte",
     "account": "Compte",

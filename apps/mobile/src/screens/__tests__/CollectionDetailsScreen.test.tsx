@@ -23,6 +23,7 @@ import {
 } from '../../collections/api/collectionsApi';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { shareItem } from '../../items/shareItem';
+import { deleteItem, restoreItem } from '../../items/api/itemsApi';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { UndoToast } from '../../components/UndoToast';
 
@@ -42,6 +43,14 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
+// Unlink must never touch the general Item delete/restore API surface (see the unlink-undo
+// regression tests below) - mocked here purely so those assertions have something to check.
+jest.mock('../../items/api/itemsApi', () => ({
+  ...jest.requireActual('../../items/api/itemsApi'),
+  deleteItem: jest.fn(),
+  restoreItem: jest.fn(),
 }));
 
 jest.mock('../../collections/api/collectionsApi', () => ({
@@ -187,6 +196,138 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 1, 7);
+      // Category unlink is never a general Item delete - see the "General Item delete" policy
+      // (only Home/History offer that).
+      expect(deleteItem).not.toHaveBeenCalled();
+      expect(restoreItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('item row - swipe unlink undo', () => {
+    // jest.clearAllMocks() (see the outer afterEach) clears call history but not a
+    // .mockResolvedValue(...) override set by an individual test below - without resetting it
+    // back here too, a later test's fresh renderScreen() would keep fetching this describe's own
+    // non-empty item list instead of the default empty one, corrupting unrelated tests further
+    // down the file (e.g. adding stray swipe-delete rows to header-only tests).
+    afterEach(() => {
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [], nextCursor: null });
+    });
+
+    async function unlinkViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
+      const row = getRowElement(renderer, item);
+      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
+      await act(async () => removeAction.props.onPress());
+      await act(async () => {
+        const confirmButton = renderer.root.findAll(
+          node => node.props.accessibilityLabel === i18n.t('collections.unlinkAction'),
+        )[0];
+        confirmButton.props.onPress();
+      });
+    }
+
+    it('removes the row, decreases the count, and shows the unlink undo toast (not the delete wording)', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: 1 }));
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await unlinkViaSwipe(renderer, item);
+
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
+      expect(deleteItem).not.toHaveBeenCalled();
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
+      expect(renderer.root.findByProps({ children: i18n.t('toast.unlinkSuccess') })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ children: i18n.t('toast.deleteSuccess') })).toHaveLength(0);
+    });
+
+    it('restores the row and count via the existing membership-add API after unlink undo succeeds', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: 1 }));
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await unlinkViaSwipe(renderer, item);
+
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+        await Promise.resolve();
+      });
+
+      // The same PUT .../items/{itemId} membership-add API Add-to-category already uses - not a
+      // bespoke unlink-undo endpoint, and never the Item restore API (soft-delete is unrelated).
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
+      expect(restoreItem).not.toHaveBeenCalled();
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(1);
+      expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 1 }) })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findAllByProps({ children: i18n.t('collections.addSuccess') })).toHaveLength(0);
+    });
+
+    it('keeps the unlinked state and shows the shared notice dialog when unlink undo fails', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: 1 }));
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      jest.mocked(addItemToCollection).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen();
+
+      await unlinkViaSwipe(renderer, item);
+
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress();
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('toast.undoUnlinkError') })).toBeTruthy();
+    });
+
+    it('does not send a second membership-add request while unlink undo is pending', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      let resolveUndo!: () => void;
+      jest.mocked(addItemToCollection).mockImplementation(() => new Promise<void>(resolve => { resolveUndo = resolve; }));
+      const renderer = await renderScreen();
+
+      await unlinkViaSwipe(renderer, item);
+
+      const undo = renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress;
+      await act(async () => { undo(); undo(); });
+      expect(addItemToCollection).toHaveBeenCalledTimes(1);
+
+      await act(async () => { resolveUndo(); await Promise.resolve(); });
+    });
+
+    it('clears a pending Move undo once a later unlink succeeds, and vice versa (latest-one-only)', async () => {
+      const movedItem = makeItemEntry({ itemId: 9 });
+      const unlinkedItem = makeItemEntry({ itemId: 10 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [movedItem, unlinkedItem], nextCursor: null });
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      // Move first - its own undo toast appears.
+      const movedRow = getRowElement(renderer, movedItem);
+      await act(async () => movedRow.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Target' }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      expect(renderer.root.findByProps({ children: i18n.t('toast.moveSuccess') })).toBeTruthy();
+
+      // Then unlink another row - only the unlink toast should remain.
+      await unlinkViaSwipe(renderer, unlinkedItem);
+      expect(renderer.root.findAllByProps({ children: i18n.t('toast.moveSuccess') })).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('toast.unlinkSuccess') })).toBeTruthy();
+      // At most one UndoToast component instance on screen at a time - never both Move's and
+      // Unlink's simultaneously (see the "latest-one-only" policy).
+      expect(renderer.root.findAllByType(UndoToast)).toHaveLength(1);
     });
   });
 

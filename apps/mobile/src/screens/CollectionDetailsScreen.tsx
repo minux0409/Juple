@@ -250,6 +250,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [pendingMoveUndo, setPendingMoveUndo] = useState<{ readonly itemId: number; readonly targetCollectionId: number; readonly targetMembershipCreated: boolean } | null>(null);
   const [isUndoingMove, setIsUndoingMove] = useState(false);
   const isUndoingMoveRef = useRef(false);
+  const [pendingUnlinkUndo, setPendingUnlinkUndo] = useState<number | null>(null);
+  const [isUndoingUnlink, setIsUndoingUnlink] = useState(false);
+  const isUndoingUnlinkRef = useRef(false);
 
   const {
     items,
@@ -426,10 +429,30 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       setCollection(previous =>
         previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous,
       );
+      setPendingMoveUndo(null);
+      setPendingUnlinkUndo(itemId);
     } catch (caughtError) {
       setRemoveError(getRemoveItemErrorMessage(caughtError, t));
     } finally {
       setItemActionInFlightId(null);
+    }
+  };
+
+  const undoUnlink = async () => {
+    if (pendingUnlinkUndo === null || isUndoingUnlinkRef.current) return;
+    isUndoingUnlinkRef.current = true;
+    setIsUndoingUnlink(true);
+    try {
+      await addItemToCollection(authenticatedRequest, collectionId, pendingUnlinkUndo);
+      setPendingUnlinkUndo(null);
+      setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
+      await refresh();
+    } catch {
+      setPendingUnlinkUndo(null);
+      setNotice(t('toast.undoUnlinkError'));
+    } finally {
+      isUndoingUnlinkRef.current = false;
+      setIsUndoingUnlink(false);
     }
   };
 
@@ -600,6 +623,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         const move = await transferCollectionItem(authenticatedRequest, collectionId, actionMenuItem.itemId, pendingTarget.id);
         removeLocally(actionMenuItem.itemId);
         setCollection(previous => previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous);
+        setPendingUnlinkUndo(null);
         setPendingMoveUndo({ itemId: actionMenuItem.itemId, targetCollectionId: pendingTarget.id, targetMembershipCreated: move.targetMembershipCreated });
       }
     } catch { setNotice(t(targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError')); }
@@ -883,6 +907,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
       {notification ? <NotificationToast bottomOffset={insets.bottom} message={notification} onDismiss={() => setNotification(null)} /> : null}
       {pendingMoveUndo ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={insets.bottom} isUndoing={isUndoingMove} message={t('toast.moveSuccess')} onDismiss={() => setPendingMoveUndo(null)} onUndo={() => void undoMove()} /> : null}
+      {pendingUnlinkUndo !== null ? <UndoToast actionLabel={t('toast.undoAction')} bottomOffset={insets.bottom} isUndoing={isUndoingUnlink} message={t('toast.unlinkSuccess')} onDismiss={() => setPendingUnlinkUndo(null)} onUndo={() => void undoUnlink()} /> : null}
     </View>
   );
 }
