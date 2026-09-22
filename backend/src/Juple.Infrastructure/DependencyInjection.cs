@@ -66,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<IRecentlyOpenedItemStore, RecentlyOpenedItemStore>();
         services.AddScoped<ICollectionStore, CollectionStore>();
         services.AddScoped<ICollectionItemStore, CollectionStore>();
+        services.AddScoped<ICollectionManagementStore, CollectionStore>();
         services.AddScoped<ICollectionShareStore, CollectionShareStore>();
         services.AddScoped<IPublicCollectionShareStore, PublicCollectionStore>();
         services.AddScoped<IPushDeviceRegistrationStore, PushDeviceRegistrationStore>();

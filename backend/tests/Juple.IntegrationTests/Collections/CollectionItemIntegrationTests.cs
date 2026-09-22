@@ -758,4 +758,129 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
 
         Assert.Equal(before, await GetOrderedItemIdsAsync(store, _otherUserId, theirCollection));
     }
+
+    [Fact]
+    public async Task TransferItemAsync_MovesOnlyTheSourceMembership_AndAvoidsTargetDuplicates()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Transfer source");
+        var target = await CreateCollectionAsync(store, _userId, "Transfer target");
+        var other = await CreateCollectionAsync(store, _userId, "Transfer other");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/transfer");
+        await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, other, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.TransferItemAsync(_userId, source, item, target);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == item));
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == target && x.ItemId == item));
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == other && x.ItemId == item));
+
+        var alreadyInTarget = await CreateItemAsync(itemStore, _userId, "https://shop.example/transfer-existing-target");
+        await store.AddAsync(_userId, source, alreadyInTarget, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, target, alreadyInTarget, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.TransferItemAsync(_userId, source, alreadyInTarget, target);
+        Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == alreadyInTarget));
+        Assert.Equal(1, await _dbContext.CollectionItems.CountAsync(
+            x => x.CollectionId == target && x.ItemId == alreadyInTarget));
+    }
+
+    [Fact]
+    public async Task TransferItemAsync_RejectsDeletedItem_WithoutChangingSourceMembership()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Deleted transfer source");
+        var target = await CreateCollectionAsync(store, _userId, "Deleted transfer target");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/transfer-deleted");
+        await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await itemStore.DeleteAsync(_userId, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<ItemNotFoundException>(() => store.TransferItemAsync(_userId, source, item, target));
+
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == item));
+        Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == target && x.ItemId == item));
+    }
+
+    [Fact]
+    public async Task MergeAsync_UnionsAllMemberships_IncludingDeletedItems_AndDeletesSource()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Merge source");
+        var target = await CreateCollectionAsync(store, _userId, "Merge target");
+        var targetBefore = await store.GetAsync(_userId, target);
+        var first = await CreateItemAsync(itemStore, _userId, "https://shop.example/merge-first");
+        var duplicate = await CreateItemAsync(itemStore, _userId, "https://shop.example/merge-duplicate");
+        var deleted = await CreateItemAsync(itemStore, _userId, "https://shop.example/merge-deleted");
+        var targetOnly = await CreateItemAsync(itemStore, _userId, "https://shop.example/merge-target-only");
+        foreach (var item in new[] { first, duplicate, deleted })
+        {
+            await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+            _dbContext.ChangeTracker.Clear();
+        }
+        foreach (var item in new[] { duplicate, targetOnly })
+        {
+            await store.AddAsync(_userId, target, item, DateTimeOffset.UtcNow);
+            _dbContext.ChangeTracker.Clear();
+        }
+        await itemStore.DeleteAsync(_userId, deleted, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.MergeAsync(_userId, source, target);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.False(await _dbContext.Collections.AnyAsync(x => x.Id == source));
+        var targetAfter = await store.GetAsync(_userId, target);
+        Assert.Equal(targetBefore.Name, targetAfter.Name);
+        Assert.Equal(targetBefore.IsFavorite, targetAfter.IsFavorite);
+        Assert.Equal(targetBefore.Icon, targetAfter.Icon);
+        Assert.Equal(targetBefore.Color, targetAfter.Color);
+        var targetIds = await _dbContext.CollectionItems.Where(x => x.CollectionId == target)
+            .Select(x => x.ItemId).ToListAsync();
+        Assert.Equal(4, targetIds.Distinct().Count());
+        Assert.Contains(deleted, targetIds);
+        await itemStore.RestoreAsync(_userId, deleted);
+        _dbContext.ChangeTracker.Clear();
+        var (page, _, _) = await store.GetItemsAsync(_userId, target, null, 50);
+        Assert.Contains(page.Items, x => x.ItemId == deleted);
+    }
+
+    [Fact]
+    public async Task MergeAsync_RejectsOtherUsersTarget_WithoutDeletingSource()
+    {
+        var store = new CollectionStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Owned merge source");
+        var target = await CreateCollectionAsync(store, _otherUserId, "Foreign merge target");
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.MergeAsync(_userId, source, target));
+
+        Assert.True(await _dbContext.Collections.AnyAsync(x => x.Id == source));
+    }
+
+    [Fact]
+    public async Task MergeAsync_WhenSourceEqualsTarget_IsANoOp()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collection = await CreateCollectionAsync(store, _userId, "Self merge");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/self-merge");
+        await store.AddAsync(_userId, collection, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.MergeAsync(_userId, collection, collection);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.True(await _dbContext.Collections.AnyAsync(x => x.Id == collection));
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == collection && x.ItemId == item));
+    }
 }

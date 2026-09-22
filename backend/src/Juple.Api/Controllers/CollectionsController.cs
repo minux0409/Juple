@@ -11,12 +11,14 @@ using Juple.Application.Collections.GetCollectionItems;
 using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.MoveCollectionItem;
+using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.RenameCollection;
 using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
+using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
@@ -44,6 +46,8 @@ public sealed class CollectionsController(
     IAddItemToCollectionService addItemToCollectionService,
     IRemoveItemFromCollectionService removeItemFromCollectionService,
     IMoveCollectionItemService moveCollectionItemService,
+    ITransferCollectionItemService transferCollectionItemService,
+    IMergeCollectionsService mergeCollectionsService,
     IEnableCollectionShareService enableCollectionShareService,
     IGetCollectionShareService getCollectionShareService,
     IRevokeCollectionShareService revokeCollectionShareService,
@@ -487,6 +491,24 @@ public sealed class CollectionsController(
             userId => moveCollectionItemService.MoveAsync(userId, id, itemId, request.AfterItemId, cancellationToken),
             cancellationToken);
 
+    /// <summary>Moves one active Item membership to another owned Collection atomically.</summary>
+    [HttpPost("{sourceCollectionId:long}/items/{itemId:long}/move")]
+    public Task<IActionResult> TransferItemAsync(
+        long sourceCollectionId, long itemId, TransferCollectionItemRequest request, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => transferCollectionItemService.TransferAsync(
+                userId, sourceCollectionId, itemId, request.TargetCollectionId, cancellationToken),
+            cancellationToken);
+
+    /// <summary>Merges all memberships into the target, then deletes the owned source Collection atomically.</summary>
+    [HttpPost("{sourceCollectionId:long}/merge")]
+    public Task<IActionResult> MergeAsync(
+        long sourceCollectionId, MergeCollectionsRequest request, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => mergeCollectionsService.MergeAsync(
+                userId, sourceCollectionId, request.TargetCollectionId, cancellationToken),
+            cancellationToken);
+
     private async Task<IActionResult> ExecuteAsync(
         Func<long, Task> action,
         CancellationToken cancellationToken)
@@ -544,6 +566,10 @@ public sealed class CollectionsController(
     public sealed record SetCollectionColorRequest(string? Color);
 
     public sealed record MoveCollectionItemRequest(long? AfterItemId);
+
+    public sealed record TransferCollectionItemRequest(long TargetCollectionId);
+
+    public sealed record MergeCollectionsRequest(long TargetCollectionId);
 
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 

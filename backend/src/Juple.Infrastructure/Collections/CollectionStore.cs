@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Collections;
 
-public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore, ICollectionItemStore
+public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore, ICollectionItemStore, ICollectionManagementStore
 {
     /// <summary>
     /// Spacing between adjacent CollectionItem.SortOrder values - wide enough that a manual move or
@@ -541,6 +541,120 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             // A concurrent Remove (or the Item itself being deleted, cascading this row away)
             // already removed this membership row - the desired end state (absent) was already
             // reached.
+        }
+    }
+
+    public async Task TransferItemAsync(
+        long userId,
+        long sourceCollectionId,
+        long itemId,
+        long targetCollectionId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
+
+        var itemOwnedAndActive = await dbContext.Items.AsNoTracking().AnyAsync(
+            item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc == null, cancellationToken);
+        if (!itemOwnedAndActive)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        var sourceMembership = await dbContext.CollectionItems.FirstOrDefaultAsync(
+            membership => membership.CollectionId == sourceCollectionId && membership.ItemId == itemId, cancellationToken);
+        if (sourceMembership is null)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        if (sourceCollectionId == targetCollectionId)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        var targetMembershipExists = await dbContext.CollectionItems.AsNoTracking().AnyAsync(
+            membership => membership.CollectionId == targetCollectionId && membership.ItemId == itemId, cancellationToken);
+        if (!targetMembershipExists)
+        {
+            var minSortOrder = await dbContext.CollectionItems
+                .Where(membership => membership.CollectionId == targetCollectionId)
+                .Select(membership => (int?)membership.SortOrder)
+                .MinAsync(cancellationToken);
+            var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
+            dbContext.CollectionItems.Add(new CollectionItem(targetCollectionId, itemId, sourceMembership.AddedAtUtc, sortOrder));
+        }
+
+        dbContext.CollectionItems.Remove(sourceMembership);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task MergeAsync(
+        long userId,
+        long sourceCollectionId,
+        long targetCollectionId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
+
+        if (sourceCollectionId == targetCollectionId)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        var source = await dbContext.Collections.FirstAsync(
+            collection => collection.Id == sourceCollectionId && collection.UserId == userId, cancellationToken);
+        var targetItemIds = await dbContext.CollectionItems.AsNoTracking()
+            .Where(membership => membership.CollectionId == targetCollectionId)
+            .Select(membership => membership.ItemId)
+            .ToHashSetAsync(cancellationToken);
+        var sourceMemberships = await dbContext.CollectionItems.AsNoTracking()
+            .Where(membership => membership.CollectionId == sourceCollectionId)
+            .OrderBy(membership => membership.SortOrder)
+            .ThenBy(membership => membership.Id)
+            .ToListAsync(cancellationToken);
+        var minSortOrder = await dbContext.CollectionItems.AsNoTracking()
+            .Where(membership => membership.CollectionId == targetCollectionId)
+            .Select(membership => (int?)membership.SortOrder)
+            .MinAsync(cancellationToken) ?? 0;
+
+        foreach (var membership in sourceMemberships)
+        {
+            if (targetItemIds.Add(membership.ItemId))
+            {
+                minSortOrder -= SortOrderGap;
+                dbContext.CollectionItems.Add(new CollectionItem(
+                    targetCollectionId, membership.ItemId, membership.AddedAtUtc, minSortOrder));
+            }
+        }
+
+        // Cascade deletion preserves the existing Collection delete semantics, including share revocation.
+        dbContext.Collections.Remove(source);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task EnsureOwnedCollectionsAsync(
+        long userId,
+        long sourceCollectionId,
+        long targetCollectionId,
+        CancellationToken cancellationToken)
+    {
+        // Lock in stable ID order so concurrent transfer/merge operations cannot observe a partially
+        // changed pair. SQL Server applies UPDLOCK/HOLDLOCK through commit.
+        var ownedIds = await dbContext.Collections
+            .FromSqlInterpolated($"SELECT * FROM collections.Collections WITH (UPDLOCK, HOLDLOCK) WHERE Id IN ({sourceCollectionId}, {targetCollectionId})")
+            .AsNoTracking()
+            .Where(collection => collection.UserId == userId)
+            .Select(collection => collection.Id)
+            .ToListAsync(cancellationToken);
+        if (!ownedIds.Contains(sourceCollectionId) || !ownedIds.Contains(targetCollectionId))
+        {
+            throw new CollectionNotFoundException();
         }
     }
 
