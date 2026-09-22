@@ -162,8 +162,9 @@
     "createConfirmA11y": "श्रेणी सहेजें",
     "errorColorUpdateFallback": "रंग अपडेट नहीं हो सका।",
     "favoritesEmpty": "कोई पसंदीदा नहीं है।",
-    "allCollectionsEmpty": "कोई श्रेणी नहीं है।"
+    "allCollectionsEmpty": "कोई श्रेणी नहीं है।", "manageAction": "श्रेणी प्रबंधित करें", "itemManageAction": "लिंक की अन्य कार्रवाइयाँ", "addToOther": "दूसरी श्रेणी में जोड़ें", "moveToOther": "दूसरी श्रेणी में ले जाएँ", "mergeWithOther": "दूसरी श्रेणी के साथ मर्ज करें", "targetPickerTitle": "श्रेणी चुनें", "addSuccess": "श्रेणी में जोड़ा गया।", "addError": "श्रेणी में जोड़ा नहीं जा सका।", "moveTitle": "लिंक ले जाएँ", "moveAction": "ले जाएँ", "moveConfirmMessage": "इस लिंक को \"{{target}}\" में ले जाएँ?", "moveError": "लिंक को ले जाया नहीं जा सका।", "mergeTitle": "श्रेणियाँ मर्ज करें", "mergeAction": "मर्ज करें", "mergeConfirmMessage": "\"{{source}}\" को \"{{target}}\" में मर्ज करें? लिंक मर्ज हो जाएंगे और यह श्रेणी हटा दी जाएगी।", "mergeError": "श्रेणी मर्ज नहीं की जा सकी।", "errorTargetLoadFallback": "श्रेणियाँ लोड नहीं की जा सकीं।"
   },
+  "toast": { "moveSuccess": "स्थानांतरित किया गया।", "undoAction": "पूर्ववत करें", "undoMoveError": "स्थानांतरण पूर्ववत नहीं किया जा सका।" },
   "myPage": {
     "title": "मेरा पेज",
     "account": "खाता",

@@ -27,6 +27,7 @@ import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { NotificationToast } from '../components/NotificationToast';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -770,13 +771,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       </View>
 
       {justSaved && !isDirty ? (
-        <ConfirmDialog
-          confirmLabel={t('common.confirm')}
-          message={t('item.saved')}
-          onConfirm={() => setJustSaved(false)}
-          title={t('common.notice')}
-          visible
-        />
+        <NotificationToast message={t('item.saved')} onDismiss={() => setJustSaved(false)} />
       ) : null}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}

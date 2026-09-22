@@ -162,8 +162,9 @@
     "createConfirmA11y": "Kategoriyi kaydet",
     "errorColorUpdateFallback": "Renk güncellenemedi.",
     "favoritesEmpty": "Favori yok.",
-    "allCollectionsEmpty": "Kategori yok."
+    "allCollectionsEmpty": "Kategori yok.", "manageAction": "Kategoriyi yönet", "itemManageAction": "Diğer bağlantı işlemleri", "addToOther": "Başka kategoriye ekle", "moveToOther": "Başka kategoriye taşı", "mergeWithOther": "Başka kategoriyle birleştir", "targetPickerTitle": "Kategori seç", "addSuccess": "Kategoriye eklendi.", "addError": "Kategoriye eklenemedi.", "moveTitle": "Bağlantıyı taşı", "moveAction": "Taşı", "moveConfirmMessage": "Bu bağlantı \"{{target}}\" kategorisine taşınsın mı?", "moveError": "Bağlantı taşınamadı.", "mergeTitle": "Kategorileri birleştir", "mergeAction": "Birleştir", "mergeConfirmMessage": "\"{{source}}\", \"{{target}}\" ile birleştirilsin mi? Bağlantılar birleştirilecek ve bu kategori silinecek.", "mergeError": "Kategori birleştirilemedi.", "errorTargetLoadFallback": "Kategoriler yüklenemedi."
   },
+  "toast": { "moveSuccess": "Taşındı.", "undoAction": "Geri al", "undoMoveError": "Taşıma geri alınamadı." },
   "myPage": {
     "title": "Sayfam",
     "account": "Hesap",

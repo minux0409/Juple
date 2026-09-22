@@ -6,7 +6,13 @@ import {
   deleteCollection,
   enableCollectionShare,
   getCollection,
+  getCollectionItems,
   getCollectionShare,
+  getCollections,
+  addItemToCollection,
+  transferCollectionItem,
+  undoTransferCollectionItem,
+  mergeCollection,
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
@@ -42,6 +48,11 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   getCollection: jest.fn(),
   getCollectionItems: jest.fn().mockResolvedValue({ items: [], nextCursor: null }),
   getCollectionShare: jest.fn(),
+  getCollections: jest.fn(),
+  addItemToCollection: jest.fn(),
+  transferCollectionItem: jest.fn(),
+  undoTransferCollectionItem: jest.fn(),
+  mergeCollection: jest.fn(),
   removeItemFromCollection: jest.fn(),
   renameCollection: jest.fn(),
   revokeCollectionShare: jest.fn(),
@@ -84,7 +95,7 @@ function makeItemEntry(overrides: Partial<CollectionItemEntry> = {}): Collection
 }
 
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
-const navigation = { navigate: jest.fn(), goBack: jest.fn() } as never;
+const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn() } as never;
 
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
@@ -132,6 +143,7 @@ describe('CollectionDetailsScreen', () => {
   beforeEach(() => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection());
     jest.mocked(getCollectionShare).mockResolvedValue(null);
+    jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 2, name: 'Target' })], nextCursor: null });
   });
 
   afterEach(() => {
@@ -524,6 +536,157 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 42 });
+    });
+  });
+
+  describe('category management actions', () => {
+    async function openItemMenu(renderer: ReactTestRenderer.ReactTestRenderer, item = makeItemEntry({ itemId: 9 })) {
+      const row = getRowElement(renderer, item);
+      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+    }
+    async function chooseTarget(renderer: ReactTestRenderer.ReactTestRenderer) {
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Target' }).props.onPress());
+    }
+    it('opens the More action menu without navigating the row', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      const renderer = await renderScreen();
+      const row = getRowElement(renderer, item);
+      const stopPropagation = jest.fn();
+      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress({ stopPropagation }));
+      expect(stopPropagation).toHaveBeenCalledTimes(1);
+      expect((navigation as { navigate: jest.Mock }).navigate).not.toHaveBeenCalled();
+      expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') })).toBeTruthy();
+    });
+    it('adds to another category and keeps the source row', async () => {
+      jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') }).props.onPress());
+      await chooseTarget(renderer);
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 2, 9);
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.addSuccess')).length).toBeGreaterThan(0);
+    });
+    it('shows add failure without removing the source row', async () => {
+      jest.mocked(addItemToCollection).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') }).props.onPress()); await chooseTarget(renderer);
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.addError')).length).toBeGreaterThan(0);
+    });
+    it('moves only after confirmation', async () => {
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      expect(transferCollectionItem).not.toHaveBeenCalled();
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2);
+    });
+    it('shows undo after a move and sends the server-created target flag back unchanged', async () => {
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      jest.mocked(undoTransferCollectionItem).mockResolvedValue(undefined);
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      expect(renderer.root.findByProps({ children: i18n.t('toast.moveSuccess') })).toBeTruthy();
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress());
+      expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, true);
+    });
+    it('passes false unchanged when the target already contained the item', async () => {
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: false });
+      jest.mocked(undoTransferCollectionItem).mockResolvedValue(undefined);
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress());
+      expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, false);
+    });
+    it('restores the row after undo succeeds and the refreshed source page includes it again', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      jest.mocked(undoTransferCollectionItem).mockResolvedValue(undefined);
+      const renderer = await renderScreen(); await openItemMenu(renderer, item);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
+      expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, true);
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(1);
+      expect(renderer.root.findByType(FlatList).props.data[0].itemId).toBe(9);
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findAll(node => node.props.children === '되돌렸습니다.').length).toBe(0);
+    });
+    it('keeps the moved state and shows the existing error dialog when undo fails', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      jest.mocked(undoTransferCollectionItem).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen(); await openItemMenu(renderer, item);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
+      expect(renderer.root.findByProps({ children: i18n.t('toast.undoMoveError') })).toBeTruthy();
+    });
+    it('does not send a second undo request while the first is pending', async () => {
+      let resolveUndo!: () => void;
+      jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      jest.mocked(undoTransferCollectionItem).mockImplementation(() => new Promise<void>(resolve => { resolveUndo = resolve; }));
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      const undo = renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress;
+      await act(async () => { undo(); undo(); });
+      expect(undoTransferCollectionItem).toHaveBeenCalledTimes(1);
+      await act(async () => { resolveUndo(); await Promise.resolve(); });
+    });
+    it('keeps the screen and shows an error when move fails', async () => {
+      jest.mocked(transferCollectionItem).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.moveError')).length).toBeGreaterThan(0);
+    });
+    it('merges only after confirmation and replaces the detail route', async () => {
+      jest.mocked(mergeCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen(); const header = getHeaderElement(renderer);
+      await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
+      expect(mergeCollection).not.toHaveBeenCalled();
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
+      expect(mergeCollection).toHaveBeenCalledWith(expect.anything(), 1, 2);
+      expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('CollectionDetails', { collectionId: 2 });
+    });
+    it('keeps the source screen and shows an error when merge fails', async () => {
+      jest.mocked(mergeCollection).mockRejectedValue(new Error('no'));
+      const renderer = await renderScreen(); const header = getHeaderElement(renderer);
+      await act(async () => header.root.findByProps({ accessibilityLabel: i18n.t('collections.manageAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeWithOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.mergeAction') }).props.onPress());
+      expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.mergeError')).length).toBeGreaterThan(0);
+    });
+    it('loads the next cursor page when the first page contains only the source, then shows a selectable target', async () => {
+      jest.mocked(getCollections)
+        .mockResolvedValueOnce({ items: [makeCollection({ id: 1, name: 'Groceries' })], nextCursor: 'page2' })
+        .mockResolvedValueOnce({ items: [makeCollection({ id: 2, name: 'Later target' })], nextCursor: null });
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') }).props.onPress());
+      expect(getCollections).toHaveBeenNthCalledWith(1, expect.anything(), { limit: 50 });
+      expect(getCollections).toHaveBeenNthCalledWith(2, expect.anything(), { limit: 50, cursor: 'page2' });
+      expect(renderer.root.findAllByProps({ accessibilityLabel: 'Groceries' })).toHaveLength(0);
+      expect(renderer.root.findByProps({ accessibilityLabel: 'Later target' })).toBeTruthy();
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.addModalEmpty'))).toHaveLength(0);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Later target' }).props.onPress());
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 2, 9);
+    });
+    it('shows the no-target notice only after the final cursor page has been checked', async () => {
+      jest.mocked(getCollections)
+        .mockResolvedValueOnce({ items: [makeCollection({ id: 1, name: 'Groceries' })], nextCursor: 'page2' })
+        .mockResolvedValueOnce({ items: [], nextCursor: null });
+      const renderer = await renderScreen(); await openItemMenu(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') }).props.onPress());
+      expect(getCollections).toHaveBeenNthCalledWith(2, expect.anything(), { limit: 50, cursor: 'page2' });
+      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.addModalEmpty')).length).toBeGreaterThan(0);
     });
   });
 });

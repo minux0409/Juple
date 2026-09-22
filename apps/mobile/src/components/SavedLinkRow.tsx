@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import i18n from '../i18n';
 import { SiteIcon } from '../icons/SiteIcon';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
@@ -7,6 +7,7 @@ import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnail
 import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { MoreIcon } from '../icons/MoreIcon';
 
 function formatSavedTime(savedAtUtc: string): string {
   return new Intl.DateTimeFormat(i18n.language, {
@@ -40,6 +41,7 @@ interface SavedLinkRowProps {
    * than a History redesign.
    */
   readonly preferEffectiveThumbnail?: boolean;
+  readonly trailingAction?: { readonly accessibilityLabel: string; readonly onPress: () => void };
 }
 
 /**
@@ -57,6 +59,7 @@ export function SavedLinkRow({
   isActionInFlight,
   dateDisplayMode = 'time',
   preferEffectiveThumbnail = false,
+  trailingAction,
 }: SavedLinkRowProps) {
   const primaryText = resolveSavedLinkPrimaryText(item.title, item.url);
   const thumbnailUrl = preferEffectiveThumbnail
@@ -97,6 +100,7 @@ export function SavedLinkRow({
           <SiteIcon siteId={siteId} size={15} />
         </View>
       </View>
+      {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>
   );
 }
@@ -150,4 +154,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  trailingAction: { paddingStart: spacing.sm, paddingVertical: spacing.sm },
 });

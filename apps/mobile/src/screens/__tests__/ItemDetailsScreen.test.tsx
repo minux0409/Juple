@@ -659,6 +659,7 @@ describe('ItemDetailsScreen', () => {
       expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 6, 1);
       expect(isSaveDisabled(renderer)).toBe(true);
       expect(renderer.root.findByProps({ children: '저장되었습니다.' })).toBeTruthy();
+      expect(renderer.root.findAllByType(ConfirmDialog).filter(dialog => dialog.props.visible && dialog.props.message === '저장되었습니다.')).toHaveLength(0);
     });
 
     it('never shows a saved message before Save is actually pressed, even after staging a category change', async () => {

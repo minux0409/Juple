@@ -304,6 +304,24 @@ export async function moveCollectionItem(
   });
 }
 
+export type TransferCollectionItemResult = { readonly targetMembershipCreated: boolean };
+
+export async function transferCollectionItem(request: AuthenticatedApiRequest, sourceCollectionId: number, itemId: number, targetCollectionId: number): Promise<TransferCollectionItemResult> {
+  const response = await request<TransferCollectionItemResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move`, body: { targetCollectionId } });
+  if (!response.body) {
+    throw new Error('Juple API returned no collection move body.');
+  }
+  return response.body;
+}
+
+export async function undoTransferCollectionItem(request: AuthenticatedApiRequest, sourceCollectionId: number, itemId: number, targetCollectionId: number, targetMembershipCreated: boolean): Promise<void> {
+  await request<void>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move/undo`, body: { targetCollectionId, targetMembershipCreated } });
+}
+
+export async function mergeCollection(request: AuthenticatedApiRequest, sourceCollectionId: number, targetCollectionId: number): Promise<void> {
+  await request<void>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/merge`, body: { targetCollectionId } });
+}
+
 /** A Collection's public share - ShareUrl is the full, ready-to-share HTTPS link (composed server-side; never assembled here from a separately-known base URL). */
 export interface CollectionShare {
   readonly publicId: string;

@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -19,15 +19,20 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import {
   deleteCollection,
+  addItemToCollection,
   enableCollectionShare,
   getCollection,
   getCollectionShare,
+  getCollections,
+  mergeCollection,
   removeItemFromCollection,
   renameCollection,
   revokeCollectionShare,
   setCollectionColor,
   setCollectionFavorite,
   setCollectionIcon,
+  transferCollectionItem,
+  undoTransferCollectionItem,
   type Collection,
   type CollectionItemEntry,
   type CollectionShare,
@@ -43,6 +48,9 @@ import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconK
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { NotificationToast } from '../components/NotificationToast';
+import { UndoToast } from '../components/UndoToast';
+import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -52,6 +60,8 @@ import { InfoIcon } from '../icons/InfoIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
+import { MoreIcon } from '../icons/MoreIcon';
+import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -224,6 +234,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isShareInfoExpanded, setIsShareInfoExpanded] = useState(false);
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
+  const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
+  const [isItemActionMenuVisible, setIsItemActionMenuVisible] = useState(false);
+  const [isCollectionMenuVisible, setIsCollectionMenuVisible] = useState(false);
+  const [targetMode, setTargetMode] = useState<'add' | 'move' | 'merge' | null>(null);
+  const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
+  const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
+  const [isLoadingMoreTargets, setIsLoadingMoreTargets] = useState(false);
+  const loadingMoreTargetsRef = useRef(false);
+  const [isLoadingTargets, setIsLoadingTargets] = useState(false);
+  const [pendingTarget, setPendingTarget] = useState<Collection | null>(null);
+  const [isMembershipMutation, setIsMembershipMutation] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
+  const [pendingMoveUndo, setPendingMoveUndo] = useState<{ readonly itemId: number; readonly targetCollectionId: number; readonly targetMembershipCreated: boolean } | null>(null);
+  const [isUndoingMove, setIsUndoingMove] = useState(false);
+  const isUndoingMoveRef = useRef(false);
 
   const {
     items,
@@ -509,6 +535,92 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setPendingUnlinkItemId(previous => previous ?? itemId);
   };
 
+  const openTargetPicker = async (mode: 'add' | 'move' | 'merge') => {
+    setIsItemActionMenuVisible(false);
+    if (mode === 'merge') setActionMenuItem(null);
+    setIsCollectionMenuVisible(false);
+    setTargetMode(mode);
+    setIsLoadingTargets(true);
+    try {
+      let page = await getCollections(authenticatedRequest, { limit: 50 });
+      let candidates = page.items.filter(candidate => candidate.id !== collectionId);
+      // If the first page only contains the source, advance just until a usable target exists or
+      // pagination ends; do not eagerly fetch every page once a target is available.
+      while (candidates.length === 0 && page.nextCursor) {
+        page = await getCollections(authenticatedRequest, { limit: 50, cursor: page.nextCursor });
+        candidates = page.items.filter(candidate => candidate.id !== collectionId);
+      }
+      setTargetCollections(candidates);
+      setTargetNextCursor(page.nextCursor);
+      if (candidates.length === 0 && page.nextCursor === null) {
+        setTargetMode(null);
+        setNotice(t('collections.addModalEmpty'));
+      }
+    } catch {
+      setTargetMode(null);
+      setNotice(t('collections.errorTargetLoadFallback'));
+    } finally { setIsLoadingTargets(false); }
+  };
+
+  const loadMoreTargets = () => {
+    if (loadingMoreTargetsRef.current || !targetNextCursor || isLoadingTargets || isMembershipMutation) return;
+    loadingMoreTargetsRef.current = true; setIsLoadingMoreTargets(true);
+    void getCollections(authenticatedRequest, { limit: 50, cursor: targetNextCursor }).then(page => {
+      setTargetCollections(previous => {
+        const seen = new Set(previous.map(item => item.id));
+        return [...previous, ...page.items.filter(item => item.id !== collectionId && !seen.has(item.id))];
+      });
+      setTargetNextCursor(page.nextCursor);
+    }).catch(() => { setNotice(t('collections.errorTargetLoadFallback')); setTargetMode(null); })
+      .finally(() => { loadingMoreTargetsRef.current = false; setIsLoadingMoreTargets(false); });
+  };
+
+  const selectTarget = (target: Collection) => {
+    if (!targetMode) return;
+    if (targetMode === 'add') { void addToTarget(target); return; }
+    setPendingTarget(target);
+  };
+
+  const addToTarget = async (target: Collection) => {
+    if (!actionMenuItem || isMembershipMutation) return;
+    setIsMembershipMutation(true); setTargetMode(null);
+    try { await addItemToCollection(authenticatedRequest, target.id, actionMenuItem.itemId); setNotification(t('collections.addSuccess')); }
+    catch { setNotice(t('collections.addError')); }
+    finally { setActionMenuItem(null); setTargetMode(null); setIsMembershipMutation(false); }
+  };
+
+  const confirmTargetAction = async () => {
+    if (!pendingTarget || isMembershipMutation) return;
+    setIsMembershipMutation(true);
+    try {
+      if (targetMode === 'merge') {
+        await mergeCollection(authenticatedRequest, collectionId, pendingTarget.id);
+        navigation.replace('CollectionDetails', { collectionId: pendingTarget.id });
+      } else if (actionMenuItem) {
+        const move = await transferCollectionItem(authenticatedRequest, collectionId, actionMenuItem.itemId, pendingTarget.id);
+        removeLocally(actionMenuItem.itemId);
+        setCollection(previous => previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous);
+        setPendingMoveUndo({ itemId: actionMenuItem.itemId, targetCollectionId: pendingTarget.id, targetMembershipCreated: move.targetMembershipCreated });
+      }
+    } catch { setNotice(t(targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError')); }
+    finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
+  };
+
+  const undoMove = async () => {
+    if (!pendingMoveUndo || isUndoingMoveRef.current) return;
+    isUndoingMoveRef.current = true;
+    setIsUndoingMove(true);
+    try {
+      await undoTransferCollectionItem(authenticatedRequest, collectionId, pendingMoveUndo.itemId, pendingMoveUndo.targetCollectionId, pendingMoveUndo.targetMembershipCreated);
+      setPendingMoveUndo(null);
+      setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
+      await refresh();
+    } catch {
+      setPendingMoveUndo(null);
+      setNotice(t('toast.undoMoveError'));
+    } finally { isUndoingMoveRef.current = false; setIsUndoingMove(false); }
+  };
+
   const handleShareToggle = (value: boolean) => {
     if (value) {
       enableShareAction();
@@ -634,6 +746,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                     >
                       <TrashIcon color={colors.danger} size={20} />
                     </Pressable>
+                    <Pressable accessibilityLabel={t('collections.manageAction')} accessibilityRole="button" onPress={() => setIsCollectionMenuVisible(true)} style={styles.iconButton}>
+                      <MoreIcon color={colors.textSecondary} size={20} />
+                    </Pressable>
                   </View>
                 </View>
               </View>
@@ -701,6 +816,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               isActionInFlight={itemActionInFlightId === item.itemId}
               item={toSavedLinkRowItem(item)}
               preferEffectiveThumbnail
+              trailingAction={{ accessibilityLabel: t('collections.itemManageAction'), onPress: () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); } }}
             />
           </SwipeableItemRow>
         )}
@@ -760,6 +876,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         title={t('collections.unlinkConfirmTitle')}
         visible={pendingUnlinkItemId !== null}
       />
+      <ActionMenuDialog actions={[{ label: t('collections.addToOther'), onPress: () => void openTargetPicker('add') }, { label: t('collections.moveToOther'), onPress: () => void openTargetPicker('move') }]} cancelLabel={t('common.cancel')} onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }} visible={isItemActionMenuVisible} />
+      <ActionMenuDialog actions={[{ label: t('collections.mergeWithOther'), onPress: () => void openTargetPicker('merge') }]} cancelLabel={t('common.cancel')} onCancel={() => setIsCollectionMenuVisible(false)} visible={isCollectionMenuVisible} />
+      <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
+      <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
+      {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
+      {notification ? <NotificationToast message={notification} onDismiss={() => setNotification(null)} /> : null}
+      {pendingMoveUndo ? <UndoToast actionLabel={t('toast.undoAction')} isUndoing={isUndoingMove} message={t('toast.moveSuccess')} onDismiss={() => setPendingMoveUndo(null)} onUndo={() => void undoMove()} /> : null}
     </View>
   );
 }

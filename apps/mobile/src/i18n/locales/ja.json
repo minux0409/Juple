@@ -162,8 +162,9 @@
     "createConfirmA11y": "カテゴリを保存",
     "errorColorUpdateFallback": "色を更新できませんでした。",
     "favoritesEmpty": "お気に入りがありません。",
-    "allCollectionsEmpty": "カテゴリがありません。"
+    "allCollectionsEmpty": "カテゴリがありません。", "manageAction": "カテゴリを管理", "itemManageAction": "リンクのその他の操作", "addToOther": "別のカテゴリに追加", "moveToOther": "別のカテゴリに移動", "mergeWithOther": "別のカテゴリと統合", "targetPickerTitle": "カテゴリを選択", "addSuccess": "カテゴリに追加しました。", "addError": "カテゴリに追加できませんでした。", "moveTitle": "リンクを移動", "moveAction": "移動", "moveConfirmMessage": "このリンクを\"{{target}}\"に移動しますか？", "moveError": "リンクを移動できませんでした。", "mergeTitle": "カテゴリを統合", "mergeAction": "統合", "mergeConfirmMessage": "\"{{source}}\"を\"{{target}}\"に統合しますか？リンクがまとめられ、このカテゴリは削除されます。", "mergeError": "カテゴリを統合できませんでした。", "errorTargetLoadFallback": "カテゴリを読み込めませんでした。"
   },
+  "toast": { "moveSuccess": "移動しました。", "undoAction": "元に戻す", "undoMoveError": "移動を元に戻せませんでした。" },
   "myPage": {
     "title": "マイページ",
     "account": "アカウント",

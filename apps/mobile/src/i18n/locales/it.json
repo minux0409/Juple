@@ -162,8 +162,9 @@
     "createConfirmA11y": "Salva categoria",
     "errorColorUpdateFallback": "Impossibile aggiornare il colore.",
     "favoritesEmpty": "Nessun preferito.",
-    "allCollectionsEmpty": "Nessuna categoria."
+    "allCollectionsEmpty": "Nessuna categoria.", "manageAction": "Gestisci categoria", "itemManageAction": "Altre azioni del link", "addToOther": "Aggiungi a un’altra categoria", "moveToOther": "Sposta in un’altra categoria", "mergeWithOther": "Unisci a un’altra categoria", "targetPickerTitle": "Seleziona categoria", "addSuccess": "Aggiunto alla categoria.", "addError": "Impossibile aggiungere alla categoria.", "moveTitle": "Sposta link", "moveAction": "Sposta", "moveConfirmMessage": "Spostare questo link in \"{{target}}\"?", "moveError": "Impossibile spostare il link.", "mergeTitle": "Unisci categorie", "mergeAction": "Unisci", "mergeConfirmMessage": "Unire \"{{source}}\" in \"{{target}}\"? I link verranno uniti e questa categoria verrà eliminata.", "mergeError": "Impossibile unire la categoria.", "errorTargetLoadFallback": "Impossibile caricare le categorie."
   },
+  "toast": { "moveSuccess": "Spostato.", "undoAction": "Annulla", "undoMoveError": "Impossibile annullare lo spostamento." },
   "myPage": {
     "title": "Il mio profilo",
     "account": "Account",

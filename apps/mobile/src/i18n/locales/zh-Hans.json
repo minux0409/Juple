@@ -162,8 +162,9 @@
     "createConfirmA11y": "保存分类",
     "errorColorUpdateFallback": "无法更新颜色。",
     "favoritesEmpty": "没有收藏。",
-    "allCollectionsEmpty": "没有分类。"
+    "allCollectionsEmpty": "没有分类。", "manageAction": "管理分类", "itemManageAction": "更多链接操作", "addToOther": "添加到其他分类", "moveToOther": "移至其他分类", "mergeWithOther": "与其他分类合并", "targetPickerTitle": "选择分类", "addSuccess": "已添加到分类。", "addError": "无法添加到分类。", "moveTitle": "移动链接", "moveAction": "移动", "moveConfirmMessage": "要将此链接移至\"{{target}}\"吗？", "moveError": "无法移动链接。", "mergeTitle": "合并分类", "mergeAction": "合并", "mergeConfirmMessage": "要将\"{{source}}\"合并到\"{{target}}\"吗？链接将合并，且此分类将被删除。", "mergeError": "无法合并分类。", "errorTargetLoadFallback": "无法加载分类。"
   },
+  "toast": { "moveSuccess": "已移动。", "undoAction": "撤销", "undoMoveError": "无法撤销移动。" },
   "myPage": {
     "title": "我的",
     "account": "账户",
