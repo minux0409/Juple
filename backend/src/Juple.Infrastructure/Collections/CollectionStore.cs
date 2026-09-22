@@ -1,4 +1,5 @@
 using Juple.Application.Collections;
+using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Domain.Collections;
@@ -544,7 +545,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         }
     }
 
-    public async Task TransferItemAsync(
+    public async Task<TransferCollectionItemResult> TransferItemAsync(
         long userId,
         long sourceCollectionId,
         long itemId,
@@ -571,7 +572,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         if (sourceCollectionId == targetCollectionId)
         {
             await transaction.CommitAsync(cancellationToken);
-            return;
+            return new TransferCollectionItemResult(TargetMembershipCreated: false);
         }
 
         var targetMembershipExists = await dbContext.CollectionItems.AsNoTracking().AnyAsync(
@@ -587,6 +588,57 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         }
 
         dbContext.CollectionItems.Remove(sourceMembership);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new TransferCollectionItemResult(TargetMembershipCreated: !targetMembershipExists);
+    }
+
+    public async Task UndoTransferItemAsync(
+        long userId,
+        long sourceCollectionId,
+        long itemId,
+        long targetCollectionId,
+        bool targetMembershipCreated,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
+
+        var itemOwnedAndActive = await dbContext.Items.AsNoTracking().AnyAsync(
+            item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc == null, cancellationToken);
+        if (!itemOwnedAndActive)
+        {
+            throw new ItemNotFoundException();
+        }
+
+        if (sourceCollectionId == targetCollectionId)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        var sourceMembershipExists = await dbContext.CollectionItems.AsNoTracking().AnyAsync(
+            membership => membership.CollectionId == sourceCollectionId && membership.ItemId == itemId, cancellationToken);
+        if (!sourceMembershipExists)
+        {
+            var minSortOrder = await dbContext.CollectionItems
+                .Where(membership => membership.CollectionId == sourceCollectionId)
+                .Select(membership => (int?)membership.SortOrder)
+                .MinAsync(cancellationToken);
+            var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
+            dbContext.CollectionItems.Add(new CollectionItem(sourceCollectionId, itemId, DateTimeOffset.UtcNow, sortOrder));
+        }
+
+        if (targetMembershipCreated)
+        {
+            var targetMembership = await dbContext.CollectionItems.FirstOrDefaultAsync(
+                membership => membership.CollectionId == targetCollectionId && membership.ItemId == itemId, cancellationToken);
+            if (targetMembership is not null)
+            {
+                dbContext.CollectionItems.Remove(targetMembership);
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

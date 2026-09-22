@@ -20,6 +20,7 @@ using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Collections.TransferCollectionItem;
+using Juple.Application.Collections.UndoTransferCollectionItem;
 using Juple.Application.Identity;
 using Juple.Application.Images.BlobCleanup;
 using Juple.Application.Images.DeleteItemImage;
@@ -117,6 +118,7 @@ builder.Services.AddScoped<IAddItemToCollectionService, AddItemToCollectionServi
 builder.Services.AddScoped<IRemoveItemFromCollectionService, RemoveItemFromCollectionService>();
 builder.Services.AddScoped<IMoveCollectionItemService, MoveCollectionItemService>();
 builder.Services.AddScoped<ITransferCollectionItemService, TransferCollectionItemService>();
+builder.Services.AddScoped<IUndoTransferCollectionItemService, UndoTransferCollectionItemService>();
 builder.Services.AddScoped<IMergeCollectionsService, MergeCollectionsService>();
 builder.Services.AddScoped<IEnableCollectionShareService, EnableCollectionShareService>();
 builder.Services.AddScoped<IGetCollectionShareService, GetCollectionShareService>();

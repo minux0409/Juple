@@ -773,9 +773,10 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, other, item, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await store.TransferItemAsync(_userId, source, item, target);
+        var createdTargetResult = await store.TransferItemAsync(_userId, source, item, target);
         _dbContext.ChangeTracker.Clear();
 
+        Assert.True(createdTargetResult.TargetMembershipCreated);
         Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == item));
         Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == target && x.ItemId == item));
         Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == other && x.ItemId == item));
@@ -786,7 +787,8 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         await store.AddAsync(_userId, target, alreadyInTarget, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        await store.TransferItemAsync(_userId, source, alreadyInTarget, target);
+        var existingTargetResult = await store.TransferItemAsync(_userId, source, alreadyInTarget, target);
+        Assert.False(existingTargetResult.TargetMembershipCreated);
         Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == alreadyInTarget));
         Assert.Equal(1, await _dbContext.CollectionItems.CountAsync(
             x => x.CollectionId == target && x.ItemId == alreadyInTarget));
@@ -809,6 +811,102 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
 
         Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == item));
         Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == target && x.ItemId == item));
+    }
+
+    [Fact]
+    public async Task UndoTransferItemAsync_WhenMoveCreatedTargetMembership_RestoresSourceOnly()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Undo source only");
+        var target = await CreateCollectionAsync(store, _userId, "Undo target only");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-source-only");
+        await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var move = await store.TransferItemAsync(_userId, source, item, target);
+        await store.UndoTransferItemAsync(_userId, source, item, target, move.TargetMembershipCreated);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == item));
+        Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == target && x.ItemId == item));
+    }
+
+    [Fact]
+    public async Task UndoTransferItemAsync_WhenTargetAlreadyContainedItem_RestoresBothMemberships()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Undo source duplicate");
+        var target = await CreateCollectionAsync(store, _userId, "Undo target duplicate");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-existing-target");
+        await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+        await store.AddAsync(_userId, target, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var move = await store.TransferItemAsync(_userId, source, item, target);
+        Assert.False(move.TargetMembershipCreated);
+        await store.UndoTransferItemAsync(_userId, source, item, target, move.TargetMembershipCreated);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.True(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == source && x.ItemId == item));
+        Assert.Equal(1, await _dbContext.CollectionItems.CountAsync(x => x.CollectionId == target && x.ItemId == item));
+    }
+
+    [Fact]
+    public async Task UndoTransferItemAsync_WhenCalledTwice_DoesNotCreateDuplicateMemberships()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Undo idempotent source");
+        var target = await CreateCollectionAsync(store, _userId, "Undo idempotent target");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-idempotent");
+        await store.AddAsync(_userId, source, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        var move = await store.TransferItemAsync(_userId, source, item, target);
+        await store.UndoTransferItemAsync(_userId, source, item, target, move.TargetMembershipCreated);
+        await store.UndoTransferItemAsync(_userId, source, item, target, move.TargetMembershipCreated);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal(1, await _dbContext.CollectionItems.CountAsync(x => x.CollectionId == source && x.ItemId == item));
+        Assert.False(await _dbContext.CollectionItems.AnyAsync(x => x.CollectionId == target && x.ItemId == item));
+    }
+
+    [Fact]
+    public async Task UndoTransferItemAsync_WhenSourceEqualsTarget_IsANoOp()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var collection = await CreateCollectionAsync(store, _userId, "Undo self");
+        var item = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-self");
+        await store.AddAsync(_userId, collection, item, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await store.UndoTransferItemAsync(_userId, collection, item, collection, targetMembershipCreated: true);
+        _dbContext.ChangeTracker.Clear();
+
+        Assert.Equal(1, await _dbContext.CollectionItems.CountAsync(x => x.CollectionId == collection && x.ItemId == item));
+    }
+
+    [Fact]
+    public async Task UndoTransferItemAsync_RejectsForeignCollectionsAndItems()
+    {
+        var store = new CollectionStore(_dbContext);
+        var itemStore = new ItemStore(_dbContext);
+        var source = await CreateCollectionAsync(store, _userId, "Owned undo source");
+        var target = await CreateCollectionAsync(store, _userId, "Owned undo target");
+        var foreignCollection = await CreateCollectionAsync(store, _otherUserId, "Foreign undo collection");
+        var ownedItem = await CreateItemAsync(itemStore, _userId, "https://shop.example/undo-owned-item");
+        var foreignItem = await CreateItemAsync(itemStore, _otherUserId, "https://shop.example/undo-foreign-item");
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.UndoTransferItemAsync(_userId, foreignCollection, ownedItem, target, false));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => store.UndoTransferItemAsync(_userId, source, ownedItem, foreignCollection, false));
+        await Assert.ThrowsAsync<ItemNotFoundException>(
+            () => store.UndoTransferItemAsync(_userId, source, foreignItem, target, false));
     }
 
     [Fact]

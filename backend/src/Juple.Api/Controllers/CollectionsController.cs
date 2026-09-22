@@ -19,6 +19,7 @@ using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Collections.TransferCollectionItem;
+using Juple.Application.Collections.UndoTransferCollectionItem;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
@@ -47,6 +48,7 @@ public sealed class CollectionsController(
     IRemoveItemFromCollectionService removeItemFromCollectionService,
     IMoveCollectionItemService moveCollectionItemService,
     ITransferCollectionItemService transferCollectionItemService,
+    IUndoTransferCollectionItemService undoTransferCollectionItemService,
     IMergeCollectionsService mergeCollectionsService,
     IEnableCollectionShareService enableCollectionShareService,
     IGetCollectionShareService getCollectionShareService,
@@ -498,6 +500,17 @@ public sealed class CollectionsController(
         ExecuteAsync(
             userId => transferCollectionItemService.TransferAsync(
                 userId, sourceCollectionId, itemId, request.TargetCollectionId, cancellationToken),
+            result => Ok(new TransferCollectionItemResponse(result.TargetMembershipCreated)),
+            cancellationToken);
+
+    /// <summary>Restores the membership state from a just-completed item move atomically.</summary>
+    [HttpPost("{sourceCollectionId:long}/items/{itemId:long}/move/undo")]
+    public Task<IActionResult> UndoTransferItemAsync(
+        long sourceCollectionId, long itemId, UndoTransferCollectionItemRequest request, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => undoTransferCollectionItemService.UndoAsync(
+                userId, sourceCollectionId, itemId, request.TargetCollectionId,
+                request.TargetMembershipCreated, cancellationToken),
             cancellationToken);
 
     /// <summary>Merges all memberships into the target, then deletes the owned source Collection atomically.</summary>
@@ -511,14 +524,26 @@ public sealed class CollectionsController(
 
     private async Task<IActionResult> ExecuteAsync(
         Func<long, Task> action,
+        CancellationToken cancellationToken) =>
+        await ExecuteAsync(
+            async userId =>
+            {
+                await action(userId);
+                return true;
+            },
+            _ => NoContent(),
+            cancellationToken);
+
+    private async Task<IActionResult> ExecuteAsync<TResult>(
+        Func<long, Task<TResult>> action,
+        Func<TResult, IActionResult> success,
         CancellationToken cancellationToken)
     {
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            await action(currentUser.UserId);
-            return NoContent();
+            return success(await action(currentUser.UserId));
         }
         catch (InvalidCollectionException exception)
         {
@@ -568,6 +593,10 @@ public sealed class CollectionsController(
     public sealed record MoveCollectionItemRequest(long? AfterItemId);
 
     public sealed record TransferCollectionItemRequest(long TargetCollectionId);
+
+    public sealed record UndoTransferCollectionItemRequest(long TargetCollectionId, bool TargetMembershipCreated);
+
+    public sealed record TransferCollectionItemResponse(bool TargetMembershipCreated);
 
     public sealed record MergeCollectionsRequest(long TargetCollectionId);
 
