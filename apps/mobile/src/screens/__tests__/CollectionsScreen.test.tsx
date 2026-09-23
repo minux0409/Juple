@@ -38,6 +38,7 @@ jest.mock('@react-navigation/bottom-tabs', () => ({
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
 jest.mock('../../collections/api/collectionsApi');
@@ -214,21 +215,12 @@ describe('CollectionsScreen create form', () => {
     });
   }
 
-  /** The compact checkmark confirm button (see Goal 5's create-row simplification) - icon-only, so matched by its accessibility label rather than a Text child. */
   function getSubmitButton(renderer: ReactTestRenderer.ReactTestRenderer) {
     return renderer.root.findAll(
       node =>
         typeof node.props.onPress === 'function' &&
-        node.props.accessibilityLabel === i18n.t('collections.createConfirmA11y'),
+        node.props.accessibilityLabel === i18n.t('collections.createAction'),
     )[0];
-  }
-
-  /** The icon grid (see CategoryNameAndIconField) is hidden until its thumbnail button is tapped -
-   * mirrors a "profile picture picker" inline-expand pattern instead of an always-open grid. */
-  function expandIconPicker(renderer: ReactTestRenderer.ReactTestRenderer) {
-    act(() => {
-      renderer.root.findByProps({ testID: 'category-icon-thumbnail-button' }).props.onPress();
-    });
   }
 
   it('defaults the icon picker to Folder and creates with it when nothing else is chosen', async () => {
@@ -260,7 +252,6 @@ describe('CollectionsScreen create form', () => {
       nameInput.props.onChangeText('Trip');
     });
 
-    expandIconPicker(renderer);
     const planeCell = renderer.root.findByProps({ testID: 'collection-icon-option-Plane' });
     act(() => {
       planeCell.props.onPress();
@@ -284,7 +275,6 @@ describe('CollectionsScreen create form', () => {
       nameInput.props.onChangeText('Trip');
     });
 
-    expandIconPicker(renderer);
     const mintSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Mint' });
     act(() => {
       mintSwatch.props.onPress();
@@ -307,7 +297,6 @@ describe('CollectionsScreen create form', () => {
     act(() => {
       nameInput.props.onChangeText('Trip');
     });
-    expandIconPicker(renderer);
     act(() => {
       renderer.root.findByProps({ testID: 'collection-icon-option-Plane' }).props.onPress();
     });
@@ -327,7 +316,7 @@ describe('CollectionsScreen create form', () => {
     expect(createCollection).toHaveBeenLastCalledWith(expect.anything(), 'Second', 'Folder', 'Blue');
   });
 
-  it('cancels the create form via the header close button, resetting the draft name/icon/color', async () => {
+  it('cancels the create dialog, resetting the draft name/icon/color', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
 
@@ -336,7 +325,6 @@ describe('CollectionsScreen create form', () => {
     act(() => {
       nameInput.props.onChangeText('Abandoned');
     });
-    expandIconPicker(renderer);
     act(() => {
       renderer.root.findByProps({ testID: 'collection-icon-option-Plane' }).props.onPress();
     });
@@ -344,7 +332,7 @@ describe('CollectionsScreen create form', () => {
     // The header's "+" button becomes a "×" while the form is open - tapping it cancels rather than
     // just hiding the form, so reopening never resumes the abandoned draft.
     const closeButton = renderer.root.findAll(
-      node => node.props.accessibilityLabel === i18n.t('common.close'),
+      node => node.props.accessibilityLabel === i18n.t('common.cancel'),
     )[0];
     act(() => {
       closeButton.props.onPress();
@@ -355,8 +343,7 @@ describe('CollectionsScreen create form', () => {
     nameInput = renderer.root.findByType(TextInput);
     expect(nameInput.props.value).toBe('');
 
-    const { PlaneIcon } = require('../../icons/PlaneIcon');
-    expect(renderer.root.findAllByType(PlaneIcon)).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: 'collection-icon-option-Folder' }).props.accessibilityState.selected).toBe(true);
     expect(createCollection).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,4 @@
-import { extractTitleCandidateFromSharedText, parseSharedText } from '../sharedTextParser';
+import { extractFirstHttpUrl, extractTitleCandidateFromSharedText, parseSharedText } from '../sharedTextParser';
 
 describe('parseSharedText', () => {
   it('classifies an exact http/https URL as exactUrl', () => {
@@ -19,10 +19,22 @@ describe('parseSharedText', () => {
     });
   });
 
-  it('classifies a URL with surrounding text as reviewText', () => {
+  // Regression coverage for the real-device report: the URL field must show the clean URL alone,
+  // never the raw "description + URL" text - kind still stays 'reviewText' (a description
+  // alongside the URL is still worth a human glance; see extractFirstHttpUrl's own remarks).
+  it('classifies a URL with surrounding text as reviewText, with the text cleaned to the URL alone', () => {
     expect(parseSharedText('Check this out: https://example.com/a')).toEqual({
       kind: 'reviewText',
-      text: 'Check this out: https://example.com/a',
+      text: 'https://example.com/a',
+    });
+  });
+
+  it('extracts the URL from a real 당근 share (description, blank lines, then the URL)', () => {
+    expect(
+      parseSharedText('당근에서 이 글을 확인해보세요!\r\n\r\nhttps://www.daangn.com/articles/1253314119?share=true'),
+    ).toEqual({
+      kind: 'reviewText',
+      text: 'https://www.daangn.com/articles/1253314119?share=true',
     });
   });
 
@@ -31,6 +43,36 @@ describe('parseSharedText', () => {
       kind: 'reviewText',
       text: 'not a url at all',
     });
+  });
+});
+
+describe('extractFirstHttpUrl', () => {
+  it('extracts the URL out of a real 당근 share (description, blank lines, then the URL)', () => {
+    expect(
+      extractFirstHttpUrl('당근에서 이 글을 확인해보세요!\r\n\r\nhttps://www.daangn.com/articles/1253314119?share=true'),
+    ).toBe('https://www.daangn.com/articles/1253314119?share=true');
+  });
+
+  it('extracts the URL out of leading casual text with no punctuation before it', () => {
+    expect(extractFirstHttpUrl('봐봐 http://example.com/a')).toBe('http://example.com/a');
+  });
+
+  it('leaves an already-bare URL unchanged', () => {
+    expect(extractFirstHttpUrl('https://example.com/a')).toBe('https://example.com/a');
+  });
+
+  it('stops at the first URL and discards trailing text after it', () => {
+    expect(extractFirstHttpUrl('설명 https://example.com/a\n뒤 문구')).toBe('https://example.com/a');
+  });
+
+  it('returns null when there is no URL at all', () => {
+    expect(extractFirstHttpUrl('URL 없음')).toBeNull();
+  });
+
+  it('preserves query-string characters (?, &, =, %) in full', () => {
+    expect(extractFirstHttpUrl('링크: https://example.com/a?x=1&y=2%20three')).toBe(
+      'https://example.com/a?x=1&y=2%20three',
+    );
   });
 });
 

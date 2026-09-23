@@ -1,9 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CategoryEditorDialog } from './CategoryEditorDialog';
 import { CategoryIconTile } from './CategoryIconTile';
+import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from './collectionColors';
+import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from './collectionIcons';
 import { CheckIcon } from '../icons/CheckIcon';
-import { colors, radii, spacing } from '../theme/tokens';
+import { PlusIcon } from '../icons/PlusIcon';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { useViewModePreference } from '../settings/viewModePreference';
 import type { Collection } from './api/collectionsApi';
 
 // See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
@@ -11,6 +17,13 @@ import type { Collection } from './api/collectionsApi';
 // two components need it.
 const SHEET_ENTER_OFFSET = 800;
 const SHEET_ENTER_DURATION_MS = 250;
+
+const GRID_COLUMNS = 4;
+
+/** Stable sentinel identifying the leading "+ 새 카테고리" tile in the grid's data array - never a
+ * real Collection, so `'id' in item` (see renderItem) reliably tells the two apart. */
+const CREATE_TILE = { kind: 'create' } as const;
+type GridItem = typeof CREATE_TILE | Collection;
 
 interface CategoryPickerModalProps {
   readonly visible: boolean;
@@ -22,22 +35,30 @@ interface CategoryPickerModalProps {
   readonly isLoadingMore: boolean;
   readonly onLoadMore: () => void;
   readonly error: string | null;
-  readonly newCollectionName: string;
-  readonly onChangeNewCollectionName: (value: string) => void;
-  readonly isCreatingCollection: boolean;
-  readonly onSubmitNewCollection: () => void;
   /** Only needed so the sheet can pad its own bottom past the system nav bar - each caller already
    * has this from its own useSafeAreaInsets() call, so it isn't duplicated here. */
   readonly bottomInset: number;
+  readonly isCreateDialogVisible?: boolean;
+  readonly onOpenCreateDialog?: () => void;
+  readonly onCloseCreateDialog?: () => void;
+  readonly isCreatingCollection: boolean;
+  readonly createError?: string | null;
+  readonly onCreateCollection?: (
+    name: string,
+    icon: CollectionIconKey,
+    color: CollectionColorValue,
+  ) => Promise<boolean>;
 }
 
 /**
- * The "카테고리 선택" bottom-sheet modal: existing categories in a scrollable list with a
- * selected/unselected toggle per row, plus a "new category" name field + create button below it -
- * shared verbatim by ItemDetailsScreen and NewLinkReviewScreen (this round's explicit
- * requirement), extracted from ItemDetailsScreen's previous inline implementation with no visual
- * or behavioral change there. Selection itself (`selectedIds`/`onToggle`) stays screen-owned - see
- * useCategoryPickerModal.ts's own remarks on why.
+ * The "카테고리 선택" bottom-sheet modal: existing categories as an icon grid (always leading with
+ * a "+ 새 카테고리" tile) with a selected/unselected toggle per tile - shared verbatim by
+ * ItemDetailsScreen and NewLinkReviewScreen. Selection itself (`selectedIds`/`onToggle`) stays
+ * screen-owned - see useCategoryPickerModal.ts's own remarks on why. Creating a category no longer
+ * has its own inline name field at the bottom of this sheet (see the removed
+ * CategoryNameAndIconField) - the "+" tile instead opens the shared CategoryEditorDialog on top of
+ * this still-open sheet, so the picker's own scroll position/loaded state is never disturbed by
+ * creating a category from inside it.
  */
 export function CategoryPickerModal({
   visible,
@@ -49,13 +70,16 @@ export function CategoryPickerModal({
   isLoadingMore,
   onLoadMore,
   error,
-  newCollectionName,
-  onChangeNewCollectionName,
-  isCreatingCollection,
-  onSubmitNewCollection,
   bottomInset,
+  isCreateDialogVisible = false,
+  onOpenCreateDialog = () => undefined,
+  onCloseCreateDialog = () => undefined,
+  isCreatingCollection,
+  createError = null,
+  onCreateCollection = async () => false,
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
+  const { viewMode, changeViewMode } = useViewModePreference('categoryPickerViewMode', 'grid');
   const sheetTranslateY = useRef(new Animated.Value(SHEET_ENTER_OFFSET)).current;
 
   useEffect(() => {
@@ -71,23 +95,45 @@ export function CategoryPickerModal({
     }).start();
   }, [visible, sheetTranslateY]);
 
+  const gridData: readonly GridItem[] = [CREATE_TILE, ...collectionPool];
+
   return (
     <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: sheetTranslateY }] }]}>
-          <Text style={styles.title}>{t('collections.selectTitle')}</Text>
+          <View style={styles.titleRow}><Text style={styles.title}>{t('collections.selectTitle')}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
 
           {isLoadingOptions ? (
             <ActivityIndicator style={styles.loading} />
           ) : (
             <FlatList
-              data={collectionPool}
+              key={viewMode}
+              data={gridData}
               extraData={selectedIds}
-              keyExtractor={option => option.id.toString()}
+              keyExtractor={item => ('kind' in item ? 'create' : item.id.toString())}
+              numColumns={viewMode === 'grid' ? GRID_COLUMNS : 1}
               onEndReached={onLoadMore}
               onEndReachedThreshold={0.5}
-              ListEmptyComponent={<Text style={styles.empty}>{t('collections.addModalEmpty')}</Text>}
-              renderItem={({ item: option }) => {
+              renderItem={({ item }) => {
+                if ('kind' in item) {
+                  return (
+                    <Pressable
+                      accessibilityLabel={t('collections.addNew')}
+                      accessibilityRole="button"
+                      onPress={onOpenCreateDialog}
+                      style={viewMode === 'grid' ? styles.gridCell : styles.listCell}
+                    >
+                      <View style={styles.createTile}>
+                        <PlusIcon color={colors.brand} size={22} strokeWidth={2.25} />
+                      </View>
+                      <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
+                        {t('collections.addNew')}
+                      </Text>
+                    </Pressable>
+                  );
+                }
+
+                const option = item;
                 const isSelected = selectedIds.has(option.id);
                 return (
                   <Pressable
@@ -95,17 +141,19 @@ export function CategoryPickerModal({
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
                     onPress={() => onToggle(option)}
-                    style={styles.optionRow}
+                    style={viewMode === 'grid' ? styles.gridCell : styles.listCell}
                   >
-                    <View style={styles.optionLabelRow}>
-                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} size={36} />
-                      <Text numberOfLines={1} style={styles.optionLabel}>
-                        {option.name}
-                      </Text>
+                    <View style={styles.tileIconSlot}>
+                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} size={48} />
+                      {isSelected ? (
+                        <View style={styles.selectedBadge}>
+                          <CheckIcon color={colors.surface} size={11} strokeWidth={3} />
+                        </View>
+                      ) : null}
                     </View>
-                    <View style={[styles.optionCheckCircle, isSelected && styles.optionCheckCircleSelected]}>
-                      {isSelected ? <CheckIcon color={colors.surface} size={14} strokeWidth={2.5} /> : null}
-                    </View>
+                    <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
+                      {option.name}
+                    </Text>
                   </Pressable>
                 );
               }}
@@ -122,37 +170,25 @@ export function CategoryPickerModal({
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <Text style={styles.newCategoryLabel}>{t('collections.create')}</Text>
-          <View style={styles.newCategoryRow}>
-            <TextInput
-              editable={!isCreatingCollection}
-              onChangeText={onChangeNewCollectionName}
-              placeholder={t('collections.namePlaceholder')}
-              style={styles.newCategoryInput}
-              value={newCollectionName}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                disabled: !newCollectionName.trim() || isCreatingCollection,
-                busy: isCreatingCollection,
-              }}
-              disabled={!newCollectionName.trim() || isCreatingCollection}
-              onPress={onSubmitNewCollection}
-              style={[
-                styles.newCategoryButton,
-                (!newCollectionName.trim() || isCreatingCollection) && styles.disabledButton,
-              ]}
-            >
-              <Text style={styles.newCategoryButtonLabel}>{t('collections.create')}</Text>
-            </Pressable>
-          </View>
-
           <Pressable accessibilityRole="button" disabled={isCreatingCollection} onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeLabel}>{t('common.close')}</Text>
           </Pressable>
         </Animated.View>
       </View>
+
+      {isCreateDialogVisible ? (
+        <CategoryEditorDialog
+          error={createError}
+          initialColor={DEFAULT_COLLECTION_COLOR}
+          initialIcon={DEFAULT_COLLECTION_ICON}
+          initialName=""
+          isSubmitting={isCreatingCollection}
+          mode="create"
+          onCancel={onCloseCreateDialog}
+          onSubmit={onCreateCollection}
+          visible
+        />
+      ) : null}
     </Modal>
   );
 }
@@ -174,6 +210,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   loading: {
     marginVertical: 20,
   },
@@ -181,90 +218,58 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   optionList: {
-    maxHeight: 260,
+    maxHeight: 360,
+    marginTop: spacing.sm,
   },
-  optionRow: {
+  // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis
+  // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line,
+  // matching the fixed-grid look this round's redesign calls for.
+  gridCell: {
     alignItems: 'center',
-    borderTopColor: colors.divider,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
+    flexBasis: `${100 / GRID_COLUMNS}%`,
+    paddingVertical: spacing.sm + 2,
   },
-  optionLabelRow: {
+  listCell: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.xs },
+  tileIconSlot: {
+    position: 'relative',
+  },
+  createTile: {
     alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginEnd: spacing.md,
-  },
-  optionLabel: {
-    color: colors.textPrimary,
-    flex: 1,
-    fontSize: 15,
-  },
-  // A slim check-circle - a faint outline with no fill when unselected (never a heavy/dark
-  // checkbox box), a solid brand-colored circle with a small white CheckIcon when selected. Sized
-  // within the 24-28dp range this round's selection-indicator redesign calls for; the row itself
-  // (not just this circle) is the actual touch target, well past the 44dp minimum.
-  optionCheckCircle: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: 13,
-    borderWidth: 1,
-    height: 26,
+    backgroundColor: colors.brandSoft,
+    borderRadius: radii.md + 6,
+    height: 48,
     justifyContent: 'center',
-    width: 26,
+    width: 48,
   },
-  optionCheckCircleSelected: {
+  // A small brand-filled circle badge at the tile's corner - never a full-tile background tint
+  // (this round's explicit "row/tile 전체 background를 파랗게 칠하지 않는다" carry-over from the
+  // Category selection redesign already shipped and device-verified).
+  selectedBadge: {
+    alignItems: 'center',
     backgroundColor: colors.brand,
-    borderColor: colors.brand,
+    borderColor: colors.surface,
+    borderRadius: 9,
+    borderWidth: 2,
+    bottom: -2,
+    height: 18,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -2,
+    width: 18,
   },
+  tileLabel: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: spacing.xs + 2,
+    maxWidth: 76,
+    textAlign: 'center',
+  },
+  listLabel: { flex: 1, maxWidth: undefined, textAlign: 'start' },
   error: {
     color: colors.danger,
     fontSize: 14,
     marginTop: spacing.md,
-  },
-  newCategoryLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginTop: 20,
-    marginBottom: 6,
-  },
-  newCategoryRow: {
-    flexDirection: 'row',
-  },
-  newCategoryInput: {
-    borderColor: '#9A9A9A',
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    fontSize: 15,
-    marginEnd: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  newCategoryButton: {
-    alignItems: 'center',
-    backgroundColor: '#111111',
-    borderRadius: 8,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  newCategoryButtonLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  empty: {
-    color: '#666666',
-    fontSize: 14,
-    paddingVertical: 16,
   },
   closeButton: {
     alignItems: 'center',
@@ -273,6 +278,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 20,
     paddingVertical: 12,
+    minHeight: minTouchTarget,
+    justifyContent: 'center',
   },
   closeLabel: {
     color: '#111111',

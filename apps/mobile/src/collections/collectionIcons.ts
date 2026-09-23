@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { createElement, type ComponentType } from 'react';
 import { FolderIcon } from '../icons/FolderIcon';
 import { GamepadIcon } from '../icons/GamepadIcon';
 import { GlobeIcon } from '../icons/GlobeIcon';
@@ -9,6 +9,7 @@ import { PlaneIcon } from '../icons/PlaneIcon';
 import { ShoppingBagIcon } from '../icons/ShoppingBagIcon';
 import { TagIcon } from '../icons/TagIcon';
 import { UtensilsIcon } from '../icons/UtensilsIcon';
+import { CollectionExtraIcon } from '../icons/CollectionExtraIcon';
 
 /**
  * The fixed set of decorative Collection icons - must exactly match the backend's CollectionIcon
@@ -28,6 +29,8 @@ export const COLLECTION_ICON_KEYS = [
   'Laptop',
   'Globe',
   'Tag',
+  'Travel', 'Fitness', 'Book', 'Music', 'Camera', 'Movie', 'Briefcase', 'Car', 'Gift', 'Coffee',
+  'Calendar', 'Pet', 'Sports', 'Map', 'Study',
 ] as const;
 
 export type CollectionIconKey = (typeof COLLECTION_ICON_KEYS)[number];
@@ -51,6 +54,21 @@ const COLLECTION_ICON_COMPONENTS: Readonly<Record<CollectionIconKey, ComponentTy
   Laptop: LaptopIcon,
   Globe: GlobeIcon,
   Tag: TagIcon,
+  Travel: props => createElement(CollectionExtraIcon, { name: 'Travel', ...props }),
+  Fitness: props => createElement(CollectionExtraIcon, { name: 'Fitness', ...props }),
+  Book: props => createElement(CollectionExtraIcon, { name: 'Book', ...props }),
+  Music: props => createElement(CollectionExtraIcon, { name: 'Music', ...props }),
+  Camera: props => createElement(CollectionExtraIcon, { name: 'Camera', ...props }),
+  Movie: props => createElement(CollectionExtraIcon, { name: 'Movie', ...props }),
+  Briefcase: props => createElement(CollectionExtraIcon, { name: 'Briefcase', ...props }),
+  Car: props => createElement(CollectionExtraIcon, { name: 'Car', ...props }),
+  Gift: props => createElement(CollectionExtraIcon, { name: 'Gift', ...props }),
+  Coffee: props => createElement(CollectionExtraIcon, { name: 'Coffee', ...props }),
+  Calendar: props => createElement(CollectionExtraIcon, { name: 'Calendar', ...props }),
+  Pet: props => createElement(CollectionExtraIcon, { name: 'Pet', ...props }),
+  Sports: props => createElement(CollectionExtraIcon, { name: 'Sports', ...props }),
+  Map: props => createElement(CollectionExtraIcon, { name: 'Map', ...props }),
+  Study: props => createElement(CollectionExtraIcon, { name: 'Study', ...props }),
 };
 
 function isCollectionIconKey(icon: string): icon is CollectionIconKey {

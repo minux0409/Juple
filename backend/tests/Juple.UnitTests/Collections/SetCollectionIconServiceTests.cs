@@ -33,6 +33,17 @@ public sealed class SetCollectionIconServiceTests
     }
 
     [Fact]
+    public async Task SetIconAsync_WhenNewIconIsProvided_PassesItThroughUnchanged()
+    {
+        var store = new FakeCollectionStore();
+        var service = new SetCollectionIconService(store, new FixedTimeProvider());
+
+        await service.SetIconAsync(17, 41, new SetCollectionIconCommand("Camera"));
+
+        Assert.Equal(CollectionIcon.Camera, store.LastIcon);
+    }
+
+    [Fact]
     public async Task SetIconAsync_WhenIconIsUnrecognized_ThrowsInvalidCollection()
     {
         var store = new FakeCollectionStore();
@@ -107,7 +118,7 @@ public sealed class SetCollectionIconServiceTests
             string nameNormalized,
             CollectionIcon icon,
             DateTimeOffset createdAtUtc,
-            CollectionColor? color = null,
+            string? color = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(
                 new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString(), color?.ToString()));
@@ -157,7 +168,7 @@ public sealed class SetCollectionIconServiceTests
         }
 
         public Task<CollectionDto> SetColorAsync(
-            long userId, long collectionId, CollectionColor color, DateTimeOffset updatedAtUtc,
+            long userId, long collectionId, string color, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by SetCollectionIconService tests.");
 

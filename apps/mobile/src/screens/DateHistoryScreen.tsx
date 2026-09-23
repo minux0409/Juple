@@ -21,6 +21,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { ChevronIcon } from '../icons/ChevronIcon';
@@ -30,6 +32,7 @@ import { deleteItem, restoreItem, type ItemHistoryEntry } from '../items/api/ite
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, radii, spacing } from '../theme/tokens';
+import { useViewModePreference } from '../settings/viewModePreference';
 
 function getHistoryDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -59,6 +62,7 @@ export function DateHistoryScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const { showUndoToast } = useAppToast();
+  const { viewMode, changeViewMode } = useViewModePreference('historyViewMode');
   // AppToastHost renders above NavigationContainer (root coordinate space), so unlike a
   // screen-local Toast this needs the actual bottom tab bar height, not 0 - otherwise the Toast
   // sits under the tab bar, over the Android system navigation area.
@@ -151,7 +155,7 @@ export function DateHistoryScreen() {
         contentContainerStyle={styles.content}
         sections={sections.map(section => ({
           ...section,
-          data: expandedDateKeys?.has(section.dateKey) ? section.items : [],
+          data: viewMode === 'list' && expandedDateKeys?.has(section.dateKey) ? section.items : [],
         }))}
         keyExtractor={item => item.id.toString()}
         onEndReached={loadMore}
@@ -163,6 +167,7 @@ export function DateHistoryScreen() {
           <View>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('history.title')}</Text>
+              <ViewModeToggle onChange={changeViewMode} value={viewMode} />
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
@@ -214,6 +219,12 @@ export function DateHistoryScreen() {
               />
             </SwipeableItemRow>
           );
+        }}
+        renderSectionFooter={({ section }) => {
+          if (viewMode !== 'grid' || !expandedDateKeys?.has(section.dateKey)) {
+            return null;
+          }
+          return <View style={styles.gridWrap}>{section.items.map(item => <SwipeableItemRow key={item.id} containerStyle={styles.gridCard} disabled={actionInFlightItemId !== null} onDelete={() => confirmDelete(item.id)} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })} onShare={() => runShare(item)}><SavedLinkGridCard isActionInFlight={actionInFlightItemId === item.id} item={item} preferEffectiveThumbnail /></SwipeableItemRow>)}</View>;
         }}
         ListFooterComponent={
           isLoadingMore ? (
@@ -324,4 +335,6 @@ const styles = StyleSheet.create({
   footerLoading: {
     paddingVertical: spacing.lg,
   },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.lg },
+  gridCard: { flexBasis: '50%', padding: 2 },
 });

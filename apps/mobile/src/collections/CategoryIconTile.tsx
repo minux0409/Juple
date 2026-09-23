@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { resolveCollectionColorKey, resolveCollectionColorTile } from './collectionColors';
+import { isCustomCollectionColor, resolveCollectionColorKey, resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
 import { resolveCollectionIconComponent } from './collectionIcons';
 import { categoryTilePalette, radii } from '../theme/tokens';
 
@@ -28,9 +28,10 @@ interface CategoryIconTileProps {
  */
 export function CategoryIconTile({ icon, collectionId, color, size = 40 }: CategoryIconTileProps) {
   const IconComponent = resolveCollectionIconComponent(icon);
-  const explicitColorKey = resolveCollectionColorKey(color ?? null);
-  const tile = explicitColorKey
-    ? resolveCollectionColorTile(explicitColorKey)
+  const explicitColor = color ?? null;
+  const explicitColorKey = resolveCollectionColorKey(explicitColor);
+  const tile = explicitColorKey || isCustomCollectionColor(explicitColor)
+    ? resolveCollectionColorTile((explicitColorKey ?? explicitColor) as CollectionColorValue)
     : categoryTilePalette[Math.abs(collectionId) % categoryTilePalette.length];
 
   return (

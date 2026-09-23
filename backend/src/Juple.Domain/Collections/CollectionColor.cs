@@ -2,9 +2,9 @@ namespace Juple.Domain.Collections;
 
 /// <summary>
 /// The fixed set of preset pastel colors a user may explicitly assign to a Collection's icon tile -
-/// purely presentational, never an arbitrary/HEX value (see docs on Juple's existing pastel
-/// palette). Persisted as its string name (see CollectionConfiguration), so reordering these
-/// members can never change the meaning of an existing row - mirrors CollectionIcon exactly.
+/// purely presentational. These names remain the backward-compatible preset wire values; a
+/// user-selected custom hue is persisted separately as a validated #RRGGBB string on Collection.
+/// Reordering these members can therefore never change the meaning of an existing preset row.
 ///
 /// Unlike CollectionIcon (every Collection always has one, defaulting to Folder),
 /// Collection.Color is nullable: null means "no explicit color chosen" - a row that predates this
@@ -22,4 +22,10 @@ public enum CollectionColor
     Peach,
     Teal,
     Slate,
+    Coral,
+    Lime,
+    Sky,
+    Indigo,
+    Lavender,
+    Sand,
 }

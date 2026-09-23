@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Animated,
@@ -75,6 +75,14 @@ export function SwipeableItemRow({
   const translateX = useRef(new Animated.Value(0)).current;
   const openDirectionRef = useRef<'left' | 'right' | null>(null);
   const currentOffsetRef = useRef(0);
+  // The share/delete action backgrounds only ever need to exist while the row is open or actively
+  // being dragged - mounted here (not just visually covered) rather than always-rendered behind the
+  // content, so there is never a frame where a real-device rounding/registration gap between the
+  // content's clipped edge and these absolutely-positioned colored panels can leave a sliver of
+  // "빨강/파랑" visible at rest (the exact real-device report this guards against - especially
+  // visible on the narrower Grid card width, where ACTION_WIDTH is a much larger fraction of the
+  // card). Sits alongside (does not replace) translateX, which stays native-driven for smooth drag.
+  const [isRevealed, setIsRevealed] = useState(false);
 
   useEffect(() => {
     const listenerId = translateX.addListener(({ value }) => {
@@ -85,7 +93,9 @@ export function SwipeableItemRow({
 
   const close = useCallback(() => {
     openDirectionRef.current = null;
-    Animated.timing(translateX, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    Animated.timing(translateX, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+      setIsRevealed(false);
+    });
     notifyRowClosed(close);
   }, [translateX]);
 
@@ -110,6 +120,7 @@ export function SwipeableItemRow({
           !disabled &&
           Math.abs(gesture.dx) > HORIZONTAL_INTENT_THRESHOLD &&
           Math.abs(gesture.dx) > Math.abs(gesture.dy),
+        onPanResponderGrant: () => setIsRevealed(true),
         onPanResponderMove: (_event, gesture) => {
           const base =
             openDirectionRef.current === 'left'
@@ -146,38 +157,40 @@ export function SwipeableItemRow({
 
   return (
     <View style={[styles.wrapper, containerStyle]}>
-      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-        <View style={[styles.actionSlot, styles.shareSlot]}>
-          <Pressable
-            accessibilityLabel={t('common.share')}
-            accessibilityRole="button"
-            disabled={disabled}
-            onPress={() => {
-              close();
-              onShare();
-            }}
-            style={[styles.actionButton, styles.shareAction]}
-          >
-            <ShareIcon color={colors.surface} size={18} />
-            <Text style={styles.actionLabel}>{t('common.share')}</Text>
-          </Pressable>
+      {isRevealed ? (
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <View style={[styles.actionSlot, styles.shareSlot]}>
+            <Pressable
+              accessibilityLabel={t('common.share')}
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={() => {
+                close();
+                onShare();
+              }}
+              style={[styles.actionButton, styles.shareAction]}
+            >
+              <ShareIcon color={colors.surface} size={18} />
+              <Text style={styles.actionLabel}>{t('common.share')}</Text>
+            </Pressable>
+          </View>
+          <View style={[styles.actionSlot, styles.deleteSlot]}>
+            <Pressable
+              accessibilityLabel={t('common.delete')}
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={() => {
+                close();
+                onDelete();
+              }}
+              style={[styles.actionButton, styles.deleteAction]}
+            >
+              <TrashIcon color={colors.surface} size={18} />
+              <Text style={styles.actionLabel}>{t('common.delete')}</Text>
+            </Pressable>
+          </View>
         </View>
-        <View style={[styles.actionSlot, styles.deleteSlot]}>
-          <Pressable
-            accessibilityLabel={t('common.delete')}
-            accessibilityRole="button"
-            disabled={disabled}
-            onPress={() => {
-              close();
-              onDelete();
-            }}
-            style={[styles.actionButton, styles.deleteAction]}
-          >
-            <TrashIcon color={colors.surface} size={18} />
-            <Text style={styles.actionLabel}>{t('common.delete')}</Text>
-          </Pressable>
-        </View>
-      </View>
+      ) : null}
       <Animated.View
         accessibilityActions={[
           { name: 'delete', label: t('common.delete') },

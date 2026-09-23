@@ -20,7 +20,7 @@ public sealed class Collection
         string nameNormalized,
         CollectionIcon icon,
         DateTimeOffset createdAtUtc,
-        CollectionColor? color = null)
+        string? color = null)
     {
         UserId = userId;
         Name = name;
@@ -29,6 +29,17 @@ public sealed class Collection
         Color = color;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = createdAtUtc;
+    }
+
+    public Collection(
+        long userId,
+        string name,
+        string nameNormalized,
+        CollectionIcon icon,
+        DateTimeOffset createdAtUtc,
+        CollectionColor color)
+        : this(userId, name, nameNormalized, icon, createdAtUtc, color.ToString())
+    {
     }
 
     public long Id { get; private set; }
@@ -61,9 +72,9 @@ public sealed class Collection
     /// <summary>Decorative only - see CollectionIcon. Every Collection has one; a new one defaults to Folder.</summary>
     public CollectionIcon Icon { get; private set; }
 
-    /// <summary>Decorative only - see CollectionColor's own remarks on why this is nullable (unlike
-    /// Icon): null means "fall back to the existing id-deterministic palette", not "no color".</summary>
-    public CollectionColor? Color { get; private set; }
+    /// <summary>Decorative only. Holds a backward-compatible preset name or a validated custom
+    /// #RRGGBB value; null means "fall back to the existing id-deterministic palette".</summary>
+    public string? Color { get; private set; }
 
     /// <summary>Callers must pass an already-normalized (trimmed, non-empty) name/nameNormalized pair.</summary>
     public void Rename(string name, string nameNormalized, DateTimeOffset updatedAtUtc)
@@ -102,7 +113,7 @@ public sealed class Collection
 
     /// <summary>Always sets an explicit, non-null color - there is no "clear back to the
     /// deterministic-palette fallback" action once a Collection has one (mirrors SetIcon).</summary>
-    public void SetColor(CollectionColor color, DateTimeOffset updatedAtUtc)
+    public void SetColor(string color, DateTimeOffset updatedAtUtc)
     {
         if (Color == color)
         {
@@ -112,6 +123,8 @@ public sealed class Collection
         Color = color;
         UpdatedAtUtc = updatedAtUtc;
     }
+
+    public void SetColor(CollectionColor color, DateTimeOffset updatedAtUtc) => SetColor(color.ToString(), updatedAtUtc);
 
     public void SoftDelete(DateTimeOffset deletedAtUtc)
     {

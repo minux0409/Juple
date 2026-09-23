@@ -69,7 +69,6 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
         // Collection.Color's own remarks: NULL is what tells the client to keep using its existing
         // id-deterministic palette fallback instead of an explicit color).
         builder.Property(collection => collection.Color)
-            .HasConversion<string>()
             .HasColumnType("varchar(20)");
 
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })

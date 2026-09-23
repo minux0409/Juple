@@ -15,6 +15,27 @@ function findByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer,
   return renderer.root.findAll(node => node.props.accessibilityLabel === label)[0];
 }
 
+/** The share/delete action Pressables are only mounted once the row is actually being dragged/open
+ * (see SwipeableItemRow's own isRevealed remarks - a real-device fix for a persistent color-bleed
+ * bug at rest) - this fires the same onResponderGrant the real gesture responder system calls the
+ * instant a horizontal drag is recognized, so tests that need those buttons can reach them without
+ * simulating full PanResponder gesture coordinates. */
+// Minimal fake GestureResponderEvent - just enough for PanResponder's internal
+// TouchHistoryMath.currentCentroidX/Y (called from its own onResponderGrant) to run without
+// throwing; zero active touches means it safely returns TouchHistoryMath.noCentroid rather than
+// needing real touch coordinates.
+const FAKE_RESPONDER_EVENT = {
+  touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1, mostRecentTimeStamp: 0 },
+  nativeEvent: {},
+};
+
+async function revealRow(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
+  const contentLayer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+  await act(async () => {
+    contentLayer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+  });
+}
+
 async function renderRow(props: { onPress: () => void; onDelete: () => void; onShare: () => void }) {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
@@ -74,6 +95,7 @@ describe('SwipeableItemRow', () => {
   it('calls onDelete when the revealed delete action is pressed', async () => {
     const onDelete = jest.fn();
     const renderer = await renderRow({ onPress: jest.fn(), onDelete, onShare: jest.fn() });
+    await revealRow(renderer);
 
     const deleteAction = findByAccessibilityLabel(renderer, '삭제');
     await act(async () => {
@@ -86,6 +108,7 @@ describe('SwipeableItemRow', () => {
   it('calls onShare when the revealed share action is pressed', async () => {
     const onShare = jest.fn();
     const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare });
+    await revealRow(renderer);
 
     const shareAction = findByAccessibilityLabel(renderer, '공유');
     await act(async () => {
@@ -106,6 +129,7 @@ describe('SwipeableItemRow', () => {
       );
     });
 
+    await revealRow(renderer);
     const deleteAction = findByAccessibilityLabel(renderer, '삭제');
     const shareAction = findByAccessibilityLabel(renderer, '공유');
     expect(deleteAction.props.disabled).toBe(true);
@@ -142,14 +166,23 @@ describe('SwipeableItemRow', () => {
     expect(style?.flexDirection).not.toBe('row');
   });
 
-  it('keeps the swipe actions layered behind the row content at rest, so they never permanently cover it', async () => {
+  // Regression test for a real-device report: a persistent thin red/blue sliver (the delete/share
+  // action backgrounds) was visible at the left/right edge of every row at rest, most noticeably on
+  // the narrower Grid card width. The action backgrounds are no longer just visually covered by the
+  // content layer while at rest - they are not mounted at all until a swipe genuinely begins, which
+  // makes that class of edge-registration/rounding bleed-through structurally impossible.
+  it('does not mount the swipe action backgrounds at rest, only once a swipe actually begins', async () => {
     const renderer = await renderRow({ onPress: jest.fn(), onDelete: jest.fn(), onShare: jest.fn() });
+
+    expect(renderer.root.findAll(node => node.props.pointerEvents === 'box-none')).toHaveLength(0);
+
+    await revealRow(renderer);
 
     const actionsOverlay = renderer.root.findAll(node => node.props.pointerEvents === 'box-none')[0];
     const contentLayer = renderer.root.findAll(
       node => Array.isArray(node.props.accessibilityActions),
     )[0];
-
+    expect(actionsOverlay).toBeTruthy();
     expect(actionsOverlay.parent).toBe(contentLayer.parent);
     const siblings = actionsOverlay.parent!.children;
     // Declared (and therefore painted) before the content layer - RN stacks later siblings on

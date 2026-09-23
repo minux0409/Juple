@@ -663,15 +663,17 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       <CategoryPickerModal
         bottomInset={insets.bottom}
         collectionPool={categoryPicker.collectionPool}
+        createError={categoryPicker.createError}
         error={categoryPicker.error}
+        isCreateDialogVisible={categoryPicker.isCreateDialogVisible}
         isCreatingCollection={categoryPicker.isCreatingCollection}
         isLoadingMore={categoryPicker.isLoadingMore}
         isLoadingOptions={categoryPicker.isLoadingOptions}
-        newCollectionName={categoryPicker.newCollectionName}
-        onChangeNewCollectionName={categoryPicker.setNewCollectionName}
         onClose={categoryPicker.close}
+        onCloseCreateDialog={categoryPicker.closeCreateDialog}
+        onCreateCollection={categoryPicker.submitNewCollection}
         onLoadMore={categoryPicker.loadMore}
-        onSubmitNewCollection={categoryPicker.submitNewCollection}
+        onOpenCreateDialog={categoryPicker.openCreateDialog}
         onToggle={toggleCategory}
         selectedIds={selectedCollectionIds}
         visible={categoryPicker.isVisible}

@@ -144,6 +144,24 @@ function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: Coll
   return rowRenderer;
 }
 
+// Minimal fake GestureResponderEvent - see SwipeableItemRow.test.tsx's identical constant for why
+// this is enough for PanResponder's internal TouchHistoryMath calls to run without throwing.
+const FAKE_RESPONDER_EVENT = {
+  touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1, mostRecentTimeStamp: 0 },
+  nativeEvent: {},
+};
+
+/** The share/delete swipe actions are only mounted once a swipe is actually underway (see
+ * SwipeableItemRow's own isRevealed remarks - a real-device fix for a persistent color-bleed bug
+ * at rest) - fires the same onResponderGrant a real gesture would, so tests can reach those
+ * buttons without simulating full drag coordinates. */
+function revealRow(row: ReactTestRenderer.ReactTestRenderer): void {
+  const contentLayer = row.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+  ReactTestRenderer.act(() => {
+    contentLayer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+  });
+}
+
 /**
  * Renders the FlatList's ListHeaderComponent (name/star/edit/delete, share section) in
  * isolation - same rationale as getRowElement above: FlatList's own virtualization is not
@@ -179,6 +197,7 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       const row = getRowElement(renderer, item);
+      revealRow(row);
       const shareAction = row.root.findAll(node => node.props.accessibilityLabel === '공유')[0];
       await act(async () => {
         shareAction.props.onPress();
@@ -193,6 +212,7 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       const row = getRowElement(renderer, item);
+      revealRow(row);
       const removeAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
       await act(async () => {
         removeAction.props.onPress();
@@ -226,6 +246,7 @@ describe('CollectionDetailsScreen', () => {
 
     async function unlinkViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
       const row = getRowElement(renderer, item);
+      revealRow(row);
       const removeAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
       await act(async () => removeAction.props.onPress());
       await act(async () => {
@@ -484,22 +505,12 @@ describe('CollectionDetailsScreen', () => {
       });
     }
 
-    function findSaveButton(header: ReactTestRenderer.ReactTestRenderer) {
-      return header.root.findAll(
+    function findSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
+      return renderer.root.findAll(
         node =>
           typeof node.props.onPress === 'function' &&
           node.findAll(inner => inner.props.children === i18n.t('common.save')).length > 0,
       )[0];
-    }
-
-    /** The icon grid (see CategoryNameAndIconField) is hidden until its thumbnail button is
-     * tapped - must operate on the SAME already-obtained header instance the icon option is then
-     * queried from (a fresh getHeaderElement() call re-mounts CategoryNameAndIconField, resetting
-     * its own local expand state back to collapsed). */
-    function expandIconPicker(header: ReactTestRenderer.ReactTestRenderer) {
-      act(() => {
-        header.root.findByProps({ testID: 'category-icon-thumbnail-button' }).props.onPress();
-      });
     }
 
     it('shows the collection\'s chosen icon in the header, next to the name', async () => {
@@ -515,9 +526,7 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header = getHeaderElement(renderer);
-      expandIconPicker(header);
-      const heartCell = header.root.findByProps({ testID: 'collection-icon-option-Heart' });
+      const heartCell = renderer.root.findByProps({ testID: 'collection-icon-option-Heart' });
       expect(heartCell.props.accessibilityState.selected).toBe(true);
     });
 
@@ -527,15 +536,12 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header1 = getHeaderElement(renderer);
-      expandIconPicker(header1);
-      const planeCell = header1.root.findByProps({ testID: 'collection-icon-option-Plane' });
+      const planeCell = renderer.root.findByProps({ testID: 'collection-icon-option-Plane' });
       act(() => {
         planeCell.props.onPress();
       });
 
-      const header2 = getHeaderElement(renderer);
-      const saveButton = findSaveButton(header2);
+      const saveButton = findSaveButton(renderer);
       await act(async () => {
         await saveButton.props.onPress();
       });
@@ -550,14 +556,12 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header1 = getHeaderElement(renderer);
-      const nameInput = header1.root.findByProps({ value: 'Old' });
+      const nameInput = renderer.root.findByProps({ value: 'Old' });
       act(() => {
         nameInput.props.onChangeText('New');
       });
 
-      const header2 = getHeaderElement(renderer);
-      const saveButton = findSaveButton(header2);
+      const saveButton = findSaveButton(renderer);
       await act(async () => {
         await saveButton.props.onPress();
       });
@@ -579,21 +583,17 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header1 = getHeaderElement(renderer);
-      const nameInput = header1.root.findByProps({ value: 'Old' });
+      const nameInput = renderer.root.findByProps({ value: 'Old' });
       act(() => {
         nameInput.props.onChangeText('New');
       });
 
-      const header2 = getHeaderElement(renderer);
-      expandIconPicker(header2);
-      const planeCell = header2.root.findByProps({ testID: 'collection-icon-option-Plane' });
+      const planeCell = renderer.root.findByProps({ testID: 'collection-icon-option-Plane' });
       act(() => {
         planeCell.props.onPress();
       });
 
-      const header3 = getHeaderElement(renderer);
-      const saveButton = findSaveButton(header3);
+      const saveButton = findSaveButton(renderer);
       await act(async () => {
         await saveButton.props.onPress();
       });
@@ -609,10 +609,8 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header = getHeaderElement(renderer);
-      expandIconPicker(header);
       // id 3's deterministic fallback resolves to 'Mint' - see collectionColors.ts's own mapping.
-      const mintSwatch = header.root.findByProps({ testID: 'collection-color-option-Mint' });
+      const mintSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Mint' });
       expect(mintSwatch.props.accessibilityState.selected).toBe(true);
     });
 
@@ -621,9 +619,7 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header = getHeaderElement(renderer);
-      expandIconPicker(header);
-      const tealSwatch = header.root.findByProps({ testID: 'collection-color-option-Teal' });
+      const tealSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Teal' });
       expect(tealSwatch.props.accessibilityState.selected).toBe(true);
     });
 
@@ -633,15 +629,12 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen();
 
       openEditMode(renderer);
-      const header1 = getHeaderElement(renderer);
-      expandIconPicker(header1);
-      const mintSwatch = header1.root.findByProps({ testID: 'collection-color-option-Mint' });
+      const mintSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Mint' });
       act(() => {
         mintSwatch.props.onPress();
       });
 
-      const header2 = getHeaderElement(renderer);
-      const saveButton = findSaveButton(header2);
+      const saveButton = findSaveButton(renderer);
       await act(async () => {
         await saveButton.props.onPress();
       });
@@ -768,6 +761,40 @@ describe('CollectionDetailsScreen', () => {
       });
 
       expect(shareItem).toHaveBeenCalledWith('https://juple.example/c/p1', 'Groceries');
+    });
+  });
+
+  describe('link sort + view mode', () => {
+    it('sorting by title reorders the FlatList data, and switching view mode does not reset the chosen sort', async () => {
+      const items = [
+        makeItemEntry({ itemId: 1, title: 'Banana', addedAtUtc: '2026-01-01T00:00:00Z' }),
+        makeItemEntry({ itemId: 2, title: 'Apple', addedAtUtc: '2026-01-02T00:00:00Z' }),
+        makeItemEntry({ itemId: 3, title: 'Cherry', addedAtUtc: '2026-01-03T00:00:00Z' }),
+      ];
+      jest.mocked(getCollectionItems).mockResolvedValue({ items, nextCursor: null });
+      const renderer = await renderScreen();
+
+      // Default (newest-first) order, as the server already returns it.
+      expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([3, 2, 1]);
+
+      await act(async () => {
+        let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findByProps({
+          children: i18n.t('collections.sortTitle'),
+        });
+        while (node && typeof node.props.onPress !== 'function') {
+          node = node.parent;
+        }
+        node!.props.onPress();
+      });
+      // Title order (Apple, Banana, Cherry) is a real reorder relative to the newest-first default.
+      expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([2, 1, 3]);
+
+      // Switching List -> Grid view mode must not reset the sort choice just made.
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+      expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([2, 1, 3]);
     });
   });
 

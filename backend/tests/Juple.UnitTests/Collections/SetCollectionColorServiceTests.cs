@@ -17,7 +17,7 @@ public sealed class SetCollectionColorServiceTests
 
         Assert.Equal(17, store.LastUserId);
         Assert.Equal(41, store.LastCollectionId);
-        Assert.Equal(CollectionColor.Mint, store.LastColor);
+        Assert.Equal("Mint", store.LastColor);
         Assert.Equal(now, store.LastUpdatedAtUtc);
     }
 
@@ -29,7 +29,40 @@ public sealed class SetCollectionColorServiceTests
 
         await service.SetColorAsync(17, 41, new SetCollectionColorCommand(null));
 
-        Assert.Equal(CollectionColor.Blue, store.LastColor);
+        Assert.Equal("Blue", store.LastColor);
+    }
+
+    [Fact]
+    public async Task SetColorAsync_WhenNewColorIsProvided_PassesItThroughUnchanged()
+    {
+        var store = new FakeCollectionStore();
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
+
+        await service.SetColorAsync(17, 41, new SetCollectionColorCommand("Coral"));
+
+        Assert.Equal("Coral", store.LastColor);
+    }
+
+    [Fact]
+    public async Task SetColorAsync_WhenCustomHexColorIsProvided_PreservesItsNormalizedWireValue()
+    {
+        var store = new FakeCollectionStore();
+        var service = new SetCollectionColorService(store, new FixedTimeProvider());
+
+        await service.SetColorAsync(17, 41, new SetCollectionColorCommand("#b5d8f1"));
+
+        Assert.Equal("#B5D8F1", store.LastColor);
+    }
+
+    [Theory]
+    [InlineData("#12345")]
+    [InlineData("#GGGGGG")]
+    [InlineData("B5D8F1")]
+    public async Task SetColorAsync_WhenCustomHexColorIsMalformed_ThrowsInvalidCollection(string color)
+    {
+        var service = new SetCollectionColorService(new FakeCollectionStore(), new FixedTimeProvider());
+
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => service.SetColorAsync(17, 41, new SetCollectionColorCommand(color)));
     }
 
     [Fact]
@@ -92,7 +125,7 @@ public sealed class SetCollectionColorServiceTests
 
         public long? LastCollectionId { get; private set; }
 
-        public CollectionColor? LastColor { get; private set; }
+        public string? LastColor { get; private set; }
 
         public DateTimeOffset? LastUpdatedAtUtc { get; private set; }
 
@@ -107,7 +140,7 @@ public sealed class SetCollectionColorServiceTests
             string nameNormalized,
             CollectionIcon icon,
             DateTimeOffset createdAtUtc,
-            CollectionColor? color = null,
+            string? color = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(
                 new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString(), color?.ToString()));
@@ -138,7 +171,7 @@ public sealed class SetCollectionColorServiceTests
         public Task<CollectionDto> SetColorAsync(
             long userId,
             long collectionId,
-            CollectionColor color,
+            string color,
             DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default)
         {

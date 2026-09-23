@@ -24,18 +24,20 @@ import {
   setCollectionFavorite,
   type Collection,
 } from '../collections/api/collectionsApi';
+import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
-import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
-import { DEFAULT_COLLECTION_COLOR, type CollectionColorKey } from '../collections/collectionColors';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { useViewModePreference } from '../settings/viewModePreference';
+import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
-import { CheckIcon } from '../icons/CheckIcon';
-import { CloseIcon } from '../icons/CloseIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+
+const GRID_COLUMNS = 4;
 
 const PAGE_LIMIT = 50;
 
@@ -112,14 +114,16 @@ export function CollectionsScreen() {
   // the Android system navigation area.
   const tabBarHeight = useBottomTabBarHeight();
   useToastBottomAnchor(tabBarHeight);
+  const { viewMode, changeViewMode } = useViewModePreference('categoryViewMode', 'grid');
 
   // Favorites is the default-selected tab (see this round's "즐겨찾기 default selected" requirement) -
   // the segmented control itself still renders favorites first/left, all second/right, matching.
   const [activeTab, setActiveTab] = useState<ActiveTab>('favorites');
-  // Purely presentational toggle - the create name field + button always existed, this just hides
-  // them behind the header's "+" button until needed instead of always taking up space (this
-  // round's visual redesign). No change to the create flow/API itself.
-  const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
+  // Category creation is a centered CategoryEditorDialog now (this round's Category UX rework),
+  // not an inline expand-below form - the dialog owns its own name/icon/color draft internally, so
+  // this screen only needs to know whether it's open and the create request's own in-flight/error
+  // state (see handleCreateSubmit).
+  const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
 
   const [collections, setCollections] = useState<readonly Collection[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -128,9 +132,6 @@ export function CollectionsScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [name, setName] = useState('');
-  const [icon, setIcon] = useState<CollectionIconKey>(DEFAULT_COLLECTION_ICON);
-  const [color, setColor] = useState<CollectionColorKey>(DEFAULT_COLLECTION_COLOR);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -274,7 +275,7 @@ export function CollectionsScreen() {
     })();
   }, [authenticatedRequest, nextCursor, isLoading, isRefreshing, t]);
 
-  const submitCreate = async () => {
+  const handleCreateSubmit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue) => {
     if (isCreating) {
       return;
     }
@@ -291,10 +292,7 @@ export function CollectionsScreen() {
     try {
       const created = await createCollection(authenticatedRequest, trimmedName, icon, color);
       setCollections(previous => [created, ...previous]);
-      setName('');
-      setIcon(DEFAULT_COLLECTION_ICON);
-      setColor(DEFAULT_COLLECTION_COLOR);
-      setIsCreateFormVisible(false);
+      setIsCreateDialogVisible(false);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       setCreateError(getCreateErrorMessage(caughtError, t));
@@ -303,16 +301,16 @@ export function CollectionsScreen() {
     }
   };
 
-  /** Cancels the create form: resets the draft name/icon/color (and any error) and collapses it - the header's own toggle button (now showing "×" while the form is open) calls this instead of just hiding the form, so reopening it never resumes a half-filled draft. */
+  const openCreateDialog = () => {
+    setCreateError(null);
+    setIsCreateDialogVisible(true);
+  };
+
   const cancelCreate = () => {
     if (isCreating) {
       return;
     }
-    setName('');
-    setIcon(DEFAULT_COLLECTION_ICON);
-    setColor(DEFAULT_COLLECTION_COLOR);
-    setCreateError(null);
-    setIsCreateFormVisible(false);
+    setIsCreateDialogVisible(false);
   };
 
   /**
@@ -373,67 +371,25 @@ export function CollectionsScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
+        key={viewMode}
         contentContainerStyle={styles.content}
         data={activeTabData}
         keyExtractor={collection => collection.id.toString()}
         onEndReached={activeTab === 'all' ? loadMore : undefined}
         onEndReachedThreshold={0.5}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load('refresh')} />}
+        numColumns={viewMode === 'grid' ? GRID_COLUMNS : 1}
         ListHeaderComponent={
           <View>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('collections.title')}</Text>
-              <Pressable
-                accessibilityLabel={isCreateFormVisible ? t('common.close') : t('collections.create')}
-                accessibilityRole="button"
-                onPress={() => (isCreateFormVisible ? cancelCreate() : setIsCreateFormVisible(true))}
-                style={styles.addButton}
-              >
-                {isCreateFormVisible ? (
-                  <CloseIcon color={colors.surface} size={20} strokeWidth={2.25} />
-                ) : (
+              <View style={styles.headerButtons}>
+                <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+                <Pressable accessibilityLabel={t('collections.create')} accessibilityRole="button" onPress={openCreateDialog} style={styles.addButton}>
                   <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
-                )}
-              </Pressable>
-            </View>
-
-            {isCreateFormVisible ? (
-              <View style={styles.createRow}>
-                <View style={styles.createInputRow}>
-                  <View style={styles.createFieldSlot}>
-                    <CategoryNameAndIconField
-                      autoFocus
-                      color={color}
-                      disabled={isCreating}
-                      icon={icon}
-                      name={name}
-                      namePlaceholder={t('collections.namePlaceholder')}
-                      onChangeColor={setColor}
-                      onChangeIcon={setIcon}
-                      onChangeName={setName}
-                    />
-                  </View>
-                  <Pressable
-                    accessibilityLabel={t('collections.createConfirmA11y')}
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: isCreating || !name.trim(), busy: isCreating }}
-                    disabled={isCreating || !name.trim()}
-                    onPress={submitCreate}
-                    style={[
-                      styles.createConfirmButton,
-                      (isCreating || !name.trim()) && styles.createConfirmButtonDisabled,
-                    ]}
-                  >
-                    {isCreating ? (
-                      <ActivityIndicator color={colors.surface} size="small" />
-                    ) : (
-                      <CheckIcon color={colors.surface} size={20} strokeWidth={2.25} />
-                    )}
-                  </Pressable>
-                </View>
-                {createError ? <Text style={styles.error}>{createError}</Text> : null}
+                </Pressable>
               </View>
-            ) : null}
+            </View>
 
             <View style={styles.segmentRow}>
               <Pressable
@@ -478,15 +434,15 @@ export function CollectionsScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => (
-          <CollectionRow
+        renderItem={({ item }) => viewMode === 'grid' ? (
+          <CollectionTile
             collection={item}
             isFavoriteToggleDisabled={togglingFavoriteId !== null}
             isTogglingFavorite={togglingFavoriteId === item.id}
             onPress={() => navigation.navigate('CollectionDetails', { collectionId: item.id })}
             onToggleFavorite={() => toggleFavoriteAction(item)}
           />
-        )}
+        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onPress={() => navigation.navigate('CollectionDetails', { collectionId: item.id })} onToggleFavorite={() => toggleFavoriteAction(item)} />}
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoading}>
@@ -495,11 +451,23 @@ export function CollectionsScreen() {
           ) : undefined
         }
       />
+
+      <CategoryEditorDialog
+        error={createError}
+        initialColor={DEFAULT_COLLECTION_COLOR}
+        initialIcon={DEFAULT_COLLECTION_ICON}
+        initialName=""
+        isSubmitting={isCreating}
+        mode="create"
+        onCancel={cancelCreate}
+        onSubmit={handleCreateSubmit}
+        visible={isCreateDialogVisible}
+      />
     </SafeAreaView>
   );
 }
 
-interface CollectionRowProps {
+interface CollectionTileProps {
   readonly collection: Collection;
   readonly isFavoriteToggleDisabled: boolean;
   readonly isTogglingFavorite: boolean;
@@ -507,45 +475,51 @@ interface CollectionRowProps {
   readonly onToggleFavorite: () => void;
 }
 
-function CollectionRow({
+/**
+ * A single grid cell: icon tile + name, with a small favorite-star badge overlaid at the icon's
+ * corner (this round's Category UX rework - replaces the old full-width row with its own separate
+ * trailing star button). The star is a Pressable NESTED inside the tile's own navigate-Pressable
+ * (not a sibling) so it can be positioned precisely against the icon regardless of the grid cell's
+ * actual on-screen width - React Native's touch responder system already gives a nested Pressable
+ * first refusal over its ancestor, so tapping the star reliably fires only onToggleFavorite, never
+ * the tile's own onPress (see this component's own test coverage for this exact case, since
+ * "event bubbling 때문에 category open이 같이 발생하지 않도록" was this round's explicit requirement).
+ */
+function CollectionTile({
   collection,
   isFavoriteToggleDisabled,
   isTogglingFavorite,
   onPress,
   onToggleFavorite,
-}: CollectionRowProps) {
+}: CollectionTileProps) {
   const { t } = useTranslation();
 
   return (
-    <View style={styles.row}>
-      <Pressable accessibilityRole="button" onPress={onPress} style={styles.rowPressable}>
-        <View style={styles.tileSlot}>
-          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
+    <View style={styles.gridCell}>
+      <Pressable accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
+        <View style={styles.tileIconSlot}>
+          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={56} />
+          <Pressable
+            accessibilityLabel={
+              collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
+            }
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }}
+            disabled={isFavoriteToggleDisabled}
+            hitSlop={8}
+            onPress={onToggleFavorite}
+            style={styles.starBadge}
+          >
+            <StarIcon
+              color={collection.isFavorite ? colors.warning : colors.border}
+              filled={collection.isFavorite}
+              size={13}
+            />
+          </Pressable>
         </View>
-        <View style={styles.rowTextColumn}>
-          <Text numberOfLines={1} style={styles.rowName}>
-            {collection.name}
-          </Text>
-          <Text style={styles.rowItemCount}>
-            {t('collections.itemCount', { count: collection.itemCount })}
-          </Text>
-        </View>
-      </Pressable>
-      <Pressable
-        accessibilityLabel={
-          collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
-        }
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }}
-        disabled={isFavoriteToggleDisabled}
-        onPress={onToggleFavorite}
-        style={styles.favoriteButton}
-      >
-        <StarIcon
-          color={collection.isFavorite ? colors.warning : colors.border}
-          filled={collection.isFavorite}
-          size={20}
-        />
+        <Text numberOfLines={1} style={styles.tileLabel}>
+          {collection.name}
+        </Text>
       </Pressable>
     </View>
   );
@@ -581,31 +555,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: minTouchTarget,
   },
-  createRow: {
-    marginBottom: spacing.md,
-  },
-  createInputRow: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  createFieldSlot: {
-    flex: 1,
-  },
-  // Compact square confirm button (checkmark, not the removed "새 카테고리" CTA) - matches the icon
-  // thumbnail's own height so it sits flush alongside the icon+name row's first line, staying
-  // pinned there even while the icon/color picker panel expands below.
-  createConfirmButton: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: radii.md + 4,
-    height: minTouchTarget,
-    justifyContent: 'center',
-    width: minTouchTarget,
-  },
-  createConfirmButtonDisabled: {
-    opacity: 0.5,
-  },
+  headerButtons: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   error: {
     color: colors.danger,
     fontSize: 14,
@@ -654,51 +604,59 @@ const styles = StyleSheet.create({
   segmentLabelActive: {
     color: colors.surface,
   },
-  // Not wrapped in a SwipeableItemRow (unlike Home/History), so a real soft shadow can render here
-  // without being clipped - see this app's own remarks elsewhere on why swipeable rows can't have one.
-  row: {
+  // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis
+  // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line.
+  gridCell: {
+    alignItems: 'center',
+    flexBasis: `${100 / GRID_COLUMNS}%`,
+    paddingVertical: spacing.md,
+  },
+  tilePressable: {
+    alignItems: 'center',
+    minWidth: minTouchTarget,
+  },
+  tileIconSlot: {
+    position: 'relative',
+  },
+  // A small floating badge at the icon tile's corner - nested inside the tile's own Pressable (see
+  // CollectionTile's own remarks on why that's still safe for touch handling), positioned against
+  // tileIconSlot (sized exactly to the icon itself) rather than the full grid cell, so it lands on
+  // the icon's actual corner regardless of the cell's on-screen width.
+  starBadge: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    marginBottom: spacing.sm + 4,
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.md + 2,
+    borderRadius: 11,
+    height: 22,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    width: 22,
     ...cardShadow,
   },
-  rowPressable: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    marginEnd: spacing.md,
-  },
-  tileSlot: {
-    marginEnd: spacing.md,
-  },
-  rowTextColumn: {
-    flex: 1,
-    marginEnd: spacing.sm,
-  },
-  rowName: {
+  tileLabel: {
     color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  rowItemCount: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-    marginTop: 3,
-  },
-  favoriteButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: spacing.xs + 2,
+    maxWidth: 84,
+    textAlign: 'center',
   },
   footerLoading: {
     paddingVertical: spacing.lg,
   },
+  listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
+  listName: { color: colors.textPrimary, flex: 1, fontSize: 16, fontWeight: '600' },
+  listFavorite: { padding: spacing.sm },
 });
+
+function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onPress, onToggleFavorite }: CollectionTileProps) {
+  const { t } = useTranslation();
+  return <Pressable accessibilityRole="button" onPress={onPress} style={styles.listRow}>
+    <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
+    <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
+    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
+      <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
+    </Pressable>
+  </Pressable>;
+}

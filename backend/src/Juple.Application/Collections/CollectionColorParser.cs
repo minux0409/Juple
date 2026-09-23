@@ -10,20 +10,25 @@ namespace Juple.Application.Collections;
 /// </summary>
 internal static class CollectionColorParser
 {
-    internal static readonly CollectionColor Default = CollectionColor.Blue;
+    internal const string Default = nameof(CollectionColor.Blue);
 
-    internal static CollectionColor Parse(string? color)
+    internal static string Parse(string? color)
     {
         if (string.IsNullOrEmpty(color))
         {
             return Default;
         }
 
-        if (!Enum.TryParse(color, out CollectionColor parsed) || !Enum.IsDefined(parsed))
+        if (Enum.TryParse(color, out CollectionColor parsed) && Enum.IsDefined(parsed))
         {
-            throw new InvalidCollectionException("color", "Color must be one of the supported Collection colors.");
+            return parsed.ToString();
         }
 
-        return parsed;
+        if (color.Length == 7 && color[0] == '#' && color[1..].All(Uri.IsHexDigit))
+        {
+            return color.ToUpperInvariant();
+        }
+
+        throw new InvalidCollectionException("color", "Color must be one of the supported Collection colors.");
     }
 }

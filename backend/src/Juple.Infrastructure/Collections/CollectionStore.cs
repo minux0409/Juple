@@ -100,7 +100,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var pageItems = (hasMore ? page.GetRange(0, limit) : page)
             .Select(row => new CollectionDto(
                 row.Id, row.Name, row.IsFavorite, row.ItemCount, row.CreatedAtUtc, row.UpdatedAtUtc,
-                row.Icon.ToString(), row.Color?.ToString()))
+                row.Icon.ToString(), row.Color))
             .ToList();
 
         var nextCursor = hasMore
@@ -116,7 +116,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         string nameNormalized,
         CollectionIcon icon,
         DateTimeOffset createdAtUtc,
-        CollectionColor? color = null,
+        string? color = null,
         CancellationToken cancellationToken = default)
     {
         var collection = new Collection(userId, name, nameNormalized, icon, createdAtUtc, color);
@@ -134,7 +134,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, 0, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color);
     }
 
     public async Task<CollectionDto> GetAsync(
@@ -164,7 +164,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color);
     }
 
     public async Task RenameAsync(
@@ -239,7 +239,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color);
     }
 
     public async Task<CollectionDto> SetIconAsync(
@@ -281,13 +281,13 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color);
     }
 
     public async Task<CollectionDto> SetColorAsync(
         long userId,
         long collectionId,
-        CollectionColor color,
+        string color,
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default)
     {
@@ -323,7 +323,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         return new CollectionDto(
             collection.Id, collection.Name, collection.IsFavorite, itemCount, collection.CreatedAtUtc,
-            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color?.ToString());
+            collection.UpdatedAtUtc, collection.Icon.ToString(), collection.Color);
     }
 
     public async Task DeleteAsync(

@@ -46,7 +46,7 @@ public sealed class DeleteCollectionServiceTests
             string nameNormalized,
             CollectionIcon icon,
             DateTimeOffset createdAtUtc,
-            CollectionColor? color = null,
+            string? color = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(
                 new CollectionDto(1, name, false, 0, createdAtUtc, createdAtUtc, icon.ToString(), color?.ToString()));
@@ -75,7 +75,7 @@ public sealed class DeleteCollectionServiceTests
             throw new NotSupportedException("Not exercised by DeleteCollectionService tests.");
 
         public Task<CollectionDto> SetColorAsync(
-            long userId, long collectionId, CollectionColor color, DateTimeOffset updatedAtUtc,
+            long userId, long collectionId, string color, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by DeleteCollectionService tests.");
 

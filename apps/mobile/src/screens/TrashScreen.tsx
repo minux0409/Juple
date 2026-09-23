@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { useIsPlusUser } from '../auth/useIsPlusUser';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -51,6 +52,7 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
 export function TrashScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
+  const isPlusUser = useIsPlusUser();
 
   const [items, setItems] = useState<readonly ItemTrashEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -143,6 +145,16 @@ export function TrashScreen() {
 
   return (
     <StackScreenSafeArea style={styles.screen}>
+      {/*
+        Always shown, even when the list is empty (this round's explicit "0개여도 안내문은 표시"
+        requirement) - a sibling of the FlatList, not inside its own ListHeaderComponent, so the
+        empty-state message's existing center-of-remaining-space layout (see emptyContainer below)
+        is computed purely from the FlatList's own remaining flex space and is never thrown off by
+        this notice's height.
+      */}
+      <Text style={styles.limitNotice}>
+        {t(isPlusUser ? 'trash.plusLimitNotice' : 'trash.freeLimitNotice')}
+      </Text>
       <FlatList
         contentContainerStyle={styles.content}
         data={items}
@@ -270,6 +282,12 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  limitNotice: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xl,
   },
   // flex:1 so the FlatList fills the space StackScreenSafeArea's own bottom padding already leaves
   // above the system nav bar - see that component's own remarks.

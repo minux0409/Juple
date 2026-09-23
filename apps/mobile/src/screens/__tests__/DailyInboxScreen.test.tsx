@@ -116,6 +116,24 @@ function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: Item
   return rowRenderer;
 }
 
+// Minimal fake GestureResponderEvent - see SwipeableItemRow.test.tsx's identical constant for why
+// this is enough for PanResponder's internal TouchHistoryMath calls to run without throwing.
+const FAKE_RESPONDER_EVENT = {
+  touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1, mostRecentTimeStamp: 0 },
+  nativeEvent: {},
+};
+
+/** The share/delete swipe actions are only mounted once a swipe is actually underway (see
+ * SwipeableItemRow's own isRevealed remarks - a real-device fix for a persistent color-bleed bug
+ * at rest) - fires the same onResponderGrant a real gesture would, so tests can reach those
+ * buttons without simulating full drag coordinates. */
+function revealRow(row: ReactTestRenderer.ReactTestRenderer): void {
+  const contentLayer = row.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+  ReactTestRenderer.act(() => {
+    contentLayer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+  });
+}
+
 /** The screen's single ConfirmDialog (a Modal) - scoping queries to it avoids colliding with the FlatList's own real (unrelated) swipe-action buttons that happen to share the same accessibilityLabel text ("삭제"). */
 function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
   const dialog = renderer.root.findByType(Modal);
@@ -156,6 +174,7 @@ describe('DailyInboxScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const shareAction = row.root.findAll(node => node.props.accessibilityLabel === '공유')[0];
     await act(async () => {
       shareAction.props.onPress();
@@ -171,6 +190,7 @@ describe('DailyInboxScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
     await act(async () => {
       deleteAction.props.onPress();
@@ -191,6 +211,7 @@ describe('DailyInboxScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
     await act(async () => {
       deleteAction.props.onPress();
@@ -211,6 +232,7 @@ describe('DailyInboxScreen delete undo', () => {
 
   async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: ItemHistoryEntry) {
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
     await act(async () => {
       deleteAction.props.onPress();
@@ -344,6 +366,31 @@ describe('DailyInboxScreen direct URL entry', () => {
     });
 
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  // Regression test for a real-device report: pasting a share-copied clipboard value (description
+  // text + URL, e.g. a 당근마켓 share) left the raw prefixed text sitting in NewLinkReview's url
+  // field. Check must extract the URL alone (see sharedTextParser.ts's extractFirstHttpUrl) and
+  // navigate with that, not the original pasted text.
+  it('extracts the URL from pasted "description + URL" text before navigating (당근 share example)', async () => {
+    const renderer = await renderScreen();
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText(
+        '당근에서 이 글을 확인해보세요!\r\n\r\nhttps://www.daangn.com/articles/1253314119?share=true',
+      );
+    });
+
+    await act(async () => {
+      pressHomeSaveButton(renderer);
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('NewLinkReview', {
+      url: 'https://www.daangn.com/articles/1253314119?share=true',
+      initialTitle: null,
+      preselectedCollectionId: null,
+    });
   });
 
   it('rejects a non-http(s) value with the existing bad-request message, never navigating', async () => {

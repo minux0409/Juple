@@ -474,10 +474,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   // Creating a category itself is not part of this Item's staged membership edit - it is an
   // immediate, item-independent action (like creating a folder to file into later); only actually
-  // adding this Item to it is staged, via stageAddCategory. Unlike NewLinkReviewScreen, creating a
-  // category here has never auto-selected it for the current Item (see useCategoryPickerModal's
-  // own remarks) - this round preserves that exactly.
-  const categoryPicker = useCategoryPickerModal(authenticatedRequest, t);
+  // adding this Item to it is staged, via stageAddCategory. This round's CategoryPickerModal grid
+  // rework auto-selects a freshly created category for the current Item uniformly across every
+  // caller (see useCategoryPickerModal's own remarks) - previously ItemDetails deliberately did
+  // not, but the "새로 만든 카테고리를 다시 찾아 누르게 하지 않는다" requirement now applies here too.
+  const categoryPicker = useCategoryPickerModal(authenticatedRequest, t, stageAddCategory);
 
   const deleteItemAction = async () => {
     if (itemActionInFlightRef.current) {
@@ -779,15 +780,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       <CategoryPickerModal
         bottomInset={insets.bottom}
         collectionPool={categoryPicker.collectionPool}
+        createError={categoryPicker.createError}
         error={categoryPicker.error}
+        isCreateDialogVisible={categoryPicker.isCreateDialogVisible}
         isCreatingCollection={categoryPicker.isCreatingCollection}
         isLoadingMore={categoryPicker.isLoadingMore}
         isLoadingOptions={categoryPicker.isLoadingOptions}
-        newCollectionName={categoryPicker.newCollectionName}
-        onChangeNewCollectionName={categoryPicker.setNewCollectionName}
         onClose={categoryPicker.close}
+        onCloseCreateDialog={categoryPicker.closeCreateDialog}
+        onCreateCollection={categoryPicker.submitNewCollection}
         onLoadMore={categoryPicker.loadMore}
-        onSubmitNewCollection={categoryPicker.submitNewCollection}
+        onOpenCreateDialog={categoryPicker.openCreateDialog}
         onToggle={option =>
           selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option)
         }

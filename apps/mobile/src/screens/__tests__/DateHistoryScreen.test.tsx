@@ -131,6 +131,24 @@ function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: Item
   return rowRenderer;
 }
 
+// Minimal fake GestureResponderEvent - see SwipeableItemRow.test.tsx's identical constant for why
+// this is enough for PanResponder's internal TouchHistoryMath calls to run without throwing.
+const FAKE_RESPONDER_EVENT = {
+  touchHistory: { touchBank: [], numberActiveTouches: 0, indexOfSingleActiveTouch: -1, mostRecentTimeStamp: 0 },
+  nativeEvent: {},
+};
+
+/** The share/delete swipe actions are only mounted once a swipe is actually underway (see
+ * SwipeableItemRow's own isRevealed remarks - a real-device fix for a persistent color-bleed bug
+ * at rest) - fires the same onResponderGrant a real gesture would, so tests can reach those
+ * buttons without simulating full drag coordinates. */
+function revealRow(row: ReactTestRenderer.ReactTestRenderer): void {
+  const contentLayer = row.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+  ReactTestRenderer.act(() => {
+    contentLayer.props.onResponderGrant(FAKE_RESPONDER_EVENT);
+  });
+}
+
 /** The screen's single ConfirmDialog (a Modal) - scoping queries to it avoids colliding with the SectionList's own real (unrelated) swipe-action buttons that happen to share the same accessibilityLabel text ("삭제"). */
 function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
   const dialog = renderer.root.findByType(Modal);
@@ -246,6 +264,7 @@ describe('DateHistoryScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const shareAction = row.root.findAll(node => node.props.accessibilityLabel === '공유')[0];
     await act(async () => {
       shareAction.props.onPress();
@@ -262,6 +281,7 @@ describe('DateHistoryScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, onlyTodayItem);
+    revealRow(row);
     const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
     await act(async () => {
       deleteAction.props.onPress();
@@ -287,6 +307,7 @@ describe('DateHistoryScreen swipe actions', () => {
     const renderer = await renderScreen();
 
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
     await act(async () => {
       deleteAction.props.onPress();
@@ -307,6 +328,7 @@ describe('DateHistoryScreen delete undo', () => {
 
   async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: ItemHistoryEntry) {
     const row = getRowElement(renderer, item);
+    revealRow(row);
     const deleteAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
     await act(async () => {
       deleteAction.props.onPress();

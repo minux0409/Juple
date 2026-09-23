@@ -4,6 +4,8 @@ import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
+import type { CollectionColorValue } from './collectionColors';
+import type { CollectionIconKey } from './collectionIcons';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -50,10 +52,15 @@ export interface UseCategoryPickerModalResult {
   readonly isLoadingMore: boolean;
   readonly loadMore: () => void;
   readonly error: string | null;
-  readonly newCollectionName: string;
-  readonly setNewCollectionName: (value: string) => void;
+  readonly isCreateDialogVisible: boolean;
+  readonly openCreateDialog: () => void;
+  readonly closeCreateDialog: () => void;
   readonly isCreatingCollection: boolean;
-  readonly submitNewCollection: () => Promise<void>;
+  readonly createError: string | null;
+  /** Returns true on success (the CategoryEditorDialog closes itself), false on failure (the
+   * dialog stays open showing createError, matching this app's existing "let the user fix and
+   * retry" pattern - see CategoryEditorDialog's own remarks). */
+  readonly submitNewCollection: (name: string, icon: CollectionIconKey, color: CollectionColorValue) => Promise<boolean>;
 }
 
 /**
@@ -64,10 +71,10 @@ export interface UseCategoryPickerModalResult {
  * inline implementation with no behavior change there - see this round's own "ItemDetails의 기존
  * staged category save 의미는 변경하지 않는다" requirement.
  *
- * `onCollectionCreated` is optional and only ever fires after a successful create - ItemDetails
- * omits it (creating a category there has never auto-selected it for the current Item, and still
- * doesn't), while NewLinkReviewScreen passes one to auto-select the brand new category, per this
- * round's explicit requirement for that screen.
+ * `onCollectionCreated` is optional and only ever fires after a successful create - both current
+ * callers (ItemDetailsScreen, NewLinkReviewScreen) pass one to auto-select the brand new category
+ * for the Item being edited, per this round's "방금 만든 카테고리를 다시 찾아 누르게 하지 않는다"
+ * requirement for CategoryPickerModal's own "+ 새 카테고리" create flow.
  */
 export function useCategoryPickerModal(
   authenticatedRequest: AuthenticatedApiRequest,
@@ -81,13 +88,13 @@ export function useCategoryPickerModal(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [newCollectionName, setNewCollectionName] = useState('');
+  const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const open = async () => {
     setIsVisible(true);
     setError(null);
-    setNewCollectionName('');
     setIsLoadingOptions(true);
     try {
       // No itemId/excludeItemId here on purpose - this modal shows every Collection with a
@@ -108,6 +115,18 @@ export function useCategoryPickerModal(
       return;
     }
     setIsVisible(false);
+  };
+
+  const openCreateDialog = () => {
+    setCreateError(null);
+    setIsCreateDialogVisible(true);
+  };
+
+  const closeCreateDialog = () => {
+    if (isCreatingCollection) {
+      return;
+    }
+    setIsCreateDialogVisible(false);
   };
 
   const loadMore = () => {
@@ -139,28 +158,34 @@ export function useCategoryPickerModal(
     })();
   };
 
-  const submitNewCollection = async () => {
+  const submitNewCollection = async (
+    name: string,
+    icon: CollectionIconKey,
+    color: CollectionColorValue,
+  ): Promise<boolean> => {
     if (isCreatingCollection) {
-      return;
+      return false;
     }
 
-    const validationError = getNameValidationError(newCollectionName, t);
+    const validationError = getNameValidationError(name, t);
     if (validationError) {
-      setError(validationError);
-      return;
+      setCreateError(validationError);
+      return false;
     }
-    const trimmedName = newCollectionName.trim();
+    const trimmedName = name.trim();
 
     setIsCreatingCollection(true);
-    setError(null);
+    setCreateError(null);
     try {
-      const created = await createCollection(authenticatedRequest, trimmedName);
+      const created = await createCollection(authenticatedRequest, trimmedName, icon, color);
       setCollectionPool(previous => [...previous, created]);
-      setNewCollectionName('');
+      setIsCreateDialogVisible(false);
       onCollectionCreated?.(created);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+      return true;
     } catch (caughtError) {
-      setError(getCreateErrorMessage(caughtError, t));
+      setCreateError(getCreateErrorMessage(caughtError, t));
+      return false;
     } finally {
       setIsCreatingCollection(false);
     }
@@ -175,9 +200,11 @@ export function useCategoryPickerModal(
     isLoadingMore,
     loadMore,
     error,
-    newCollectionName,
-    setNewCollectionName,
+    isCreateDialogVisible,
+    openCreateDialog,
+    closeCreateDialog,
     isCreatingCollection,
+    createError,
     submitNewCollection,
   };
 }

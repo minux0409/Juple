@@ -39,22 +39,23 @@ import {
   type CollectionItemEntry,
   type CollectionShare,
 } from '../collections/api/collectionsApi';
+import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
-import { CategoryNameAndIconField } from '../collections/CategoryNameAndIconField';
 import {
-  DEFAULT_COLLECTION_COLOR,
-  resolveEffectiveCollectionColorKey,
-  type CollectionColorKey,
+  resolveEffectiveCollectionColorValue,
+  type CollectionColorValue,
 } from '../collections/collectionColors';
-import { DEFAULT_COLLECTION_ICON, resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
+import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
+import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
 import { GlobeIcon } from '../icons/GlobeIcon';
@@ -64,9 +65,12 @@ import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
+import { sortCollectionItems } from '../collections/sortCollectionItems';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { useSortPreference, type LinkSortOption } from '../settings/sortPreference';
+import { useViewModePreference } from '../settings/viewModePreference';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
@@ -206,15 +210,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
   const [collectionError, setCollectionError] = useState<string | null>(null);
 
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [nameDraft, setNameDraft] = useState('');
-  const [iconDraft, setIconDraft] = useState<CollectionIconKey>(DEFAULT_COLLECTION_ICON);
-  const [colorDraft, setColorDraft] = useState<CollectionColorKey>(DEFAULT_COLLECTION_COLOR);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  // Shown via the shared single-button ConfirmDialog (a notice, not inline near the Save/Cancel
-  // buttons like renameError) - a color-update failure is otherwise easy to miss.
-  const [colorUpdateError, setColorUpdateError] = useState<string | null>(null);
+  // Editing name/icon/color is a centered CategoryEditorDialog now (this round's Category UX
+  // rework), not an inline expand-below form - a single editError surfaces whichever step of
+  // submitEdit's sequential name/icon/color calls actually failed (see that function's own
+  // remarks), shown directly inside the still-open dialog rather than a separate popup.
+  const [isEditDialogVisible, setIsEditDialogVisible] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
@@ -260,6 +262,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     loadMore,
     removeLocally,
   } = useCollectionItems(collectionId);
+
+  // Independent of view mode on purpose - switching List/Grid must never reset the chosen sort
+  // (this round's explicit "View mode를 바꿔도 현재 sort 유지" requirement). Both are separately
+  // persisted screen preferences (see viewModePreference.ts/sortPreference.ts), not one combined
+  // state. Applied as a pure display-time re-sort over whatever `items` currently holds (see
+  // sortCollectionItems's own remarks) - never mutates load/pagination itself.
+  const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
+  const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
+  const sortedItems = sortCollectionItems(items, sortOption);
 
   const loadCollection = useCallback(async () => {
     setIsLoadingCollection(true);
@@ -308,96 +319,92 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     refresh();
   }, [route.params.refreshToken, navigation, loadCollection, refresh]);
 
-  const startEditName = () => {
-    if (!collection || isRenaming) {
+  const openEditDialog = () => {
+    if (!collection || isSavingEdit) {
       return;
     }
-    setNameDraft(collection.name);
-    setIconDraft(resolveCollectionIconKey(collection.icon));
-    setColorDraft(resolveEffectiveCollectionColorKey(collection.color, collection.id));
-    setIsEditingName(true);
-    setRenameError(null);
-    setColorUpdateError(null);
+    setEditError(null);
+    setIsEditDialogVisible(true);
   };
 
   const cancelEditName = () => {
-    if (isRenaming) {
+    if (isSavingEdit) {
       return;
     }
-    setIsEditingName(false);
-    setRenameError(null);
-    setColorUpdateError(null);
+    setIsEditDialogVisible(false);
+    setEditError(null);
   };
 
   /**
-   * Saves the name/icon/color edit fields together (one Save button - see the edit form below), but
-   * calls their independent endpoints sequentially, never via Promise.all: all three mutate the same
-   * Collection row's RowVersion (see backend CollectionStore.RenameAsync/SetIconAsync/SetColorAsync),
-   * so firing them concurrently risks one losing an optimistic-concurrency race against another. A
-   * name change that succeeds followed by an icon or color change that fails is left applied (not
-   * rolled back) - the same "each attribute is its own independent action" contract this screen's
-   * favorite/share/delete actions already follow, not an all-or-nothing transaction.
+   * Saves the name/icon/color edit fields together (one dialog, one Save button - see
+   * CategoryEditorDialog), but calls their independent endpoints sequentially, never via
+   * Promise.all: all three mutate the same Collection row's RowVersion (see backend
+   * CollectionStore.RenameAsync/SetIconAsync/SetColorAsync), so firing them concurrently risks one
+   * losing an optimistic-concurrency race against another. A name change that succeeds followed by
+   * an icon or color change that fails is left applied (not rolled back) - the same "each attribute
+   * is its own independent action" contract this screen's favorite/share/delete actions already
+   * follow, not an all-or-nothing transaction. On any failure the dialog stays open (isEditDialogVisible
+   * untouched) showing editError, so the user can see exactly what happened and retry.
    */
-  const submitRename = async () => {
-    if (isRenaming || !collection) {
+  const submitEdit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue) => {
+    if (isSavingEdit || !collection) {
       return;
     }
 
-    const validationError = getNameValidationError(nameDraft, t);
+    const validationError = getNameValidationError(name, t);
     if (validationError) {
-      setRenameError(validationError);
+      setEditError(validationError);
       return;
     }
-    const trimmedName = nameDraft.trim();
+    const trimmedName = name.trim();
     const nameChanged = trimmedName !== collection.name;
-    const iconChanged = iconDraft !== resolveCollectionIconKey(collection.icon);
-    const colorChanged = colorDraft !== resolveEffectiveCollectionColorKey(collection.color, collection.id);
+    const iconChanged = icon !== resolveCollectionIconKey(collection.icon);
+    const colorChanged = color !== resolveEffectiveCollectionColorValue(collection.color, collection.id);
 
     if (!nameChanged && !iconChanged && !colorChanged) {
-      setIsEditingName(false);
+      setIsEditDialogVisible(false);
       return;
     }
 
-    setIsRenaming(true);
-    setRenameError(null);
-    setColorUpdateError(null);
+    setIsSavingEdit(true);
+    setEditError(null);
 
     if (nameChanged) {
       try {
         await renameCollection(authenticatedRequest, collectionId, trimmedName);
         setCollection(previous => (previous ? { ...previous, name: trimmedName } : previous));
       } catch (caughtError) {
-        setRenameError(getRenameErrorMessage(caughtError, t));
-        setIsRenaming(false);
+        setEditError(getRenameErrorMessage(caughtError, t));
+        setIsSavingEdit(false);
         return;
       }
     }
 
     if (iconChanged) {
       try {
-        const updated = await setCollectionIcon(authenticatedRequest, collectionId, iconDraft);
+        const updated = await setCollectionIcon(authenticatedRequest, collectionId, icon);
         setCollection(updated);
       } catch (caughtError) {
-        setRenameError(getIconUpdateErrorMessage(caughtError, t));
-        setIsRenaming(false);
+        setEditError(getIconUpdateErrorMessage(caughtError, t));
+        setIsSavingEdit(false);
         return;
       }
     }
 
     if (colorChanged) {
       try {
-        const updated = await setCollectionColor(authenticatedRequest, collectionId, colorDraft);
+        const updated = await setCollectionColor(authenticatedRequest, collectionId, color);
         setCollection(updated);
       } catch (caughtError) {
-        setColorUpdateError(getColorUpdateErrorMessage(caughtError, t));
-        setIsRenaming(false);
+        setEditError(getColorUpdateErrorMessage(caughtError, t));
+        setIsSavingEdit(false);
         return;
       }
     }
 
-    setIsEditingName(false);
+    setIsEditDialogVisible(false);
     syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-    setIsRenaming(false);
+    setIsSavingEdit(false);
   };
 
   const deleteCollectionAction = async () => {
@@ -689,76 +696,34 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   return (
     <View style={styles.safeArea}>
       <FlatList
+        key={viewMode}
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
-        data={items}
+        data={sortedItems}
         keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
+        numColumns={viewMode === 'grid' ? 2 : 1}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListHeaderComponent={
           <View>
-            {isEditingName ? (
-              <View>
-                <CategoryNameAndIconField
-                  autoFocus
-                  color={colorDraft}
-                  disabled={isRenaming}
-                  icon={iconDraft}
-                  name={nameDraft}
-                  onChangeColor={setColorDraft}
-                  onChangeIcon={setIconDraft}
-                  onChangeName={setNameDraft}
-                />
-                <View style={styles.nameEditActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isRenaming}
-                    onPress={submitRename}
-                    style={styles.nameEditButton}
-                  >
-                    <Text style={styles.nameEditButtonLabel}>
-                      {isRenaming ? t('common.saving') : t('common.save')}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isRenaming}
-                    onPress={cancelEditName}
-                    style={styles.nameEditButton}
-                  >
-                    <Text style={styles.nameEditButtonLabel}>{t('common.cancel')}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View>
+            <View>
                 <View style={styles.headerTitleRow}>
                   <View style={styles.headerIconBadge}>
                     <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={32} />
                   </View>
                   <Text style={styles.title}>{collection.name}</Text>
-                  <Pressable
-                    accessibilityLabel={
-                      collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }}
-                    disabled={isTogglingFavorite}
-                    onPress={toggleFavoriteAction}
-                    style={styles.iconButton}
-                  >
-                    <StarIcon
-                      color={collection.isFavorite ? colors.warning : colors.border}
-                      filled={collection.isFavorite}
-                      size={20}
-                    />
-                  </Pressable>
                 </View>
                 <View style={styles.headerMetaRow}>
                   <Text style={styles.itemCount}>
                     {t('collections.detailItemCount', { count: collection.itemCount })}
                   </Text>
                   <View style={styles.headerActions}>
+                    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton}>
+                      <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
+                    </Pressable>
+                    <Pressable accessibilityLabel={t('common.edit')} accessibilityRole="button" onPress={openEditDialog} style={styles.iconButton}>
+                      <EditIcon color={colors.textPrimary} size={20} />
+                    </Pressable>
                     {share ? (
                       <Pressable
                         accessibilityLabel={t('collections.shareAction')}
@@ -769,14 +734,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                         <ShareIcon color={colors.textPrimary} size={20} />
                       </Pressable>
                     ) : null}
-                    <Pressable
-                      accessibilityLabel={t('common.edit')}
-                      accessibilityRole="button"
-                      onPress={startEditName}
-                      style={styles.iconButton}
-                    >
-                      <EditIcon color={colors.textPrimary} size={20} />
-                    </Pressable>
+                    <Pressable accessibilityLabel={t('collections.manageAction')} accessibilityRole="button" onPress={() => setIsCollectionMenuVisible(true)} style={styles.iconButton}><MoreIcon color={colors.textSecondary} size={20} /></Pressable>
                     <Pressable
                       accessibilityLabel={t('common.delete')}
                       accessibilityRole="button"
@@ -787,14 +745,35 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                     >
                       <TrashIcon color={colors.danger} size={20} />
                     </Pressable>
-                    <Pressable accessibilityLabel={t('collections.manageAction')} accessibilityRole="button" onPress={() => setIsCollectionMenuVisible(true)} style={styles.iconButton}>
-                      <MoreIcon color={colors.textSecondary} size={20} />
-                    </Pressable>
                   </View>
                 </View>
-              </View>
-            )}
-            {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
+            </View>
+            {/* View mode (List/Grid) and sort are two independent, separately-persisted
+                preferences (see useViewModePreference/useSortPreference) - switching one never
+                resets the other, this round's explicit requirement. */}
+            <View style={styles.sortRow}>
+              {(
+                [
+                  ['newest', t('collections.sortNewest')],
+                  ['oldest', t('collections.sortOldest')],
+                  ['title', t('collections.sortTitle')],
+                ] as const
+              ).map(([option, label]) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: sortOption === option }}
+                  key={option}
+                  onPress={() => setSortOption(option)}
+                  style={[styles.sortChip, sortOption === option && styles.sortChipSelected]}
+                >
+                  <Text style={[styles.sortChipLabel, sortOption === option && styles.sortChipLabelSelected]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+              <View style={styles.sortRowSpacer} />
+              <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+            </View>
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
 
             <View style={styles.shareSection}>
@@ -838,26 +817,36 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         onScrollBeginDrag={closeOpenRow}
         renderItem={({ item }) => (
           <SwipeableItemRow
-            containerStyle={styles.row}
+            containerStyle={[styles.row, viewMode === 'grid' && styles.gridCard]}
             disabled={itemActionInFlightId !== null || isRefreshing}
             onDelete={() => confirmUnlinkItem(item.itemId)}
+            // Grid tiles have no room for a separate trailing "More" button (see SavedLinkGridCard) -
+            // long-press reaches the exact same Add/Move menu List mode's trailingAction opens, so
+            // Grid never loses that functionality, only its always-visible affordance.
+            onLongPress={() => { setActionMenuItem(item); setIsItemActionMenuVisible(true); }}
             onPress={() => {
               navigation.navigate('ItemDetails', { itemId: item.itemId });
             }}
             onShare={() => shareItemAction(item)}
           >
-            {/* Exactly Home/History's own row - see SavedLinkRow.tsx - so a Category's link
-                cards are visually indistinguishable from the same Item's row anywhere else in
-                the app. dateDisplayMode="dateTime" (not the default "time") because a Category's
-                items span arbitrary dates, never a single grouped day the way a History section
-                does - matches this row's own prior "always show the full date" behavior exactly. */}
-            <SavedLinkRow
-              dateDisplayMode="dateTime"
-              isActionInFlight={itemActionInFlightId === item.itemId}
-              item={toSavedLinkRowItem(item)}
-              preferEffectiveThumbnail
-              trailingAction={{ accessibilityLabel: t('collections.itemManageAction'), onPress: () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); } }}
-            />
+            {/* Exactly Home/History's own row/tile - see SavedLinkRow.tsx/SavedLinkGridCard.tsx -
+                so a Category's link cards are visually indistinguishable from the same Item shown
+                anywhere else in the app. dateDisplayMode="dateTime" (not the default "time")
+                because a Category's items span arbitrary dates, never a single grouped day the way
+                a History section does - matches this row's own prior "always show the full date"
+                behavior exactly; SavedLinkGridCard has no date field at all, so this only applies
+                to List mode. */}
+            {viewMode === 'grid' ? (
+              <SavedLinkGridCard isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+            ) : (
+              <SavedLinkRow
+                dateDisplayMode="dateTime"
+                isActionInFlight={itemActionInFlightId === item.itemId}
+                item={toSavedLinkRowItem(item)}
+                preferEffectiveThumbnail
+                trailingAction={{ accessibilityLabel: t('collections.itemManageAction'), onPress: () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); } }}
+              />
+            )}
           </SwipeableItemRow>
         )}
         ListFooterComponent={
@@ -868,15 +857,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           ) : undefined
         }
       />
-      {colorUpdateError !== null ? (
-        <ConfirmDialog
-          confirmLabel={t('common.confirm')}
-          message={colorUpdateError}
-          onConfirm={() => setColorUpdateError(null)}
-          title={t('common.notice')}
-          visible
-        />
-      ) : null}
+      <CategoryEditorDialog
+        error={editError}
+        initialColor={resolveEffectiveCollectionColorValue(collection.color, collection.id)}
+        initialIcon={resolveCollectionIconKey(collection.icon)}
+        initialName={collection.name}
+        isSubmitting={isSavingEdit}
+        mode="edit"
+        onCancel={cancelEditName}
+        onSubmit={submitEdit}
+        visible={isEditDialogVisible}
+      />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -1000,23 +991,6 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
   },
-  nameEditActions: {
-    flexDirection: 'row',
-    marginTop: 10,
-  },
-  nameEditButton: {
-    borderColor: '#9A9A9A',
-    borderRadius: 6,
-    borderWidth: 1,
-    marginEnd: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  nameEditButtonLabel: {
-    color: '#111111',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   // Deliberately NOT the "white floating card + shadow" treatment every link/content card on this
   // screen uses (see `row` below) - a muted, low-elevation setting row reads unambiguously as
   // "설정", never mistaken for another content card. No shadow/elevation at all, and a compact
@@ -1077,6 +1051,30 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     marginTop: spacing.sm + 2,
+  },
+  // Mirrors DailyInboxScreen's identical gridCard - 2 columns, no card border/background (the
+  // thumbnail itself is the visual focus, matching Category tile's "icon + name" density).
+  gridCard: { flexBasis: '50%', marginTop: spacing.sm, paddingHorizontal: 2 },
+  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  sortRowSpacer: { flex: 1 },
+  sortChip: {
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
+  },
+  sortChipSelected: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  sortChipLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sortChipLabelSelected: {
+    color: colors.surface,
   },
   disabledButton: {
     opacity: 0.5,

@@ -921,19 +921,21 @@ describe('NewLinkReviewScreen', () => {
     const { renderer } = await renderScreen();
     await openCategoryPicker(renderer);
 
+    await act(async () => {
+      renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addNew') }).props.onPress();
+    });
+
     const nameInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('collections.namePlaceholder'))!;
     await act(async () => {
       nameInput.props.onChangeText('캠핑');
     });
 
     await act(async () => {
-      const createButton = renderer.root.findAll(
-        node => typeof node.props.onPress === 'function' && node.findAllByType(Text).some(t => t.props.children === i18n.t('collections.create')),
-      )[0];
+      const createButton = renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.createAction') });
       await createButton.props.onPress();
     });
 
-    expect(createCollection).toHaveBeenCalledWith(expect.anything(), '캠핑');
+    expect(createCollection).toHaveBeenCalledWith(expect.anything(), '캠핑', 'Folder', 'Blue');
     expect(findByAccessibilityLabel(renderer, '캠핑')).toBeTruthy();
 
     await act(async () => {

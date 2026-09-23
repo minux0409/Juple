@@ -30,6 +30,10 @@ jest.mock('../../items/api/itemsApi', () => ({
   emptyTrash: jest.fn(),
 }));
 
+jest.mock('../../auth/useIsPlusUser', () => ({
+  useIsPlusUser: jest.fn(() => false),
+}));
+
 function makeEntry(overrides: Partial<ItemTrashEntry> = {}): ItemTrashEntry {
   return {
     id: 1,

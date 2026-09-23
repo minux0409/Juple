@@ -36,7 +36,7 @@ public interface ICollectionStore
         string nameNormalized,
         CollectionIcon icon,
         DateTimeOffset createdAtUtc,
-        CollectionColor? color = null,
+        string? color = null,
         CancellationToken cancellationToken = default);
 
     Task<CollectionDto> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
@@ -73,7 +73,7 @@ public interface ICollectionStore
     Task<CollectionDto> SetColorAsync(
         long userId,
         long collectionId,
-        CollectionColor color,
+        string color,
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default);
 

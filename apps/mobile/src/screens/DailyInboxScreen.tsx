@@ -23,6 +23,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
+import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -38,7 +40,9 @@ import { shareItem } from '../items/shareItem';
 import { filterTodayItemsPage } from '../items/todayItemsFilter';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
+import { extractFirstHttpUrl } from '../share/sharedTextParser';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { useViewModePreference } from '../settings/viewModePreference';
 
 const PAGE_LIMIT = 50;
 
@@ -94,6 +98,7 @@ export function DailyInboxScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showUndoToast } = useAppToast();
+  const { viewMode, changeViewMode } = useViewModePreference('homeViewMode');
   // AppToastHost renders above NavigationContainer (root coordinate space), so unlike a
   // screen-local Toast this needs the actual bottom tab bar height, not 0 - otherwise the Toast
   // sits under the tab bar, over the Android system navigation area.
@@ -273,7 +278,14 @@ export function DailyInboxScreen() {
       return;
     }
 
-    if (!isHttpUrl(trimmedUrl)) {
+    // A user pasting a share-copied clipboard value (e.g. "당근에서 이 글을 확인해보세요!
+    // https://...") gets the exact same "description text discarded, URL alone kept" treatment
+    // Incoming Share already applies (see sharedTextParser.ts's own remarks) - the same helper, so
+    // Home/Incoming-Share/Quick-Save never disagree about what the "real" URL is. isHttpUrl(trimmedUrl)
+    // already covers the common "already a bare URL" case for free (extractFirstHttpUrl only ever
+    // needs to additionally handle text that ISN'T already a bare URL).
+    const normalizedUrl = isHttpUrl(trimmedUrl) ? trimmedUrl : extractFirstHttpUrl(trimmedUrl);
+    if (!normalizedUrl) {
       // Same message the server's own badRequest validation used to produce for this case -
       // checked client-side now since Check no longer calls the server at all.
       setSaveError(t('inbox.errorBadRequest'));
@@ -283,8 +295,12 @@ export function DailyInboxScreen() {
     isNavigatingToReviewRef.current = true;
     setSaveError(null);
     setUrl('');
+    // NewLinkReview's own url field is prefilled with the cleaned URL, not the raw pasted text -
+    // this is where the user actually sees/confirms what will be saved (this round's explicit
+    // "사용자가 실제 저장되는 값을 볼 수 있게 한다" requirement); Home's own input is cleared
+    // immediately after, same as before, since the screen navigates away regardless.
     navigation.navigate('NewLinkReview', {
-      url: trimmedUrl,
+      url: normalizedUrl,
       initialTitle: null,
       preselectedCollectionId: null,
     });
@@ -349,9 +365,11 @@ export function DailyInboxScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
+        key={viewMode}
         contentContainerStyle={styles.content}
         data={items}
         keyExtractor={entry => entry.id.toString()}
+        numColumns={viewMode === 'grid' ? 2 : 1}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
@@ -397,16 +415,14 @@ export function DailyInboxScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.recentHeaderRow}>
               <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
-              <Text style={styles.recentCount}>
-                {t('inbox.recentSavedCount', { count: items.length })}
-              </Text>
+              <View style={styles.recentHeaderActions}><Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: items.length })}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
             </View>
           </View>
         }
         ListEmptyComponent={<CenteredEmptyState message={t('inbox.empty')} />}
         renderItem={({ item }) => (
           <SwipeableItemRow
-            containerStyle={styles.card}
+            containerStyle={[styles.card, viewMode === 'grid' && styles.gridCard]}
             disabled={actionInFlightItemId !== null || isRefreshing}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => {
@@ -414,11 +430,11 @@ export function DailyInboxScreen() {
             }}
             onShare={() => runShare(item)}
           >
-            <SavedLinkRow
+            {viewMode === 'list' ? <SavedLinkRow
               isActionInFlight={actionInFlightItemId === item.id}
               item={item}
               preferEffectiveThumbnail
-            />
+            /> : <SavedLinkGridCard isActionInFlight={actionInFlightItemId === item.id} item={item} preferEffectiveThumbnail />}
           </SwipeableItemRow>
         )}
         ListFooterComponent={
@@ -566,6 +582,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: spacing.sm + 2,
   },
+  gridCard: { flexBasis: '50%', marginBottom: spacing.sm, paddingHorizontal: 2 },
+  recentHeaderActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   footerLoading: {
     paddingVertical: spacing.lg,
   },

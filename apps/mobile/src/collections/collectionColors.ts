@@ -19,9 +19,17 @@ export const COLLECTION_COLOR_KEYS = [
   'Peach',
   'Teal',
   'Slate',
+  'Coral',
+  'Lime',
+  'Sky',
+  'Indigo',
+  'Lavender',
+  'Sand',
 ] as const;
 
 export type CollectionColorKey = (typeof COLLECTION_COLOR_KEYS)[number];
+/** Either a persisted preset name or a validated custom #RRGGBB hue chosen in the editor. */
+export type CollectionColorValue = CollectionColorKey | `#${string}`;
 
 /** What a brand-new Collection's create form starts with already selected - mirrors the backend's own default. */
 export const DEFAULT_COLLECTION_COLOR: CollectionColorKey = 'Blue';
@@ -40,15 +48,16 @@ const COLLECTION_COLOR_TILES: Readonly<Record<CollectionColorKey, CollectionColo
   Peach: { background: '#FBEEE6', icon: '#BD8863' },
   Teal: { background: '#E6F5F3', icon: '#4E9690' },
   Slate: { background: '#EDF1F5', icon: '#6B7A8F' },
+  Coral: { background: '#FDEDEA', icon: '#C86B5D' },
+  Lime: { background: '#F0F7E7', icon: '#729B45' },
+  Sky: { background: '#EAF6FC', icon: '#4D92B7' },
+  Indigo: { background: '#ECEEFA', icon: '#6574B7' },
+  Lavender: { background: '#F5EFFA', icon: '#9473B1' },
+  Sand: { background: '#F7F1E7', icon: '#A48257' },
 };
 
 function isCollectionColorKey(color: string): color is CollectionColorKey {
   return (COLLECTION_COLOR_KEYS as readonly string[]).includes(color);
-}
-
-/** The pastel {background, icon} pair for an explicit, recognized color key. */
-export function resolveCollectionColorTile(color: CollectionColorKey): CollectionColorTile {
-  return COLLECTION_COLOR_TILES[color];
 }
 
 /**
@@ -59,6 +68,44 @@ export function resolveCollectionColorTile(color: CollectionColorKey): Collectio
  */
 export function resolveCollectionColorKey(color: string | null): CollectionColorKey | null {
   return color !== null && isCollectionColorKey(color) ? color : null;
+}
+
+export function isCustomCollectionColor(color: string | null): color is `#${string}` {
+  return color !== null && /^#[0-9A-F]{6}$/i.test(color);
+}
+
+function hexToRgb(hex: string): readonly [number, number, number] {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+
+function componentToHex(component: number): string {
+  return Math.round(component).toString(16).padStart(2, '0').toUpperCase();
+}
+
+/** Converts a hue selection into Juple's deliberately soft tile palette, not a neon raw hue. */
+export function customColorFromHue(hue: number): `#${string}` {
+  const normalized = ((hue % 360) + 360) % 360;
+  const chroma = (1 - Math.abs(2 * 0.72 - 1)) * 0.42;
+  const x = chroma * (1 - Math.abs((normalized / 60) % 2 - 1));
+  const m = 0.72 - chroma / 2;
+  const [r, g, b] = normalized < 60 ? [chroma, x, 0] : normalized < 120 ? [x, chroma, 0] : normalized < 180 ? [0, chroma, x] : normalized < 240 ? [0, x, chroma] : normalized < 300 ? [x, 0, chroma] : [chroma, 0, x];
+  return `#${componentToHex((r + m) * 255)}${componentToHex((g + m) * 255)}${componentToHex((b + m) * 255)}` as `#${string}`;
+}
+
+export function hueFromCustomColor(hex: string): number {
+  const [rawR, rawG, rawB] = hexToRgb(hex);
+  const r = rawR / 255; const g = rawG / 255; const b = rawB / 255;
+  const max = Math.max(r, g, b); const min = Math.min(r, g, b); const delta = max - min;
+  if (delta === 0) return 0;
+  const hue = max === r ? 60 * (((g - b) / delta) % 6) : max === g ? 60 * ((b - r) / delta + 2) : 60 * ((r - g) / delta + 4);
+  return hue < 0 ? hue + 360 : hue;
+}
+
+export function resolveCollectionColorTile(color: CollectionColorValue): CollectionColorTile {
+  if (isCollectionColorKey(color)) return COLLECTION_COLOR_TILES[color];
+  const [r, g, b] = hexToRgb(color);
+  const darken = (value: number) => Math.max(0, value - 72);
+  return { background: color, icon: `#${componentToHex(darken(r))}${componentToHex(darken(g))}${componentToHex(darken(b))}` };
 }
 
 /**
@@ -85,4 +132,8 @@ export function resolveEffectiveCollectionColorKey(color: string | null, collect
     return explicit;
   }
   return DETERMINISTIC_PALETTE_COLOR_KEYS[Math.abs(collectionId) % DETERMINISTIC_PALETTE_COLOR_KEYS.length];
+}
+
+export function resolveEffectiveCollectionColorValue(color: string | null, collectionId: number): CollectionColorValue {
+  return isCustomCollectionColor(color) ? color.toUpperCase() as `#${string}` : resolveEffectiveCollectionColorKey(color, collectionId);
 }

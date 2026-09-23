@@ -116,6 +116,18 @@ public sealed class CreateCollectionServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_WhenNewIconAndColorAreProvided_PreservesTheirExactValues()
+    {
+        var store = new FakeCollectionStore();
+        var service = new CreateCollectionService(store, new FixedTimeProvider());
+
+        await service.CreateAsync(17, new CreateCollectionCommand("Books", "Book", "Lavender"));
+
+        Assert.Equal(CollectionIcon.Book, store.LastCreatedIcon);
+        Assert.Equal("Lavender", store.LastCreatedColor);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenIconIsUnrecognized_ThrowsInvalidCollection()
     {
         var store = new FakeCollectionStore();
@@ -136,7 +148,7 @@ public sealed class CreateCollectionServiceTests
 
         await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, null));
 
-        Assert.Equal(CollectionColor.Blue, store.LastCreatedColor);
+        Assert.Equal("Blue", store.LastCreatedColor);
     }
 
     [Fact]
@@ -147,7 +159,18 @@ public sealed class CreateCollectionServiceTests
 
         await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, "Mint"));
 
-        Assert.Equal(CollectionColor.Mint, store.LastCreatedColor);
+        Assert.Equal("Mint", store.LastCreatedColor);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCustomHexColorIsProvided_PreservesItsNormalizedWireValue()
+    {
+        var store = new FakeCollectionStore();
+        var service = new CreateCollectionService(store, new FixedTimeProvider());
+
+        await service.CreateAsync(17, new CreateCollectionCommand("Books to read", null, "#b5d8f1"));
+
+        Assert.Equal("#B5D8F1", store.LastCreatedColor);
     }
 
     [Fact]
@@ -177,7 +200,7 @@ public sealed class CreateCollectionServiceTests
 
         public CollectionIcon? LastCreatedIcon { get; private set; }
 
-        public CollectionColor? LastCreatedColor { get; private set; }
+        public string? LastCreatedColor { get; private set; }
 
         public DateTimeOffset? LastCreatedAtUtc { get; private set; }
 
@@ -192,7 +215,7 @@ public sealed class CreateCollectionServiceTests
             string nameNormalized,
             CollectionIcon icon,
             DateTimeOffset createdAtUtc,
-            CollectionColor? color = null,
+            string? color = null,
             CancellationToken cancellationToken = default)
         {
             WasCreateCalled = true;
@@ -236,7 +259,7 @@ public sealed class CreateCollectionServiceTests
             throw new NotSupportedException("Not exercised by CreateCollectionService tests.");
 
         public Task<CollectionDto> SetColorAsync(
-            long userId, long collectionId, CollectionColor color, DateTimeOffset updatedAtUtc,
+            long userId, long collectionId, string color, DateTimeOffset updatedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by CreateCollectionService tests.");
 

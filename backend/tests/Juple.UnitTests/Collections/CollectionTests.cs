@@ -125,7 +125,7 @@ public sealed class CollectionTests
         var collection = new Collection(
             17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc, CollectionColor.Mint);
 
-        Assert.Equal(CollectionColor.Mint, collection.Color);
+        Assert.Equal("Mint", collection.Color);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class CollectionTests
 
         collection.SetColor(CollectionColor.Rose, changedAtUtc);
 
-        Assert.Equal(CollectionColor.Rose, collection.Color);
+        Assert.Equal("Rose", collection.Color);
         Assert.Equal(changedAtUtc, collection.UpdatedAtUtc);
     }
 
@@ -151,8 +151,18 @@ public sealed class CollectionTests
 
         collection.SetColor(CollectionColor.Blue, changedAtUtc);
 
-        Assert.Equal(CollectionColor.Blue, collection.Color);
+        Assert.Equal("Blue", collection.Color);
         Assert.Equal(changedAtUtc, collection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void SetColor_WithCustomHex_PreservesTheExactValidatedWireValue()
+    {
+        var collection = new Collection(17, "Books to read", "BOOKS TO READ", CollectionIcon.Folder, CreatedAtUtc);
+
+        collection.SetColor("#B5D8F1", CreatedAtUtc.AddDays(1));
+
+        Assert.Equal("#B5D8F1", collection.Color);
     }
 
     [Fact]
@@ -164,7 +174,7 @@ public sealed class CollectionTests
 
         collection.SetColor(CollectionColor.Teal, unchangedAtUtc);
 
-        Assert.Equal(CollectionColor.Teal, collection.Color);
+        Assert.Equal("Teal", collection.Color);
         Assert.Equal(CreatedAtUtc, collection.UpdatedAtUtc);
     }
 
@@ -182,7 +192,7 @@ public sealed class CollectionTests
         Assert.Null(collection.DeletedAtUtc);
         Assert.Equal("Books to read", collection.Name);
         Assert.Equal(CollectionIcon.Plane, collection.Icon);
-        Assert.Equal(CollectionColor.Mint, collection.Color);
+        Assert.Equal("Mint", collection.Color);
         Assert.True(collection.IsFavorite);
     }
 
