@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "फ़ोटो लाइब्रेरी एक्सेस की अनुमति आवश्यक है।",
     "errorImagePickerFallback": "फ़ोटो चुनी नहीं जा सकी।",
     "resolvingMetadataOverlay": "लिंक जानकारी लोड हो रही है...",
-    "metadataResolutionFailedHint": "लिंक जानकारी लोड नहीं हो सकी। आप इसे स्वयं दर्ज करके सहेज सकते हैं।"
+    "metadataResolutionFailedHint": "लिंक जानकारी लोड नहीं हो सकी। आप इसे स्वयं दर्ज करके सहेज सकते हैं।",
+    "activeDraftConflictTitle": "आपके पास एक लिंक प्रगति पर है",
+    "activeDraftConflictMessage": "नए लिंक को देखने से पहले क्या आप अभी बन रहे लिंक को सेव करना चाहेंगे?",
+    "saveDraftAndContinue": "सेव करें और जारी रखें",
+    "discardDraftAndContinue": "छोड़ें और जारी रखें"
   },
   "sharedCollection": {
     "itemsEmpty": "इस साझा श्रेणी में अभी तक कोई सेव किया गया लिंक नहीं है।",

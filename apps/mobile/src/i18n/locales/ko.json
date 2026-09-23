@@ -257,7 +257,11 @@
     "errorImagePickerPermission": "사진 보관함 접근 권한이 필요합니다.",
     "errorImagePickerFallback": "사진을 선택할 수 없습니다.",
     "resolvingMetadataOverlay": "링크 정보를 불러오는 중...",
-    "metadataResolutionFailedHint": "링크 정보를 불러오지 못했어요. 직접 입력해서 저장할 수 있어요."
+    "metadataResolutionFailedHint": "링크 정보를 불러오지 못했어요. 직접 입력해서 저장할 수 있어요.",
+    "activeDraftConflictTitle": "작성 중인 링크가 있습니다.",
+    "activeDraftConflictMessage": "현재 작성 중인 링크를 저장한 후 새 링크를 확인하시겠습니까?",
+    "saveDraftAndContinue": "저장 후 계속",
+    "discardDraftAndContinue": "버리고 계속"
   },
   "sharedCollection": {
     "itemsEmpty": "이 공유 카테고리에 저장된 링크가 아직 없습니다.",

@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "需要照片庫的存取權限。",
     "errorImagePickerFallback": "無法選取照片。",
     "resolvingMetadataOverlay": "正在載入連結資訊…",
-    "metadataResolutionFailedHint": "無法載入連結資訊。您可以自行輸入後儲存。"
+    "metadataResolutionFailedHint": "無法載入連結資訊。您可以自行輸入後儲存。",
+    "activeDraftConflictTitle": "您有正在編輯的連結",
+    "activeDraftConflictMessage": "是否先儲存目前正在編輯的連結,再查看新連結?",
+    "saveDraftAndContinue": "儲存並繼續",
+    "discardDraftAndContinue": "捨棄並繼續"
   },
   "sharedCollection": {
     "itemsEmpty": "這個共用分類中還沒有儲存的連結。",

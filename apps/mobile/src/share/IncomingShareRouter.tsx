@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { navigationRef } from '../navigation/navigationRef';
-import { resolveIncomingShare } from './resolveIncomingShare';
+import { getActiveNewLinkReviewDraft } from './activeNewLinkReviewDraft';
+import { normalizeShareTextForComparison, resolveIncomingShare } from './resolveIncomingShare';
 import { useIncomingShare } from './useIncomingShare';
 
 /**
@@ -12,12 +13,21 @@ import { useIncomingShare } from './useIncomingShare';
  * pending too if its background save needed review/failed. Either way this always navigates
  * explicitly to NewLinkReview - never a "whatever tab happens to be focused" prefill - so the
  * outcome is independent of the app's last navigation state (see RootStack.tsx).
+ *
+ * Exception: a NewLinkReview draft can already be open (see activeNewLinkReviewDraft.ts) when a
+ * new share arrives - React Navigation's `navigate()` to an already-focused same-name route only
+ * merges params rather than remounting it, so navigating straight there the way this router always
+ * used to would silently strand the new share behind the untouched old draft. When a draft is
+ * active this router hands the share off to it instead (see below) - NewLinkReviewScreen owns the
+ * conflict dialog/save-or-discard decision from there, never this router.
  */
 export function IncomingShareRouter(): null {
   const { pendingShare, acknowledgePendingShare } = useIncomingShare();
   // Tracks the last pendingShare id this router has already acted on, so a re-render/poll that
   // still reports the same share (e.g. an unrelated AppState change) never navigates twice - only
-  // an actual new id (a different share) triggers another navigate.
+  // an actual new id (a different share) triggers another navigate. Also covers the hand-off case:
+  // once a share has been handed to an active draft's conflict dialog, it must not be handed off
+  // (or re-navigated to) again on every subsequent poll while that dialog is still up.
   const lastHandledShareIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -28,11 +38,31 @@ export function IncomingShareRouter(): null {
       return;
     }
 
-    lastHandledShareIdRef.current = pendingShare.id;
-
     // The same shared resolver Quick Save ON's headless save uses (see resolveIncomingShare/
     // incomingShareHeadlessTask) - ON and OFF must never resolve a share's URL/title differently.
     const resolvedShare = resolveIncomingShare(pendingShare);
+
+    const activeDraft = getActiveNewLinkReviewDraft();
+    if (activeDraft) {
+      lastHandledShareIdRef.current = pendingShare.id;
+
+      if (activeDraft.getNormalizedUrl() === normalizeShareTextForComparison(resolvedShare.text)) {
+        // Same link the open draft is already reviewing - a harmless duplicate share, not a real
+        // conflict. Consumed silently so it doesn't linger in the native queue and re-trigger this
+        // same check forever; never shown as a dialog, never pushes a second Review.
+        acknowledgePendingShare(pendingShare.id).catch(() => undefined);
+        return;
+      }
+
+      // Handed off entirely - the draft's own conflict dialog/save-or-discard flow now owns this
+      // share, including its eventual acknowledgePendingShare call. Never navigate/acknowledge it
+      // here.
+      activeDraft.onConflictingShare(pendingShare);
+      return;
+    }
+
+    lastHandledShareIdRef.current = pendingShare.id;
+
     // Dev/Dogfood only - booleans/enums only, never the shared text, URL, or resolved title text.
     if (isDetailedShareDiagnosticsEnabled) {
       console.log('[IncomingShareRouter] navigate to NewLinkReview', {

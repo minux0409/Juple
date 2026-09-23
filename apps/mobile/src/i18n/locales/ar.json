@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "الإذن بالوصول إلى مكتبة الصور مطلوب.",
     "errorImagePickerFallback": "تعذّر اختيار الصورة.",
     "resolvingMetadataOverlay": "جارٍ تحميل معلومات الرابط...",
-    "metadataResolutionFailedHint": "تعذّر تحميل معلومات الرابط. يمكنك إدخالها يدويًا والحفظ."
+    "metadataResolutionFailedHint": "تعذّر تحميل معلومات الرابط. يمكنك إدخالها يدويًا والحفظ.",
+    "activeDraftConflictTitle": "لديك رابط قيد الإنشاء",
+    "activeDraftConflictMessage": "هل تريد حفظ الرابط الذي تعمل عليه حاليًا قبل الاطلاع على الرابط الجديد؟",
+    "saveDraftAndContinue": "حفظ والمتابعة",
+    "discardDraftAndContinue": "تجاهل والمتابعة"
   },
   "sharedCollection": {
     "itemsEmpty": "لا توجد روابط محفوظة في هذه الفئة المشتركة بعد.",

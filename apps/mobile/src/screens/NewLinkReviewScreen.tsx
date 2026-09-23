@@ -20,16 +20,40 @@ import { SourceRow } from '../components/SourceRow';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { uploadItemImage, type ItemImage } from '../images/api/imagesApi';
 import { PhotoListEditor } from '../images/PhotoListEditor';
 import { MAX_EFFECTIVE_IMAGES, reorderList, type EffectiveImage } from '../items/effectiveImages';
 import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
+import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { isHttpUrl } from '../share/resolveIncomingShare';
+import { registerActiveNewLinkReviewDraft, clearActiveNewLinkReviewDraft } from '../share/activeNewLinkReviewDraft';
+import { isHttpUrl, normalizeShareTextForComparison, resolveIncomingShare } from '../share/resolveIncomingShare';
+import type { PendingShare } from '../share/specs/NativeIncomingShare';
+import { useIncomingShare } from '../share/useIncomingShare';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
+
+/**
+ * Defensive-only, YouTube-gated filter: the current DEV Backend can still return "YouTube"/
+ * "- YouTube" as og:title/twitter:title/<title> for a video whose own server-side title lookup
+ * failed (Backend already has its own fix for this in HtmlTitleExtractor - see that file's own
+ * remarks - but this client keeps its own copy so a real, already-correct share-provided
+ * initialTitle is never clobbered by a stale Backend still running the old code in the meantime).
+ * Reuses resolveSiteInfo (the same host classification SiteIcon/saved-link rows already use)
+ * rather than duplicating YouTube's host list, and never applies to any other site - a page whose
+ * real, author-chosen title happens to be the bare word "YouTube" must still be trusted verbatim
+ * everywhere except youtube.com itself.
+ */
+function isKnownYouTubePlaceholderTitle(url: string, title: string): boolean {
+  if (resolveSiteInfo(url).id !== 'youtube') {
+    return false;
+  }
+  const normalized = title.trim().toLowerCase();
+  return normalized === 'youtube' || normalized === '- youtube';
+}
 // Staged photo removal is instant/local (no server round-trip - see removeStagedPhoto), so
 // PhotoListEditor's deletingKeys is always empty here; a stable constant avoids allocating a new
 // Set on every render.
@@ -90,7 +114,22 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
 
+  const { acknowledgePendingShare } = useIncomingShare();
+
   const [url, setUrl] = useState(route.params.url);
+  // Live mirror of `url` for activeNewLinkReviewDraft's getNormalizedUrl - read imperatively by
+  // IncomingShareRouter (a component outside this screen's own render tree), not through state.
+  const urlRef = useRef(url);
+  useEffect(() => {
+    urlRef.current = url;
+  }, [url]);
+  // Set only by IncomingShareRouter handing off a DIFFERENT-URL incoming share while this draft is
+  // open (see activeNewLinkReviewDraft.ts) - drives both the conflict ConfirmDialog's visibility
+  // and which share resolveConflictWithSave/resolveConflictWithDiscard below act on. Never cleared
+  // on a failed "save and continue" attempt (see resolveConflictWithSave) so the user can still
+  // retry either button afterward - only cleared once the hand-off to the new share actually
+  // completes.
+  const [pendingConflictShare, setPendingConflictShare] = useState<PendingShare | null>(null);
   const [title, setTitle] = useState(route.params.initialTitle ?? '');
   const [memo, setMemo] = useState('');
   // Full Collection objects (not just ids) - CategoryField needs each one's name to render the
@@ -131,6 +170,13 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // resolved previewImageUrl above) and/or 'staged' (a locally-picked asset, not yet uploaded -
   // see stagedAssetsRef). Never 'uploaded' here; that only exists once the Item is real.
   const [photoOrder, setPhotoOrder] = useState<readonly EffectiveImage[]>([]);
+  // Live mirror of photoOrder for the metadata-resolution effect below (a plain mount-time effect,
+  // not re-run on every photoOrder change) to read the *current* staged state at the moment
+  // metadata actually arrives, not whatever it was when the effect was set up.
+  const photoOrderRef = useRef(photoOrder);
+  useEffect(() => {
+    photoOrderRef.current = photoOrder;
+  }, [photoOrder]);
   // Upload-time metadata (MIME type/filename) for each staged photo, keyed by its stagedId - kept
   // out of photoOrder/EffectiveImage itself since that type is shared with ItemDetailsScreen and
   // has no reason to know about picker-specific fields.
@@ -145,6 +191,23 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // is genuinely a different intended save, not a retry of the same one.
   const clientRequestIdRef = useRef<string | null>(null);
   const clientRequestUrlRef = useRef<string | null>(null);
+
+  // Registers this screen instance as "the" active unsaved draft (see activeNewLinkReviewDraft.ts)
+  // for as long as it's mounted - RootStack.tsx only ever mounts one NewLinkReviewScreen at a
+  // time, and this screen is a draft (an unsaved, not-yet-created Item) from the moment it opens,
+  // not only once the user has actually edited a field - see that file's own "URL만 로딩 중인
+  // draft를 놓치지 않는다" requirement. Registered once on mount (mount-only effect); the object
+  // itself is stable for the screen's whole lifetime, so clearActiveNewLinkReviewDraft on unmount
+  // is guaranteed to clear exactly this registration and never a newer one.
+  useEffect(() => {
+    const draft = {
+      getNormalizedUrl: () => normalizeShareTextForComparison(urlRef.current),
+      onConflictingShare: (share: PendingShare) => setPendingConflictShare(share),
+    };
+    registerActiveNewLinkReviewDraft(draft);
+    return () => clearActiveNewLinkReviewDraft(draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only registration; the closure reads urlRef.current live and setPendingConflictShare is stable.
+  }, []);
 
   // route.params.preselectedCollectionId only ever carries an id (see RootStack.tsx's own remarks
   // on why - no Item/staged state exists yet for this not-yet-created Item), so its *name* - needed
@@ -187,10 +250,21 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // "we already have a title" meant there was nothing left to resolve - but the preview image is
   // a completely independent signal (see previewImageUrl below), and skipping this whole fetch
   // silently meant most real shares (which usually *do* arrive with some title/EXTRA_SUBJECT)
-  // never got a thumbnail at all. The title itself is still never overwritten once non-empty (see
-  // the `current === ''` check below) - only the image is unconditionally best-effort resolved. A
-  // non-URL review text (kind: 'reviewText') never reaches this, since isHttpUrl guards it. Never
-  // blocks Save - a small inline spinner is the only UI effect while it is in flight.
+  // never got a thumbnail at all.
+  //
+  // Title precedence (highest wins): user edit > resolved Backend metadata title > share-provided
+  // initialTitle > empty - except when the resolved metadata title is a known YouTube placeholder
+  // (see isKnownYouTubePlaceholderTitle above), in which case it is treated as if Backend found no
+  // title at all, dropping precedence to initialTitle > empty instead. hasUserEditedTitleRef (set
+  // only by handleTitleChange, see below) is the sole user-edit gate - once true, this resolve
+  // must never touch title again, no matter what arrives. This used to also gate on the title's
+  // current *value* being exactly '' before applying a resolved title, on the mistaken assumption
+  // that "non-empty" meant "the user already has something worth keeping" - but a non-empty title
+  // at this point is just as often the sharing app's own EXTRA_SUBJECT (e.g. the raw shared text,
+  // or a caption, never something the user actually typed), which the real, more accurate
+  // Backend-resolved title should still be trusted to replace. A non-URL review text
+  // (kind: 'reviewText') never reaches this, since isHttpUrl guards it. Never blocks Save - a
+  // small inline spinner is the only UI effect while it is in flight.
   useEffect(() => {
     if (!isHttpUrl(route.params.url)) {
       return;
@@ -204,24 +278,34 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         if (!isMounted) {
           return;
         }
-        if (metadata.previewImageUrl) {
+        // Skipped entirely once the user has already staged their own photo - picking one from
+        // the OS library realistically takes longer than this network round-trip, so a late-
+        // arriving auto image prepending itself ahead of (or alongside) the user's own choice is
+        // a real race, not a hypothetical one. previewImageUrl and photoOrder are always updated
+        // together here so ContentPreviewCard's top image and the photo list below it never
+        // disagree about whether an auto image exists.
+        if (metadata.previewImageUrl && !photoOrderRef.current.some(entry => entry.kind === 'staged')) {
           const resolvedImageUrl = metadata.previewImageUrl;
           setPreviewImageUrl(resolvedImageUrl);
           // Defaults to first (matching every other screen's "auto is first unless the user moves
-          // it" rule) - but only if the user hasn't already staged a photo and dragged it ahead of
-          // where the auto image would land, which this mount-only resolve can't race in practice
-          // (staging requires an explicit tap, and this fetch is already in flight by then).
+          // it" rule).
           setPhotoOrder(previous =>
             previous.some(entry => entry.kind === 'auto')
               ? previous
               : [{ kind: 'auto', url: resolvedImageUrl }, ...previous],
           );
         }
-        if (hasUserEditedTitleRef.current || !metadata.title) {
+        // A known YouTube placeholder (see isKnownYouTubePlaceholderTitle) is treated exactly like
+        // "no title" here - title simply stays whatever it already was (the share-provided
+        // initialTitle, or empty), never the placeholder itself.
+        if (
+          hasUserEditedTitleRef.current
+          || !metadata.title
+          || isKnownYouTubePlaceholderTitle(route.params.url, metadata.title)
+        ) {
           return;
         }
-        const resolvedTitle = metadata.title;
-        setTitle(current => (current === '' ? resolvedTitle : current));
+        setTitle(metadata.title);
       })
       .catch(() => {
         if (isMounted) {
@@ -303,7 +387,14 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     setPhotoOrder(previous => reorderList(previous, index, 0));
   };
 
-  const save = async () => {
+  // onSuccess defaults to the plain "go back to whatever opened this screen" behavior the Save
+  // button has always had; the active-draft conflict flow below passes its own onSuccess instead
+  // (acknowledge the pending share + replace this screen with a fresh one for the new URL) so it
+  // can reuse this exact same save sequence rather than duplicating it - this round's explicit
+  // "별도 save implementation 만들지 않는다" requirement. The existing `isSaving` guard just below
+  // already makes a second concurrent call to save() (from either caller) a no-op, so the conflict
+  // dialog's "저장 후 계속" button never risks a double save even on a fast double-tap.
+  const save = async (onSuccess: () => void = () => navigation.goBack()) => {
     const trimmedUrl = url.trim();
     if (!trimmedUrl || isSaving) {
       return;
@@ -381,12 +472,53 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         await setItemPreviewImage(authenticatedRequest, savedEntry.id, previewImageUrl).catch(() => undefined);
       }
 
-      navigation.goBack();
+      onSuccess();
     } catch (caughtError) {
       setError(getSaveErrorMessage(caughtError, t));
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Hands the now-resolved conflict share off to a brand-new NewLinkReview instance -
+  // navigation.replace (not navigate) is deliberate: unlike navigate, it always creates a fresh
+  // route with a new key, which is what actually remounts this screen and gives every piece of
+  // local state (title/memo/categories/photos/hasUserEditedTitleRef/photoOrderRef/metadata loading
+  // state) a clean start - see this codebase's existing CollectionDetailsScreen merge-navigation
+  // for the same replace-for-a-fresh-instance convention. acknowledgePendingShare only happens
+  // here, once the hand-off is actually committed - never earlier, so a save failure (see
+  // resolveConflictWithSave) never loses the pending share.
+  const completeConflictHandoff = (share: PendingShare) => {
+    const resolved = resolveIncomingShare(share);
+    setPendingConflictShare(null);
+    acknowledgePendingShare(share.id).catch(() => undefined);
+    navigation.replace('NewLinkReview', {
+      url: resolved.text,
+      initialTitle: resolved.title,
+      preselectedCollectionId: share.draftCollectionId ?? share.preselectedCollectionId,
+    });
+  };
+
+  // "저장 후 계속" - runs the exact same save() the main Save button uses, just with a different
+  // onSuccess. On failure, save() already sets `error` and resets `isSaving` on its own;
+  // pendingConflictShare is deliberately left untouched here so the dialog stays open and the user
+  // can retry either button - the new share is never silently dropped.
+  const resolveConflictWithSave = () => {
+    if (!pendingConflictShare) {
+      return;
+    }
+    const share = pendingConflictShare;
+    save(() => completeConflictHandoff(share));
+  };
+
+  // "버리고 계속" - never calls save() at all; the current draft's local state is simply abandoned
+  // (nothing was ever persisted for it) and completeConflictHandoff's navigation.replace gives the
+  // new share a fully fresh screen instance, so none of the discarded draft's state can leak in.
+  const resolveConflictWithDiscard = () => {
+    if (!pendingConflictShare) {
+      return;
+    }
+    completeConflictHandoff(pendingConflictShare);
   };
 
   // A new category is immediately added to the pool and auto-selected for this not-yet-created
@@ -511,7 +643,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           accessibilityRole="button"
           accessibilityState={{ disabled: !url.trim() || isSaving || isResolvingMetadataTitle, busy: isSaving }}
           disabled={!url.trim() || isSaving || isResolvingMetadataTitle}
-          onPress={save}
+          onPress={() => save()}
           style={[
             styles.saveButton,
             (!url.trim() || isSaving || isResolvingMetadataTitle) && styles.disabledButton,
@@ -543,6 +675,23 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         onToggle={toggleCategory}
         selectedIds={selectedCollectionIds}
         visible={categoryPicker.isVisible}
+      />
+
+      {/*
+        "버리고 계속" is the data-losing action, so it takes the confirm slot's destructive style
+        (matches this app's existing unsavedChanges/leave convention - see ItemDetailsScreen); "저장
+        후 계속" - the safe, nothing-is-lost action - takes the cancel slot's neutral style, so an
+        accidental backdrop tap or hardware back press (ConfirmDialog's dismiss falls back to
+        onCancel) can never discard data by mistake.
+      */}
+      <ConfirmDialog
+        cancelLabel={t('item.saveDraftAndContinue')}
+        confirmLabel={t('item.discardDraftAndContinue')}
+        message={t('item.activeDraftConflictMessage')}
+        onCancel={resolveConflictWithSave}
+        onConfirm={resolveConflictWithDiscard}
+        title={t('item.activeDraftConflictTitle')}
+        visible={pendingConflictShare !== null}
       />
     </View>
   );

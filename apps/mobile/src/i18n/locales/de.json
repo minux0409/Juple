@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "Zugriff auf die Fotomediathek ist erforderlich.",
     "errorImagePickerFallback": "Das Foto konnte nicht ausgewählt werden.",
     "resolvingMetadataOverlay": "Linkinformationen werden geladen …",
-    "metadataResolutionFailedHint": "Linkinformationen konnten nicht geladen werden. Du kannst sie selbst eingeben und speichern."
+    "metadataResolutionFailedHint": "Linkinformationen konnten nicht geladen werden. Du kannst sie selbst eingeben und speichern.",
+    "activeDraftConflictTitle": "Du hast einen Link in Bearbeitung",
+    "activeDraftConflictMessage": "Möchtest du den aktuell bearbeiteten Link speichern, bevor du den neuen Link ansiehst?",
+    "saveDraftAndContinue": "Speichern und fortfahren",
+    "discardDraftAndContinue": "Verwerfen und fortfahren"
   },
   "sharedCollection": {
     "itemsEmpty": "In dieser geteilten Kategorie sind noch keine Links gespeichert.",

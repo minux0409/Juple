@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "Fotoğraf kitaplığına erişim izni gerekiyor.",
     "errorImagePickerFallback": "Fotoğraf seçilemedi.",
     "resolvingMetadataOverlay": "Bağlantı bilgileri yükleniyor...",
-    "metadataResolutionFailedHint": "Bağlantı bilgileri yüklenemedi. Kendiniz girip kaydedebilirsiniz."
+    "metadataResolutionFailedHint": "Bağlantı bilgileri yüklenemedi. Kendiniz girip kaydedebilirsiniz.",
+    "activeDraftConflictTitle": "Üzerinde çalıştığınız bir bağlantı var",
+    "activeDraftConflictMessage": "Yeni bağlantıya geçmeden önce üzerinde çalıştığınız bağlantıyı kaydetmek ister misiniz?",
+    "saveDraftAndContinue": "Kaydet ve devam et",
+    "discardDraftAndContinue": "Vazgeç ve devam et"
   },
   "sharedCollection": {
     "itemsEmpty": "Bu paylaşılan kategoride henüz kaydedilmiş bağlantı yok.",

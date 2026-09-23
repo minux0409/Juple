@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "Akses ke galeri foto diperlukan.",
     "errorImagePickerFallback": "Tidak dapat memilih foto.",
     "resolvingMetadataOverlay": "Memuat info tautan...",
-    "metadataResolutionFailedHint": "Info tautan tidak dapat dimuat. Anda bisa memasukkannya sendiri lalu simpan."
+    "metadataResolutionFailedHint": "Info tautan tidak dapat dimuat. Anda bisa memasukkannya sendiri lalu simpan.",
+    "activeDraftConflictTitle": "Anda memiliki tautan yang sedang dikerjakan",
+    "activeDraftConflictMessage": "Simpan tautan yang sedang Anda kerjakan sebelum memeriksa tautan baru?",
+    "saveDraftAndContinue": "Simpan dan lanjutkan",
+    "discardDraftAndContinue": "Buang dan lanjutkan"
   },
   "sharedCollection": {
     "itemsEmpty": "Kategori bersama ini belum memiliki tautan yang disimpan.",

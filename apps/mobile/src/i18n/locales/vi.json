@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "Cần quyền truy cập thư viện ảnh.",
     "errorImagePickerFallback": "Không thể chọn ảnh.",
     "resolvingMetadataOverlay": "Đang tải thông tin liên kết...",
-    "metadataResolutionFailedHint": "Không thể tải thông tin liên kết. Bạn có thể tự nhập và lưu."
+    "metadataResolutionFailedHint": "Không thể tải thông tin liên kết. Bạn có thể tự nhập và lưu.",
+    "activeDraftConflictTitle": "Bạn có một liên kết đang thực hiện",
+    "activeDraftConflictMessage": "Bạn có muốn lưu liên kết đang chỉnh sửa trước khi xem liên kết mới không?",
+    "saveDraftAndContinue": "Lưu và tiếp tục",
+    "discardDraftAndContinue": "Bỏ qua và tiếp tục"
   },
   "sharedCollection": {
     "itemsEmpty": "Danh mục được chia sẻ này chưa có liên kết nào được lưu.",

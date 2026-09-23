@@ -126,6 +126,20 @@ public sealed class UrlMetadataResolverTests
         return response;
     }
 
+    private static HttpResponseMessage OEmbedJsonResponse(string json)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(Encoding.UTF8.GetBytes(json)),
+        };
+        response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return response;
+    }
+
+    private static bool IsOEmbedRequest(HttpRequestMessage request) =>
+        request.RequestUri!.Host.Equals("www.youtube.com", StringComparison.OrdinalIgnoreCase)
+        && request.RequestUri.AbsolutePath == "/oembed";
+
     [Fact]
     public async Task ResolveAsync_ExtractsOgTitle_EndToEnd()
     {
@@ -847,6 +861,236 @@ public sealed class UrlMetadataResolverTests
             await resolver.ResolveAsync("https://a.example/start");
 
             Assert.Null(cookieHeaderOnHttpHop);
+        }
+    }
+
+    // YouTube oEmbed title fallback - see YouTubeOEmbedTitleResolver. Scenarios A-G per this
+    // round's spec.
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenHtmlAlreadyHasARealTitle_NeverCallsOEmbed()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    throw new InvalidOperationException("Must never call oEmbed when HTML already has a real title.");
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head><title>A Real Video Title</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("A Real Video Title", result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenHtmlTitleIsTheKnownPlaceholder_FallsBackToOEmbedTitle()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    Assert.Contains("url=", request.RequestUri!.Query);
+                    return OEmbedJsonResponse("{\"title\":\"Real oEmbed Title\",\"type\":\"video\"}");
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head><title>- YouTube</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("Real oEmbed Title", result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenHtmlHasNoTitleAtAll_FallsBackToOEmbedTitle()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    return OEmbedJsonResponse("{\"title\":\"Another Real Title\"}");
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("Another Real Title", result.Title);
+        }
+    }
+
+    [Theory]
+    [InlineData("malformed json not even close")]
+    [InlineData("{\"no_title_field\":true}")]
+    public async Task ResolveAsync_YouTube_WhenOEmbedRespondsMalformed_ResolveStillSucceeds_WithNoTitle(string body)
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    return OEmbedJsonResponse(body);
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Null(result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenOEmbedRequestThrows_ResolveStillSucceeds_WithNoTitle()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    throw new TaskCanceledException("simulated oEmbed timeout");
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Null(result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenOEmbedRespondsNonSuccessStatus_ResolveStillSucceeds_WithNoTitle()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Null(result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NonYouTubeHost_WithNoTitleInHtml_NeverCallsOEmbed()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    throw new InvalidOperationException("Must never call YouTube's oEmbed for a non-YouTube host.");
+                }
+
+                return HtmlResponse("<html><head></head></html>");
+            },
+            out var handler, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/no-title-here");
+
+            Assert.Null(result.Title);
+            Assert.Equal(1, handler.CallCount);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenOEmbedTitleIsItselfTheKnownPlaceholder_IsNotUsed()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    return OEmbedJsonResponse("{\"title\":\"YouTube\"}");
+                }
+
+                return request.Method == HttpMethod.Head
+                    ? new HttpResponseMessage(HttpStatusCode.NotFound)
+                    : HtmlResponse("<html><head><title>- YouTube</title></head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Null(result.Title);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_OEmbedTitleFallback_DoesNotAffectThumbnailResolution()
+    {
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    return OEmbedJsonResponse("{\"title\":\"Thumbnail Coexistence Title\"}");
+                }
+
+                if (request.Method == HttpMethod.Head)
+                {
+                    return request.RequestUri!.AbsoluteUri.Contains("hqdefault")
+                        ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                        : new HttpResponseMessage(HttpStatusCode.NotFound);
+                }
+
+                return HtmlResponse(
+                    "<html><head><title>- YouTube</title>"
+                    + "<meta property=\"og:image\" content=\"https://i.ytimg.com/vi/abc123XYZ_/maxresdefault.jpg\" />"
+                    + "</head></html>");
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=abc123XYZ_");
+
+            Assert.Equal("Thumbnail Coexistence Title", result.Title);
+            Assert.Equal("https://i.ytimg.com/vi/abc123XYZ_/hqdefault.jpg", result.PreviewImageUrl);
         }
     }
 

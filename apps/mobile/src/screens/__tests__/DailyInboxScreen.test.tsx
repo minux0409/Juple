@@ -12,13 +12,18 @@ import { AppToastProvider } from '../../components/AppToast';
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-import { deleteItem, getItemHistory, restoreItem, updateItemDetails, type ItemHistoryEntry } from '../../items/api/itemsApi';
+import { deleteItem, getItemHistory, restoreItem, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 
+// A module-level mock (not a fresh jest.fn() returned from the factory on every call) so tests
+// can assert on it directly - matches the pattern already used elsewhere for route-prop screens
+// (see CollectionDetailsScreen.test.tsx's own `navigation` constant).
+const mockNavigate = jest.fn();
+
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => {
@@ -55,13 +60,6 @@ jest.mock('../../items/shareItem', () => ({
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
   resolveUrlMetadata: jest.fn(),
 }));
-
-/** Drains a handful of pending microtask ticks - used to let the fire-and-forget metadata enrichment chain (resolveUrlMetadata -> updateItemDetails -> loadToday) settle after Save, without relying on fake timers. */
-async function flushMicrotasks(times = 10): Promise<void> {
-  for (let i = 0; i < times; i++) {
-    await Promise.resolve();
-  }
-}
 
 function makeItem(overrides: Partial<ItemHistoryEntry>): ItemHistoryEntry {
   return {
@@ -301,22 +299,16 @@ function pressHomeSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
   renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress();
 }
 
-describe('DailyInboxScreen direct URL save', () => {
+describe('DailyInboxScreen direct URL entry', () => {
   beforeEach(() => {
     setUpItems([]);
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('saves the URL and best-effort resolves URL metadata (Home never collects a title itself)', async () => {
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 21,
-      url: 'https://example.com',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
+  it('never saves anything itself - Check only navigates to NewLinkReview for the user to actually Save', async () => {
     const renderer = await renderScreen();
 
     const urlInput = renderer.root.findByType(TextInput);
@@ -326,21 +318,51 @@ describe('DailyInboxScreen direct URL save', () => {
 
     await act(async () => {
       pressHomeSaveButton(renderer);
-      await flushMicrotasks();
     });
 
-    expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), 'https://example.com');
-    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com');
+    expect(saveInboxEntry).not.toHaveBeenCalled();
+    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('NewLinkReview', {
+      url: 'https://example.com',
+      initialTitle: null,
+      preselectedCollectionId: null,
+    });
   });
 
-  it('applies a title resolved from URL metadata in the background, without Save waiting on it', async () => {
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 22,
-      url: 'https://example.com',
-      savedAtUtc: '2026-01-01T00:00:00Z',
+  it('does not navigate for an empty/whitespace-only URL', async () => {
+    const renderer = await renderScreen();
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText('   ');
     });
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
-    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+
+    // The button itself is disabled while empty/whitespace-only, but the guard inside the handler
+    // is what actually matters here - not just the disabled prop.
+    await act(async () => {
+      renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress();
+    });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-http(s) value with the existing bad-request message, never navigating', async () => {
+    const renderer = await renderScreen();
+
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText('not a url');
+    });
+
+    await act(async () => {
+      pressHomeSaveButton(renderer);
+    });
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ children: i18n.t('inbox.errorBadRequest') })).toBeTruthy();
+  });
+
+  it('navigates exactly once on a rapid double-press', async () => {
     const renderer = await renderScreen();
 
     const urlInput = renderer.root.findByType(TextInput);
@@ -349,44 +371,15 @@ describe('DailyInboxScreen direct URL save', () => {
     });
 
     await act(async () => {
-      pressHomeSaveButton(renderer);
-      await flushMicrotasks();
+      const onPress = renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress;
+      onPress();
+      onPress();
     });
 
-    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 22, {
-      title: 'Metadata Title',
-      memo: '',
-    });
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
   });
 
-  it('save succeeds even when URL metadata resolution fails', async () => {
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 23,
-      url: 'https://example.com',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-    jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const renderer = await renderScreen();
-
-    const urlInput = renderer.root.findByType(TextInput);
-    await act(async () => {
-      urlInput.props.onChangeText('https://example.com');
-    });
-
-    await act(async () => {
-      pressHomeSaveButton(renderer);
-      await flushMicrotasks();
-    });
-
-    expect(saveInboxEntry).toHaveBeenCalled();
-    expect(updateItemDetails).not.toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
-
-  it('shows the save action as a CheckIcon button next to the URL input (no separate text CTA), disabled while empty or saving', async () => {
-    let resolveSave!: (value: { id: number; url: string; savedAtUtc: string }) => void;
-    jest.mocked(saveInboxEntry).mockImplementation(() => new Promise(resolve => { resolveSave = resolve; }));
+  it('shows the Check action as an icon-only button next to the URL input, disabled while empty', async () => {
     const renderer = await renderScreen();
 
     // The old full-width "저장" text CTA is gone - only the accessibilityLabel identifies the action now.
@@ -396,15 +389,6 @@ describe('DailyInboxScreen direct URL save', () => {
     const urlInput = renderer.root.findByType(TextInput);
     await act(async () => { urlInput.props.onChangeText('https://example.com'); });
     expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.disabled).toBe(false);
-
-    await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.onPress(); });
-    expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('common.save') }).props.disabled).toBe(true);
-    expect(saveInboxEntry).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      resolveSave({ id: 40, url: 'https://example.com', savedAtUtc: '2026-01-01T00:00:00Z' });
-      await Promise.resolve();
-    });
   });
 });
 

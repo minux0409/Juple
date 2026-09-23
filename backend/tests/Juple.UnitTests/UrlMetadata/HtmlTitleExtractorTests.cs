@@ -630,4 +630,78 @@ public sealed class HtmlTitleExtractorTests
 
         Assert.Equal("낄낄엔터 on Instagram: \"caption\"", title);
     }
+
+    [Theory]
+    [InlineData("- YouTube")]
+    [InlineData("YouTube")]
+    [InlineData("  -   YouTube  ")]
+    public async Task ExtractAsync_YouTube_TreatsKnownPlaceholderOgTitle_AsNotFound_AndFallsThroughToTwitter(
+        string placeholderOgTitle)
+    {
+        var html = $"""
+            <html><head>
+            <meta property="og:title" content="{placeholderOgTitle}" />
+            <meta name="twitter:title" content="Real Video Title" />
+            </head></html>
+            """;
+
+        var (title, source, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.youtube.com");
+
+        Assert.Equal("Real Video Title", title);
+        Assert.Equal(UrlMetadataSource.Twitter, source);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_YouTube_WhenEveryCandidateIsAKnownPlaceholder_ReturnsNull_NeverThePlaceholder()
+    {
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="- YouTube" />
+            <meta name="twitter:title" content="YouTube" />
+            <title>- YouTube</title>
+            </head></html>
+            """;
+
+        var (title, source, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.youtube.com");
+
+        Assert.Null(title);
+        Assert.Null(source);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_YouTube_RealTitleEndingInSiteSuffix_IsUsedAsIs_NoUnnecessaryFallback()
+    {
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="Actual Video Title - YouTube" />
+            </head></html>
+            """;
+
+        var (title, source, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "www.youtube.com");
+
+        Assert.Equal("Actual Video Title - YouTube", title);
+        Assert.Equal(UrlMetadataSource.OpenGraph, source);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_NonYouTubeHost_NeverFiltersALiteral_YouTube_Title()
+    {
+        // The YouTube-only placeholder filter is strictly host-gated - a page on some other site
+        // whose real, author-chosen title happens to be the bare word "YouTube" (e.g. an article
+        // about YouTube) must still be trusted as-is everywhere except youtube.com itself.
+        const string html = """
+            <html><head>
+            <meta property="og:title" content="YouTube" />
+            </head></html>
+            """;
+
+        var (title, source, _, _) = await HtmlTitleExtractor.ExtractAsync(
+            html, CancellationToken.None, "some-blog.example.com");
+
+        Assert.Equal("YouTube", title);
+        Assert.Equal(UrlMetadataSource.OpenGraph, source);
+    }
 }

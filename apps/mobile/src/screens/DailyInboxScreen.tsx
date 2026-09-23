@@ -27,7 +27,6 @@ import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { CheckIcon } from '../icons/CheckIcon';
 import { LinkIcon } from '../icons/LinkIcon';
-import { saveInboxEntry } from '../inbox/api/inboxApi';
 import {
   deleteItem,
   getItemHistory,
@@ -38,8 +37,8 @@ import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import { filterTodayItemsPage } from '../items/todayItemsFilter';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { isHttpUrl } from '../share/resolveIncomingShare';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
-import { enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
 
 const PAGE_LIMIT = 50;
 
@@ -107,7 +106,6 @@ export function DailyInboxScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
@@ -129,6 +127,11 @@ export function DailyInboxScreen() {
   // focuses (such as returning from ItemDetails after an edit) use the lighter refresh indicator.
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
+  // Guards a rapid double-tap of the Check button from pushing NewLinkReview twice - navigate()
+  // alone isn't enough since two synchronous presses can both fire before React Navigation's own
+  // state update makes the first one visible. Reset on every focus (below), so returning to Home
+  // without saving (or after saving) never leaves the button stuck disabled.
+  const isNavigatingToReviewRef = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -226,6 +229,7 @@ export function DailyInboxScreen() {
   // an edit), matching the same focus-driven refresh already used for Wishlist/Archive.
   useFocusEffect(
     useCallback(() => {
+      isNavigatingToReviewRef.current = false;
       loadToday(hasLoadedOnceRef.current ? 'refresh' : 'initial');
     }, [loadToday]),
   );
@@ -249,32 +253,41 @@ export function DailyInboxScreen() {
     return () => subscription.remove();
   }, [loadToday]);
 
-  const saveUrl = async () => {
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl || isSaving) {
+  /**
+   * Home's Check button no longer saves anything itself - it only validates and hands the URL off
+   * to NewLinkReviewScreen (the same review screen Incoming Share/Quick Save OFF already uses),
+   * where the user actually reviews/edits the resolved metadata and taps Save. This used to call
+   * saveInboxEntry immediately (title-less) and best-effort enrich it afterward, which meant a
+   * slow/failed metadata resolve could leave a bare, title-less, image-less Item in History with
+   * no chance to fix it before it was already saved - see this round's "Check 버튼을 눌러도 즉시
+   * 저장하지 않는다" requirement. No Item is created here at all; NewLinkReview's own Save button
+   * is now the only place a URL pasted into Home actually becomes an Item.
+   */
+  const openReview = () => {
+    if (isNavigatingToReviewRef.current) {
       return;
     }
 
-    setIsSaving(true);
-    setError(null);
-    try {
-      const savedEntry = await saveInboxEntry(authenticatedRequest, trimmedUrl);
-      setUrl('');
-      await loadToday('refresh');
-
-      // Home never collects a title, so every direct save here starts title-less - best-effort
-      // metadata fallback (same policy as Incoming Share - see enrichItemTitleFromUrlMetadata),
-      // deliberately NOT awaited so Save never blocks on it; refreshes the list again once it
-      // settles (itself never throws) so a resolved title actually shows up without the user
-      // having to pull-to-refresh.
-      enrichItemTitleFromUrlMetadata(authenticatedRequest, savedEntry.id, trimmedUrl).then(() =>
-        loadToday('refresh'),
-      );
-    } catch (caughtError) {
-      setSaveError(getInboxErrorMessage(caughtError, true, t));
-    } finally {
-      setIsSaving(false);
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      return;
     }
+
+    if (!isHttpUrl(trimmedUrl)) {
+      // Same message the server's own badRequest validation used to produce for this case -
+      // checked client-side now since Check no longer calls the server at all.
+      setSaveError(t('inbox.errorBadRequest'));
+      return;
+    }
+
+    isNavigatingToReviewRef.current = true;
+    setSaveError(null);
+    setUrl('');
+    navigation.navigate('NewLinkReview', {
+      url: trimmedUrl,
+      initialTitle: null,
+      preselectedCollectionId: null,
+    });
   };
 
   const runDelete = async (itemId: number) => {
@@ -374,15 +387,11 @@ export function DailyInboxScreen() {
               <Pressable
                 accessibilityLabel={t('common.save')}
                 accessibilityRole="button"
-                disabled={isSaving || !url.trim()}
-                onPress={() => {
-                  saveUrl();
-                }}
-                style={[styles.saveIconButton, (isSaving || !url.trim()) ? styles.disabledButton : null]}
+                disabled={!url.trim()}
+                onPress={openReview}
+                style={[styles.saveIconButton, !url.trim() ? styles.disabledButton : null]}
               >
-                {isSaving
-                  ? <ActivityIndicator color={colors.brand} size="small" />
-                  : <CheckIcon color={colors.brand} size={20} />}
+                <CheckIcon color={colors.brand} size={20} />
               </Pressable>
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}

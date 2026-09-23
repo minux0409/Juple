@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "需要访问照片库的权限。",
     "errorImagePickerFallback": "无法选择照片。",
     "resolvingMetadataOverlay": "正在加载链接信息…",
-    "metadataResolutionFailedHint": "无法加载链接信息。您可以自行输入后保存。"
+    "metadataResolutionFailedHint": "无法加载链接信息。您可以自行输入后保存。",
+    "activeDraftConflictTitle": "您有正在编辑的链接",
+    "activeDraftConflictMessage": "是否先保存当前正在编辑的链接,再查看新链接?",
+    "saveDraftAndContinue": "保存并继续",
+    "discardDraftAndContinue": "放弃并继续"
   },
   "sharedCollection": {
     "itemsEmpty": "这个共享分类中还没有保存的链接。",

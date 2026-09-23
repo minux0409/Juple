@@ -175,6 +175,23 @@ public sealed class UrlMetadataResolver(
                 var (title, source, previewImageUrl, previewImageSource) =
                     await HtmlTitleExtractor.ExtractAsync(html, budgetCts.Token, currentUri.Host);
 
+                // The fetched HTML itself had no usable title (missing entirely, or only
+                // YouTube's own known empty-lookup placeholder - see
+                // HtmlTitleExtractor.IsKnownPlaceholderTitle) - fall back to YouTube's public
+                // oEmbed endpoint before giving up on a title outright. Host-gated exactly like
+                // the placeholder filter itself; a non-YouTube page with no title is simply left
+                // with no title, same as before this fallback existed.
+                if (title is null && YouTubeThumbnailResolver.IsYouTubeHost(currentUri.Host))
+                {
+                    var oEmbedTitle = await YouTubeOEmbedTitleResolver.ResolveTitleAsync(
+                        httpClient, currentUri, budgetCts.Token);
+                    if (oEmbedTitle is not null)
+                    {
+                        title = oEmbedTitle;
+                        source = UrlMetadataSource.YouTubeOEmbed;
+                    }
+                }
+
                 // Instagram's own generic/login-wall/interstitial shell page (served instead of
                 // the real post - see this class's own remarks on redirect/cookie continuity,
                 // which turned out NOT to be sufficient to avoid it) still declares a

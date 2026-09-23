@@ -6,4 +6,5 @@ public enum UrlMetadataSource
     OpenGraph,
     Twitter,
     HtmlTitle,
+    YouTubeOEmbed,
 }

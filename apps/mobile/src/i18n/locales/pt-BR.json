@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "É necessário acesso à biblioteca de fotos.",
     "errorImagePickerFallback": "Não foi possível selecionar a foto.",
     "resolvingMetadataOverlay": "Carregando informações do link...",
-    "metadataResolutionFailedHint": "Não foi possível carregar as informações do link. Você pode inserir manualmente e salvar."
+    "metadataResolutionFailedHint": "Não foi possível carregar as informações do link. Você pode inserir manualmente e salvar.",
+    "activeDraftConflictTitle": "Você tem um link em andamento",
+    "activeDraftConflictMessage": "Deseja salvar o link em que está trabalhando antes de conferir o novo link?",
+    "saveDraftAndContinue": "Salvar e continuar",
+    "discardDraftAndContinue": "Descartar e continuar"
   },
   "sharedCollection": {
     "itemsEmpty": "Esta categoria compartilhada ainda não tem links salvos.",

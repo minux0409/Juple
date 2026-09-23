@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "ต้องได้รับสิทธิ์เข้าถึงคลังรูปภาพ",
     "errorImagePickerFallback": "ไม่สามารถเลือกรูปภาพได้",
     "resolvingMetadataOverlay": "กำลังโหลดข้อมูลลิงก์...",
-    "metadataResolutionFailedHint": "โหลดข้อมูลลิงก์ไม่สำเร็จ คุณสามารถกรอกข้อมูลเองแล้วบันทึกได้"
+    "metadataResolutionFailedHint": "โหลดข้อมูลลิงก์ไม่สำเร็จ คุณสามารถกรอกข้อมูลเองแล้วบันทึกได้",
+    "activeDraftConflictTitle": "คุณมีลิงก์ที่กำลังดำเนินการอยู่",
+    "activeDraftConflictMessage": "ต้องการบันทึกลิงก์ที่กำลังแก้ไขอยู่ก่อนตรวจสอบลิงก์ใหม่หรือไม่?",
+    "saveDraftAndContinue": "บันทึกแล้วดำเนินการต่อ",
+    "discardDraftAndContinue": "ละทิ้งแล้วดำเนินการต่อ"
   },
   "sharedCollection": {
     "itemsEmpty": "หมวดหมู่ที่แชร์นี้ยังไม่มีลิงก์ที่บันทึกไว้",

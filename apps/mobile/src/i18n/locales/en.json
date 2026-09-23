@@ -273,7 +273,11 @@
     "errorImagePickerPermission": "Photo library access is required.",
     "errorImagePickerFallback": "Couldn't select the photo.",
     "resolvingMetadataOverlay": "Loading link info...",
-    "metadataResolutionFailedHint": "We couldn't load link info. You can enter it yourself and save."
+    "metadataResolutionFailedHint": "We couldn't load link info. You can enter it yourself and save.",
+    "activeDraftConflictTitle": "You have a link in progress",
+    "activeDraftConflictMessage": "Save the link you're currently working on before checking the new one?",
+    "saveDraftAndContinue": "Save and continue",
+    "discardDraftAndContinue": "Discard and continue"
   },
   "sharedCollection": {
     "itemsEmpty": "This shared category has no saved links yet.",

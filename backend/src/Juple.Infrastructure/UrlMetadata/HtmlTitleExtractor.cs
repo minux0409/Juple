@@ -49,7 +49,7 @@ public static partial class HtmlTitleExtractor
 
         var openGraphTitle = NormalizeTitle(
             document.QuerySelector("meta[property='og:title']")?.GetAttribute("content"));
-        if (openGraphTitle is not null)
+        if (openGraphTitle is not null && !IsKnownPlaceholderTitle(host, openGraphTitle))
         {
             return (
                 ApplyInstagramUsername(host, openGraphTitle, document), UrlMetadataSource.OpenGraph,
@@ -58,7 +58,7 @@ public static partial class HtmlTitleExtractor
 
         var twitterTitle = NormalizeTitle(
             document.QuerySelector("meta[name='twitter:title']")?.GetAttribute("content"));
-        if (twitterTitle is not null)
+        if (twitterTitle is not null && !IsKnownPlaceholderTitle(host, twitterTitle))
         {
             return (
                 ApplyInstagramUsername(host, twitterTitle, document), UrlMetadataSource.Twitter,
@@ -66,7 +66,7 @@ public static partial class HtmlTitleExtractor
         }
 
         var htmlTitle = NormalizeTitle(document.Title);
-        if (htmlTitle is not null)
+        if (htmlTitle is not null && !IsKnownPlaceholderTitle(host, htmlTitle))
         {
             return (htmlTitle, UrlMetadataSource.HtmlTitle, previewImageUrl, previewImageSource);
         }
@@ -272,6 +272,30 @@ public static partial class HtmlTitleExtractor
         // Broader login-wall heuristic: "log in"/"login" combined with a bare platform name and
         // nothing else meaningful (e.g. "Log in to Instagram").
         return (lower.Contains("log in") || lower.Contains("login")) && lower.Contains("instagram");
+    }
+
+    /// <summary>
+    /// A second, source-and-host-gated filter run on top of the already-normalized candidate
+    /// (unlike IsGenericPlaceholderTitle above, which runs unconditionally inside NormalizeTitle
+    /// itself) - this one only ever applies to YouTube, and only to the exact strings YouTube's
+    /// own og:title/twitter:title/&lt;title&gt; are confirmed to return when its server-side title
+    /// lookup itself comes back empty (observed on real device saves as "- YouTube"). Deliberately
+    /// never a generic "title equals site name" heuristic across arbitrary sites - a page whose
+    /// real, author-chosen title happens to equal its own site name must still be trusted
+    /// everywhere except this one confirmed provider case, per this round's "일반 사이트 전체에
+    /// 공격적인 title 필터를 적용하지 않는다" requirement. Returning true here means "treat this
+    /// candidate as if it were empty" - ExtractAsync falls through to the next source exactly like
+    /// it already does for a blank/whitespace-only value.
+    /// </summary>
+    private static bool IsKnownPlaceholderTitle(string host, string normalizedTitle)
+    {
+        if (!YouTubeThumbnailResolver.IsYouTubeHost(host))
+        {
+            return false;
+        }
+
+        var lower = normalizedTitle.ToLowerInvariant();
+        return lower is "youtube" or "- youtube";
     }
 
     [GeneratedRegex(@"\s+")]

@@ -9,6 +9,8 @@ import { addItemToCollection, createCollection, getCollections } from '../../col
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
 import { uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
+import { getActiveNewLinkReviewDraft } from '../../share/activeNewLinkReviewDraft';
+import type { PendingShare } from '../../share/specs/NativeIncomingShare';
 import { resolveUrlMetadata, type UrlMetadataSource } from '../../urlMetadata/api/urlMetadataApi';
 
 beforeAll(async () => {
@@ -47,6 +49,19 @@ jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
   resolveUrlMetadata: jest.fn(),
 }));
 
+// Declared with a "mock" prefix so babel-plugin-jest-hoist allows referencing it from the
+// hoisted jest.mock factory below - kept as the SAME stable jest.fn() instance across every
+// useIncomingShare() call (including NewLinkReviewScreen's own internal one) so tests can assert
+// on it directly, rather than each call returning an unrelated new mock function.
+const mockAcknowledgePendingShare = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('../../share/useIncomingShare', () => ({
+  useIncomingShare: jest.fn(() => ({
+    pendingShare: null,
+    acknowledgePendingShare: mockAcknowledgePendingShare,
+  })),
+}));
+
 function makeUploadedImage(overrides: Partial<ItemImage> = {}): ItemImage {
   return {
     id: 9,
@@ -68,8 +83,31 @@ const ROUTE_PARAMS: { url: string; initialTitle: string | null; preselectedColle
 function makeProps(routeParamOverrides: Partial<typeof ROUTE_PARAMS> = {}) {
   return {
     route: { params: { ...ROUTE_PARAMS, ...routeParamOverrides }, key: 'r', name: 'NewLinkReview' as const },
-    navigation: { goBack: jest.fn() },
+    navigation: { goBack: jest.fn(), replace: jest.fn() },
   } as any;
+}
+
+function makePendingShare(overrides: Partial<PendingShare> = {}): PendingShare {
+  return {
+    id: 'incoming-1',
+    text: 'https://example.com/incoming',
+    receivedAtEpochMs: Date.now(),
+    initialTitle: null,
+    preselectedCollectionId: null,
+    draftTitle: null,
+    draftCollectionId: null,
+    ...overrides,
+  };
+}
+
+/** Simulates exactly what IncomingShareRouter does once it detects a conflicting share while this
+ * screen's draft is registered (see activeNewLinkReviewDraft.ts) - calls the registered draft's
+ * own onConflictingShare directly, rather than re-rendering a whole separate IncomingShareRouter
+ * tree, since that hand-off call is the entire surface this screen needs to react to. */
+async function triggerConflictingShare(share: PendingShare): Promise<void> {
+  await act(async () => {
+    getActiveNewLinkReviewDraft()!.onConflictingShare(share);
+  });
 }
 
 async function renderScreen(routeParamOverrides: Partial<typeof ROUTE_PARAMS> = {}) {
@@ -237,7 +275,7 @@ describe('NewLinkReviewScreen', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  it('still resolves metadata (for the preview image) even when an incoming title is already present, without overwriting the title', async () => {
+  it('still resolves metadata (for the preview image) even when an incoming title is already present', async () => {
     // Regression test: this used to skip the whole metadata fetch whenever an incoming title
     // existed, which silently meant most real shares (which usually do carry a title) never got
     // a preview image at all - see the metadata-resolution effect's own remarks.
@@ -251,8 +289,6 @@ describe('NewLinkReviewScreen', () => {
     });
 
     expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('Shared title');
     // 2, not 1: this round's visual redesign shows the same resolved preview image both at the top
     // of the content preview card and in the photo list below it - the same single resolved URL,
     // rendered twice for two different purposes (preview vs. the editable/reorderable photo list).
@@ -262,8 +298,57 @@ describe('NewLinkReviewScreen', () => {
     expect(previewImages).toHaveLength(2);
   });
 
-  it('fetches URL metadata and fills the empty title field when there is no incoming title', async () => {
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
+  it('replaces a share-provided initial title with the resolved Backend title, and applies the image too (both independent, both applied)', async () => {
+    // Title precedence: user edit > resolved Backend metadata title > share-provided initialTitle
+    // > empty. A non-empty initialTitle here is the sharing app's own EXTRA_SUBJECT (e.g. raw
+    // shared text or a caption, exactly what a YouTube share provides) - never something the user
+    // actually typed - so the real, Backend-resolved title must still be trusted to replace it.
+    // The image assertion here is the same shape as a real YouTube-share-with-image-missing
+    // report: title arrives via a *different* path (initialTitle) than the image (always only
+    // resolveUrlMetadata) - proving one being present/overwritten never blocks the other, since
+    // they're applied by two completely independent branches of the same effect.
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'A Different Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
+
+    const { renderer } = await renderScreen();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const [titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('A Different Metadata Title');
+    const previewImages = renderer.root
+      .findAllByType(require('react-native').Image)
+      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+    expect(previewImages).toHaveLength(2);
+  });
+
+  it('keeps the share-provided initial title when Backend metadata resolves with no title, but still applies a resolved image', async () => {
+    // Title and image are independent signals - a missing title must never suppress an image
+    // that did resolve (this is also the shape of the real "YouTube share: title fine, no
+    // thumbnail" style report, just with title/image roles swapped).
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
+
+    const { renderer } = await renderScreen();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const [titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('Shared title');
+    const previewImages = renderer.root
+      .findAllByType(require('react-native').Image)
+      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+    expect(previewImages).toHaveLength(2);
+  });
+
+  it('fetches URL metadata and fills the empty title field (and image) when there is no incoming title - the Home direct-URL-entry shape', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg',
+    });
 
     const { renderer } = await renderScreen({ initialTitle: null });
     await act(async () => {
@@ -273,6 +358,10 @@ describe('NewLinkReviewScreen', () => {
     expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
     const [titleInput] = renderer.root.findAllByType(TextInput);
     expect(titleInput.props.value).toBe('Metadata Title');
+    const previewImages = renderer.root
+      .findAllByType(require('react-native').Image)
+      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+    expect(previewImages).toHaveLength(2);
   });
 
   it('does not overwrite a title the user already started typing once URL metadata resolves', async () => {
@@ -305,6 +394,105 @@ describe('NewLinkReviewScreen', () => {
 
     const [titleInputAfter] = renderer.root.findAllByType(TextInput);
     expect(titleInputAfter.props.value).toBe('User typed title');
+  });
+
+  describe('YouTube placeholder title defense (while DEV Backend may still return one)', () => {
+    const YOUTUBE_URL = 'https://www.youtube.com/watch?v=abc123';
+
+    it.each(['- YouTube', 'YouTube', '  youtube  '])(
+      'keeps the share-provided initial title when Backend metadata title is the known placeholder %j',
+      async placeholderTitle => {
+        jest.mocked(resolveUrlMetadata).mockResolvedValue({
+          title: placeholderTitle, source: 'openGraph', previewImageUrl: null,
+        });
+
+        const { renderer } = await renderScreen({
+          url: YOUTUBE_URL, initialTitle: '충격적이었던 FPX의 몰락과정 총정리',
+        });
+        await act(async () => {
+          await Promise.resolve();
+        });
+
+        const [titleInput] = renderer.root.findAllByType(TextInput);
+        expect(titleInput.props.value).toBe('충격적이었던 FPX의 몰락과정 총정리');
+      },
+    );
+
+    it('leaves the title empty (never the placeholder) when there is no initial title either', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: '- YouTube', source: 'openGraph', previewImageUrl: null,
+      });
+
+      const { renderer } = await renderScreen({ url: YOUTUBE_URL, initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const [titleInput] = renderer.root.findAllByType(TextInput);
+      expect(titleInput.props.value).toBe('');
+    });
+
+    it('still applies a real (non-placeholder) YouTube video title over the share-provided initial title', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: '실제 영상 제목 - YouTube', source: 'openGraph', previewImageUrl: null,
+      });
+
+      const { renderer } = await renderScreen({ url: YOUTUBE_URL, initialTitle: '공유 제목' });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const [titleInput] = renderer.root.findAllByType(TextInput);
+      expect(titleInput.props.value).toBe('실제 영상 제목 - YouTube');
+    });
+
+    it('never lets a real YouTube title overwrite a title the user already edited', async () => {
+      let resolveMetadata!: (value: {
+        title: string | null;
+        source: UrlMetadataSource | null;
+        previewImageUrl: string | null;
+      }) => void;
+      jest.mocked(resolveUrlMetadata).mockReturnValue(
+        new Promise(resolve => {
+          resolveMetadata = resolve;
+        }),
+      );
+
+      const { renderer } = await renderScreen({ url: YOUTUBE_URL, initialTitle: null });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const [titleInput] = renderer.root.findAllByType(TextInput);
+      await act(async () => {
+        titleInput.props.onChangeText('사용자가 직접 입력한 제목');
+      });
+
+      await act(async () => {
+        resolveMetadata({ title: '실제 영상 제목', source: 'openGraph', previewImageUrl: null });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      const [titleInputAfter] = renderer.root.findAllByType(TextInput);
+      expect(titleInputAfter.props.value).toBe('사용자가 직접 입력한 제목');
+    });
+
+    it('does not filter a literal "YouTube"/"- YouTube" title on a non-YouTube host - only youtube.com is gated', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: '- YouTube', source: 'openGraph', previewImageUrl: null,
+      });
+
+      const { renderer } = await renderScreen({
+        url: 'https://www.instagram.com/p/xyz/', initialTitle: '공유 제목',
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const [titleInput] = renderer.root.findAllByType(TextInput);
+      expect(titleInput.props.value).toBe('- YouTube');
+    });
   });
 
   it('metadata resolution failure leaves the title blank and Save still works', async () => {
@@ -488,6 +676,44 @@ describe('NewLinkReviewScreen', () => {
       expect(renderer.root.findByProps({ children: '사진 (2/2)' })).toBeTruthy();
       const addButton = findByAccessibilityLabel(renderer, '사진 추가');
       expect(addButton?.props.accessibilityState.disabled).toBe(true);
+    });
+
+    it('does not let a late-arriving metadata image displace a photo the user already staged', async () => {
+      let resolveMetadata!: (value: {
+        title: string | null;
+        source: UrlMetadataSource | null;
+        previewImageUrl: string | null;
+      }) => void;
+      jest.mocked(resolveUrlMetadata).mockReturnValue(
+        new Promise(resolve => {
+          resolveMetadata = resolve;
+        }),
+      );
+      jest.mocked(launchImageLibrary).mockResolvedValue({
+        didCancel: false,
+        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+      } as never);
+
+      const { renderer } = await renderScreen({ initialTitle: null });
+
+      // User stages their own photo while metadata is still resolving.
+      await act(async () => {
+        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
+      });
+      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+
+      // Metadata now resolves with an image - it must not sneak in as a second, auto-added photo.
+      await act(async () => {
+        resolveMetadata({ title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg' });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+      const autoImages = renderer.root
+        .findAllByType(require('react-native').Image)
+        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
+      expect(autoImages).toHaveLength(0);
     });
 
     it('save: uploads the staged photo only after the Item exists, in natural (auto-first) order with no cover override', async () => {
@@ -717,4 +943,103 @@ describe('NewLinkReviewScreen', () => {
     expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 60);
   });
 
+  describe('active draft + conflicting incoming share', () => {
+    function findConflictDialog(renderer: ReactTestRenderer.ReactTestRenderer) {
+      return findVisibleConfirmDialog(renderer, i18n.t('item.activeDraftConflictTitle'));
+    }
+
+    it('shows the conflict dialog for a different-URL share, keeping the current draft untouched', async () => {
+      const { renderer } = await renderScreen();
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      await triggerConflictingShare(makePendingShare({ text: 'https://example.com/different' }));
+
+      expect(findConflictDialog(renderer)).toBeTruthy();
+      // The draft's own title field is completely unaffected by the incoming share just sitting
+      // there behind the dialog.
+      const [titleInput] = renderer.root.findAllByType(TextInput);
+      expect(titleInput.props.value).toBe('Shared title');
+    });
+
+    it('"저장 후 계속": saves the current draft exactly once, then replaces the screen with the new share', async () => {
+      jest.mocked(saveInboxEntry).mockResolvedValue({
+        id: 70,
+        url: 'https://example.com/shared',
+        savedAtUtc: '2026-01-01T00:00:00Z',
+      });
+      const { renderer, navigation } = await renderScreen();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const share = makePendingShare({
+        id: 'incoming-save',
+        text: 'https://example.com/new-after-save',
+        initialTitle: 'New Title',
+      });
+      await triggerConflictingShare(share);
+
+      await act(async () => {
+        await findConflictDialog(renderer)!.props.onCancel();
+      });
+
+      expect(saveInboxEntry).toHaveBeenCalledTimes(1);
+      expect(mockAcknowledgePendingShare).toHaveBeenCalledWith('incoming-save');
+      expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', {
+        url: 'https://example.com/new-after-save',
+        initialTitle: 'New Title',
+        preselectedCollectionId: null,
+      });
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(findConflictDialog(renderer)).toBeFalsy();
+    });
+
+    it('a failed "저장 후 계속" keeps the current draft and the pending share - never transitions to the new share', async () => {
+      jest.mocked(saveInboxEntry).mockRejectedValue(new Error('network down'));
+      const { renderer, navigation } = await renderScreen();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await triggerConflictingShare(makePendingShare({ id: 'incoming-fail', text: 'https://example.com/new-after-fail' }));
+
+      await act(async () => {
+        await findConflictDialog(renderer)!.props.onCancel();
+      });
+
+      expect(saveInboxEntry).toHaveBeenCalledTimes(1);
+      expect(navigation.replace).not.toHaveBeenCalled();
+      expect(mockAcknowledgePendingShare).not.toHaveBeenCalled();
+      // The dialog is still up (pendingConflictShare was never cleared) so the user can retry
+      // either button.
+      expect(findConflictDialog(renderer)).toBeTruthy();
+    });
+
+    it('"버리고 계속": never calls save, and replaces the screen with a fresh draft for the new share', async () => {
+      const { renderer, navigation } = await renderScreen();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const share = makePendingShare({
+        id: 'incoming-discard',
+        text: 'https://example.com/new-after-discard',
+        initialTitle: null,
+        preselectedCollectionId: 5,
+      });
+      await triggerConflictingShare(share);
+
+      await act(async () => {
+        await findConflictDialog(renderer)!.props.onConfirm();
+      });
+
+      expect(saveInboxEntry).not.toHaveBeenCalled();
+      expect(mockAcknowledgePendingShare).toHaveBeenCalledWith('incoming-discard');
+      expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', {
+        url: 'https://example.com/new-after-discard',
+        initialTitle: null,
+        preselectedCollectionId: 5,
+      });
+      expect(findConflictDialog(renderer)).toBeFalsy();
+    });
+  });
 });

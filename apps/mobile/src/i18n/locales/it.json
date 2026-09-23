@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "È richiesto l'accesso alla libreria foto.",
     "errorImagePickerFallback": "Impossibile selezionare la foto.",
     "resolvingMetadataOverlay": "Caricamento informazioni del link…",
-    "metadataResolutionFailedHint": "Impossibile caricare le informazioni del link. Puoi inserirle tu stesso e salvare."
+    "metadataResolutionFailedHint": "Impossibile caricare le informazioni del link. Puoi inserirle tu stesso e salvare.",
+    "activeDraftConflictTitle": "Hai un link in corso",
+    "activeDraftConflictMessage": "Vuoi salvare il link su cui stai lavorando prima di visualizzare il nuovo link?",
+    "saveDraftAndContinue": "Salva e continua",
+    "discardDraftAndContinue": "Scarta e continua"
   },
   "sharedCollection": {
     "itemsEmpty": "Questa categoria condivisa non ha ancora link salvati.",

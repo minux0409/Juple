@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "写真ライブラリへのアクセス権限が必要です。",
     "errorImagePickerFallback": "写真を選択できませんでした。",
     "resolvingMetadataOverlay": "リンク情報を読み込み中...",
-    "metadataResolutionFailedHint": "リンク情報を読み込めませんでした。直接入力して保存できます。"
+    "metadataResolutionFailedHint": "リンク情報を読み込めませんでした。直接入力して保存できます。",
+    "activeDraftConflictTitle": "作成中のリンクがあります",
+    "activeDraftConflictMessage": "現在作成中のリンクを保存してから新しいリンクを確認しますか?",
+    "saveDraftAndContinue": "保存して続行",
+    "discardDraftAndContinue": "破棄して続行"
   },
   "sharedCollection": {
     "itemsEmpty": "この共有カテゴリにはまだ保存されたリンクがありません。",

@@ -120,7 +120,9 @@ public static partial class YouTubeThumbnailResolver
         return pathMatch.Success && TryValidateVideoId(pathMatch.Groups["videoId"].Value, out videoId);
     }
 
-    private static bool IsYouTubeHost(string host) =>
+    /// <summary>Internal (not private) so HtmlTitleExtractor's own YouTube-only placeholder-title
+    /// check can reuse the exact same host list, rather than duplicating it.</summary>
+    internal static bool IsYouTubeHost(string host) =>
         host.Equals("www.youtube.com", StringComparison.OrdinalIgnoreCase)
         || host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase)
         || host.Equals("m.youtube.com", StringComparison.OrdinalIgnoreCase)

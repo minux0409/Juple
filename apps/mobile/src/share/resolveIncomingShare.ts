@@ -22,6 +22,23 @@ export interface ResolvedIncomingShare {
   readonly titleSource: IncomingShareTitleSource;
 }
 
+/**
+ * Minimal "is this the same link" comparison for the active-draft/incoming-share conflict check
+ * (see activeNewLinkReviewDraft.ts and IncomingShareRouter) - never a deep dedup heuristic. An
+ * absolute http/https URL is canonicalized via the URL constructor (normalizes scheme/host casing
+ * and default ports; leaves path/query/fragment as-is), so trivial formatting differences (e.g.
+ * host casing) still compare equal; anything that doesn't parse as an absolute URL (a
+ * 'reviewText' share's raw shared text) falls back to plain trimmed string equality.
+ */
+export function normalizeShareTextForComparison(value: string): string {
+  const trimmed = value.trim();
+  try {
+    return new URL(trimmed).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 /** Exported for reuse by NewLinkReviewScreen, which only attempts a URL-metadata fetch on an actual http/https URL. */
 export function isHttpUrl(value: string): boolean {
   try {

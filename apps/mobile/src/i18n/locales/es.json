@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "Se requiere acceso a la biblioteca de fotos.",
     "errorImagePickerFallback": "No se pudo seleccionar la foto.",
     "resolvingMetadataOverlay": "Cargando información del enlace…",
-    "metadataResolutionFailedHint": "No se pudo cargar la información del enlace. Puedes ingresarla tú mismo y guardar."
+    "metadataResolutionFailedHint": "No se pudo cargar la información del enlace. Puedes ingresarla tú mismo y guardar.",
+    "activeDraftConflictTitle": "Tienes un enlace en progreso",
+    "activeDraftConflictMessage": "¿Quieres guardar el enlace en el que estás trabajando antes de ver el nuevo enlace?",
+    "saveDraftAndContinue": "Guardar y continuar",
+    "discardDraftAndContinue": "Descartar y continuar"
   },
   "sharedCollection": {
     "itemsEmpty": "Esta categoría compartida aún no tiene enlaces guardados.",

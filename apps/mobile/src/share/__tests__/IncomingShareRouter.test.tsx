@@ -1,10 +1,15 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { IncomingShareRouter } from '../IncomingShareRouter';
 import { useIncomingShare } from '../useIncomingShare';
+import { getActiveNewLinkReviewDraft } from '../activeNewLinkReviewDraft';
 import { navigationRef } from '../../navigation/navigationRef';
 
 jest.mock('../useIncomingShare', () => ({
   useIncomingShare: jest.fn(),
+}));
+
+jest.mock('../activeNewLinkReviewDraft', () => ({
+  getActiveNewLinkReviewDraft: jest.fn(() => null),
 }));
 
 jest.mock('../../navigation/navigationRef', () => ({
@@ -158,5 +163,58 @@ describe('IncomingShareRouter', () => {
     });
 
     expect(navigationRef.navigate).toHaveBeenCalledTimes(2);
+  });
+
+  describe('when a NewLinkReview draft is already active', () => {
+    it('hands a different-URL share off to the draft instead of navigating/acknowledging it itself', async () => {
+      const share = makePendingShare({ id: 'share-8', text: 'https://example.com/new' });
+      mockPendingShare(share);
+      const { acknowledgePendingShare } = jest.mocked(useIncomingShare)();
+      const onConflictingShare = jest.fn();
+      jest.mocked(getActiveNewLinkReviewDraft).mockReturnValue({
+        getNormalizedUrl: () => 'https://example.com/current-draft',
+        onConflictingShare,
+      });
+
+      await render();
+
+      expect(onConflictingShare).toHaveBeenCalledWith(share);
+      expect(navigationRef.navigate).not.toHaveBeenCalled();
+      expect(acknowledgePendingShare).not.toHaveBeenCalled();
+    });
+
+    it('silently acknowledges - without a conflict hand-off or navigation - a share for the same URL the draft is already reviewing', async () => {
+      const share = makePendingShare({ id: 'share-9', text: 'https://example.com/same' });
+      mockPendingShare(share);
+      const { acknowledgePendingShare } = jest.mocked(useIncomingShare)();
+      const onConflictingShare = jest.fn();
+      jest.mocked(getActiveNewLinkReviewDraft).mockReturnValue({
+        getNormalizedUrl: () => 'https://example.com/same',
+        onConflictingShare,
+      });
+
+      await render();
+
+      expect(onConflictingShare).not.toHaveBeenCalled();
+      expect(navigationRef.navigate).not.toHaveBeenCalled();
+      expect(acknowledgePendingShare).toHaveBeenCalledWith('share-9');
+    });
+
+    it('does not hand off the same share id again on a later render', async () => {
+      const share = makePendingShare({ id: 'share-10', text: 'https://example.com/new-2' });
+      mockPendingShare(share);
+      const onConflictingShare = jest.fn();
+      jest.mocked(getActiveNewLinkReviewDraft).mockReturnValue({
+        getNormalizedUrl: () => 'https://example.com/current-draft-2',
+        onConflictingShare,
+      });
+      const renderer = await render();
+
+      await act(async () => {
+        renderer.update(<IncomingShareRouter />);
+      });
+
+      expect(onConflictingShare).toHaveBeenCalledTimes(1);
+    });
   });
 });

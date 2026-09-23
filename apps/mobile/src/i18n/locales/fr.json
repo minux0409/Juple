@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "L'accès à la photothèque est requis.",
     "errorImagePickerFallback": "Impossible de sélectionner la photo.",
     "resolvingMetadataOverlay": "Chargement des informations du lien…",
-    "metadataResolutionFailedHint": "Impossible de charger les informations du lien. Vous pouvez les saisir vous-même et enregistrer."
+    "metadataResolutionFailedHint": "Impossible de charger les informations du lien. Vous pouvez les saisir vous-même et enregistrer.",
+    "activeDraftConflictTitle": "Vous avez un lien en cours",
+    "activeDraftConflictMessage": "Voulez-vous enregistrer le lien en cours avant de consulter le nouveau lien ?",
+    "saveDraftAndContinue": "Enregistrer et continuer",
+    "discardDraftAndContinue": "Ignorer et continuer"
   },
   "sharedCollection": {
     "itemsEmpty": "Cette catégorie partagée n'a pas encore de liens enregistrés.",

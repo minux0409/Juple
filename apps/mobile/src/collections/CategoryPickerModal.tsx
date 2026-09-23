@@ -1,8 +1,16 @@
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CategoryIconTile } from './CategoryIconTile';
+import { CheckIcon } from '../icons/CheckIcon';
 import { colors, radii, spacing } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
+
+// See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
+// entrance pattern, kept local to each component rather than a new shared helper since only these
+// two components need it.
+const SHEET_ENTER_OFFSET = 800;
+const SHEET_ENTER_DURATION_MS = 250;
 
 interface CategoryPickerModalProps {
   readonly visible: boolean;
@@ -48,11 +56,25 @@ export function CategoryPickerModal({
   bottomInset,
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
+  const sheetTranslateY = useRef(new Animated.Value(SHEET_ENTER_OFFSET)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    sheetTranslateY.setValue(SHEET_ENTER_OFFSET);
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: SHEET_ENTER_DURATION_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [visible, sheetTranslateY]);
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
+    <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
-        <View style={[styles.content, { paddingBottom: 24 + bottomInset }]}>
+        <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: sheetTranslateY }] }]}>
           <Text style={styles.title}>{t('collections.selectTitle')}</Text>
 
           {isLoadingOptions ? (
@@ -82,7 +104,7 @@ export function CategoryPickerModal({
                       </Text>
                     </View>
                     <View style={[styles.optionCheckCircle, isSelected && styles.optionCheckCircleSelected]}>
-                      {isSelected ? <Text style={styles.optionCheckMark}>✓</Text> : null}
+                      {isSelected ? <CheckIcon color={colors.surface} size={14} strokeWidth={2.5} /> : null}
                     </View>
                   </Pressable>
                 );
@@ -129,7 +151,7 @@ export function CategoryPickerModal({
           <Pressable accessibilityRole="button" disabled={isCreatingCollection} onPress={onClose} style={styles.closeButton}>
             <Text style={styles.closeLabel}>{t('common.close')}</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -182,26 +204,22 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
   },
-  // A check-circle (empty outline when unselected, filled brand-colored circle with a white
-  // checkmark when selected) - reads as an intentional selection control, not an accidental
-  // disabled-row state.
+  // A slim check-circle - a faint outline with no fill when unselected (never a heavy/dark
+  // checkbox box), a solid brand-colored circle with a small white CheckIcon when selected. Sized
+  // within the 24-28dp range this round's selection-indicator redesign calls for; the row itself
+  // (not just this circle) is the actual touch target, well past the 44dp minimum.
   optionCheckCircle: {
     alignItems: 'center',
     borderColor: colors.border,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    height: 22,
+    borderRadius: 13,
+    borderWidth: 1,
+    height: 26,
     justifyContent: 'center',
-    width: 22,
+    width: 26,
   },
   optionCheckCircleSelected: {
     backgroundColor: colors.brand,
     borderColor: colors.brand,
-  },
-  optionCheckMark: {
-    color: colors.surface,
-    fontSize: 13,
-    fontWeight: '700',
   },
   error: {
     color: colors.danger,

@@ -256,7 +256,11 @@
     "errorImagePickerPermission": "Требуется доступ к галерее фото.",
     "errorImagePickerFallback": "Не удалось выбрать фото.",
     "resolvingMetadataOverlay": "Загрузка информации о ссылке…",
-    "metadataResolutionFailedHint": "Не удалось загрузить информацию о ссылке. Вы можете ввести её вручную и сохранить."
+    "metadataResolutionFailedHint": "Не удалось загрузить информацию о ссылке. Вы можете ввести её вручную и сохранить.",
+    "activeDraftConflictTitle": "У вас есть незавершённая ссылка",
+    "activeDraftConflictMessage": "Сохранить ссылку, над которой вы сейчас работаете, прежде чем открыть новую?",
+    "saveDraftAndContinue": "Сохранить и продолжить",
+    "discardDraftAndContinue": "Отменить и продолжить"
   },
   "sharedCollection": {
     "itemsEmpty": "В этой общей категории пока нет сохранённых ссылок.",
