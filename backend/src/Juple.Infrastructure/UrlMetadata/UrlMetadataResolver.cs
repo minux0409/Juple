@@ -150,7 +150,9 @@ public sealed class UrlMetadataResolver(
                     // connection, which re-invokes ConnectCallback - so this loop re-validates
                     // scheme/port/DNS/IP on every hop for free rather than needing bespoke logic
                     // here (see the class remarks).
-                    currentUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+                    var nextUri = location.IsAbsoluteUri ? location : new Uri(currentUri, location);
+                    LogInstagramRedirectHop(currentUri, nextUri, response.StatusCode, redirectCount);
+                    currentUri = nextUri;
                     continue;
                 }
 
@@ -324,6 +326,29 @@ public sealed class UrlMetadataResolver(
         {
             return Encoding.UTF8;
         }
+    }
+
+    /// <summary>
+    /// Diagnostics only - observes a redirect hop that was already decided above and never alters it.
+    /// Instagram-sourced hops only (the failure signature under investigation: an initial fetch that
+    /// redirects once and then yields no og: metadata). Logs fixed enum categories, the status code and
+    /// the hop number - never the source/destination URL, path, shortcode, handle or query string (see
+    /// InstagramRedirectClassifier), so this stays within LogOutcome's own privacy policy below.
+    /// </summary>
+    private void LogInstagramRedirectHop(Uri source, Uri destination, HttpStatusCode statusCode, int redirectStep)
+    {
+        if (!InstagramMetadataNormalizer.IsInstagramHost(source.Host))
+        {
+            return;
+        }
+
+        logger.LogInformation(
+            "URL metadata Instagram redirect. Step={RedirectStep} StatusCode={StatusCode} DestinationHost={DestinationHostCategory} DestinationPath={DestinationPathCategory} SameHost={SameHost}",
+            redirectStep,
+            (int)statusCode,
+            InstagramRedirectClassifier.ClassifyHost(destination),
+            InstagramRedirectClassifier.ClassifyPath(source, destination),
+            string.Equals(source.Host, destination.Host, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

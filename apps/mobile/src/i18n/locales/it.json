@@ -175,10 +175,6 @@
     "account": "Account",
     "loggedInAs": "Hai eseguito l'accesso al tuo account Juple.",
     "settings": "Impostazioni",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Sblocca di più con Juple Plus",
-    "plusCta": "Passa a Plus",
-    "plusComingSoonMessage": "Juple Plus arriverà presto.",
     "signOutConfirmTitle": "Uscire?",
     "signOutConfirmMessage": "Dovrai accedere di nuovo per continuare.",
     "deleteAccount": "Elimina account",
@@ -215,6 +211,8 @@
     "restartForRtl": "Riavvia l'app per applicare completamente la direzione del layout."
   },
   "item": {
+    "fallbackInstagramPost": "Post di Instagram",
+    "fallbackInstagramReel": "Reel di Instagram",
     "titleLabel": "Titolo",
     "titlePlaceholder": "Inserisci un titolo",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Tutti i link qui verranno eliminati definitivamente e non potranno essere ripristinati.",
     "emptyTrashSuccess": "Cronologia svuotata.",
     "emptyTrashError": "Impossibile svuotare.",
-    "freeLimitNotice": "Puoi visualizzare le tue ultime 10 eliminazioni. Una cronologia delle eliminazioni più ampia sarà disponibile con Plus.",
-    "plusLimitNotice": "Mostra fino ai 100 link eliminati più di recente.",
+    "limitNotice": "Puoi visualizzare fino alle tue {{count}} eliminazioni più recenti.",
     "restoreConfirmTitle": "Ripristinare?",
     "restoreConfirmMessage": "Il link eliminato verrà ripristinato.",
     "restoreConfirmAction": "Ripristina"

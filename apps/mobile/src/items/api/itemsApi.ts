@@ -179,6 +179,47 @@ export async function setItemPreviewImage(
   });
 }
 
+/** Raw OpenGraph values read from an Instagram post's public page on this device - see instagramOpenGraphFetch.ts. */
+export interface InstagramMetadataCandidate {
+  readonly ogTitle: string | null;
+  readonly ogImage: string | null;
+  readonly ogUrl: string | null;
+  readonly ogDescription: string | null;
+}
+
+export interface InstagramMetadataCandidateResult {
+  readonly title: string | null;
+  readonly previewImageUrl: string | null;
+  /** False when nothing changed (nothing usable, or the fields were already filled). */
+  readonly applied: boolean;
+}
+
+/**
+ * Sends a device-fetched Instagram OpenGraph candidate for the caller's own Item. The Backend alone
+ * validates/normalizes it and applies it as automatic metadata (only to still-empty fields - never
+ * a user's own title), then returns the Item's resulting title/preview image. Deliberately NOT the
+ * user title-edit (updateItemDetails) or preview-image (setItemPreviewImage) API - see backend
+ * ApplyInstagramMetadataCandidateService. Rejects with ApiError (400) for a candidate that is not
+ * this Item's Instagram post.
+ */
+export async function submitInstagramMetadataCandidate(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  candidate: InstagramMetadataCandidate,
+): Promise<InstagramMetadataCandidateResult> {
+  const response = await request<InstagramMetadataCandidateResult>({
+    method: 'POST',
+    path: `/api/v1/items/${itemId}/instagram-metadata-candidate`,
+    body: candidate,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Instagram metadata candidate result.');
+  }
+
+  return response.body;
+}
+
 /**
  * PUTs the Item's explicit cover image choice; resolves on 204. Pass imageId to set it (must be
  * one of this same Item's own uploaded ItemImages), or null to clear it back to the automatic
@@ -216,9 +257,14 @@ interface ItemTrashResponse {
 }
 
 /**
- * The caller's most-recently-deleted Items - the server already caps this by the current user's
- * Plan (Free 10 / Plus 100, see backend ItemTrashLimits), so this never accepts a limit/cursor: a
- * Free user cannot request a larger page than the server allows.
+ * Mirrors backend ItemTrashLimits.ListLimit - the same for every user. Display-only (e.g. TrashScreen's
+ * notice): the server alone enforces the cap, which is why getTrashItems never sends a limit.
+ */
+export const TRASH_LIST_LIMIT = 50;
+
+/**
+ * The caller's most-recently-deleted Items - the server already caps this at TRASH_LIST_LIMIT
+ * (see backend ItemTrashLimits), so this never accepts a limit/cursor.
  */
 export async function getTrashItems(request: AuthenticatedApiRequest): Promise<readonly ItemTrashEntry[]> {
   const response = await request<ItemTrashResponse>({
@@ -249,7 +295,7 @@ export async function permanentlyDeleteItem(request: AuthenticatedApiRequest, it
   });
 }
 
-/** Permanently deletes every one of the caller's trashed Items in one call - the whole server-side trash, not just what a Free-plan list shows. Resolves on 204. */
+/** Permanently deletes every one of the caller's trashed Items in one call - the whole server-side trash, not just what the capped list shows. Resolves on 204. */
 export async function emptyTrash(request: AuthenticatedApiRequest): Promise<void> {
   await request<void>({
     method: 'DELETE',

@@ -201,30 +201,22 @@ describe('MyPageScreen sign-out', () => {
   });
 });
 
-describe('MyPageScreen Plus CTA', () => {
+describe('MyPageScreen has no plan tiers', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('shows the Plus CTA for a Free plan', async () => {
-    mockUseAuth({ userEmail: null, plan: 'Free' });
-    const renderer = await renderScreen();
+  it('renders identical content regardless of the legacy plan value, with no Plus upsell', async () => {
+    const renderedTextByPlan = [];
+    for (const plan of ['Free', 'Plus', null] as const) {
+      mockUseAuth({ userEmail: null, plan });
+      const renderer = await renderScreen();
+      renderedTextByPlan.push(findTextValues(renderer));
+    }
 
-    expect(findTextValues(renderer)).toContain(i18n.t('myPage.plusTitle'));
-  });
-
-  it('hides the Plus CTA for a Plus plan', async () => {
-    mockUseAuth({ userEmail: null, plan: 'Plus' });
-    const renderer = await renderScreen();
-
-    expect(findTextValues(renderer)).not.toContain(i18n.t('myPage.plusTitle'));
-  });
-
-  it('hides the Plus CTA while the plan is not yet known (never guesses Free)', async () => {
-    mockUseAuth({ userEmail: null, plan: null });
-    const renderer = await renderScreen();
-
-    expect(findTextValues(renderer)).not.toContain(i18n.t('myPage.plusTitle'));
+    expect(renderedTextByPlan[1]).toEqual(renderedTextByPlan[0]);
+    expect(renderedTextByPlan[2]).toEqual(renderedTextByPlan[0]);
+    expect(JSON.stringify(renderedTextByPlan[0])).not.toMatch(/plus/i);
   });
 });
 

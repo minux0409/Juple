@@ -175,10 +175,6 @@
     "account": "Conta",
     "loggedInAs": "Você está conectado à sua conta Juple.",
     "settings": "Configurações",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Desbloqueie mais com o Juple Plus",
-    "plusCta": "Assinar o Plus",
-    "plusComingSoonMessage": "O Juple Plus estará disponível em breve.",
     "signOutConfirmTitle": "Sair?",
     "signOutConfirmMessage": "Você precisará entrar novamente para continuar.",
     "deleteAccount": "Excluir conta",
@@ -215,6 +211,8 @@
     "restartForRtl": "Reinicie o app para que a direção do layout seja aplicada por completo."
   },
   "item": {
+    "fallbackInstagramPost": "Publicação do Instagram",
+    "fallbackInstagramReel": "Reel do Instagram",
     "titleLabel": "Título",
     "titlePlaceholder": "Digite um título",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Todos os links aqui serão excluídos permanentemente e não poderão ser restaurados.",
     "emptyTrashSuccess": "Histórico limpo.",
     "emptyTrashError": "Não foi possível limpar.",
-    "freeLimitNotice": "Você pode ver suas 10 exclusões mais recentes. Um histórico de exclusão maior estará disponível no Plus.",
-    "plusLimitNotice": "Mostra até os 100 links excluídos mais recentes.",
+    "limitNotice": "Você pode ver até suas {{count}} exclusões mais recentes.",
     "restoreConfirmTitle": "Restaurar?",
     "restoreConfirmMessage": "O link excluído será restaurado.",
     "restoreConfirmAction": "Restaurar"

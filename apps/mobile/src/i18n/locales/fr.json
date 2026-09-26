@@ -175,10 +175,6 @@
     "account": "Compte",
     "loggedInAs": "Vous êtes connecté à votre compte Juple.",
     "settings": "Paramètres",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Débloquez plus avec Juple Plus",
-    "plusCta": "Passer à Plus",
-    "plusComingSoonMessage": "Juple Plus arrive bientôt.",
     "signOutConfirmTitle": "Se déconnecter ?",
     "signOutConfirmMessage": "Vous devrez vous reconnecter pour continuer.",
     "deleteAccount": "Supprimer le compte",
@@ -215,6 +211,8 @@
     "restartForRtl": "Redémarrez l'app pour que le sens de la mise en page s'applique complètement."
   },
   "item": {
+    "fallbackInstagramPost": "Publication Instagram",
+    "fallbackInstagramReel": "Reel Instagram",
     "titleLabel": "Titre",
     "titlePlaceholder": "Saisissez un titre",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Tous les liens ici seront définitivement supprimés et ne pourront pas être restaurés.",
     "emptyTrashSuccess": "Historique vidé.",
     "emptyTrashError": "Impossible de vider.",
-    "freeLimitNotice": "Vous pouvez consulter vos 10 dernières suppressions. Un historique de suppression plus complet sera disponible avec Plus.",
-    "plusLimitNotice": "Affiche jusqu’aux 100 liens supprimés les plus récents.",
+    "limitNotice": "Vous pouvez consulter jusqu’à vos {{count}} dernières suppressions.",
     "restoreConfirmTitle": "Restaurer ?",
     "restoreConfirmMessage": "Le lien supprimé sera restauré.",
     "restoreConfirmAction": "Restaurer"

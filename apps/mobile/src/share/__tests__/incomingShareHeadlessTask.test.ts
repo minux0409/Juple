@@ -2,8 +2,9 @@ import { AppRegistry } from 'react-native';
 import { registerIncomingShareHeadlessTask } from '../incomingShareHeadlessTask';
 import NativeIncomingShare from '../specs/NativeIncomingShare';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
-import { setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
+import { setItemPreviewImage, submitInstagramMetadataCandidate, updateItemDetails } from '../../items/api/itemsApi';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
+import { fetchInstagramOpenGraphCandidate } from '../../urlMetadata/instagramOpenGraphFetch';
 import { ApiError } from '../../api/ApiError';
 
 jest.mock('../specs/NativeIncomingShare', () => ({
@@ -22,6 +23,13 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
   setItemPreviewImage: jest.fn(),
+  submitInstagramMetadataCandidate: jest.fn(),
+}));
+
+// The Instagram device fetch is never a real network request in tests.
+jest.mock('../../urlMetadata/instagramOpenGraphFetch', () => ({
+  ...jest.requireActual('../../urlMetadata/instagramOpenGraphFetch'),
+  fetchInstagramOpenGraphCandidate: jest.fn(async () => ({ outcome: 'noMetadata', candidate: null })),
 }));
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
@@ -70,6 +78,92 @@ describe('incomingShareHeadlessTask', () => {
     expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), pendingShare.text);
     expect(updateItemDetails).not.toHaveBeenCalled();
     expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+  });
+
+  it('Quick Save ON: an Instagram URL-only share gets the same metadata enrichment (title + real image) as the review flow', async () => {
+    const instagramUrl = 'https://www.instagram.com/reel/ABC123xyz/?igsh=abc';
+    const pendingShare = makePendingShare({ text: instagramUrl });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 150, url: instagramUrl, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'kkikki_ent on Instagram: "caption"',
+      source: 'openGraph',
+      previewImageUrl: 'https://scontent.cdninstagram.com/v/t51/real-post.jpg',
+    });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), instagramUrl);
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 150, { title: 'kkikki_ent on Instagram: "caption"', memo: '' });
+    expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 150, 'https://scontent.cdninstagram.com/v/t51/real-post.jpg');
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    // Backend metadata was complete - the device fallback never runs.
+    expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
+    expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
+  });
+
+  describe('Instagram device fallback', () => {
+    const instagramUrl = 'https://www.instagram.com/p/ABC123xyz/?igsh=abc';
+    const candidate = { ogTitle: 'someone on Instagram: "x"', ogImage: 'https://scontent.cdninstagram.com/v/a.jpg', ogUrl: null, ogDescription: null };
+
+    beforeEach(() => {
+      const pendingShare = makePendingShare({ text: instagramUrl });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 160, url: instagramUrl, savedAtUtc: '2026-01-01T00:00:00Z' });
+    });
+
+    it('when the Backend got nothing (login redirect), fetches the public page once after acknowledging and submits the raw candidate', async () => {
+      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+      jest.mocked(submitInstagramMetadataCandidate).mockResolvedValueOnce({ title: 't', previewImageUrl: 'https://scontent.cdninstagram.com/v/a.jpg', applied: true });
+
+      await task({ pendingShareId: 'share-1' });
+
+      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledWith(instagramUrl);
+      expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 160, candidate);
+      // Never through the user title-edit API: nothing to apply from the Backend, and the candidate
+      // goes only to its own endpoint.
+      expect(updateItemDetails).not.toHaveBeenCalled();
+      const ackOrder = jest.mocked(NativeIncomingShare!.acknowledgePendingShare).mock.invocationCallOrder[0];
+      expect(ackOrder).toBeLessThan(jest.mocked(fetchInstagramOpenGraphCandidate).mock.invocationCallOrder[0]);
+    });
+
+    it('also runs when only the image is missing', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'backend title', source: 'openGraph', previewImageUrl: null });
+      jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+
+      await task({ pendingShareId: 'share-1' });
+
+      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('a device fetch failure is silent: no candidate is sent and the share is still acknowledged', async () => {
+      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'loginRedirect', candidate: null });
+
+      await task({ pendingShareId: 'share-1' });
+
+      expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
+      expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith('share-1');
+      expect(NativeIncomingShare!.reportAttemptOutcome).not.toHaveBeenCalled();
+    });
+
+    it('a Backend rejection of the candidate is silent', async () => {
+      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+      jest.mocked(submitInstagramMetadataCandidate).mockRejectedValueOnce(new ApiError('badRequest', 400));
+
+      await expect(task({ pendingShareId: 'share-1' })).resolves.toBeUndefined();
+      expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith('share-1');
+    });
+
+    it('never runs for a non-Instagram URL, even with no Backend metadata', async () => {
+      const pendingShare = makePendingShare({ text: 'https://example.com/a' });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
+    });
   });
 
   it('applies a title resolved from URL metadata when the share itself had none', async () => {
@@ -197,14 +291,125 @@ describe('incomingShareHeadlessTask', () => {
     expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'retryableFailure');
   });
 
-  it('reports reviewRequired and never saves when the shared text is not an exact URL', async () => {
-    const pendingShare = makePendingShare({ text: 'Check this out: https://example.com/a' });
-    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+  describe('routing by payload shape (never by source app)', () => {
+    it.each([
+      ['a bare URL', 'https://example.com/a', 'https://example.com/a'],
+      ['a 당근-style description + blank lines + URL', '당근에서 이 글을 확인해보세요!\n\nhttps://www.daangn.com/articles/1253314119?share=true', 'https://www.daangn.com/articles/1253314119?share=true'],
+      ['one-line text + URL', 'Check this out: https://example.com/a', 'https://example.com/a'],
+      ['multi-line text + URL', '첫 줄\n둘째 줄\nhttps://example.com/a', 'https://example.com/a'],
+      ['a URL with a query string after text', '링크: https://example.com/a?x=1&y=2%20z', 'https://example.com/a?x=1&y=2%20z'],
+      ['a YouTube title line + URL', 'Some Video\nhttps://www.youtube.com/watch?v=abc', 'https://www.youtube.com/watch?v=abc'],
+      ['a URL padded with whitespace/newlines', '\n  https://example.com/a \n', 'https://example.com/a'],
+    ])('saves immediately for %s - never reviewRequired', async (_label, text, url) => {
+      const pendingShare = makePendingShare({ text });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 300, url, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(updateItemDetails).mockResolvedValue(undefined);
 
-    await task({ pendingShareId: pendingShare.id });
+      await task({ pendingShareId: pendingShare.id });
 
-    expect(saveInboxEntry).not.toHaveBeenCalled();
-    expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
+      expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), url, pendingShare.id);
+      expect(NativeIncomingShare!.reportAttemptOutcome).not.toHaveBeenCalled();
+      expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    });
+
+
+    it.each([
+      ['no URL at all', 'just some text, no link'],
+      ['more than one URL (ambiguous)', 'A https://example.com/a B https://example.com/b'],
+      ['a URL whose end is uncertain (a word glued onto it)', '문구 https://a.com/x에서 확인'],
+    ])('reports reviewRequired and never saves for %s', async (_label, text) => {
+      const pendingShare = makePendingShare({ text });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(saveInboxEntry).not.toHaveBeenCalled();
+      expect(NativeIncomingShare!.acknowledgePendingShare).not.toHaveBeenCalled();
+      expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
+    });
+  });
+
+  describe('title precedence - share text around the URL is never saved as the title', () => {
+    const DAANGN_TEXT = '당근에서 이 글을 확인해보세요!\n\nhttps://www.daangn.com/articles/1253314119?share=true';
+    const DAANGN_URL = 'https://www.daangn.com/articles/1253314119?share=true';
+    const SHARE_TEXT_TITLE = '당근에서 이 글을 확인해보세요!';
+
+    function titlesWritten(): unknown[] {
+      return jest.mocked(updateItemDetails).mock.calls.map(call => call[2].title);
+    }
+
+    beforeEach(() => {
+      jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    });
+
+    it('description + URL: saves the URL (query kept) and applies the real page metadata title, never the share text', async () => {
+      const pendingShare = makePendingShare({ text: DAANGN_TEXT });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 310, url: DAANGN_URL, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: 'Real page title | Category | Site', source: 'openGraph', previewImageUrl: 'https://img.example.com/p.jpg',
+      });
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), DAANGN_URL, pendingShare.id);
+      expect(titlesWritten()).toEqual(['Real page title | Category | Site']);
+      expect(titlesWritten()).not.toContain(SHARE_TEXT_TITLE);
+      expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 310, 'https://img.example.com/p.jpg');
+      expect(NativeIncomingShare!.reportAttemptOutcome).not.toHaveBeenCalled();
+      expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    });
+
+    it('description + URL with no metadata title: still saved and acknowledged, title left empty (hostname fallback) - never the share text', async () => {
+      const pendingShare = makePendingShare({ text: DAANGN_TEXT });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 311, url: DAANGN_URL, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(updateItemDetails).not.toHaveBeenCalled();
+      expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith(pendingShare.id);
+    });
+
+    it('a structured share title (EXTRA_SUBJECT/EXTRA_TITLE) is still saved as-is, even alongside mixed text, and metadata never overwrites it', async () => {
+      const pendingShare = makePendingShare({ text: 'Watch this\nhttps://www.youtube.com/watch?v=abc', initialTitle: 'Structured Video Title' });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 312, url: 'https://www.youtube.com/watch?v=abc', savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata title', source: 'openGraph', previewImageUrl: null });
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(titlesWritten()).toEqual(['Structured Video Title']);
+    });
+
+    it('a bare URL with no structured title gets the metadata title (unchanged)', async () => {
+      const pendingShare = makePendingShare({ text: 'https://example.com/a' });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 313, url: 'https://example.com/a', savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'Metadata title', source: 'openGraph', previewImageUrl: null });
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(titlesWritten()).toEqual(['Metadata title']);
+    });
+
+    it('an Instagram caption + URL share with no Backend title still reaches the device fallback (the caption is not a title)', async () => {
+      const instagramUrl = 'https://www.instagram.com/p/ABC123xyz/';
+      const candidate = { ogTitle: 'someone on Instagram: "x"', ogImage: 'https://scontent.cdninstagram.com/v/a.jpg', ogUrl: null, ogDescription: null };
+      const pendingShare = makePendingShare({ text: `Look at this post ${instagramUrl}` });
+      jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 314, url: instagramUrl, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: 'https://scontent.cdninstagram.com/v/a.jpg' });
+      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+      jest.mocked(submitInstagramMetadataCandidate).mockResolvedValueOnce({ title: 't', previewImageUrl: candidate.ogImage, applied: true });
+
+      await task({ pendingShareId: pendingShare.id });
+
+      expect(updateItemDetails).not.toHaveBeenCalled();
+      expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 314, candidate);
+    });
   });
 
   describe('privacy - diagnostic logging never leaks share content', () => {

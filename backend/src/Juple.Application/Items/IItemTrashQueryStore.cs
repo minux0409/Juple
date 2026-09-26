@@ -6,7 +6,7 @@ public interface IItemTrashQueryStore
 {
     /// <summary>
     /// The caller's most-recently-deleted Items first, capped at limit (the caller/Application
-    /// service resolves limit from the user's Plan - see ItemTrashLimits - never a client-supplied
+    /// service always passes ItemTrashLimits.ListLimit - never a client-supplied
     /// value). RepresentativeImages/CoverImages mirror IItemHistoryQueryStore.GetHistoryAsync's own
     /// shape - raw BlobName refs the Application service resolves to a read URL, never returned
     /// as-is to a Controller.

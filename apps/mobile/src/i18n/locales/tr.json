@@ -175,10 +175,6 @@
     "account": "Hesap",
     "loggedInAs": "Juple hesabınızda oturum açtınız.",
     "settings": "Ayarlar",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Juple Plus ile daha fazlasının kilidini açın",
-    "plusCta": "Plus'ı Başlat",
-    "plusComingSoonMessage": "Juple Plus yakında geliyor.",
     "signOutConfirmTitle": "Oturum kapatılsın mı?",
     "signOutConfirmMessage": "Devam etmek için tekrar oturum açmanız gerekecek.",
     "deleteAccount": "Hesabı sil",
@@ -215,6 +211,8 @@
     "restartForRtl": "Yerleşim yönünün tam olarak uygulanması için uygulamayı yeniden başlatın."
   },
   "item": {
+    "fallbackInstagramPost": "Instagram gönderisi",
+    "fallbackInstagramReel": "Instagram Reels videosu",
     "titleLabel": "Başlık",
     "titlePlaceholder": "Bir başlık girin",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Buradaki tüm bağlantılar kalıcı olarak silinecek ve geri yüklenemeyecek.",
     "emptyTrashSuccess": "Geçmiş boşaltıldı.",
     "emptyTrashError": "Boşaltılamadı.",
-    "freeLimitNotice": "En son 10 silme işlemini görüntüleyebilirsiniz. Daha fazla silme geçmişi Plus ile sunulacaktır.",
-    "plusLimitNotice": "En son silinen 100 bağlantıya kadar gösterir.",
+    "limitNotice": "En son {{count}} silme kaydınızı görüntüleyebilirsiniz.",
     "restoreConfirmTitle": "Geri yüklensin mi?",
     "restoreConfirmMessage": "Silinen bağlantı geri yüklenecek.",
     "restoreConfirmAction": "Geri yükle"

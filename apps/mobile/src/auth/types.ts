@@ -29,7 +29,7 @@ export interface AuthState {
   readonly userBootstrapStatus: UserBootstrapStatus;
   /** Only meaningful before backendAuthStatus leaves 'notChecked' - see bootstrapProgress.ts. */
   readonly sessionRestoreStep: SessionRestoreStep;
-  /** Null until userBootstrapStatus reaches 'ready' at least once - never guessed/defaulted client-side (see useIsPlusUser.ts). */
+  /** Null until userBootstrapStatus reaches 'ready' at least once - never guessed/defaulted client-side. Legacy: mirrors the backend's retained UserPlan field only - no screen may branch on it (every active user gets the same features; see docs/product-overview.md). */
   readonly plan: UserPlan | null;
 }
 

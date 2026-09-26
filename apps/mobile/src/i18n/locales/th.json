@@ -175,10 +175,6 @@
     "account": "บัญชี",
     "loggedInAs": "คุณเข้าสู่ระบบบัญชี Juple แล้ว",
     "settings": "การตั้งค่า",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "ปลดล็อกฟีเจอร์เพิ่มเติมด้วย Juple Plus",
-    "plusCta": "เริ่มใช้ Plus",
-    "plusComingSoonMessage": "Juple Plus จะเปิดให้ใช้งานเร็ว ๆ นี้",
     "signOutConfirmTitle": "ออกจากระบบหรือไม่?",
     "signOutConfirmMessage": "คุณจะต้องเข้าสู่ระบบอีกครั้งเพื่อใช้งานต่อ",
     "deleteAccount": "ลบบัญชี",
@@ -215,6 +211,8 @@
     "restartForRtl": "รีสตาร์ทแอปเพื่อให้ทิศทางเลย์เอาต์มีผลอย่างสมบูรณ์"
   },
   "item": {
+    "fallbackInstagramPost": "โพสต์ Instagram",
+    "fallbackInstagramReel": "Reels Instagram",
     "titleLabel": "ชื่อเรื่อง",
     "titlePlaceholder": "กรอกชื่อเรื่อง",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "ลิงก์ทั้งหมดที่นี่จะถูกลบถาวรและไม่สามารถกู้คืนได้",
     "emptyTrashSuccess": "ล้างประวัติแล้ว",
     "emptyTrashError": "ไม่สามารถล้างได้",
-    "freeLimitNotice": "คุณสามารถดูรายการที่ลบล่าสุดได้สูงสุด 10 รายการ ประวัติการลบเพิ่มเติมจะพร้อมใช้งานใน Plus",
-    "plusLimitNotice": "แสดงลิงก์ที่ลบล่าสุดสูงสุด 100 รายการ",
+    "limitNotice": "คุณสามารถดูประวัติการลบล่าสุดได้สูงสุด {{count}} รายการ",
     "restoreConfirmTitle": "กู้คืนหรือไม่?",
     "restoreConfirmMessage": "ลิงก์ที่ลบจะถูกกู้คืน",
     "restoreConfirmAction": "กู้คืน"

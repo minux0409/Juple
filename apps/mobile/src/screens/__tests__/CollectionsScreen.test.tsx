@@ -200,6 +200,72 @@ describe('CollectionsScreen row', () => {
   });
 });
 
+describe('CollectionsScreen item count', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  function mockSingleCollection(overrides: Partial<Collection>) {
+    jest.mocked(getCollections).mockImplementation(async () => ({
+      items: [makeCollection({ id: 7, name: 'Counted', ...overrides })],
+      nextCursor: null,
+    }));
+  }
+
+  async function switchToListView(renderer: ReactTestRenderer.ReactTestRenderer) {
+    const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+    await act(async () => {
+      listToggle.props.onPress();
+    });
+  }
+
+  it('Grid: shows the bare link count as a small non-interactive badge on the tile', async () => {
+    mockSingleCollection({ itemCount: 5 });
+    const renderer = await renderScreen();
+
+    const badge = renderer.root.findByProps({ testID: 'collection-tile-item-count' });
+    expect(badge.findByType(Text).props.children).toBe(5);
+    expect(badge.props.onPress).toBeUndefined();
+    expect(badge.props.accessibilityLabel).toBe(i18n.t('collections.detailItemCount', { count: 5 }));
+  });
+
+  it('Grid: shows 0 for an empty category', async () => {
+    mockSingleCollection({ itemCount: 0 });
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ testID: 'collection-tile-item-count' }).findByType(Text).props.children).toBe(0);
+  });
+
+  it('List: shows the localized count as trailing text, separate from the favorite button', async () => {
+    mockSingleCollection({ itemCount: 5 });
+    const renderer = await renderScreen();
+    await switchToListView(renderer);
+
+    const count = renderer.root.findByProps({ testID: 'collection-row-item-count' });
+    expect(count.props.children).toBe(i18n.t('collections.detailItemCount', { count: 5 }));
+    expect(count.props.onPress).toBeUndefined();
+    const starButton = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function')[0];
+    expect(starButton.findAll(node => node.props.testID === 'collection-row-item-count')).toHaveLength(0);
+  });
+
+  it('List: shows 0 for an empty category, and the favorite star still toggles without navigating', async () => {
+    mockSingleCollection({ itemCount: 0 });
+    jest.mocked(setCollectionFavorite).mockResolvedValue(makeCollection({ id: 7, name: 'Counted', isFavorite: true }));
+    const renderer = await renderScreen();
+    await switchToListView(renderer);
+
+    expect(renderer.root.findByProps({ testID: 'collection-row-item-count' }).props.children).toBe(i18n.t('collections.detailItemCount', { count: 0 }));
+
+    const starButton = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function')[0];
+    await act(async () => {
+      await starButton.props.onPress();
+    });
+    expect(setCollectionFavorite).toHaveBeenCalledWith(expect.anything(), 7, true);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+});
+
 describe('CollectionsScreen create form', () => {
   afterEach(() => {
     jest.clearAllMocks();

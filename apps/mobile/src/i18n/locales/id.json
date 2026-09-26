@@ -175,10 +175,6 @@
     "account": "Akun",
     "loggedInAs": "Anda masuk ke akun Juple Anda.",
     "settings": "Pengaturan",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Buka lebih banyak fitur dengan Juple Plus",
-    "plusCta": "Mulai Plus",
-    "plusComingSoonMessage": "Juple Plus akan segera hadir.",
     "signOutConfirmTitle": "Keluar?",
     "signOutConfirmMessage": "Anda perlu masuk lagi untuk melanjutkan.",
     "deleteAccount": "Hapus akun",
@@ -215,6 +211,8 @@
     "restartForRtl": "Mulai ulang aplikasi agar arah tata letak diterapkan sepenuhnya."
   },
   "item": {
+    "fallbackInstagramPost": "Postingan Instagram",
+    "fallbackInstagramReel": "Reels Instagram",
     "titleLabel": "Judul",
     "titlePlaceholder": "Masukkan judul",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Semua tautan di sini akan dihapus permanen dan tidak dapat dipulihkan.",
     "emptyTrashSuccess": "Riwayat dikosongkan.",
     "emptyTrashError": "Tidak dapat mengosongkan.",
-    "freeLimitNotice": "Anda dapat melihat hingga 10 penghapusan terbaru. Riwayat penghapusan yang lebih lengkap akan tersedia di Plus.",
-    "plusLimitNotice": "Menampilkan hingga 100 tautan yang paling baru dihapus.",
+    "limitNotice": "Anda dapat melihat hingga {{count}} riwayat penghapusan terbaru.",
     "restoreConfirmTitle": "Pulihkan?",
     "restoreConfirmMessage": "Tautan yang dihapus akan dipulihkan.",
     "restoreConfirmAction": "Pulihkan"

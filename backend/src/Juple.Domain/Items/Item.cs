@@ -79,6 +79,32 @@ public sealed class Item
     }
 
     /// <summary>
+    /// The single fill rule for automatic (non-user) metadata - shared by every automatic source
+    /// (the Instagram metadata retry Job and the device-fetched Instagram candidate): each field is
+    /// only filled while it is still empty, so an automatic value never overwrites a user's own title,
+    /// an already-applied automatic value, or a concurrent success from another source. Callers must
+    /// pass already-normalized/validated values. Returns whether anything changed (a no-op never
+    /// touches RowVersion).
+    /// </summary>
+    public bool ApplyAutomaticMetadata(string? title, string? previewImageUrl)
+    {
+        var changed = false;
+        if (title is not null && Title is null)
+        {
+            Title = title;
+            changed = true;
+        }
+
+        if (previewImageUrl is not null && PreviewImageUrl is null)
+        {
+            PreviewImageUrl = previewImageUrl;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>
     /// Sets the auto-extracted preview image URL. Callers must pass an already-validated absolute
     /// http/https URL - a no-op when it already matches, so a repeated enrichment pass (e.g. a
     /// retried Quick Save) never touches RowVersion needlessly.

@@ -23,7 +23,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -420,9 +420,19 @@ export function DailyInboxScreen() {
           </View>
         }
         ListEmptyComponent={<CenteredEmptyState message={t('inbox.empty')} />}
-        renderItem={({ item }) => (
+        renderItem={({ item }) => viewMode === 'grid' ? (
+          <SavedLinkGridCell
+            disabled={actionInFlightItemId !== null || isRefreshing}
+            isActionInFlight={actionInFlightItemId === item.id}
+            item={item}
+            onDelete={() => confirmDelete(item.id)}
+            onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
+            onShare={() => runShare(item)}
+            preferEffectiveThumbnail
+          />
+        ) : (
           <SwipeableItemRow
-            containerStyle={[styles.card, viewMode === 'grid' && styles.gridCard]}
+            containerStyle={styles.card}
             disabled={actionInFlightItemId !== null || isRefreshing}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => {
@@ -430,11 +440,11 @@ export function DailyInboxScreen() {
             }}
             onShare={() => runShare(item)}
           >
-            {viewMode === 'list' ? <SavedLinkRow
+            <SavedLinkRow
               isActionInFlight={actionInFlightItemId === item.id}
               item={item}
               preferEffectiveThumbnail
-            /> : <SavedLinkGridCard isActionInFlight={actionInFlightItemId === item.id} item={item} preferEffectiveThumbnail />}
+            />
           </SwipeableItemRow>
         )}
         ListFooterComponent={
@@ -582,7 +592,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     marginBottom: spacing.sm + 2,
   },
-  gridCard: { flexBasis: '50%', marginBottom: spacing.sm, paddingHorizontal: 2 },
   recentHeaderActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   footerLoading: {
     paddingVertical: spacing.lg,

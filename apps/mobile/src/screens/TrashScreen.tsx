@@ -5,7 +5,6 @@ import type { TFunction } from 'i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { useIsPlusUser } from '../auth/useIsPlusUser';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -16,6 +15,7 @@ import {
   getTrashItems,
   permanentlyDeleteItem,
   restoreItem,
+  TRASH_LIST_LIMIT,
   type ItemTrashEntry,
 } from '../items/api/itemsApi';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
@@ -45,14 +45,13 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
 /**
  * 삭제 이력 (user-facing name; backend/internal naming stays "trash" - see itemsApi.ts): soft-deleted
  * Items (see backend Item.DeletedAtUtc), newest-deleted-first. The server
- * already caps the list by the current user's Plan (Free 10 / Plus 100 - see getTrashItems), so
+ * already caps the list to the same TRASH_LIST_LIMIT for every user (see getTrashItems), so
  * this screen never computes or truncates a limit itself. Restore/permanent-delete/empty-trash all
  * update local state directly on success rather than refetching the whole list.
  */
 export function TrashScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
-  const isPlusUser = useIsPlusUser();
 
   const [items, setItems] = useState<readonly ItemTrashEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +67,10 @@ export function TrashScreen() {
   const [pendingPermanentDeleteId, setPendingPermanentDeleteId] = useState<number | null>(null);
   const [isEmptyTrashConfirmVisible, setIsEmptyTrashConfirmVisible] = useState(false);
   const [isEmptyingTrash, setIsEmptyingTrash] = useState(false);
+  // 비우기's own rendered width (it varies by locale/font scale) - mirrored by the header's leading
+  // slot so the limit notice stays on the true center line (see the header's own remarks).
+  const [emptyActionWidth, setEmptyActionWidth] = useState(0);
+  const hasEmptyAction = items.length > 0;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -131,8 +134,8 @@ export function TrashScreen() {
     setIsEmptyingTrash(true);
     setErrorMessage(null);
     try {
-      // A single call - the server empties the caller's entire trash (up to 100 retained items),
-      // not just the (possibly Free-capped) 10 rows this screen happens to be showing.
+      // A single call - the server empties the caller's entire trash (every retained item), not
+      // just the capped rows this screen happens to be showing.
       await emptyTrash(authenticatedRequest);
       // No success notice - same rationale as restoreAction above.
       setItems([]);
@@ -146,36 +149,37 @@ export function TrashScreen() {
   return (
     <StackScreenSafeArea style={styles.screen}>
       {/*
-        Always shown, even when the list is empty (this round's explicit "0개여도 안내문은 표시"
-        requirement) - a sibling of the FlatList, not inside its own ListHeaderComponent, so the
-        empty-state message's existing center-of-remaining-space layout (see emptyContainer below)
-        is computed purely from the FlatList's own remaining flex space and is never thrown off by
-        this notice's height.
+        One compact header bar above the list: the limit notice (always shown, even when the list is
+        empty - "0개여도 안내문은 표시") centered on the screen's true horizontal center, with 비우기 as
+        a trailing action on the same row only when there is something to empty. A leading mirror
+        slot takes 비우기's own measured width, so the notice's column is symmetric (truly centered)
+        without any hardcoded offset, and a long translation wraps instead of running under 비우기.
+        A sibling of the FlatList (not its ListHeaderComponent) so the list's own padding never opens
+        a gap between the two, and the empty-state message stays centered in the remaining space.
       */}
-      <Text style={styles.limitNotice}>
-        {t(isPlusUser ? 'trash.plusLimitNotice' : 'trash.freeLimitNotice')}
-      </Text>
+      <View style={[styles.header, hasEmptyAction && styles.headerWithAction]}>
+        {hasEmptyAction ? <View style={{ width: emptyActionWidth }} testID="trash-header-mirror-slot" /> : null}
+        <Text style={styles.limitNotice} testID="trash-limit-notice">
+          {t('trash.limitNotice', { count: TRASH_LIST_LIMIT })}
+        </Text>
+        {hasEmptyAction ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isEmptyingTrash }}
+            disabled={isEmptyingTrash}
+            onLayout={event => setEmptyActionWidth(event.nativeEvent.layout.width)}
+            onPress={() => setIsEmptyTrashConfirmVisible(true)}
+            style={styles.emptyTrashButton}
+          >
+            <Text style={styles.emptyTrashButtonLabel}>{t('trash.emptyAction')}</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <FlatList
         contentContainerStyle={styles.content}
         data={items}
         style={styles.list}
         keyExtractor={item => item.id.toString()}
-        ListHeaderComponent={
-          items.length > 0 ? (
-            <View style={styles.headerRow}>
-              <View style={styles.headerRowSpacer} />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isEmptyingTrash }}
-                disabled={isEmptyingTrash}
-                onPress={() => setIsEmptyTrashConfirmVisible(true)}
-                style={styles.emptyTrashButton}
-              >
-                <Text style={styles.emptyTrashButtonLabel}>{t('trash.emptyAction')}</Text>
-              </Pressable>
-            </View>
-          ) : undefined
-        }
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator style={styles.loading} />
@@ -283,32 +287,45 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
   },
+  // Same horizontal inset as the list content below, so the notice and the rows line up.
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+  },
+  // Only while 비우기 is shown - the row must be tall enough for its 44dp touch target; without it
+  // the notice alone needs no extra height.
+  headerWithAction: {
+    minHeight: minTouchTarget,
+  },
+  // flex:1 between two equal-width side slots (mirror slot + 비우기) = the true center column; the
+  // full width when 비우기 is hidden. Wraps for a long translation.
   limitNotice: {
     color: colors.textSecondary,
+    flex: 1,
     fontSize: 12,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.xl,
+    textAlign: 'center',
   },
   // flex:1 so the FlatList fills the space StackScreenSafeArea's own bottom padding already leaves
   // above the system nav bar - see that component's own remarks.
   list: {
     flex: 1,
   },
+  // No top inset of its own - the header bar directly above already provides the separation
+  // (header paddingTop + the vertically centered notice inside the 44dp action row), so the first
+  // row sits a small, natural distance below the notice rather than stacking two gaps.
   content: {
     flexGrow: 1,
-    padding: spacing.xl,
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-  },
-  headerRowSpacer: {
-    flex: 1,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: 0,
   },
   emptyTrashButton: {
-    minHeight: minTouchTarget,
+    flexShrink: 0,
     justifyContent: 'center',
+    minHeight: minTouchTarget,
     paddingHorizontal: spacing.xs,
   },
   emptyTrashButtonLabel: {

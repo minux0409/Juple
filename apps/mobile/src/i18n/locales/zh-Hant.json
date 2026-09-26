@@ -175,10 +175,6 @@
     "account": "帳號",
     "loggedInAs": "您已登入 Juple 帳號。",
     "settings": "設定",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "使用 Juple Plus 解鎖更多功能",
-    "plusCta": "開始使用 Plus",
-    "plusComingSoonMessage": "Juple Plus 即將推出。",
     "signOutConfirmTitle": "確定要登出嗎？",
     "signOutConfirmMessage": "登出後需要重新登入才能繼續使用。",
     "deleteAccount": "刪除帳號",
@@ -215,6 +211,8 @@
     "restartForRtl": "重新啟動應用程式以完全套用版面配置方向。"
   },
   "item": {
+    "fallbackInstagramPost": "Instagram 貼文",
+    "fallbackInstagramReel": "Instagram Reels",
     "titleLabel": "標題",
     "titlePlaceholder": "請輸入標題",
     "url": "網址",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "刪除記錄中的所有連結都將被永久刪除且無法復原。",
     "emptyTrashSuccess": "刪除記錄已清空。",
     "emptyTrashError": "清空刪除記錄失敗。",
-    "freeLimitNotice": "最多可查看最近10筆刪除紀錄。更多刪除紀錄將於Plus中提供。",
-    "plusLimitNotice": "最多顯示最近刪除的100個連結。",
+    "limitNotice": "最多可查看最近 {{count}} 筆刪除紀錄。",
     "restoreConfirmTitle": "要復原嗎?",
     "restoreConfirmMessage": "已刪除的連結將被復原。",
     "restoreConfirmAction": "復原"

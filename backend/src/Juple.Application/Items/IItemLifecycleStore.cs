@@ -36,7 +36,7 @@ public interface IItemLifecycleStore
 
     /// <summary>
     /// Hard-deletes every one of the caller's trashed Items - the entire trash server-side, not
-    /// just whatever a Free-plan trash list UI shows. Returns the deleted Items' ids so the caller
+    /// just whatever the capped trash list UI shows. Returns the deleted Items' ids so the caller
     /// can best-effort clean up their Blobs (see IItemImageStorage.DeleteItemBlobsAsync). A no-op
     /// (empty result) when the caller's trash is already empty.
     /// </summary>

@@ -15,6 +15,7 @@ import { deleteItem, restoreItem, type ItemHistoryEntry } from '../../items/api/
 import { shareItem } from '../../items/shareItem';
 import { UndoToast } from '../../components/UndoToast';
 import { AppToastProvider } from '../../components/AppToast';
+import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn() }),
@@ -206,6 +207,44 @@ describe('DateHistoryScreen accordion', () => {
     [todaySection, yesterdaySection] = sectionList.props.sections;
     expect(todaySection.data).toHaveLength(0);
     expect(yesterdaySection.data).toHaveLength(1);
+  });
+});
+
+describe('DateHistoryScreen grid', () => {
+  const now = new Date();
+  const todayShort = makeItem({ id: 1, title: 'Hi', savedAtUtc: now.toISOString() });
+  const todayLong = makeItem({ id: 3, title: 'A much longer title that wraps onto a second line in a grid card', savedAtUtc: now.toISOString() });
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12);
+  const yesterdayItem = makeItem({ id: 2, title: 'Yesterday item', savedAtUtc: yesterday.toISOString() });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  async function switchToGrid(renderer: ReactTestRenderer.ReactTestRenderer) {
+    const gridToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Grid view' && typeof node.props.onPress === 'function')[0];
+    await act(async () => {
+      gridToggle.props.onPress();
+    });
+  }
+
+  it("renders expanded sections with Home's shared SavedLinkGridCell only, keeping date grouping/collapse intact", async () => {
+    mockUseItemHistory([todayShort, todayLong, yesterdayItem]);
+    const renderer = await renderScreen();
+    await switchToGrid(renderer);
+
+    const cells = renderer.root.findAllByType(SavedLinkGridCell);
+    // Only today's (expanded) section renders; yesterday's stays collapsed with its count intact.
+    expect(cells.map(cell => cell.props.item.id)).toEqual([1, 3]);
+    const [todaySection, yesterdaySection] = renderer.root.findByType(SectionList).props.sections;
+    expect(todaySection.items).toHaveLength(2);
+    expect(yesterdaySection.items).toHaveLength(1);
+    // Same presentation props for short and long titles - sizing comes from the shared cell alone.
+    expect(Object.keys(cells[0].props).sort()).toEqual(Object.keys(cells[1].props).sort());
+    expect(cells.every(cell => cell.props.preferEffectiveThumbnail === true)).toBe(true);
+    // Same date display rule as this section's List rows (today is a single-day section -> time only).
+    expect(todaySection.showItemDate).toBe(false);
+    expect(cells.every(cell => cell.props.dateDisplayMode === 'time')).toBe(true);
   });
 });
 

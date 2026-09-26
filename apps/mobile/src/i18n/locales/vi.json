@@ -175,10 +175,6 @@
     "account": "Tài khoản",
     "loggedInAs": "Bạn đã đăng nhập vào tài khoản Juple.",
     "settings": "Cài đặt",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Mở khóa nhiều hơn với Juple Plus",
-    "plusCta": "Bắt đầu Plus",
-    "plusComingSoonMessage": "Juple Plus sắp ra mắt.",
     "signOutConfirmTitle": "Đăng xuất?",
     "signOutConfirmMessage": "Bạn sẽ cần đăng nhập lại để tiếp tục.",
     "deleteAccount": "Xóa tài khoản",
@@ -215,6 +211,8 @@
     "restartForRtl": "Khởi động lại ứng dụng để hướng bố cục được áp dụng đầy đủ."
   },
   "item": {
+    "fallbackInstagramPost": "Bài viết Instagram",
+    "fallbackInstagramReel": "Reels Instagram",
     "titleLabel": "Tiêu đề",
     "titlePlaceholder": "Nhập tiêu đề",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Tất cả liên kết ở đây sẽ bị xóa vĩnh viễn và không thể khôi phục.",
     "emptyTrashSuccess": "Đã dọn lịch sử.",
     "emptyTrashError": "Không thể dọn.",
-    "freeLimitNotice": "Bạn có thể xem tối đa 10 mục đã xóa gần đây nhất. Lịch sử xóa nhiều hơn sẽ có trong Plus.",
-    "plusLimitNotice": "Hiển thị tối đa 100 liên kết đã xóa gần đây nhất.",
+    "limitNotice": "Bạn có thể xem tối đa {{count}} mục đã xóa gần đây nhất.",
     "restoreConfirmTitle": "Khôi phục?",
     "restoreConfirmMessage": "Liên kết đã xóa sẽ được khôi phục.",
     "restoreConfirmAction": "Khôi phục"

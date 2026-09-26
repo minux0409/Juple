@@ -38,6 +38,7 @@ using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetItemTrash;
 using Juple.Application.Items.GetRecentlyOpenedLinks;
+using Juple.Application.Items.InstagramMetadataCandidate;
 using Juple.Application.Items.InstagramMetadataRetry;
 using Juple.Application.Items.PermanentlyDeleteItem;
 using Juple.Application.Items.RecordItemOpen;
@@ -47,6 +48,7 @@ using Juple.Application.Items.SetItemPreviewImage;
 using Juple.Application.Items.UpdateItemDetails;
 using Juple.Application.Push.RegisterPushDevice;
 using Juple.Application.Push.UnregisterPushDevice;
+using Juple.Application.UrlMetadata.PreviewInstagramMetadataCandidate;
 using Juple.Application.UrlMetadata.ResolveUrlMetadata;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
@@ -98,6 +100,7 @@ builder.Services.AddScoped<IDeleteAllRecentlyOpenedLinksService, DeleteAllRecent
 builder.Services.AddScoped<IDeleteItemService, DeleteItemService>();
 builder.Services.AddScoped<IUpdateItemDetailsService, UpdateItemDetailsService>();
 builder.Services.AddScoped<ISetItemPreviewImageService, SetItemPreviewImageService>();
+builder.Services.AddScoped<IApplyInstagramMetadataCandidateService, ApplyInstagramMetadataCandidateService>();
 builder.Services.AddScoped<ISetItemCoverImageService, SetItemCoverImageService>();
 builder.Services.AddScoped<IGetItemDetailService, GetItemDetailService>();
 builder.Services.AddScoped<IGetItemTrashService, GetItemTrashService>();
@@ -135,6 +138,7 @@ builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
 builder.Services.AddScoped<IResolveUrlMetadataService, ResolveUrlMetadataService>();
+builder.Services.AddScoped<IPreviewInstagramMetadataCandidateService, PreviewInstagramMetadataCandidateService>();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(

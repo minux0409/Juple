@@ -175,10 +175,6 @@
     "account": "खाता",
     "loggedInAs": "आप अपने Juple खाते में लॉग इन हैं।",
     "settings": "सेटिंग्स",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Juple Plus के साथ और अधिक अनलॉक करें",
-    "plusCta": "Plus शुरू करें",
-    "plusComingSoonMessage": "Juple Plus जल्द आ रहा है।",
     "signOutConfirmTitle": "क्या लॉग आउट करना है?",
     "signOutConfirmMessage": "जारी रखने के लिए आपको फिर से लॉग इन करना होगा।",
     "deleteAccount": "खाता हटाएं",
@@ -215,6 +211,8 @@
     "restartForRtl": "लेआउट दिशा पूरी तरह लागू करने के लिए ऐप को फिर से शुरू करें।"
   },
   "item": {
+    "fallbackInstagramPost": "Instagram पोस्ट",
+    "fallbackInstagramReel": "Instagram रील",
     "titleLabel": "शीर्षक",
     "titlePlaceholder": "एक शीर्षक दर्ज करें",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "यहां के सभी लिंक स्थायी रूप से हटा दिए जाएंगे और पुनर्स्थापित नहीं किए जा सकेंगे।",
     "emptyTrashSuccess": "इतिहास खाली कर दिया गया।",
     "emptyTrashError": "खाली नहीं हो सका।",
-    "freeLimitNotice": "आप अपने हाल ही के 10 डिलीशन तक देख सकते हैं। अधिक डिलीशन इतिहास Plus के साथ उपलब्ध होगा।",
-    "plusLimitNotice": "हाल ही में हटाए गए 100 लिंक तक दिखाता है।",
+    "limitNotice": "आप हाल ही में हटाए गए अधिकतम {{count}} लिंक देख सकते हैं।",
     "restoreConfirmTitle": "पुनर्स्थापित करें?",
     "restoreConfirmMessage": "हटाया गया लिंक पुनर्स्थापित किया जाएगा।",
     "restoreConfirmAction": "पुनर्स्थापित करें"

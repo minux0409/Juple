@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Juple.Infrastructure.UrlMetadata;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Juple.UnitTests.UrlMetadata;
@@ -531,6 +532,124 @@ public sealed class UrlMetadataResolverTests
 
             Assert.Equal("https://scontent.cdninstagram.com/v/t51/some-real-post-photo.jpg", result.PreviewImageUrl);
         }
+    }
+
+    // Real public post page shape (og:title "{display name} on Instagram: \"caption\"", og:url with
+    // the handle, real scontent image) - both the username-normalized title and the real image must
+    // survive the whole resolve pipeline, never be filtered like the generic shell below.
+    [Fact]
+    public async Task ResolveAsync_Instagram_RealPublicPostPage_ReturnsNormalizedTitleAndRealImage()
+    {
+        var resolver = CreateResolver(
+            (_, _) => HtmlResponse(
+                "<html><head><title>Instagram</title>"
+                + "<meta property=\"og:title\" content=\"낄낄엔터 on Instagram: &quot;오늘의 사진&quot;\" />"
+                + "<meta property=\"og:url\" content=\"https://www.instagram.com/kkikki_ent/p/ABC123xyz/\" />"
+                + "<meta property=\"og:image\" content=\"https://scontent.cdninstagram.com/v/t51/real-post.jpg\" />"
+                + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.instagram.com/p/ABC123xyz/?igsh=abc");
+
+            Assert.Equal("kkikki_ent on Instagram: \"오늘의 사진\"", result.Title);
+            Assert.Equal("https://scontent.cdninstagram.com/v/t51/real-post.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    // The failure signature observed in Azure Dev logs (2026-09-24): Instagram answers the post URL
+    // with one redirect, then serves its logged-out shell (bare "Instagram" title, static UI-asset
+    // og:image). That is a login wall, not post metadata - nothing from it may be returned.
+    [Fact]
+    public async Task ResolveAsync_Instagram_GenericShellAfterRedirect_ReturnsNoTitleAndNoImage()
+    {
+        var resolver = CreateResolver(
+            (request, _) => request.RequestUri!.AbsolutePath.StartsWith("/p/", StringComparison.Ordinal)
+                ? new HttpResponseMessage(HttpStatusCode.Found)
+                {
+                    Headers = { Location = new Uri("https://www.instagram.com/accounts/login/?next=%2Fp%2FABC123xyz%2F") },
+                }
+                : HtmlResponse(
+                    "<html><head><title>Instagram</title>"
+                    + "<meta property=\"og:title\" content=\"Instagram\" />"
+                    + "<meta property=\"og:image\" content=\"https://static.cdninstagram.com/rsrc.php/v4/yI/r/generic.png\" />"
+                    + "</head></html>"),
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.instagram.com/p/ABC123xyz/");
+
+            Assert.Null(result.Title);
+            Assert.Null(result.PreviewImageUrl);
+        }
+    }
+
+    private sealed class CapturingLogger : ILogger<UrlMetadataResolver>
+    {
+        public List<(string Message, IReadOnlyDictionary<string, object?> Fields)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            var fields = state is IEnumerable<KeyValuePair<string, object?>> pairs
+                ? pairs.ToDictionary(pair => pair.Key, pair => pair.Value)
+                : new Dictionary<string, object?>();
+            Entries.Add((formatter(state, exception), fields));
+        }
+    }
+
+    // Diagnostics only: the redirect hop is logged as fixed categories (never the URL/shortcode/
+    // query), and the resolve outcome is exactly what it was without the log.
+    [Fact]
+    public async Task ResolveAsync_Instagram_LogsRedirectHopAsCategoriesOnly_WithoutChangingTheResult()
+    {
+        var logger = new CapturingLogger();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var handler = new StubHttpMessageHandler((request, _) => request.RequestUri!.AbsolutePath.StartsWith("/p/", StringComparison.Ordinal)
+            ? new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                Headers = { Location = new Uri("https://www.instagram.com/accounts/login/?next=%2Fp%2FSECRETCODE1%2F") },
+            }
+            : HtmlResponse("<html><head><title>Instagram</title><meta property=\"og:title\" content=\"Instagram\" /></head></html>"));
+        var resolver = new UrlMetadataResolver(new HttpClient(handler), cache, TimeProvider.System, logger);
+
+        var result = await resolver.ResolveAsync("https://www.instagram.com/p/SECRETCODE1/?igsh=SECRETIGSH");
+
+        Assert.Null(result.Title);
+        Assert.Null(result.PreviewImageUrl);
+        var hop = Assert.Single(logger.Entries, entry => entry.Message.StartsWith("URL metadata Instagram redirect.", StringComparison.Ordinal));
+        Assert.Equal(1, hop.Fields["RedirectStep"]);
+        Assert.Equal(302, hop.Fields["StatusCode"]);
+        Assert.Equal(InstagramRedirectHostCategory.InstagramWww, hop.Fields["DestinationHostCategory"]);
+        Assert.Equal(InstagramRedirectPathCategory.AccountsLogin, hop.Fields["DestinationPathCategory"]);
+        Assert.Equal(true, hop.Fields["SameHost"]);
+        foreach (var (message, _) in logger.Entries)
+        {
+            Assert.DoesNotContain("SECRETCODE1", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("SECRETIGSH", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("/p/", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("next=", message, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NonInstagramRedirect_IsNeverLoggedAsAnInstagramHop()
+    {
+        var logger = new CapturingLogger();
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var handler = new StubHttpMessageHandler((request, _) => request.RequestUri!.AbsolutePath == "/start"
+            ? new HttpResponseMessage(HttpStatusCode.Found) { Headers = { Location = new Uri("https://example.com/final") } }
+            : HtmlResponse("<html><head><title>Final</title></head></html>"));
+        var resolver = new UrlMetadataResolver(new HttpClient(handler), cache, TimeProvider.System, logger);
+
+        var result = await resolver.ResolveAsync("https://example.com/start");
+
+        Assert.Equal("Final", result.Title);
+        Assert.DoesNotContain(logger.Entries, entry => entry.Message.StartsWith("URL metadata Instagram redirect.", StringComparison.Ordinal));
     }
 
     [Fact]

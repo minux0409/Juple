@@ -1,7 +1,11 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Switch } from 'react-native';
+import { FlatList, StyleSheet, Switch } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
+import { StackScreenSafeArea } from '../../components/StackScreenSafeArea';
+import { SavedLinkGridCard } from '../../components/SavedLinkGridCard';
+import { SavedLinkRow } from '../../components/SavedLinkRow';
+import { spacing } from '../../theme/tokens';
 import {
   deleteCollection,
   enableCollectionShare,
@@ -795,6 +799,43 @@ describe('CollectionDetailsScreen', () => {
       });
       expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
       expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([2, 1, 3]);
+    });
+  });
+
+  describe('bottom inset layout (system nav bar overlap regression)', () => {
+    // The list viewport itself must end above the system nav bar: the screen root is the shared
+    // StackScreenSafeArea (real container padding), never an inset folded into list content padding.
+    async function expectListInsideStackSafeArea(renderer: ReactTestRenderer.ReactTestRenderer) {
+      const safeAreaRoots = renderer.root.findAllByType(StackScreenSafeArea);
+      expect(safeAreaRoots).toHaveLength(1);
+      const list = safeAreaRoots[0].findByType(FlatList);
+      expect(StyleSheet.flatten(list.props.style)).toMatchObject({ flex: 1 });
+      expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingBottom).toBe(spacing.xl);
+    }
+
+    it('keeps List and Grid inside the StackScreenSafeArea root', async () => {
+      const renderer = await renderScreen();
+      await expectListInsideStackSafeArea(renderer);
+
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+      await expectListInsideStackSafeArea(renderer);
+    });
+
+    it('Grid cards use the same full date+time mode as List rows', async () => {
+      const renderer = await renderScreen();
+      const listRows = renderer.root.findAllByType(SavedLinkRow);
+      expect(listRows.length).toBeGreaterThan(0);
+      expect(listRows.every(row => row.props.dateDisplayMode === 'dateTime')).toBe(true);
+
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+      });
+      const gridCards = renderer.root.findAllByType(SavedLinkGridCard);
+      expect(gridCards.length).toBe(listRows.length);
+      expect(gridCards.every(card => card.props.dateDisplayMode === 'dateTime')).toBe(true);
     });
   });
 

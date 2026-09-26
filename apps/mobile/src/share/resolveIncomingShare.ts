@@ -14,9 +14,12 @@ import type { PendingShare } from './specs/NativeIncomingShare';
 export type IncomingShareTitleSource = 'draft' | 'intent' | 'sharedText' | 'none';
 
 export interface ResolvedIncomingShare {
-  /** Mirrors parseSharedText: 'exactUrl' saves headlessly; 'reviewText' always needs user review. */
+  /**
+   * Mirrors parseSharedText: 'exactUrl' (the payload yields exactly one http/https URL, bare or
+   * alongside other text) saves headlessly; 'reviewText' (no URL, or several) always needs user review.
+   */
   readonly kind: 'exactUrl' | 'reviewText';
-  /** The exact http/https URL when kind is 'exactUrl'; otherwise the raw shared text for the review screen to edit. */
+  /** The single http/https URL when kind is 'exactUrl'; otherwise the first URL (if any) or the raw shared text for the review screen to edit. */
   readonly text: string;
   readonly title: string | null;
   readonly titleSource: IncomingShareTitleSource;
@@ -74,7 +77,7 @@ function sanitizeTitleCandidate(
  * Title priority - only ever values the sharing app actually provided, never guessed:
  * 1. draftTitle (reserved composer wire field - always null today, kept first for queue-schema compatibility)
  * 2. initialTitle (the app's own EXTRA_SUBJECT/EXTRA_TITLE - the explicit share-time signal)
- * 3. leading text before a single URL inside the shared text (only possible for 'reviewText')
+ * 3. leading text before a single URL inside the shared text (never for a bare-URL payload)
  */
 export function resolveIncomingShare(
   share: Pick<PendingShare, 'text' | 'initialTitle' | 'draftTitle'>,
@@ -91,12 +94,12 @@ export function resolveIncomingShare(
     return { kind: parsed.kind, text: parsed.text, title: intentTitle, titleSource: 'intent' };
   }
 
-  if (parsed.kind === 'reviewText') {
-    const candidate = extractTitleCandidateFromSharedText(share.text)?.titleCandidate;
-    const sharedTextTitle = sanitizeTitleCandidate(candidate, share.text);
-    if (sharedTextTitle) {
-      return { kind: parsed.kind, text: parsed.text, title: sharedTextTitle, titleSource: 'sharedText' };
-    }
+  // Not gated on kind: a "text + single URL" share is 'exactUrl' (headless-eligible) yet still has
+  // leading text; a bare URL simply yields no candidate (nothing precedes it).
+  const candidate = extractTitleCandidateFromSharedText(share.text)?.titleCandidate;
+  const sharedTextTitle = sanitizeTitleCandidate(candidate, share.text);
+  if (sharedTextTitle) {
+    return { kind: parsed.kind, text: parsed.text, title: sharedTextTitle, titleSource: 'sharedText' };
   }
 
   return { kind: parsed.kind, text: parsed.text, title: null, titleSource: 'none' };

@@ -38,16 +38,18 @@ async function resolveMetadataBestEffort(
  * dominant real-world reason a real Quick-Save-ON YouTube/Instagram share ended up with no
  * thumbnail even though the same URL saved with no incoming title got one. Shared by
  * incomingShareHeadlessTask (Quick Save ON) and DailyInboxScreen (Home direct save) so both use
- * the same resolution policy instead of duplicating this call sequence.
+ * the same resolution policy instead of duplicating this call sequence. Returns the resolved
+ * metadata (null when the resolve itself failed) so a caller can decide whether the Instagram
+ * device fallback is needed - see instagramDeviceFallback.ts.
  */
 export async function enrichItemTitleFromUrlMetadata(
   request: AuthenticatedApiRequest,
   itemId: number,
   url: string,
-): Promise<void> {
+): Promise<ResolvedUrlMetadata | null> {
   const metadata = await resolveMetadataBestEffort(request, url, 'enrichItemTitleFromUrlMetadata');
   if (!metadata) {
-    return;
+    return null;
   }
 
   if (metadata.title) {
@@ -65,6 +67,7 @@ export async function enrichItemTitleFromUrlMetadata(
       logWarn('enrichItemTitleFromUrlMetadata preview image apply', error);
     }
   }
+  return metadata;
 }
 
 /**
@@ -78,10 +81,10 @@ export async function enrichItemPreviewImageFromUrlMetadata(
   request: AuthenticatedApiRequest,
   itemId: number,
   url: string,
-): Promise<void> {
+): Promise<ResolvedUrlMetadata | null> {
   const metadata = await resolveMetadataBestEffort(request, url, 'enrichItemPreviewImageFromUrlMetadata');
   if (!metadata?.previewImageUrl) {
-    return;
+    return metadata;
   }
 
   try {
@@ -89,4 +92,5 @@ export async function enrichItemPreviewImageFromUrlMetadata(
   } catch (error) {
     logWarn('enrichItemPreviewImageFromUrlMetadata preview image apply', error);
   }
+  return metadata;
 }

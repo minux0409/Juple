@@ -175,10 +175,6 @@
     "account": "Konto",
     "loggedInAs": "Sie sind bei Ihrem Juple-Konto angemeldet.",
     "settings": "Einstellungen",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Mit Juple Plus mehr freischalten",
-    "plusCta": "Plus starten",
-    "plusComingSoonMessage": "Juple Plus kommt bald.",
     "signOutConfirmTitle": "Abmelden?",
     "signOutConfirmMessage": "Sie müssen sich erneut anmelden, um fortzufahren.",
     "deleteAccount": "Konto löschen",
@@ -215,6 +211,8 @@
     "restartForRtl": "Starten Sie die App neu, damit die Layoutrichtung vollständig übernommen wird."
   },
   "item": {
+    "fallbackInstagramPost": "Instagram-Beitrag",
+    "fallbackInstagramReel": "Instagram-Reel",
     "titleLabel": "Titel",
     "titlePlaceholder": "Titel eingeben",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Alle Links hier werden endgültig gelöscht und können nicht wiederhergestellt werden.",
     "emptyTrashSuccess": "Verlauf geleert.",
     "emptyTrashError": "Konnte nicht geleert werden.",
-    "freeLimitNotice": "Du kannst deine letzten 10 Löschungen einsehen. Ein umfangreicherer Löschverlauf wird mit Plus verfügbar sein.",
-    "plusLimitNotice": "Zeigt bis zu die 100 zuletzt gelöschten Links.",
+    "limitNotice": "Du kannst deine letzten {{count}} gelöschten Links ansehen.",
     "restoreConfirmTitle": "Wiederherstellen?",
     "restoreConfirmMessage": "Der gelöschte Link wird wiederhergestellt.",
     "restoreConfirmAction": "Wiederherstellen"

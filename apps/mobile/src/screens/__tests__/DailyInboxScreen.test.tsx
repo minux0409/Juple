@@ -5,6 +5,7 @@ import i18n from '../../i18n';
 import { DailyInboxScreen } from '../DailyInboxScreen';
 import { UndoToast } from '../../components/UndoToast';
 import { AppToastProvider } from '../../components/AppToast';
+import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
 
 // The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
 // otherwise resolve to English by default - pinned to Korean so this file's label assertions are
@@ -139,6 +140,27 @@ function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, l
   const dialog = renderer.root.findByType(Modal);
   return dialog.findAll(node => node.props.accessibilityLabel === label)[0];
 }
+
+describe('DailyInboxScreen grid', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("renders grid items with the same shared SavedLinkGridCell History uses, never a Home-only size variant", async () => {
+    const items = [makeItem({ id: 1, title: 'Hi' }), makeItem({ id: 2, title: 'A much longer title that wraps onto a second line' })];
+    setUpItems(items);
+    const renderer = await renderScreen();
+    const gridToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Grid view' && typeof node.props.onPress === 'function')[0];
+    await act(async () => {
+      gridToggle.props.onPress();
+    });
+
+    const cells = renderer.root.findAllByType(SavedLinkGridCell);
+    expect(cells.map(cell => cell.props.item.id)).toEqual([1, 2]);
+    expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+    expect(Object.keys(cells[0].props).sort()).toEqual(Object.keys(cells[1].props).sort());
+  });
+});
 
 describe('DailyInboxScreen swipe actions', () => {
   afterEach(() => {

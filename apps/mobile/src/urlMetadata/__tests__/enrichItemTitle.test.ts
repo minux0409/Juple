@@ -61,7 +61,7 @@ describe('enrichItemTitleFromUrlMetadata', () => {
     jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    await expect(enrichItemTitleFromUrlMetadata(request, 42, 'https://example.com')).resolves.toBeUndefined();
+    await expect(enrichItemTitleFromUrlMetadata(request, 42, 'https://example.com')).resolves.toBeNull();
 
     expect(updateItemDetails).not.toHaveBeenCalled();
     expect(setItemPreviewImage).not.toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe('enrichItemTitleFromUrlMetadata', () => {
     jest.mocked(setItemPreviewImage).mockRejectedValue(new Error('preview save failed'));
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    await expect(enrichItemTitleFromUrlMetadata(request, 42, 'https://example.com')).resolves.toBeUndefined();
+    await expect(enrichItemTitleFromUrlMetadata(request, 42, 'https://example.com')).resolves.toMatchObject({ previewImageUrl: expect.any(String) });
 
     expect(updateItemDetails).toHaveBeenCalledWith(request, 42, { title: 'Resolved Title', memo: '' });
     warnSpy.mockRestore();
@@ -94,7 +94,7 @@ describe('enrichItemTitleFromUrlMetadata', () => {
     jest.mocked(setItemPreviewImage).mockResolvedValue(undefined);
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
-    await expect(enrichItemTitleFromUrlMetadata(request, 42, 'https://example.com')).resolves.toBeUndefined();
+    await expect(enrichItemTitleFromUrlMetadata(request, 42, 'https://example.com')).resolves.toMatchObject({ previewImageUrl: expect.any(String) });
 
     expect(setItemPreviewImage).toHaveBeenCalledWith(request, 42, 'https://cdn.example.com/preview.jpg');
     warnSpy.mockRestore();
@@ -149,7 +149,7 @@ describe('enrichItemPreviewImageFromUrlMetadata', () => {
 
     await expect(
       enrichItemPreviewImageFromUrlMetadata(request, 42, 'https://example.com'),
-    ).resolves.toBeUndefined();
+    ).resolves.toBeNull();
 
     expect(setItemPreviewImage).not.toHaveBeenCalled();
     warnSpy.mockRestore();
@@ -164,7 +164,7 @@ describe('enrichItemPreviewImageFromUrlMetadata', () => {
 
     await expect(
       enrichItemPreviewImageFromUrlMetadata(request, 42, 'https://example.com'),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ previewImageUrl: expect.any(String) });
 
     warnSpy.mockRestore();
   });

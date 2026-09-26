@@ -192,10 +192,6 @@
     "account": "Account",
     "loggedInAs": "You're signed in to your Juple account.",
     "settings": "Settings",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Unlock more with Juple Plus",
-    "plusCta": "Get Plus",
-    "plusComingSoonMessage": "Juple Plus is coming soon.",
     "signOutConfirmTitle": "Sign out?",
     "signOutConfirmMessage": "You'll need to sign in again to continue.",
     "deleteAccount": "Delete account",
@@ -232,6 +228,8 @@
     "restartForRtl": "Restart the app for the layout direction to fully apply."
   },
   "item": {
+    "fallbackInstagramPost": "Instagram post",
+    "fallbackInstagramReel": "Instagram reel",
     "titleLabel": "Title",
     "titlePlaceholder": "Enter a title",
     "url": "URL",
@@ -323,8 +321,7 @@
     "emptyTrashConfirmMessage": "Every link here will be permanently deleted and cannot be restored.",
     "emptyTrashSuccess": "Cleared.",
     "emptyTrashError": "Couldn't clear.",
-    "freeLimitNotice": "You can view up to your 10 most recent deletions. More deletion history will be available with Plus.",
-    "plusLimitNotice": "Shows up to the 100 most recently deleted links.",
+    "limitNotice": "You can view up to your {{count}} most recent deletions.",
     "restoreConfirmTitle": "Restore this link?",
     "restoreConfirmMessage": "The deleted link will be restored.",
     "restoreConfirmAction": "Restore"

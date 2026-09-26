@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { FlatList, Modal, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { TrashScreen } from '../TrashScreen';
 import {
@@ -28,10 +28,7 @@ jest.mock('../../items/api/itemsApi', () => ({
   restoreItem: jest.fn(),
   permanentlyDeleteItem: jest.fn(),
   emptyTrash: jest.fn(),
-}));
-
-jest.mock('../../auth/useIsPlusUser', () => ({
-  useIsPlusUser: jest.fn(() => false),
+  TRASH_LIST_LIMIT: 50,
 }));
 
 function makeEntry(overrides: Partial<ItemTrashEntry> = {}): ItemTrashEntry {
@@ -84,6 +81,34 @@ describe('TrashScreen empty state', () => {
     const renderer = await renderScreen();
 
     expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
+  });
+
+  it('still shows the single 50-item limit notice when the list is empty', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([]);
+
+    const renderer = await renderScreen();
+
+    expect(findTextValues(renderer)).toContain(i18n.t('trash.limitNotice', { count: 50 }));
+  });
+});
+
+describe('TrashScreen limit notice', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('shows the same 50-item notice for every user, with no Plus wording in any locale', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry()]);
+
+    const renderer = await renderScreen();
+
+    const notice = i18n.t('trash.limitNotice', { count: 50 });
+    expect(findTextValues(renderer)).toContain(notice);
+    expect(notice).toContain('50');
+    expect(i18n.t('trash.limitNotice', { count: 50, lng: 'ko' })).toBe('삭제 이력은 최근 50개까지 확인할 수 있습니다.');
+    for (const language of Object.keys(i18n.options.resources ?? {})) {
+      expect(i18n.t('trash.limitNotice', { count: 50, lng: language })).not.toMatch(/plus|플러스/i);
+    }
   });
 });
 
@@ -187,6 +212,55 @@ describe('TrashScreen permanent delete', () => {
     expect(permanentlyDeleteItem).toHaveBeenCalledWith(expect.anything(), 1);
     expect(findTextValues(renderer)).not.toContain('First');
     expect(findTextValues(renderer)).not.toContain(i18n.t('trash.permanentDeleteSuccess'));
+  });
+});
+
+describe('TrashScreen header layout', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('centers the limit notice and puts 비우기 on the same header row, outside the list', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
+    const renderer = await renderScreen();
+
+    const notice = renderer.root.findByProps({ testID: 'trash-limit-notice' });
+    expect(StyleSheet.flatten(notice.props.style)).toMatchObject({ textAlign: 'center', flex: 1 });
+    const headerRow = notice.parent!;
+    expect(StyleSheet.flatten(headerRow.props.style)).toMatchObject({ flexDirection: 'row' });
+    const emptyButton = findPressableContainingText(renderer, i18n.t('trash.emptyAction'));
+    expect(headerRow.findAll(node => node === emptyButton)).toHaveLength(1);
+    expect(StyleSheet.flatten(headerRow.props.style).minHeight).toBe(44);
+    // Never inside the FlatList (whose own padding used to open the big gap under the notice).
+    expect(renderer.root.findByType(FlatList).props.ListHeaderComponent).toBeUndefined();
+    expect(StyleSheet.flatten(renderer.root.findByType(FlatList).props.contentContainerStyle).paddingTop).toBe(0);
+  });
+
+  it('centers the notice on the true center line: a leading mirror slot always matches 비우기\'s measured width', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
+    const renderer = await renderScreen();
+
+    const emptyButton = findPressableContainingText(renderer, i18n.t('trash.emptyAction'))!;
+    await act(async () => {
+      emptyButton.props.onLayout({ nativeEvent: { layout: { width: 57, height: 44, x: 0, y: 0 } } });
+    });
+
+    const notice = renderer.root.findByProps({ testID: 'trash-limit-notice' });
+    const mirrorSlot = renderer.root.findByProps({ testID: 'trash-header-mirror-slot' });
+    const headerChildren = notice.parent!.children as ReactTestRenderer.ReactTestInstance[];
+    // [mirror slot][notice (flex:1, centered)][비우기] - equal-width sides => symmetric center column.
+    expect(headerChildren.indexOf(mirrorSlot)).toBeLessThan(headerChildren.indexOf(notice));
+    expect(StyleSheet.flatten(mirrorSlot.props.style).width).toBe(57);
+  });
+
+  it('keeps the centered notice but hides 비우기 (and its mirror slot) when there is nothing to empty', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([]);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ testID: 'trash-limit-notice' }).props.children).toBe(i18n.t('trash.limitNotice', { count: 50 }));
+    expect(findTextValues(renderer)).not.toContain(i18n.t('trash.emptyAction'));
+    expect(renderer.root.findAllByProps({ testID: 'trash-header-mirror-slot' })).toHaveLength(0);
+    expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
   });
 });
 

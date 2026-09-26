@@ -175,10 +175,6 @@
     "account": "Учётная запись",
     "loggedInAs": "Вы вошли в свою учётную запись Juple.",
     "settings": "Настройки",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Откройте больше возможностей с Juple Plus",
-    "plusCta": "Подключить Plus",
-    "plusComingSoonMessage": "Juple Plus скоро появится.",
     "signOutConfirmTitle": "Выйти?",
     "signOutConfirmMessage": "Для продолжения потребуется снова войти в систему.",
     "deleteAccount": "Удалить учётную запись",
@@ -215,6 +211,8 @@
     "restartForRtl": "Перезапустите приложение, чтобы направление макета применилось полностью."
   },
   "item": {
+    "fallbackInstagramPost": "Публикация в Instagram",
+    "fallbackInstagramReel": "Reels в Instagram",
     "titleLabel": "Заголовок",
     "titlePlaceholder": "Введите заголовок",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "Все ссылки здесь будут окончательно удалены без возможности восстановления.",
     "emptyTrashSuccess": "История очищена.",
     "emptyTrashError": "Не удалось очистить.",
-    "freeLimitNotice": "Вы можете просмотреть до 10 последних удалений. Более полная история удалений будет доступна в Plus.",
-    "plusLimitNotice": "Показывает до 100 последних удалённых ссылок.",
+    "limitNotice": "Можно просмотреть до {{count}} последних удалённых ссылок.",
     "restoreConfirmTitle": "Восстановить?",
     "restoreConfirmMessage": "Удалённая ссылка будет восстановлена.",
     "restoreConfirmAction": "Восстановить"

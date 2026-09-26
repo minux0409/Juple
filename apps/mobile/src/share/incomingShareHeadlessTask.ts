@@ -9,7 +9,9 @@ import { AuthSessionError } from '../auth/session/authSessionErrors';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
+import type { ResolvedUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import { enrichItemPreviewImageFromUrlMetadata, enrichItemTitleFromUrlMetadata } from '../urlMetadata/enrichItemTitle';
+import { applyInstagramDeviceFallback, needsInstagramDeviceFallback } from '../urlMetadata/instagramDeviceFallback';
 
 /**
  * Coarse, non-identifying shape for diagnostics only - never the URL itself (path/query can carry
@@ -98,8 +100,10 @@ async function reportOutcome(
 }
 
 /**
- * Looks up the pending share captured by ShareReceiverActivity and, only when its text is an
- * exact http/https URL, saves it in the background using the same authenticated client and
+ * Looks up the pending share captured by ShareReceiverActivity and, only when its text yields
+ * exactly one http/https URL (bare, or alongside a description/title/caption - see
+ * parseSharedText; never decided by the sharing app), saves that URL in the background using the
+ * same authenticated client and
  * clientRequestId idempotency the manual/foreground share flow uses. Runs immediately for every
  * Quick Save ON share (see ShareReceiverActivity/IncomingShareSaveScheduler). When the sharing
  * app itself provided a title (resolveIncomingShare - the same resolver Quick Save OFF's review
@@ -184,10 +188,19 @@ async function incomingShareHeadlessTask(
   // title PUT must not leave the share pending - a retry would replay the (idempotent) save and
   // then blindly re-PUT title+memo, which could overwrite edits the user made in the meantime.
   // Worst case of this ordering is the pre-existing behavior: a saved Item with no title.
-  if (resolvedShare.title !== null) {
+  //
+  // Only a structured share title (EXTRA_SUBJECT/EXTRA_TITLE, or a draft) is saved here. Leading
+  // text around a URL in EXTRA_TEXT ('sharedText' - e.g. "이 글을 확인해보세요!") is just the
+  // sharing app's wrapper around the link, and unlike Quick Save OFF no one reviews it before this
+  // save - so it is not written as the title, leaving the field to the page's real metadata title
+  // below (automatic metadata only ever fills an empty title). Without metadata the Item stays
+  // title-less and the usual hostname presentation fallback applies.
+  const appliedTitle = resolvedShare.titleSource === 'sharedText' ? null : resolvedShare.title;
+  let backendMetadata: ResolvedUrlMetadata | null;
+  if (appliedTitle !== null) {
     try {
       await updateItemDetails(requestAuthenticatedApi, savedEntryId, {
-        title: resolvedShare.title,
+        title: appliedTitle,
         memo: '',
       });
     } catch (error) {
@@ -204,16 +217,26 @@ async function incomingShareHeadlessTask(
     // reproduced bug where a YouTube/Instagram share that already carried a title (e.g.
     // YouTube's EXTRA_SUBJECT) silently never got a thumbnail at all, while the identical URL
     // saved with no incoming title did. Its own try/catch already never throws.
-    await enrichItemPreviewImageFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
+    backendMetadata = await enrichItemPreviewImageFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
   } else {
-    // No title from Intent/sharedText - best-effort URL-metadata fallback (same policy
+    // No structured share title - best-effort URL-metadata fallback (same policy
     // NewLinkReviewScreen/DailyInboxScreen use - see enrichItemTitleFromUrlMetadata). Its own
     // try/catch already never throws, so a failure here never leaves the share pending or unsaved.
-    await enrichItemTitleFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
+    backendMetadata = await enrichItemTitleFromUrlMetadata(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
   }
 
   console.log('[IncomingShareHeadlessTask] success');
   await NativeIncomingShare.acknowledgePendingShare(pendingShare.id);
+
+  // Instagram device fallback (see instagramDeviceFallback.ts) - only when the Backend's own
+  // metadata left the title or image missing, and only after the share is saved and acknowledged,
+  // so it can never affect the save itself or cause a replayed save. Never throws.
+  if (needsInstagramDeviceFallback(resolvedShare.text, {
+    hasTitle: appliedTitle !== null || Boolean(backendMetadata?.title),
+    hasImage: Boolean(backendMetadata?.previewImageUrl),
+  })) {
+    await applyInstagramDeviceFallback(requestAuthenticatedApi, savedEntryId, resolvedShare.text);
+  }
 }
 
 export function registerIncomingShareHeadlessTask(): void {

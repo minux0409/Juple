@@ -175,10 +175,6 @@
     "account": "الحساب",
     "loggedInAs": "لقد سجّلت الدخول إلى حساب Juple الخاص بك.",
     "settings": "الإعدادات",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "افتح المزيد مع Juple Plus",
-    "plusCta": "ابدأ Plus",
-    "plusComingSoonMessage": "سيتوفر Juple Plus قريبًا.",
     "signOutConfirmTitle": "هل تريد تسجيل الخروج؟",
     "signOutConfirmMessage": "ستحتاج إلى تسجيل الدخول مرة أخرى للمتابعة.",
     "deleteAccount": "حذف الحساب",
@@ -215,6 +211,8 @@
     "restartForRtl": "أعد تشغيل التطبيق لتطبيق اتجاه التخطيط بالكامل."
   },
   "item": {
+    "fallbackInstagramPost": "منشور على Instagram",
+    "fallbackInstagramReel": "مقطع Reels على Instagram",
     "titleLabel": "العنوان",
     "titlePlaceholder": "أدخل عنوانًا",
     "url": "الرابط",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "سيتم حذف جميع الروابط هنا نهائيًا ولن يمكن استعادتها.",
     "emptyTrashSuccess": "تم إفراغ السجل.",
     "emptyTrashError": "تعذّر الإفراغ.",
-    "freeLimitNotice": "يمكنك عرض ما يصل إلى آخر 10 عمليات حذف. سيتوفر سجل حذف أكبر مع Plus.",
-    "plusLimitNotice": "يعرض ما يصل إلى آخر 100 رابط محذوف.",
+    "limitNotice": "يمكنك عرض آخر {{count}} عنصرًا محذوفًا.",
     "restoreConfirmTitle": "هل تريد الاستعادة؟",
     "restoreConfirmMessage": "سيتم استعادة الرابط المحذوف.",
     "restoreConfirmAction": "استعادة"

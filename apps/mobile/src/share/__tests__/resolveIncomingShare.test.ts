@@ -40,7 +40,8 @@ describe('resolveIncomingShare', () => {
       }),
     );
 
-    expect(resolved.kind).toBe('reviewText');
+    expect(resolved.kind).toBe('exactUrl');
+    expect(resolved.text).toBe('https://example.com/c');
     expect(resolved.title).toBe('From intent');
     expect(resolved.titleSource).toBe('intent');
   });
@@ -50,7 +51,10 @@ describe('resolveIncomingShare', () => {
       makeShare({ text: 'Check this out: https://example.com/c' }),
     );
 
-    expect(resolved.kind).toBe('reviewText');
+    // Headless-eligible now, yet the leading-text title is resolved exactly as before, so Quick
+    // Save ON and OFF still produce the same title for the same payload.
+    expect(resolved.kind).toBe('exactUrl');
+    expect(resolved.text).toBe('https://example.com/c');
     expect(resolved.title).toBe('Check this out:');
     expect(resolved.titleSource).toBe('sharedText');
   });

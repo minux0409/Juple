@@ -225,8 +225,12 @@ const styles = StyleSheet.create({
   wrapper: {
     overflow: 'hidden',
   },
+  // flexGrow: when a parent stretches the wrapper (e.g. a Grid cell sharing a row with a taller
+  // neighbor), the opaque content must fill it too - otherwise the uncovered strip below the content
+  // is exactly where a revealed action pane shows through as a colored band.
   content: {
     backgroundColor: colors.surface,
+    flexGrow: 1,
   },
   // Deliberately no flexDirection here - contentPressable has exactly one child (the screen's own
   // row content, e.g. InboxRow/HistoryRow), which needs the full row width to lay itself out.
@@ -235,7 +239,9 @@ const styles = StyleSheet.create({
   // stretch) - the child's own flex:1 text column then had no real width to grow into, collapsing
   // every row's title/URL/memo to an invisible sliver. Plain default column layout gives the
   // single child the full width via Yoga's normal cross-axis stretch instead.
-  contentPressable: {},
+  contentPressable: {
+    flexGrow: 1,
+  },
   actionSlot: {
     bottom: 0,
     position: 'absolute',

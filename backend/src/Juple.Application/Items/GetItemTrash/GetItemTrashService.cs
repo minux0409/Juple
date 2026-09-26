@@ -1,5 +1,4 @@
 using Juple.Application.Images;
-using Juple.Domain.Users;
 
 namespace Juple.Application.Items.GetItemTrash;
 
@@ -8,11 +7,10 @@ public sealed class GetItemTrashService(
     IItemImageStorage itemImageStorage) : IGetItemTrashService
 {
     public async Task<IReadOnlyList<ItemTrashEntryDto>> GetAsync(
-        long userId, UserPlan plan, CancellationToken cancellationToken = default)
+        long userId, CancellationToken cancellationToken = default)
     {
-        var limit = plan == UserPlan.Plus ? ItemTrashLimits.PlusListLimit : ItemTrashLimits.FreeListLimit;
         var (items, representativeImages, coverImages) =
-            await itemTrashQueryStore.ListTrashAsync(userId, limit, cancellationToken);
+            await itemTrashQueryStore.ListTrashAsync(userId, ItemTrashLimits.ListLimit, cancellationToken);
 
         var enrichedItems = new List<ItemTrashEntryDto>(items.Count);
         foreach (var item in items)

@@ -1,32 +1,27 @@
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Items.GetItemTrash;
-using Juple.Domain.Users;
 
 namespace Juple.UnitTests.Items;
 
 public sealed class GetItemTrashServiceTests
 {
     [Fact]
-    public async Task GetAsync_FreePlan_RequestsAtMostFreeListLimitFromStore()
+    public async Task GetAsync_RequestsTheSingleFiftyItemListLimitFromStore_ForEveryUser()
     {
         var store = new FakeItemTrashQueryStore();
         var service = new GetItemTrashService(store, new FakeItemImageStorage());
 
-        await service.GetAsync(17, UserPlan.Free);
+        await service.GetAsync(17);
 
-        Assert.Equal(ItemTrashLimits.FreeListLimit, store.LastLimit);
+        Assert.Equal(50, ItemTrashLimits.ListLimit);
+        Assert.Equal(ItemTrashLimits.ListLimit, store.LastLimit);
     }
 
     [Fact]
-    public async Task GetAsync_PlusPlan_RequestsUpToPlusListLimitFromStore()
+    public void ListLimit_NeverExceedsServerSideRetention()
     {
-        var store = new FakeItemTrashQueryStore();
-        var service = new GetItemTrashService(store, new FakeItemImageStorage());
-
-        await service.GetAsync(17, UserPlan.Plus);
-
-        Assert.Equal(ItemTrashLimits.PlusListLimit, store.LastLimit);
+        Assert.True(ItemTrashLimits.ListLimit <= ItemTrashLimits.MaxRetainedPerUser);
     }
 
     [Fact]
@@ -35,7 +30,7 @@ public sealed class GetItemTrashServiceTests
         var store = new FakeItemTrashQueryStore();
         var service = new GetItemTrashService(store, new FakeItemImageStorage());
 
-        await service.GetAsync(17, UserPlan.Free);
+        await service.GetAsync(17);
 
         Assert.Equal(17, store.LastUserId);
     }
@@ -59,7 +54,7 @@ public sealed class GetItemTrashServiceTests
         var imageStorage = new FakeItemImageStorage { ReadUrl = readUrl };
         var service = new GetItemTrashService(store, imageStorage);
 
-        var result = await service.GetAsync(17, UserPlan.Free);
+        var result = await service.GetAsync(17);
 
         Assert.Equal(new RepresentativeImageDto(9, readUrl), result[0].RepresentativeImage);
     }

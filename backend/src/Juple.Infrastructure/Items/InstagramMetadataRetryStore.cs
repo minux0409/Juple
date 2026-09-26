@@ -105,16 +105,9 @@ public sealed class InstagramMetadataRetryStore(JupleDbContext dbContext) : IIns
         }
 
         // Only ever fills a field that is still null right now - never overwrites a user edit or
-        // the client's own concurrent enrichment success, no matter how close the timing.
-        if (title is not null && item.Title is null)
-        {
-            item.UpdateDetails(title, item.Memo);
-        }
-
-        if (previewImageUrl is not null && item.PreviewImageUrl is null)
-        {
-            item.SetPreviewImageUrl(previewImageUrl);
-        }
+        // the client's own concurrent enrichment success, no matter how close the timing (the same
+        // Item.ApplyAutomaticMetadata rule the device-fetched Instagram candidate path uses).
+        item.ApplyAutomaticMetadata(title, previewImageUrl);
 
         try
         {

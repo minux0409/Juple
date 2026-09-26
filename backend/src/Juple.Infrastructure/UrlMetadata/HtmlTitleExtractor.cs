@@ -217,7 +217,7 @@ public static partial class HtmlTitleExtractor
     /// dangerous link, not a shorter valid one) - an overlong or malformed value is treated the
     /// same as "no image found".
     /// </summary>
-    private static string? ValidateImageUrl(string? rawUrl)
+    internal static string? ValidateImageUrl(string? rawUrl)
     {
         if (string.IsNullOrWhiteSpace(rawUrl))
         {
@@ -240,7 +240,7 @@ public static partial class HtmlTitleExtractor
     /// needs to trim, collapse internal whitespace, cap length, and drop known generic/placeholder
     /// titles - never a raw HtmlDecode step.
     /// </summary>
-    private static string? NormalizeTitle(string? raw)
+    internal static string? NormalizeTitle(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
         {

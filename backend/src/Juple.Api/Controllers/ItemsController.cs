@@ -10,6 +10,7 @@ using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
 using Juple.Application.Items.GetItemTrash;
+using Juple.Application.Items.InstagramMetadataCandidate;
 using Juple.Application.Items.PermanentlyDeleteItem;
 using Juple.Application.Items.RecordItemOpen;
 using Juple.Application.Items.RestoreItem;
@@ -39,6 +40,7 @@ public sealed class ItemsController(
     IGetItemTrashService getItemTrashService,
     IRestoreItemService restoreItemService,
     IPermanentlyDeleteItemService permanentlyDeleteItemService,
+    IApplyInstagramMetadataCandidateService applyInstagramMetadataCandidateService,
     IEmptyItemTrashService emptyItemTrashService) : ControllerBase
 {
     /// <summary>
@@ -152,9 +154,8 @@ public sealed class ItemsController(
     }
 
     /// <summary>
-    /// The caller's most-recently-deleted Items (the trash) - size capped server-side by the
-    /// caller's Plan (Free 10 / Plus up to 100, see ItemTrashLimits), never by a client-supplied
-    /// limit, so a Free user cannot bypass the cap by requesting a larger one.
+    /// The caller's most-recently-deleted Items (the trash) - size capped server-side to
+    /// ItemTrashLimits.ListLimit (the same for every user), never by a client-supplied limit.
     /// </summary>
     [HttpGet("trash")]
     public async Task<IActionResult> GetTrashAsync(CancellationToken cancellationToken)
@@ -163,7 +164,7 @@ public sealed class ItemsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var items = await getItemTrashService.GetAsync(currentUser.UserId, currentUser.Plan, cancellationToken);
+            var items = await getItemTrashService.GetAsync(currentUser.UserId, cancellationToken);
 
             return Ok(new ItemTrashResponse(items));
         }
@@ -227,7 +228,7 @@ public sealed class ItemsController(
             userId => permanentlyDeleteItemService.DeleteAsync(userId, id, cancellationToken),
             cancellationToken);
 
-    /// <summary>Hard-deletes every one of the caller's trashed Items - the whole server-side trash, not just what a Free-plan trash list shows.</summary>
+    /// <summary>Hard-deletes every one of the caller's trashed Items - the whole server-side trash, not just what the capped trash list shows.</summary>
     [HttpDelete("trash")]
     public async Task<IActionResult> EmptyTrashAsync(CancellationToken cancellationToken)
     {
@@ -283,6 +284,50 @@ public sealed class ItemsController(
             userId => setItemPreviewImageService.SetAsync(
                 userId, id, new SetItemPreviewImageCommand(request.PreviewImageUrl), cancellationToken),
             cancellationToken);
+
+    /// <summary>
+    /// Device-fetched Instagram metadata fallback (see ApplyInstagramMetadataCandidateService): the
+    /// caller's own device sends raw OpenGraph values it read from the Item's public Instagram page
+    /// after the Backend's own fetch got Instagram's login redirect. Validated/normalized server-side
+    /// and applied only to still-empty automatic fields; responds with the Item's resulting
+    /// title/preview image so the client can show them without a separate refetch.
+    /// </summary>
+    [HttpPost("{id:long}/instagram-metadata-candidate")]
+    public async Task<IActionResult> ApplyInstagramMetadataCandidateAsync(
+        long id,
+        InstagramMetadataCandidateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var result = await applyInstagramMetadataCandidateService.ApplyAsync(
+                currentUser.UserId,
+                id,
+                new InstagramMetadataCandidateCommand(request.OgTitle, request.OgImage, request.OgUrl, request.OgDescription),
+                cancellationToken);
+
+            return Ok(new InstagramMetadataCandidateResponse(result.Title, result.PreviewImageUrl, result.Applied));
+        }
+        catch (InvalidItemDetailsException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (ItemNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 
     /// <summary>
     /// Sets (ImageId non-null) or clears (null) the user's explicit cover image choice - always
@@ -364,6 +409,14 @@ public sealed class ItemsController(
     public sealed record SetItemPreviewImageRequest(string? PreviewImageUrl);
 
     public sealed record SetItemCoverImageRequest(long? ImageId);
+
+    public sealed record InstagramMetadataCandidateRequest(
+        string? OgTitle,
+        string? OgImage,
+        string? OgUrl,
+        string? OgDescription);
+
+    public sealed record InstagramMetadataCandidateResponse(string? Title, string? PreviewImageUrl, bool Applied);
 
     public sealed record ItemDetailResponse(
         long Id,

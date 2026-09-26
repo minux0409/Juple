@@ -176,10 +176,6 @@
     "account": "계정",
     "loggedInAs": "Juple 계정으로 로그인되어 있습니다.",
     "settings": "설정",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "Juple Plus로 더 많은 기능을 사용해보세요",
-    "plusCta": "Plus 시작하기",
-    "plusComingSoonMessage": "Juple Plus는 아직 준비 중입니다.",
     "signOutConfirmTitle": "로그아웃할까요?",
     "signOutConfirmMessage": "다시 로그인하려면 인증 절차를 거쳐야 합니다.",
     "deleteAccount": "계정 삭제",
@@ -216,6 +212,8 @@
     "restartForRtl": "레이아웃 방향을 완전히 적용하려면 앱을 다시 시작해 주세요."
   },
   "item": {
+    "fallbackInstagramPost": "Instagram 게시물",
+    "fallbackInstagramReel": "Instagram 릴스",
     "titleLabel": "제목",
     "titlePlaceholder": "제목을 입력해 주세요",
     "url": "URL",
@@ -307,8 +305,7 @@
     "emptyTrashConfirmMessage": "삭제 이력의 링크가 모두 영구 삭제되며 다시 복구할 수 없습니다.",
     "emptyTrashSuccess": "삭제 이력을 비웠습니다.",
     "emptyTrashError": "삭제 이력을 비우지 못했습니다.",
-    "freeLimitNotice": "삭제 이력은 최근 10개까지 확인할 수 있습니다. 더 많은 삭제 이력은 Plus에서 제공될 예정입니다.",
-    "plusLimitNotice": "최근 삭제된 링크 100개까지 표시됩니다.",
+    "limitNotice": "삭제 이력은 최근 {{count}}개까지 확인할 수 있습니다.",
     "restoreConfirmTitle": "복구할까요?",
     "restoreConfirmMessage": "삭제된 링크를 다시 복구합니다.",
     "restoreConfirmAction": "복구"

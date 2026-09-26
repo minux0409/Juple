@@ -1,6 +1,7 @@
 using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
+using Juple.Application.Items.InstagramMetadataCandidate;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -10,8 +11,52 @@ namespace Juple.Infrastructure.Items;
 
 public sealed class ItemStore(JupleDbContext dbContext) :
     IInboxEntryStore, IItemLifecycleStore, IItemDetailsStore, IItemDetailQueryStore, IItemHistoryQueryStore,
-    IItemTrashQueryStore
+    IItemTrashQueryStore, IInstagramMetadataCandidateStore
 {
+    public async Task<string> GetActiveItemUrlAsync(long userId, long itemId, CancellationToken cancellationToken = default) =>
+        await dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc == null)
+            .Select(item => item.Url)
+            .SingleOrDefaultAsync(cancellationToken)
+        ?? throw new ItemNotFoundException();
+
+    public async Task<InstagramMetadataCandidateResult> ApplyAutomaticMetadataAsync(
+        long userId,
+        long itemId,
+        NormalizedInstagramMetadata metadata,
+        CancellationToken cancellationToken = default)
+    {
+        var item = await dbContext.Items
+            .FirstOrDefaultAsync(
+                item => item.Id == itemId && item.UserId == userId && item.DeletedAtUtc == null, cancellationToken)
+            ?? throw new ItemNotFoundException();
+
+        if (!item.ApplyAutomaticMetadata(metadata.Title, metadata.PreviewImageUrl))
+        {
+            return new InstagramMetadataCandidateResult(item.Title, item.PreviewImageUrl, Applied: false);
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return new InstagramMetadataCandidateResult(item.Title, item.PreviewImageUrl, Applied: true);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A concurrent user edit or retry-Job success landed between the read and this write -
+            // that write wins (same policy as InstagramMetadataRetryStore.ApplyResolvedMetadataAsync);
+            // report the Item's actual current state rather than the discarded in-memory values.
+            dbContext.ChangeTracker.Clear();
+            var current = await dbContext.Items
+                .AsNoTracking()
+                .Where(entry => entry.Id == itemId && entry.UserId == userId)
+                .Select(entry => new { entry.Title, entry.PreviewImageUrl })
+                .SingleAsync(cancellationToken);
+            return new InstagramMetadataCandidateResult(current.Title, current.PreviewImageUrl, Applied: false);
+        }
+    }
+
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
         string url,

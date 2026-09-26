@@ -13,6 +13,7 @@ using Juple.Application.Images;
 using Juple.Application.Images.BlobCleanup;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
+using Juple.Application.Items.InstagramMetadataCandidate;
 using Juple.Application.Items.InstagramMetadataRetry;
 using Juple.Application.Push;
 using Juple.Application.UrlMetadata;
@@ -59,6 +60,8 @@ public static class DependencyInjection
         services.AddScoped<IItemDetailQueryStore, ItemStore>();
         services.AddScoped<IItemHistoryQueryStore, ItemStore>();
         services.AddScoped<IItemTrashQueryStore, ItemStore>();
+        services.AddScoped<IInstagramMetadataCandidateStore, ItemStore>();
+        services.AddSingleton<IInstagramMetadataCandidateNormalizer, InstagramMetadataCandidateNormalizer>();
         services.AddScoped<IInstagramMetadataRetryStore, InstagramMetadataRetryStore>();
         services.AddScoped<IInstagramMetadataRetryService, InstagramMetadataRetryService>();
         services.AddScoped<IRecentlyOpenedItemStore, RecentlyOpenedItemStore>();

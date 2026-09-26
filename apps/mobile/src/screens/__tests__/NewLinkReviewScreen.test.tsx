@@ -7,11 +7,17 @@ import { ContentPreviewCard } from '../../components/ContentPreviewCard';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
 import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
-import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
+import { setItemCoverImage, setItemPreviewImage, submitInstagramMetadataCandidate, updateItemDetails } from '../../items/api/itemsApi';
+import { fetchInstagramOpenGraphCandidate } from '../../urlMetadata/instagramOpenGraphFetch';
 import { uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
 import { getActiveNewLinkReviewDraft } from '../../share/activeNewLinkReviewDraft';
 import type { PendingShare } from '../../share/specs/NativeIncomingShare';
-import { resolveUrlMetadata, type UrlMetadataSource } from '../../urlMetadata/api/urlMetadataApi';
+import { ApiError } from '../../api/ApiError';
+import {
+  previewInstagramMetadataCandidate,
+  resolveUrlMetadata,
+  type UrlMetadataSource,
+} from '../../urlMetadata/api/urlMetadataApi';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -35,6 +41,13 @@ jest.mock('../../items/api/itemsApi', () => ({
   updateItemDetails: jest.fn(),
   setItemPreviewImage: jest.fn(),
   setItemCoverImage: jest.fn(),
+  submitInstagramMetadataCandidate: jest.fn(),
+}));
+
+// The Instagram device fetch is never a real network request in tests.
+jest.mock('../../urlMetadata/instagramOpenGraphFetch', () => ({
+  ...jest.requireActual('../../urlMetadata/instagramOpenGraphFetch'),
+  fetchInstagramOpenGraphCandidate: jest.fn(async () => ({ outcome: 'noMetadata', candidate: null })),
 }));
 
 jest.mock('../../images/api/imagesApi', () => ({
@@ -47,6 +60,7 @@ jest.mock('react-native-image-picker', () => ({
 
 jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
   resolveUrlMetadata: jest.fn(),
+  previewInstagramMetadataCandidate: jest.fn(),
 }));
 
 // Declared with a "mock" prefix so babel-plugin-jest-hoist allows referencing it from the
@@ -364,6 +378,39 @@ describe('NewLinkReviewScreen', () => {
     expect(previewImages).toHaveLength(2);
   });
 
+  it('Quick Save OFF: applies real Instagram post metadata (normalized title + real image) for a URL-only Instagram share', async () => {
+    const instagramUrl = 'https://www.instagram.com/reel/ABC123xyz/?igsh=abc';
+    const realImage = 'https://scontent.cdninstagram.com/v/t51/real-post.jpg';
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'kkikki_ent on Instagram: "caption"', source: 'openGraph', previewImageUrl: realImage,
+    });
+
+    const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), instagramUrl);
+    const [titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('kkikki_ent on Instagram: "caption"');
+    const previewImages = renderer.root
+      .findAllByType(require('react-native').Image)
+      .filter(node => node.props.source?.uri === realImage);
+    expect(previewImages.length).toBeGreaterThan(0);
+  });
+
+  it('Quick Save OFF: an Instagram login-wall result (Backend returns nothing) never replaces a share-provided title', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+
+    const { renderer } = await renderScreen({ url: 'https://www.instagram.com/p/ABC123xyz/', initialTitle: '공유 제목' });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const [titleInput] = renderer.root.findAllByType(TextInput);
+    expect(titleInput.props.value).toBe('공유 제목');
+  });
+
   it('does not overwrite a title the user already started typing once URL metadata resolves', async () => {
     let resolveMetadata!: (value: {
       title: string | null;
@@ -492,6 +539,270 @@ describe('NewLinkReviewScreen', () => {
 
       const [titleInput] = renderer.root.findAllByType(TextInput);
       expect(titleInput.props.value).toBe('- YouTube');
+    });
+  });
+
+  describe('Instagram device fallback (Quick Save OFF / Home direct input)', () => {
+    const instagramUrl = 'https://www.instagram.com/p/ABC123xyz/?igsh=abc';
+    const candidate = { ogTitle: 'someone on Instagram: "x"', ogImage: 'https://scontent.cdninstagram.com/v/a.jpg', ogUrl: null, ogDescription: null };
+
+    async function settle() {
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+
+    beforeEach(() => {
+      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 91, url: instagramUrl, savedAtUtc: '2026-01-01T00:00:00Z' });
+      jest.mocked(previewInstagramMetadataCandidate).mockResolvedValue({ title: null, previewImageUrl: null });
+    });
+
+    it('when the Backend resolve came back empty, fetches once during review and submits it for the saved Item before leaving', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+      jest.mocked(submitInstagramMetadataCandidate).mockResolvedValueOnce({ title: 't', previewImageUrl: candidate.ogImage, applied: true });
+
+      const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
+      await settle();
+      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+      // Raw client values are never shown on the review screen itself - only a Backend-normalized
+      // preview is (none usable here).
+      expect(renderer.root.findAllByType(TextInput)[0].props.value).toBe('');
+
+      await act(async () => {
+        pressSaveButton(renderer);
+      });
+
+      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+      expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 91, candidate);
+      expect(updateItemDetails).not.toHaveBeenCalled();
+      expect(jest.mocked(submitInstagramMetadataCandidate).mock.invocationCallOrder[0])
+        .toBeLessThan(jest.mocked(navigation.goBack).mock.invocationCallOrder[0]);
+    });
+
+    it('never fetches on the device when the Backend already returned a real title and image', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'real title', source: 'openGraph', previewImageUrl: 'https://scontent.cdninstagram.com/v/b.jpg' });
+
+      const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+      await settle();
+      await act(async () => {
+        pressSaveButton(renderer);
+      });
+
+      expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
+      expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
+    });
+
+    it('a failed device fetch is silent - Save still completes normally', async () => {
+      jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
+      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'loginRedirect', candidate: null });
+
+      const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
+      await settle();
+      await act(async () => {
+        pressSaveButton(renderer);
+      });
+
+      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+      expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('never runs for a non-Instagram link', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+
+      await renderScreen({ initialTitle: null });
+      await settle();
+
+      expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
+      expect(previewInstagramMetadataCandidate).not.toHaveBeenCalled();
+    });
+
+    describe('pre-save preview (Backend-normalized, shown before Save)', () => {
+      const normalized = { title: 'real_handle on Instagram: "x"', previewImageUrl: 'https://scontent.cdninstagram.com/v/a.jpg' };
+      type CandidateFetch = { outcome: 'candidate'; candidate: typeof candidate };
+
+      function deferred<T>() {
+        let resolve!: (value: T) => void;
+        const promise = new Promise<T>(r => {
+          resolve = r;
+        });
+        return { promise, resolve };
+      }
+
+      function shownImageCount(renderer: ReactTestRenderer.ReactTestRenderer, uri: string) {
+        return renderer.root
+          .findAllByType(require('react-native').Image)
+          .filter(node => node.props.source?.uri === uri).length;
+      }
+
+      function titleValue(renderer: ReactTestRenderer.ReactTestRenderer) {
+        return renderer.root.findAllByType(TextInput)[0].props.value;
+      }
+
+      beforeEach(() => {
+        jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+        jest.mocked(submitInstagramMetadataCandidate).mockResolvedValue({ ...normalized, applied: true });
+        jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+      });
+
+      it('normalizes the device candidate through the preview endpoint and shows the normalized title and image before Save', async () => {
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+
+        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+
+        expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+        expect(previewInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), instagramUrl, candidate);
+        expect(titleValue(renderer)).toBe(normalized.title);
+        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBeGreaterThan(0);
+        expect(saveInboxEntry).not.toHaveBeenCalled();
+        expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
+      });
+
+      it('replaces a share-provided initial title, like a Backend title would', async () => {
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+
+        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: 'Instagram share text' });
+        await settle();
+
+        expect(titleValue(renderer)).toBe(normalized.title);
+      });
+
+      it('never replaces a real Backend title - only fills the missing Backend image', async () => {
+        jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'backend title', source: 'openGraph', previewImageUrl: null });
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+
+        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+
+        expect(titleValue(renderer)).toBe('backend title');
+        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBeGreaterThan(0);
+      });
+
+      it('never overwrites a title the user typed before the preview arrived', async () => {
+        const fetch = deferred<CandidateFetch>();
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(fetch.promise);
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+
+        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+        await act(async () => {
+          renderer.root.findAllByType(TextInput)[0].props.onChangeText('user typed title');
+        });
+        await act(async () => {
+          fetch.resolve({ outcome: 'candidate', candidate });
+        });
+        await settle();
+
+        expect(titleValue(renderer)).toBe('user typed title');
+        // The image is independent of the title edit.
+        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBeGreaterThan(0);
+      });
+
+      it('never adds the preview image once the user staged their own photo', async () => {
+        const fetch = deferred<CandidateFetch>();
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(fetch.promise);
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+        jest.mocked(launchImageLibrary).mockResolvedValue({
+          didCancel: false,
+          assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+        } as never);
+
+        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+        await act(async () => {
+          await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
+        });
+        await act(async () => {
+          fetch.resolve({ outcome: 'candidate', candidate });
+        });
+        await settle();
+
+        expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
+      });
+
+      it('ignores a late preview once the URL was edited, and never submits the candidate for the other URL', async () => {
+        const fetch = deferred<CandidateFetch>();
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(fetch.promise);
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+
+        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+        await act(async () => {
+          findByAccessibilityLabel(renderer, i18n.t('common.edit')).props.onPress();
+        });
+        const urlInput = renderer.root.findAllByType(TextInput).find(input => input.props.value === instagramUrl)!;
+        await act(async () => {
+          urlInput.props.onChangeText('https://www.instagram.com/p/OTHER999/');
+        });
+        await act(async () => {
+          fetch.resolve({ outcome: 'candidate', candidate });
+        });
+        await settle();
+
+        expect(titleValue(renderer)).toBe('');
+        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
+
+        await act(async () => {
+          await pressSaveButton(renderer);
+        });
+        expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
+      });
+
+      it('Save reuses the same fetched candidate (no second fetch/preview) and leaves the device image to the candidate endpoint', async () => {
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
+
+        const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+        await act(async () => {
+          await pressSaveButton(renderer);
+        });
+
+        expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+        expect(previewInstagramMetadataCandidate).toHaveBeenCalledTimes(1);
+        expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 91, { title: normalized.title, memo: '' });
+        expect(submitInstagramMetadataCandidate).toHaveBeenCalledTimes(1);
+        expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 91, candidate);
+        expect(setItemPreviewImage).not.toHaveBeenCalled();
+        expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      });
+
+      it.each([
+        ['a 400 rejection', () => Promise.reject(new ApiError('badRequest', 400))],
+        ['a network error', () => Promise.reject(new Error('network down'))],
+      ])('%s from the preview endpoint is silent - the screen stays as-is and Save still works', async (_label, failure) => {
+        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
+        jest.mocked(previewInstagramMetadataCandidate).mockImplementationOnce(failure);
+
+        const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+
+        expect(titleValue(renderer)).toBe('');
+        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
+
+        await act(async () => {
+          await pressSaveButton(renderer);
+        });
+        expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 91, candidate);
+        expect(navigation.goBack).toHaveBeenCalledTimes(1);
+      });
+
+      it('never calls the preview endpoint when the Backend already returned a real title and image', async () => {
+        jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'real title', source: 'openGraph', previewImageUrl: 'https://scontent.cdninstagram.com/v/b.jpg' });
+
+        await renderScreen({ url: instagramUrl, initialTitle: null });
+        await settle();
+
+        expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
+        expect(previewInstagramMetadataCandidate).not.toHaveBeenCalled();
+      });
     });
   });
 

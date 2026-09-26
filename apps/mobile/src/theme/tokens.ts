@@ -16,7 +16,7 @@ export const radii = {
   md: 8,
   /** Card-level radius (saved-link rows, grouped History sections, category cards) - this round's visual redesign bumped this from 16 to a softer, more modern 20. */
   lg: 20,
-  /** Prominent elements - primary buttons, the Plus card. */
+  /** Prominent elements - primary buttons. */
   xl: 24,
 } as const;
 
@@ -35,9 +35,9 @@ export const colors = {
   surfaceMuted: '#F1F4F9',
   /** Screen-level background - cool, light blue-gray so a white `surface` card reads as clearly lifted off it (this round's full visual redesign, mockup-matched). */
   background: '#F7F9FC',
-  /** "Juple blue" - the app's primary/CTA color (buttons, selected tab, selected pill, Plus card accents). */
+  /** "Juple blue" - the app's primary/CTA color (buttons, selected tab, selected pill). */
   brand: '#3366CC',
-  /** Pale brand tint - the Plus card background and selected-chip backgrounds. */
+  /** Pale brand tint - selected-chip backgrounds. */
   brandSoft: '#E9F0FE',
 } as const;
 

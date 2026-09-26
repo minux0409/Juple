@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { deleteAccount } from '../api/accountApi';
 import { ApiError } from '../api/ApiError';
@@ -13,7 +13,6 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { LogoutIcon } from '../icons/LogoutIcon';
 import { ShareIcon } from '../icons/ShareIcon';
-import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
 import {
@@ -38,7 +37,7 @@ function getDeleteAccountErrorMessage(error: unknown, t: TFunction): string {
 export function MyPageScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { signOut, userEmail, plan } = useAuth();
+  const { signOut, userEmail } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
 
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -114,12 +113,6 @@ export function MyPageScreen() {
     setIsSignOutDialogVisible(true);
   };
 
-  // No purchase flow exists yet (see this round's scope) - tapping the CTA is honest about that
-  // rather than leading into a dead end or a fake checkout screen.
-  const showPlusComingSoon = () => {
-    Alert.alert(t('myPage.plusTitle'), t('myPage.plusComingSoonMessage'));
-  };
-
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       {/*
@@ -142,25 +135,6 @@ export function MyPageScreen() {
           <Text style={[styles.accountStatus, userEmail && ltrTextStyle]}>
             {userEmail ?? t('myPage.loggedInAs')}
           </Text>
-
-          {/* Only ever shown once the real plan is confirmed Free - never while plan is still null
-              (not yet bootstrapped) and never for Plus, so a Plus user never sees an upgrade CTA. */}
-          {plan === 'Free' ? (
-            <View style={styles.plusCard}>
-              <View style={styles.plusHeaderRow}>
-                <StarIcon color={colors.brand} filled size={20} />
-                <Text style={styles.plusTitle}>{t('myPage.plusTitle')}</Text>
-              </View>
-              <Text style={styles.plusDescription}>{t('myPage.plusDescription')}</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={showPlusComingSoon}
-                style={styles.plusCtaButton}
-              >
-                <Text style={styles.plusCtaLabel}>{t('myPage.plusCta')}</Text>
-              </Pressable>
-            </View>
-          ) : null}
 
           <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
           <View style={styles.settingsGroup}>
@@ -296,42 +270,6 @@ const styles = StyleSheet.create({
   accountStatus: {
     color: colors.textPrimary,
     fontSize: 15,
-  },
-  // Soft-blue "identity" card, not a plain white one - this is the one place on the screen meant
-  // to visually stand out as an upsell, so it gets brandSoft instead of the surface/cardShadow
-  // treatment every other grouped section on this screen uses.
-  plusCard: {
-    backgroundColor: colors.brandSoft,
-    borderRadius: radii.lg,
-    marginTop: spacing.lg,
-    padding: spacing.lg,
-  },
-  plusHeaderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs + 2,
-  },
-  plusTitle: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  plusDescription: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: spacing.xs,
-  },
-  plusCtaButton: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: radii.md,
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm + 4,
-  },
-  plusCtaLabel: {
-    color: colors.surface,
-    fontSize: 14,
-    fontWeight: '700',
   },
   // One grouped white card (matches Home/Categories' floating-card language) holding every
   // settings row, rather than each row being its own separately bordered box.

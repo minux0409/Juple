@@ -33,6 +33,13 @@ import type { PendingShare } from '../share/specs/NativeIncomingShare';
 import { useIncomingShare } from '../share/useIncomingShare';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
+import {
+  applyInstagramDeviceFallback,
+  needsInstagramDeviceFallback,
+  previewInstagramDeviceFallback,
+  type KnownMetadata,
+} from '../urlMetadata/instagramDeviceFallback';
+import { fetchInstagramOpenGraphCandidate, type InstagramOpenGraphFetchResult } from '../urlMetadata/instagramOpenGraphFetch';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -265,6 +272,53 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // Backend-resolved title should still be trusted to replace. A non-URL review text
   // (kind: 'reviewText') never reaches this, since isHttpUrl guards it. Never blocks Save - a
   // small inline spinner is the only UI effect while it is in flight.
+  // Instagram device fallback (see instagramDeviceFallback.ts): started at most once, in the
+  // background while the user is still reviewing, and only when the Backend's resolve below left the
+  // title or image missing. The raw result is never rendered: it is shown only after the Backend's
+  // preview endpoint normalized it (same rules as the Item-scoped candidate endpoint), and Save hands
+  // the same fetch to that Item-scoped endpoint for the saved Item - never a second fetch.
+  const instagramDeviceFetchRef = useRef<Promise<InstagramOpenGraphFetchResult> | null>(null);
+  // True while previewImageUrl came from the device fallback rather than the Backend's own resolve -
+  // Save then leaves that image to the Item-scoped candidate endpoint (which re-validates it) instead
+  // of writing it through setItemPreviewImage.
+  const isPreviewImageFromInstagramDeviceRef = useRef(false);
+  const startInstagramDeviceFetchIfNeeded = (
+    known: KnownMetadata,
+    backendMetadata: KnownMetadata,
+    isActive: () => boolean,
+  ) => {
+    if (instagramDeviceFetchRef.current !== null || !needsInstagramDeviceFallback(route.params.url, known)) {
+      return;
+    }
+    const pendingFetch = fetchInstagramOpenGraphCandidate(route.params.url);
+    instagramDeviceFetchRef.current = pendingFetch;
+
+    // Pre-save display. Precedence is unchanged: the user's own title edit or staged photo always
+    // wins, and a real Backend title/image is never replaced - the device preview only fills what
+    // the Backend left missing (it may still replace the share-provided initialTitle, exactly like a
+    // Backend title would). Ignored if the screen unmounted or the URL was edited since the fetch
+    // started (the fetch was for route.params.url, not whatever the field holds now). Every failure
+    // is silent: previewInstagramDeviceFallback never throws and returns null for nothing usable.
+    previewInstagramDeviceFallback(authenticatedRequest, route.params.url, pendingFetch).then(preview => {
+      if (!preview || !isActive() || urlRef.current.trim() !== route.params.url.trim()) {
+        return;
+      }
+      if (preview.title && !backendMetadata.hasTitle && !hasUserEditedTitleRef.current) {
+        setTitle(preview.title);
+      }
+      if (
+        preview.previewImageUrl
+        && !backendMetadata.hasImage
+        && !photoOrderRef.current.some(entry => entry.kind === 'staged' || entry.kind === 'auto')
+      ) {
+        const deviceImageUrl = preview.previewImageUrl;
+        isPreviewImageFromInstagramDeviceRef.current = true;
+        setPreviewImageUrl(deviceImageUrl);
+        setPhotoOrder(previous => [{ kind: 'auto', url: deviceImageUrl }, ...previous]);
+      }
+    });
+  };
+
   useEffect(() => {
     if (!isHttpUrl(route.params.url)) {
       return;
@@ -278,6 +332,16 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         if (!isMounted) {
           return;
         }
+        const hasBackendTitle =
+          Boolean(metadata.title) && !isKnownYouTubePlaceholderTitle(route.params.url, metadata.title ?? '');
+        startInstagramDeviceFetchIfNeeded(
+          {
+            hasTitle: Boolean(route.params.initialTitle) || hasBackendTitle,
+            hasImage: Boolean(metadata.previewImageUrl),
+          },
+          { hasTitle: hasBackendTitle, hasImage: Boolean(metadata.previewImageUrl) },
+          () => isMounted,
+        );
         // Skipped entirely once the user has already staged their own photo - picking one from
         // the OS library realistically takes longer than this network round-trip, so a late-
         // arriving auto image prepending itself ahead of (or alongside) the user's own choice is
@@ -310,6 +374,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       .catch(() => {
         if (isMounted) {
           setMetadataResolutionFailed(true);
+          startInstagramDeviceFetchIfNeeded(
+            { hasTitle: Boolean(route.params.initialTitle), hasImage: false },
+            { hasTitle: false, hasImage: false },
+            () => isMounted,
+          );
         }
       })
       .finally(() => {
@@ -468,8 +537,18 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
       // Best-effort, from the same mount-time metadata fetch the title above already used - never
       // blocks/fails Save itself, but still awaited for the same reason as setItemCoverImage above.
-      if (previewImageUrl) {
+      // A device-fallback image is left to the Instagram candidate step just below instead.
+      if (previewImageUrl && !isPreviewImageFromInstagramDeviceRef.current) {
         await setItemPreviewImage(authenticatedRequest, savedEntry.id, previewImageUrl).catch(() => undefined);
+      }
+
+      // Instagram device fallback for the just-saved Item - reuses the fetch started during review
+      // (never a second one), only for the same URL that fetch was for, and awaited for the same
+      // reason as the cover/preview writes above (Home's refetch must see it). Never throws; the
+      // Backend applies it only to still-empty automatic fields, so the title saved just above wins.
+      const pendingInstagramFetch = instagramDeviceFetchRef.current;
+      if (pendingInstagramFetch && trimmedUrl === route.params.url.trim()) {
+        await applyInstagramDeviceFallback(authenticatedRequest, savedEntry.id, trimmedUrl, pendingInstagramFetch);
       }
 
       onSuccess();

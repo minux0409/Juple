@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { InstagramMetadataCandidate } from '../../items/api/itemsApi';
 
 export type UrlMetadataSource = 'openGraph' | 'twitter' | 'htmlTitle';
 
@@ -35,6 +36,36 @@ export async function resolveUrlMetadata(
 
   if (!response.body) {
     throw new Error('Juple API returned no URL metadata body.');
+  }
+
+  return response.body;
+}
+
+/** A device-fetched Instagram candidate after the Backend's own validation/normalization - either value may be null. */
+export interface InstagramCandidatePreview {
+  readonly title: string | null;
+  readonly previewImageUrl: string | null;
+}
+
+/**
+ * Normalizes a device-fetched Instagram OpenGraph candidate for display BEFORE any Item exists
+ * (NewLinkReview) - the Backend applies exactly the rules of the Item-scoped candidate endpoint
+ * (see submitInstagramMetadataCandidate) against `sourceUrl`, and persists nothing. Rejects with
+ * ApiError (400) for a candidate that is not that Instagram post/reel.
+ */
+export async function previewInstagramMetadataCandidate(
+  request: AuthenticatedApiRequest,
+  sourceUrl: string,
+  candidate: InstagramMetadataCandidate,
+): Promise<InstagramCandidatePreview> {
+  const response = await request<InstagramCandidatePreview>({
+    method: 'POST',
+    path: '/api/v1/url-metadata/instagram-candidate-preview',
+    body: { sourceUrl, ...candidate },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Instagram candidate preview.');
   }
 
   return response.body;

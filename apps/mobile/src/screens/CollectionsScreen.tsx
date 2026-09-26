@@ -516,6 +516,14 @@ function CollectionTile({
               size={13}
             />
           </Pressable>
+          {/* Informational only (not a button) - bottom corner, opposite the favorite star. */}
+          <View
+            accessibilityLabel={t('collections.detailItemCount', { count: collection.itemCount })}
+            style={styles.countBadge}
+            testID="collection-tile-item-count"
+          >
+            <Text numberOfLines={1} style={styles.countBadgeText}>{collection.itemCount}</Text>
+          </View>
         </View>
         <Text numberOfLines={1} style={styles.tileLabel}>
           {collection.name}
@@ -634,6 +642,28 @@ const styles = StyleSheet.create({
     width: 22,
     ...cardShadow,
   },
+  // Deliberately quieter than the icon and the star: muted text on a small surface pill, anchored to
+  // the icon's bottom-end corner and growing inward (minWidth, no fixed width) so a long count never
+  // widens the cell.
+  countBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+    bottom: -4,
+    end: -4,
+    justifyContent: 'center',
+    minWidth: 18,
+    paddingHorizontal: 4,
+    position: 'absolute',
+  },
+  countBadgeText: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
   tileLabel: {
     color: colors.textPrimary,
     fontSize: 13,
@@ -647,6 +677,7 @@ const styles = StyleSheet.create({
   },
   listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
   listName: { color: colors.textPrimary, flex: 1, fontSize: 16, fontWeight: '600' },
+  listCount: { color: colors.textSecondary, flexShrink: 0, fontSize: 13 },
   listFavorite: { padding: spacing.sm },
 });
 
@@ -655,6 +686,7 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
   return <Pressable accessibilityRole="button" onPress={onPress} style={styles.listRow}>
     <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
     <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
+    <Text numberOfLines={1} style={styles.listCount} testID="collection-row-item-count">{t('collections.detailItemCount', { count: collection.itemCount })}</Text>
     <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
       <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
     </Pressable>

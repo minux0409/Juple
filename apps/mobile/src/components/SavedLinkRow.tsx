@@ -1,38 +1,18 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import i18n from '../i18n';
-import { SiteIcon } from '../icons/SiteIcon';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnailUrl';
-import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
-import { resolveSiteInfo } from '../items/resolveSiteInfo';
+import { useTranslation } from 'react-i18next';
+import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { MoreIcon } from '../icons/MoreIcon';
-
-function formatSavedTime(savedAtUtc: string): string {
-  return new Intl.DateTimeFormat(i18n.language, {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(savedAtUtc));
-}
-
-/** Full date + time, for a row shown inside a section that spans more than one calendar day. */
-function formatSavedDateTime(savedAtUtc: string): string {
-  return new Intl.DateTimeFormat(i18n.language, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(savedAtUtc));
-}
+import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
 
 interface SavedLinkRowProps {
   readonly item: ItemHistoryEntry;
   readonly isActionInFlight: boolean;
-  /**
-   * 'time' (default) shows only the time-of-day - correct when the surrounding section is exactly
-   * one calendar day (오늘/어제). 'dateTime' shows the full date too, for a section that spans
-   * multiple days (이번 주 / a month bucket - see historyDateGrouping.ts's showItemDate).
-   */
-  readonly dateDisplayMode?: 'time' | 'dateTime';
+  /** 'time' (default) or 'dateTime' - see SavedLinkDateDisplayMode. */
+  readonly dateDisplayMode?: SavedLinkDateDisplayMode;
   /**
    * When true, the thumbnail uses the full cover/preview/first-image priority (see
    * resolveEffectiveThumbnailUrl) instead of only the first-uploaded image. Opt-in and defaults to
@@ -61,11 +41,11 @@ export function SavedLinkRow({
   preferEffectiveThumbnail = false,
   trailingAction,
 }: SavedLinkRowProps) {
-  const primaryText = resolveSavedLinkPrimaryText(item.title, item.url);
+  const { t } = useTranslation();
+  const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
   const thumbnailUrl = preferEffectiveThumbnail
     ? resolveEffectiveThumbnailUrl(item)
     : item.representativeImage?.readUrl ?? null;
-  const siteId = resolveSiteInfo(item.url).id;
 
   return (
     <View style={styles.row}>
@@ -79,26 +59,21 @@ export function SavedLinkRow({
       </View>
       <View style={styles.textColumn}>
         {/* primaryText is the user's own title (any language/direction - never forced) when one
-            exists, otherwise a hostname fallback (see savedLinkPrimaryText.ts) - only that fallback
-            case is a technical identifier that needs LTR isolation so it never gets visually
-            reordered inside an RTL row. */}
+            exists, otherwise a localized content label or hostname fallback (see
+            savedLinkPrimaryText.ts) - only the hostname case is a technical identifier that needs
+            LTR isolation so it never gets visually reordered inside an RTL row. */}
         <Text
           numberOfLines={2}
-          style={[styles.primaryText, !item.title && ltrTextStyle]}
+          style={[styles.primaryText, primaryText.isTechnicalIdentifier && ltrTextStyle]}
         >
-          {primaryText}
+          {primaryText.text}
         </Text>
         {item.memo ? (
           <Text numberOfLines={1} style={styles.memo}>
             {item.memo}
           </Text>
         ) : null}
-        <View style={styles.metaRow}>
-          <Text style={styles.time}>
-            {dateDisplayMode === 'dateTime' ? formatSavedDateTime(item.savedAtUtc) : formatSavedTime(item.savedAtUtc)}
-          </Text>
-          <SiteIcon siteId={siteId} size={15} />
-        </View>
+        <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
       </View>
       {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>
@@ -141,18 +116,9 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 2,
   },
-  // Time + site icon sit together as one compact unit (not stretched across the row) - matches the
-  // mockup's "오후 2:17 [icon]" grouping directly under the title.
+  // Outer spacing only - the time + site icon content rules live in SavedLinkMetaRow (shared with Grid).
   metaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
     marginTop: 6,
-  },
-  time: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
   },
   trailingAction: { paddingStart: spacing.sm, paddingVertical: spacing.sm },
 });

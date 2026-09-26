@@ -49,6 +49,7 @@ import { resolveCollectionIconKey, type CollectionIconKey } from '../collections
 import { useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
@@ -201,8 +202,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const authenticatedRequest = useAuthenticatedApi();
   const { showNotificationToast, showUndoToast } = useAppToast();
   // A stack screen, not a tab screen - there is no Juple tab bar below it reserving the system
-  // nav/gesture-area inset for itself, so (unlike the tab screens) this needs the raw inset
-  // directly, the same way ItemDetailsScreen/NewLinkReviewScreen already do.
+  // nav/gesture-area inset. The layout itself reserves it via the StackScreenSafeArea root (real
+  // container padding, not list content padding - see that component's remarks); the raw inset is
+  // only still needed here to anchor toasts above the system bar.
   const insets = useSafeAreaInsets();
   useToastBottomAnchor(insets.bottom);
 
@@ -679,25 +681,26 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   if (isLoadingCollection && !collection) {
     return (
-      <View style={styles.loadingContainer}>
+      <StackScreenSafeArea style={styles.loadingContainer}>
         <ActivityIndicator />
-      </View>
+      </StackScreenSafeArea>
     );
   }
 
   if (!collection) {
     return (
-      <View style={styles.loadingContainer}>
+      <StackScreenSafeArea style={styles.loadingContainer}>
         {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
-      </View>
+      </StackScreenSafeArea>
     );
   }
 
   return (
-    <View style={styles.safeArea}>
+    <StackScreenSafeArea style={styles.safeArea}>
       <FlatList
         key={viewMode}
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }]}
+        contentContainerStyle={styles.content}
+        style={styles.list}
         data={sortedItems}
         keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
         numColumns={viewMode === 'grid' ? 2 : 1}
@@ -834,10 +837,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 anywhere else in the app. dateDisplayMode="dateTime" (not the default "time")
                 because a Category's items span arbitrary dates, never a single grouped day the way
                 a History section does - matches this row's own prior "always show the full date"
-                behavior exactly; SavedLinkGridCard has no date field at all, so this only applies
-                to List mode. */}
+                behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
             {viewMode === 'grid' ? (
-              <SavedLinkGridCard isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+              <SavedLinkGridCard dateDisplayMode="dateTime" isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
             ) : (
               <SavedLinkRow
                 dateDisplayMode="dateTime"
@@ -912,13 +914,18 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
       <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
-    </View>
+    </StackScreenSafeArea>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: colors.background,
+    flex: 1,
+  },
+  // flex:1 inside StackScreenSafeArea's bottom-inset padding - the list viewport itself ends above
+  // the system nav bar, for List and Grid alike (see StackScreenSafeArea's own remarks).
+  list: {
     flex: 1,
   },
   loadingContainer: {

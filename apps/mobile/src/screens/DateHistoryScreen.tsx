@@ -21,7 +21,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -224,7 +224,7 @@ export function DateHistoryScreen() {
           if (viewMode !== 'grid' || !expandedDateKeys?.has(section.dateKey)) {
             return null;
           }
-          return <View style={styles.gridWrap}>{section.items.map(item => <SwipeableItemRow key={item.id} containerStyle={styles.gridCard} disabled={actionInFlightItemId !== null} onDelete={() => confirmDelete(item.id)} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })} onShare={() => runShare(item)}><SavedLinkGridCard isActionInFlight={actionInFlightItemId === item.id} item={item} preferEffectiveThumbnail /></SwipeableItemRow>)}</View>;
+          return <View style={styles.gridWrap}>{section.items.map(item => <SavedLinkGridCell key={item.id} dateDisplayMode={section.showItemDate ? 'dateTime' : 'time'} disabled={actionInFlightItemId !== null} isActionInFlight={actionInFlightItemId === item.id} item={item} onDelete={() => confirmDelete(item.id)} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })} onShare={() => runShare(item)} preferEffectiveThumbnail />)}</View>;
         }}
         ListFooterComponent={
           isLoadingMore ? (
@@ -336,5 +336,4 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.lg },
-  gridCard: { flexBasis: '50%', padding: 2 },
 });

@@ -175,10 +175,6 @@
     "account": "账户",
     "loggedInAs": "您已登录 Juple 账户。",
     "settings": "设置",
-    "plusTitle": "Juple Plus",
-    "plusDescription": "使用 Juple Plus 解锁更多功能",
-    "plusCta": "开始使用 Plus",
-    "plusComingSoonMessage": "Juple Plus 即将推出。",
     "signOutConfirmTitle": "确定要退出登录吗？",
     "signOutConfirmMessage": "退出后需要重新登录才能继续使用。",
     "deleteAccount": "删除账户",
@@ -215,6 +211,8 @@
     "restartForRtl": "重启应用以完全应用布局方向。"
   },
   "item": {
+    "fallbackInstagramPost": "Instagram 帖子",
+    "fallbackInstagramReel": "Instagram Reels",
     "titleLabel": "标题",
     "titlePlaceholder": "请输入标题",
     "url": "URL",
@@ -306,8 +304,7 @@
     "emptyTrashConfirmMessage": "删除记录中的所有链接都将被永久删除且无法恢复。",
     "emptyTrashSuccess": "删除记录已清空。",
     "emptyTrashError": "清空删除记录失败。",
-    "freeLimitNotice": "最多可查看最近10条删除记录。更多删除记录将在Plus中提供。",
-    "plusLimitNotice": "最多显示最近删除的100个链接。",
+    "limitNotice": "最多可查看最近 {{count}} 条删除记录。",
     "restoreConfirmTitle": "要恢复吗?",
     "restoreConfirmMessage": "已删除的链接将被恢复。",
     "restoreConfirmAction": "恢复"
