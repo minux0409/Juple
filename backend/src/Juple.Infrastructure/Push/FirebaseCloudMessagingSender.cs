@@ -40,15 +40,22 @@ public sealed class FirebaseCloudMessagingSender : IPushSender
     public async Task<PushSendResult> SendAsync(
         PushDeviceRegistration device, PushNotificationPayload payload, CancellationToken cancellationToken = default)
     {
+        var isDataOnly = payload.Title is null || payload.Body is null;
         var message = new Message
         {
             Token = device.PushToken,
-            Notification = new Notification
-            {
-                Title = payload.Title,
-                Body = payload.Body,
-            },
+            // Data-only (a refresh signal for an open screen): no tray notification, normal priority.
+            Notification = isDataOnly ? null : new Notification { Title = payload.Title, Body = payload.Body },
             Data = BuildDataPayload(payload),
+            Android = isDataOnly
+                ? new AndroidConfig { Priority = Priority.Normal }
+                : new AndroidConfig
+                {
+                    Priority = Priority.High,
+                    // Launchers that show numeric badges use this; many only show a dot. The in-app
+                    // badges stay the source of truth.
+                    Notification = new AndroidNotification { NotificationCount = payload.BadgeCount },
+                },
         };
 
         using var timeoutCts = new CancellationTokenSource(SendTimeout);
@@ -75,22 +82,11 @@ public sealed class FirebaseCloudMessagingSender : IPushSender
 
     private static IReadOnlyDictionary<string, string> BuildDataPayload(PushNotificationPayload payload)
     {
-        var data = new Dictionary<string, string>
+        var data = new Dictionary<string, string>(payload.Data)
         {
             ["type"] = payload.Type,
             ["notificationId"] = payload.NotificationId.ToString(CultureInfo.InvariantCulture),
         };
-
-        if (payload.RepeatPurchaseId is { } repeatPurchaseId)
-        {
-            data["repeatPurchaseId"] = repeatPurchaseId.ToString(CultureInfo.InvariantCulture);
-        }
-
-        if (payload.ItemId is { } itemId)
-        {
-            data["itemId"] = itemId.ToString(CultureInfo.InvariantCulture);
-        }
-
         return data;
     }
 

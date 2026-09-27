@@ -1,16 +1,15 @@
 namespace Juple.Application.Push;
 
 /// <summary>
-/// The full Push message for one send - both the visible notification (title/body, for a
-/// system-tray display while the app is backgrounded/terminated) and the minimal data payload
-/// Mobile's tap handler reads to navigate (see PushTapPayload on the Mobile side). Deliberately
-/// carries nothing beyond ids/a display name snapshot - never memo/amount/other private fields
-/// (see this feature's own security requirements).
+/// The full Push message for one send. Title/Body null means a data-only message (no system-tray
+/// notification - Mobile only refreshes what is on screen). Data carries ids only - never a memo,
+/// a private friend note, a link, a password or a token. BadgeCount is the recipient's unanswered
+/// requests (Android launchers that support it show it; the in-app badges stay the source of truth).
 /// </summary>
 public sealed record PushNotificationPayload(
-    string Title,
-    string Body,
+    string? Title,
+    string? Body,
     string Type,
     long NotificationId,
-    long? RepeatPurchaseId,
-    long? ItemId);
+    IReadOnlyDictionary<string, string> Data,
+    int? BadgeCount);

@@ -36,6 +36,22 @@ public sealed class PublicCollectionWriteServiceTests
     }
 
     [Fact]
+    public async Task AnAddThroughTheLink_TellsTheCollectionsMembers_ARefusedOneDoesNot()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+        _shares.State = new PublicShareState(ShareId, CollectionId, "Trip", false, 0, CollectionSharePermission.Read);
+        await Assert.ThrowsAsync<PublicShareReadOnlyException>(() =>
+            new PublicCollectionWriteService(_shares, _writes, new FakeUnlockTokenProtector(), new MutableTimeProvider(Now), publisher)
+                .AddItemAsync(Writer, PublicId, 55, null));
+        Assert.Empty(publisher.Changes);
+
+        _shares.State = new PublicShareState(ShareId, CollectionId, "Trip", false, 0, CollectionSharePermission.Write);
+        await new PublicCollectionWriteService(_shares, _writes, new FakeUnlockTokenProtector(), new MutableTimeProvider(Now), publisher)
+            .AddItemAsync(Writer, PublicId, 55, null);
+        Assert.Equal(new[] { (Writer, CollectionId) }, publisher.Changes);
+    }
+
+    [Fact]
     public async Task AReadOnlyLink_RefusesEveryAdd()
     {
         _shares.State = new PublicShareState(ShareId, CollectionId, "Trip", false, 0, CollectionSharePermission.Read);

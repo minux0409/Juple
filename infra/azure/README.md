@@ -186,6 +186,57 @@ aggregate throttle은 anonymous 시도가 Owner를 잠그는 DoS가 되지 않�
 4. 잠금 비밀번호 입력 화면(잠금 해제, 설정 > 컬렉션 잠금) screenshot/화면 녹화 보호(Android `FLAG_SECURE`, iOS
    대응) 검토.
 
+## Social Push와 공유 권한 규칙 (Round 12 - 아직 DEV 미배포)
+
+### 구조
+
+- **Outbox**: API는 이벤트를 `notifications.Notifications`에 기록만 한다(Type 1 친구 신청, 2 Collection 초대,
+  3 초대 수락/거절 → Owner, 4 공유 Collection 링크 추가/삭제 → 다른 멤버). `DedupKey`(unique)로 같은 이벤트는
+  한 번만 들어가고, 내용 변경은 수신자·Collection·1분 단위로 묶인다. 기록 실패는 사용자 동작을 실패시키지 않는다.
+- **전송**: `caj-juple-push-dispatch-{env}` Job(`--run-push-dispatch`)이 미전송 행을 FCM v1으로 보낸다
+  (`DispatchPendingPushNotificationsService`). 전송 직전 대상이 아직 유효한지 다시 확인한다(요청/초대가 이미
+  응답·취소·만료됐거나 멤버가 아니면 보내지 않음). tray 알림은 6시간, data-only는 10분이 지나면 보내지 않고
+  만료 처리한다. (notification, device)마다 한 번만 보내는 것은 `NotificationDeliveryStore.TryClaimAsync`가
+  보장하므로 Job 실행이 겹쳐도 안전하다. 영구적으로 죽은 token은 등록을 비활성화한다.
+- **credential**: Firebase 서비스 계정은 여전히 **Job에만** 있다(API Container App에 넣지 않는다).
+- **문구**: 서버가 device 등록 locale(앱 언어)로 17개 언어 중 하나를 고른다. 발신자 표시 이름(없으면 Juple ID)과
+  Collection 이름만 들어가고, 친구 private 메모·링크·토큰은 절대 들어가지 않는다.
+- **Launcher badge**: tray 알림에 수신자의 미처리 친구 신청 + Collection 초대 수를 FCM
+  `AndroidNotification.NotificationCount`로 싣는다. 숫자 표시는 launcher마다 다르다(점만 찍는 기기도 많다).
+  앱 안의 badge(내 페이지 › 친구, Collections › 공유 컬렉션)가 기준이다. iOS APNs는 아직 구현되지 않았다.
+- **Mobile**: 알림 권한은 친구/공유 화면을 처음 열 때 한 번만 묻는다. 거절해도 앱 안의 badge와 목록은 포커스,
+  앱 복귀(15초 이상 지났을 때), 포그라운드 Push로 갱신된다. 짧은 주기 polling은 하지 않는다.
+
+### 배포 시 필요한 것 (다음 DEV rollout)
+
+1. Migration `AddSocialPushNotifications` 적용: nullable column 5개(`ActorUserId`, `CollectionId`, `SubjectId`,
+   `DedupKey`, `DispatchedAtUtc`), filtered index 3개, `CK_Notifications_Type_Valid`를 `IN (0,1,2,3,4)`로 확장.
+   additive라 이전 revision은 그대로 동작한다. 기존 행은 `DedupKey`가 NULL이라 dispatch 대상이 아니다.
+2. API revision 배포. 이 시점부터 outbox에 행이 쌓인다(Job이 아직 예전 이미지면 보내지 않고 쌓이기만 하고,
+   6시간/10분이 지나면 새 Job이 만료 처리한다).
+3. `caj-juple-push-dispatch-dev`를 같은 이미지로 update하고 **cron을 `* * * * *`로 변경**(현재 live는 매시
+   정각 + 오래된 이미지 `b1f5fba`의 no-op). `job/main.bicep` 기본값도 매분, `replicaTimeout` 300초로 바꿨다.
+   Job의 Firebase secret은 그대로 둔다.
+4. Metadata/blob-cleanup Job은 기존 규칙대로 같은 이미지로 맞춘다.
+
+### 모든 사용자 공유 중 개별 권한 규칙 (변경)
+
+- 이전: 공개 링크와 `링크 추가`(Contributor) 개별 사용자는 공존 불가.
+- 이후: 공개 링크가 켜져 있으면 **모든 개별 사용자와 대기 중 초대의 권한이 공개 링크 권한과 같아야 한다**
+  (`보기만` → Viewer, `링크 추가` → Contributor). 초대·권한 변경·수락은 서버가 거절하고(409
+  `publicShareActive`), 공개 링크 켜기/권한 변경은 다른 권한의 사용자가 있으면 거절한다(409
+  `publicSharePermissionMismatch`). 자동으로 누구의 권한도 바꾸지 않는다. 공개 페이지에는 여전히 Owner Item과
+  공개 링크로 추가된 Item만 보인다(멤버가 추가한 링크는 공개되지 않는다).
+- Rollback: 새 규칙에서 만든 상태(`링크 추가` 공개 링크 + Contributor 멤버)는 이전 revision에서도 데이터상
+  유효하다(이전 코드는 전환 시점에만 검사한다). 이전 revision으로 돌리면 그 조합을 새로 만들 수 없게 될 뿐이다.
+
+### 초대 rate limit
+
+- 초대(`POST /collections/{id}/invitations`)는 Juple ID 조회와 같은 bucket(identity당 10분 20회)을 쓰던 것을
+  별도 `collection-invite` bucket(identity당 10분 30회)으로 분리했다. 조회는 그대로 10분 20회. Mobile의 10명
+  batch 제한은 이 공유 bucket 때문이었고, 이제 제한 없이 3건씩 순차 전송하며 사람마다 결과를 남긴다(한도를 넘으면
+  그 사람만 "잠시 후 다시" 오류).
+
 ## 명령 예시 (참고용 — 실제 값/시크릿은 예시에 포함하지 않음)
 
 ```powershell

@@ -832,7 +832,21 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("CollectionId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DedupKey")
+                        .HasMaxLength(120)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<DateTimeOffset?>("DispatchedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<DateOnly?>("DueDate")
@@ -851,6 +865,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<long?>("RepeatPurchaseId")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("SubjectId")
+                        .HasColumnType("bigint");
+
                     b.Property<byte>("Type")
                         .HasColumnType("tinyint");
 
@@ -859,11 +876,24 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ActorUserId")
+                        .HasDatabaseName("IX_Notifications_ActorUserId")
+                        .HasFilter("[ActorUserId] IS NOT NULL");
+
+                    b.HasIndex("DedupKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Notifications_DedupKey")
+                        .HasFilter("[DedupKey] IS NOT NULL");
+
                     b.HasIndex("ItemId")
                         .HasDatabaseName("IX_Notifications_ItemId");
 
                     b.HasIndex("RepeatPurchaseId")
                         .HasDatabaseName("IX_Notifications_RepeatPurchaseId");
+
+                    b.HasIndex("CreatedAtUtc", "Id")
+                        .HasDatabaseName("IX_Notifications_PendingDispatch")
+                        .HasFilter("[DispatchedAtUtc] IS NULL AND [DedupKey] IS NOT NULL");
 
                     b.HasIndex("UserId", "ReadAtUtc")
                         .HasDatabaseName("IX_Notifications_UserId_ReadAtUtc");
@@ -878,7 +908,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4)");
                         });
                 });
 

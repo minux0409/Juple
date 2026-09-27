@@ -11,6 +11,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { getMyProfile, setMyDisplayName } from '../api/profileApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
+import { formatBadgeCount } from '../components/badgeCount';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DisplayNameDialog } from '../settings/DisplayNameDialog';
 import { getFriendRequests } from '../friends/api/friendsApi';
@@ -21,6 +22,7 @@ import { PeopleIcon } from '../icons/PeopleIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { useLiveRefresh } from '../push/useLiveRefresh';
 import {
   loadQuickSaveOnSharePreference,
   saveQuickSaveOnSharePreference,
@@ -93,6 +95,19 @@ export function MyPageScreen() {
       };
     }, [authenticatedRequest]),
   );
+
+  // The 친구 badge follows a friend request Push while this screen is open, and returning to the app.
+  const friendRequestLoadRef = useRef(0);
+  useLiveRefresh(() => {
+    const requestId = ++friendRequestLoadRef.current;
+    getFriendRequests(authenticatedRequest)
+      .then(requests => {
+        if (requestId === friendRequestLoadRef.current) {
+          setIncomingFriendRequestCount(requests.filter(request => request.direction === 'incoming').length);
+        }
+      })
+      .catch(() => undefined);
+  }, ['friendRequest']);
 
   // No clipboard module is bundled in this app (a native dependency) - the OS share sheet offers
   // "Copy" on both Android and iOS, and the ID text itself is selectable (long-press → copy).
@@ -282,7 +297,7 @@ export function MyPageScreen() {
               <Text style={styles.settingsRowLabel}>{t('friends.title')}</Text>
               {incomingFriendRequestCount > 0 ? (
                 <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{incomingFriendRequestCount}</Text>
+                  <Text style={styles.countBadgeText} testID="my-friends-badge">{formatBadgeCount(incomingFriendRequestCount)}</Text>
                 </View>
               ) : null}
             </Pressable>

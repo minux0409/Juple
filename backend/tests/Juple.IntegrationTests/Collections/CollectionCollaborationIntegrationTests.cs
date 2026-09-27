@@ -359,23 +359,28 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     // ---------- public share vs collaboration, reorganize guard ----------
 
     [Fact]
-    public async Task PublicShare_AndCollaboration_AreMutuallyExclusive_IncludingPendingInvitations()
+    public async Task PublicShare_RequiresEveryoneToHaveItsPermission_IncludingPendingInvitations()
     {
-        var conflictWithMembers = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+        // _sharedId has a Contributor member: 보기만 for everyone is refused, 링크 추가 is allowed.
+        var readConflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
             _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow));
-        Assert.Equal(CollectionCollaborationConflictException.CollaborationActive, conflictWithMembers.Code);
+        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, readConflict.Code);
+        Assert.NotNull(await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow, CollectionSharePermission.Write));
 
+        // A pending (default Contributor) invitation counts too.
         var pendingOnly = (await _collections.CreateAsync(_owner, "Pending", "PENDING", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         await _collaboration.InviteAsync(_owner, pendingOnly, await JupleIdOfAsync(_stranger));
         await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
             _shares.EnableAsync(_owner, pendingOnly, NewPublicId(), DateTimeOffset.UtcNow));
 
+        // While 보기만 is on, only Viewers can be invited.
         var publicOne = (await _collections.CreateAsync(_owner, "Public", "PUBLIC", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         await _shares.EnableAsync(_owner, publicOne, NewPublicId(), DateTimeOffset.UtcNow);
         var strangerJupleId = await JupleIdOfAsync(_stranger);
         var conflictWithShare = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
             _collaboration.InviteAsync(_owner, publicOne, strangerJupleId));
         Assert.Equal(CollectionCollaborationConflictException.PublicShareActive, conflictWithShare.Code);
+        Assert.NotNull(await _collaboration.InviteAsync(_owner, publicOne, strangerJupleId, CollectionCollaboratorRole.Viewer));
     }
 
     [Fact]

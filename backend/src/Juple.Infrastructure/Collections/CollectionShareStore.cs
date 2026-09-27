@@ -35,23 +35,7 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
             return ToDto(existing);
         }
 
-        // Public sharing and collaboration (Contributors) are mutually exclusive. A pending
-        // Contributor invitation counts as collaboration already started - otherwise accepting it
-        // later would silently create a collaborative Collection that is also public. Viewers (and
-        // pending Viewer invitations) add nothing, so they coexist with the public link. Nothing is
-        // auto-disabled; the Owner must revoke/remove first.
-        var collaborative = await dbContext.CollectionCollaborators
-                .AnyAsync(collaborator => collaborator.CollectionId == collectionId
-                    && collaborator.Role == CollectionCollaboratorRole.Contributor, cancellationToken)
-            || await dbContext.CollectionInvitations
-                .AnyAsync(invitation => invitation.CollectionId == collectionId
-                    && invitation.Role == CollectionCollaboratorRole.Contributor
-                    && invitation.Status == CollectionInvitationStatus.Pending
-                    && invitation.ExpiresAtUtc > enabledAtUtc, cancellationToken);
-        if (collaborative)
-        {
-            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.CollaborationActive);
-        }
+        await RequireEveryoneMatchesAsync(collectionId, permission, enabledAtUtc, cancellationToken);
 
         var share = new CollectionShare(collectionId, candidatePublicId, enabledAtUtc);
         share.SetPermission(permission, enabledAtUtc);
@@ -144,11 +128,9 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default)
     {
-        var collectionOwned = await dbContext.Collections
-            .AsNoTracking()
-            .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
-        if (!collectionOwned)
+        // Same row lock as enabling and as every invite/role change, so the check below cannot race one.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) != userId)
         {
             throw new CollectionNotFoundException();
         }
@@ -160,10 +142,16 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
             return null;
         }
 
+        if (share.Permission != permission)
+        {
+            await RequireEveryoneMatchesAsync(collectionId, permission, updatedAtUtc, cancellationToken);
+        }
+
         share.SetPermission(permission, updatedAtUtc);
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException exception)
         {
@@ -171,6 +159,31 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         }
 
         return ToDto(share);
+    }
+
+    /// <summary>
+    /// The public link may be on only while every member and every still-pending invitation has
+    /// exactly its permission's role (see PublicShareRoles). A mismatch is refused - never fixed up by
+    /// changing anyone's role automatically; the Owner aligns them first.
+    /// </summary>
+    private async Task RequireEveryoneMatchesAsync(
+        long collectionId,
+        CollectionSharePermission permission,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var role = PublicShareRoles.For(permission);
+        var mismatch = await dbContext.CollectionCollaborators
+                .AnyAsync(collaborator => collaborator.CollectionId == collectionId && collaborator.Role != role, cancellationToken)
+            || await dbContext.CollectionInvitations
+                .AnyAsync(invitation => invitation.CollectionId == collectionId
+                    && invitation.Role != role
+                    && invitation.Status == CollectionInvitationStatus.Pending
+                    && invitation.ExpiresAtUtc > nowUtc, cancellationToken);
+        if (mismatch)
+        {
+            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicSharePermissionMismatch);
+        }
     }
 
     private static CollectionShareDto ToDto(CollectionShare share) =>

@@ -1,11 +1,13 @@
 using Juple.Application.Collections.Access;
+using Juple.Application.Notifications;
 
 namespace Juple.Application.Collections.AddItemToCollection;
 
 public sealed class AddItemToCollectionService(
     ICollectionAccessService accessService,
     ICollectionItemStore collectionItemStore,
-    TimeProvider timeProvider) : IAddItemToCollectionService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : IAddItemToCollectionService
 {
     /// <summary>
     /// Owner or Contributor (AddItem), and for a locked Collection a valid unlock grant - adding a
@@ -21,5 +23,9 @@ public sealed class AddItemToCollectionService(
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.AddItem, unlockToken, cancellationToken);
         await collectionItemStore.AddAsync(userId, collectionId, itemId, timeProvider.GetUtcNow(), cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.CollectionsChangedAsync(userId, [collectionId], cancellationToken);
+        }
     }
 }

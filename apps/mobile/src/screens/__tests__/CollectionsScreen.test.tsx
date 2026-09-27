@@ -19,6 +19,7 @@ import {
 } from '../../collections/api/collaborationApi';
 import { ApiError } from '../../api/ApiError';
 import { ReceivedInvitationsSheet } from '../../collections/ReceivedInvitationsSheet';
+import { emitSocialPushEvent } from '../../push/pushEvents';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { ChevronIcon } from '../../icons/ChevronIcon';
 import { FolderIcon } from '../../icons/FolderIcon';
@@ -29,7 +30,7 @@ import { FolderIcon } from '../../icons/FolderIcon';
 const mockNavigate = jest.fn();
 const mockSetParams = jest.fn();
 const mockNavigation = { navigate: mockNavigate, setParams: mockSetParams };
-let mockRouteParams: { refreshToken?: number } | undefined;
+let mockRouteParams: { refreshToken?: number; filter?: 'shared'; openShareRequests?: boolean } | undefined;
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
@@ -631,6 +632,51 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([]);
   });
 
+  it('the 공유 컬렉션 filter carries the pending request count (hidden at 0, 99+ past 99), from the same list as 공유 요청', async () => {
+    const badge = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderer.root.findAll(node => node.props.testID === 'collections-filter-shared-badge' && typeof node.type === 'string');
+
+    let renderer = await renderScreen();
+    expect(badge(renderer)).toHaveLength(0);
+
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(3), invitation(4)]);
+    renderer = await renderScreen();
+    expect(badge(renderer)[0].findByType(Text).props.children).toBe('2');
+
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue(Array.from({ length: 120 }, (_, index) => invitation(index + 1)));
+    renderer = await renderScreen();
+    expect(badge(renderer)[0].findByType(Text).props.children).toBe('99+');
+  });
+
+  it('a Push while the screen is open refreshes link counts and the request badge - without opening a Collection', async () => {
+    const renderer = await renderScreen();
+    const collectionsCalls = jest.mocked(getCollections).mock.calls.length;
+    const invitationCalls = jest.mocked(getReceivedCollectionInvitations).mock.calls.length;
+
+    await act(async () => {
+      emitSocialPushEvent({ type: 'collectionContentChanged', collectionId: 1 });
+    });
+    expect(jest.mocked(getCollections).mock.calls.length).toBeGreaterThan(collectionsCalls);
+    expect(jest.mocked(getReceivedCollectionInvitations).mock.calls.length).toBeGreaterThan(invitationCalls);
+
+    const afterRefresh = jest.mocked(getCollections).mock.calls.length;
+    await act(async () => {
+      emitSocialPushEvent({ type: 'friendRequest', collectionId: null }); // not this screen's concern
+    });
+    expect(jest.mocked(getCollections).mock.calls.length).toBe(afterRefresh);
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-filter-shared').length).toBeGreaterThan(0);
+  });
+
+  it('a tapped invitation Push lands on 공유 컬렉션 with 공유 요청 open', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(3)]);
+    mockRouteParams = { refreshToken: 5, filter: 'shared', openShareRequests: true };
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ testID: 'collections-filter-shared' }).props.accessibilityState.selected).toBe(true);
+    expect(sheet(renderer).props.visible).toBe(true);
+    mockRouteParams = undefined;
+  });
+
   it('with nothing to answer, 공유 카테고리 shows no 공유 요청 row at all', async () => {
     const renderer = await renderScreen();
     await selectFilter(renderer, 'shared');
@@ -681,9 +727,10 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
 
     expect(renderer.root.findByProps({ testID: 'share-request-role-3' }).props.children).toBe(i18n.t('collaboration.roleViewer'));
     expect(renderer.root.findByProps({ testID: 'share-request-role-4' }).props.children).toBe(i18n.t('collaboration.roleContributor'));
-    // Plain 읽기 전용 / 읽기·쓰기 - never a separate "공동작업" concept or an internal role name.
-    expect(i18n.getFixedT('ko')('collaboration.roleViewer')).toBe('읽기 전용');
-    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('읽기·작성');
+    // Plain 보기만 / 링크 추가 - never 읽기/작성, a "공동작업" concept, an internal role name, or a
+    // stronger promise (편집/수정 가능) than a Contributor actually has.
+    expect(i18n.getFixedT('ko')('collaboration.roleViewer')).toBe('보기만');
+    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('링크 추가');
   });
 
   it('a Collection shared view-only shows the shared marker and can be favorited like any other', async () => {

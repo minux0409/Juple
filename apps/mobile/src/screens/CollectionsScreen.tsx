@@ -28,6 +28,8 @@ import {
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
+import { useLiveRefresh } from '../push/useLiveRefresh';
+import { formatBadgeCount } from '../components/badgeCount';
 import { formatParticipantSummary } from '../collections/participantSummary';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
@@ -252,15 +254,41 @@ export function CollectionsScreen() {
   );
 
   // Refresh signaling is deliberately separate from AppToast state: revisiting this tab must
-  // never recreate a toast or reset its timer.
+  // never recreate a toast or reset its timer. A tapped Collection invitation Push also asks for
+  // 공유 컬렉션 with its 공유 요청 open (see usePushMessageHandling).
   useEffect(() => {
     if (route.params?.refreshToken === undefined) {
       return;
     }
-    tabNavigation.setParams({ refreshToken: undefined });
+    const target = route.params.filter;
+    const openShareRequests = route.params.openShareRequests === true;
+    tabNavigation.setParams({ refreshToken: undefined, filter: undefined, openShareRequests: undefined });
+    if (target && target !== filterRef.current) {
+      filterRef.current = target;
+      setFilter(target);
+    }
     invalidateOtherFilters(filterRef.current);
     load(filterRef.current, 'refresh');
-  }, [invalidateOtherFilters, load, route.params?.refreshToken, tabNavigation]);
+    if (openShareRequests) {
+      getReceivedCollectionInvitations(authenticatedRequest)
+        .then(invitations => {
+          setReceivedInvitations(invitations);
+          setIsShareRequestsVisible(invitations.length > 0);
+        })
+        .catch(() => undefined);
+    }
+  }, [authenticatedRequest, invalidateOtherFilters, load, route.params?.filter, route.params?.openShareRequests, route.params?.refreshToken, tabNavigation]);
+
+  // Without polling: link counts (another member or a public-link writer added/removed links) and
+  // the 공유 요청 badge follow Push while the app is open, and refresh on returning to the app.
+  useLiveRefresh(
+    () => {
+      invalidateOtherFilters(filterRef.current);
+      load(filterRef.current, 'refresh');
+      loadReceivedInvitations();
+    },
+    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered'],
+  );
 
   const selectFilter = (next: CategoryFilter) => {
     if (next === filter) {
@@ -475,12 +503,28 @@ export function CollectionsScreen() {
                       accessibilityState={{ selected: filter === option }}
                       key={option}
                       onPress={() => selectFilter(option)}
-                      style={[styles.filterCell, filter === option && styles.filterCellActive]}
+                      style={[
+                        styles.filterCell,
+                        filter === option && styles.filterCellActive,
+                        option === 'shared' && receivedInvitations.length > 0 && styles.filterCellWithBadge,
+                      ]}
                       testID={`collections-filter-${option}`}
                     >
                       <Text numberOfLines={2} style={[styles.filterLabel, filter === option && styles.filterLabelActive]}>
                         {t(FILTER_LABEL_KEYS[option])}
                       </Text>
+                      {/* 공유 요청 waiting - the same list as the 공유 요청 row. Inside the cell's
+                          top-end corner (mirrored under RTL), so it is never clipped and never sits
+                          on the selected border. */}
+                      {option === 'shared' && receivedInvitations.length > 0 ? (
+                        <View
+                          accessibilityLabel={t('collections.shareRequestCount', { count: receivedInvitations.length })}
+                          style={styles.filterBadge}
+                          testID="collections-filter-shared-badge"
+                        >
+                          <Text style={styles.filterBadgeText}>{formatBadgeCount(receivedInvitations.length)}</Text>
+                        </View>
+                      ) : null}
                     </Pressable>
                   ))}
                 </View>
@@ -722,6 +766,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
+  filterCellWithBadge: { paddingEnd: spacing.sm + 26 },
+  filterBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    borderRadius: 10,
+    end: 4,
+    height: 20,
+    justifyContent: 'center',
+    minWidth: 20,
+    paddingHorizontal: 5,
+    position: 'absolute',
+    top: 4,
+  },
+  filterBadgeText: { color: colors.surface, fontSize: 11, fontWeight: '800' },
   filterCellActive: {
     backgroundColor: collectionFilterColors.selectedBackground,
     borderColor: collectionFilterColors.selectedBorder,

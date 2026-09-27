@@ -1,4 +1,5 @@
 using Juple.Application.Collections.Collaboration;
+using Juple.Application.Notifications;
 using Juple.Domain.Friends;
 using Juple.Domain.Users;
 
@@ -94,7 +95,8 @@ public interface IFriendService
 public sealed class FriendService(
     IUserDirectoryStore userDirectory,
     IFriendStore friendStore,
-    TimeProvider timeProvider) : IFriendService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : IFriendService
 {
     /// <summary>Pending requests are few by nature; a generous fixed cap instead of paging.</summary>
     public const int MaxRequestsListed = 200;
@@ -115,7 +117,13 @@ public sealed class FriendService(
             throw new InvalidFriendRequestException("jupleId", "You cannot send a friend request to yourself.");
         }
 
-        return await friendStore.CreateRequestAsync(userId, targetUserId, timeProvider.GetUtcNow(), cancellationToken);
+        var request = await friendStore.CreateRequestAsync(userId, targetUserId, timeProvider.GetUtcNow(), cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.FriendRequestReceivedAsync(userId, targetUserId, request.RequestId, cancellationToken);
+        }
+
+        return request;
     }
 
     public Task<IReadOnlyList<FriendRequestDto>> ListRequestsAsync(long userId, CancellationToken cancellationToken = default) =>

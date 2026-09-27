@@ -37,13 +37,13 @@ param sqlConnectionString string
 @secure()
 param firebaseServiceAccountKeyJson string
 
-@description('UTC cron expression - Container Apps Job schedules are always UTC, never local/server time (matches this project\'s own DateTimeOffset/UTC-storage convention). Default: top of every hour.')
-param cronExpression string = '0 * * * *'
+@description('UTC cron expression - Container Apps Job schedules are always UTC, never local/server time (matches this project\'s own DateTimeOffset/UTC-storage convention). Default: every minute - friend request and Collection invitation Push should arrive within about a minute. Overlapping executions are safe: NotificationDeliveryStore.TryClaimAsync sends each (notification, device) pair at most once.')
+param cronExpression string = '* * * * *'
 
-@description('Wall-clock ceiling for one Job execution. Chosen well under NotificationDeliveryStore\'s 15-minute stale-lease timeout (900s) and comfortably above FirebaseCloudMessagingSender\'s single-send 20s timeout - even a run that hits this ceiling mid-send leaves that one delivery reclaimable by the next hourly execution long before the next-but-one run, never stuck.')
-param replicaTimeoutSeconds int = 600
+@description('Wall-clock ceiling for one Job execution. Well under NotificationDeliveryStore\'s 15-minute stale-lease timeout (900s) and comfortably above FirebaseCloudMessagingSender\'s single-send 20s timeout - a run that hits this ceiling mid-send leaves that one delivery reclaimable by a later execution, never stuck.')
+param replicaTimeoutSeconds int = 300
 
-@description('Azure retries the whole execution this many additional times on outright container failure (crash, failed to start) - not a per-delivery retry (that is NotificationDeliveryStore\'s own claim/lease mechanism, wholly separate and already exercised by the hourly schedule itself). Kept at 1 since the hourly cadence already provides a natural retry cadence for anything transient.')
+@description('Azure retries the whole execution this many additional times on outright container failure (crash, failed to start) - not a per-delivery retry (that is NotificationDeliveryStore\'s own claim/lease mechanism, wholly separate). Kept at 1 since the per-minute schedule already provides a natural retry cadence for anything transient.')
 param replicaRetryLimit int = 1
 
 @description('Smallest Consumption-plan cpu/memory pairing, same as ../app/main.bicep - a one-shot dispatch pass over a Dev-scale RepeatPurchase table needs nothing larger.')

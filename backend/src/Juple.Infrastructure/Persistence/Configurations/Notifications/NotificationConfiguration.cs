@@ -15,7 +15,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         {
             // Same DB-level guard as RepeatPurchaseConfiguration's CK_RepeatPurchases_IntervalUnit_Valid
             // for its own byte enum - blocks any value outside the currently-defined Type range.
-            table.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0)");
+            table.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4)");
         });
 
         builder.HasKey(notification => notification.Id);
@@ -51,6 +51,27 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(notification => notification.ReadAtUtc)
             .HasColumnType("datetimeoffset");
 
+        // Social notifications (Types 1-4) - plain ids, deliberately no FKs: a row must never block
+        // deleting the actor, the Collection or the invitation/request it mentions (account
+        // deletion removes rows by UserId and ActorUserId - see AccountDeletionStore), and the
+        // dispatcher re-checks that the subject still exists/is still pending before sending.
+        builder.Property(notification => notification.ActorUserId)
+            .HasColumnType("bigint");
+
+        builder.Property(notification => notification.CollectionId)
+            .HasColumnType("bigint");
+
+        builder.Property(notification => notification.SubjectId)
+            .HasColumnType("bigint");
+
+        builder.Property(notification => notification.DedupKey)
+            .HasColumnType("varchar(120)")
+            .HasMaxLength(120)
+            .IsUnicode(false);
+
+        builder.Property(notification => notification.DispatchedAtUtc)
+            .HasColumnType("datetimeoffset");
+
         // Newest-first inbox listing - the primary Notification query pattern.
         builder.HasIndex(notification => new { notification.UserId, notification.CreatedAtUtc, notification.Id })
             .HasDatabaseName("IX_Notifications_UserId_CreatedAtUtc_Id");
@@ -81,6 +102,22 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .IsUnique()
             .HasFilter("[RepeatPurchaseId] IS NOT NULL AND [DueDate] IS NOT NULL")
             .HasDatabaseName("UX_Notifications_Type_RepeatPurchaseId_DueDate");
+
+        // The same social event enqueues at most once (see SocialNotificationPublisher).
+        builder.HasIndex(notification => notification.DedupKey)
+            .IsUnique()
+            .HasFilter("[DedupKey] IS NOT NULL")
+            .HasDatabaseName("UX_Notifications_DedupKey");
+
+        // The Push dispatcher's only query: not yet dispatched, oldest first.
+        builder.HasIndex(notification => new { notification.CreatedAtUtc, notification.Id })
+            .HasFilter("[DispatchedAtUtc] IS NULL AND [DedupKey] IS NOT NULL")
+            .HasDatabaseName("IX_Notifications_PendingDispatch");
+
+        // Account deletion of the actor removes the notifications they caused for other people.
+        builder.HasIndex(notification => notification.ActorUserId)
+            .HasFilter("[ActorUserId] IS NOT NULL")
+            .HasDatabaseName("IX_Notifications_ActorUserId");
 
         builder.HasOne<User>()
             .WithMany()

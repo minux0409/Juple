@@ -1,11 +1,13 @@
 using Juple.Application.Images;
+using Juple.Application.Notifications;
 
 namespace Juple.Application.Items.DeleteItem;
 
 public sealed class DeleteItemService(
     IItemLifecycleStore itemLifecycleStore,
     IItemImageStorage itemImageStorage,
-    TimeProvider timeProvider) : IDeleteItemService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : IDeleteItemService
 {
     public async Task DeleteAsync(long userId, long itemId, CancellationToken cancellationToken = default)
     {
@@ -14,6 +16,11 @@ public sealed class DeleteItemService(
         // rather than hard-deleting it - its Blobs, Collection memberships, and every other row are
         // left untouched (see Item.SoftDelete) so Restore brings it back exactly as it was.
         await itemLifecycleStore.DeleteAsync(userId, itemId, timeProvider.GetUtcNow(), cancellationToken);
+        if (notifications is not null)
+        {
+            // A trashed link no longer counts in the shared Collections it is in.
+            await notifications.ItemCollectionsChangedAsync(userId, itemId, cancellationToken);
+        }
 
         // Enforces the fixed per-user trash retention cap (see ItemTrashLimits) after every
         // delete, not just when actually over it - the store itself is a no-op when nothing needs

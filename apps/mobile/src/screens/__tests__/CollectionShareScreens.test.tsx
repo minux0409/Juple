@@ -2,7 +2,9 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
-import { CollectionShareScreen, MAX_INVITE_ROWS } from '../CollectionShareScreen';
+import { KeyboardAvoidingView } from 'react-native';
+import { CollectionShareScreen, INVITE_CONCURRENCY } from '../CollectionShareScreen';
+import { emitSocialPushEvent } from '../../push/pushEvents';
 import {
   changeCollaboratorRole,
   changeInvitationRole,
@@ -31,6 +33,7 @@ beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
 
+jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
@@ -253,18 +256,34 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(byId(renderer, 'share-create-link').props.disabled).toBe(false);
     });
 
-    it('any 쓰기 member or pending 쓰기 invitation blocks it, with the reason - nothing is changed automatically', async () => {
+    it('보기만 for everyone is blocked while someone has 링크 추가 - with the reason and a way to review them; 링크 추가 is allowed', async () => {
       jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[1]] });
-      let renderer = await renderScreen();
+      const renderer = await renderScreen();
       expect(byId(renderer, 'share-create-link').props.disabled).toBe(true);
-      expect(texts(byId(renderer, 'share-public-blocked'))).toContain(i18n.t('collections.publicShareBlockedByCollaboration'));
-
-      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, pendingInvitations: [] });
-      renderer = await renderScreen();
-      expect(byId(renderer, 'share-create-link').props.disabled).toBe(true);
+      expect(texts(byId(renderer, 'share-public-blocked'))).toContain(i18n.t('shareSheet.permissionMismatch'));
       await press(renderer, 'share-create-link');
       expect(enableCollectionShare).not.toHaveBeenCalled();
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
+
+      // Everyone is 링크 추가 already: sharing with everyone as 링크 추가 is fine.
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]], pendingInvitations: [] });
+      const writable = await renderScreen();
+      await press(writable, 'share-all-users-permission-write');
+      expect(exists(writable, 'share-public-blocked')).toBe(false);
+      await press(writable, 'share-create-link');
+      expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'write');
+    });
+
+    it('switching an active link to a permission some people do not have is refused - nobody is changed', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      const renderer = await renderScreen();
+
+      await press(renderer, 'share-all-users-permission-write');
+
+      expect(setCollectionSharePermission).not.toHaveBeenCalled();
+      expect(changeCollaboratorRole).not.toHaveBeenCalled();
+      expect(texts(renderer.root)).toContain(i18n.t('shareSheet.permissionMismatch'));
     });
   });
 
@@ -313,17 +332,21 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'NAMD2345', 'contributor');
     });
 
-    it('"+" adds one person at a time and clears the field, so several Juple IDs collect in one batch', async () => {
+    it('"+" sits at the end of the one result row, adds that person and clears the field for the next Juple ID', async () => {
       const renderer = await renderScreen();
       for (const jupleId of ['AAAA2345', 'BBBB2345', 'CCCC2345']) {
         await findById(renderer, jupleId);
-        expect(byId(renderer, 'id-invite-add').props.accessibilityLabel).toBe(i18n.t('shareSheet.addToInviteList'));
+        const row = byId(renderer, 'id-invite-person');
+        const rowChildren = row.findAll(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('id-invite-'));
+        expect(rowChildren[rowChildren.length - 1].props.testID).toBe('id-invite-add');
+        expect(byId(renderer, 'id-invite-add').props.accessibilityLabel).toContain(jupleId.slice(0, 4));
         await press(renderer, 'id-invite-add');
         expect(byId(renderer, 'id-invite-input').props.value).toBe('');
+        expect(exists(renderer, 'id-invite-person')).toBe(false);
       }
       await press(renderer, 'draft-role-BBBB2345-contributor');
 
-      expect(texts(byId(renderer, 'share-invite-list-count'))).toEqual([`3/${MAX_INVITE_ROWS}`]);
+      expect(texts(byId(renderer, 'share-invite-list-count'))).toEqual([i18n.t('shareSheet.selectedCount', { count: 3 })]);
       await press(renderer, 'invite-send');
       expect(inviteCollaborator).toHaveBeenCalledTimes(3);
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'AAAA2345', 'viewer');
@@ -384,10 +407,19 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(texts(byId(renderer, 'draft-error-DDDD2345'))).toContain(i18n.t('collaboration.invitationAlreadyPending'));
     });
 
-    it(`holds at most ${MAX_INVITE_ROWS} people in one batch`, async () => {
+    it('any number of friends can join one batch; they are invited a few at a time, each with their own result', async () => {
       jest.mocked(getFriends).mockResolvedValue({
-        items: Array.from({ length: MAX_INVITE_ROWS + 2 }, (_, index) => friend(`F${String(index).padStart(3, '0')}2345`, null)),
+        items: Array.from({ length: 12 }, (_, index) => friend(`F${String(index).padStart(3, '0')}2345`, null)),
         nextCursor: null,
+      });
+      let inFlight = 0;
+      let maxInFlight = 0;
+      jest.mocked(inviteCollaborator).mockImplementation(async () => {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+        inFlight -= 1;
+        return {} as never;
       });
       const renderer = await renderScreen();
       await press(renderer, 'invite-choose-friends');
@@ -402,18 +434,35 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await press(renderer, 'friend-picker-confirm');
 
       const draftRows = renderer.root.findAll(node => typeof node.type === 'string' && /^draft-F\d{3}2345$/.test(String(node.props.testID ?? '')));
-      expect(draftRows).toHaveLength(MAX_INVITE_ROWS);
-      expect(byId(renderer, 'invite-choose-friends').props.disabled).toBe(true);
+      expect(draftRows).toHaveLength(12);
+      expect(byId(renderer, 'invite-choose-friends').props.disabled).toBe(false);
+
+      await act(async () => {
+        await byId(renderer, 'invite-send').props.onPress();
+      });
+      expect(inviteCollaborator).toHaveBeenCalledTimes(12);
+      expect(maxInFlight).toBeLessThanOrEqual(INVITE_CONCURRENCY);
     });
 
-    it('while the public link is on, 쓰기 cannot be chosen for anyone in the batch - the reason is shown instead', async () => {
-      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '' });
+    it('while the public link is on, everyone invited gets exactly its permission - no per-person choice, and that is what is sent', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
+      expect(texts(byId(renderer, 'share-invite-fixed-role'))).toEqual([
+        i18n.t('shareSheet.fixedByAllUsers', { permission: i18n.t('shareSheet.permissionRead') }),
+      ]);
       await findById(renderer, 'CCCC2345');
-      await press(renderer, 'id-invite-role-contributor');
+      expect(exists(renderer, 'id-invite-role-contributor')).toBe(false);
+      await press(renderer, 'id-invite-add');
+      expect(exists(renderer, 'draft-role-CCCC2345-contributor')).toBe(false);
+      await press(renderer, 'invite-send');
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'CCCC2345', 'viewer');
 
-      expect(byId(renderer, 'id-invite-role-viewer').props.accessibilityState.checked).toBe(true);
-      expect(texts(byId(renderer, 'share-action-error'))).toContain(i18n.t('collaboration.blockedByPublicShare'));
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
+      const writable = await renderScreen();
+      await findById(writable, 'DDDD2345');
+      await press(writable, 'id-invite-add');
+      await press(writable, 'invite-send');
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'DDDD2345', 'contributor');
     });
   });
 
@@ -486,18 +535,49 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 5, 9);
     });
 
-    it('while the public link is on, making someone 쓰기 is refused on the spot - nothing is sent or switched off', async () => {
-      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '' });
+    it('while the public link is on, the menu offers no permission change - nothing is sent or switched off', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
       const renderer = await renderScreen();
 
-      await chooseFromMenu(renderer, 'member-actions-RDER2345', i18n.t('shareSheet.changeToWrite'));
-      await chooseFromMenu(renderer, 'pending-actions-8', i18n.t('shareSheet.changeToWrite'));
+      await press(renderer, 'member-actions-RDER2345');
+      const labels = renderer.root.findByType(ActionMenuDialog).props.actions.map((action: { label: string }) => action.label);
+      expect(labels).not.toContain(i18n.t('shareSheet.changeToWrite'));
+      expect(labels).toContain(i18n.t('shareSheet.removeMember'));
 
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
       expect(changeInvitationRole).not.toHaveBeenCalled();
       expect(revokeCollectionShare).not.toHaveBeenCalled();
-      expect(texts(byId(renderer, 'share-action-error'))).toContain(i18n.t('collaboration.blockedByPublicShare'));
+    });
+
+    it('an invitee answering moves them from 초대 대기 to 공유 중 without leaving the screen', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      const renderer = await renderScreen();
+      await press(renderer, 'share-status-tabs-pending');
+      expect(exists(renderer, 'pending-8')).toBe(true);
+
+      const accepted = readersOnly.pendingInvitations[0];
+      jest.mocked(getCollectionParticipants).mockResolvedValue({
+        ...readersOnly,
+        participants: [...readersOnly.participants, { jupleId: accepted.jupleId, displayName: accepted.displayName ?? null, role: "viewer" }],
+        pendingInvitations: [],
+      });
+      await act(async () => {
+        emitSocialPushEvent({ type: 'collectionInvitationAnswered', collectionId: 5 });
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      });
+
+      expect(exists(renderer, 'pending-8')).toBe(false);
+      await press(renderer, 'share-status-tabs-members');
+      expect(exists(renderer, `participant-${accepted.jupleId}`)).toBe(true);
+    });
+
+    it('keeps the Juple ID field above the keyboard', async () => {
+      const renderer = await renderScreen();
+      const avoiding = renderer.root.findByType(KeyboardAvoidingView);
+      expect(avoiding.props.behavior).toBe('padding');
+      await press(renderer, 'share-invite-tabs-id');
+      expect(typeof byId(renderer, 'id-invite-input').props.onFocus).toBe('function');
     });
 
     it("the server's own conflict on a role change is shown as the reason", async () => {

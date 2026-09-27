@@ -15,7 +15,8 @@ AppRegistry.registerComponent(appName, () => App);
 registerIncomingShareHeadlessTask();
 
 // React Native Firebase's own setup docs treat this as required boilerplate registered outside the
-// React tree, so it stays even though no active feature currently sends a Push message with a
-// `notification` block - Android's system tray display in the background/killed states happens
-// natively without any JS code running whenever one does arrive.
+// React tree. Friend request / Collection invitation Push carry a `notification` block, which Android
+// shows in the tray natively while the app is in the background or killed - no JS needed here. The
+// data-only refresh signals are only useful to an open app (see usePushMessageHandling), so they are
+// deliberately ignored in the background.
 setBackgroundMessageHandler(getMessaging(), async () => {});

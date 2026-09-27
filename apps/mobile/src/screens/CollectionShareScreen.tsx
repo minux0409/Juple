@@ -3,7 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View, type ViewInstance } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
@@ -34,7 +34,8 @@ import {
 } from '../collections/api/collectionsApi';
 import { isCollectionLocked } from '../collections/collectionAccess';
 import { isCollectionLockedError } from '../collections/useCollectionItems';
-import { FriendPickerSheet, type FriendUnavailableReason } from '../friends/FriendPickerSheet';
+import { runWithConcurrency } from '../collections/runWithConcurrency';
+import { FriendPickerModal, type FriendUnavailableReason } from '../friends/FriendPickerModal';
 import type { Friend } from '../friends/api/friendsApi';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -44,15 +45,26 @@ import { MoreIcon } from '../icons/MoreIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { shareItem } from '../items/shareItem';
+import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
+import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionShare'>;
 
-/** People in one invitation batch; kept small on purpose (UI size, and the per-user invite rate limit). */
-export const MAX_INVITE_ROWS = 10;
+/**
+ * Invitations in flight at once. There is no batch size limit - the API takes one invitation per
+ * person and has its own per-identity rate limit, so a large batch is simply sent a few at a time,
+ * each person keeping their own result.
+ */
+export const INVITE_CONCURRENCY = 3;
 
-/** A person waiting in the invitation batch - picked from friends or found by Juple ID - with their own 읽기/쓰기. */
+/** While 모든 사용자 is on, every specific person gets exactly this role (a server rule too). */
+export function roleForPublicPermission(permission: PublicSharePermission): InvitationRole {
+  return permission === 'write' ? 'contributor' : 'viewer';
+}
+
+/** A person waiting in the invitation batch - picked from friends or found by Juple ID - with their own 보기만/링크 추가. */
 interface InviteDraft {
   readonly jupleId: string;
   readonly displayName: string | null;
@@ -77,7 +89,7 @@ function memberRoleOf(role: string): BadgeKind {
   return role === 'owner' ? 'owner' : role === 'contributor' ? 'contributor' : 'viewer';
 }
 
-/** Owner first, then 쓰기, then 읽기 - so who can change the Collection is visible at a glance. */
+/** Owner first, then 링크 추가, then 보기만 - so who can add to the Collection is visible at a glance. */
 const ROLE_ORDER: Record<BadgeKind, number> = { owner: 0, contributor: 1, viewer: 2 };
 
 function getLookupErrorMessage(error: unknown, t: TFunction): string {
@@ -131,8 +143,8 @@ function getShareManagementErrorMessage(error: unknown, t: TFunction): string {
     if (error.kind === 'unauthorized') {
       return t('errors.unauthorized');
     }
-    if (error.kind === 'conflict' && error.code === 'collaborationActive') {
-      return t('collections.publicShareBlockedByCollaboration');
+    if (error.kind === 'conflict' && (error.code === 'publicSharePermissionMismatch' || error.code === 'collaborationActive')) {
+      return t('shareSheet.permissionMismatch');
     }
     return t('collections.errorShareManagementFallback');
   }
@@ -157,7 +169,7 @@ interface RoleToggleProps {
   readonly testID: string;
 }
 
-/** 읽기 | 쓰기 for one person about to be invited. The wire roles (viewer/contributor) are never shown. */
+/** 보기만 | 링크 추가 for one person about to be invited. The wire roles (viewer/contributor) are never shown. */
 function RoleToggle({ value, onChange, disabled = false, label, testID }: RoleToggleProps) {
   const { t } = useTranslation();
   return (
@@ -184,6 +196,18 @@ function RoleToggle({ value, onChange, disabled = false, label, testID }: RoleTo
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+/** Shown instead of RoleToggle while 모든 사용자 is on: the person gets exactly the link's permission. */
+function FixedRoleBadge({ role, testID }: { readonly role: InvitationRole; readonly testID: string }) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.fixedRole} testID={testID}>
+      <Text numberOfLines={2} style={styles.fixedRoleLabel}>
+        {t('shareSheet.fixedByAllUsers', { permission: role === 'contributor' ? t('shareSheet.permissionWrite') : t('shareSheet.permissionRead') })}
+      </Text>
     </View>
   );
 }
@@ -266,15 +290,17 @@ function SectionCard({
 /**
  * The one place for sharing a Collection (Owner only) - one screen, three areas, so it never grows
  * into a long column of cards:
- * - 모든 사용자: the public link, [읽기] (anyone with the link views, signed in or not) or [작성]
- *   (additionally, holders SIGNED IN to Juple may add their own links - never anonymously).
- * - 초대하기: [친구] | [ID] tabs feeding one 초대할 사용자 batch; each person gets their own
- *   읽기 (viewer) or 작성 (contributor); sent together, they must accept.
- * - 공유 상태: [공유 중 N] | [초대 대기 N] tabs of compact rows with a role badge; changing
- *   읽기/작성, removing and cancelling live behind each row's "⋯" menu.
- * 작성 for a specific person and the public link never coexist (a server rule): while either exists
- * the other is refused with the reason shown, and nothing is ever switched off or changed
- * automatically. Opening this screen never changes anything by itself.
+ * - 모든 사용자: the public link, [보기만] (anyone with the link views, signed in or not) or
+ *   [링크 추가] (additionally, holders SIGNED IN to Juple may add their own links - never anonymously).
+ * - 초대하기: [친구] | [ID] tabs feeding one batch of any size; each person gets 보기만 (viewer) or
+ *   링크 추가 (contributor); sent a few at a time, they must accept.
+ * - 공유 상태: [공유 중 N] | [초대 대기 N] tabs of compact rows with a role badge; changing the
+ *   permission, removing and cancelling live behind each row's "⋯" menu.
+ * While 모든 사용자 is on, every specific person has exactly its permission (a server rule): the
+ * per-person choice is fixed to it, and turning the link on or changing its permission is refused
+ * while someone has a different one - nothing is ever changed automatically. The lists refresh on
+ * focus, on returning to the app and when an invitation is answered (Push). Opening this screen
+ * never changes anything by itself.
  */
 export function CollectionShareScreen({ route }: Props) {
   const { collectionId } = route.params;
@@ -303,6 +329,11 @@ export function CollectionShareScreen({ route }: Props) {
     { status: 'idle', person: null, message: null },
   );
   const isSendingRef = useRef(false);
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const contentRef = useRef<ViewInstance>(null);
+  const idAreaRef = useRef<ViewInstance>(null);
+  const statusCardRef = useRef<ViewInstance>(null);
+  const participantsRequestRef = useRef(0);
   const [isSending, setIsSending] = useState(false);
   const [inviteNotice, setInviteNotice] = useState<string | null>(null);
 
@@ -311,8 +342,26 @@ export function CollectionShareScreen({ route }: Props) {
   const [pendingRemoval, setPendingRemoval] = useState<{ jupleId: string; label: string } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  /** A newer request always wins - a slow older response never overwrites fresher lists. */
   const loadParticipants = useCallback(async () => {
-    setParticipants(await getCollectionParticipants(authenticatedRequest, collectionId));
+    const requestId = ++participantsRequestRef.current;
+    const loaded = await getCollectionParticipants(authenticatedRequest, collectionId);
+    if (requestId === participantsRequestRef.current) {
+      setParticipants(loaded);
+    }
+  }, [authenticatedRequest, collectionId]);
+
+  /** Quiet refresh (no spinner): the link state and both lists, e.g. after someone answered. */
+  const refreshQuietly = useCallback(() => {
+    const requestId = ++participantsRequestRef.current;
+    Promise.all([getCollectionShare(authenticatedRequest, collectionId), getCollectionParticipants(authenticatedRequest, collectionId)])
+      .then(([loadedShare, loadedParticipants]) => {
+        if (requestId === participantsRequestRef.current) {
+          setShare(loadedShare);
+          setParticipants(loadedParticipants);
+        }
+      })
+      .catch(() => undefined);
   }, [authenticatedRequest, collectionId]);
 
   const load = useCallback(async () => {
@@ -341,27 +390,59 @@ export function CollectionShareScreen({ route }: Props) {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load]),
+      ensurePushPermissionOnce(authenticatedRequest);
+    }, [authenticatedRequest, load]),
   );
+
+  // An invitee accepting/declining moves them between 초대 대기 and 공유 중 without leaving the screen.
+  useLiveRefresh(refreshQuietly, ['collectionInvitationAnswered']);
 
   const isOwnerView = participants?.canManage === true;
   const members = [...(participants?.participants ?? [])].sort(
     (left, right) => ROLE_ORDER[memberRoleOf(left.role)] - ROLE_ORDER[memberRoleOf(right.role)],
   );
   const pendingInvitations = participants?.pendingInvitations ?? [];
-  const isPublicShareActive = share !== null;
-  // 쓰기 given to anyone - accepted or still pending - keeps the public link off.
-  const hasWriters =
-    members.some(member => member.role === 'contributor')
-    || pendingInvitations.some(invitation => invitationRoleOf(invitation.role) === 'contributor');
+  /** Someone (member or still-pending invitation) whose role differs from what this permission requires. */
+  const hasRoleMismatch = (permission: PublicSharePermission): boolean => {
+    const required = roleForPublicPermission(permission);
+    return (
+      members.some(member => member.role !== 'owner' && memberRoleOf(member.role) !== required)
+      || pendingInvitations.some(invitation => invitationRoleOf(invitation.role) !== required)
+    );
+  };
 
   // ---------- 모든 사용자 (public link: 읽기 or 작성) ----------
 
   const publicPermission: PublicSharePermission = share ? share.permission ?? 'read' : pendingPublicPermission;
+  // While the link is on, every specific person gets exactly its role.
+  const lockedRole: InvitationRole | null = share ? roleForPublicPermission(share.permission ?? 'read') : null;
+  const isPublicBlocked = !share && hasRoleMismatch(pendingPublicPermission);
+
+  const showMembers = () => {
+    setStatusTab('members');
+    setTimeout(() => {
+      if (statusCardRef.current && contentRef.current) {
+        statusCardRef.current.measureLayout(contentRef.current, (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.lg), animated: true }));
+      }
+    }, 50);
+  };
+
+  /** Keeps the Juple ID field and its result above the keyboard (edge-to-edge Android no longer resizes). */
+  const scrollToIdArea = () => {
+    setTimeout(() => {
+      if (idAreaRef.current && contentRef.current) {
+        idAreaRef.current.measureLayout(contentRef.current, (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.lg), animated: true }));
+      }
+    }, 250);
+  };
 
   /** 공유 시작: only this explicit action creates (or, idempotently, returns) the public link. */
   const startPublicShare = async () => {
-    if (isManagingShare || hasWriters) {
+    if (isManagingShare) {
+      return;
+    }
+    if (hasRoleMismatch(pendingPublicPermission)) {
+      setShareError(t('shareSheet.permissionMismatch'));
       return;
     }
     setIsManagingShare(true);
@@ -398,6 +479,10 @@ export function CollectionShareScreen({ route }: Props) {
       return;
     }
     if (isManagingShare) {
+      return;
+    }
+    if (hasRoleMismatch(permission)) {
+      setShareError(t('shareSheet.permissionMismatch'));
       return;
     }
     setIsManagingShare(true);
@@ -441,25 +526,21 @@ export function CollectionShareScreen({ route }: Props) {
     return null;
   };
 
-  /** 쓰기 is refused up front while the public link is on - the same rule the server enforces. */
-  const canGiveWrite = (role: InvitationRole): boolean => {
-    if (role === 'contributor' && isPublicShareActive) {
-      setActionError(t('collaboration.blockedByPublicShare'));
-      return false;
-    }
-    return true;
-  };
-
-  /** Friends picked in 친구에서 선택 join the batch with 읽기; each can be switched on its own. */
+  /** Friends picked in 친구 선택 join the batch with 보기만 (or the link's fixed role); each can be switched on its own. */
   const addFriends = (friends: readonly Friend[]) => {
     setIsFriendPickerVisible(false);
     setInviteNotice(null);
     setDrafts(previous => {
       const added = friends
         .filter(friend => !previous.some(draft => draft.jupleId === friend.jupleId))
-        .slice(0, MAX_INVITE_ROWS - previous.length)
         // Only the friend's own display name - never the private note the picker shows.
-        .map<InviteDraft>(friend => ({ jupleId: friend.jupleId, displayName: friend.displayName, role: 'viewer', status: 'ready', message: null }));
+        .map<InviteDraft>(friend => ({
+          jupleId: friend.jupleId,
+          displayName: friend.displayName,
+          role: lockedRole ?? 'viewer',
+          status: 'ready',
+          message: null,
+        }));
       return [...previous, ...added];
     });
   };
@@ -480,6 +561,7 @@ export function CollectionShareScreen({ route }: Props) {
       const result = await lookupJupleId(authenticatedRequest, idInput.trim());
       const reason = unavailableReason(result.jupleId, result.isSelf);
       setIdLookup(reason ? { status: 'error', person: null, message: reason } : { status: 'found', person: result, message: null });
+      scrollToIdArea();
     } catch (caughtError) {
       setIdLookup({ status: 'error', person: null, message: getLookupErrorMessage(caughtError, t) });
     }
@@ -488,7 +570,7 @@ export function CollectionShareScreen({ route }: Props) {
   /** "+": the found person joins the batch, and the field is cleared for the next Juple ID. */
   const addFoundPerson = () => {
     const person = idLookup.person;
-    if (!person || drafts.length >= MAX_INVITE_ROWS || !canGiveWrite(idRole)) {
+    if (!person) {
       return;
     }
     const reason = unavailableReason(person.jupleId, person.isSelf);
@@ -499,7 +581,7 @@ export function CollectionShareScreen({ route }: Props) {
     setInviteNotice(null);
     setDrafts(previous => [
       ...previous,
-      { jupleId: person.jupleId, displayName: person.displayName ?? null, role: idRole, status: 'ready', message: null },
+      { jupleId: person.jupleId, displayName: person.displayName ?? null, role: lockedRole ?? idRole, status: 'ready', message: null },
     ]);
     setIdInput('');
     setIdRole('viewer');
@@ -507,7 +589,7 @@ export function CollectionShareScreen({ route }: Props) {
   };
 
   const setDraftRole = (jupleId: string, role: InvitationRole) => {
-    if (!canGiveWrite(role)) {
+    if (lockedRole) {
       return;
     }
     setActionError(null);
@@ -517,10 +599,11 @@ export function CollectionShareScreen({ route }: Props) {
   const removeDraft = (jupleId: string) => setDrafts(previous => previous.filter(draft => draft.jupleId !== jupleId));
 
   /**
-   * Sends the whole batch - friends and Juple IDs alike - one invitation per person with that
-   * person's own role (the server has no batch endpoint; each invitation stands alone). Sent ones
-   * leave the batch (they appear under 초대 대기), failed ones stay with their reason. A synchronous
-   * ref guards against a double tap sending twice.
+   * Sends the whole batch - friends and Juple IDs alike - one invitation per person, at most
+   * INVITE_CONCURRENCY at a time (the server has no batch endpoint and rate-limits per identity).
+   * While 모든 사용자 is on, the role sent is always the link's - never whatever a row showed. Sent
+   * ones leave the batch (they appear under 초대 대기), failed ones stay with their own reason. A
+   * synchronous ref guards against a double tap sending twice.
    */
   const sendInvitations = async () => {
     const batch = drafts.filter(draft => draft.status !== 'sending');
@@ -532,8 +615,8 @@ export function CollectionShareScreen({ route }: Props) {
     setInviteNotice(null);
     setDrafts(previous => previous.map(draft => ({ ...draft, status: 'sending', message: null })));
 
-    const results = await Promise.allSettled(
-      batch.map(draft => inviteCollaborator(authenticatedRequest, collectionId, draft.jupleId, draft.role)),
+    const results = await runWithConcurrency(batch, INVITE_CONCURRENCY, draft =>
+      inviteCollaborator(authenticatedRequest, collectionId, draft.jupleId, lockedRole ?? draft.role),
     );
     const failed = new Map<string, string>();
     results.forEach((result, index) => {
@@ -582,7 +665,8 @@ export function CollectionShareScreen({ route }: Props) {
   };
 
   const changeRole = (person: ManagedPerson, role: InvitationRole) => {
-    if (!canGiveWrite(role)) {
+    if (lockedRole) {
+      setActionError(t('collaboration.blockedByPublicShare'));
       return;
     }
     if (person.kind === 'member') {
@@ -592,17 +676,21 @@ export function CollectionShareScreen({ route }: Props) {
     }
   };
 
-  /** The "⋯" menu of one row: switch to the other permission, then remove / cancel. */
+  /** The "⋯" menu of one row: switch to the other permission (not while 모든 사용자 fixes it), then remove / cancel. */
   const menuActions: readonly ActionMenuDialogAction[] = managed
     ? [
-        {
-          label: managed.role === 'viewer' ? t('shareSheet.changeToWrite') : t('shareSheet.changeToRead'),
-          onPress: () => {
-            const person = managed;
-            setManaged(null);
-            changeRole(person, person.role === 'viewer' ? 'contributor' : 'viewer');
-          },
-        },
+        ...(lockedRole
+          ? []
+          : [
+              {
+                label: managed.role === 'viewer' ? t('shareSheet.changeToWrite') : t('shareSheet.changeToRead'),
+                onPress: () => {
+                  const person = managed;
+                  setManaged(null);
+                  changeRole(person, person.role === 'viewer' ? 'contributor' : 'viewer');
+                },
+              },
+            ]),
         managed.kind === 'member'
           ? {
               label: t('shareSheet.removeMember'),
@@ -632,7 +720,6 @@ export function CollectionShareScreen({ route }: Props) {
   pendingInvitations.forEach(invitation => unavailableFriends.set(invitation.jupleId, 'pending'));
   drafts.forEach(draft => unavailableFriends.set(draft.jupleId, 'added'));
 
-  const isBatchFull = drafts.length >= MAX_INVITE_ROWS;
   const inviteDisabled = !isOwnerView || isSending;
 
   const personText = (person: { readonly jupleId: string; readonly displayName?: string | null }, label?: string) => (
@@ -658,12 +745,13 @@ export function CollectionShareScreen({ route }: Props) {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
         {isLoading && !participants ? <ActivityIndicator style={styles.loading} /> : null}
         {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
 
         {participants ? (
-          <View testID="share-unified">
+          <View ref={contentRef} testID="share-unified">
             {/* A. 모든 사용자: the public link with its permission. */}
             <SectionCard icon={<GlobeIcon color={colors.brand} size={18} />} testID="share-all-users" title={t('shareSheet.allUsersTitle')}>
               <Segmented
@@ -702,18 +790,21 @@ export function CollectionShareScreen({ route }: Props) {
                 </>
               ) : (
                 <>
-                  {hasWriters ? (
+                  {isPublicBlocked ? (
                     <View style={styles.noticeBox} testID="share-public-blocked">
-                      <Text style={styles.noticeText}>{t('collections.publicShareBlockedByCollaboration')}</Text>
-                      <Text style={styles.help}>{t('shareSheet.publicBlockedHint')}</Text>
+                      <Text style={styles.noticeText}>{t('shareSheet.permissionMismatch')}</Text>
+                      <Text style={styles.help}>{t('shareSheet.permissionMismatchHint')}</Text>
+                      <Pressable accessibilityRole="button" onPress={showMembers} style={styles.inlineAction} testID="share-public-blocked-review">
+                        <Text style={styles.inlineActionLabel}>{t('shareSheet.reviewMembers')}</Text>
+                      </Pressable>
                     </View>
                   ) : null}
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{ disabled: isManagingShare || hasWriters, busy: isManagingShare }}
-                    disabled={isManagingShare || hasWriters}
+                    accessibilityState={{ disabled: isManagingShare || isPublicBlocked, busy: isManagingShare }}
+                    disabled={isManagingShare || isPublicBlocked}
                     onPress={startPublicShare}
-                    style={[styles.primaryButton, (isManagingShare || hasWriters) && styles.disabled]}
+                    style={[styles.primaryButton, (isManagingShare || isPublicBlocked) && styles.disabled]}
                     testID="share-create-link"
                   >
                     {isManagingShare ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.startSharing')}</Text>}
@@ -738,19 +829,20 @@ export function CollectionShareScreen({ route }: Props) {
                 testID="share-invite-tabs"
                 value={inviteTab}
               />
+              {lockedRole ? <FixedRoleBadge role={lockedRole} testID="share-invite-fixed-role" /> : null}
               {inviteTab === 'friends' ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: inviteDisabled || isBatchFull }}
-                  disabled={inviteDisabled || isBatchFull}
+                  accessibilityState={{ disabled: inviteDisabled }}
+                  disabled={inviteDisabled}
                   onPress={() => setIsFriendPickerVisible(true)}
-                  style={[styles.outlineButton, (inviteDisabled || isBatchFull) && styles.disabled]}
+                  style={[styles.outlineButton, inviteDisabled && styles.disabled]}
                   testID="invite-choose-friends"
                 >
                   <Text style={styles.outlineButtonLabel}>{t('shareSheet.chooseFriends')}</Text>
                 </Pressable>
               ) : (
-                <View style={styles.idArea} testID="share-id-invite">
+                <View ref={idAreaRef} style={styles.idArea} testID="share-id-invite">
                   <View style={styles.lookupRow}>
                     <TextInput
                       accessibilityLabel={t('collaboration.jupleIdLabel')}
@@ -762,6 +854,7 @@ export function CollectionShareScreen({ route }: Props) {
                         setIdInput(value);
                         setIdLookup({ status: 'idle', person: null, message: null });
                       }}
+                      onFocus={scrollToIdArea}
                       onSubmitEditing={findById}
                       placeholder={t('collaboration.jupleIdPlaceholder')}
                       style={[styles.input, inviteDisabled && styles.disabled]}
@@ -780,26 +873,25 @@ export function CollectionShareScreen({ route }: Props) {
                     </Pressable>
                   </View>
                   {idLookup.status === 'found' && idLookup.person ? (
+                    // One row: who - their permission - "+" at the row's end.
                     <View style={styles.personRow} testID="id-invite-person">
-                      {personText(idLookup.person)}
-                      <RoleToggle
-                        label={personLabel(idLookup.person)}
-                        onChange={role => {
-                          if (canGiveWrite(role)) {
+                      <View style={styles.personRowText}>{personText(idLookup.person)}</View>
+                      {lockedRole ? null : (
+                        <RoleToggle
+                          label={personLabel(idLookup.person)}
+                          onChange={role => {
                             setActionError(null);
                             setIdRole(role);
-                          }
-                        }}
-                        testID="id-invite-role"
-                        value={idRole}
-                      />
+                          }}
+                          testID="id-invite-role"
+                          value={idRole}
+                        />
+                      )}
                       <Pressable
-                        accessibilityLabel={t('shareSheet.addToInviteList')}
+                        accessibilityLabel={t('shareSheet.addPersonToInviteList', { name: personLabel(idLookup.person) })}
                         accessibilityRole="button"
-                        accessibilityState={{ disabled: isBatchFull }}
-                        disabled={isBatchFull}
                         onPress={addFoundPerson}
-                        style={[styles.addButton, isBatchFull && styles.disabled]}
+                        style={styles.addButton}
                         testID="id-invite-add"
                       >
                         <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
@@ -814,19 +906,21 @@ export function CollectionShareScreen({ route }: Props) {
                 <View style={styles.batch} testID="share-invite-list">
                   <View style={styles.batchHeader}>
                     <Text style={styles.batchTitle}>{t('shareSheet.inviteListTitle')}</Text>
-                    <Text style={[styles.cardCount, ltrTextStyle]} testID="share-invite-list-count">{`${drafts.length}/${MAX_INVITE_ROWS}`}</Text>
+                    <Text style={styles.cardCount} testID="share-invite-list-count">{t('shareSheet.selectedCount', { count: drafts.length })}</Text>
                   </View>
                   {drafts.map((draft, index) => (
                     <View key={draft.jupleId} style={[styles.listRow, index > 0 && styles.listRowDivider]} testID={`draft-${draft.jupleId}`}>
                       <View style={styles.listRowMain}>
                         {personText(draft)}
-                        <RoleToggle
-                          disabled={draft.status === 'sending'}
-                          label={personLabel(draft)}
-                          onChange={role => setDraftRole(draft.jupleId, role)}
-                          testID={`draft-role-${draft.jupleId}`}
-                          value={draft.role}
-                        />
+                        {lockedRole ? null : (
+                          <RoleToggle
+                            disabled={draft.status === 'sending'}
+                            label={personLabel(draft)}
+                            onChange={role => setDraftRole(draft.jupleId, role)}
+                            testID={`draft-role-${draft.jupleId}`}
+                            value={draft.role}
+                          />
+                        )}
                         <Pressable
                           accessibilityLabel={t('common.delete')}
                           accessibilityRole="button"
@@ -842,7 +936,6 @@ export function CollectionShareScreen({ route }: Props) {
                       {draft.message ? <Text style={styles.error} testID={`draft-error-${draft.jupleId}`}>{draft.message}</Text> : null}
                     </View>
                   ))}
-                  <Text style={styles.help}>{t('shareSheet.maxInvitees', { max: MAX_INVITE_ROWS })}</Text>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityState={{ disabled: inviteDisabled, busy: isSending }}
@@ -860,6 +953,7 @@ export function CollectionShareScreen({ route }: Props) {
             {actionError ? <Text style={styles.error} testID="share-action-error">{actionError}</Text> : null}
 
             {/* C. 공유 상태: [공유 중 N] | [초대 대기 N] - pending invitations are not always spread out. */}
+            <View ref={statusCardRef}>
             <SectionCard icon={<PeopleIcon color={colors.textSecondary} size={18} />} testID="share-status" title={t('shareSheet.statusTitle')}>
               <Segmented
                 kind="tabs"
@@ -914,14 +1008,15 @@ export function CollectionShareScreen({ route }: Props) {
                 </View>
               )}
             </SectionCard>
+            </View>
           </View>
         ) : null}
       </ScrollView>
-      <FriendPickerSheet
+      </KeyboardAvoidingView>
+      <FriendPickerModal
         authenticatedRequest={authenticatedRequest}
         onClose={() => setIsFriendPickerVisible(false)}
         onConfirm={addFriends}
-        remainingSlots={Math.max(0, MAX_INVITE_ROWS - drafts.length)}
         unavailable={unavailableFriends}
         visible={isFriendPickerVisible}
       />
@@ -1044,15 +1139,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     writingDirection: 'ltr',
   },
+  flex: { flex: 1 },
   personRow: {
     alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: radii.md,
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    padding: spacing.md,
+    padding: spacing.sm,
   },
+  personRowText: { flex: 1, minWidth: 0 },
+  fixedRole: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  fixedRoleLabel: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
+  inlineAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
+  inlineActionLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
   listRow: { gap: spacing.xs, paddingVertical: spacing.sm },
   listRowMain: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   listRowDivider: { borderTopColor: colors.divider, borderTopWidth: 1 },
@@ -1074,16 +1174,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md + 2,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 2,
     padding: 2,
   },
   roleOption: {
     alignItems: 'center',
     borderRadius: radii.md,
+    flexShrink: 1,
     justifyContent: 'center',
     minHeight: minTouchTarget,
-    minWidth: 56,
-    paddingHorizontal: spacing.md,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
   },
   roleOptionSelected: { backgroundColor: colors.brand },
   roleOptionLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },

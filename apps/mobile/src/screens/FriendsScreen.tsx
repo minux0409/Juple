@@ -2,10 +2,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatJupleId, lookupJupleId, personLabel, type JupleIdLookupResult } from '../collections/api/collaborationApi';
+import { AppModal } from '../components/AppModal';
+import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
+import { useLiveRefresh } from '../push/useLiveRefresh';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import {
@@ -130,8 +133,14 @@ export function FriendsScreen() {
     useCallback(() => {
       loadFriends(searchRef.current);
       loadRequests();
-    }, [loadFriends, loadRequests]),
+      ensurePushPermissionOnce(authenticatedRequest);
+    }, [authenticatedRequest, loadFriends, loadRequests]),
   );
+
+  // A friend request arriving while this screen is open shows up at once (and on returning to the app).
+  useLiveRefresh(() => {
+    loadRequests();
+  }, ['friendRequest']);
 
   // Searching (only within my own friends) as the text settles, never per keystroke.
   const isFirstSearchRef = useRef(true);
@@ -365,7 +374,7 @@ export function FriendsScreen() {
           </Pressable>
         )}
       />
-      <FriendDetailSheet
+      <FriendDetailModal
         friend={selected}
         onChanged={updated => {
           setFriends(previous => previous.map(friend => (friend.friendshipId === updated.friendshipId ? updated : friend)));
@@ -381,15 +390,19 @@ export function FriendsScreen() {
   );
 }
 
-interface FriendDetailSheetProps {
+interface FriendDetailModalProps {
   readonly friend: Friend | null;
   readonly onClose: () => void;
   readonly onChanged: (friend: Friend) => void;
   readonly onRemoved: (friendshipId: number) => void;
 }
 
-/** One friend: nickname, Juple ID, the signed-in user's own private note (editable), and remove. */
-function FriendDetailSheet({ friend, onClose, onChanged, onRemoved }: FriendDetailSheetProps) {
+/**
+ * One friend, in Juple's standard centered modal (never a bottom sheet): nickname, Juple ID, the
+ * signed-in user's own private note (editable - the modal moves up with the keyboard) and remove.
+ * While saving or while the remove confirmation is open, it cannot be dismissed by accident.
+ */
+function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: FriendDetailModalProps) {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [note, setNote] = useState('');
@@ -432,11 +445,15 @@ function FriendDetailSheet({ friend, onClose, onChanged, onRemoved }: FriendDeta
   };
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} transparent visible>
-      <View style={styles.overlay}>
-        <Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onClose} style={StyleSheet.absoluteFill} />
-        <View accessibilityViewIsModal style={styles.sheet} testID="friend-detail">
-          <Text numberOfLines={2} style={styles.sheetTitle}>{personLabel(friend)}</Text>
+    <>
+      <AppModal
+        dismissible={!isSaving && !isRemoveConfirmVisible}
+        onClose={onClose}
+        testID="friend-detail"
+        title={personLabel(friend)}
+        visible
+      >
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={[styles.meta, ltrTextStyle]}>{t('myPage.jupleId')} {formatJupleId(friend.jupleId)}</Text>
           <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
           <Text style={styles.meta}>{t('friends.noteHint')}</Text>
@@ -451,16 +468,13 @@ function FriendDetailSheet({ friend, onClose, onChanged, onRemoved }: FriendDeta
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable accessibilityRole="button" disabled={isSaving} onPress={save} style={[styles.primaryButton, styles.fullWidth]} testID="friend-note-save">
-            {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('common.save')}</Text>}
+            {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('friends.saveNote')}</Text>}
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => setIsRemoveConfirmVisible(true)} style={styles.removeButton} testID="friend-remove">
             <Text style={styles.removeLabel}>{t('friends.remove')}</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.removeButton}>
-            <Text style={styles.secondaryLabel}>{t('common.close')}</Text>
-          </Pressable>
-        </View>
-      </View>
+        </ScrollView>
+      </AppModal>
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('friends.remove')}
@@ -470,7 +484,7 @@ function FriendDetailSheet({ friend, onClose, onChanged, onRemoved }: FriendDeta
         title={t('friends.removeConfirmTitle')}
         visible={isRemoveConfirmVisible}
       />
-    </Modal>
+    </>
   );
 }
 
@@ -527,9 +541,6 @@ const styles = StyleSheet.create({
   loading: { paddingVertical: spacing.lg },
   empty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.lg, textAlign: 'center' },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
-  overlay: { backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'flex-end' },
-  sheet: { alignSelf: 'center', backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxWidth: 640, padding: spacing.xl, width: '100%' },
-  sheetTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
   fullWidth: { marginTop: spacing.md },
   removeButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget },
   removeLabel: { color: colors.danger, fontSize: 15, fontWeight: '600' },

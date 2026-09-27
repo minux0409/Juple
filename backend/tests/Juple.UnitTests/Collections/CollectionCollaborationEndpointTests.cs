@@ -220,7 +220,8 @@ public sealed class CollectionCollaborationEndpointTests
                 Action(typeof(CollectionInvitationsController), action).GetCustomAttribute<EnableRateLimitingAttribute>()?.PolicyName);
         }
 
-        Assert.Equal(RateLimitPolicies.JupleIdLookup,
+        // Invitations have their own per-identity bucket, separate from Juple ID lookups.
+        Assert.Equal(RateLimitPolicies.CollectionInvite,
             Action(typeof(CollectionsController), "InviteAsync").GetCustomAttribute<EnableRateLimitingAttribute>()?.PolicyName);
         Assert.Equal("collection-invitations/{invitationId:long}/accept",
             Action(typeof(CollectionInvitationsController), "AcceptAsync").GetCustomAttribute<HttpPostAttribute>()?.Template);

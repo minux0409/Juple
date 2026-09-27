@@ -32,9 +32,10 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
             // the leaf tables below (NotificationDeliveries, ItemImages, CollectionItems,
             // CollectionShares) - they are never touched explicitly here.
 
-            // Notifications -> cascades NotificationDeliveries.
+            // Notifications -> cascades NotificationDeliveries. Also the ones this user caused for
+            // other people (friend requests, invitations) - nothing about them stays behind.
             await dbContext.Notifications
-                .Where(notification => notification.UserId == userId)
+                .Where(notification => notification.UserId == userId || notification.ActorUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
             // PushDeviceRegistrations -> cascades any remaining NotificationDeliveries.

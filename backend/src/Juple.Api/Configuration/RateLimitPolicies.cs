@@ -9,6 +9,7 @@ public static class RateLimitPolicies
     public const string PublicCollectionUnlock = "public-collection-unlock";
     public const string PublicCollectionWrite = "public-collection-write";
     public const string CollectionLockPassword = "collection-lock-password";
+    public const string CollectionInvite = "collection-invite";
 
     /// <summary>Public unlock: the share link plus the opaque browser attempt id (bounded length; never logged).</summary>
     public static string PublicUnlockPartitionKey(HttpContext httpContext)

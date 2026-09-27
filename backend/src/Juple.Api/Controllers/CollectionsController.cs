@@ -692,7 +692,7 @@ public sealed class CollectionsController(
     /// </summary>
     [HttpPost("{id:long}/invitations")]
     [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
-    [EnableRateLimiting(RateLimitPolicies.JupleIdLookup)]
+    [EnableRateLimiting(RateLimitPolicies.CollectionInvite)]
     public Task<IActionResult> InviteAsync(
         long id,
         InviteCollaboratorRequest request,

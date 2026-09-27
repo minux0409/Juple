@@ -1,7 +1,17 @@
+using Juple.Application.Notifications;
+
 namespace Juple.Application.Items.RestoreItem;
 
-public sealed class RestoreItemService(IItemLifecycleStore itemLifecycleStore) : IRestoreItemService
+public sealed class RestoreItemService(
+    IItemLifecycleStore itemLifecycleStore,
+    ISocialNotificationPublisher? notifications = null) : IRestoreItemService
 {
-    public Task RestoreAsync(long userId, long itemId, CancellationToken cancellationToken = default) =>
-        itemLifecycleStore.RestoreAsync(userId, itemId, cancellationToken);
+    public async Task RestoreAsync(long userId, long itemId, CancellationToken cancellationToken = default)
+    {
+        await itemLifecycleStore.RestoreAsync(userId, itemId, cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.ItemCollectionsChangedAsync(userId, itemId, cancellationToken);
+        }
+    }
 }

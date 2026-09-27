@@ -23,14 +23,7 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             throw new CollectionNotFoundException();
         }
 
-        // Only a Contributor conflicts with the public link (their own links would become public);
-        // a Viewer adds nothing, so view-only sharing with a specific person coexists with it.
-        if (role == CollectionCollaboratorRole.Contributor
-            && await dbContext.CollectionShares.AnyAsync(
-                share => share.CollectionId == collectionId && share.IsActive, cancellationToken))
-        {
-            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicShareActive);
-        }
+        await RequireRoleMatchesPublicShareAsync(collectionId, role, cancellationToken);
 
         if (await dbContext.CollectionCollaborators.AnyAsync(
                 collaborator => collaborator.CollectionId == collectionId && collaborator.UserId == invitedUserId,
@@ -132,7 +125,7 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             return;
         }
 
-        await RequireNoPublicShareForContributorAsync(collectionId, role, cancellationToken);
+        await RequireRoleMatchesPublicShareAsync(collectionId, role, cancellationToken);
         invitation.ChangeRole(role, nowUtc);
         try
         {
@@ -167,25 +160,27 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             return;
         }
 
-        await RequireNoPublicShareForContributorAsync(collectionId, role, cancellationToken);
+        await RequireRoleMatchesPublicShareAsync(collectionId, role, cancellationToken);
         collaborator.ChangeRole(role);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
     /// <summary>
-    /// 쓰기 (Contributor) and the public link stay mutually exclusive - a Contributor's own links
-    /// would become public. Checked under the Collection row lock the caller holds; nothing is ever
-    /// switched off automatically to make room.
+    /// While the public link is active a specific person gets exactly its permission (see
+    /// PublicShareRoles) - 보기만 everywhere or 링크 추가 everywhere. Checked under the Collection row
+    /// lock the caller holds; nothing is ever changed automatically to make it fit.
     /// </summary>
-    private async Task RequireNoPublicShareForContributorAsync(
+    private async Task RequireRoleMatchesPublicShareAsync(
         long collectionId,
         CollectionCollaboratorRole role,
         CancellationToken cancellationToken)
     {
-        if (role == CollectionCollaboratorRole.Contributor
-            && await dbContext.CollectionShares.AnyAsync(
-                share => share.CollectionId == collectionId && share.IsActive, cancellationToken))
+        var activePermission = await dbContext.CollectionShares
+            .Where(share => share.CollectionId == collectionId && share.IsActive)
+            .Select(share => (CollectionSharePermission?)share.Permission)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (activePermission is { } permission && PublicShareRoles.For(permission) != role)
         {
             throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicShareActive);
         }
@@ -363,11 +358,7 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.InvitationNotPending);
         }
 
-        if (invitation.Role == CollectionCollaboratorRole.Contributor
-            && await dbContext.CollectionShares.AnyAsync(share => share.CollectionId == collectionId && share.IsActive, cancellationToken))
-        {
-            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicShareActive);
-        }
+        await RequireRoleMatchesPublicShareAsync(collectionId, invitation.Role, cancellationToken);
 
         invitation.Accept(nowUtc);
         if (!alreadyMember)

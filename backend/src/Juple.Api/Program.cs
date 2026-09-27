@@ -51,6 +51,7 @@ using Juple.Application.Items.RestoreItem;
 using Juple.Application.Items.SetItemCoverImage;
 using Juple.Application.Items.SetItemPreviewImage;
 using Juple.Application.Items.UpdateItemDetails;
+using Juple.Application.Notifications;
 using Juple.Application.Push.RegisterPushDevice;
 using Juple.Application.Push.UnregisterPushDevice;
 using Juple.Application.UrlMetadata.PreviewInstagramMetadataCandidate;
@@ -69,14 +70,9 @@ var builder = WebApplication.CreateBuilder(args);
 // early-return branch further down) - so it has no legitimate need for Entra config at all. Only
 // the actual HTTP API path keeps the existing fail-fast below unchanged.
 //
-// --run-push-dispatch is still recognized (see the no-op branch below) but no longer does anything
-// real - RepeatPurchase/Notification, the only feature it ever dispatched, was removed as a legacy
-// Purchase feature (Juple is a URL Library app; see docs/architecture.md). Kept recognized, rather
-// than removed outright, so the existing scheduled Azure Container Apps Job
-// (caj-juple-push-dispatch-dev - see infra/azure/README.md) exits cleanly and immediately instead
-// of falling through to full HTTP API startup (binding a port, running inside a batch Job context)
-// the next time it fires - see infra/azure/README.md for the follow-up decision on removing that
-// Job's IaC once this is confirmed to no longer be needed.
+// --run-push-dispatch: one pass of the social Push outbox (friend requests, Collection invitations
+// and the data-only refresh signals - see DispatchPendingPushNotificationsService). Only this Job
+// holds the Firebase credential; the HTTP API never sends Push itself, it only writes the outbox.
 var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordinal);
 var isBlobCleanupRetryJob = args.Contains("--run-blob-cleanup-retry", StringComparer.Ordinal);
 var isInstagramMetadataRetryJob = args.Contains("--run-instagram-metadata-retry", StringComparer.Ordinal);
@@ -153,6 +149,7 @@ builder.Services.Configure<CollectionUnlockGrantOptions>(
     builder.Configuration.GetSection("CollectionUnlockGrant"));
 builder.Services.AddSingleton<IPublicCollectionItemPageCursorCodec, PublicCollectionItemPageCursorCodec>();
 builder.Services.AddScoped<IRegisterPushDeviceService, RegisterPushDeviceService>();
+builder.Services.AddScoped<IDispatchPendingPushNotificationsService, DispatchPendingPushNotificationsService>();
 builder.Services.AddScoped<IUnregisterPushDeviceService, UnregisterPushDeviceService>();
 builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
@@ -201,6 +198,13 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.IdentityPartitionKey(httpContext),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    // Sending Collection invitations: its own bucket (not the Juple ID lookup one), so inviting a
+    // larger group - friends need no lookup - is not capped by lookups. Still bounded per identity:
+    // an invitation is visible to its recipient, so this also limits invitation spam.
+    options.AddPolicy(RateLimitPolicies.CollectionInvite, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
     // Changing/resetting the one Collection lock password: 5 per 15 minutes per identity, on top of
     // the persisted wrong-current-password throttle and the recent sign-in a reset requires.
     options.AddPolicy(RateLimitPolicies.CollectionLockPassword, httpContext =>
@@ -234,17 +238,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Deliberate no-op - see the isPushDispatchJob comment above for why this is kept recognized
-// rather than removed. Exits immediately, before UseAuthentication/MapControllers/app.Run() below,
-// so the still-scheduled Azure Container Apps Job invocation exits cleanly rather than falling
-// through to full HTTP API startup.
+// One-shot execution mode for the push-dispatch Job - never reaches the HTTP pipeline below.
 if (isPushDispatchJob)
 {
-    Console.WriteLine(
-        "Push dispatch is no longer implemented - RepeatPurchase/Notification was removed as a " +
-        "legacy Purchase feature (see docs/architecture.md). This Job invocation is a deliberate " +
-        "no-op.");
-    return 0;
+    return await RunPushDispatchOnceAsync(app.Services);
 }
 
 // One-shot execution mode for the Blob cleanup retry Job (see AccountDeletionBlobCleanup/
@@ -298,6 +295,28 @@ app.MapHealthChecks("/health");
 
 app.Run();
 return 0;
+
+static async Task<int> RunPushDispatchOnceAsync(IServiceProvider rootServices)
+{
+    await using var scope = rootServices.CreateAsyncScope();
+    var dispatchService = scope.ServiceProvider.GetRequiredService<IDispatchPendingPushNotificationsService>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("PushDispatchJob");
+
+    try
+    {
+        var result = await dispatchService.RunOnceAsync();
+        logger.LogInformation(
+            "Push dispatch complete. Pending={Pending} Sent={Sent} Failed={Failed} Skipped={Skipped} Expired={Expired}",
+            result.Pending, result.Sent, result.Failed, result.Skipped, result.Expired);
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        // A scheduled Job's exit code is how Azure reports failure.
+        logger.LogError(exception, "Push dispatch run failed.");
+        return 1;
+    }
+}
 
 static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootServices)
 {

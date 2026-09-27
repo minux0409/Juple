@@ -1,4 +1,5 @@
 ﻿using Juple.Application.Collections.Access;
+using Juple.Application.Notifications;
 using Juple.Domain.Collections;
 using Juple.Domain.Users;
 
@@ -12,7 +13,8 @@ public sealed class CollectionCollaborationService(
     ICollectionAccessService accessService,
     IUserDirectoryStore userDirectory,
     ICollectionCollaborationStore collaborationStore,
-    TimeProvider timeProvider) : ICollectionCollaborationService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : ICollectionCollaborationService
 {
     public async Task<JupleIdLookupResult> LookupAsync(long userId, string? jupleId, CancellationToken cancellationToken = default)
     {
@@ -41,8 +43,14 @@ public sealed class CollectionCollaborationService(
             throw new InvalidCollectionException("jupleId", "You cannot invite yourself.");
         }
 
-        return await collaborationStore.CreateInvitationAsync(
+        var invitation = await collaborationStore.CreateInvitationAsync(
             collectionId, userId, invitedUserId, timeProvider.GetUtcNow(), role, cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.CollectionInvitationReceivedAsync(userId, invitedUserId, collectionId, invitation.InvitationId, cancellationToken);
+        }
+
+        return invitation;
     }
 
     public async Task RevokeInvitationAsync(
@@ -129,11 +137,24 @@ public sealed class CollectionCollaborationService(
         CancellationToken cancellationToken = default) =>
         collaborationStore.ListReceivedAsync(userId, timeProvider.GetUtcNow(), cancellationToken);
 
-    public Task AcceptInvitationAsync(long userId, long invitationId, CancellationToken cancellationToken = default) =>
-        collaborationStore.AcceptAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
+    /// <summary>The Owner is told (data-only) so an open Share screen moves the person from 초대 대기 to 공유 중.</summary>
+    public async Task AcceptInvitationAsync(long userId, long invitationId, CancellationToken cancellationToken = default)
+    {
+        await collaborationStore.AcceptAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.CollectionInvitationAnsweredAsync(userId, invitationId, cancellationToken);
+        }
+    }
 
-    public Task DeclineInvitationAsync(long userId, long invitationId, CancellationToken cancellationToken = default) =>
-        collaborationStore.DeclineAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
+    public async Task DeclineInvitationAsync(long userId, long invitationId, CancellationToken cancellationToken = default)
+    {
+        await collaborationStore.DeclineAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.CollectionInvitationAnsweredAsync(userId, invitationId, cancellationToken);
+        }
+    }
 
     private static void RequireKnownRole(CollectionCollaboratorRole role)
     {

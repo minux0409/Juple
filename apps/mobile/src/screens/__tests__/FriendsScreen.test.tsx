@@ -18,6 +18,10 @@ import {
   type Friend,
 } from '../../friends/api/friendsApi';
 
+jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
+import { Modal } from 'react-native';
+import { AppModal } from '../../components/AppModal';
+import { emitSocialPushEvent } from '../../push/pushEvents';
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
@@ -197,6 +201,35 @@ describe('FriendsScreen', () => {
       renderer.root.findByProps({ testID: 'friend-remove' }).props.onPress();
     });
     expect(removeFriend).not.toHaveBeenCalled();
+  });
+
+  it('opens a friend in the centered modal (never a bottom sheet), which the remove confirmation keeps open', async () => {
+    const renderer = await renderScreen();
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'friend-7' }).props.onPress();
+    });
+
+    const detail = renderer.root.findByType(AppModal);
+    expect(detail.props.testID).toBe('friend-detail');
+    expect(detail.props.dismissible).toBe(true);
+    expect(detail.findByType(Modal).props.animationType).toBe('fade');
+
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'friend-remove' }).props.onPress();
+    });
+    expect(renderer.root.findByType(AppModal).props.dismissible).toBe(false);
+  });
+
+  it('a friend request arriving while the screen is open shows up without leaving it', async () => {
+    const renderer = await renderScreen();
+    const calls = jest.mocked(getFriendRequests).mock.calls.length;
+
+    await act(async () => {
+      emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
+    });
+
+    expect(jest.mocked(getFriendRequests).mock.calls.length).toBeGreaterThan(calls);
+    expect(renderer.root.findAll(node => node.props.testID === 'friend-7').length).toBeGreaterThan(0);
   });
 
   describe('layout: 받은 친구 신청 → 친구 추가 → 친구 → 보낸 친구 신청', () => {

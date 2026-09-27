@@ -7,6 +7,7 @@ using Juple.Application.Collections.MoveCollectionItem;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Images;
+using Juple.Application.Notifications;
 
 namespace Juple.UnitTests.Collections;
 
@@ -114,6 +115,22 @@ public sealed class CollectionLockScopeTests
     }
 
     [Fact]
+    public async Task ContentChanges_ArePublished_OnlyAfterThePermittedChangeSucceeded()
+    {
+        var publisher = new RecordingSocialPublisher();
+        var add = new AddItemToCollectionService(_access, _itemStore, TimeProvider.System, publisher);
+        var remove = new RemoveItemFromCollectionService(_access, _itemStore, publisher);
+
+        await Assert.ThrowsAsync<CollectionLockedException>(() => add.AddAsync(Contributor, Locked, 99));
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => remove.RemoveAsync(Contributor, Unlocked, 99));
+        Assert.Empty(publisher.Changes);
+
+        await add.AddAsync(Contributor, Unlocked, 99);
+        await remove.RemoveAsync(Owner, Unlocked, 99);
+        Assert.Equal(new[] { (Contributor, Unlocked), (Owner, Unlocked) }, publisher.Changes);
+    }
+
+    [Fact]
     public async Task AnUnlockedCollection_KeepsItsExistingBehavior_WithoutAnyGrant()
     {
         await Add().AddAsync(Contributor, Unlocked, 99);
@@ -178,5 +195,42 @@ public sealed class CollectionLockScopeTests
         }
 
         public Task UndoMergeAsync(long userId, Guid undoOperationId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    internal sealed class RecordingSocialPublisher : ISocialNotificationPublisher
+    {
+        public List<(long Actor, long CollectionId)> Changes { get; } = [];
+
+        public List<string> Events { get; } = [];
+
+        public Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"friend:{requesterUserId}->{recipientUserId}:{friendshipId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"invite:{ownerUserId}->{invitedUserId}:{collectionId}:{invitationId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionInvitationAnsweredAsync(long inviteeUserId, long invitationId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"answered:{inviteeUserId}:{invitationId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionsChangedAsync(long actorUserId, IReadOnlyCollection<long> collectionIds, CancellationToken cancellationToken = default)
+        {
+            Changes.AddRange(collectionIds.Select(collectionId => (actorUserId, collectionId)));
+            return Task.CompletedTask;
+        }
+
+        public Task ItemCollectionsChangedAsync(long actorUserId, long itemId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"item:{actorUserId}:{itemId}");
+            return Task.CompletedTask;
+        }
     }
 }

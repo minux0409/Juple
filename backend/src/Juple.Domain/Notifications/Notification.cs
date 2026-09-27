@@ -42,6 +42,28 @@ public sealed class Notification
         CreatedAtUtc = createdAtUtc;
     }
 
+    /// <summary>
+    /// A social event for the Push outbox (see NotificationType 1-4). Only ids are stored - the
+    /// actor's display name and the Collection's name are read when the Push is sent, so a renamed
+    /// Collection or a changed display name is never frozen here and nothing private is copied.
+    /// DedupKey makes the same event enqueue at most once (see NotificationConfiguration).
+    /// </summary>
+    public static Notification Social(
+        long userId,
+        NotificationType type,
+        long? actorUserId,
+        long? collectionId,
+        long? subjectId,
+        string dedupKey,
+        DateTimeOffset createdAtUtc) =>
+        new(userId, type, null, null, null, null, createdAtUtc)
+        {
+            ActorUserId = actorUserId,
+            CollectionId = collectionId,
+            SubjectId = subjectId,
+            DedupKey = dedupKey,
+        };
+
     public long Id { get; private set; }
 
     public long UserId { get; private set; }
@@ -59,6 +81,21 @@ public sealed class Notification
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public DateTimeOffset? ReadAtUtc { get; private set; }
+
+    /// <summary>Who caused a social notification (never shown as an id - only their display name/Juple ID).</summary>
+    public long? ActorUserId { get; private set; }
+
+    public long? CollectionId { get; private set; }
+
+    /// <summary>The friend request (Friendship) or Collection invitation a social notification is about.</summary>
+    public long? SubjectId { get; private set; }
+
+    public string? DedupKey { get; private set; }
+
+    /// <summary>When the Push dispatcher finished with this row (sent, skipped as no longer relevant, or expired).</summary>
+    public DateTimeOffset? DispatchedAtUtc { get; private set; }
+
+    public void MarkDispatched(DateTimeOffset dispatchedAtUtc) => DispatchedAtUtc ??= dispatchedAtUtc;
 
     /// <summary>Idempotent - marking an already-read notification again leaves ReadAtUtc untouched.</summary>
     public void MarkRead(DateTimeOffset readAtUtc)

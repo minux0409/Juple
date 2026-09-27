@@ -7,6 +7,7 @@ import { getReceivedCollectionInvitations } from '../../collections/api/collabor
 import { getMyProfile, setMyDisplayName } from '../../api/profileApi';
 import { ApiError } from '../../api/ApiError';
 import { getFriendRequests } from '../../friends/api/friendsApi';
+import { emitSocialPushEvent } from '../../push/pushEvents';
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('../../api/accountApi', () => ({ deleteAccount: jest.fn() }));
@@ -161,10 +162,25 @@ describe('MyPageScreen compact account card and friends entry', () => {
     const renderer = await renderScreen();
 
     const entry = renderer.root.findByProps({ testID: 'my-friends' });
-    expect(entry.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['친구', 1]));
+    expect(entry.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['친구', '1']));
     await act(async () => {
       entry.props.onPress();
     });
     expect(mockNavigate).toHaveBeenCalledWith('Friends');
+  });
+
+  it('the 친구 badge follows a friend request Push while My Page is open', async () => {
+    jest.mocked(getFriendRequests).mockResolvedValue([]);
+    const renderer = await renderScreen();
+    expect(renderer.root.findAll(node => node.props.testID === 'my-friends-badge')).toHaveLength(0);
+
+    jest.mocked(getFriendRequests).mockResolvedValue([
+      { requestId: 5, jupleId: 'CCCC2345', displayName: null, direction: 'incoming', createdAtUtc: '' },
+    ]);
+    await act(async () => {
+      emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
+    });
+
+    expect(renderer.root.findByProps({ testID: 'my-friends-badge' }).props.children).toBe('1');
   });
 });

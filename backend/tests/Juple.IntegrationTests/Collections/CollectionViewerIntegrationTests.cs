@@ -235,18 +235,18 @@ public sealed class CollectionViewerIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PublicLink_CoexistsWithViewers_ButStillExcludesContributors()
+    public async Task PublicLink_KeepsEverySpecificRoleEqualToItsPermission()
     {
-        // A Viewer member, then the public link: allowed.
+        // A Viewer member, then 보기만 for everyone: allowed.
         await InviteAndAcceptAsync(_viewer, CollectionCollaboratorRole.Viewer);
         await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow);
 
-        // A pending Viewer invitation, then the public link: allowed.
+        // A pending Viewer invitation, then 보기만: allowed.
         var pendingViewer = (await _collections.CreateAsync(_owner, "PendingViewer", "PENDINGVIEWER", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         await _collaboration.InviteAsync(_owner, pendingViewer, await JupleIdOfAsync(_stranger), CollectionCollaboratorRole.Viewer);
         await _shares.EnableAsync(_owner, pendingViewer, NewPublicId(), DateTimeOffset.UtcNow);
 
-        // While the link is on, a Viewer may still be invited and accept; a Contributor may not.
+        // While 보기만 is on, a Viewer may be invited and accept; a Contributor may not.
         var viewerInvite = await _collaboration.InviteAsync(_owner, _sharedId, await JupleIdOfAsync(_stranger), CollectionCollaboratorRole.Viewer);
         await _collaboration.AcceptInvitationAsync(_stranger, viewerInvite.InvitationId);
         var contributorAgain = await NewUserAsync();
@@ -254,15 +254,25 @@ public sealed class CollectionViewerIntegrationTests : IAsyncLifetime
             _collaboration.InviteAsync(_owner, _sharedId, JupleIdOf(contributorAgain), CollectionCollaboratorRole.Contributor));
         Assert.Equal(CollectionCollaborationConflictException.PublicShareActive, blocked.Code);
 
-        // A Contributor member / pending Contributor invitation still blocks the public link.
+        // Switching the link to 링크 추가 while Viewers exist is refused - no one is changed automatically.
+        var switchConflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write, DateTimeOffset.UtcNow));
+        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, switchConflict.Code);
+        Assert.All(await _db.CollectionCollaborators.AsNoTracking().Where(entry => entry.CollectionId == _sharedId).ToListAsync(),
+            member => Assert.Equal(CollectionCollaboratorRole.Viewer, member.Role));
+
+        // A pending Contributor blocks 보기만, but 링크 추가 is allowed - and then only Contributors join.
         var withContributor = (await _collections.CreateAsync(_owner, "Collab", "COLLAB", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         var contributorInvite = await _collaboration.InviteAsync(_owner, withContributor, JupleIdOf(contributorAgain));
         var pendingConflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
             _shares.EnableAsync(_owner, withContributor, NewPublicId(), DateTimeOffset.UtcNow));
-        Assert.Equal(CollectionCollaborationConflictException.CollaborationActive, pendingConflict.Code);
+        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, pendingConflict.Code);
+        await _shares.EnableAsync(_owner, withContributor, NewPublicId(), DateTimeOffset.UtcNow, CollectionSharePermission.Write);
         await _collaboration.AcceptInvitationAsync(contributorAgain, contributorInvite.InvitationId);
         await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _shares.EnableAsync(_owner, withContributor, NewPublicId(), DateTimeOffset.UtcNow));
+            _collaboration.InviteAsync(_owner, withContributor, JupleIdOf(_viewer), CollectionCollaboratorRole.Viewer));
+        await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _collaboration.ChangeCollaboratorRoleAsync(_owner, withContributor, JupleIdOf(contributorAgain), CollectionCollaboratorRole.Viewer));
     }
 
     [Fact]

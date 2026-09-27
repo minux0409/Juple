@@ -58,7 +58,7 @@ Backend는 Azure Notification Hubs를 사용하지 않기로 결정했다(Notifi
 
 Push 전송 서버 credential(Firebase 서비스 계정 JSON)은 Mobile의 `google-services.json`(client-side 설정, 비밀 아님)과 완전히 별개이며, Backend 설정(`Firebase:ServiceAccountKeyJson`)을 통해 local user-secrets 또는 Azure Container Apps secret으로만 주입한다 - 소스/appsettings에 두지 않는다.
 
-Push dispatch는 Azure Container Apps의 scheduled Job(cron)으로 기존 API 이미지를 `--run-push-dispatch` 인자로 재사용해 주기적으로 실행할 계획이다(아직 Azure Job 리소스는 생성되지 않았다 - `infra/azure/README.md` 참고).
+Push dispatch는 outbox 방식이다: API는 친구 신청·Collection 공유 초대·초대 응답·공유 Collection 내용 변경을 `notifications.Notifications`에 기록만 하고(best-effort, 사용자 동작을 실패시키지 않음), Azure Container Apps scheduled Job(`caj-juple-push-dispatch-{env}`, 기존 API 이미지 + `--run-push-dispatch`)이 이를 FCM으로 보낸다. Firebase credential은 이 Job에만 있다. 친구 신청/공유 초대는 tray 알림, 초대 응답/내용 변경은 열려 있는 화면만 새로 고치는 data-only 메시지다(`infra/azure/README.md`의 "Social Push" 참고).
 
 ## Azure 구성 방향
 

@@ -11,3 +11,14 @@ public enum CollectionSharePermission
     Read,
     Write,
 }
+
+/// <summary>
+/// While a public link is active, every specific person's role equals the link's permission:
+/// 보기만 (Read) → Viewer, 링크 추가 (Write) → Contributor. Checked by the stores on every invite,
+/// role change, accept and public-link change - never fixed up automatically.
+/// </summary>
+public static class PublicShareRoles
+{
+    public static CollectionCollaboratorRole For(CollectionSharePermission permission) =>
+        permission == CollectionSharePermission.Write ? CollectionCollaboratorRole.Contributor : CollectionCollaboratorRole.Viewer;
+}

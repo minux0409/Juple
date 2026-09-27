@@ -19,6 +19,7 @@ import { LayoutDirectionRoot, useLayoutDirection } from './src/i18n/layoutDirect
 import { linking } from './src/navigation/linking';
 import { navigationRef } from './src/navigation/navigationRef';
 import { RootStack } from './src/navigation/RootStack';
+import { usePushMessageHandling } from './src/push/usePushMessageHandling';
 import { usePushRegistrationSync } from './src/push/usePushRegistrationSync';
 import { applyStoredQuickSaveOnSharePreference } from './src/settings/quickSaveOnSharePreference';
 
@@ -69,9 +70,10 @@ function App() {
   );
 }
 
-/** Headless - runs usePushRegistrationSync's effects only, renders nothing. */
+/** Headless - keeps the Push registration current and handles received/tapped Push, renders nothing. */
 function PushRegistrationSync(): null {
   usePushRegistrationSync();
+  usePushMessageHandling();
   return null;
 }
 

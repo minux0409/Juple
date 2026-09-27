@@ -13,7 +13,11 @@ import { colors, radii, spacing } from '../theme/tokens';
 export type MainTabParamList = {
   Home: undefined;
   History: undefined;
-  Collections: { refreshToken?: number } | undefined;
+  /**
+   * filter/openShareRequests come from a tapped Collection invitation Push (see
+   * usePushMessageHandling): land on 공유 컬렉션 with its 공유 요청 open.
+   */
+  Collections: { refreshToken?: number; filter?: 'shared'; openShareRequests?: boolean } | undefined;
   MyPage: undefined;
 };
 

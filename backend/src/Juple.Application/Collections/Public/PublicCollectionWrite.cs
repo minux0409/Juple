@@ -1,4 +1,5 @@
 using Juple.Application.Collections.Locking;
+using Juple.Application.Notifications;
 using Juple.Domain.Collections;
 
 namespace Juple.Application.Collections.Public;
@@ -70,7 +71,8 @@ public sealed class PublicCollectionWriteService(
     IPublicCollectionShareStore shareStore,
     IPublicCollectionWriteStore writeStore,
     ICollectionUnlockTokenProtector unlockTokenProtector,
-    TimeProvider timeProvider) : IPublicCollectionWriteService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : IPublicCollectionWriteService
 {
     public async Task<bool> AddItemAsync(
         long userId,
@@ -98,6 +100,12 @@ public sealed class PublicCollectionWriteService(
             throw new CollectionLockedException();
         }
 
-        return await writeStore.AddItemAsync(publicId, userId, itemId, nowUtc, cancellationToken) is not null;
+        var added = await writeStore.AddItemAsync(publicId, userId, itemId, nowUtc, cancellationToken) is not null;
+        if (added && notifications is not null)
+        {
+            await notifications.CollectionsChangedAsync(userId, [state.CollectionId], cancellationToken);
+        }
+
+        return added;
     }
 }
