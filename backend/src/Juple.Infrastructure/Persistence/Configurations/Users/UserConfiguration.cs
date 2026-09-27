@@ -1,4 +1,4 @@
-using Juple.Domain.Users;
+﻿using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -42,6 +42,22 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.UpdatedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();
+
+        builder.Property(user => user.PublicCode)
+            .HasColumnType("varchar(8)")
+            .HasMaxLength(UserPublicCode.Length)
+            .IsUnicode(false)
+            .IsRequired();
+
+        // Free text shown to collaborators; Unicode, not unique, not indexed (never searched).
+        builder.Property(user => user.DisplayName)
+            .HasColumnType($"nvarchar({UserDisplayName.MaxStorageLength})")
+            .HasMaxLength(UserDisplayName.MaxStorageLength);
+
+        // Exact Juple ID lookup (invitations) and the uniqueness invariant itself.
+        builder.HasIndex(user => user.PublicCode)
+            .IsUnique()
+            .HasDatabaseName("UX_Users_PublicCode");
 
         builder.Property(user => user.RowVersion)
             .IsRowVersion()

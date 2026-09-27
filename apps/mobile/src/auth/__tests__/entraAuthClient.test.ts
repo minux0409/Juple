@@ -2,6 +2,7 @@ import { authorize, refresh } from 'react-native-app-auth';
 import {
   authorizeWithEntra,
   isEntraSessionInvalidError,
+  REAUTHENTICATION_PARAMETERS,
   refreshEntraSession,
 } from '../entraAuthClient';
 import { entraDevAuthConfig } from '../entraAuthConfig';
@@ -48,6 +49,24 @@ describe('entraAuthClient', () => {
       usePKCE: true,
       useNonce: true,
     });
+  });
+
+  it('a re-authentication passes prompt=login and max_age=0 as additionalParameters, and nothing else changes', async () => {
+    jest.mocked(authorize).mockResolvedValue({ accessToken: 'token' } as never);
+
+    await authorizeWithEntra(REAUTHENTICATION_PARAMETERS);
+
+    expect(authorize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: entraDevAuthConfig.clientId,
+        scopes: [...entraDevAuthConfig.scopes],
+        usePKCE: true,
+        useNonce: true,
+        additionalParameters: { prompt: 'login', max_age: '0' },
+      }),
+    );
+    // A copy - the shared constant is never handed to (and mutated by) the native side.
+    expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).not.toBe(REAUTHENTICATION_PARAMETERS);
   });
 
   it('refreshEntraSession calls react-native-app-auth.refresh with the selected config, unchanged shape', async () => {

@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -68,8 +68,18 @@ export function DateHistoryScreen() {
   // sits under the tab bar, over the Android system navigation area.
   const tabBarHeight = useBottomTabBarHeight();
   useToastBottomAnchor(tabBarHeight);
-  const { items, isLoading, isRefreshing, isLoadingMore, error, refresh, loadMore, removeItem } =
+  const { items, isLoading, isRefreshing, isLoadingMore, error, hasMore, refresh, loadMore, removeItem } =
     useItemHistory();
+
+  // Older dates start collapsed, so a loaded page can be only a few header rows tall. When the list
+  // does not even fill the screen there is nothing to scroll and onEndReached may never fire -
+  // keep loading until it does (bounded by the viewport, never "all pages").
+  const viewportHeightRef = useRef(0);
+  const fillViewportIfShort = (contentHeight: number) => {
+    if (hasMore && viewportHeightRef.current > 0 && contentHeight < viewportHeightRef.current) {
+      loadMore();
+    }
+  };
 
   const sections = useMemo(() => groupHistoryByLocalDate(items, t), [items, t]);
 
@@ -158,8 +168,13 @@ export function DateHistoryScreen() {
           data: viewMode === 'list' && expandedDateKeys?.has(section.dateKey) ? section.items : [],
         }))}
         keyExtractor={item => item.id.toString()}
+        onContentSizeChange={(_width, height) => fillViewportIfShort(height)}
         onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
+        // About one screen ahead, so the next page is usually in place before the user reaches it.
+        onEndReachedThreshold={1}
+        onLayout={event => {
+          viewportHeightRef.current = event.nativeEvent.layout.height;
+        }}
         onScrollBeginDrag={closeOpenRow}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         stickySectionHeadersEnabled={false}

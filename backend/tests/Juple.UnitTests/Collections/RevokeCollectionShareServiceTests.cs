@@ -40,6 +40,7 @@ public sealed class RevokeCollectionShareServiceTests
 
         public Task<CollectionShareDto> EnableAsync(
             long userId, long collectionId, string candidatePublicId, DateTimeOffset enabledAtUtc,
+            Juple.Domain.Collections.CollectionSharePermission permission = Juple.Domain.Collections.CollectionSharePermission.Read,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by RevokeCollectionShareService tests.");
 
@@ -61,6 +62,11 @@ public sealed class RevokeCollectionShareServiceTests
 
             return Task.CompletedTask;
         }
+
+        public Task<CollectionShareDto?> SetPermissionAsync(
+            long userId, long collectionId, Juple.Domain.Collections.CollectionSharePermission permission, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset? utcNow = null) : TimeProvider

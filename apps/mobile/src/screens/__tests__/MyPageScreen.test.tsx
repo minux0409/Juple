@@ -153,6 +153,16 @@ describe('MyPageScreen trash entry point', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('Trash');
   });
+
+  it('has no developer re-authentication test entry (removed after the DEV measurement)', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAll(node => node.props.testID === 'my-reauth-diagnostics')).toHaveLength(0);
+    expect(
+      renderer.root.findAll(node => typeof node.props.children === 'string' && /재인증|auth_time|DEV\)/.test(node.props.children)),
+    ).toHaveLength(0);
+  });
 });
 
 describe('MyPageScreen sign-out', () => {

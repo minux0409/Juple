@@ -1,4 +1,4 @@
-using Juple.Application.Collections;
+﻿using Juple.Application.Collections;
 using Juple.Domain.Collections;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Collections;
@@ -62,7 +62,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var store = new CollectionStore(_dbContext);
         var itemStore = new Juple.Infrastructure.Items.ItemStore(_dbContext);
         var (name, normalized) = Normalize("Soft-delete collection");
-        var collection = await store.CreateAsync(_userId, name, normalized, CollectionIcon.Plane, DateTimeOffset.UtcNow, CollectionColor.Mint);
+        var collection = await store.CreateAsync(_userId, name, normalized, CollectionIcon.Plane, DateTimeOffset.UtcNow, CollectionColor.Mint.ToString());
         var item = await itemStore.SaveAsync(_userId, "https://example.test/soft-delete", null, DateTimeOffset.UtcNow);
         await store.AddAsync(_userId, collection.Id, item.Entry.Id, DateTimeOffset.UtcNow);
         await store.SetFavoriteAsync(_userId, collection.Id, true, DateTimeOffset.UtcNow);
@@ -479,23 +479,23 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SetFavoriteAsync_PersistsIsFavoriteAndUpdatesUpdatedAtUtc()
+    public async Task SetFavoriteAsync_PersistsTheCallersMark_WithoutTouchingTheCollectionRow()
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
         var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var favoritedAt = DateTimeOffset.UtcNow.AddMinutes(5);
-        var result = await store.SetFavoriteAsync(_userId, created.Id, true, favoritedAt);
+        var result = await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow.AddMinutes(5));
 
         Assert.True(result.IsFavorite);
-        Assert.Equal(favoritedAt, result.UpdatedAtUtc);
+        // A personal mark, not an edit of the (possibly shared) Collection itself.
+        Assert.Equal(created.UpdatedAtUtc, result.UpdatedAtUtc);
 
         _dbContext.ChangeTracker.Clear();
         var fetched = await store.GetAsync(_userId, created.Id);
         Assert.True(fetched.IsFavorite);
-        Assert.Equal(favoritedAt, fetched.UpdatedAtUtc);
+        Assert.Equal(created.UpdatedAtUtc, fetched.UpdatedAtUtc);
     }
 
     [Fact]
@@ -538,38 +538,28 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SetFavoriteAsync_WhenConcurrentWriteConflicts_ThrowsCollectionConcurrency()
+    public async Task SetFavoriteAsync_IsIdempotent_InBothDirections()
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
         var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         _dbContext.ChangeTracker.Clear();
 
-        var options = new DbContextOptionsBuilder<JupleDbContext>()
-            .UseSqlServer(_connectionString)
-            .Options;
-        await using var otherDbContext = new JupleDbContext(options);
-        var otherStore = new CollectionStore(otherDbContext);
+        await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow);
+        Assert.True((await store.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow)).IsFavorite);
+        Assert.Equal(1, await _dbContext.CollectionFavorites.CountAsync(favorite => favorite.CollectionId == created.Id));
 
-        // Same staleness setup as RenameAsync's concurrency test above.
-        await otherDbContext.Collections.FirstAsync(c => c.Id == created.Id);
-
-        var concurrentLoad = await _dbContext.Collections.FirstAsync(c => c.Id == created.Id);
-        concurrentLoad.SetFavorite(true, DateTimeOffset.UtcNow);
-        await _dbContext.SaveChangesAsync();
-
-        await Assert.ThrowsAsync<CollectionConcurrencyException>(
-            () => otherStore.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow));
+        await store.SetFavoriteAsync(_userId, created.Id, false, DateTimeOffset.UtcNow);
+        Assert.False((await store.SetFavoriteAsync(_userId, created.Id, false, DateTimeOffset.UtcNow)).IsFavorite);
+        Assert.Equal(0, await _dbContext.CollectionFavorites.CountAsync(favorite => favorite.CollectionId == created.Id));
     }
 
     /// <summary>
-    /// A Rename and a SetFavorite racing on the same Collection must not silently overwrite each
-    /// other's field - whichever save lands second sees a stale RowVersion and gets 409, rather
-    /// than blindly persisting its own view of the row (which would otherwise revert the other
-    /// request's change).
+    /// A favorite mark lives in its own row (CollectionFavorites), so it can no longer race a
+    /// Rename on the Collection row - a stale Collection copy never blocks or reverts either change.
     /// </summary>
     [Fact]
-    public async Task RenameAndSetFavorite_WhenRacingOnSameCollection_SecondSaveThrowsCollectionConcurrency()
+    public async Task RenameAndSetFavorite_OnTheSameCollection_BothPersist()
     {
         var store = new CollectionStore(_dbContext);
         var (name, nameNormalized) = Normalize("Books to read");
@@ -589,13 +579,12 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         concurrentLoad.Rename(renamedName, renamedNormalized, DateTimeOffset.UtcNow);
         await _dbContext.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<CollectionConcurrencyException>(
-            () => otherStore.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow));
+        await otherStore.SetFavoriteAsync(_userId, created.Id, true, DateTimeOffset.UtcNow);
 
         _dbContext.ChangeTracker.Clear();
-        var stillRenamed = await store.GetAsync(_userId, created.Id);
-        Assert.Equal("Reading list", stillRenamed.Name);
-        Assert.False(stillRenamed.IsFavorite);
+        var both = await store.GetAsync(_userId, created.Id);
+        Assert.Equal("Reading list", both.Name);
+        Assert.True(both.IsFavorite);
     }
 
     [Fact]
@@ -722,7 +711,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var (name, nameNormalized) = Normalize("Books to read");
 
         var created = await store.CreateAsync(
-            _userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow, CollectionColor.Mint);
+            _userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow, CollectionColor.Mint.ToString());
         var fetched = await store.GetAsync(_userId, created.Id);
 
         Assert.Equal("Mint", created.Color);
@@ -737,7 +726,7 @@ public sealed class CollectionIntegrationTests : IAsyncLifetime
         var created = await store.CreateAsync(_userId, name, nameNormalized, CollectionIcon.Folder, DateTimeOffset.UtcNow);
         var updatedAtUtc = DateTimeOffset.UtcNow.AddMinutes(1);
 
-        var updated = await store.SetColorAsync(_userId, created.Id, CollectionColor.Rose, updatedAtUtc);
+        var updated = await store.SetColorAsync(_userId, created.Id, CollectionColor.Rose.ToString(), updatedAtUtc);
 
         Assert.Equal("Rose", updated.Color);
         Assert.Equal(updatedAtUtc, updated.UpdatedAtUtc);

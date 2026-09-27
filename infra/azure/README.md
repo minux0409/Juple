@@ -54,6 +54,138 @@ custom domain" 섹션 참고(이 binding이 Bicep 재배포로 유실되던 문�
 아래 명령 예시는 재배포/업데이트 시 참고용이며, 이미 배포된 부분(Foundation/App/Push Job)은
 "아직 실행하지 않음"이 아니라 향후 재배포 시 참고용이다 — 실제 값/시크릿은 예시에 포함하지 않는다.
 
+## API revision rollback 주의 - Collection Viewer(보기 전용) 역할 도입 이후
+
+Dev에는 `ca-juple-api-dev--0000037`(image `juple-api:viewer-r4-devtest-20260926-2237`)부터
+Collection 멤버 역할 `Viewer`(보기 전용 공유)가 있다. 역할은 `collections.CollectionCollaborators.Role`
+/ `collections.CollectionInvitations.Role`에 문자열로 저장되며, 이 기능에는 schema 변경(migration)이
+없다 - 그래서 DB만 보고는 "되돌려도 안전한지" 알 수 없다.
+
+- **Viewer membership 또는 pending Viewer invitation이 한 건이라도 생긴 뒤에는
+  `--0000036` 또는 그 이전의 role-unaware revision으로 rollback하지 않는다.** 이전 코드는 collaborator
+  row를 역할과 무관하게 Contributor로 취급하므로, 그 revision에서는 Viewer가 링크를 추가할 수 있게
+  되고(권한 상승), pending Viewer invitation을 수락한 사용자도 공동작업자처럼 동작하며, public share와의 배타
+  규칙도 Viewer를 Contributor로 계산한다.
+- 이전 revision을 삭제할 필요는 없지만, 정상적인 rollback 대상으로 취급하지 않는다.
+- rollback이 꼭 필요하면 다음 중 하나로만 한다:
+  1. 먼저 Viewer 데이터를 정리한다 - Viewer membership 제거(Owner의 "내보내기"와 같은 정리:
+     해당 사용자의 그 Collection `CollectionFavorites` 행 포함)와 pending Viewer invitation revoke.
+     정리 결과(`Role = 'Viewer'`인 행이 0건)를 read-only로 확인한 뒤에만 이전 revision으로 돌린다.
+  2. 또는 역할을 구분하는(role-aware) 호환 revision - `--0000037` 이후 코드 기반 hotfix - 을 사용한다.
+
+## Collection 잠금 비밀번호: 사용자당 1개 (최종 구조, Round 10)
+
+경과: Round 5(`--0000038`)는 Owner당 공통 비밀번호, Round 6/7(`--0000039`/`--0000040`)은 Collection별 비밀번호였다.
+Round 10에서 **사용자당 잠금 비밀번호 1개**로 최종 확정했다(schema 변경 없음 - migration 없음).
+
+- source of truth는 `collections.UserCollectionLockSettings.PasswordHash`(PBKDF2 versioned hash)다. 이 row가 있으면
+  그 Owner의 **모든** `IsLocked=1` Collection은 무조건 이 hash로 검증한다(`CollectionLockPasswordSource`) - 멤버
+  (읽기/작성), public locked link, Owner 자신 모두 같다. Owner도 bypass 없음.
+- Collection은 잠금 상태(`IsLocked`/`LockVersion`)만 가진다. 잠금 설정(`PUT /collections/{id}/lock`)은 비밀번호를
+  받지 않고, Owner에게 row가 없으면 `409 collectionLockPasswordNotConfigured`. 비밀번호를 보내는 이전 앱은
+  `409 collectionLockUsesAccountPassword`(다른 비밀번호로 잠기는 일 방지). 해제는 그 비밀번호 검증 후.
+- 비밀번호 관리는 설정 > 컬렉션 잠금에서만: `GET/PUT /api/v1/users/me/collection-lock`(상태/변경 - 현재 비밀번호,
+  persisted 실패 throttle 5회/15분), `POST /api/v1/users/me/collection-lock/reset`(최초 설정과 "비밀번호를
+  잊으셨나요?" 공통 - 현재 비밀번호 없음, **최근 재로그인 필수**). 둘 다 identity당 5회/15분 rate limit
+  (`collection-lock-password`). 원문 보기/찾기 기능은 없다(서버는 hash만, 기기는 아무것도 저장하지 않음).
+- set/change/reset은 한 transaction에서 row 생성/교체 + `PasswordChangedAtUtc` + 그 Owner의 모든 잠긴 Collection
+  `LockVersion++`(in-app·public grant 전부 무효) + Owner 자신의 unlock 실패 counter 초기화를 한다.
+- 전환: row가 없는 Owner는 기존 Collection별 비밀번호(`Collections.LockPasswordHash`)로 계속 열린다(잠금 상실 없음).
+  row를 만드는 순간(재로그인 필수) 모든 잠긴 Collection이 공통 비밀번호로 넘어가고 이전 개별 비밀번호는 더 이상
+  검증하지 않는다. `LockPasswordHash`/`LockPasswordChangedAtUtc` column은 rolling/rollback 안전을 위해 **drop하지
+  않는다**(안정화 후 별도 cleanup migration). 새 잠금은 per-Collection hash를 만들지 않는다.
+- DEV의 Round 5 row 1건은 삭제/재생성하지 않고 그대로 정식 row로 쓴다. 그 사용자가 비밀번호를 모르면 "비밀번호를
+  잊으셨나요?" → 실제 Email 재로그인 → reset으로 새로 설정한다(DEV E2E 핵심 시나리오). **주의**: 배포 순간
+  그 사용자가 Round 6/7에서 개별 비밀번호로 바꾼 Collection도 Round 5 비밀번호로 열리게 되며, 이 전환 자체는
+  `LockVersion`을 올리지 않는다(이미 발급된 grant는 원래 만료 시각까지 유효 - 같은 Owner 본인/멤버의 짧은 grant).
+- Mobile은 Collection 비밀번호를 어디에도 저장하지 않는다. Round 7 Dogfood가 Keychain/Keystore에 남긴 항목
+  (`com.juple.app.collection-lock.v1.*`)은 앱 시작/로그아웃 시 읽지 않고 삭제만 한다. `react-native-keychain`은
+  로그인 세션 저장용으로 그대로 쓴다.
+- Picker(ItemDetails/NewLinkReview): 잠긴 Collection마다 비밀번호(= Owner 공통 비밀번호)를 검증하고 **Collection별
+  grant**를 따로 받는다. 입력한 비밀번호를 picker 세션에 들고 있다가 재사용하지 않는다(평문을 메모리에 유지하지
+  않기 위해) - 같은 Owner의 잠긴 Collection 여러 개를 고르면 각각 입력한다. picker를 닫으면 grant는 폐기된다.
+- 계정 삭제 시 row도 삭제된다.
+
+Rollback 호환성:
+
+- 공통 비밀번호 set/change/reset 또는 새 잠금이 한 번이라도 일어난 뒤에는 Round 6/7 revision(`--0000039`,
+  `--0000040`, `--0000041`)으로의 **정상 rollback 금지**. 그 revision은 Collection 자체 hash가 row 생성 이후에
+  바뀌었으면 개별 비밀번호로 검증하므로(비밀번호 semantics가 다르다), 사용자가 설정한 공통 비밀번호로 열리지 않는
+  Collection이 생길 수 있다. 필요하면 공통 비밀번호를 인식하는 hotfix revision을 쓴다. 이전 revision 삭제 금지.
+  **DEV 현재 상태**: 2026-09-27 `ca-juple-api-dev--0000042`(image `commonlock-r10-devtest-20260927-2017`)에서 E2E로
+  공통 비밀번호 reset/change와 새 잠금이 이미 성공했다 - DEV는 이 금지 조건에 해당한다.
+- `--0000037` 이하(공통 비밀번호를 모르는 revision)로의 rollback 금지 조건은 그대로다(row가 1건 이상).
+  확인: `SELECT COUNT(*) FROM collections.UserCollectionLockSettings`(read-only).
+- 이전 APK(Round 6/7)의 잠금 설정은 `409 collectionLockUsesAccountPassword`, 비밀번호 변경은 동작하지 않는다.
+  API와 새 APK를 함께 배포한다.
+
+### 모든 사용자 공유: 읽기 / 작성 (Round 7, migration `AddPublicShareWritePermission`)
+
+- `CollectionShares.Permission`(`varchar(10) NOT NULL DEFAULT 'Read'`)과 `CollectionItems.AddedViaPublicShare`
+  (`bit NOT NULL DEFAULT 0`)만 추가하는 additive migration이다(상수 default - 기존 row 변경 없음). 이전 revision은 두
+  column을 모르고 INSERT해도 default가 들어가므로 migration 적용 직후에도 정상 동작한다.
+- `작성` 링크: **Juple에 로그인한 사용자만** 자기 Item을 추가할 수 있다(`PUT /api/v1/public-shares/{publicId}/items/{itemId}`,
+  `JupleUser` 인증 필수 → anonymous는 401, identity당 30회/10분 rate limit). 익명 공개 API(`api/v1/public/*`)에는
+  쓰기 경로가 없다. 추가한 사람은 `AddedByUserId`로 기록되고, membership/관리 권한은 생기지 않는다. 잠긴 Collection은
+  그 링크의 unlock grant가 있어야 추가할 수 있다. Owner는 기존 링크 제거로 삭제할 수 있다.
+- 공개 페이지는 Owner Item + `AddedViaPublicShare` Item만, public-safe field(title/url/자동 preview)만 보여준다.
+  메모·업로드 사진·추가자 식별자는 노출되지 않는다. 특정 사용자 `작성`(Contributor)과 공개 링크의 배타 규칙은 그대로다.
+- Rollback: 이 revision 이전으로 돌리면 `Permission='Write'` 링크는 읽기 전용으로 동작하고 public writer 링크는 공개
+  페이지에서 빠진다(데이터 손실 없음, 안전한 방향). abuse 대응(신고/차단/링크별 추가 한도)은 아직 없다 - Owner의 링크 제거와
+  `공유 중지`가 현재 수단이다.
+
+### 잠금 비밀번호 재설정: 최근 재로그인(auth_time) 서버 검증
+
+DEV Entra 변경(2026-09-27): External ID tenant `d2e79a05-…`의 **Juple API** app registration(appId `14bcc3b7-…`)에
+access token optional claim `auth_time`을 추가했다(이전: optionalClaims 없음). **유지한다** - reset이 이 claim에
+의존한다. Mobile app registration과 Production Entra는 변경하지 않았다. Production tenant를 만들 때 같은 optional
+claim을 추가하고 아래 실측을 다시 해야 한다(launch requirement).
+
+DEV 실측(2026-09-27, 실제 기기, Email/local 계정, 임시 observer `--0000041`로 서버 시각 기준 경과 초만 기록 -
+토큰 원문은 어디에도 기록하지 않음):
+
+| 단계 | auth_time | auth age | iat age |
+| --- | --- | --- | --- |
+| A. 기존 세션 access token | 있음 | 약 2,070,715초 | 약 308초 |
+| B. refresh 후 | 있음 | 약 2,070,719초 (갱신되지 않음) | 약 301초 |
+| C. `prompt=login` + `max_age=0` (Email 비밀번호 실제 재입력) | 있음 | 약 5초 | - |
+| D. C 이후 다시 refresh | 있음 | 약 22초 (C 시각 유지) | - |
+
+결론(Email/local): `auth_time`은 사용 가능하고, refresh/silent 갱신은 최근 재인증이 아니며, 실제 `prompt=login`
+비밀번호 입력만 새 인증 시각이 된다 - PASS. fresh token의 `iat`가 수 분 전처럼 보이는 issuer 동작이 관찰되어
+`iat`는 recent-auth 판단에 쓰지 않는다. 측정용 observer 코드와 Mobile 재인증 테스트 화면은 제거했고, DEV
+Container App의 `Diagnostics__RecentAuthObserver__Enabled` env var도 `--0000042` 배포 때 제거했다.
+
+서버 규칙(`RecentAuthentication`, `AuthenticationTimeClaim`): 서명 검증된 access token의 `auth_time`(Unix 초)만
+사용한다. 없음/형식 오류 → 거절, server UTC now 기준 5분 초과 → 거절, 60초를 넘는 미래 값 → 거절(clock skew 허용
+60초). client가 보내는 flag/시각, `iat`, refresh 발급 시각은 절대 쓰지 않는다. 거절은
+`403 recentAuthenticationRequired` - Mobile은 "본인 확인 시간이 만료되었습니다. 다시 로그인해 주세요."를 보여준다.
+
+Mobile 흐름: "비밀번호를 잊으셨나요?"(또는 최초 설정) → 안내 → `authorize({ additionalParameters: { prompt: 'login',
+max_age: '0' } })` → ID token의 tid+oid(없으면 iss+sub)가 현재 세션과 같을 때만 새 토큰으로 세션 교체(다르면 교체
+없이 중단) → 새 비밀번호 2회 → `POST .../reset` → 로컬 unlock grant 전부 폐기. 최초 설정도 항상 재로그인을 요구한다
+(기존 개별 비밀번호를 한꺼번에 대체하는 takeover이므로 reset과 같은 규칙 하나로 통일).
+
+**Google / Apple (launch requirement)**: 현재 DEV user flow(`JupleSignUpSignIn`)에는 Email with password만 연결되어
+있어 실측하지 못했다(NOT TESTED). provider를 활성화하기 **전에** provider별로 위 A~D(일반 auth_time, refresh 유지,
+`prompt=login` 후 갱신 - 특히 social IdP의 silent SSO가 `prompt=login`을 우회하지 않는지)를 같은 방식으로 다시
+실측해야 한다. 실패하면 그 provider 계정에는 reset을 허용하지 않는 분기(예: `idp` claim 기준)가 필요하다 - 지금은
+provider가 local 하나뿐이라 분기를 만들지 않았다.
+
+보안 TODO(aggregate throttling): unlock 실패 throttle은 Collection별 bucket이다(로그인 사용자 5회/15분, public link는
+client별 5회 + link별 100회 ceiling). 이제 한 Owner의 잠긴 Collection이 모두 같은 비밀번호이므로, 여러 Collection에
+접근할 수 있는 사람은 Collection 수만큼 추측 기회를 얻는다(멤버십 또는 public locked link가 여럿 필요). owner-level
+aggregate throttle은 anonymous 시도가 Owner를 잠그는 DoS가 되지 않도록 bucket을 분리해서 설계 검토한다.
+
+**Production blocker (Collection 잠금)** - DEV E2E 통과와 무관하게 Production 전에 필요:
+
+1. Google 로그인 활성화 전 `auth_time` / refresh 유지 / `prompt=login` 갱신 실측(위 A~D).
+2. Apple 로그인 활성화 전 같은 실측.
+3. Owner 단위 aggregate 비밀번호 시도 throttle - 공통 비밀번호가 여러 Collection에 쓰이므로 Collection별 5회
+   제한만으로는 추측 기회가 Collection 수만큼 늘어난다.
+4. 잠금 비밀번호 입력 화면(잠금 해제, 설정 > 컬렉션 잠금) screenshot/화면 녹화 보호(Android `FLAG_SECURE`, iOS
+   대응) 검토.
+
 ## 명령 예시 (참고용 — 실제 값/시크릿은 예시에 포함하지 않음)
 
 ```powershell
@@ -76,8 +208,8 @@ docker push "$($foundation.acrLoginServer.value)/juple-api:<tag>"
 # 이 셋을 override하는 걸 잊으면 Dev Entra tenant를 그대로 인증에 써버리는 위험이 있어 제거했다 -
 # customDomainName/managedCertificateName도 Web과 동일한 이유로 Dev 전용 기본값이 없다). Dev의
 # 실제 값은 `infra/azure/app/dev.bicepparam`에 고정되어 있다 - Web(위 6번)과 같은 이유로 non-secret
-# live 값(acrLoginServer 등)은 readEnvironmentVariable(...)로 읽고, secret 2개
-# (sqlConnectionString/publicCollectionCursorEncryptionKey)도 .bicepparam 사용 시
+# live 값(acrLoginServer 등)은 readEnvironmentVariable(...)로 읽고, secret 3개
+# (sqlConnectionString/publicCollectionCursorEncryptionKey/collectionUnlockGrantEncryptionKey)도 .bicepparam 사용 시
 # `--parameters`를 한 번만 허용하는 CLI 제약 때문에 같은 방식으로 읽는다 - 값 자체는 여전히 파일에
 # 커밋되지 않고, 배포자의 shell에 설정한 환경변수에서만 읽힌다.
 $env:JUPLE_APP_ACR_LOGIN_SERVER = $foundation.acrLoginServer.value
@@ -88,6 +220,10 @@ $env:JUPLE_APP_STORAGE_BLOB_SERVICE_URI = $foundation.storageBlobServiceUri.valu
 $env:JUPLE_APP_IMAGE_TAG = '<tag>'
 $env:JUPLE_APP_SQL_CONNECTION_STRING = $env:SQL_CONNECTION_STRING
 $env:JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY = '<기존과 동일한 32바이트 key의 Base64 - 새로 생성하지 않는다>'
+# Collection unlock grant key - cursor key와 반드시 다른 별개의 값. 이미 live인 값(secret
+# collection-unlock-grant-key)을 그대로 쓴다(교체하면 발급된 grant만 무효화되고 데이터 영향은 없다).
+# One-shot Job들은 이 key를 검증하기 전에 종료하므로 Job Bicep에는 넣지 않는다.
+$env:JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY = '<별도 32바이트 key의 Base64>'
 
 az deployment group create `
   --resource-group $foundation.resourceGroupName.value `
@@ -249,6 +385,54 @@ migration을 항상 그 migration을 요구하는 API 이미지 배포보다 먼
 **API 배포 실패 시**: migration이 이미 schema-breaking일 수 있으므로 `Down()`으로 되돌리려 하지
 않는다 - 대신 최신 API 배포 자체의 문제를 즉시 복구하는 방향으로 대응한다(스키마는 이미 새
 버전이 맞다는 전제 위에서 문제를 해결한다).
+
+### Collaboration + Lock: expand/contract 배포 순서 (maintenance window 없음)
+
+`AddCollectionCollaborationAndLocking`(expand)과 `FinalizeCollectionCollaborationRequiredFields`
+(contract)는 rolling deployment 중 쓰기 실패가 없도록 둘로 나뉘어 있다. expand는 순수 추가라서
+이전 API revision이 계속 읽고 쓸 수 있다. `Users.PublicCode`/`CollectionItems.AddedByUserId`는
+nullable로 추가되고, 이전 revision의 INSERT는 transitional DEFAULT를 받는다(PublicCode는 같은
+형식의 실제 Juple ID, AddedByUserId는 "Owner가 추가한 legacy row"를 뜻하는 0). 새 revision은 이
+두 column을 required로 매핑하므로 NULL은 절대 만들지 않는다. contract는 0/NULL row를 Owner로
+backfill하고 invariant를 검증한 뒤(위반 시 THROW, 전체 rollback) NOT NULL, FK, 최종 unique index를
+적용하고 두 DEFAULT를 제거한다. 이 흐름은 `CollectionCollaborationRollingDeployIntegrationTests`가
+그대로 재현해서 검증한다.
+
+1. 새 Backend image build/push, tag/digest 확인
+2. API Container App에 `collection-unlock-grant-key` secret 준비(값은 출력하지 않는다. Job에는
+   넣지 않는다 - one-shot Job 모드는 key 검증 전에 종료한다)
+3. SQL 임시 방화벽 규칙, `__EFMigrationsHistory` 확인, **expand만** 적용:
+   `dotnet ef database update AddCollectionCollaborationAndLocking ...`
+4. 이전 revision이 계속 정상인지 확인(`/health`, 쓰기 오류 로그 없음)
+5. 새 image + `CollectionUnlockGrant__EncryptionKey=secretref:collection-unlock-grant-key`로 새
+   revision 배포, `/health` 200
+6. 새 revision traffic 100%, 이전 revision traffic 0 확인(삭제할 필요는 없다)
+7. backfill 대상 확인(read-only): `PublicCode IS NULL` 0건, `AddedByUserId IS NULL OR = 0` 건수
+8. contract 적용: `dotnet ef database update FinalizeCollectionCollaborationRequiredFields ...`
+9. 최종 상태 확인: 두 column NOT NULL, `UX_Users_PublicCode` unique(filter 없음),
+   `FK_CollectionItems_Users_AddedByUserId` trusted, DEFAULT 2개 제거
+10. SQL 임시 방화벽 규칙 제거, 이후 Job image/Web/Mobile
+
+contract는 이전 revision이 더 이상 쓰지 않을 때(6번 이후)에만 적용한다. 그 전에 적용하면
+이전 revision의 INSERT가 NOT NULL에 막힌다. contract의 `Down()`은 정확히 expand 상태(두 DEFAULT
+포함)로 되돌린다.
+
+### Collaboration UX Round 2: 즐겨찾기 expand/contract (DEV 적용 2026-09-26)
+
+`AddCollectionFavoritesAndUserDisplayName`(expand) → 새 API revision 100% → `FinalizeCollectionFavoriteTransition`
+(contract) 순서로 적용했다. trigger 브리지는 쓰지 않는다 - `Collections`는 rowversion 때문에 EF가
+`UPDATE … OUTPUT`으로 쓰는데, SQL Server는 trigger가 있는 테이블에 이를 거부해서(error 334) 이전
+revision의 모든 Collections 쓰기가 실패한다(LocalDB에서 실측). 대신 전환 동안 **Owner의 즐겨찾기는
+legacy `Collections.IsFavorite`가 기준**이다: 이전 revision은 그 컬럼만 쓰고, 새 revision은 Owner
+즐겨찾기를 그 컬럼에서 읽고 `CollectionFavorites`와 한 transaction으로 dual-write한다. Contributor
+즐겨찾기는 `CollectionFavorites`에만 있다. contract는 Owner row를 legacy 컬럼 기준으로 재정리한다.
+
+**Rollback 운영 메모**: contract 이후 이전 revision(`ca-juple-api-dev--0000034` 등)을 다시 traffic에
+올리면 그 revision은 Owner의 legacy `IsFavorite`만 바꾸므로 `CollectionFavorites`의 Owner row가 다시
+stale해질 수 있다. 현재 revision은 Owner 즐겨찾기를 legacy 컬럼에서 읽으므로 사용자에게 보이는 오류는
+없지만, 이전 revision을 재활성화한 적이 있다면 legacy `IsFavorite`를 정리(drop)하기 전에
+`FinalizeCollectionFavoriteTransition`과 동등한 reconciliation을 다시 수행해야 한다. 이전 revision은
+삭제하지 않지만 정상 rollback 대상으로 취급하지 않는다.
 
 ### ad-hoc 방화벽 규칙 (정리 완료)
 

@@ -5,6 +5,12 @@ import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollectionItems, type CollectionItemEntry } from './api/collectionsApi';
+import { forgetCollectionUnlock, getCollectionUnlockToken } from './collectionUnlockGrants';
+
+/** The server's "locked and no valid grant" answer - content is withheld until the password is entered. */
+export function isCollectionLockedError(error: unknown): boolean {
+  return error instanceof ApiError && error.kind === 'forbidden' && error.code === 'collectionLocked';
+}
 
 const PAGE_LIMIT = 50;
 
@@ -29,6 +35,11 @@ export interface UseCollectionItemsResult {
   readonly isRefreshing: boolean;
   readonly isLoadingMore: boolean;
   readonly error: string | null;
+  /**
+   * The Collection is locked and this session holds no valid grant for it - no Items were
+   * returned (none are ever sent before the password is proven). Cleared by a successful load.
+   */
+  readonly isLocked: boolean;
   readonly refresh: () => void;
   readonly loadMore: () => void;
   /** Removes an Item from the in-memory list immediately after a successful remove-from-Collection call. */
@@ -62,6 +73,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
   const loadingMoreRef = useRef(false);
   const loadRequestIdRef = useRef(0);
@@ -78,14 +90,27 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
       setError(null);
 
       try {
-        const page = await getCollectionItems(authenticatedRequest, collectionId, { limit: PAGE_LIMIT });
+        const page = await getCollectionItems(authenticatedRequest, collectionId, {
+          limit: PAGE_LIMIT,
+          unlockToken: getCollectionUnlockToken(collectionId),
+        });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
+        setIsLocked(false);
         setItems(page.items);
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
+          return;
+        }
+        if (isCollectionLockedError(caughtError)) {
+          // A stale/invalidated grant (password changed, lock re-set) is dropped, and nothing
+          // previously shown stays on screen.
+          forgetCollectionUnlock(collectionId);
+          setItems([]);
+          setNextCursor(null);
+          setIsLocked(true);
           return;
         }
         // Failure keeps whatever Items are already shown - only the error text changes.
@@ -128,6 +153,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
         const page = await getCollectionItems(authenticatedRequest, collectionId, {
           limit: PAGE_LIMIT,
           cursor: nextCursor,
+          unlockToken: getCollectionUnlockToken(collectionId),
         });
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -140,7 +166,14 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
-          setError(getCollectionItemsErrorMessage(caughtError, t));
+          if (isCollectionLockedError(caughtError)) {
+            forgetCollectionUnlock(collectionId);
+            setItems([]);
+            setNextCursor(null);
+            setIsLocked(true);
+          } else {
+            setError(getCollectionItemsErrorMessage(caughtError, t));
+          }
         }
       } finally {
         loadingMoreRef.current = false;
@@ -183,6 +216,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
     isRefreshing,
     isLoadingMore,
     error,
+    isLocked,
     refresh,
     loadMore,
     removeLocally,

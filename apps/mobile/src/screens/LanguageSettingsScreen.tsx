@@ -47,11 +47,9 @@ const LANGUAGE_OPTIONS: readonly LanguageOption[] = [
 
 /**
  * A scrollable settings list: "Use system language" followed by all 17 supported languages, each
- * shown in its own name, with a checkmark on the active preference. Selecting a language whose
- * writing direction differs from the current native layout direction (i.e. Arabic <-> any other
- * language) also syncs the native RTL flag - see languagePreference.ts's syncRtlLayoutDirection -
- * which only takes full effect on the next app launch, so a one-line restart notice appears below
- * the list in that case rather than silently leaving the layout half-mirrored.
+ * shown in its own name, with a checkmark on the active preference. Switching between an RTL and an
+ * LTR language (Arabic <-> any other) re-lays the whole app out at once - see layoutDirection.tsx -
+ * so no restart is needed; the native RTL flag is only kept in sync for the next cold launch.
  */
 export function LanguageSettingsScreen() {
   const { t } = useTranslation();
@@ -60,7 +58,6 @@ export function LanguageSettingsScreen() {
   const insets = useSafeAreaInsets();
   const [preference, setPreference] = useState<LanguagePreference | null>(null);
   const [pendingPreference, setPendingPreference] = useState<LanguagePreference | null>(null);
-  const [isRestartNoticeVisible, setIsRestartNoticeVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,8 +83,9 @@ export function LanguageSettingsScreen() {
       await saveLanguagePreference(nextPreference);
       const resolvedLanguage = resolveLanguageForPreference(nextPreference);
       await i18n.changeLanguage(resolvedLanguage);
-      const restartNeeded = syncRtlLayoutDirection(resolvedLanguage);
-      setIsRestartNoticeVisible(restartNeeded);
+      // The layout follows the new language at once (see layoutDirection.tsx); this only keeps
+      // the native flag right for the next cold launch - no restart needed or suggested.
+      syncRtlLayoutDirection(resolvedLanguage);
       setPreference(nextPreference);
     } finally {
       setPendingPreference(null);
@@ -136,7 +134,6 @@ export function LanguageSettingsScreen() {
             </Pressable>
           );
         })}
-        {isRestartNoticeVisible ? <Text style={styles.restartNotice}>{t('language.restartForRtl')}</Text> : null}
       </ScrollView>
     </View>
   );
@@ -176,10 +173,5 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 18,
     fontWeight: '700',
-  },
-  restartNotice: {
-    color: '#666666',
-    fontSize: 13,
-    marginTop: 16,
   },
 });

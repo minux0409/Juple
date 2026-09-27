@@ -2,6 +2,11 @@ using Juple.Infrastructure;
 using Juple.Api.Authentication;
 using Juple.Api.Configuration;
 using Juple.Api.Public;
+using System.Threading.RateLimiting;
+using Juple.Api.Collections;
+using Juple.Application.Collections.Access;
+using Juple.Application.Collections.Collaboration;
+using Juple.Application.Collections.Locking;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.CreateCollection;
 using Juple.Application.Collections.DeleteCollection;
@@ -52,6 +57,7 @@ using Juple.Application.UrlMetadata.PreviewInstagramMetadataCandidate;
 using Juple.Application.UrlMetadata.ResolveUrlMetadata;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Juple.Application.Users.DeleteAccount;
+using Juple.Application.Users.Profile;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Identity.Web;
 
@@ -128,9 +134,23 @@ builder.Services.AddScoped<IEnableCollectionShareService, EnableCollectionShareS
 builder.Services.AddScoped<IGetCollectionShareService, GetCollectionShareService>();
 builder.Services.AddScoped<IRevokeCollectionShareService, RevokeCollectionShareService>();
 builder.Services.AddScoped<IPublicCollectionService, PublicCollectionService>();
+builder.Services.AddScoped<IPublicCollectionWriteService, PublicCollectionWriteService>();
+// Collaboration / lock (see CollectionAccess for the Owner/Contributor policy and
+// ICollectionUnlockTokenProtector for the stateless, replica-safe unlock grants).
+builder.Services.AddScoped<ICollectionAccessService, CollectionAccessService>();
+builder.Services.AddScoped<ICollectionLockService, CollectionLockService>();
+builder.Services.AddScoped<ICollectionLockPasswordService, CollectionLockPasswordService>();
+builder.Services.AddScoped<CollectionPasswordVerifier>();
+builder.Services.AddScoped<ICollectionCollaborationService, CollectionCollaborationService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+builder.Services.AddScoped<Juple.Application.Friends.IFriendService, Juple.Application.Friends.FriendService>();
+builder.Services.AddSingleton<ICollectionLockPasswordHasher, CollectionLockPasswordHasher>();
+builder.Services.AddSingleton<ICollectionUnlockTokenProtector, CollectionUnlockTokenProtector>();
 builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("PublicWeb"));
 builder.Services.Configure<PublicCollectionCursorOptions>(
     builder.Configuration.GetSection("PublicCollectionCursor"));
+builder.Services.Configure<CollectionUnlockGrantOptions>(
+    builder.Configuration.GetSection("CollectionUnlockGrant"));
 builder.Services.AddSingleton<IPublicCollectionItemPageCursorCodec, PublicCollectionItemPageCursorCodec>();
 builder.Services.AddScoped<IRegisterPushDeviceService, RegisterPushDeviceService>();
 builder.Services.AddScoped<IUnregisterPushDeviceService, UnregisterPushDeviceService>();
@@ -155,6 +175,43 @@ builder.Services.AddAuthorizationBuilder()
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+
+// First rate limiting in this API (built into ASP.NET Core - no package). These in-process
+// limiters are a per-replica first line only; the brute-force guarantee for lock passwords is the
+// persisted, cross-replica CollectionUnlockThrottle, and Juple ID enumeration is additionally
+// bounded by the 31^8 code space. Partitioned per signed-in identity (tenant+object id) for the
+// authenticated endpoints, per share link for the anonymous public unlock.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(RateLimitPolicies.JupleIdLookup, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy(RateLimitPolicies.CollectionUnlock, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Per link AND per browser attempt id - never per link alone, which would let one client
+    // exhaust the permits for everyone. The persisted link-wide ceiling lives in
+    // CollectionUnlockBuckets (DB, cross-replica), not here.
+    // Adding links through a writable public link: signed-in callers only, per identity - bounds
+    // how fast one account can fill someone else's public Collection.
+    options.AddPolicy(RateLimitPolicies.PublicCollectionWrite, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    // Changing/resetting the one Collection lock password: 5 per 15 minutes per identity, on top of
+    // the persisted wrong-current-password throttle and the recent sign-in a reset requires.
+    options.AddPolicy(RateLimitPolicies.CollectionLockPassword, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
+    options.AddPolicy(RateLimitPolicies.PublicCollectionUnlock, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.PublicUnlockPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 
@@ -221,6 +278,10 @@ if (isInstagramMetadataRetryJob)
 // Forces PublicCollectionCursor:EncryptionKey validation (see PublicCollectionItemPageCursorCodec's
 // constructor) at startup rather than on the first public "load more" request.
 app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();
+// Same for CollectionUnlockGrant:EncryptionKey (see CollectionUnlockTokenProtector) - a missing or
+// malformed grant key stops the API at startup; there is no fallback to any other key. The one-shot
+// Job modes above return before this point and never need it.
+app.Services.GetRequiredService<ICollectionUnlockTokenProtector>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -231,6 +292,7 @@ app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 app.MapHealthChecks("/health");
 

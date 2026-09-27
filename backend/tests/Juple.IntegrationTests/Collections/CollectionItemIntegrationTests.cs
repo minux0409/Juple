@@ -1151,13 +1151,13 @@ public sealed class CollectionItemIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
 
         // Source soft-deleted by the merge - the existing public URL stops resolving.
-        Assert.Null(await publicStore.GetCollectionAsync(share.PublicId));
+        Assert.Null(await publicStore.GetStateAsync(share.PublicId));
 
         await store.UndoMergeAsync(_userId, result.UndoOperationId!.Value);
         _dbContext.ChangeTracker.Clear();
 
         // Same PublicId resolves again - never a freshly minted share.
-        var publicCollection = await publicStore.GetCollectionAsync(share.PublicId);
+        var publicCollection = await publicStore.GetStateAsync(share.PublicId);
         Assert.NotNull(publicCollection);
         var activeShare = await shareStore.GetActiveAsync(_userId, source);
         Assert.Equal(share.PublicId, activeShare?.PublicId);

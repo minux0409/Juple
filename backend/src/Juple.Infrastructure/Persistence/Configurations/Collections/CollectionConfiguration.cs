@@ -71,6 +71,25 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
         builder.Property(collection => collection.Color)
             .HasColumnType("varchar(20)");
 
+        builder.Property(collection => collection.IsLocked)
+            .HasColumnType("bit")
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        // Versioned PBKDF2 hash string (see CollectionLockPasswordHasher) - ASCII/Base64 only.
+        builder.Property(collection => collection.LockPasswordHash)
+            .HasColumnType("varchar(200)")
+            .HasMaxLength(200)
+            .IsUnicode(false);
+
+        builder.Property(collection => collection.LockVersion)
+            .HasColumnType("int")
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(collection => collection.LockPasswordChangedAtUtc)
+            .HasColumnType("datetimeoffset");
+
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
 

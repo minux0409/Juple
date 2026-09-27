@@ -1,7 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { getPublicCollectionItems, type PublicCollectionItem } from '../../../lib/publicApi';
+import {
+  getPublicCollectionItems,
+  LOCKED,
+  type PublicCollectionItem,
+  type PublicCollectionItemsPage,
+} from '../../../lib/publicApi';
 import { ItemCard } from './ItemCard';
 
 interface ItemListProps {
@@ -13,6 +18,35 @@ interface ItemListProps {
   readonly loadMoreLabel: string;
   readonly loadingLabel: string;
   readonly emptyLabel: string;
+  /**
+   * A locked share's grant is an HttpOnly cookie this component cannot (and must not) read, so its
+   * further pages come through this app's own same-origin route handler, which attaches the grant
+   * server-side. An unlocked share keeps calling the Public API directly.
+   */
+  readonly isLocked: boolean;
+}
+
+async function fetchNextPage(
+  apiBaseUrl: string,
+  publicId: string,
+  cursor: string,
+  isLocked: boolean,
+): Promise<PublicCollectionItemsPage | null> {
+  if (!isLocked) {
+    const page = await getPublicCollectionItems(apiBaseUrl, publicId, { cursor });
+    return page === LOCKED ? null : page;
+  }
+
+  const response = await fetch(`/c/${encodeURIComponent(publicId)}/items?cursor=${encodeURIComponent(cursor)}`, {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  });
+  if (response.status === 403) {
+    // The grant expired or the password changed - reload into the password form.
+    window.location.reload();
+    return null;
+  }
+  return response.ok ? ((await response.json()) as PublicCollectionItemsPage) : null;
 }
 
 /**
@@ -35,6 +69,7 @@ export function ItemList({
   loadMoreLabel,
   loadingLabel,
   emptyLabel,
+  isLocked,
 }: ItemListProps) {
   const [items, setItems] = useState(initialItems);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
@@ -47,7 +82,7 @@ export function ItemList({
 
     setIsLoadingMore(true);
     try {
-      const page = await getPublicCollectionItems(apiBaseUrl, publicId, { cursor: nextCursor });
+      const page = await fetchNextPage(apiBaseUrl, publicId, nextCursor, isLocked);
       // A null page here means the share was revoked between the initial load and this fetch -
       // treat it the same as "no more pages" rather than showing a broken state mid-scroll.
       setItems(previous => [...previous, ...(page?.items ?? [])]);

@@ -1,17 +1,21 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ApiError } from '../api/ApiError';
+import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { useAuth } from '../auth/AuthContext';
 import {
   getPublicCollection,
   type PublicCollection,
   type PublicCollectionItem,
 } from '../collections/api/publicCollectionsApi';
+import { addLinkToPublicCollection } from '../collections/api/publicShareWriteApi';
 import { usePublicCollectionItems } from '../collections/usePublicCollectionItems';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { ltrTextStyle } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
 
@@ -24,6 +28,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
  * CollectionDetailsScreen: that screen's owner actions (rename/delete/favorite/membership/share
  * management) and private fields (Memo/Category/Purchase/RepeatPurchase) have no anonymous
  * equivalent and must never be reachable from a link handed to someone else.
+ *
+ * The one exception to "anonymous only": when the link is writable (모든 사용자: 작성) and the
+ * viewer is signed in, they may add a link of their own - that single call uses their session (see
+ * publicShareWriteApi); reading still never does. Signed out, the add area only says to sign in.
  */
 export function SharedCollectionScreen({ route }: Props) {
   const { publicId } = route.params;
@@ -35,8 +43,51 @@ export function SharedCollectionScreen({ route }: Props) {
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
   const [isUnavailable, setIsUnavailable] = useState(false);
 
-  const { items, isLoading: isLoadingItems, isLoadingMore, loadMore } =
+  const { items, isLoading: isLoadingItems, isLoadingMore, loadMore, reload } =
     usePublicCollectionItems(publicId);
+  const { isAuthenticated } = useAuth();
+  const authenticatedRequest = useAuthenticatedApi();
+  const [newUrl, setNewUrl] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const isAddingRef = useRef(false);
+  const [addMessage, setAddMessage] = useState<{ kind: 'error' | 'done'; text: string } | null>(null);
+
+  const addErrorMessage = (error: unknown): string => {
+    if (error instanceof ApiError) {
+      if (error.kind === 'badRequest') {
+        return t('sharedCollection.addInvalidUrl');
+      }
+      if (error.kind === 'forbidden' || error.kind === 'notFound') {
+        return t('sharedCollection.addNotAllowed');
+      }
+      if (error.kind === 'tooManyRequests') {
+        return t('collaboration.tooManyRequests');
+      }
+    }
+    return t('sharedCollection.addFallback');
+  };
+
+  /** Saves the URL to the viewer's own library, then adds it here - one tap, never twice at once. */
+  const addLink = async () => {
+    const url = newUrl.trim();
+    if (!url || isAddingRef.current) {
+      return;
+    }
+    isAddingRef.current = true;
+    setIsAdding(true);
+    setAddMessage(null);
+    try {
+      await addLinkToPublicCollection(authenticatedRequest, publicId, url);
+      setNewUrl('');
+      setAddMessage({ kind: 'done', text: t('sharedCollection.addDone') });
+      await reload();
+    } catch (caughtError) {
+      setAddMessage({ kind: 'error', text: addErrorMessage(caughtError) });
+    } finally {
+      isAddingRef.current = false;
+      setIsAdding(false);
+    }
+  };
 
   const loadCollection = useCallback(async () => {
     setIsLoadingCollection(true);
@@ -100,7 +151,50 @@ export function SharedCollectionScreen({ route }: Props) {
         // No numberOfLines - a long or foreign-language category name must be fully readable
         // here too (this is the read-only public counterpart of CollectionDetailsScreen, which
         // dropped its own title truncation for the same reason).
-        ListHeaderComponent={<Text style={styles.title}>{collection.name}</Text>}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.title}>{collection.name}</Text>
+            {collection.permission === 'write' && !collection.isLocked ? (
+              <View style={styles.addCard} testID="shared-collection-add">
+                {isAuthenticated ? (
+                  <>
+                    <View style={styles.addRow}>
+                      <TextInput
+                        accessibilityLabel={t('sharedCollection.addUrlLabel')}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        editable={!isAdding}
+                        keyboardType="url"
+                        onChangeText={setNewUrl}
+                        onSubmitEditing={addLink}
+                        placeholder={t('sharedCollection.addUrlPlaceholder')}
+                        style={[styles.addInput, ltrTextStyle]}
+                        testID="shared-collection-add-url"
+                        value={newUrl}
+                      />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: isAdding || !newUrl.trim(), busy: isAdding }}
+                        disabled={isAdding || !newUrl.trim()}
+                        onPress={addLink}
+                        style={[styles.addButton, (isAdding || !newUrl.trim()) && styles.disabled]}
+                        testID="shared-collection-add-submit"
+                      >
+                        {isAdding ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.addButtonLabel}>{t('sharedCollection.addAction')}</Text>}
+                      </Pressable>
+                    </View>
+                    <Text style={styles.addHelp}>{t('sharedCollection.addVisibilityNote')}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.addHelp} testID="shared-collection-add-sign-in">{t('sharedCollection.addSignInRequired')}</Text>
+                )}
+                {addMessage ? (
+                  <Text style={addMessage.kind === 'error' ? styles.addError : styles.addDone} testID="shared-collection-add-message">{addMessage.text}</Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        }
         ListEmptyComponent={
           !isLoadingItems ? <Text style={styles.empty}>{t('sharedCollection.itemsEmpty')}</Text> : undefined
         }
@@ -174,6 +268,61 @@ const styles = StyleSheet.create({
   },
   footerLoading: {
     paddingVertical: 20,
+  },
+  addCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+  },
+  addRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  addInput: {
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    color: colors.textPrimary,
+    flex: 1,
+    fontSize: 15,
+    minHeight: minTouchTarget,
+    minWidth: 0,
+    paddingHorizontal: spacing.md,
+  },
+  addButton: {
+    alignItems: 'center',
+    backgroundColor: colors.brand,
+    borderRadius: radii.md,
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    minWidth: 72,
+    paddingHorizontal: spacing.md,
+  },
+  addButtonLabel: {
+    color: colors.surface,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  addHelp: {
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  addError: {
+    color: colors.danger,
+    fontSize: 14,
+  },
+  addDone: {
+    color: colors.brand,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  disabled: {
+    opacity: 0.45,
   },
   unavailableTitle: {
     fontSize: 17,

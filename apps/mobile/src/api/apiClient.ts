@@ -16,6 +16,8 @@ export interface ApiRequest {
    */
   readonly formData?: FormData;
   readonly timeoutMs?: number;
+  /** Extra request headers (e.g. a short-lived Collection unlock grant) - never logged. */
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 export interface ApiResponse<T> {
@@ -40,6 +42,19 @@ export interface ApiResponse<T> {
 const TRANSPORT_RETRY_ATTEMPT_TIMEOUT_MS = 8_000;
 const TRANSPORT_RETRY_DELAYS_MS = [1_000];
 
+/** The machine-readable `code` of a ProblemDetails body, when present. */
+async function readProblemCode(response: Response): Promise<string | undefined> {
+  try {
+    const problem: unknown = await response.json();
+    if (problem && typeof problem === 'object' && 'code' in problem && typeof problem.code === 'string') {
+      return problem.code;
+    }
+  } catch {
+    // Preserve status-based errors for responses without a ProblemDetails body.
+  }
+  return undefined;
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -51,6 +66,7 @@ export async function requestApi<T>({
   body,
   formData,
   timeoutMs,
+  headers,
 }: ApiRequest): Promise<ApiResponse<T>> {
   const baseUrl = apiConfig.baseUrl;
   if (!baseUrl) {
@@ -60,6 +76,7 @@ export async function requestApi<T>({
   const requestInit: RequestInit = {
     method,
     headers: {
+      ...headers,
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
@@ -120,16 +137,7 @@ export async function requestApi<T>({
   }
 
   if (response.status === 400) {
-    let code: string | undefined;
-    try {
-      const problem: unknown = await response.json();
-      if (problem && typeof problem === 'object' && 'code' in problem && typeof problem.code === 'string') {
-        code = problem.code;
-      }
-    } catch {
-      // Preserve status-based errors for responses without a ProblemDetails body.
-    }
-    throw new ApiError('badRequest', response.status, code);
+    throw new ApiError('badRequest', response.status, await readProblemCode(response));
   }
 
   if (response.status === 401) {
@@ -137,7 +145,8 @@ export async function requestApi<T>({
   }
 
   if (response.status === 403) {
-    throw new ApiError('forbidden', response.status);
+    // e.g. "collectionLocked" / "invalidCollectionPassword" / "collectionForbidden".
+    throw new ApiError('forbidden', response.status, await readProblemCode(response));
   }
 
   if (response.status === 404) {
@@ -145,7 +154,11 @@ export async function requestApi<T>({
   }
 
   if (response.status === 409) {
-    throw new ApiError('conflict', response.status);
+    throw new ApiError('conflict', response.status, await readProblemCode(response));
+  }
+
+  if (response.status === 429) {
+    throw new ApiError('tooManyRequests', response.status, await readProblemCode(response));
   }
 
   throw new ApiError('unavailable', response.status);

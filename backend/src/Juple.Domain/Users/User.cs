@@ -1,4 +1,4 @@
-namespace Juple.Domain.Users;
+﻿namespace Juple.Domain.Users;
 
 public sealed class User
 {
@@ -23,9 +23,19 @@ public sealed class User
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = updatedAtUtc;
         Plan = plan;
+        PublicCode = UserPublicCode.Generate();
     }
 
     public long Id { get; private set; }
+
+    /// <summary>The public "Juple ID" (see UserPublicCode) - unique, random, never the internal Id.</summary>
+    public string PublicCode { get; private set; } = null!;
+
+    /// <summary>
+    /// Optional name shown to collaborators (see UserDisplayName) - null until the user sets one,
+    /// in which case clients show the Juple ID instead. Not unique; never used for lookup.
+    /// </summary>
+    public string? DisplayName { get; private set; }
 
     public string PreferredLocale { get; private set; } = null!;
 
@@ -42,6 +52,12 @@ public sealed class User
     public byte[] RowVersion { get; private set; } = [];
 
     /// <summary>No-op when already on this Plan - mirrors Item.SetPreviewImageUrl/SetCoverImageId's own no-op-on-unchanged-value pattern. Not called by anything yet (see UserPlan's own remarks); this is the one place a future billing/webhook integration will call.</summary>
+    /// <summary>Replaces a freshly generated code that collided with an existing one before the first insert - never used to change an established Juple ID.</summary>
+    public void RegeneratePublicCodeBeforeCreate()
+    {
+        PublicCode = UserPublicCode.Generate();
+    }
+
     public void SetPlan(UserPlan plan, DateTimeOffset updatedAtUtc)
     {
         if (Plan == plan)
@@ -50,6 +66,18 @@ public sealed class User
         }
 
         Plan = plan;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
+    /// <summary>Callers pass a value already normalized by UserDisplayName.TryNormalize (null clears it).</summary>
+    public void SetDisplayName(string? displayName, DateTimeOffset updatedAtUtc)
+    {
+        if (DisplayName == displayName)
+        {
+            return;
+        }
+
+        DisplayName = displayName;
         UpdatedAtUtc = updatedAtUtc;
     }
 

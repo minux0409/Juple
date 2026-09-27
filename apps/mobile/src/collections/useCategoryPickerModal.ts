@@ -4,6 +4,7 @@ import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
+import { canAddItemsTo, isCollectionLocked } from './collectionAccess';
 import type { CollectionColorValue } from './collectionColors';
 import type { CollectionIconKey } from './collectionIcons';
 
@@ -61,6 +62,18 @@ export interface UseCategoryPickerModalResult {
    * dialog stays open showing createError, matching this app's existing "let the user fix and
    * retry" pattern - see CategoryEditorDialog's own remarks). */
   readonly submitNewCollection: (name: string, icon: CollectionIconKey, color: CollectionColorValue) => Promise<boolean>;
+  /**
+   * Selecting OR deselecting a locked Collection changes its content, so it needs the password:
+   * runs `toggle` at once for an unlocked Collection (or one already unlocked in this picker
+   * session), otherwise asks for the password first and runs it only after a correct one.
+   */
+  readonly requestToggle: (collection: Collection, toggle: () => void) => void;
+  /** The locked Collection whose password is being asked for, if any. */
+  readonly unlockTarget: Collection | null;
+  readonly onUnlockGranted: (unlockToken: string) => void;
+  readonly cancelUnlock: () => void;
+  /** The grant this picker obtained for a Collection - sent with that Collection's save request. */
+  readonly unlockTokenFor: (collectionId: number) => string | null;
 }
 
 /**
@@ -84,6 +97,9 @@ export function useCategoryPickerModal(
   const [isVisible, setIsVisible] = useState(false);
   const [collectionPool, setCollectionPool] = useState<readonly Collection[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  // Owned Categories are paged first, then the ones shared with this user (a Contributor may add
+  // their own links to those too) - one continuous list, each phase with its own cursor.
+  const [phase, setPhase] = useState<'owned' | 'shared' | 'done'>('owned');
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
@@ -91,6 +107,15 @@ export function useCategoryPickerModal(
   const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Locked Collections unlocked while THIS picker is open - forgotten when it closes, so reopening
+  // asks again. Never the Collection-visit grants of another screen.
+  const [sessionUnlockedIds, setSessionUnlockedIds] = useState<ReadonlySet<number>>(new Set());
+  // The grant each unlocked Collection's staged change will be saved with (per Collection - each
+  // locked Collection has its own password and its own grant). Lives until the screen goes away.
+  const stagedUnlockTokensRef = useRef(new Map<number, string>());
+  const [unlockTarget, setUnlockTarget] = useState<Collection | null>(null);
+  const pendingToggleRef = useRef<(() => void) | null>(null);
 
   const open = async () => {
     setIsVisible(true);
@@ -101,8 +126,17 @@ export function useCategoryPickerModal(
       // selected/unselected toggle (driven by the caller's own selectedIds), which must reflect
       // the current *staged* selection, not a server-side filter the server has no notion of.
       const page = await getCollections(authenticatedRequest, { limit: COLLECTION_OPTIONS_PAGE_LIMIT });
-      setCollectionPool(page.items);
-      setNextCursor(page.nextCursor);
+      if (page.nextCursor) {
+        setCollectionPool(page.items);
+        setNextCursor(page.nextCursor);
+        setPhase('owned');
+      } else {
+        const shared = await getCollections(authenticatedRequest, { scope: 'shared', limit: COLLECTION_OPTIONS_PAGE_LIMIT });
+        // A Collection shared view-only can never take this Item - it is not offered at all.
+        setCollectionPool([...page.items, ...shared.items.filter(canAddItemsTo)]);
+        setNextCursor(shared.nextCursor);
+        setPhase(shared.nextCursor ? 'shared' : 'done');
+      }
     } catch (caughtError) {
       setError(getListErrorMessage(caughtError, t));
     } finally {
@@ -115,7 +149,40 @@ export function useCategoryPickerModal(
       return;
     }
     setIsVisible(false);
+    // This picker session is over: a locked Collection needs its password again next time.
+    setSessionUnlockedIds(new Set());
+    setUnlockTarget(null);
+    pendingToggleRef.current = null;
   };
+
+  const requestToggle = (collection: Collection, toggle: () => void) => {
+    if (!isCollectionLocked(collection) || sessionUnlockedIds.has(collection.id)) {
+      toggle();
+      return;
+    }
+    pendingToggleRef.current = toggle;
+    setUnlockTarget(collection);
+  };
+
+  const onUnlockGranted = (unlockToken: string) => {
+    const target = unlockTarget;
+    const toggle = pendingToggleRef.current;
+    pendingToggleRef.current = null;
+    setUnlockTarget(null);
+    if (!target) {
+      return;
+    }
+    stagedUnlockTokensRef.current.set(target.id, unlockToken);
+    setSessionUnlockedIds(previous => new Set(previous).add(target.id));
+    toggle?.();
+  };
+
+  const cancelUnlock = () => {
+    pendingToggleRef.current = null;
+    setUnlockTarget(null);
+  };
+
+  const unlockTokenFor = (collectionId: number) => stagedUnlockTokensRef.current.get(collectionId) ?? null;
 
   const openCreateDialog = () => {
     setCreateError(null);
@@ -130,7 +197,7 @@ export function useCategoryPickerModal(
   };
 
   const loadMore = () => {
-    if (loadingMoreRef.current || isLoadingOptions || !nextCursor) {
+    if (loadingMoreRef.current || isLoadingOptions || phase === 'done') {
       return;
     }
 
@@ -139,16 +206,27 @@ export function useCategoryPickerModal(
 
     (async () => {
       try {
+        const scope = phase === 'shared' ? 'shared' : 'owned';
         const page = await getCollections(authenticatedRequest, {
+          ...(scope === 'shared' ? { scope } : {}),
           limit: COLLECTION_OPTIONS_PAGE_LIMIT,
-          cursor: nextCursor,
+          cursor: nextCursor ?? undefined,
         });
         setCollectionPool(previous => {
           const seenIds = new Set(previous.map(option => option.id));
-          const additional = page.items.filter(option => !seenIds.has(option.id));
+          const additional = page.items.filter(option => !seenIds.has(option.id) && canAddItemsTo(option));
           return [...previous, ...additional];
         });
-        setNextCursor(page.nextCursor);
+        if (page.nextCursor) {
+          setNextCursor(page.nextCursor);
+        } else if (scope === 'owned') {
+          // Owned exhausted - the next loadMore starts the shared list from its first page.
+          setNextCursor(null);
+          setPhase('shared');
+        } else {
+          setNextCursor(null);
+          setPhase('done');
+        }
       } catch (caughtError) {
         setError(getListErrorMessage(caughtError, t));
       } finally {
@@ -206,5 +284,10 @@ export function useCategoryPickerModal(
     isCreatingCollection,
     createError,
     submitNewCollection,
+    requestToggle,
+    unlockTarget,
+    onUnlockGranted,
+    cancelUnlock,
+    unlockTokenFor,
   };
 }

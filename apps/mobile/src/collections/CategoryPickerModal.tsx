@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CategoryEditorDialog } from './CategoryEditorDialog';
 import { CategoryIconTile } from './CategoryIconTile';
+import { isCollaborative, isCollectionLocked } from './collectionAccess';
+import { CollectionUnlockDialog } from './CollectionUnlockDialog';
+import { CollectionStatusBadges } from './CollectionStatusBadges';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from './collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from './collectionIcons';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -48,6 +51,10 @@ interface CategoryPickerModalProps {
     icon: CollectionIconKey,
     color: CollectionColorValue,
   ) => Promise<boolean>;
+  /** A locked Collection the user touched: its password prompt is shown over this sheet. */
+  readonly unlockTarget?: Collection | null;
+  readonly onUnlockGranted?: (unlockToken: string) => void;
+  readonly onUnlockCancel?: () => void;
 }
 
 /**
@@ -77,6 +84,9 @@ export function CategoryPickerModal({
   isCreatingCollection,
   createError = null,
   onCreateCollection = async () => false,
+  unlockTarget = null,
+  onUnlockGranted = () => undefined,
+  onUnlockCancel = () => undefined,
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
   const { viewMode, changeViewMode } = useViewModePreference('categoryPickerViewMode', 'grid');
@@ -135,16 +145,23 @@ export function CategoryPickerModal({
 
                 const option = item;
                 const isSelected = selectedIds.has(option.id);
+                // Touching a locked Collection (to select or to deselect it) asks for its password
+                // first - the caller's onToggle decides (see useCategoryPickerModal.requestToggle).
+                const isLocked = isCollectionLocked(option);
                 return (
                   <Pressable
+                    accessibilityHint={isLocked ? t('collections.lockRequiredForAction') : undefined}
                     accessibilityLabel={option.name}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
                     onPress={() => onToggle(option)}
                     style={viewMode === 'grid' ? styles.gridCell : styles.listCell}
+                    testID={`category-picker-option-${option.id}`}
                   >
                     <View style={styles.tileIconSlot}>
                       <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} size={48} />
+                      {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
+                      <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
                       {isSelected ? (
                         <View style={styles.selectedBadge}>
                           <CheckIcon color={colors.surface} size={11} strokeWidth={3} />
@@ -175,6 +192,8 @@ export function CategoryPickerModal({
           </Pressable>
         </Animated.View>
       </View>
+
+      <CollectionUnlockDialog collection={unlockTarget} onCancel={onUnlockCancel} onGranted={onUnlockGranted} />
 
       {isCreateDialogVisible ? (
         <CategoryEditorDialog

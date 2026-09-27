@@ -1,5 +1,6 @@
 using Juple.Domain.Collections;
 using Juple.Domain.Items;
+using Juple.Domain.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,6 +25,10 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
             .HasColumnType("bigint")
             .IsRequired();
 
+        builder.Property(collectionItem => collectionItem.AddedByUserId)
+            .HasColumnType("bigint")
+            .IsRequired();
+
         builder.Property(collectionItem => collectionItem.AddedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();
@@ -31,6 +36,13 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
         builder.Property(collectionItem => collectionItem.SortOrder)
             .HasColumnType("int")
             .IsRequired();
+
+        // Default 0: every existing membership, and every one an earlier revision inserts, is a normal
+        // (Owner/member) one.
+        builder.Property(collectionItem => collectionItem.AddedViaPublicShare)
+            .HasColumnType("bit")
+            .IsRequired()
+            .HasDefaultValue(false);
 
         // Collection detail's Item list query pattern (SortOrder ASC, Id ASC, cursor-paged) - the
         // owner's manual display order, not insertion order. Replaces the old
@@ -41,6 +53,10 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
 
         // "Which Collections is this Item in" lookup (ItemDetails membership section) - SQL Server
         // does not auto-index FK columns.
+        // Removing a Contributor deletes exactly the associations they added to that Collection.
+        builder.HasIndex(collectionItem => new { collectionItem.CollectionId, collectionItem.AddedByUserId })
+            .HasDatabaseName("IX_CollectionItems_CollectionId_AddedByUserId");
+
         builder.HasIndex(collectionItem => collectionItem.ItemId)
             .HasDatabaseName("IX_CollectionItems_ItemId");
 
@@ -63,6 +79,12 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
         // the Item's deletion), a CollectionItem has no meaning on its own, so it must be removed
         // along with the Item it references (mirrors ItemImage's Cascade-on-Item precedent, not
         // Purchase's SetNull one). The Collection itself is never touched by this cascade.
+        // NoAction like every other UserId FK - AccountDeletionStore clears these rows explicitly.
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(collectionItem => collectionItem.AddedByUserId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.HasOne<Item>()
             .WithMany()
             .HasForeignKey(collectionItem => collectionItem.ItemId)

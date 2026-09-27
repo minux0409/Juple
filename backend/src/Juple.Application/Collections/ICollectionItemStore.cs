@@ -5,6 +5,11 @@ namespace Juple.Application.Collections;
 public interface ICollectionItemStore
 {
     /// <summary>Throws CollectionNotFoundException when collectionId is missing or not owned by userId. Each returned CollectionItemEntryDto.RepresentativeImage/CoverImage is always null - the actual signed read URL is resolved by GetCollectionItemsService from RepresentativeImages/CoverImages afterward (same split as IItemHistoryQueryStore). PreviewImageUrl (an external URL, not a Blob) is already fully populated on each CollectionItemEntryDto.</summary>
+    /// <summary>
+    /// Every active Item in a Collection the viewer owns or collaborates on (re-checked here, so a
+    /// missing access check upstream still fails closed). Private fields (Memo, uploaded/cover image
+    /// refs) are selected only for the viewer's own Items.
+    /// </summary>
     Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
         long userId,
         long collectionId,
@@ -18,6 +23,17 @@ public interface ICollectionItemStore
     /// AssignItemCategoryService's cross-ownership check. A no-op (success) when the Item is
     /// already in the Collection - this is a "set membership" write, not a strict create, so a
     /// repeat add is never a conflict (matches Item.MoveToWishlist's own already-there no-op).
+    /// </summary>
+    /// <summary>One active Item of that Collection as the read-only shared view, or null.</summary>
+    Task<SharedCollectionItemDto?> GetSharedItemAsync(
+        long userId,
+        long collectionId,
+        long itemId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Adds the caller's OWN Item to a Collection they own or collaborate on, recording them as
+    /// AddedByUserId. Someone else's Item is ItemNotFoundException, whatever the caller's role.
     /// </summary>
     Task AddAsync(
         long userId,

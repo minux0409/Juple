@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
+import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
+import { CollectionShareScreen } from '../screens/CollectionShareScreen';
+import { FriendsScreen } from '../screens/FriendsScreen';
+import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
@@ -34,6 +38,19 @@ export type RootStackParamList = {
    */
   CollectionDetails: { collectionId: number; refreshToken?: number };
   /**
+   * Owner-only sharing of one Collection, as a modal - one screen: 모든 사용자 (the public link),
+   * 친구 초대 / ID 초대하기 (읽기 or 쓰기 per person), the people it is shared with and pending
+   * invitations. Opening it never enables anything by itself.
+   */
+  CollectionShare: { collectionId: number };
+  /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
+  Friends: undefined;
+  /**
+   * Read-only view of another member's link inside a Collection (never the owner-only
+   * ItemDetails) - fetched through that Collection, so it carries no memo or uploaded photos.
+   */
+  CollectionSharedItem: { collectionId: number; itemId: number };
+  /**
    * Reached only via IncomingShareRouter's explicit navigate call, never a prefilled tab - see that
    * file. preselectedCollectionId/initialTitle are just the starting values for editable fields, not
    * anything already persisted (no Item exists until this screen's own Save call).
@@ -44,6 +61,8 @@ export type RootStackParamList = {
     preselectedCollectionId: number | null;
   };
   LanguageSettings: undefined;
+  /** Settings > 컬렉션 잠금: the user's own locked Collections and the passwords this device remembers. */
+  CollectionLockSettings: undefined;
   Trash: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
@@ -106,6 +125,21 @@ export function RootStack() {
               options={{ title: t('nav.collectionDetails') }}
             />
             <Stack.Screen
+              component={CollectionShareScreen}
+              name="CollectionShare"
+              options={{ presentation: 'modal', title: t('nav.collectionShare') }}
+            />
+            <Stack.Screen
+              component={FriendsScreen}
+              name="Friends"
+              options={{ title: t('friends.title') }}
+            />
+            <Stack.Screen
+              component={CollectionSharedItemScreen}
+              name="CollectionSharedItem"
+              options={{ title: t('nav.collectionSharedItem') }}
+            />
+            <Stack.Screen
               component={NewLinkReviewScreen}
               name="NewLinkReview"
               options={{ title: t('nav.newLinkReview') }}
@@ -114,6 +148,11 @@ export function RootStack() {
               component={LanguageSettingsScreen}
               name="LanguageSettings"
               options={{ title: t('nav.languageSettings') }}
+            />
+            <Stack.Screen
+              component={CollectionLockSettingsScreen}
+              name="CollectionLockSettings"
+              options={{ title: t('nav.collectionLockSettings') }}
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash') }} />
           </Stack.Group>

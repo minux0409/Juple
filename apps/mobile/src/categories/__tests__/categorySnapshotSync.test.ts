@@ -62,4 +62,17 @@ describe('syncCategorySnapshotToNative', () => {
     const sentJson = jest.mocked(NativeIncomingShare!.setCategorySnapshot).mock.calls[0][0];
     expect(JSON.parse(sentJson)).toHaveLength(2);
   });
+
+  it("offers only the user's own Categories as Direct Share targets - never ones shared with them", async () => {
+    const owned = makeCollection({ id: 1, name: 'Mine', accessRole: 'owner', hasCollaborators: true });
+    const sharedWithMe = makeCollection({ id: 2, name: 'Theirs', accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' });
+    jest.mocked(getCollections).mockResolvedValue({ items: [owned, sharedWithMe], nextCursor: null });
+
+    await syncCategorySnapshotToNative(jest.fn());
+
+    // The default (owned) scope is what is requested - never scope=shared.
+    expect(jest.mocked(getCollections).mock.calls.every(([, options]) => options?.scope === undefined)).toBe(true);
+    const sentJson = jest.mocked(NativeIncomingShare!.setCategorySnapshot).mock.calls[0][0];
+    expect(JSON.parse(sentJson)).toEqual([{ id: 1, name: 'Mine', isFavorite: false }]);
+  });
 });

@@ -1,4 +1,4 @@
-using Juple.Application.Users.DeleteAccount;
+﻿using Juple.Application.Users.DeleteAccount;
 using Juple.Domain.Images;
 using Juple.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -63,8 +63,52 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
                 .Where(operation => operation.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
-            // Collections -> cascades CollectionItems and CollectionShares. This is what makes
-            // this user's public share links stop resolving.
+            // Collaboration rows referencing this user through NoAction FKs, in either direction
+            // (as the invitee/member, or as the Owner who invited/added someone). Rows of this
+            // user's own Collections would also go with the Collections cascade below; clearing
+            // them explicitly here keeps the User delete free of FK blockers either way.
+            await dbContext.CollectionInvitations
+                .Where(invitation => invitation.InvitedUserId == userId || invitation.InvitedByUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await dbContext.CollectionCollaborators
+                .Where(collaborator => collaborator.UserId == userId || collaborator.CreatedByUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // Links this user added to anyone's Collection (AddedByUserId is NoAction). Their own
+            // Items' associations would also cascade with the Items delete below.
+            await dbContext.CollectionItems
+                .Where(membership => membership.AddedByUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // This user's personal favorite marks, including on other people's Collections (marks on
+            // their own Collections would also cascade with the Collections delete below).
+            await dbContext.CollectionFavorites
+                .Where(favorite => favorite.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // Friend requests and friendships in either direction; both private notes on each go
+            // with them (Cascade). The other people's accounts and Collections are untouched -
+            // unlike removing one friend, this clears every friendship of the deleted user.
+            await dbContext.Friendships
+                .Where(friendship => friendship.UserLowId == userId || friendship.UserHighId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // Failed-unlock counters keyed to this user on other people's Collections (their own
+            // Collections' counters cascade with the Collections delete).
+            var userThrottleKey = $"u:{userId}";
+            await dbContext.CollectionUnlockThrottles
+                .Where(throttle => throttle.SubjectKey == userThrottleKey)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // This user's single Collection lock password (NoAction FK to Users).
+            await dbContext.UserCollectionLockSettings
+                .Where(settings => settings.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // Collections -> cascades CollectionItems, CollectionShares, CollectionCollaborators,
+            // CollectionInvitations, CollectionUnlockThrottles and other people's CollectionFavorites. This is what makes this user's
+            // public share links stop resolving.
             await dbContext.Collections
                 .Where(collection => collection.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);

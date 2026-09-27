@@ -55,6 +55,16 @@ public sealed class CurrentUserProvisioningStore(JupleDbContext dbContext)
                 data.CreatedAtUtc,
                 data.CreatedAtUtc,
                 UserPlan.Free);
+
+            // The constructor already drew a random Juple ID; redraw on the (≈1 in 10^11 per
+            // existing user) chance it is taken. UX_Users_PublicCode remains the final guarantee.
+            for (var attempt = 0;
+                 attempt < 5 && await dbContext.Set<User>().AnyAsync(existing => existing.PublicCode == user.PublicCode, cancellationToken);
+                 attempt++)
+            {
+                user.RegeneratePublicCodeBeforeCreate();
+            }
+
             dbContext.Set<User>().Add(user);
             await dbContext.SaveChangesAsync(cancellationToken);
 

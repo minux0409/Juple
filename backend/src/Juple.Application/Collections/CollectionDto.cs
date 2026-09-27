@@ -1,4 +1,4 @@
-namespace Juple.Application.Collections;
+﻿namespace Juple.Application.Collections;
 
 /// <summary>Color is null only for a Collection that predates this feature (or was
 /// system-seeded without one) - see Collection.Color's own remarks on the client-side fallback.</summary>
@@ -10,4 +10,42 @@ public sealed record CollectionDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
     string Icon,
-    string? Color);
+    string? Color,
+    // Collaboration/lock (trailing, defaulted so pre-collaboration call sites keep their meaning):
+    // AccessRole is "owner", "contributor" or "viewer" - clients never infer it themselves. IsFavorite is
+    // always the CALLER's own favorite mark (see CollectionFavorite) - never someone else's. For a
+    // Contributor, OwnerJupleId/OwnerDisplayName identify the Owner; HasCollaborators is only
+    // reported to the Owner.
+    string AccessRole = CollectionDtoAccessRoles.Owner,
+    bool IsLocked = false,
+    bool HasCollaborators = false,
+    string? OwnerJupleId = null,
+    string? OwnerDisplayName = null,
+    // Collaborative Collections only: up to CollectionParticipantSummary.PreviewSize OTHER
+    // participants (never the caller) - the Owner first, then Contributors in joining order - and
+    // how many other participants there are in total. Pending invitations are never participants.
+    IReadOnlyList<CollectionParticipantDto>? ParticipantPreview = null,
+    int OtherParticipantCount = 0);
+
+/// <summary>
+/// A member of a collaborative Collection as other members see them: public Juple ID and the
+/// optional display name they chose - never an internal id or an email. Role is "owner",
+/// "contributor" or "viewer". IsMe marks the caller in a full participant list.
+/// </summary>
+public sealed record CollectionParticipantDto(string JupleId, string? DisplayName, string Role, bool IsMe = false);
+
+public static class CollectionParticipantSummary
+{
+    public const int PreviewSize = 2;
+}
+
+public static class CollectionDtoAccessRoles
+{
+    public const string Owner = "owner";
+    public const string Contributor = "contributor";
+    public const string Viewer = "viewer";
+
+    /// <summary>The wire role of a non-owner member.</summary>
+    public static string ForCollaborator(Juple.Domain.Collections.CollectionCollaboratorRole role) =>
+        role == Juple.Domain.Collections.CollectionCollaboratorRole.Viewer ? Viewer : Contributor;
+}

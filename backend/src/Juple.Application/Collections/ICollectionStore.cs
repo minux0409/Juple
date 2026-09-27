@@ -1,4 +1,4 @@
-using Juple.Domain.Collections;
+﻿using Juple.Domain.Collections;
 
 namespace Juple.Application.Collections;
 
@@ -30,6 +30,38 @@ public interface ICollectionStore
         int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Active Collections the caller is a Contributor of (never ones they own), each with
+    /// AccessRole "contributor", the Owner's Juple ID and lock state. Same cursor/limit/filters as
+    /// ListAsync except isFavorite (a Contributor has no favorite state).
+    /// </summary>
+    Task<CollectionPage> ListSharedAsync(
+        long userId,
+        long? itemId,
+        long? excludeItemId,
+        CollectionPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        // Same defaulted-member convention as RestoreAsync below - only CollectionStore implements
+        // it; single-purpose test fakes of this interface need not.
+        Task.FromResult(new CollectionPage([], null));
+
+    /// <summary>
+    /// One page of the caller's Collections in the given scope (see CollectionListScope), in a
+    /// single ordering (CreatedAtUtc DESC, Id DESC) across owned and shared rows - so a mixed list
+    /// is paged by the server, never merged by the client. Every row carries the caller's AccessRole,
+    /// the caller's own IsFavorite and, for collaborative Collections, the participant summary.
+    /// </summary>
+    Task<CollectionPage> ListByScopeAsync(
+        long userId,
+        ListCollections.CollectionListScope scope,
+        long? itemId,
+        long? excludeItemId,
+        CollectionPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
     Task<CollectionDto> CreateAsync(
         long userId,
         string name,
@@ -39,6 +71,10 @@ public interface ICollectionStore
         string? color = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// An active Collection the caller owns or collaborates on (anyone else: CollectionNotFoundException).
+    /// Metadata only - never item content - so a locked Collection's header is still available.
+    /// </summary>
     Task<CollectionDto> GetAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
 
     Task RenameAsync(
@@ -50,9 +86,9 @@ public interface ICollectionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Same lost-update protection as RenameAsync: no client-supplied version, EF's own RowVersion
-    /// concurrency check on this read-then-save covers a concurrent Rename/SetFavorite race on the
-    /// same Collection (whichever save lands second throws CollectionConcurrencyException).
+    /// Sets or clears the CALLER's own favorite mark (see CollectionFavorite) on a Collection they
+    /// can access - idempotent either way, and never visible to or affecting anyone else. Callers
+    /// check access first (CollectionPermission.Favorite). Returns the Collection as the caller sees it.
     /// </summary>
     Task<CollectionDto> SetFavoriteAsync(
         long userId,

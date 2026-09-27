@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ScrollView, Text, TextInput } from 'react-native';
+import { ScrollView, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -263,7 +263,7 @@ describe('NewLinkReviewScreen', () => {
       expect.anything(), 'https://example.com/shared', expect.any(String),
     );
     expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 55, { title: 'Shared title', memo: '' });
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 3, 55);
+    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 3, 55, { unlockToken: null });
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
@@ -1253,7 +1253,7 @@ describe('NewLinkReviewScreen', () => {
       pressSaveButton(renderer);
     });
 
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 60);
+    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 60, { unlockToken: null });
   });
 
   describe('active draft + conflicting incoming share', () => {

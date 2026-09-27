@@ -39,6 +39,15 @@ public sealed class CollectionShareConfiguration : IEntityTypeConfiguration<Coll
         builder.Property(share => share.RevokedAtUtc)
             .HasColumnType("datetimeoffset");
 
+        // Stored as the name (like CollectionCollaborator.Role); the default keeps every existing
+        // row, and every row an earlier revision inserts, read-only.
+        builder.Property(share => share.Permission)
+            .HasConversion<string>()
+            .HasColumnType("varchar(10)")
+            .IsRequired()
+            .HasDefaultValue(CollectionSharePermission.Read)
+            .HasSentinel(CollectionSharePermission.Read);
+
         // The Public Web Viewer's sole lookup path (GET /api/v1/public/collections/{publicId}) -
         // must be unique so a PublicId can never resolve to more than one Collection.
         builder.HasIndex(share => share.PublicId)

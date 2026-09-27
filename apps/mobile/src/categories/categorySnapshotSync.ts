@@ -1,5 +1,6 @@
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { getCollections, type Collection } from '../collections/api/collectionsApi';
+import { isSharedWithMe } from '../collections/collectionAccess';
 import NativeIncomingShare from '../share/specs/NativeIncomingShare';
 
 const PAGE_LIMIT = 50;
@@ -44,7 +45,9 @@ export async function syncCategorySnapshotToNative(request: AuthenticatedApiRequ
     cursor = page.nextCursor ?? undefined;
   } while (cursor);
 
-  const snapshot = rankCategories(collected).map(collection => ({
+  // v1: Direct Share targets are the user's own Categories only - the default (owned) scope already
+  // excludes Categories shared with them; filtered again so that can never silently change.
+  const snapshot = rankCategories(collected.filter(collection => !isSharedWithMe(collection))).map(collection => ({
     id: collection.id,
     name: collection.name,
     isFavorite: collection.isFavorite,

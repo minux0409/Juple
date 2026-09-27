@@ -656,8 +656,8 @@ describe('ItemDetailsScreen', () => {
         await findPressableByText(renderer, '저장')?.props.onPress();
       });
 
-      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1);
-      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 6, 1);
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, { unlockToken: null });
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 6, 1, { unlockToken: null });
       expect(isSaveDisabled(renderer)).toBe(true);
       expect(renderer.root.findByProps({ children: '저장되었습니다.' })).toBeTruthy();
       expect(renderer.root.findAllByType(ConfirmDialog).filter(dialog => dialog.props.visible && dialog.props.message === '저장되었습니다.')).toHaveLength(0);

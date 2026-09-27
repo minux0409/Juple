@@ -50,6 +50,24 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("LockPasswordChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LockPasswordHash")
+                        .HasMaxLength(200)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int>("LockVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -87,6 +105,131 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("Collections", "collections");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionCollaborator", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("CollectionId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionCollaborators_CollectionId_UserId");
+
+                    b.HasIndex("UserId", "CollectionId")
+                        .HasDatabaseName("IX_CollectionCollaborators_UserId_CollectionId");
+
+                    b.ToTable("CollectionCollaborators", "collections");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionFavorite", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId")
+                        .HasDatabaseName("IX_CollectionFavorites_CollectionId");
+
+                    b.HasIndex("UserId", "CollectionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionFavorites_UserId_CollectionId");
+
+                    b.ToTable("CollectionFavorites", "collections");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionInvitation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("InvitedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("InvitedUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("RespondedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvitedByUserId");
+
+                    b.HasIndex("CollectionId", "InvitedUserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionInvitations_CollectionId_InvitedUserId_Pending")
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.HasIndex("CollectionId", "Status")
+                        .HasDatabaseName("IX_CollectionInvitations_CollectionId_Status");
+
+                    b.HasIndex("InvitedUserId", "Status")
+                        .HasDatabaseName("IX_CollectionInvitations_InvitedUserId_Status");
+
+                    b.ToTable("CollectionInvitations", "collections");
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionItem", b =>
                 {
                     b.Property<long>("Id")
@@ -97,6 +240,14 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset>("AddedAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("AddedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("AddedViaPublicShare")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<long>("CollectionId")
                         .HasColumnType("bigint");
@@ -109,8 +260,13 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AddedByUserId");
+
                     b.HasIndex("ItemId")
                         .HasDatabaseName("IX_CollectionItems_ItemId");
+
+                    b.HasIndex("CollectionId", "AddedByUserId")
+                        .HasDatabaseName("IX_CollectionItems_CollectionId_AddedByUserId");
 
                     b.HasIndex("CollectionId", "ItemId")
                         .IsUnique()
@@ -206,6 +362,12 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Permission")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("Read");
+
                     b.Property<string>("PublicId")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -229,6 +391,157 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UX_CollectionShares_PublicId");
 
                     b.ToTable("CollectionShares", "collections");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionUnlockThrottle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("FailedAttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SubjectKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("WindowStartedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId", "SubjectKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionUnlockThrottles_CollectionId_SubjectKey");
+
+                    b.ToTable("CollectionUnlockThrottles", "collections");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.UserCollectionLockSettings", b =>
+                {
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("FailedChangeAttemptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTimeOffset?>("FailedChangeWindowStartedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("PasswordChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserCollectionLockSettings", "collections");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Friends.Friendship", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("RequestedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<long>("UserHighId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UserLowId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("UserHighId")
+                        .HasDatabaseName("IX_Friendships_UserHighId");
+
+                    b.HasIndex("UserLowId", "UserHighId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Friendships_UserLowId_UserHighId");
+
+                    b.ToTable("Friendships", "users", t =>
+                        {
+                            t.HasCheckConstraint("CK_Friendships_CanonicalPair", "[UserLowId] < [UserHighId]");
+                        });
+                });
+
+            modelBuilder.Entity("Juple.Domain.Friends.FriendshipNote", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("FriendshipId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("FriendshipId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_FriendshipNotes_FriendshipId_UserId");
+
+                    b.ToTable("FriendshipNotes", "users");
                 });
 
             modelBuilder.Entity("Juple.Domain.Identity.ExternalIdentity", b =>
@@ -827,6 +1140,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("char(3)");
 
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
                     b.Property<string>("Plan")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -836,6 +1153,12 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<string>("PreferredLocale")
                         .IsRequired()
                         .HasColumnType("varchar(35)");
+
+                    b.Property<string>("PublicCode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -852,6 +1175,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PublicCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Users_PublicCode");
+
                     b.ToTable("Users", "users");
                 });
 
@@ -864,8 +1191,71 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionCollaborator", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionFavorite", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionInvitation", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("InvitedUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionItem", b =>
                 {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("AddedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("Juple.Domain.Collections.Collection", null)
                         .WithMany()
                         .HasForeignKey("CollectionId")
@@ -921,6 +1311,60 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("CollectionId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionUnlockThrottle", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.UserCollectionLockSettings", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithOne()
+                        .HasForeignKey("Juple.Domain.Collections.UserCollectionLockSettings", "UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Friends.Friendship", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserHighId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserLowId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Friends.FriendshipNote", b =>
+                {
+                    b.HasOne("Juple.Domain.Friends.Friendship", null)
+                        .WithMany()
+                        .HasForeignKey("FriendshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 

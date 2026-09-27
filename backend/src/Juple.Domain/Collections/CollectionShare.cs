@@ -45,6 +45,20 @@ public sealed class CollectionShare
 
     public DateTimeOffset? RevokedAtUtc { get; private set; }
 
+    /// <summary>Read (default, anonymous viewing) or Write (signed-in holders may also add their own links).</summary>
+    public CollectionSharePermission Permission { get; private set; } = CollectionSharePermission.Read;
+
+    public void SetPermission(CollectionSharePermission permission, DateTimeOffset updatedAtUtc)
+    {
+        if (Permission == permission)
+        {
+            return;
+        }
+
+        Permission = permission;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
     /// <summary>Idempotent - revoking an already-revoked share is a no-op, not an error.</summary>
     public void Revoke(DateTimeOffset revokedAtUtc)
     {

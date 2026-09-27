@@ -57,6 +57,25 @@ export const categoryTilePalette = [
 ] as const;
 
 /**
+ * The Collections screen's 2x2 filter (즐겨찾기 | 전체 / 내 컬렉션 | 공유 컬렉션): colors for the
+ * selected / unselected STATE of a filter cell. The selected cell reuses the existing blue
+ * Collection tile pair (categoryTilePalette[0], identical to the 'Blue' preset in
+ * collectionColors.ts - the sky-blue card background) with its own darker icon tone as the label
+ * color, so it reads as part of the same visual family; it never colors a Collection itself. The
+ * unselected cell keeps a visible border and a dark-enough label so it reads as tappable, never as
+ * disabled.
+ */
+export const collectionFilterColors = {
+  selectedBackground: categoryTilePalette[0].background,
+  /** The default blue folder glyph's stroke color - a crisp outline that keeps the soft fill. */
+  selectedBorder: categoryTilePalette[0].icon,
+  selectedText: categoryTilePalette[0].icon,
+  unselectedBackground: '#F1F2F4',
+  unselectedText: '#5F6368',
+  unselectedBorder: '#D9DCE1',
+} as const;
+
+/**
  * Very soft card elevation (barely-there shadow, matching this round's "그림자는 약하게" - never a
  * heavy drop shadow) - spread as `...cardShadow` into a card container's style alongside its own
  * border/radius. `elevation` is Android's own shadow property; iOS uses the shadow* fields.

@@ -1,4 +1,5 @@
-using Juple.Domain.Collections;
+﻿using Juple.Domain.Collections;
+using Juple.Domain.Friends;
 using Juple.Domain.Identity;
 using Juple.Domain.Images;
 using Juple.Domain.Items;
@@ -37,6 +38,20 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
     public DbSet<CollectionItem> CollectionItems => Set<CollectionItem>();
 
     public DbSet<CollectionShare> CollectionShares => Set<CollectionShare>();
+
+    public DbSet<CollectionCollaborator> CollectionCollaborators => Set<CollectionCollaborator>();
+
+    public DbSet<CollectionInvitation> CollectionInvitations => Set<CollectionInvitation>();
+
+    public DbSet<CollectionFavorite> CollectionFavorites => Set<CollectionFavorite>();
+
+    public DbSet<Friendship> Friendships => Set<Friendship>();
+
+    public DbSet<FriendshipNote> FriendshipNotes => Set<FriendshipNote>();
+
+    public DbSet<CollectionUnlockThrottle> CollectionUnlockThrottles => Set<CollectionUnlockThrottle>();
+
+    public DbSet<UserCollectionLockSettings> UserCollectionLockSettings => Set<UserCollectionLockSettings>();
 
     public DbSet<CollectionMergeOperation> CollectionMergeOperations => Set<CollectionMergeOperation>();
 

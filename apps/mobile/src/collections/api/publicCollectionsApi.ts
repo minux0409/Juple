@@ -8,9 +8,14 @@ import { requestApi } from '../../api/apiClient';
  * even for a signed-in one - the publicId is opaque and carries no ownership.
  */
 
-/** Mirrors the Backend's PublicCollectionDto - Name only, nothing else. */
+/**
+ * Mirrors the Backend's PublicCollectionDto. A locked share not yet unlocked has a null name and
+ * no permission. permission 'write' means signed-in holders may add their own links.
+ */
 export interface PublicCollection {
-  readonly name: string;
+  readonly name: string | null;
+  readonly isLocked?: boolean;
+  readonly permission?: 'read' | 'write' | null;
 }
 
 /** Mirrors the Backend's PublicCollectionItemDto - Title and the original Url only. */

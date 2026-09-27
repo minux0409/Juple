@@ -6,5 +6,6 @@ public interface IAddItemToCollectionService
         long userId,
         long collectionId,
         long itemId,
+        string? unlockToken = null,
         CancellationToken cancellationToken = default);
 }

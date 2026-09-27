@@ -15,6 +15,7 @@ import { useCategorySnapshotBootstrapSync } from './src/categories/useCategorySn
 // first frame - see src/i18n/index.ts.
 import './src/i18n';
 import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
+import { LayoutDirectionRoot, useLayoutDirection } from './src/i18n/layoutDirection';
 import { linking } from './src/navigation/linking';
 import { navigationRef } from './src/navigation/navigationRef';
 import { RootStack } from './src/navigation/RootStack';
@@ -49,17 +50,21 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      {isLanguageReady ? (
-        <AuthProvider>
-          <PushRegistrationSync />
-          <CategorySnapshotSync />
-          <AppToastProvider><AppNavigation /></AppToastProvider>
-        </AuthProvider>
-      ) : (
-        <View style={styles.container}>
-          <ActivityIndicator />
-        </View>
-      )}
+      {/* The selected language's direction, applied to everything below and switched in place -
+          see LayoutDirectionRoot. */}
+      <LayoutDirectionRoot>
+        {isLanguageReady ? (
+          <AuthProvider>
+            <PushRegistrationSync />
+            <CategorySnapshotSync />
+            <AppToastProvider><AppNavigation /></AppToastProvider>
+          </AuthProvider>
+        ) : (
+          <View style={styles.container}>
+            <ActivityIndicator />
+          </View>
+        )}
+      </LayoutDirectionRoot>
     </SafeAreaProvider>
   );
 }
@@ -85,6 +90,8 @@ function CategorySnapshotSync(): null {
  */
 function AppNavigation() {
   const { isInitializing } = useAuth();
+  // Headers, back buttons and gestures follow the app language too, not the native RTL flag.
+  const direction = useLayoutDirection();
 
   if (isInitializing) {
     return (
@@ -95,7 +102,7 @@ function AppNavigation() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer direction={direction} ref={navigationRef} linking={linking}>
       <RootStack />
     </NavigationContainer>
   );

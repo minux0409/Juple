@@ -1,7 +1,11 @@
-using Juple.Api.Authentication;
+﻿using Juple.Api.Authentication;
 using Juple.Api.Collections;
 using Juple.Api.Configuration;
 using Juple.Application.Collections;
+using Juple.Domain.Collections;
+using Juple.Application.Collections.Access;
+using Juple.Application.Collections.Collaboration;
+using Juple.Application.Collections.Locking;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.CreateCollection;
 using Juple.Application.Collections.DeleteCollection;
@@ -10,6 +14,7 @@ using Juple.Application.Collections.GetCollectionDetail;
 using Juple.Application.Collections.GetCollectionItems;
 using Juple.Application.Collections.GetCollectionShare;
 using Juple.Application.Collections.ListCollections;
+using Juple.Application.Collections.Public;
 using Juple.Application.Collections.MoveCollectionItem;
 using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.RemoveItemFromCollection;
@@ -27,6 +32,7 @@ using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace Juple.Api.Controllers;
@@ -79,6 +85,14 @@ public sealed class CollectionsController(
     /// unlike itemId/excludeItemId it has no mutual-exclusivity rule and freely composes with
     /// either of them.
     /// </summary>
+    /// <remarks>
+    /// scope selects which accessible Collections to list: "owned" (내 카테고리), "shared" (공유
+    /// 카테고리: the caller is a Contributor), "all" (both, one server-side ordering - the
+    /// Categories screen's default filter) or "favorites" (both, only the caller's own favorite
+    /// marks). Omitting scope keeps its original meaning, owned, so existing callers (the Direct
+    /// Share category snapshot, older app versions) are unchanged. Each row carries an explicit
+    /// accessRole and the caller's own isFavorite, so clients never infer either themselves.
+    /// </remarks>
     [HttpGet]
     public async Task<IActionResult> ListAsync(
         [FromQuery] long? itemId,
@@ -86,8 +100,41 @@ public sealed class CollectionsController(
         [FromQuery] bool? isFavorite,
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] string? scope = null)
     {
+        CollectionListScope resolvedScope;
+        switch (scope)
+        {
+            case null or "owned":
+                resolvedScope = CollectionListScope.Owned;
+                break;
+            case "shared":
+                resolvedScope = CollectionListScope.Shared;
+                break;
+            case "all":
+                resolvedScope = CollectionListScope.All;
+                break;
+            case "favorites":
+                resolvedScope = CollectionListScope.Favorites;
+                break;
+            default:
+                return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["scope"] = ["scope must be 'owned', 'shared', 'all' or 'favorites'."],
+                }));
+        }
+
+        // The legacy isFavorite filter only ever applied to owned Collections; the other scopes
+        // express it through scope=favorites instead.
+        if (resolvedScope != CollectionListScope.Owned && isFavorite is not null)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["isFavorite"] = ["isFavorite only applies to scope 'owned' - use scope 'favorites'."],
+            }));
+        }
+
         if (!CollectionsQueryParameters.TryParseItemId(itemId, out var resolvedItemId))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -135,8 +182,11 @@ public sealed class CollectionsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var page = await listCollectionsService.ListAsync(
-                currentUser.UserId, resolvedItemId, resolvedExcludeItemId, isFavorite, typedCursor, resolvedLimit, cancellationToken);
+            var page = resolvedScope == CollectionListScope.Owned
+                ? await listCollectionsService.ListAsync(
+                    currentUser.UserId, resolvedItemId, resolvedExcludeItemId, isFavorite, typedCursor, resolvedLimit, cancellationToken)
+                : await listCollectionsService.ListByScopeAsync(
+                    currentUser.UserId, resolvedScope, resolvedItemId, resolvedExcludeItemId, typedCursor, resolvedLimit, cancellationToken);
 
             return Ok(new CollectionsResponse(
                 page.Items,
@@ -209,6 +259,7 @@ public sealed class CollectionsController(
     }
 
     [HttpPut("{id:long}")]
+    [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public Task<IActionResult> RenameAsync(
         long id,
         RenameCollectionRequest request,
@@ -226,6 +277,7 @@ public sealed class CollectionsController(
     /// UI state - e.g. ItemCount/UpdatedAtUtc - against the server's actual result in one round trip.
     /// </summary>
     [HttpPut("{id:long}/favorite")]
+    [CollectionPermission(CollectionPermission.Favorite)]
     public async Task<IActionResult> SetFavoriteAsync(
         long id,
         SetCollectionFavoriteRequest request,
@@ -260,6 +312,7 @@ public sealed class CollectionsController(
 
     /// <summary>Same shape as SetFavoriteAsync above (returns the latest CollectionDto, no client-supplied version).</summary>
     [HttpPut("{id:long}/icon")]
+    [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public async Task<IActionResult> SetIconAsync(
         long id,
         SetCollectionIconRequest request,
@@ -301,6 +354,7 @@ public sealed class CollectionsController(
 
     /// <summary>Same shape as SetIconAsync above (returns the latest CollectionDto, no client-supplied version).</summary>
     [HttpPut("{id:long}/color")]
+    [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
     public async Task<IActionResult> SetColorAsync(
         long id,
         SetCollectionColorRequest request,
@@ -341,6 +395,7 @@ public sealed class CollectionsController(
     }
 
     [HttpDelete("{id:long}")]
+    [CollectionPermission(CollectionPermission.Delete, requireUnlock: true)]
     public Task<IActionResult> DeleteAsync(long id, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => deleteCollectionService.DeleteAsync(userId, id, cancellationToken),
@@ -350,17 +405,32 @@ public sealed class CollectionsController(
     /// Idempotent - if this Collection already has an active share, returns that same one (same
     /// PublicId, same ShareUrl) rather than minting a new link. The 1:1 CollectionDto-reuse-ban
     /// from the public side applies here too, just in reverse: CollectionShareResponse is never
-    /// reused by the anonymous side.
+    /// reused by the anonymous side. Optional body { permission: "read" | "write" } (absent = read)
+    /// applies only when a new link is created.
     /// </summary>
     [HttpPost("{id:long}/share")]
-    public async Task<IActionResult> EnableShareAsync(long id, CancellationToken cancellationToken)
+    [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
+    public async Task<IActionResult> EnableShareAsync(
+        long id,
+        CancellationToken cancellationToken,
+        [FromBody] SetSharePermissionRequest? request = null)
     {
+        var permission = Juple.Domain.Collections.CollectionSharePermission.Read;
+        if (request?.Permission is not null && !PublicSharePermissions.TryParse(request.Permission, out permission))
+        {
+            return InvalidSharePermission();
+        }
+
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var share = await enableCollectionShareService.EnableAsync(currentUser.UserId, id, cancellationToken);
+            var share = await enableCollectionShareService.EnableAsync(currentUser.UserId, id, permission, cancellationToken);
             return Ok(ToShareResponse(share));
+        }
+        catch (CollectionCollaborationConflictException exception)
+        {
+            return CollectionProblems.Conflict(exception.Code);
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -376,6 +446,7 @@ public sealed class CollectionsController(
 
     /// <summary>Share is null (not a 404) when the Collection is owned but currently unshared - a valid, common state.</summary>
     [HttpGet("{id:long}/share")]
+    [CollectionPermission(CollectionPermission.ManageShare)]
     public async Task<IActionResult> GetShareAsync(long id, CancellationToken cancellationToken)
     {
         try
@@ -404,17 +475,46 @@ public sealed class CollectionsController(
     /// CollectionShareStore.EnableAsync, which always mints a fresh one when no active row exists).
     /// </summary>
     [HttpDelete("{id:long}/share")]
+    [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
     public Task<IActionResult> RevokeShareAsync(long id, CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => revokeCollectionShareService.RevokeAsync(userId, id, cancellationToken),
             cancellationToken);
 
     /// <summary>
+    /// Switches the active public link between "read" (anyone with the link views) and "write"
+    /// (additionally, holders SIGNED IN to Juple may add their own links - never anonymously).
+    /// 409 publicShareNotActive when there is no active link.
+    /// </summary>
+    [HttpPut("{id:long}/share/permission")]
+    [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
+    public Task<IActionResult> SetSharePermissionAsync(long id, SetSharePermissionRequest request, CancellationToken cancellationToken)
+    {
+        if (!PublicSharePermissions.TryParse(request.Permission, out var permission))
+        {
+            return Task.FromResult(InvalidSharePermission());
+        }
+
+        return ExecuteAsync(
+            userId => enableCollectionShareService.SetPermissionAsync(userId, id, permission, cancellationToken),
+            share => share is null
+                ? CollectionProblems.Create(StatusCodes.Status409Conflict, "There is no active public link.", CollectionProblems.PublicShareNotActive)
+                : Ok(ToShareResponse(share)),
+            cancellationToken);
+    }
+
+    private IActionResult InvalidSharePermission() =>
+        BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+        {
+            ["permission"] = ["permission must be \"read\" or \"write\"."],
+        }));
+
+    /// <summary>
     /// Composes the canonical share URL server-side from PublicWebOptions - the Mobile client never
     /// assembles this itself or needs to know the Public Web's base URL.
     /// </summary>
     private CollectionShareResponse ToShareResponse(CollectionShareDto share) =>
-        new(share.PublicId, $"{publicWebOptions.Value.BaseUrl.TrimEnd('/')}/c/{share.PublicId}", share.CreatedAtUtc);
+        new(share.PublicId, $"{publicWebOptions.Value.BaseUrl.TrimEnd('/')}/c/{share.PublicId}", share.CreatedAtUtc, PublicSharePermissions.ToWire(share.Permission));
 
     /// <summary>
     /// A day's/Collection's worth of Items is unbounded, so this is always cursor-paginated - the
@@ -426,7 +526,8 @@ public sealed class CollectionsController(
         long id,
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null)
     {
         if (!CollectionsQueryParameters.TryParseLimit(limit, out var resolvedLimit))
         {
@@ -452,7 +553,7 @@ public sealed class CollectionsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = await getCollectionItemsService.GetAsync(
-                currentUser.UserId, id, typedCursor, resolvedLimit, cancellationToken);
+                currentUser.UserId, id, typedCursor, resolvedLimit, unlockToken, cancellationToken);
 
             return Ok(new CollectionItemsPageResponse(
                 page.Items,
@@ -468,20 +569,271 @@ public sealed class CollectionsController(
         {
             return NotFound();
         }
+        catch (CollectionLockedException)
+        {
+            return CollectionProblems.CollectionLocked();
+        }
     }
+
+    /// <summary>
+    /// Header carrying the short-lived grant from POST {id}/unlock. A header (not a query string) so
+    /// it never lands in URL logs.
+    /// </summary>
+    public const string UnlockTokenHeader = "X-Juple-Collection-Unlock";
+
+    /// <summary>
+    /// One link of a Collection as the read-only shared view (for opening another member's Item -
+    /// GET /items/{id} stays owner-only). Same access + lock gates as the list.
+    /// </summary>
+    [HttpGet("{id:long}/items/{itemId:long}")]
+    public Task<IActionResult> GetSharedItemAsync(
+        long id,
+        long itemId,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => getCollectionItemsService.GetItemAsync(userId, id, itemId, unlockToken, cancellationToken),
+            item => item is null ? NotFound() : Ok(item),
+            cancellationToken);
+
+    // ---- Lock (Owner manages; every member, the Owner included, must unlock) ----
+
+    /// <summary>
+    /// Owner only. Locks the Collection under the Owner's one lock password - no password is sent or
+    /// created here (409 collectionLockPasswordNotConfigured until they set one in Settings). An older
+    /// app still sending a per-Collection password gets 409 collectionLockUsesAccountPassword instead
+    /// of a lock that would not open with the password it just typed.
+    /// </summary>
+    [HttpPut("{id:long}/lock")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
+    public async Task<IActionResult> SetLockAsync(
+        long id,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] SetCollectionLockRequest? request,
+        [FromServices] ICollectionLockService lockService,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(request?.Password) || !string.IsNullOrEmpty(request?.CurrentPassword))
+        {
+            return CollectionProblems.Create(
+                StatusCodes.Status409Conflict,
+                "Collections now use the account's Collection lock password.",
+                CollectionProblems.LockUsesAccountPassword);
+        }
+
+        try
+        {
+            return await ExecuteAsync(userId => lockService.LockAsync(userId, id, cancellationToken), cancellationToken);
+        }
+        catch (CollectionLockPasswordNotConfiguredException)
+        {
+            return CollectionProblems.LockPasswordNotConfigured();
+        }
+    }
+
+    /// <summary>Owner only. Removes the lock after verifying the Owner's lock password (no bypass).</summary>
+    [HttpPost("{id:long}/lock/remove")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
+    public Task<IActionResult> RemoveLockAsync(
+        long id,
+        RemoveCollectionLockRequest request,
+        [FromServices] ICollectionLockService lockService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => lockService.RemoveAsync(userId, id, request.CurrentPassword, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// Owner or Contributor. Verifies the password (throttled) and returns a short-lived grant for
+    /// this user and this Collection - sent back in the X-Juple-Collection-Unlock header.
+    /// </summary>
+    [HttpPost("{id:long}/unlock")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
+    public Task<IActionResult> UnlockAsync(
+        long id,
+        UnlockCollectionRequest request,
+        [FromServices] ICollectionLockService lockService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => lockService.UnlockAsync(userId, id, request.Password, cancellationToken),
+            grant => Ok(new UnlockCollectionResponse(grant.Token, grant.ExpiresAtUtc)),
+            cancellationToken);
+
+    // ---- Collaboration (Owner only) ----
+
+    /// <summary>Current collaborators and pending invitations, identified by Juple ID only.</summary>
+    [HttpGet("{id:long}/collaborators")]
+    public Task<IActionResult> GetCollaborationAsync(
+        long id,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => collaborationService.GetOverviewAsync(userId, id, cancellationToken),
+            overview => Ok(overview),
+            cancellationToken);
+
+    /// <summary>
+    /// Any member (Owner or Contributor): who is in this Collection - the Owner and accepted
+    /// Contributors, by Juple ID and chosen display name only. Pending invitations and CanManage
+    /// only for the Owner. Membership is metadata like the Collection card, so no unlock grant.
+    /// </summary>
+    [HttpGet("{id:long}/participants")]
+    public Task<IActionResult> GetParticipantsAsync(
+        long id,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => collaborationService.GetParticipantsAsync(userId, id, cancellationToken),
+            participants => Ok(participants),
+            cancellationToken);
+
+    /// <summary>
+    /// Invites the user with this exact Juple ID - as a Contributor (공동작업, the default) or a
+    /// Viewer (보기 전용 공유, role "viewer"); they must accept it themselves.
+    /// </summary>
+    [HttpPost("{id:long}/invitations")]
+    [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
+    [EnableRateLimiting(RateLimitPolicies.JupleIdLookup)]
+    public Task<IActionResult> InviteAsync(
+        long id,
+        InviteCollaboratorRequest request,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseInviteRole(request.Role, out var role))
+        {
+            return Task.FromResult<IActionResult>(BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["role"] = ["role must be \"contributor\" or \"viewer\"."],
+            })));
+        }
+
+        return ExecuteAsync(
+            userId => collaborationService.InviteAsync(userId, id, request.JupleId, role, cancellationToken),
+            invitation => Ok(invitation),
+            cancellationToken);
+    }
+
+    /// <summary>Absent → Contributor (the pre-Viewer contract); otherwise exactly "contributor" or "viewer", any case.</summary>
+    private static bool TryParseInviteRole(string? value, out CollectionCollaboratorRole role)
+    {
+        role = CollectionCollaboratorRole.Contributor;
+        if (value is null)
+        {
+            return true;
+        }
+
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case CollectionDtoAccessRoles.Contributor:
+                return true;
+            case CollectionDtoAccessRoles.Viewer:
+                role = CollectionCollaboratorRole.Viewer;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    [HttpDelete("{id:long}/invitations/{invitationId:long}")]
+    [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
+    public Task<IActionResult> RevokeInvitationAsync(
+        long id,
+        long invitationId,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => collaborationService.RevokeInvitationAsync(userId, id, invitationId, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// Changes what a still-pending invitation grants: "viewer" (읽기) or "contributor" (쓰기).
+    /// 409 invitationNotPending once answered, publicShareActive for "contributor" while the public
+    /// link is on (nothing is switched off automatically).
+    /// </summary>
+    [HttpPut("{id:long}/invitations/{invitationId:long}/role")]
+    [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
+    public Task<IActionResult> ChangeInvitationRoleAsync(
+        long id,
+        long invitationId,
+        ChangeRoleRequest request,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseRequiredRole(request.Role, out var role))
+        {
+            return Task.FromResult(InvalidRole());
+        }
+
+        return ExecuteAsync(
+            userId => collaborationService.ChangeInvitationRoleAsync(userId, id, invitationId, role, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Changes an accepted member's role (addressed by Juple ID): "viewer" (읽기) or "contributor"
+    /// (쓰기), effective on their next request. 409 publicShareActive for "contributor" while the
+    /// public link is on. The Owner has no member row, so their own role can never be changed here.
+    /// </summary>
+    [HttpPut("{id:long}/collaborators/{jupleId}/role")]
+    [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
+    public Task<IActionResult> ChangeCollaboratorRoleAsync(
+        long id,
+        string jupleId,
+        ChangeRoleRequest request,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken)
+    {
+        if (!TryParseRequiredRole(request.Role, out var role))
+        {
+            return Task.FromResult(InvalidRole());
+        }
+
+        return ExecuteAsync(
+            userId => collaborationService.ChangeCollaboratorRoleAsync(userId, id, jupleId, role, cancellationToken),
+            cancellationToken);
+    }
+
+    /// <summary>Unlike an invitation's (which defaults for older clients), a role change must name the role.</summary>
+    private static bool TryParseRequiredRole(string? value, out CollectionCollaboratorRole role)
+    {
+        role = CollectionCollaboratorRole.Contributor;
+        return value is not null && TryParseInviteRole(value, out role);
+    }
+
+    private IActionResult InvalidRole() =>
+        BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+        {
+            ["role"] = ["role must be \"contributor\" or \"viewer\"."],
+        }));
+
+    /// <summary>
+    /// Removes a Contributor (addressed by Juple ID - never an internal id) and exactly the links
+    /// they added to this Collection; their Items themselves are untouched.
+    /// </summary>
+    [HttpDelete("{id:long}/collaborators/{jupleId}")]
+    [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
+    public Task<IActionResult> RemoveCollaboratorAsync(
+        long id,
+        string jupleId,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => collaborationService.RemoveCollaboratorAsync(userId, id, jupleId, cancellationToken),
+            cancellationToken);
 
     /// <summary>Idempotent - adding an Item already in the Collection resolves on 204 too (see AddItemToCollectionService).</summary>
     [HttpPut("{id:long}/items/{itemId:long}")]
-    public Task<IActionResult> AddItemAsync(long id, long itemId, CancellationToken cancellationToken) =>
+    public Task<IActionResult> AddItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
-            userId => addItemToCollectionService.AddAsync(userId, id, itemId, cancellationToken),
+            userId => addItemToCollectionService.AddAsync(userId, id, itemId, unlockToken, cancellationToken),
             cancellationToken);
 
     /// <summary>Idempotent - resolves on 204 whether or not the Item was actually in the Collection.</summary>
     [HttpDelete("{id:long}/items/{itemId:long}")]
-    public Task<IActionResult> RemoveItemAsync(long id, long itemId, CancellationToken cancellationToken) =>
+    [CollectionPermission(CollectionPermission.RemoveItem)]
+    public Task<IActionResult> RemoveItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
-            userId => removeItemFromCollectionService.RemoveAsync(userId, id, itemId, cancellationToken),
+            userId => removeItemFromCollectionService.RemoveAsync(userId, id, itemId, unlockToken, cancellationToken),
             cancellationToken);
 
     /// <summary>
@@ -491,10 +843,11 @@ public sealed class CollectionsController(
     /// Item's id loaded. Only the Collection's owner may reorder.
     /// </summary>
     [HttpPut("{id:long}/items/{itemId:long}/position")]
+    [CollectionPermission(CollectionPermission.Reorganize)]
     public Task<IActionResult> MoveItemAsync(
-        long id, long itemId, MoveCollectionItemRequest request, CancellationToken cancellationToken) =>
+        long id, long itemId, MoveCollectionItemRequest request, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
-            userId => moveCollectionItemService.MoveAsync(userId, id, itemId, request.AfterItemId, cancellationToken),
+            userId => moveCollectionItemService.MoveAsync(userId, id, itemId, request.AfterItemId, unlockToken, cancellationToken),
             cancellationToken);
 
     [HttpPost("{id:long}/restore")]
@@ -503,22 +856,24 @@ public sealed class CollectionsController(
 
     /// <summary>Moves one active Item membership to another owned Collection atomically.</summary>
     [HttpPost("{sourceCollectionId:long}/items/{itemId:long}/move")]
+    [CollectionPermission(CollectionPermission.Reorganize, "sourceCollectionId")]
     public Task<IActionResult> TransferItemAsync(
-        long sourceCollectionId, long itemId, TransferCollectionItemRequest request, CancellationToken cancellationToken) =>
+        long sourceCollectionId, long itemId, TransferCollectionItemRequest request, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
             userId => transferCollectionItemService.TransferAsync(
-                userId, sourceCollectionId, itemId, request.TargetCollectionId, cancellationToken),
+                userId, sourceCollectionId, itemId, request.TargetCollectionId, unlockToken, cancellationToken),
             result => Ok(new TransferCollectionItemResponse(result.TargetMembershipCreated)),
             cancellationToken);
 
     /// <summary>Restores the membership state from a just-completed item move atomically.</summary>
     [HttpPost("{sourceCollectionId:long}/items/{itemId:long}/move/undo")]
+    [CollectionPermission(CollectionPermission.Reorganize, "sourceCollectionId")]
     public Task<IActionResult> UndoTransferItemAsync(
-        long sourceCollectionId, long itemId, UndoTransferCollectionItemRequest request, CancellationToken cancellationToken) =>
+        long sourceCollectionId, long itemId, UndoTransferCollectionItemRequest request, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
             userId => undoTransferCollectionItemService.UndoAsync(
                 userId, sourceCollectionId, itemId, request.TargetCollectionId,
-                request.TargetMembershipCreated, cancellationToken),
+                request.TargetMembershipCreated, unlockToken, cancellationToken),
             cancellationToken);
 
     /// <summary>
@@ -527,11 +882,12 @@ public sealed class CollectionsController(
     /// be replayed against the dedicated Undo endpoint below to reverse exactly this merge.
     /// </summary>
     [HttpPost("{sourceCollectionId:long}/merge")]
+    [CollectionPermission(CollectionPermission.Reorganize, "sourceCollectionId")]
     public Task<IActionResult> MergeAsync(
-        long sourceCollectionId, MergeCollectionsRequest request, CancellationToken cancellationToken) =>
+        long sourceCollectionId, MergeCollectionsRequest request, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
             userId => mergeCollectionsService.MergeAsync(
-                userId, sourceCollectionId, request.TargetCollectionId, cancellationToken),
+                userId, sourceCollectionId, request.TargetCollectionId, unlockToken, cancellationToken),
             result => Ok(new MergeCollectionsResponse(result.UndoOperationId)),
             cancellationToken);
 
@@ -605,7 +961,57 @@ public sealed class CollectionsController(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The Collection was modified concurrently.");
         }
+        catch (CollectionForbiddenException)
+        {
+            return CollectionProblems.CollectionForbidden();
+        }
+        catch (CollectionLockedException)
+        {
+            return CollectionProblems.CollectionLocked();
+        }
+        catch (CollectionCollaborationConflictException exception)
+        {
+            return CollectionProblems.Conflict(exception.Code);
+        }
+        catch (CollectionNotLockedException)
+        {
+            return CollectionProblems.CollectionNotLocked();
+        }
+        catch (InvalidCollectionPasswordException)
+        {
+            return CollectionProblems.InvalidCollectionPassword();
+        }
+        catch (CollectionUnlockThrottledException exception)
+        {
+            return CollectionProblems.TooManyUnlockAttempts(Response, exception.RetryAfterUtc, TimeProvider.System.GetUtcNow());
+        }
+        catch (JupleIdNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionInvitationNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionCollaboratorNotFoundException)
+        {
+            return NotFound();
+        }
     }
+
+    public sealed record SetCollectionLockRequest(string? Password, string? CurrentPassword);
+
+    public sealed record RemoveCollectionLockRequest(string? CurrentPassword);
+
+    public sealed record UnlockCollectionRequest(string? Password);
+
+    public sealed record UnlockCollectionResponse(string UnlockToken, DateTimeOffset ExpiresAtUtc);
+
+    /// <summary>Role: "contributor" (default when absent) or "viewer".</summary>
+    public sealed record InviteCollaboratorRequest(string? JupleId, string? Role = null);
+
+    /// <summary>Role: "contributor" (쓰기) or "viewer" (읽기) - required.</summary>
+    public sealed record ChangeRoleRequest(string? Role);
 
     public sealed record CreateCollectionRequest(string? Name, string? Icon, string? Color);
 
@@ -635,7 +1041,10 @@ public sealed class CollectionsController(
 
     public sealed record CollectionItemsPageResponse(IReadOnlyList<CollectionItemEntryDto> Items, string? NextCursor);
 
-    public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc);
+    public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc, string Permission);
+
+    /// <summary>"read" or "write".</summary>
+    public sealed record SetSharePermissionRequest(string? Permission);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
 }

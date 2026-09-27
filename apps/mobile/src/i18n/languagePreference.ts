@@ -39,20 +39,15 @@ export async function saveLanguagePreference(preference: LanguagePreference): Pr
 }
 
 /**
- * Persists RN's native RTL flag to match the given language. Per React Native's own documented
- * I18nManager behavior (see https://reactnative.dev/docs/i18nmanager), forceRTL() only takes full
- * effect for a newly-created native view hierarchy - i.e. the NEXT cold app launch - never
- * retroactively for screens already mounted in the current process. allowRTL(true) is called
- * unconditionally (idempotent, harmless if already true) so RTL is never blocked at the native
- * layer regardless of which language is active.
+ * Keeps RN's native RTL flag in line with the given language for the NEXT cold launch. Per React
+ * Native's own documented I18nManager behavior (see https://reactnative.dev/docs/i18nmanager),
+ * forceRTL() never affects the running process, so the app never relies on it for layout: the
+ * running app follows the selected language immediately through LayoutDirectionRoot and the
+ * NavigationContainer's `direction` (see layoutDirection.tsx), in both directions (Arabic → Korean
+ * included) and without a restart. allowRTL(true) is called unconditionally (idempotent) so RTL is
+ * never blocked at the native layer.
  *
- * Returns whether THIS session's native layout direction still mismatches the target language
- * (captured before calling forceRTL, since that is what the already-created root view is actually
- * locked to for this process's lifetime) - true means a restart is needed for fully mirrored
- * native layout to apply. Text content and this codebase's own logical-property styles
- * (marginStart/End, start/end - see SwipeableItemRow/ItemRepresentativeThumbnail/
- * ItemDetailsScreen) still update immediately either way, since those are plain JS/Yoga layout
- * inputs re-evaluated on every render, not the native root's fixed layout-direction flag.
+ * Returns whether the native flag had to change (i.e. it differed from the target language).
  */
 export function syncRtlLayoutDirection(language: SupportedLanguage): boolean {
   const wasRTL = I18nManager.isRTL;

@@ -1,5 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Text, TextInput } from 'react-native';
+import { FlatList, StyleSheet, Text, TextInput } from 'react-native';
+import { collectionFilterColors } from '../../theme/tokens';
+import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
 import { CollectionsScreen } from '../CollectionsScreen';
 import {
@@ -9,6 +11,14 @@ import {
   type Collection,
   type GetCollectionsOptions,
 } from '../../collections/api/collectionsApi';
+import {
+  acceptCollectionInvitation,
+  declineCollectionInvitation,
+  getReceivedCollectionInvitations,
+  type ReceivedCollectionInvitation,
+} from '../../collections/api/collaborationApi';
+import { ApiError } from '../../api/ApiError';
+import { ReceivedInvitationsSheet } from '../../collections/ReceivedInvitationsSheet';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { ChevronIcon } from '../../icons/ChevronIcon';
 import { FolderIcon } from '../../icons/FolderIcon';
@@ -42,6 +52,12 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 jest.mock('../../collections/api/collectionsApi');
+jest.mock('../../collections/api/collaborationApi', () => ({
+  ...jest.requireActual('../../collections/api/collaborationApi'),
+  getReceivedCollectionInvitations: jest.fn().mockResolvedValue([]),
+  acceptCollectionInvitation: jest.fn(),
+  declineCollectionInvitation: jest.fn(),
+}));
 
 function makeCollection(overrides: Partial<Collection>): Collection {
   return {
@@ -57,21 +73,44 @@ function makeCollection(overrides: Partial<Collection>): Collection {
   };
 }
 
-const allCollections = [
-  makeCollection({ id: 1, name: 'All A', isFavorite: true }),
-  makeCollection({ id: 2, name: 'All B', isFavorite: false }),
-];
-const favoriteCollections = [allCollections[0]];
+const ownedCollection = makeCollection({ id: 1, name: 'All A', isFavorite: true, accessRole: 'owner' });
+const sharedCollection = makeCollection({
+  id: 2,
+  name: 'All B',
+  isFavorite: false,
+  accessRole: 'contributor',
+  ownerJupleId: 'K7MP4Q8N',
+  participantPreview: [
+    { jupleId: 'K7MP4Q8N', displayName: '피카츄', role: 'owner' },
+    { jupleId: 'CNTRB234', displayName: null, role: 'contributor' },
+  ],
+  otherParticipantCount: 4,
+});
+const allCollections = [ownedCollection, sharedCollection];
+const favoriteCollections = [ownedCollection];
 
+/** The server does the scoping - the screen only ever asks for one scope per filter. */
 function setUpGetCollectionsMock(): void {
   jest.mocked(getCollections).mockImplementation(
     async (_request, options: GetCollectionsOptions = {}) => {
-      if (options.isFavorite) {
-        return { items: favoriteCollections, nextCursor: null };
+      switch (options.scope) {
+        case 'favorites':
+          return { items: favoriteCollections, nextCursor: null };
+        case 'owned':
+          return { items: [ownedCollection], nextCursor: null };
+        case 'shared':
+          return { items: [sharedCollection], nextCursor: null };
+        default:
+          return { items: allCollections, nextCursor: null };
       }
-      return { items: allCollections, nextCursor: null };
     },
   );
+}
+
+async function selectFilter(renderer: ReactTestRenderer.ReactTestRenderer, filter: string) {
+  await act(async () => {
+    renderer.root.findByProps({ testID: `collections-filter-${filter}` }).props.onPress();
+  });
 }
 
 async function renderScreen() {
@@ -82,45 +121,177 @@ async function renderScreen() {
   return renderer;
 }
 
-describe('CollectionsScreen segmented tabs', () => {
+describe('CollectionsScreen filters', () => {
   afterEach(() => {
     jest.clearAllMocks();
     mockRouteParams = undefined;
   });
 
-  it('shows only the favorites tab data by default, never both lists at once', async () => {
+  it('shows four same-level filters and opens on 즐겨찾기 (favorites), asking the server for scope=favorites', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
 
-    const flatList = renderer.root.findByType(FlatList);
-    expect(flatList.props.data).toEqual(favoriteCollections);
+    for (const filter of ['all', 'favorites', 'owned', 'shared']) {
+      expect(renderer.root.findByProps({ testID: `collections-filter-${filter}` })).toBeTruthy();
+    }
+    expect(renderer.root.findByProps({ testID: 'collections-filter-favorites' }).props.accessibilityState).toEqual({ selected: true });
+    expect(renderer.root.findByProps({ testID: 'collections-filter-all' }).props.accessibilityState).toEqual({ selected: false });
+    expect(getCollections).toHaveBeenCalledTimes(1);
+    expect(getCollections).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ scope: 'favorites' }));
+    expect(renderer.root.findByType(FlatList).props.data).toEqual(favoriteCollections);
   });
 
-  it('switches to the all tab data without triggering a new network call', async () => {
+  it('a filter the user picks stays picked - a refocus or re-render never jumps back to 즐겨찾기', async () => {
+    setUpGetCollectionsMock();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<CollectionsScreen />);
+    });
+    await selectFilter(renderer, 'all');
+    expect(renderer.root.findByType(FlatList).props.data).toEqual(allCollections);
+
+    await act(async () => {
+      renderer.update(<CollectionsScreen />);
+    });
+    mockRouteParams = { refreshToken: 1 };
+    await act(async () => {
+      renderer.update(<CollectionsScreen />);
+    });
+
+    expect(renderer.root.findByProps({ testID: 'collections-filter-all' }).props.accessibilityState).toEqual({ selected: true });
+    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: 'all' }));
+    expect(renderer.root.findByType(FlatList).props.data).toEqual(allCollections);
+  });
+
+  it.each([
+    ['favorites'],
+    ['all'],
+    ['owned'],
+    ['shared'],
+  ])('only the selected filter (%s) is the Collection blue - every other cell light gray - and it still asks for its own scope', async selected => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    const cellStyle = (filter: string) =>
+      StyleSheet.flatten(renderer.root.findByProps({ testID: `collections-filter-${filter}` }).props.style);
+    const labelStyle = (filter: string) =>
+      StyleSheet.flatten(renderer.root.findByProps({ testID: `collections-filter-${filter}` }).findByType(Text).props.style);
+
+    if (selected !== 'favorites') {
+      await selectFilter(renderer, selected);
+      expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: selected }));
+    }
+
+    for (const filter of ['favorites', 'all', 'owned', 'shared']) {
+      const isSelected = filter === selected;
+      expect(renderer.root.findByProps({ testID: `collections-filter-${filter}` }).props.accessibilityState).toEqual({ selected: isSelected });
+      expect(cellStyle(filter).backgroundColor).toBe(isSelected ? '#EAF1FE' : '#F1F2F4');
+      expect(labelStyle(filter).color).toBe(isSelected ? '#5478B0' : '#5F6368');
+      expect(labelStyle(filter).fontWeight).toBe(isSelected ? '700' : '600');
+    }
+    // The selected color is the existing blue Collection tile token (the 'Blue' preset / palette
+    // slot 0), resolved from the palette - never looked up from any Collection's name or data.
+    expect(cellStyle(selected).backgroundColor).toBe(collectionFilterColors.selectedBackground);
+    expect(collectionFilterColors.selectedBackground).toBe(resolveCollectionColorTile('Blue').background);
+    expect(collectionFilterColors.selectedText).toBe(resolveCollectionColorTile('Blue').icon);
+    // The selected cell is outlined in the default blue folder glyph's color; the others keep the gray border.
+    expect(cellStyle(selected).borderColor).toBe(resolveCollectionColorTile('Blue').icon);
+    expect(cellStyle(selected).borderColor).toBe('#5478B0');
+    expect(cellStyle(selected).borderWidth).toBe(cellStyle(selected === 'favorites' ? 'all' : 'favorites').borderWidth);
+    expect(cellStyle(selected === 'favorites' ? 'all' : 'favorites').borderColor).toBe(collectionFilterColors.unselectedBorder);
+  });
+
+  it('lays the four filters out as a 2x2 grid of equal cells whose labels may wrap to two lines (never shrunk)', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
 
-    const callCountBeforeSwitch = jest.mocked(getCollections).mock.calls.length;
+    const cells = ['favorites', 'all', 'owned', 'shared'].map(filter => renderer.root.findByProps({ testID: `collections-filter-${filter}` }));
+    // Row 1: 즐겨찾기 | 전체, row 2: 내 카테고리 | 공유 카테고리 - same parent per row, in that order.
+    expect(cells[0].parent).toBe(cells[1].parent);
+    expect(cells[2].parent).toBe(cells[3].parent);
+    expect(cells[0].parent).not.toBe(cells[2].parent);
+    const order = (row: ReactTestRenderer.ReactTestInstance) =>
+      row.children.map(child => (typeof child === 'string' ? child : child.props.testID));
+    expect(order(cells[0].parent!)).toEqual(['collections-filter-favorites', 'collections-filter-all']);
+    expect(order(cells[2].parent!)).toEqual(['collections-filter-owned', 'collections-filter-shared']);
+    // 즐겨찾기 is first and the default selection.
+    expect(cells[0].props.accessibilityState).toEqual({ selected: true });
+    expect(cells[1].props.accessibilityState).toEqual({ selected: false });
+    for (const cell of cells) {
+      const label = cell.findByType(Text);
+      expect(label.props.numberOfLines).toBe(2);
+      expect(label.props.adjustsFontSizeToFit).toBeUndefined();
+    }
+  });
 
-    // Matches by the presence of an onPress prop rather than findAllByType(Pressable) - RN's
-    // Pressable export and the JSX element's resolved type are not always the exact same
-    // reference under this app's Jest/Babel setup, so type-based matching silently returns nothing.
-    const segmentPressables = renderer.root
-      .findAll(node => typeof node.props.onPress === 'function')
-      .filter(node => {
-        const label = node.findAllByType(Text)[0]?.props.children;
-        return label === '전체 카테고리' || label === 'All categories';
-      });
-    expect(segmentPressables.length).toBeGreaterThan(0);
+  it('long translations still show all four labels in full (Japanese)', async () => {
+    await i18n.changeLanguage('ja');
+    try {
+      setUpGetCollectionsMock();
+      const renderer = await renderScreen();
+      const labels = ['all', 'favorites', 'owned', 'shared'].map(filter =>
+        renderer.root.findByProps({ testID: `collections-filter-${filter}` }).findByType(Text).props.children);
+      expect(labels).toEqual([
+        i18n.t('collections.filterAll'),
+        i18n.t('collections.favoritesTitle'),
+        i18n.t('collections.myCategoriesTab'),
+        i18n.t('collections.sharedCategoriesTab'),
+      ]);
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
 
+  it('each filter is its own server scope - owned and shared rows are never merged on the client', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+
+    await selectFilter(renderer, 'favorites');
+    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: 'favorites' }));
+    expect(renderer.root.findByType(FlatList).props.data).toEqual(favoriteCollections);
+
+    await selectFilter(renderer, 'owned');
+    expect(renderer.root.findByType(FlatList).props.data).toEqual([ownedCollection]);
+
+    await selectFilter(renderer, 'shared');
+    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: 'shared' }));
+    expect(renderer.root.findByType(FlatList).props.data).toEqual([sharedCollection]);
+  });
+
+  it('switching back to an already-loaded filter reuses it without another request', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+    const calls = jest.mocked(getCollections).mock.calls.length;
+
+    await selectFilter(renderer, 'favorites');
+
+    expect(renderer.root.findByType(FlatList).props.data).toEqual(favoriteCollections);
+    expect(jest.mocked(getCollections).mock.calls.length).toBe(calls);
+  });
+
+  it('shows the other participants under a collaborative Category: display name, else Juple ID, then 외 N명', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+
+    const summary = renderer.root.findByProps({ testID: 'collection-tile-participants' });
+    expect(summary.props.children).toBe(i18n.t('collections.participantsMore', { names: '피카츄 · CNTR-B234', count: 2 }));
+  });
+
+  it('a Contributor can favorite a shared Category too (their own mark)', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(setCollectionFavorite).mockResolvedValue({ ...sharedCollection, isFavorite: true });
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+
+    const star = renderer.root.findAll(
+      node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function',
+    )[0];
     await act(async () => {
-      segmentPressables[0].props.onPress();
+      await star.props.onPress();
     });
 
-    const flatList = renderer.root.findByType(FlatList);
-    expect(flatList.props.data).toEqual(allCollections);
-    // Switching tabs reuses the already-loaded state - no additional getCollections call.
-    expect(jest.mocked(getCollections).mock.calls.length).toBe(callCountBeforeSwitch);
+    expect(setCollectionFavorite).toHaveBeenCalledWith(expect.anything(), 2, true);
   });
 });
 
@@ -131,18 +302,6 @@ function findRowPressableByName(renderer: ReactTestRenderer.ReactTestRenderer, n
     .find(node => node.findAllByType(Text).some(textNode => textNode.props.children === name));
 }
 
-/** Switches off the default favorites tab to the "all" tab, where non-favorite rows (e.g. All B) render. */
-async function switchToAllTab(renderer: ReactTestRenderer.ReactTestRenderer) {
-  const allTabPressable = renderer.root
-    .findAll(node => typeof node.props.onPress === 'function')
-    .find(node => {
-      const label = node.findAllByType(Text)[0]?.props.children;
-      return label === '전체 카테고리' || label === 'All categories';
-    });
-  await act(async () => {
-    allTabPressable?.props.onPress();
-  });
-}
 
 describe('CollectionsScreen row', () => {
   afterEach(() => {
@@ -160,7 +319,7 @@ describe('CollectionsScreen row', () => {
   it('tapping a row navigates to that Collection\'s details', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
-    await switchToAllTab(renderer);
+    await selectFilter(renderer, 'all');
 
     await act(async () => {
       findRowPressableByName(renderer, 'All B')?.props.onPress();
@@ -173,7 +332,7 @@ describe('CollectionsScreen row', () => {
     setUpGetCollectionsMock();
     jest.mocked(setCollectionFavorite).mockResolvedValue({ ...allCollections[1], isFavorite: true });
     const renderer = await renderScreen();
-    await switchToAllTab(renderer);
+    await selectFilter(renderer, 'all');
 
     const starButton = renderer.root.findAll(
       node => node.props.accessibilityLabel === i18n.t('collections.addFavorite'),
@@ -434,5 +593,173 @@ describe('CollectionsScreen refresh signal', () => {
     expect(mockSetParams).toHaveBeenCalledWith({ refreshToken: undefined });
     // Once for the focus-driven initial load, once more for the refreshToken-triggered refetch.
     expect(jest.mocked(getCollections).mock.calls.length).toBeGreaterThan(1);
+  });
+});
+
+describe('CollectionsScreen 공유 요청 (received collaboration invitations)', () => {
+  const invitation = (invitationId: number, overrides: Partial<ReceivedCollectionInvitation> = {}): ReceivedCollectionInvitation => ({
+    invitationId,
+    collectionId: 40 + invitationId,
+    collectionName: `Trip ${invitationId}`,
+    icon: 'Plane',
+    color: null,
+    ownerJupleId: 'WNER2345',
+    ownerDisplayName: null,
+    role: 'Contributor',
+    createdAtUtc: '2026-01-01T00:00:00Z',
+    expiresAtUtc: '2026-01-15T00:00:00Z',
+    ...overrides,
+  });
+
+  const shareRequestsRow = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'collections-share-requests' && typeof node.props.onPress === 'function');
+
+  const sheet = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(ReceivedInvitationsSheet);
+
+  async function openShareRequests(renderer: ReactTestRenderer.ReactTestRenderer) {
+    await act(async () => {
+      shareRequestsRow(renderer)[0].props.onPress();
+    });
+  }
+
+  beforeEach(() => {
+    setUpGetCollectionsMock();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([]);
+  });
+
+  it('with nothing to answer, 공유 카테고리 shows no 공유 요청 row at all', async () => {
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+
+    expect(shareRequestsRow(renderer)).toHaveLength(0);
+  });
+
+  it('shows 공유 요청 with the count at the top of 공유 카테고리 only', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(3), invitation(4)]);
+    const renderer = await renderScreen();
+
+    expect(shareRequestsRow(renderer)).toHaveLength(0); // not on 전체
+    await selectFilter(renderer, 'shared');
+
+    expect(shareRequestsRow(renderer)).toHaveLength(1);
+    expect(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children).toBe(2);
+    expect(shareRequestsRow(renderer)[0].props.accessibilityLabel).toBe(i18n.t('collections.shareRequestCount', { count: 2 }));
+  });
+
+  it('tapping it opens the requests as a sheet: Category, Owner and role, with 거절/수락', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(3, { ownerDisplayName: '피카츄' })]);
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+    expect(sheet(renderer).props.visible).toBe(false);
+
+    await openShareRequests(renderer);
+
+    expect(sheet(renderer).props.visible).toBe(true);
+    const card = renderer.root.findByProps({ testID: 'share-request-3' });
+    const shown = card.findAllByType(Text).map(node => node.props.children);
+    expect(shown).toEqual(expect.arrayContaining([
+      'Trip 3',
+      i18n.t('collections.sharedByOwner', { jupleId: '피카츄' }),
+      i18n.t('collaboration.roleContributor'),
+    ]));
+    expect(renderer.root.findByProps({ testID: 'share-request-accept-3' })).toBeTruthy();
+    expect(renderer.root.findByProps({ testID: 'share-request-decline-3' })).toBeTruthy();
+  });
+
+  it('says what accepting grants: view-only, or collaboration', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([
+      invitation(3, { role: 'Viewer' }),
+      invitation(4, { role: 'Contributor' }),
+    ]);
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+    await openShareRequests(renderer);
+
+    expect(renderer.root.findByProps({ testID: 'share-request-role-3' }).props.children).toBe(i18n.t('collaboration.roleViewer'));
+    expect(renderer.root.findByProps({ testID: 'share-request-role-4' }).props.children).toBe(i18n.t('collaboration.roleContributor'));
+    // Plain 읽기 전용 / 읽기·쓰기 - never a separate "공동작업" concept or an internal role name.
+    expect(i18n.getFixedT('ko')('collaboration.roleViewer')).toBe('읽기 전용');
+    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('읽기·작성');
+  });
+
+  it('a Collection shared view-only shows the shared marker and can be favorited like any other', async () => {
+    const viewOnly = makeCollection({ id: 9, name: 'View only', accessRole: 'viewer', ownerJupleId: 'WNER2345' });
+    jest.mocked(getCollections).mockImplementation(async () => ({ items: [viewOnly], nextCursor: null }));
+    jest.mocked(setCollectionFavorite).mockResolvedValue({ ...viewOnly, isFavorite: true });
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
+    const star = renderer.root.findAll(
+      node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function',
+    )[0];
+    await act(async () => {
+      await star.props.onPress();
+    });
+    expect(setCollectionFavorite).toHaveBeenCalledWith(expect.anything(), 9, true);
+  });
+
+  it('accepting removes the request, lowers the count and reloads 공유 카테고리 so the Category shows at once', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(3), invitation(4)]);
+    jest.mocked(acceptCollectionInvitation).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+    await openShareRequests(renderer);
+
+    const joined = makeCollection({ id: 43, name: 'Trip 3', accessRole: 'contributor' });
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) =>
+      options.scope === 'shared' ? { items: [sharedCollection, joined], nextCursor: null } : { items: allCollections, nextCursor: null });
+    const sharedCallsBefore = jest.mocked(getCollections).mock.calls.filter(call => call[1]?.scope === 'shared').length;
+
+    await act(async () => {
+      await renderer.root.findByProps({ testID: 'share-request-accept-3' }).props.onPress();
+    });
+
+    expect(acceptCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 3);
+    expect(renderer.root.findAll(node => node.props.testID === 'share-request-3')).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: 'collections-share-requests-count' }).props.children).toBe(1);
+    expect(jest.mocked(getCollections).mock.calls.filter(call => call[1]?.scope === 'shared').length).toBe(sharedCallsBefore + 1);
+    expect(renderer.root.findByType(FlatList).props.data).toEqual([sharedCollection, joined]);
+    expect(sheet(renderer).props.visible).toBe(true); // one more to answer
+  });
+
+  it('declining the last request removes it, closes the sheet and hides the row', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(4)]);
+    jest.mocked(declineCollectionInvitation).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+    await openShareRequests(renderer);
+    const sharedCallsBefore = jest.mocked(getCollections).mock.calls.length;
+
+    await act(async () => {
+      await renderer.root.findByProps({ testID: 'share-request-decline-4' }).props.onPress();
+    });
+
+    expect(declineCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 4);
+    expect(acceptCollectionInvitation).not.toHaveBeenCalled();
+    expect(sheet(renderer).props.visible).toBe(false);
+    expect(shareRequestsRow(renderer)).toHaveLength(0);
+    expect(jest.mocked(getCollections).mock.calls.length).toBe(sharedCallsBefore); // nothing joined, nothing to reload
+  });
+
+  it('an invitation that is no longer valid says so and the list is reloaded', async () => {
+    jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([invitation(3)]);
+    jest.mocked(acceptCollectionInvitation).mockRejectedValue(new ApiError('conflict', 409, 'invitationNotPending'));
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+    await openShareRequests(renderer);
+    const loadsBefore = jest.mocked(getReceivedCollectionInvitations).mock.calls.length;
+
+    await act(async () => {
+      await renderer.root.findByProps({ testID: 'share-request-accept-3' }).props.onPress();
+    });
+
+    expect(renderer.root.findByProps({ testID: 'share-requests-sheet' }).findAllByType(Text).map(node => node.props.children))
+      .toContain(i18n.t('collaboration.invitationNoLongerValid'));
+    expect(jest.mocked(getReceivedCollectionInvitations).mock.calls.length).toBe(loadsBefore + 1);
   });
 });

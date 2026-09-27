@@ -252,8 +252,12 @@ public sealed class CollectionShareIntegrationTests : IAsyncLifetime
         Assert.Equal(1, activeCount);
     }
 
+    /// <summary>
+    /// Collection delete has been a soft delete since cc3e040 (restorable), so the share row is no
+    /// longer cascaded away - the contract is that a deleted Collection's link stops resolving.
+    /// </summary>
     [Fact]
-    public async Task DeleteCollection_CascadesAwayItsShare()
+    public async Task DeleteCollection_StopsResolvingItsShare()
     {
         var collectionStore = new CollectionStore(_dbContext);
         var collectionId = await CreateCollectionAsync(collectionStore, _userId, "Books");
@@ -265,9 +269,7 @@ public sealed class CollectionShareIntegrationTests : IAsyncLifetime
         await collectionStore.DeleteAsync(_userId, collectionId);
         _dbContext.ChangeTracker.Clear();
 
-        var stillExists = await _dbContext.CollectionShares
-            .AsNoTracking()
-            .AnyAsync(s => s.PublicId == share.PublicId);
-        Assert.False(stillExists);
+        Assert.Null(await new PublicCollectionStore(_dbContext).GetStateAsync(share.PublicId));
+        Assert.Null(await new PublicCollectionStore(_dbContext).GetItemsAsync(share.PublicId, null, 50));
     }
 }

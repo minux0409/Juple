@@ -10,8 +10,9 @@
 // unassigned (error BCP258), and Azure CLI additionally only accepts a single `--parameters`
 // argument once a .bicepparam file is one of them - so, unlike ../README.md's older app/job/
 // blob-cleanup-job examples (written before this file existed), a second `--parameters
-// key=value` cannot be layered on top of this file to fill in the rest. That includes the two
-// @secure() parameters below (sqlConnectionString, publicCollectionCursorEncryptionKey) - there is
+// key=value` cannot be layered on top of this file to fill in the rest. That includes the three
+// @secure() parameters below (sqlConnectionString, publicCollectionCursorEncryptionKey,
+// collectionUnlockGrantEncryptionKey) - there is
 // no other slot left to supply them in once a .bicepparam file is used, so they use
 // readEnvironmentVariable() exactly like every other live/per-deployment value here. This does not
 // change how secret they are: the actual value still never appears in this committed file, only
@@ -45,6 +46,9 @@
 //   $env:JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY = '<existing Base64 32-byte key - the
 //     SAME value already live, never a freshly generated one; see main.bicep's own param
 //     description on why rotating it disrupts in-flight pagination cursors>'
+//   $env:JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY = '<the SAME Base64 32-byte key already
+//     live on ca-juple-api-dev (secret collection-unlock-grant-key) - its own value, never the
+//     cursor key; see main.bicep's own param description>'
 //   az deployment group create --resource-group <rg> --parameters infra/azure/app/dev.bicepparam
 using 'main.bicep'
 
@@ -102,3 +106,4 @@ param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_STORAGE_BLOB_SE
 param imageTag = readEnvironmentVariable('JUPLE_APP_IMAGE_TAG')
 param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_SQL_CONNECTION_STRING')
 param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
+param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')

@@ -11,7 +11,7 @@ public sealed class GetCollectionItemsServiceTests
     {
         var cursor = new CollectionItemPageCursor(1024, 41);
         var store = new FakeCollectionItemStore();
-        var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, new FakeItemImageStorage());
 
         await service.GetAsync(17, 9, cursor, limit: 2);
 
@@ -25,7 +25,7 @@ public sealed class GetCollectionItemsServiceTests
     public async Task GetAsync_WhenCollectionNotFound_PropagatesCollectionNotFoundException()
     {
         var store = new FakeCollectionItemStore { ThrowNotFound = true };
-        var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, new FakeItemImageStorage());
 
         await Assert.ThrowsAsync<CollectionNotFoundException>(
             () => service.GetAsync(17, 9, cursor: null, limit: 50));
@@ -36,7 +36,7 @@ public sealed class GetCollectionItemsServiceTests
     {
         var nextCursor = new CollectionItemPageCursor(512, 7);
         var store = new FakeCollectionItemStore { NextCursor = nextCursor };
-        var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, new FakeItemImageStorage());
 
         var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
 
@@ -58,7 +58,7 @@ public sealed class GetCollectionItemsServiceTests
             RepresentativeImages = new Dictionary<long, ItemRepresentativeImageRef> { [41] = reference },
         };
         var imageStorage = new FakeItemImageStorage { ReadUrl = readUrl };
-        var service = new GetCollectionItemsService(store, imageStorage);
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, imageStorage);
 
         var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
 
@@ -75,7 +75,7 @@ public sealed class GetCollectionItemsServiceTests
         };
         var store = new FakeCollectionItemStore { Items = items };
         var imageStorage = new FakeItemImageStorage();
-        var service = new GetCollectionItemsService(store, imageStorage);
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, imageStorage);
 
         var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
 
@@ -104,7 +104,7 @@ public sealed class GetCollectionItemsServiceTests
             CoverImages = new Dictionary<long, ItemRepresentativeImageRef> { [41] = reference },
         };
         var imageStorage = new FakeItemImageStorage { ReadUrl = readUrl };
-        var service = new GetCollectionItemsService(store, imageStorage);
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, imageStorage);
 
         var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
 
@@ -121,7 +121,7 @@ public sealed class GetCollectionItemsServiceTests
                 "https://cdn.example/preview.jpg", null),
         };
         var store = new FakeCollectionItemStore { Items = items };
-        var service = new GetCollectionItemsService(store, new FakeItemImageStorage());
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, new FakeItemImageStorage());
 
         var result = await service.GetAsync(17, 9, cursor: null, limit: 50);
 
@@ -130,6 +130,10 @@ public sealed class GetCollectionItemsServiceTests
 
     private sealed class FakeCollectionItemStore : ICollectionItemStore
     {
+        public Task<SharedCollectionItemDto?> GetSharedItemAsync(
+            long userId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<SharedCollectionItemDto?>(null);
+
         public bool ThrowNotFound { get; init; }
 
         public long? LastUserId { get; private set; }

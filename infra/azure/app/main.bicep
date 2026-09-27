@@ -39,6 +39,10 @@ param sqlConnectionString string
 @secure()
 param publicCollectionCursorEncryptionKey string
 
+@description('Base64-encoded 32-byte key for Collection unlock grants (see CollectionUnlockTokenProtector) - the short-lived tokens issued after the password of a locked Collection is entered, in the app and on the public share page. Backend fails startup outright if this is absent or does not decode to exactly 32 bytes; there is no fallback to any other key. Must be its own value, never the cursor key above. Never put a real value in a checked-in parameter file. Rotating it only invalidates grants already handed out (people re-enter the password) - no stored data depends on it. Not needed by the one-shot Jobs, which exit before this is validated.')
+@secure()
+param collectionUnlockGrantEncryptionKey string
+
 @description('Blob service endpoint URI - Foundation output "storageBlobServiceUri". No Storage key is ever used; the app authenticates via managedIdentityResourceId (see BlobServiceClientFactory.cs).')
 param storageBlobServiceUri string
 
@@ -140,6 +144,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'public-collection-cursor-key'
           value: publicCollectionCursorEncryptionKey
         }
+        {
+          name: 'collection-unlock-grant-key'
+          value: collectionUnlockGrantEncryptionKey
+        }
       ]
     }
     template: {
@@ -168,6 +176,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'PublicCollectionCursor__EncryptionKey'
               secretRef: 'public-collection-cursor-key'
+            }
+            {
+              name: 'CollectionUnlockGrant__EncryptionKey'
+              secretRef: 'collection-unlock-grant-key'
             }
             {
               // Deliberately no ConnectionStrings__BlobStorage - its absence is what makes

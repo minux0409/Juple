@@ -21,19 +21,46 @@ public sealed class CollectionItem
     {
     }
 
-    public CollectionItem(long collectionId, long itemId, DateTimeOffset addedAtUtc, int sortOrder)
+    public CollectionItem(
+        long collectionId,
+        long itemId,
+        long addedByUserId,
+        DateTimeOffset addedAtUtc,
+        int sortOrder,
+        bool addedViaPublicShare = false)
     {
         CollectionId = collectionId;
         ItemId = itemId;
+        AddedByUserId = addedByUserId;
         AddedAtUtc = addedAtUtc;
         SortOrder = sortOrder;
+        AddedViaPublicShare = addedViaPublicShare;
     }
+
+    /// <summary>
+    /// Added through a writable public share link by a signed-in holder (not a member). Such a
+    /// link is published on the public page next to the Owner's own - its adder chose a public
+    /// Collection - but only its public-safe fields (title, URL, automatic preview image).
+    /// </summary>
+    public bool AddedViaPublicShare { get; private set; }
 
     public long Id { get; private set; }
 
     public long CollectionId { get; private set; }
 
     public long ItemId { get; private set; }
+
+    /// <summary>
+    /// Who put this Item into this Collection - the caller of the add, not necessarily the Item's
+    /// owner in principle (kept separate from Item.UserId on purpose). Removing a Contributor
+    /// removes exactly the associations they added (see CollectionCollaboratorStore).
+    /// Every association this code creates sets it. During a rolling deployment (between the expand
+    /// migration AddCollectionCollaborationAndLocking and the contract migration
+    /// FinalizeCollectionCollaborationRequiredFields) a row inserted by the previous API revision
+    /// temporarily holds 0 - never a real user, so it matches no "added by this user" filter - and
+    /// is always an Owner-added association, which the contract migration then records as such.
+    /// </summary>
+    public long AddedByUserId { get; private set; }
 
     public DateTimeOffset AddedAtUtc { get; private set; }
 

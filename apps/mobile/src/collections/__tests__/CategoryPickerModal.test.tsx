@@ -3,6 +3,7 @@ import '../../i18n';
 import { CategoryPickerModal } from '../CategoryPickerModal';
 import { CheckIcon } from '../../icons/CheckIcon';
 import type { Collection } from '../api/collectionsApi';
+import { clearCollectionUnlockGrants } from '../collectionUnlockGrants';
 
 function makeCollection(overrides: Partial<Collection> = {}): Collection {
   return {
@@ -131,5 +132,48 @@ describe('CategoryPickerModal selection indicator', () => {
     const row = renderer.root.findByProps({ accessibilityLabel: 'Groceries' });
     expect(row.props.accessibilityRole).toBe('button');
     expect(typeof row.props.onPress).toBe('function');
+  });
+});
+
+describe('CategoryPickerModal - locked Collections', () => {
+  afterEach(() => {
+    clearCollectionUnlockGrants();
+    jest.clearAllMocks();
+  });
+
+  it('a locked Collection is tappable (the caller asks for its password), marked with a hint', () => {
+    const onToggle = jest.fn();
+    const renderer = render(
+      <CategoryPickerModal
+        {...baseProps}
+        collectionPool={[makeCollection({ id: 7, name: 'Private', isLocked: true }), makeCollection({ id: 8, name: 'Open' })]}
+        onToggle={onToggle}
+        selectedIds={new Set()}
+      />,
+    );
+
+    const locked = renderer.root.findByProps({ accessibilityLabel: 'Private' });
+    expect(locked.props.disabled).toBeUndefined();
+    expect(locked.props.accessibilityHint).toBeTruthy();
+    expect(renderer.root.findByProps({ accessibilityLabel: 'Open' }).props.accessibilityHint).toBeUndefined();
+    act(() => {
+      locked.props.onPress();
+    });
+    expect(onToggle).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
+  });
+
+  it('shows the password prompt for the unlock target, over the sheet', () => {
+    const renderer = render(
+      <CategoryPickerModal
+        {...baseProps}
+        collectionPool={[makeCollection({ id: 7, name: 'Private', isLocked: true })]}
+        onToggle={jest.fn()}
+        selectedIds={new Set()}
+        unlockTarget={makeCollection({ id: 7, name: 'Private', isLocked: true })}
+      />,
+    );
+
+    expect(renderer.root.findByProps({ testID: 'collection-unlock-dialog' })).toBeTruthy();
+    expect(renderer.root.findByProps({ testID: 'collection-unlock-password' })).toBeTruthy();
   });
 });

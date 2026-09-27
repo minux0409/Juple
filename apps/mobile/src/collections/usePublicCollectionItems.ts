@@ -9,6 +9,8 @@ export interface UsePublicCollectionItemsResult {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly loadMore: () => void;
+  /** Reloads the first page (e.g. after the signed-in viewer added a link through a writable link). */
+  readonly reload: () => Promise<void>;
 }
 
 /**
@@ -88,5 +90,5 @@ export function usePublicCollectionItems(publicId: string): UsePublicCollectionI
     })();
   }, [publicId, nextCursor, isLoading]);
 
-  return { items, isLoading, isLoadingMore, loadMore };
+  return { items, isLoading, isLoadingMore, loadMore, reload: load };
 }

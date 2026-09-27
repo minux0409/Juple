@@ -32,10 +32,23 @@ export function isEntraSessionInvalidError(error: unknown): boolean {
 }
 
 /**
+ * Forces a genuinely interactive sign-in: prompt=login makes Entra ignore any existing browser SSO
+ * session, and max_age=0 asks it to treat any previous authentication as too old. Whether the
+ * resulting access token's auth_time really moves is exactly what the DEV observer measures - the
+ * app itself never treats a completed re-authentication as proof of anything.
+ */
+export const REAUTHENTICATION_PARAMETERS: Readonly<Record<string, string>> = {
+  prompt: 'login',
+  max_age: '0',
+};
+
+/**
  * Runs the Authorization Code + PKCE flow against Microsoft Entra External ID.
  * Does not persist, log, or decode any token. Callers own what happens next.
  */
-export async function authorizeWithEntra(): Promise<AuthorizeResult> {
+export async function authorizeWithEntra(
+  additionalParameters?: Readonly<Record<string, string>>,
+): Promise<AuthorizeResult> {
   const config = selectedEntraAuthConfig;
 
   try {
@@ -51,6 +64,8 @@ export async function authorizeWithEntra(): Promise<AuthorizeResult> {
       scopes: [...config.scopes],
       usePKCE: true,
       useNonce: true,
+      // A fresh copy each call - the native side consumes/mutates the map it is handed.
+      ...(additionalParameters ? { additionalParameters: { ...additionalParameters } } : {}),
     });
   } catch (error) {
     throw new EntraAuthError(

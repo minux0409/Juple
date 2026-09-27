@@ -23,6 +23,7 @@ import { bootstrapCurrentUser, type UserBootstrapResult } from './userBootstrapA
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
 import { unregisterCurrentPushDeviceBestEffort } from '../push/pushLogoutUnregister';
 import { clearCategoryShortcutsOnLogoutBestEffort } from '../share/clearCategoryShortcutsOnLogout';
+import { purgeLegacyCollectionLockSecrets } from '../collections/legacyCollectionLockSecrets';
 import type { AuthContextValue, AuthState } from './types';
 
 const INITIAL_STATE: AuthState = {
@@ -105,6 +106,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => onSessionInvalidated(setSignedOut), [setSignedOut]);
+
+  // Collection lock passwords are never kept on the device; clears what an earlier build may have left.
+  useEffect(() => {
+    purgeLegacyCollectionLockSecrets();
+  }, []);
 
   const runBootstrap = useCallback(async (isMountedRef: { current: boolean }) => {
     try {
@@ -272,6 +278,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signOut = useCallback(async () => {
     await unregisterCurrentPushDeviceBestEffort();
     await clearCategoryShortcutsOnLogoutBestEffort();
+    await purgeLegacyCollectionLockSecrets();
     await clearSession();
     setSignedOut();
   }, [setSignedOut]);

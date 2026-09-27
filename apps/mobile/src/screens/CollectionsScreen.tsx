@@ -23,7 +23,13 @@ import {
   getCollections,
   setCollectionFavorite,
   type Collection,
+  type CollectionListScope,
 } from '../collections/api/collectionsApi';
+import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
+import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
+import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
+import { formatParticipantSummary } from '../collections/participantSummary';
+import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -31,17 +37,58 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { useLayoutDirection } from '../i18n/layoutDirection';
+import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const GRID_COLUMNS = 4;
 
 const PAGE_LIMIT = 50;
 
-type ActiveTab = 'favorites' | 'all';
+/**
+ * The four top-level Categories filters, all at the same level. Each is one server-side list scope
+ * (see getCollections' scope) - owned vs shared is decided by the server's accessRole, never by
+ * comparing ids here, and "all"/"favorites" are paged by the server as one list, never merged here.
+ */
+type CategoryFilter = CollectionListScope;
+
+const FILTERS: readonly CategoryFilter[] = ['all', 'favorites', 'owned', 'shared'];
+
+/** The same four filters as a 2x2 grid - all at the same level, never nested. */
+const FILTER_ROWS: readonly (readonly CategoryFilter[])[] = [
+  ['favorites', 'all'],
+  ['owned', 'shared'],
+];
+
+/** Opening the screen lands on 즐겨찾기; a filter the user picks then stays for this screen's life. */
+const DEFAULT_FILTER: CategoryFilter = 'favorites';
+
+const FILTER_LABEL_KEYS: Record<CategoryFilter, string> = {
+  all: 'collections.filterAll',
+  favorites: 'collections.favoritesTitle',
+  owned: 'collections.myCategoriesTab',
+  shared: 'collections.sharedCategoriesTab',
+};
+
+const FILTER_EMPTY_KEYS: Record<CategoryFilter, string> = {
+  all: 'collections.allCollectionsEmpty',
+  favorites: 'collections.favoritesEmpty',
+  owned: 'collections.allCollectionsEmpty',
+  shared: 'collections.sharedEmpty',
+};
+
+interface FilterListState {
+  readonly items: readonly Collection[];
+  readonly nextCursor: string | null;
+  /** False until this filter has loaded at least once since it was last invalidated. */
+  readonly isLoaded: boolean;
+}
+
+const EMPTY_LIST: FilterListState = { items: [], nextCursor: null, isLoaded: false };
 
 function getListErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -55,15 +102,6 @@ function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('collections.errorFavoriteToggleFallback');
-}
-
-function sortByCreatedAtUtcDescending(collections: readonly Collection[]): Collection[] {
-  return [...collections].sort((a, b) => {
-    if (a.createdAtUtc !== b.createdAtUtc) {
-      return a.createdAtUtc < b.createdAtUtc ? 1 : -1;
-    }
-    return b.id - a.id;
-  });
 }
 
 function getCreateErrorMessage(error: unknown, t: TFunction): string {
@@ -95,10 +133,10 @@ function getNameValidationError(name: string, t: TFunction): string | null {
 
 /**
  * 카테고리 (user-facing label; backend/API still uses "Collection"): user-named buckets of saved
- * URLs (see collectionsApi.ts). Distinct from the legacy Category (single-select tag, removed) -
- * an Item can belong to any number of Collections. The Item list inside a Collection lives on
- * CollectionDetailsScreen; this screen only lists/creates Collections, split across two segmented
- * tabs (favorites / all) that are never shown at the same time.
+ * URLs (see collectionsApi.ts). The Item list inside a Collection lives on CollectionDetailsScreen;
+ * this screen lists/creates Collections under four same-level filters - 즐겨찾기 (default), 전체,
+ * 내 컬렉션, 공유 컬렉션 - each its own server-scoped, cursor-paginated list. 공유 카테고리 also
+ * carries the 공유 요청 entry: collaboration invitations other Owners sent to this user.
  */
 export function CollectionsScreen() {
   const { t } = useTranslation();
@@ -115,74 +153,38 @@ export function CollectionsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   useToastBottomAnchor(tabBarHeight);
   const { viewMode, changeViewMode } = useViewModePreference('categoryViewMode', 'grid');
+  const layoutDirection = useLayoutDirection();
 
-  // Favorites is the default-selected tab (see this round's "즐겨찾기 default selected" requirement) -
-  // the segmented control itself still renders favorites first/left, all second/right, matching.
-  const [activeTab, setActiveTab] = useState<ActiveTab>('favorites');
-  // Category creation is a centered CategoryEditorDialog now (this round's Category UX rework),
-  // not an inline expand-below form - the dialog owns its own name/icon/color draft internally, so
-  // this screen only needs to know whether it's open and the create request's own in-flight/error
-  // state (see handleCreateSubmit).
-  const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
-
-  const [collections, setCollections] = useState<readonly Collection[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [filter, setFilter] = useState<CategoryFilter>(DEFAULT_FILTER);
+  const filterRef = useRef<CategoryFilter>(DEFAULT_FILTER);
+  const [lists, setLists] = useState<Record<CategoryFilter, FilterListState>>({
+    all: EMPTY_LIST,
+    favorites: EMPTY_LIST,
+    owned: EMPTY_LIST,
+    shared: EMPTY_LIST,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  // Category creation is a centered CategoryEditorDialog (see CategoryEditorDialog) - this screen
+  // only knows whether it is open and the create request's own in-flight/error state.
+  const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-
-  // Favorites are the other segmented tab's data, loaded independently of the main paginated list -
-  // fully walked page-by-page (never just the first page) so a favorite count past one page is
-  // never silently dropped.
-  const [favorites, setFavorites] = useState<readonly Collection[]>([]);
-  const [isLoadingFavorites, setIsLoadingFavorites] = useState(true);
-  const [favoritesError, setFavoritesError] = useState<string | null>(null);
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
-  const favoritesRequestIdRef = useRef(0);
+  // Collaboration invitations addressed to this user (never ones they sent, never friend requests).
+  const [receivedInvitations, setReceivedInvitations] = useState<readonly ReceivedCollectionInvitation[]>([]);
+  const [isShareRequestsVisible, setIsShareRequestsVisible] = useState(false);
 
-
-  const hasLoadedOnceRef = useRef(false);
   const loadRequestIdRef = useRef(0);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
 
-  const loadFavorites = useCallback(async () => {
-    const requestId = ++favoritesRequestIdRef.current;
-    setIsLoadingFavorites(true);
-    setFavoritesError(null);
-
-    try {
-      const collected: Collection[] = [];
-      let cursor: string | undefined;
-      do {
-        const page = await getCollections(authenticatedRequest, { isFavorite: true, limit: PAGE_LIMIT, cursor });
-        collected.push(...page.items);
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-
-      if (favoritesRequestIdRef.current !== requestId) {
-        return;
-      }
-      setFavorites(collected);
-    } catch (caughtError) {
-      if (favoritesRequestIdRef.current !== requestId) {
-        return;
-      }
-      setFavoritesError(getListErrorMessage(caughtError, t));
-    } finally {
-      if (favoritesRequestIdRef.current === requestId) {
-        setIsLoadingFavorites(false);
-      }
-    }
-  }, [authenticatedRequest, t]);
-
+  /** Loads the first page of one filter; a newer load (or filter switch) makes an older one a no-op. */
   const load = useCallback(
-    async (mode: 'initial' | 'refresh') => {
+    async (target: CategoryFilter, mode: 'initial' | 'refresh') => {
       const requestId = ++loadRequestIdRef.current;
       if (mode === 'refresh') {
         setIsRefreshing(true);
@@ -192,12 +194,11 @@ export function CollectionsScreen() {
       setError(null);
 
       try {
-        const page = await getCollections(authenticatedRequest, { limit: PAGE_LIMIT });
+        const page = await getCollections(authenticatedRequest, { scope: target, limit: PAGE_LIMIT });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setCollections(page.items);
-        setNextCursor(page.nextCursor);
+        setLists(previous => ({ ...previous, [target]: { items: page.items, nextCursor: page.nextCursor, isLoaded: true } }));
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -206,7 +207,6 @@ export function CollectionsScreen() {
         setError(getListErrorMessage(caughtError, t));
       } finally {
         if (loadRequestIdRef.current === requestId) {
-          hasLoadedOnceRef.current = true;
           setIsLoading(false);
           setIsRefreshing(false);
         }
@@ -215,19 +215,40 @@ export function CollectionsScreen() {
     [authenticatedRequest, t],
   );
 
-  // Refetches every time the Categories tab regains focus, so a Collection created/renamed/
-  // deleted on CollectionDetailsScreen shows up immediately on return, matching the Home/History
-  // precedent. Favorites are refetched independently of the main paginated list, same as
-  // ItemDetailsScreen's Purchases/RepeatPurchases independence.
+  const loadReceivedInvitations = useCallback(() => {
+    getReceivedCollectionInvitations(authenticatedRequest)
+      .then(setReceivedInvitations)
+      // Best-effort: without the list, the 공유 요청 entry simply stays hidden.
+      .catch(() => undefined);
+  }, [authenticatedRequest]);
+
+  /** Every other filter's cached page may now be stale - they reload when next selected. */
+  const invalidateOtherFilters = useCallback((keep: CategoryFilter) => {
+    setLists(previous => {
+      const next = { ...previous };
+      for (const key of FILTERS) {
+        if (key !== keep) {
+          next[key] = { ...next[key], isLoaded: false };
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  // Refetches the visible filter every time the Categories tab regains focus, so a Collection
+  // created/renamed/deleted/favorited elsewhere shows up immediately on return (Home/History
+  // precedent); the other filters reload lazily when selected.
   useFocusEffect(
     useCallback(() => {
-      load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
-      loadFavorites();
+      const current = filterRef.current;
+      invalidateOtherFilters(current);
+      load(current, 'refresh');
+      loadReceivedInvitations();
       // Best-effort: keeps the native Direct Share/Quick Save composer category snapshot (see
       // categorySnapshotSync.ts) current on every visit, independently of this screen's own
       // paginated state - a failure here never affects what this screen shows.
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-    }, [authenticatedRequest, load, loadFavorites]),
+    }, [authenticatedRequest, invalidateOtherFilters, load, loadReceivedInvitations]),
   );
 
   // Refresh signaling is deliberately separate from AppToast state: revisiting this tab must
@@ -237,33 +258,58 @@ export function CollectionsScreen() {
       return;
     }
     tabNavigation.setParams({ refreshToken: undefined });
-    void Promise.all([load('refresh'), loadFavorites()]);
-  }, [load, loadFavorites, route.params?.refreshToken, tabNavigation]);
+    invalidateOtherFilters(filterRef.current);
+    load(filterRef.current, 'refresh');
+  }, [invalidateOtherFilters, load, route.params?.refreshToken, tabNavigation]);
+
+  const selectFilter = (next: CategoryFilter) => {
+    if (next === filter) {
+      return;
+    }
+    filterRef.current = next;
+    setFilter(next);
+    setError(null);
+    if (!lists[next].isLoaded) {
+      load(next, 'initial');
+    } else {
+      // A cached page from this focus is shown immediately; cancel any in-flight load for the
+      // previous filter so it cannot flip the loading state of this one.
+      loadRequestIdRef.current++;
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   const loadMore = useCallback(() => {
-    if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor) {
+    const current = lists[filter];
+    if (loadingMoreRef.current || isLoading || isRefreshing || !current.nextCursor) {
       return;
     }
 
     const requestId = loadRequestIdRef.current;
+    const target = filter;
+    const cursor = current.nextCursor;
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
 
     (async () => {
       try {
-        const page = await getCollections(authenticatedRequest, {
-          limit: PAGE_LIMIT,
-          cursor: nextCursor,
-        });
+        const page = await getCollections(authenticatedRequest, { scope: target, limit: PAGE_LIMIT, cursor });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        setCollections(previous => {
-          const seenIds = new Set(previous.map(collection => collection.id));
-          const additional = page.items.filter(collection => !seenIds.has(collection.id));
-          return [...previous, ...additional];
+        setLists(previous => {
+          const existing = previous[target];
+          const seenIds = new Set(existing.items.map(collection => collection.id));
+          return {
+            ...previous,
+            [target]: {
+              items: [...existing.items, ...page.items.filter(collection => !seenIds.has(collection.id))],
+              nextCursor: page.nextCursor,
+              isLoaded: true,
+            },
+          };
         });
-        setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
           setError(getListErrorMessage(caughtError, t));
@@ -273,7 +319,7 @@ export function CollectionsScreen() {
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, nextCursor, isLoading, isRefreshing, t]);
+  }, [authenticatedRequest, filter, isLoading, isRefreshing, lists, t]);
 
   const handleCreateSubmit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue) => {
     if (isCreating) {
@@ -291,7 +337,12 @@ export function CollectionsScreen() {
     setCreateError(null);
     try {
       const created = await createCollection(authenticatedRequest, trimmedName, icon, color);
-      setCollections(previous => [created, ...previous]);
+      // A new Collection is owned and not a favorite: it belongs at the top of 전체/내 카테고리.
+      setLists(previous => ({
+        ...previous,
+        all: previous.all.isLoaded ? { ...previous.all, items: [created, ...previous.all.items] } : previous.all,
+        owned: previous.owned.isLoaded ? { ...previous.owned, items: [created, ...previous.owned.items] } : previous.owned,
+      }));
       setIsCreateDialogVisible(false);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
@@ -314,70 +365,90 @@ export function CollectionsScreen() {
   };
 
   /**
-   * Toggles the star on either segmented tab's rows - both render the same Collection rows, so a
-   * single handler keeps both `collections` and `favorites` state in lockstep, which is what makes
-   * switching tabs instant (no refetch needed). Optimistic (flips immediately), but only one toggle
-   * may be in flight at a time; on failure the pre-toggle Collection is restored in both lists
-   * rather than trusting the flipped local state.
+   * The caller's own favorite mark - available on owned and shared Categories alike, and never
+   * visible to anyone else. Optimistic across every cached filter (only one toggle in flight); on
+   * failure the pre-toggle Collection is restored. The 즐겨찾기 filter drops an unfavorited row at
+   * once and reloads to pick up a newly favorited one.
    */
   const toggleFavoriteAction = async (collection: Collection) => {
     if (togglingFavoriteId !== null) {
       return;
     }
     const desiredIsFavorite = !collection.isFavorite;
+    const applyToLists = (replacement: Collection) =>
+      setLists(previous => {
+        const next = { ...previous };
+        for (const key of FILTERS) {
+          const items = next[key].items.map(existing => (existing.id === replacement.id ? replacement : existing));
+          next[key] = {
+            ...next[key],
+            items: key === 'favorites' && !replacement.isFavorite ? items.filter(existing => existing.id !== replacement.id) : items,
+            isLoaded: key === 'favorites' && replacement.isFavorite && filterRef.current !== 'favorites' ? false : next[key].isLoaded,
+          };
+        }
+        return next;
+      });
 
     setTogglingFavoriteId(collection.id);
     setFavoriteToggleError(null);
-    setCollections(previous =>
-      previous.map(existing =>
-        existing.id === collection.id ? { ...existing, isFavorite: desiredIsFavorite } : existing,
-      ),
-    );
-    setFavorites(previous =>
-      desiredIsFavorite
-        ? sortByCreatedAtUtcDescending([...previous, { ...collection, isFavorite: true }])
-        : previous.filter(existing => existing.id !== collection.id),
-    );
+    applyToLists({ ...collection, isFavorite: desiredIsFavorite });
 
     try {
       const updated = await setCollectionFavorite(authenticatedRequest, collection.id, desiredIsFavorite);
-      setCollections(previous => previous.map(existing => (existing.id === updated.id ? updated : existing)));
-      setFavorites(previous => {
-        const withoutStale = previous.filter(existing => existing.id !== updated.id);
-        return updated.isFavorite ? sortByCreatedAtUtcDescending([...withoutStale, updated]) : withoutStale;
-      });
+      applyToLists(updated);
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
-      // Roll back to the pre-toggle Collection in both lists - never trust the optimistic flip.
-      setCollections(previous =>
-        previous.map(existing => (existing.id === collection.id ? collection : existing)),
-      );
-      setFavorites(previous => {
-        const withoutStale = previous.filter(existing => existing.id !== collection.id);
-        return collection.isFavorite ? sortByCreatedAtUtcDescending([...withoutStale, collection]) : withoutStale;
-      });
+      // Roll back to the pre-toggle Collection - never trust the optimistic flip.
+      applyToLists(collection);
+      if (collection.isFavorite) {
+        setLists(previous => ({ ...previous, favorites: { ...previous.favorites, isLoaded: false } }));
+      }
       setFavoriteToggleError(getFavoriteToggleErrorMessage(caughtError, t));
     } finally {
       setTogglingFavoriteId(null);
     }
   };
 
-  const activeTabData = activeTab === 'favorites' ? favorites : collections;
-  const isActiveTabInitialLoading =
-    activeTab === 'favorites'
-      ? isLoadingFavorites && favorites.length === 0 && !favoritesError
-      : isLoading && collections.length === 0 && !error;
+  /**
+   * An answered invitation leaves the list at once; accepting also reloads 공유 카테고리 (the
+   * Category now belongs there) and marks the other filters stale, so it shows without leaving.
+   */
+  const handleInvitationResponded = (invitationId: number, accepted: boolean) => {
+    const remaining = receivedInvitations.filter(invitation => invitation.invitationId !== invitationId);
+    setReceivedInvitations(remaining);
+    if (remaining.length === 0) {
+      setIsShareRequestsVisible(false);
+    }
+    if (accepted) {
+      invalidateOtherFilters(filterRef.current);
+      load(filterRef.current, 'refresh');
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+    }
+  };
+
+  const activeList = lists[filter];
+  const isActiveInitialLoading = !activeList.isLoaded && isLoading && !error;
+  const openCollection = (collection: Collection) =>
+    navigation.navigate('CollectionDetails', { collectionId: collection.id });
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
         key={viewMode}
         contentContainerStyle={styles.content}
-        data={activeTabData}
+        data={activeList.items}
         keyExtractor={collection => collection.id.toString()}
-        onEndReached={activeTab === 'all' ? loadMore : undefined}
+        onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => load('refresh')} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={() => {
+              load(filter, 'refresh');
+              loadReceivedInvitations();
+            }}
+          />
+        }
         numColumns={viewMode === 'grid' ? GRID_COLUMNS : 1}
         ListHeaderComponent={
           <View>
@@ -391,46 +462,66 @@ export function CollectionsScreen() {
               </View>
             </View>
 
-            <View style={styles.segmentRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: activeTab === 'favorites' }}
-                onPress={() => setActiveTab('favorites')}
-                style={[styles.segmentTab, activeTab === 'favorites' && styles.segmentTabActive]}
-              >
-                <Text
-                  style={[styles.segmentLabel, activeTab === 'favorites' && styles.segmentLabelActive]}
-                >
-                  {t('collections.favoritesTitle')}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: activeTab === 'all' }}
-                onPress={() => setActiveTab('all')}
-                style={[styles.segmentTab, activeTab === 'all' && styles.segmentTabActive]}
-              >
-                <Text style={[styles.segmentLabel, activeTab === 'all' && styles.segmentLabelActive]}>
-                  {t('collections.allCollectionsTitle')}
-                </Text>
-              </Pressable>
+            {/* Four same-level filters as a 2x2 grid: every option is always visible, each cell takes
+                half the width and a long translation wraps to a second line (the grid simply grows
+                taller) - never clipped, never shrunk. Rows follow the layout direction, so RTL
+                mirrors the columns automatically. */}
+            <View accessibilityRole="tablist" style={styles.filterGrid}>
+              {FILTER_ROWS.map(row => (
+                <View key={row.join('-')} style={styles.filterRow}>
+                  {row.map(option => (
+                    <Pressable
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: filter === option }}
+                      key={option}
+                      onPress={() => selectFilter(option)}
+                      style={[styles.filterCell, filter === option && styles.filterCellActive]}
+                      testID={`collections-filter-${option}`}
+                    >
+                      <Text numberOfLines={2} style={[styles.filterLabel, filter === option && styles.filterLabelActive]}>
+                        {t(FILTER_LABEL_KEYS[option])}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ))}
             </View>
 
-            {activeTab === 'favorites' && favoritesError ? (
-              <Text style={styles.error}>{favoritesError}</Text>
+            {/* 공유 요청: only on 공유 카테고리 and only while there is something to answer - it
+                never takes space otherwise. */}
+            {filter === 'shared' && receivedInvitations.length > 0 ? (
+              <Pressable
+                accessibilityLabel={t('collections.shareRequestCount', { count: receivedInvitations.length })}
+                accessibilityRole="button"
+                onPress={() => setIsShareRequestsVisible(true)}
+                style={styles.shareRequestsRow}
+                testID="collections-share-requests"
+              >
+                <Text numberOfLines={2} style={styles.shareRequestsLabel}>{t('collections.shareRequests')}</Text>
+                <View style={styles.shareRequestsBadge}>
+                  <Text style={styles.shareRequestsBadgeText} testID="collections-share-requests-count">
+                    {receivedInvitations.length}
+                  </Text>
+                </View>
+                {/* Points toward the reading direction's end (mirrored under RTL). */}
+                <ChevronIcon
+                  color={colors.textSecondary}
+                  direction={layoutDirection === 'rtl' ? 'left' : 'right'}
+                  size={16}
+                />
+              </Pressable>
             ) : null}
+
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-            {activeTab === 'all' && error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
         ListEmptyComponent={
-          isActiveTabInitialLoading ? (
+          isActiveInitialLoading ? (
             <ActivityIndicator style={styles.tabLoading} />
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.empty}>
-                {t(activeTab === 'favorites' ? 'collections.favoritesEmpty' : 'collections.allCollectionsEmpty')}
-              </Text>
+              <Text style={styles.empty}>{t(FILTER_EMPTY_KEYS[filter])}</Text>
             </View>
           )
         }
@@ -439,10 +530,10 @@ export function CollectionsScreen() {
             collection={item}
             isFavoriteToggleDisabled={togglingFavoriteId !== null}
             isTogglingFavorite={togglingFavoriteId === item.id}
-            onPress={() => navigation.navigate('CollectionDetails', { collectionId: item.id })}
+            onPress={() => openCollection(item)}
             onToggleFavorite={() => toggleFavoriteAction(item)}
           />
-        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onPress={() => navigation.navigate('CollectionDetails', { collectionId: item.id })} onToggleFavorite={() => toggleFavoriteAction(item)} />}
+        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoading}>
@@ -450,6 +541,15 @@ export function CollectionsScreen() {
             </View>
           ) : undefined
         }
+      />
+
+      <ReceivedInvitationsSheet
+        authenticatedRequest={authenticatedRequest}
+        invitations={receivedInvitations}
+        onClose={() => setIsShareRequestsVisible(false)}
+        onResponded={handleInvitationResponded}
+        onStale={loadReceivedInvitations}
+        visible={isShareRequestsVisible}
       />
 
       <CategoryEditorDialog
@@ -493,12 +593,15 @@ function CollectionTile({
   onToggleFavorite,
 }: CollectionTileProps) {
   const { t } = useTranslation();
+  const participantSummary = formatParticipantSummary(collection, t);
 
   return (
     <View style={styles.gridCell}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
         <View style={styles.tileIconSlot}>
           <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={56} />
+          <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
+          {/* The caller's own favorite mark - Owner and Contributor alike, never someone else's. */}
           <Pressable
             accessibilityLabel={
               collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')
@@ -528,6 +631,11 @@ function CollectionTile({
         <Text numberOfLines={1} style={styles.tileLabel}>
           {collection.name}
         </Text>
+        {participantSummary ? (
+          <Text numberOfLines={1} style={styles.tileOwner} testID="collection-tile-participants">
+            {participantSummary}
+          </Text>
+        ) : null}
       </Pressable>
     </View>
   );
@@ -586,31 +694,76 @@ const styles = StyleSheet.create({
   tabLoading: {
     paddingVertical: spacing.lg,
   },
-  // Pill segmented control - a muted track with a solid brand-colored pill under whichever tab is
-  // active, replacing the old underline-tab treatment.
-  segmentRow: {
+  // The four same-level filters as a 2x2 grid on one muted track (the previous pill language):
+  // equal halves; the selected cell the Collection blue with the blue folder-glyph outline, the
+  // others light gray (collectionFilterColors). Same border width everywhere - no layout shift.
+  filterGrid: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md + 6,
-    flexDirection: 'row',
+    gap: 4,
     marginBottom: spacing.md,
     padding: 4,
   },
-  segmentTab: {
+  filterRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  filterCell: {
     alignItems: 'center',
+    backgroundColor: collectionFilterColors.unselectedBackground,
+    // Every cell has the same border width, so selecting one never shifts the layout.
+    borderColor: collectionFilterColors.unselectedBorder,
     borderRadius: radii.md + 2,
+    borderWidth: 1,
     flex: 1,
-    paddingVertical: spacing.sm,
+    justifyContent: 'center',
+    minHeight: minTouchTarget - 4,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  segmentTabActive: {
-    backgroundColor: colors.brand,
+  filterCellActive: {
+    backgroundColor: collectionFilterColors.selectedBackground,
+    borderColor: collectionFilterColors.selectedBorder,
   },
-  segmentLabel: {
-    color: colors.textSecondary,
+  filterLabel: {
+    color: collectionFilterColors.unselectedText,
     fontSize: 13,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  segmentLabelActive: {
-    color: colors.surface,
+  filterLabelActive: {
+    color: collectionFilterColors.selectedText,
+    fontWeight: '700',
+  },
+  shareRequestsRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...cardShadow,
+  },
+  shareRequestsLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
+  shareRequestsBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    justifyContent: 'center',
+    minWidth: 20,
+    paddingHorizontal: 6,
+  },
+  shareRequestsBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
+  tileOwner: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    marginTop: 2,
+    maxWidth: 84,
+    textAlign: 'center',
   },
   // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis
   // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line.
@@ -676,16 +829,35 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
-  listName: { color: colors.textPrimary, flex: 1, fontSize: 16, fontWeight: '600' },
+  listName: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
+  listText: { flex: 1, minWidth: 0 },
+  listOwner: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  listIconSlot: { position: 'relative' },
   listCount: { color: colors.textSecondary, flexShrink: 0, fontSize: 13 },
   listFavorite: { padding: spacing.sm },
 });
 
+/**
+ * The List form keeps the same marker hierarchy as the Grid tile: lock at the icon's top-start,
+ * shared at its bottom-start; a collaborative row shows the other participants under the name,
+ * and every row (owned or shared) has the caller's own favorite star.
+ */
 function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onPress, onToggleFavorite }: CollectionTileProps) {
   const { t } = useTranslation();
+  const participantSummary = formatParticipantSummary(collection, t);
   return <Pressable accessibilityRole="button" onPress={onPress} style={styles.listRow}>
-    <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
-    <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
+    <View style={styles.listIconSlot}>
+      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
+      <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
+    </View>
+    <View style={styles.listText}>
+      <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
+      {participantSummary ? (
+        <Text numberOfLines={1} style={styles.listOwner} testID="collection-row-participants">
+          {participantSummary}
+        </Text>
+      ) : null}
+    </View>
     <Text numberOfLines={1} style={styles.listCount} testID="collection-row-item-count">{t('collections.detailItemCount', { count: collection.itemCount })}</Text>
     <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
       <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />

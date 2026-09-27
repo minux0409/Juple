@@ -21,4 +21,20 @@ public sealed record CollectionItemEntryDto(
     int SortOrder,
     RepresentativeImageDto? RepresentativeImage,
     string? PreviewImageUrl,
-    RepresentativeImageDto? CoverImage);
+    RepresentativeImageDto? CoverImage,
+    // False for an Item another member owns: then Memo, RepresentativeImage and CoverImage are
+    // always null (private to the Item's owner - they are never even selected from the database);
+    // only Url/Title/automatic PreviewImageUrl/AddedAtUtc are shared.
+    bool IsMine = true);
+
+/// <summary>
+/// Read-only view of one link inside a Collection, for a member opening someone else's Item (the
+/// owner-only GET /items/{id} stays owner-only). Never carries Memo or uploaded photos.
+/// </summary>
+public sealed record SharedCollectionItemDto(
+    long ItemId,
+    string Url,
+    string? Title,
+    string? PreviewImageUrl,
+    DateTimeOffset AddedAtUtc,
+    bool IsMine);

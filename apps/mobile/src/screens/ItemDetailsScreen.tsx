@@ -567,7 +567,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
     for (const option of categoriesToAdd) {
       try {
-        await addItemToCollection(authenticatedRequest, option.id, itemId);
+        // Each locked Collection travels with the grant this screen's picker obtained for it.
+        await addItemToCollection(authenticatedRequest, option.id, itemId, { unlockToken: categoryPicker.unlockTokenFor(option.id) });
         setOriginalCategoryIds(previous => new Set(previous).add(option.id));
       } catch (caughtError) {
         failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
@@ -575,7 +576,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
     for (const collectionId of categoryIdsToRemove) {
       try {
-        await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
+        await removeItemFromCollection(authenticatedRequest, collectionId, itemId, { unlockToken: categoryPicker.unlockTokenFor(collectionId) });
         setOriginalCategoryIds(previous => {
           const next = new Set(previous);
           next.delete(collectionId);
@@ -792,9 +793,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         onLoadMore={categoryPicker.loadMore}
         onOpenCreateDialog={categoryPicker.openCreateDialog}
         onToggle={option =>
-          selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option)
+          categoryPicker.requestToggle(option, () =>
+            selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option))
         }
+        onUnlockCancel={categoryPicker.cancelUnlock}
+        onUnlockGranted={categoryPicker.onUnlockGranted}
         selectedIds={selectedCategoryIds}
+        unlockTarget={categoryPicker.unlockTarget}
         visible={categoryPicker.isVisible}
       />
     </View>

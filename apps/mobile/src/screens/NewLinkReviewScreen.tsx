@@ -13,6 +13,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { addItemToCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
 import { CategoryField } from '../collections/CategoryField';
+import { needsUnlockForContent } from '../collections/collectionAccess';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
@@ -236,7 +237,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           return;
         }
         const preselected = page.items.find(option => option.id === route.params.preselectedCollectionId);
-        if (preselected) {
+        // A locked Category is never preselected before it has been unlocked in this session (its
+        // add would be rejected on Save) - the user can still pick it after unlocking it.
+        if (preselected && !needsUnlockForContent(preselected)) {
           setSelectedCollections(previous =>
             previous.some(existing => existing.id === preselected.id) ? previous : [...previous, preselected],
           );
@@ -492,7 +495,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       }
 
       for (const collection of selectedCollections) {
-        await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id);
+        // A locked Collection goes with the grant this screen's picker obtained for it.
+        await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id, {
+          unlockToken: categoryPicker.unlockTokenFor(collection.id),
+        });
       }
 
       // Staged photo(s) upload only now that the Item is real - never before. A failure here
@@ -753,8 +759,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         onCreateCollection={categoryPicker.submitNewCollection}
         onLoadMore={categoryPicker.loadMore}
         onOpenCreateDialog={categoryPicker.openCreateDialog}
-        onToggle={toggleCategory}
+        onToggle={option => categoryPicker.requestToggle(option, () => toggleCategory(option))}
+        onUnlockCancel={categoryPicker.cancelUnlock}
+        onUnlockGranted={categoryPicker.onUnlockGranted}
         selectedIds={selectedCollectionIds}
+        unlockTarget={categoryPicker.unlockTarget}
         visible={categoryPicker.isVisible}
       />
 

@@ -20,6 +20,18 @@ public interface ICollectionShareStore
         long collectionId,
         string candidatePublicId,
         DateTimeOffset enabledAtUtc,
+        Juple.Domain.Collections.CollectionSharePermission permission = Juple.Domain.Collections.CollectionSharePermission.Read,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Changes what the active public link allows (Read / Write). Null when the Collection is owned
+    /// but has no active share. CollectionNotFoundException for a missing or other-user's Collection.
+    /// </summary>
+    Task<CollectionShareDto?> SetPermissionAsync(
+        long userId,
+        long collectionId,
+        Juple.Domain.Collections.CollectionSharePermission permission,
+        DateTimeOffset updatedAtUtc,
         CancellationToken cancellationToken = default);
 
     /// <summary>

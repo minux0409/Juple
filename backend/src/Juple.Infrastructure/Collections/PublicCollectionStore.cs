@@ -7,14 +7,14 @@ namespace Juple.Infrastructure.Collections;
 
 /// <summary>
 /// The anonymous read side, deliberately kept in its own class rather than folded into
-/// CollectionStore - every query here is written from scratch with no UserId join anywhere, so
-/// there is no shared code path that could accidentally leak an authenticated query's private
-/// projections (Memo/Category/RepresentativeImage/ItemId - see CollectionStore.GetItemsAsync) into
-/// a response an anonymous caller can read.
+/// CollectionStore - every query here is written from scratch, so there is no shared code path that
+/// could accidentally leak an authenticated query's private projections (Memo/Category/uploaded
+/// images/ItemId - see CollectionStore.GetItemsAsync) into a response an anonymous caller can read.
+/// Lock enforcement happens in PublicCollectionService before GetItemsAsync is ever called.
 /// </summary>
 public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCollectionShareStore
 {
-    public async Task<PublicCollectionDto?> GetCollectionAsync(
+    public async Task<PublicShareState?> GetStateAsync(
         string publicId,
         CancellationToken cancellationToken = default)
     {
@@ -24,7 +24,7 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             join collection in dbContext.Collections.AsNoTracking()
                 on share.CollectionId equals collection.Id
             where collection.DeletedAtUtc == null
-            select new PublicCollectionDto(collection.Name)
+            select new PublicShareState(share.Id, collection.Id, collection.Name, collection.IsLocked, collection.LockVersion, share.Permission)
         ).FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -39,7 +39,7 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             where share.PublicId == publicId && share.IsActive
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
                 on share.CollectionId equals collection.Id
-            select new { share.CollectionId })
+            select new { share.CollectionId, OwnerUserId = collection.UserId })
             .FirstOrDefaultAsync(cancellationToken);
         if (activeShare is null)
         {
@@ -57,19 +57,24 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
                 || (membership.SortOrder == cursor.SortOrder && membership.ItemId > cursor.ItemId));
         }
 
+        // Only the Owner's own Items and links added through a writable public link are ever
+        // published (see IPublicCollectionShareStore) - never a member's - and only their public-safe
+        // fields: PreviewImageUrl is the automatic link-preview image, never an uploaded ItemImage;
+        // no Memo, no adder identity.
         var pagedQuery =
             from membership in membershipQuery
             join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
+            where item.UserId == activeShare.OwnerUserId || membership.AddedViaPublicShare
             orderby membership.SortOrder ascending, membership.ItemId ascending
-            select new { item.Title, item.Url, membership.SortOrder, membership.ItemId };
+            select new { item.Title, item.Url, item.PreviewImageUrl, membership.SortOrder, membership.ItemId };
 
         var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
 
-        var items = pageRows.Select(row => new PublicCollectionItemDto(row.Title, row.Url)).ToList();
+        var items = pageRows.Select(row => new PublicCollectionItemDto(row.Title, row.Url, row.PreviewImageUrl)).ToList();
         var nextCursor = hasMore
             ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].ItemId)
             : null;

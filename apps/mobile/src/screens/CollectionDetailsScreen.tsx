@@ -6,10 +6,10 @@ import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -20,14 +20,11 @@ import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync
 import {
   deleteCollection,
   addItemToCollection,
-  enableCollectionShare,
   getCollection,
-  getCollectionShare,
   getCollections,
   mergeCollection,
   removeItemFromCollection,
   renameCollection,
-  revokeCollectionShare,
   restoreCollection,
   setCollectionColor,
   setCollectionFavorite,
@@ -37,16 +34,21 @@ import {
   undoTransferCollectionItem,
   type Collection,
   type CollectionItemEntry,
-  type CollectionShare,
 } from '../collections/api/collectionsApi';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
+import { isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
+import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
+import { beginCollectionVisit, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
+import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
+import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
+import { formatParticipantSummary } from '../collections/participantSummary';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import {
   resolveEffectiveCollectionColorValue,
   type CollectionColorValue,
 } from '../collections/collectionColors';
 import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
-import { useCollectionItems } from '../collections/useCollectionItems';
+import { isCollectionLockedError, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -59,8 +61,8 @@ import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { EditIcon } from '../icons/EditIcon';
-import { GlobeIcon } from '../icons/GlobeIcon';
-import { InfoIcon } from '../icons/InfoIcon';
+import { LockIcon } from '../icons/LockIcon';
+import { PeopleIcon } from '../icons/PeopleIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -70,7 +72,7 @@ import { sortCollectionItems } from '../collections/sortCollectionItems';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { useSortPreference, type LinkSortOption } from '../settings/sortPreference';
+import { useSortPreference } from '../settings/sortPreference';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -89,6 +91,9 @@ function getCollectionLoadErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getRenameErrorMessage(error: unknown, t: TFunction): string {
+  if (isCollectionLockedError(error)) {
+    return t('collections.lockRequiredForAction');
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
       return t('collections.errorNameConflict');
@@ -104,6 +109,9 @@ function getRenameErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getIconUpdateErrorMessage(error: unknown, t: TFunction): string {
+  if (isCollectionLockedError(error)) {
+    return t('collections.lockRequiredForAction');
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -111,6 +119,9 @@ function getIconUpdateErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getColorUpdateErrorMessage(error: unknown, t: TFunction): string {
+  if (isCollectionLockedError(error)) {
+    return t('collections.lockRequiredForAction');
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -118,6 +129,9 @@ function getColorUpdateErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (isCollectionLockedError(error)) {
+    return t('collections.lockRequiredForAction');
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -128,6 +142,9 @@ function getRemoveItemErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
+  if (isCollectionLockedError(error)) {
+    return t('collections.lockRequiredForAction');
+  }
   return t('collections.errorRemoveItemFallback');
 }
 
@@ -136,21 +153,6 @@ function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('collections.errorFavoriteToggleFallback');
-}
-
-/**
- * ApiError here means the enable/revoke management call itself failed - a non-ApiError means
- * Share.share (the OS Share Sheet) threw after a successful enable, so reuses the same message as
- * the per-item quick-share failure (item.shareError) since it is the exact same failure mode.
- */
-function getShareManagementErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'unauthorized') {
-      return t('errors.unauthorized');
-    }
-    return t('collections.errorShareManagementFallback');
-  }
-  return t('item.shareError');
 }
 
 /** Share.share only ever rejects on a genuine native module failure - a user dismissing/canceling the sheet resolves normally, never here. */
@@ -232,13 +234,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
-  const [share, setShare] = useState<CollectionShare | null>(null);
-  const [isManagingShare, setIsManagingShare] = useState(false);
-  const [shareManagementError, setShareManagementError] = useState<string | null>(null);
-  const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
-  // Purely presentational - the help text itself (publicShareDescription) is unchanged, only
-  // whether it's shown inline below the row is toggled by tapping the info icon.
-  const [isShareInfoExpanded, setIsShareInfoExpanded] = useState(false);
+  const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
   const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
@@ -253,6 +249,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [pendingTarget, setPendingTarget] = useState<Collection | null>(null);
   const [isMembershipMutation, setIsMembershipMutation] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [lockDialogMode, setLockDialogMode] = useState<CollectionLockDialogMode | null>(null);
+  // An Owner management action (edit/delete/share) waiting for the password on a locked Collection;
+  // it runs right after a successful unlock, so the user never has to find the menu again.
+  const [pendingUnlockAction, setPendingUnlockAction] = useState<(() => void) | null>(null);
 
   const {
     items,
@@ -260,6 +260,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     isRefreshing,
     isLoadingMore,
     error,
+    isLocked: isContentLocked,
     refresh,
     loadMore,
     removeLocally,
@@ -287,25 +288,23 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   }, [authenticatedRequest, collectionId, t]);
 
-  const loadShareStatus = useCallback(async () => {
-    try {
-      const activeShare = await getCollectionShare(authenticatedRequest, collectionId);
-      setShare(activeShare);
-    } catch {
-      // A failed background status check is not worth its own error banner - the share
-      // buttons below stay usable either way: EnableShareAsync is idempotent, so tapping
-      // "share" still safely resolves to whatever the server's actual current state is.
-    }
-  }, [authenticatedRequest, collectionId]);
+  // Refetches the Collection's own metadata (Name/ItemCount/participants) on every focus - entirely
+  // independent of useCollectionItems' own focus-driven Item list load, mirroring ItemDetailsScreen's
+  // Purchases/RepeatPurchases independence.
+  // Owner vs Contributor always comes from the server's accessRole - never inferred here. Every
+  // Owner-only control below is hidden for a Contributor, and the server independently refuses
+  // them (403) regardless.
+  const isOwner = collection !== null && !isSharedWithMe(collection);
 
-  // Refetches the Collection's own metadata (Name/ItemCount) on every focus - entirely independent
-  // of useCollectionItems' own focus-driven Item list load, mirroring ItemDetailsScreen's
-  // Purchases/RepeatPurchases independence. Share status is fetched the same independent way.
+  // An unlock lasts for this visit only: while this screen is on the stack (child screens, sheets
+  // and dialogs included) the grant is reused; once the user leaves the Collection it is forgotten,
+  // and coming back asks for the password again.
+  useEffect(() => beginCollectionVisit(collectionId), [collectionId]);
+
   useFocusEffect(
     useCallback(() => {
       loadCollection();
-      loadShareStatus();
-    }, [loadCollection, loadShareStatus]),
+    }, [loadCollection]),
   );
 
   // Refresh signaling deliberately separate from AppToast state: revisiting this screen must never
@@ -320,6 +319,19 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     loadCollection();
     refresh();
   }, [route.params.refreshToken, navigation, loadCollection, refresh]);
+
+  /**
+   * Managing a locked Collection (edit, delete, share) needs the same unlock grant as its content -
+   * the server refuses these without one. With a valid grant from this session the action runs at
+   * once; otherwise the password prompt opens first and the action resumes after it succeeds.
+   */
+  const runUnlocked = (action: () => void) => {
+    if (collection && isCollectionLocked(collection) && getCollectionUnlockToken(collectionId) === null) {
+      setPendingUnlockAction(() => action);
+      return;
+    }
+    action();
+  };
 
   const openEditDialog = () => {
     if (!collection || isSavingEdit) {
@@ -510,65 +522,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  /**
-   * Idempotent, mirroring the Backend: if already shared, reuses the existing active link rather
-   * than minting a new one. Enabling no longer also opens the OS Share Sheet - that is now the
-   * separate, explicit "링크 공유" action below, so toggling the switch ON never itself triggers a
-   * system share sheet.
-   */
-  const enableShareAction = async () => {
-    if (!collection || isManagingShare) {
-      return;
-    }
-
-    setIsManagingShare(true);
-    setShareManagementError(null);
-    try {
-      const activeShare = share ?? (await enableCollectionShare(authenticatedRequest, collectionId));
-      setShare(activeShare);
-    } catch (caughtError) {
-      setShareManagementError(getShareManagementErrorMessage(caughtError, t));
-    } finally {
-      setIsManagingShare(false);
-    }
-  };
-
-  /** Shares the Collection's own Juple public link (never an Item's URL) via the OS Share Sheet. */
-  const shareLinkAction = async () => {
-    if (!collection || !share) {
-      return;
-    }
-    try {
-      await shareItem(share.shareUrl, collection.name);
-    } catch {
-      setShareManagementError(getShareErrorMessage(t));
-    }
-  };
-
-  const revokeShareAction = async () => {
-    if (isManagingShare) {
-      return;
-    }
-
-    setIsManagingShare(true);
-    setShareManagementError(null);
-    try {
-      await revokeCollectionShare(authenticatedRequest, collectionId);
-      setShare(null);
-    } catch (caughtError) {
-      setShareManagementError(getShareManagementErrorMessage(caughtError, t));
-    } finally {
-      setIsManagingShare(false);
-    }
-  };
-
-  const confirmUnshare = () => {
-    if (isManagingShare) {
-      return;
-    }
-    setIsUnshareConfirmVisible(true);
-  };
-
   const confirmUnlinkItem = (itemId: number) => {
     setPendingUnlinkItemId(previous => previous ?? itemId);
   };
@@ -623,7 +576,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     if (!actionMenuItem || isMembershipMutation) return;
     setIsMembershipMutation(true); setTargetMode(null);
     try { await addItemToCollection(authenticatedRequest, target.id, actionMenuItem.itemId); showNotificationToast(t('collections.addSuccess')); }
-    catch { setNotice(t('collections.addError')); }
+    catch (caughtError) { setNotice(t(isCollectionLockedError(caughtError) ? 'collections.lockRequiredForAction' : 'collections.addError')); }
     finally { setActionMenuItem(null); setTargetMode(null); setIsMembershipMutation(false); }
   };
 
@@ -667,16 +620,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           await refresh();
         } });
       }
-    } catch { setNotice(t(targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError')); }
-    finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
-  };
-
-  const handleShareToggle = (value: boolean) => {
-    if (value) {
-      enableShareAction();
-    } else {
-      confirmUnshare();
+    } catch (caughtError) {
+      if (isCollectionLockedError(caughtError)) setNotice(t('collections.lockRequiredForAction'));
+      else setNotice(t(targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError'));
     }
+    finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
   };
 
   if (isLoadingCollection && !collection) {
@@ -695,13 +643,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     );
   }
 
+  const participantSummary = formatParticipantSummary(collection, t);
+
   return (
     <StackScreenSafeArea style={styles.safeArea}>
       <FlatList
         key={viewMode}
         contentContainerStyle={styles.content}
         style={styles.list}
-        data={sortedItems}
+        data={isContentLocked ? [] : sortedItems}
         keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
         numColumns={viewMode === 'grid' ? 2 : 1}
         onEndReached={loadMore}
@@ -715,39 +665,64 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                     <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={32} />
                   </View>
                   <Text style={styles.title}>{collection.name}</Text>
+                  {isCollectionLocked(collection) ? (
+                    <View accessibilityLabel={t('collections.lockedA11y')} testID="collection-details-locked">
+                      <LockIcon color={colors.textSecondary} size={18} />
+                    </View>
+                  ) : null}
                 </View>
+                {participantSummary ? (
+                  <Pressable
+                    accessibilityHint={t('collections.participantsTitle')}
+                    accessibilityRole="button"
+                    onPress={() => setIsParticipantsSheetVisible(true)}
+                    style={styles.sharedByRow}
+                    testID="collection-details-participants"
+                  >
+                    <PeopleIcon color={colors.brand} size={14} />
+                    <Text numberOfLines={1} style={styles.sharedByText}>{participantSummary}</Text>
+                  </Pressable>
+                ) : null}
                 <View style={styles.headerMetaRow}>
                   <Text style={styles.itemCount}>
                     {t('collections.detailItemCount', { count: collection.itemCount })}
                   </Text>
                   <View style={styles.headerActions}>
-                    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton}>
+                    {/* The caller's own favorite mark - a Contributor has one too; it changes
+                        nothing for anyone else, so it is not an Owner-only control. */}
+                    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton} testID="collection-details-favorite">
                       <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
                     </Pressable>
-                    <Pressable accessibilityLabel={t('common.edit')} accessibilityRole="button" onPress={openEditDialog} style={styles.iconButton}>
+                  {isOwner ? (
+                  <>
+                    <Pressable accessibilityLabel={t('common.edit')} accessibilityRole="button" onPress={() => runUnlocked(openEditDialog)} style={styles.iconButton} testID="collection-details-edit">
                       <EditIcon color={colors.textPrimary} size={20} />
                     </Pressable>
-                    {share ? (
-                      <Pressable
-                        accessibilityLabel={t('collections.shareAction')}
-                        accessibilityRole="button"
-                        onPress={shareLinkAction}
-                        style={styles.iconButton}
-                      >
-                        <ShareIcon color={colors.textPrimary} size={20} />
-                      </Pressable>
-                    ) : null}
+                    {/* The single entry point for sharing - opens the one Share screen;
+                        tapping it never turns anything on by itself. */}
+                    <Pressable
+                      accessibilityLabel={t('collections.shareAction')}
+                      accessibilityRole="button"
+                      onPress={() => runUnlocked(() => navigation.navigate('CollectionShare', { collectionId }))}
+                      style={styles.iconButton}
+                      testID="collection-details-share"
+                    >
+                      <ShareIcon color={colors.textPrimary} size={20} />
+                    </Pressable>
                     <Pressable accessibilityLabel={t('collections.manageAction')} accessibilityRole="button" onPress={() => setIsCollectionMenuVisible(true)} style={styles.iconButton}><MoreIcon color={colors.textSecondary} size={20} /></Pressable>
                     <Pressable
                       accessibilityLabel={t('common.delete')}
                       accessibilityRole="button"
                       accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
                       disabled={isDeletingCollection}
-                      onPress={confirmDeleteCollection}
+                      onPress={() => runUnlocked(confirmDeleteCollection)}
+                      testID="collection-details-delete"
                       style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
                     >
                       <TrashIcon color={colors.danger} size={20} />
                     </Pressable>
+                  </>
+                  ) : null}
                   </View>
                 </View>
             </View>
@@ -779,35 +754,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             </View>
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
 
-            <View style={styles.shareSection}>
-              <View style={styles.shareToggleRow}>
-                <GlobeIcon color={colors.textSecondary} size={16} />
-                <Text style={styles.shareToggleLabel}>{t('collections.publicShareLabel')}</Text>
-                <Pressable
-                  accessibilityLabel={t('collections.publicShareInfoA11y')}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: isShareInfoExpanded }}
-                  hitSlop={8}
-                  onPress={() => setIsShareInfoExpanded(previous => !previous)}
-                  style={styles.shareInfoButton}
-                >
-                  <InfoIcon color={colors.textSecondary} size={16} />
-                </Pressable>
-                <View style={styles.shareToggleSpacer} />
-                <Switch
-                  disabled={isManagingShare}
-                  onValueChange={handleShareToggle}
-                  value={share !== null}
-                />
-              </View>
-              {isShareInfoExpanded ? (
-                <View style={styles.shareInfoBubble}>
-                  <Text style={styles.shareDescription}>{t('collections.publicShareDescription')}</Text>
-                </View>
-              ) : null}
-            </View>
-            {shareManagementError ? <Text style={styles.error}>{shareManagementError}</Text> : null}
-
             {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
             {removeError ? <Text style={styles.error}>{removeError}</Text> : null}
             {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
@@ -815,20 +761,33 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </View>
         }
         ListEmptyComponent={
-          !isLoading && !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined
+          isContentLocked ? (
+            <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} onUnlocked={refresh} />
+          ) : !isLoading && !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined
         }
         onScrollBeginDrag={closeOpenRow}
-        renderItem={({ item }) => (
+        renderItem={({ item }) => {
+          // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
+          // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
+          const isMine = item.isMine !== false;
+          const canManageItem = isOwner && isMine;
+          const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
+          return (
           <SwipeableItemRow
             containerStyle={[styles.row, viewMode === 'grid' && styles.gridCard]}
             disabled={itemActionInFlightId !== null || isRefreshing}
-            onDelete={() => confirmUnlinkItem(item.itemId)}
+            // Removing a link from the Category is Owner-only (it never deletes anyone's Item).
+            onDelete={isOwner ? () => confirmUnlinkItem(item.itemId) : undefined}
             // Grid tiles have no room for a separate trailing "More" button (see SavedLinkGridCard) -
             // long-press reaches the exact same Add/Move menu List mode's trailingAction opens, so
             // Grid never loses that functionality, only its always-visible affordance.
-            onLongPress={() => { setActionMenuItem(item); setIsItemActionMenuVisible(true); }}
+            onLongPress={canManageItem ? openItemMenu : undefined}
             onPress={() => {
-              navigation.navigate('ItemDetails', { itemId: item.itemId });
+              if (isMine) {
+                navigation.navigate('ItemDetails', { itemId: item.itemId });
+              } else {
+                navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId });
+              }
             }}
             onShare={() => shareItemAction(item)}
           >
@@ -846,11 +805,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 isActionInFlight={itemActionInFlightId === item.itemId}
                 item={toSavedLinkRowItem(item)}
                 preferEffectiveThumbnail
-                trailingAction={{ accessibilityLabel: t('collections.itemManageAction'), onPress: () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); } }}
+                trailingAction={canManageItem ? { accessibilityLabel: t('collections.itemManageAction'), onPress: openItemMenu } : undefined}
               />
             )}
           </SwipeableItemRow>
-        )}
+          );
+        }}
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoading}>
@@ -884,18 +844,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
-        confirmLabel={t('collections.unshare')}
-        message={t('collections.unshareConfirmMessage')}
-        onCancel={() => setIsUnshareConfirmVisible(false)}
-        onConfirm={() => {
-          setIsUnshareConfirmVisible(false);
-          revokeShareAction();
-        }}
-        title={t('collections.unshareConfirmTitle')}
-        visible={isUnshareConfirmVisible}
-      />
-      <ConfirmDialog
-        cancelLabel={t('common.cancel')}
         confirmLabel={t('collections.unlinkAction')}
         message={t('collections.unlinkConfirmMessage')}
         onCancel={() => setPendingUnlinkItemId(null)}
@@ -909,16 +857,123 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         title={t('collections.unlinkConfirmTitle')}
         visible={pendingUnlinkItemId !== null}
       />
-      <ActionMenuDialog actions={[{ label: t('collections.addToOther'), onPress: () => void openTargetPicker('add') }, { label: t('collections.moveToOther'), onPress: () => void openTargetPicker('move') }]} cancelLabel={t('common.cancel')} onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }} visible={isItemActionMenuVisible} />
-      <ActionMenuDialog actions={[{ label: t('collections.mergeWithOther'), onPress: () => void openTargetPicker('merge') }]} cancelLabel={t('common.cancel')} onCancel={() => setIsCollectionMenuVisible(false)} visible={isCollectionMenuVisible} />
+      <ActionMenuDialog actions={[{ label: t('collections.addToOther'), onPress: () => void openTargetPicker('add') }, ...(collection.hasCollaborators ? [] : [{ label: t('collections.moveToOther'), onPress: () => void openTargetPicker('move') }])]} cancelLabel={t('common.cancel')} onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }} visible={isItemActionMenuVisible} />
+      <ActionMenuDialog
+        actions={[
+          // The lock password itself is managed only in Settings > 컬렉션 잠금 - here a Collection is
+          // just locked (a confirmation) or unlocked (that password).
+          ...(isCollectionLocked(collection)
+            ? [
+                {
+                  label: t('collections.lockRemoveAction'),
+                  destructive: true,
+                  onPress: () => {
+                    setIsCollectionMenuVisible(false);
+                    setLockDialogMode('remove');
+                  },
+                },
+              ]
+            : [
+                {
+                  label: t('collections.lockSetTitle'),
+                  onPress: () => {
+                    setIsCollectionMenuVisible(false);
+                    setLockDialogMode('lock');
+                  },
+                },
+              ]),
+          // Merging moves this Category's links, so it is offered only once its content is unlocked.
+          ...(collection.hasCollaborators || isContentLocked ? [] : [{ label: t('collections.mergeWithOther'), onPress: () => void openTargetPicker('merge') }]),
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setIsCollectionMenuVisible(false)}
+        visible={isCollectionMenuVisible}
+      />
+      <CollectionLockDialog
+        collectionId={collectionId}
+        mode={lockDialogMode ?? 'lock'}
+        onCancel={() => setLockDialogMode(null)}
+        onChanged={() => {
+          setLockDialogMode(null);
+          loadCollection();
+          refresh();
+        }}
+        onOpenSettings={() => {
+          setLockDialogMode(null);
+          navigation.navigate('CollectionLockSettings');
+        }}
+        visible={lockDialogMode !== null}
+      />
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setPendingUnlockAction(null)}
+        transparent
+        visible={pendingUnlockAction !== null}
+      >
+        <View style={styles.unlockOverlay} testID="collection-details-unlock-gate">
+          <CollectionUnlockPanel
+            collectionId={collectionId}
+            isOwner={isOwner}
+            onUnlocked={() => {
+              const action = pendingUnlockAction;
+              setPendingUnlockAction(null);
+              refresh();
+              action?.();
+            }}
+          />
+          <Pressable accessibilityRole="button" onPress={() => setPendingUnlockAction(null)} style={styles.unlockCancel}>
+            <Text style={styles.unlockCancelLabel}>{t('common.cancel')}</Text>
+          </Pressable>
+        </View>
+      </Modal>
       <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
       <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
+      <CollectionParticipantsSheet
+        authenticatedRequest={authenticatedRequest}
+        collectionId={collectionId}
+        onChanged={loadCollection}
+        onClose={() => setIsParticipantsSheetVisible(false)}
+        runUnlocked={runUnlocked}
+        // Stepped aside while the password prompt is up (one modal at a time on iOS); it returns
+        // after the unlock - with the resumed action running - or after a cancel.
+        visible={isParticipantsSheetVisible && pendingUnlockAction === null}
+      />
       {notice ? <ConfirmDialog confirmLabel={t('common.confirm')} message={notice} onConfirm={() => setNotice(null)} title={t('common.notice')} visible /> : null}
     </StackScreenSafeArea>
   );
 }
 
 const styles = StyleSheet.create({
+  unlockOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  unlockCancel: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.lg,
+  },
+  unlockCancelLabel: {
+    color: colors.surface,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  sharedByRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  sharedByText: {
+    color: colors.textSecondary,
+    flexShrink: 1,
+    fontSize: 13,
+  },
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
@@ -997,53 +1052,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
-  },
-  // Deliberately NOT the "white floating card + shadow" treatment every link/content card on this
-  // screen uses (see `row` below) - a muted, low-elevation setting row reads unambiguously as
-  // "설정", never mistaken for another content card. No shadow/elevation at all, and a compact
-  // single-line height - the always-expanded description card this replaced is now hidden behind
-  // the info icon (see isShareInfoExpanded/shareInfoBubble below), so this section takes up
-  // almost no vertical space by default.
-  shareSection: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md,
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  shareToggleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs + 2,
-    minHeight: 32,
-  },
-  shareToggleLabel: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  shareInfoButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
-  },
-  // Pushes the Switch flush to the row's end edge regardless of label/info width.
-  shareToggleSpacer: {
-    flex: 1,
-  },
-  // The "말풍선/도움말 박스" - a muted inline panel directly under the row, only rendered while
-  // isShareInfoExpanded is true. A touch lighter than the row's own surfaceMuted so it still
-  // reads as a nested callout rather than blending into the row above it.
-  shareInfoBubble: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    marginTop: spacing.xs,
-    padding: spacing.sm,
-  },
-  shareDescription: {
-    color: colors.textSecondary,
-    fontSize: 12,
   },
   error: {
     color: '#B42318',

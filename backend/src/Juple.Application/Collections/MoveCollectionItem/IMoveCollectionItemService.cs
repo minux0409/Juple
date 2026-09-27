@@ -7,5 +7,6 @@ public interface IMoveCollectionItemService
         long collectionId,
         long itemId,
         long? afterItemId,
+        string? unlockToken = null,
         CancellationToken cancellationToken = default);
 }

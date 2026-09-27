@@ -73,18 +73,18 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var publicStore = new PublicCollectionStore(_dbContext);
 
-        Assert.NotNull(await publicStore.GetCollectionAsync(share.PublicId));
+        Assert.NotNull(await publicStore.GetStateAsync(share.PublicId));
         await collectionStore.DeleteAsync(_userId, collectionId);
         _dbContext.ChangeTracker.Clear();
 
-        Assert.Null(await publicStore.GetCollectionAsync(share.PublicId));
+        Assert.Null(await publicStore.GetStateAsync(share.PublicId));
         Assert.Null(await publicStore.GetItemsAsync(share.PublicId, null, 50));
         Assert.True(await _dbContext.CollectionShares.AnyAsync(s => s.CollectionId == collectionId && s.PublicId == share.PublicId));
 
         await collectionStore.RestoreAsync(_userId, collectionId);
         _dbContext.ChangeTracker.Clear();
 
-        Assert.NotNull(await publicStore.GetCollectionAsync(share.PublicId));
+        Assert.NotNull(await publicStore.GetStateAsync(share.PublicId));
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var publicStore = new PublicCollectionStore(_dbContext);
 
-        var result = await publicStore.GetCollectionAsync(share.PublicId);
+        var result = await publicStore.GetStateAsync(share.PublicId);
 
         Assert.NotNull(result);
         Assert.Equal("Travel", result!.Name);
@@ -109,7 +109,7 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
     {
         var publicStore = new PublicCollectionStore(_dbContext);
 
-        var result = await publicStore.GetCollectionAsync("does-not-exist");
+        var result = await publicStore.GetStateAsync("does-not-exist");
 
         Assert.Null(result);
     }
@@ -127,7 +127,7 @@ public sealed class PublicCollectionIntegrationTests : IAsyncLifetime
         _dbContext.ChangeTracker.Clear();
         var publicStore = new PublicCollectionStore(_dbContext);
 
-        var result = await publicStore.GetCollectionAsync(share.PublicId);
+        var result = await publicStore.GetStateAsync(share.PublicId);
 
         Assert.Null(result);
     }

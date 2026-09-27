@@ -1,12 +1,14 @@
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getDictionary, resolveLocale } from '../../../lib/i18n';
 import { resolveClientPlatform } from '../../../lib/platform';
-import { getPublicCollection, getPublicCollectionItems } from '../../../lib/publicApi';
+import { getPublicCollection, getPublicCollectionItems, LOCKED } from '../../../lib/publicApi';
 import { storeConfig } from '../../../lib/storeConfig';
+import { isValidPublicId, unlockCookieName } from '../../../lib/unlockCookie';
 import { InstallCta } from './InstallCta';
 import { ItemList } from './ItemList';
+import { LockedGate } from './LockedGate';
 
 interface PageProps {
   readonly params: Promise<{ publicId: string }>;
@@ -24,14 +26,22 @@ function resolveApiBaseUrl(): string {
   return process.env.JUPLE_API_BASE_URL || 'http://localhost:5092';
 }
 
+/** The locked share's grant, read server-side from its HttpOnly cookie - never sent to the client. */
+async function readUnlockToken(publicId: string): Promise<string | undefined> {
+  return (await cookies()).get(unlockCookieName(publicId))?.value;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { publicId } = await params;
-  const collection = await getPublicCollection(resolveApiBaseUrl(), publicId);
+  const collection = isValidPublicId(publicId)
+    ? await getPublicCollection(resolveApiBaseUrl(), publicId, await readUnlockToken(publicId))
+    : null;
 
   return {
-    // No fallback to a generic "Juple" title here - an unknown/revoked publicId's metadata must
-    // not imply the page exists; the page body itself calls notFound() in that case.
-    title: collection ? `${collection.name} - Juple` : 'Juple',
+    // No fallback to a generic "Juple" title for an unknown share - its metadata must not imply the
+    // page exists; the page body itself calls notFound() in that case. A locked share (name null)
+    // reveals nothing either, so it is just "Juple".
+    title: collection?.name ? `${collection.name} - Juple` : 'Juple',
     // iOS Smart App Banner - only when a real App Store app-id is configured (see
     // lib/storeConfig.ts); no fabricated app-id, and the field is simply absent otherwise.
     ...(storeConfig.appStoreAppId
@@ -42,23 +52,56 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PublicCollectionPage({ params }: PageProps) {
   const { publicId } = await params;
+  if (!isValidPublicId(publicId)) {
+    notFound();
+  }
   const apiBaseUrl = resolveApiBaseUrl();
 
   const requestHeaders = await headers();
   const locale = resolveLocale(requestHeaders.get('accept-language'));
   const dict = getDictionary(locale);
   const platform = resolveClientPlatform(requestHeaders.get('user-agent'));
+  const unlockToken = await readUnlockToken(publicId);
 
-  const collection = await getPublicCollection(apiBaseUrl, publicId);
+  const collection = await getPublicCollection(apiBaseUrl, publicId, unlockToken);
   if (collection === null) {
     notFound();
   }
 
-  const firstPage = await getPublicCollectionItems(apiBaseUrl, publicId, { limit: ITEMS_PAGE_LIMIT });
+  const lockedGate = (
+    <main>
+      <p className="brand">Juple</p>
+      <LockedGate
+        labels={{
+          title: dict.lockedTitle,
+          message: dict.lockedMessage,
+          password: dict.passwordLabel,
+          submit: dict.unlock,
+          submitting: dict.unlocking,
+          wrongPassword: dict.wrongPassword,
+          tooManyAttempts: dict.tooManyAttempts,
+          failed: dict.unlockFailed,
+        }}
+        publicId={publicId}
+      />
+    </main>
+  );
+
+  // Locked and not (or no longer - e.g. the password changed) unlocked: nothing about the share's
+  // content is fetched or rendered.
+  if (collection.name === null) {
+    return lockedGate;
+  }
+
+  const firstPage = await getPublicCollectionItems(apiBaseUrl, publicId, { limit: ITEMS_PAGE_LIMIT, unlockToken });
   // A share revoked in the instant between the two requests above - treat exactly like the
-  // collection-level 404, never a partial/broken page.
+  // collection-level 404, never a partial/broken page. A grant that expired in that instant falls
+  // back to the password form.
   if (firstPage === null) {
     notFound();
+  }
+  if (firstPage === LOCKED) {
+    return lockedGate;
   }
 
   return (
@@ -70,6 +113,7 @@ export default async function PublicCollectionPage({ params }: PageProps) {
         emptyLabel={dict.emptyState}
         initialItems={firstPage.items}
         initialNextCursor={firstPage.nextCursor}
+        isLocked={collection.isLocked}
         loadingLabel={dict.loading}
         loadMoreLabel={dict.loadMore}
         openLabel={dict.open}

@@ -46,6 +46,7 @@ public sealed class GetCollectionShareServiceTests
 
         public Task<CollectionShareDto> EnableAsync(
             long userId, long collectionId, string candidatePublicId, DateTimeOffset enabledAtUtc,
+            Juple.Domain.Collections.CollectionSharePermission permission = Juple.Domain.Collections.CollectionSharePermission.Read,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetCollectionShareService tests.");
 
@@ -65,5 +66,9 @@ public sealed class GetCollectionShareServiceTests
         public Task RevokeAsync(
             long userId, long collectionId, DateTimeOffset revokedAtUtc, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetCollectionShareService tests.");
+        public Task<CollectionShareDto?> SetPermissionAsync(
+            long userId, long collectionId, Juple.Domain.Collections.CollectionSharePermission permission, DateTimeOffset updatedAtUtc,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

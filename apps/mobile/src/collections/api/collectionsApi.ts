@@ -1,11 +1,40 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
+import { COLLECTION_UNLOCK_HEADER_NAME, storedUnlockHeaders } from '../collectionUnlockGrants';
 
 /** A named 보관함 - an Item can belong to any number of Collections at once (unlike Category). */
+/** The caller's relationship to a Collection - always stated by the server, never inferred client-side. */
+export type CollectionAccessRole = 'owner' | 'contributor' | 'viewer';
+
 export interface Collection {
   readonly id: number;
   readonly name: string;
-  /** A user preference on the Collection itself (quick-access pinning), not a separate resource. */
+  /**
+   * Collaboration/lock state (optional on the type only so older fixtures/responses still read as
+   * an owned, unlocked, unshared Collection - see isSharedWithMe/isCollectionLocked below).
+   * "contributor": shared with the caller by ownerJupleId; the caller may view and add their own
+   * links only. "viewer": shared view-only - the caller may only look (and keep their own favorite
+   * mark). isFavorite is always the caller's own mark, never the Owner's.
+   */
+  readonly accessRole?: CollectionAccessRole;
+  readonly isLocked?: boolean;
+  /** Owner view only: the Collection has at least one Contributor. */
+  readonly hasCollaborators?: boolean;
+  /** Contributor view only: the Owner's public Juple ID. */
+  readonly ownerJupleId?: string | null;
+  /** Contributor view only: the Owner's chosen display name (null when they have not set one). */
+  readonly ownerDisplayName?: string | null;
+  /**
+   * Collaborative Collections only: up to two OTHER participants (never the caller) - the Owner
+   * first, then Contributors in joining order - and how many other participants there are in all.
+   * Pending invitations are never participants. See formatParticipantSummary.
+   */
+  readonly participantPreview?: readonly CollectionParticipant[] | null;
+  readonly otherParticipantCount?: number;
+  /**
+   * The CALLER's own favorite mark (Owner or Contributor alike) - personal, never anyone else's,
+   * and never shared with the other participants.
+   */
   readonly isFavorite: boolean;
   readonly itemCount: number;
   readonly createdAtUtc: string;
@@ -27,6 +56,16 @@ export interface Collection {
   readonly color: string | null;
 }
 
+/** A member of a collaborative Collection, identified only by public Juple ID and chosen display name. */
+export interface CollectionParticipant {
+  readonly jupleId: string;
+  readonly displayName: string | null;
+  /** "owner", "contributor" or "viewer". */
+  readonly role: string;
+  /** Only in a full participant list: marks the signed-in user. */
+  readonly isMe?: boolean;
+}
+
 /**
  * One Item inside a Collection. SortOrder is the owner's manual display order (ascending) - see
  * moveCollectionItem; do not re-derive numbering from array position alone once reordering is in
@@ -45,6 +84,12 @@ export interface CollectionItemEntry {
   readonly representativeImage: RepresentativeImage | null;
   readonly previewImageUrl: string | null;
   readonly coverImage: RepresentativeImage | null;
+  /**
+   * False for a link another member of a shared Collection owns - then memo/representativeImage/
+   * coverImage are always null (private to that member) and it opens as the read-only shared view,
+   * never the owner-only ItemDetails. Undefined (older fixtures) reads as true.
+   */
+  readonly isMine?: boolean;
 }
 
 export interface CollectionItemsPage {
@@ -67,7 +112,15 @@ export interface GetCollectionsOptions {
   readonly excludeItemId?: number;
   /** Restricts the list to favorited (or, if false, non-favorited) Collections - an independent filter that composes with itemId/excludeItemId, not mutually exclusive with either. */
   readonly isFavorite?: boolean;
+  /**
+   * "owned" (default when omitted - the Collections the caller owns, unchanged behavior), "shared"
+   * (the caller is a Contributor), "all" (both, one server-side ordering) or "favorites" (both,
+   * only the caller's own favorites). isFavorite only applies to "owned".
+   */
+  readonly scope?: CollectionListScope;
 }
+
+export type CollectionListScope = 'owned' | 'shared' | 'all' | 'favorites';
 
 /** Collection is a growing user data set - always cursor-paginated, never returns everything in one response. */
 export async function getCollections(
@@ -83,6 +136,9 @@ export async function getCollections(
   }
   if (options.isFavorite !== undefined) {
     query.set('isFavorite', String(options.isFavorite));
+  }
+  if (options.scope !== undefined) {
+    query.set('scope', options.scope);
   }
   if (options.limit !== undefined) {
     query.set('limit', String(options.limit));
@@ -155,10 +211,11 @@ export async function renameCollection(
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}`,
     body: { name },
+    headers: storedUnlockHeaders(collectionId),
   });
 }
 
-/** PUTs a Collection's favorite preference; resolves with the updated Collection (409 on a concurrent modification). */
+/** PUTs the caller's own favorite mark (Owner or Contributor); resolves with the Collection as the caller sees it. */
 export async function setCollectionFavorite(
   request: AuthenticatedApiRequest,
   collectionId: number,
@@ -186,6 +243,7 @@ export async function setCollectionIcon(
   const response = await request<Collection>({
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/icon`,
+    headers: storedUnlockHeaders(collectionId),
     body: { icon },
   });
 
@@ -205,6 +263,7 @@ export async function setCollectionColor(
   const response = await request<Collection>({
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/color`,
+    headers: storedUnlockHeaders(collectionId),
     body: { color },
   });
 
@@ -223,6 +282,7 @@ export async function deleteCollection(
   await request<void>({
     method: 'DELETE',
     path: `/api/v1/collections/${collectionId}`,
+    headers: storedUnlockHeaders(collectionId),
   });
 }
 
@@ -241,6 +301,15 @@ export interface GetCollectionItemsOptions {
   readonly limit?: number;
   /** Opaque value from a previous CollectionItemsPage.nextCursor; never parsed or modified. */
   readonly cursor?: string;
+  /** Short-lived grant from unlockCollection, required while the Collection is locked. */
+  readonly unlockToken?: string | null;
+}
+
+/** The request header the unlock grant travels in (a header, so it never lands in a URL/log line). */
+export const COLLECTION_UNLOCK_HEADER = COLLECTION_UNLOCK_HEADER_NAME;
+
+function unlockHeaders(unlockToken: string | null | undefined): Readonly<Record<string, string>> | undefined {
+  return unlockToken ? { [COLLECTION_UNLOCK_HEADER]: unlockToken } : undefined;
 }
 
 /** A Collection's Item list, newest-added-first - always paginated, a Collection's size is unbounded. */
@@ -263,6 +332,7 @@ export async function getCollectionItems(
     path: queryString
       ? `/api/v1/collections/${collectionId}/items?${queryString}`
       : `/api/v1/collections/${collectionId}/items`,
+    headers: unlockHeaders(options.unlockToken),
   });
 
   if (!response.body) {
@@ -272,15 +342,119 @@ export async function getCollectionItems(
   return response.body;
 }
 
+/** Read-only view of one link in a Collection (for another member's link - never memo/photos). */
+export interface SharedCollectionItem {
+  readonly itemId: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly previewImageUrl: string | null;
+  readonly addedAtUtc: string;
+  readonly isMine: boolean;
+}
+
+export async function getSharedCollectionItem(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+  unlockToken?: string | null,
+): Promise<SharedCollectionItem> {
+  const response = await request<SharedCollectionItem>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/items/${itemId}`,
+    headers: unlockHeaders(unlockToken),
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no shared Collection Item body.');
+  }
+
+  return response.body;
+}
+
+export interface CollectionUnlockGrant {
+  readonly unlockToken: string;
+  readonly expiresAtUtc: string;
+}
+
+/**
+ * Verifies a locked Collection's password server-side (throttled) and returns a short-lived grant
+ * bound to this user. Rejects with ApiError forbidden/"invalidCollectionPassword" for a wrong
+ * password and tooManyRequests after repeated failures. The password is only ever sent here.
+ */
+export async function unlockCollection(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  password: string,
+): Promise<CollectionUnlockGrant> {
+  const response = await request<CollectionUnlockGrant>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/unlock`,
+    body: { password },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no unlock grant.');
+  }
+
+  return response.body;
+}
+
+/**
+ * Owner only. Locks the Collection under the Owner's one lock password (Settings > 컬렉션 잠금) -
+ * no password is sent. Rejects with ApiError conflict/"collectionLockPasswordNotConfigured" when the
+ * Owner has not set one yet.
+ */
+export async function setCollectionLock(request: AuthenticatedApiRequest, collectionId: number): Promise<void> {
+  await request<void>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/lock`,
+    body: {},
+  });
+}
+
+/** Owner only. Removes the lock after the Owner's lock password is verified (no bypass for the Owner). */
+export async function removeCollectionLock(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  currentPassword: string,
+): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/lock/remove`,
+    body: { currentPassword },
+  });
+}
+
+/**
+ * How a membership change proves a locked Collection was unlocked. Omitted: the grant of the
+ * current Collection visit, if any (see collectionUnlockGrants). Given: exactly this grant (or none
+ * for null) - the Collection picker passes the one its own session obtained, never a visit's.
+ */
+export interface MembershipUnlockOptions {
+  readonly unlockToken: string | null;
+}
+
+function membershipUnlockHeaders(
+  collectionId: number,
+  options: MembershipUnlockOptions | undefined,
+): Readonly<Record<string, string>> | undefined {
+  if (options === undefined) {
+    return storedUnlockHeaders(collectionId);
+  }
+  return options.unlockToken ? { [COLLECTION_UNLOCK_HEADER_NAME]: options.unlockToken } : undefined;
+}
+
 /** PUTs the Item into the Collection; resolves on 204 (idempotent - already-a-member succeeds too). */
 export async function addItemToCollection(
   request: AuthenticatedApiRequest,
   collectionId: number,
   itemId: number,
+  options?: MembershipUnlockOptions,
 ): Promise<void> {
   await request<void>({
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/items/${itemId}`,
+    headers: membershipUnlockHeaders(collectionId, options),
   });
 }
 
@@ -289,10 +463,12 @@ export async function removeItemFromCollection(
   request: AuthenticatedApiRequest,
   collectionId: number,
   itemId: number,
+  options?: MembershipUnlockOptions,
 ): Promise<void> {
   await request<void>({
     method: 'DELETE',
     path: `/api/v1/collections/${collectionId}/items/${itemId}`,
+    headers: membershipUnlockHeaders(collectionId, options),
   });
 }
 
@@ -312,13 +488,14 @@ export async function moveCollectionItem(
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/items/${itemId}/position`,
     body: { afterItemId },
+    headers: storedUnlockHeaders(collectionId),
   });
 }
 
 export type TransferCollectionItemResult = { readonly targetMembershipCreated: boolean };
 
 export async function transferCollectionItem(request: AuthenticatedApiRequest, sourceCollectionId: number, itemId: number, targetCollectionId: number): Promise<TransferCollectionItemResult> {
-  const response = await request<TransferCollectionItemResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move`, body: { targetCollectionId } });
+  const response = await request<TransferCollectionItemResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move`, body: { targetCollectionId }, headers: storedUnlockHeaders(sourceCollectionId, targetCollectionId) });
   if (!response.body) {
     throw new Error('Juple API returned no collection move body.');
   }
@@ -326,14 +503,14 @@ export async function transferCollectionItem(request: AuthenticatedApiRequest, s
 }
 
 export async function undoTransferCollectionItem(request: AuthenticatedApiRequest, sourceCollectionId: number, itemId: number, targetCollectionId: number, targetMembershipCreated: boolean): Promise<void> {
-  await request<void>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move/undo`, body: { targetCollectionId, targetMembershipCreated } });
+  await request<void>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move/undo`, body: { targetCollectionId, targetMembershipCreated }, headers: storedUnlockHeaders(sourceCollectionId, targetCollectionId) });
 }
 
 /** undoOperationId is null only for the source-equals-target no-op - nothing was merged, so there is nothing to undo (see undoCollectionMerge). */
 export type MergeCollectionResult = { readonly undoOperationId: string | null };
 
 export async function mergeCollection(request: AuthenticatedApiRequest, sourceCollectionId: number, targetCollectionId: number): Promise<MergeCollectionResult> {
-  const response = await request<MergeCollectionResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/merge`, body: { targetCollectionId } });
+  const response = await request<MergeCollectionResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/merge`, body: { targetCollectionId }, headers: storedUnlockHeaders(sourceCollectionId, targetCollectionId) });
   if (!response.body) {
     throw new Error('Juple API returned no collection merge body.');
   }
@@ -350,21 +527,54 @@ export interface CollectionShare {
   readonly publicId: string;
   readonly shareUrl: string;
   readonly createdAtUtc: string;
+  /**
+   * 'read': anyone with the link views (no sign-in). 'write': additionally, holders SIGNED IN to
+   * Juple may add their own links - never anonymously. Absent from an older server = 'read'.
+   */
+  readonly permission?: PublicSharePermission;
 }
+
+export type PublicSharePermission = 'read' | 'write';
 
 interface CollectionShareStatus {
   readonly isShared: boolean;
   readonly share: CollectionShare | null;
 }
 
-/** PUTs to activate this Collection's public share; idempotent - resolves with the existing active share if one is already enabled, rather than minting a new link. */
+/**
+ * Activates this Collection's public share with the given permission; idempotent - resolves with
+ * the existing active share (and its permission, unchanged) if one is already enabled.
+ */
 export async function enableCollectionShare(
   request: AuthenticatedApiRequest,
   collectionId: number,
+  permission: PublicSharePermission = 'read',
 ): Promise<CollectionShare> {
   const response = await request<CollectionShare>({
     method: 'POST',
     path: `/api/v1/collections/${collectionId}/share`,
+    body: { permission },
+    headers: storedUnlockHeaders(collectionId),
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection share body.');
+  }
+
+  return response.body;
+}
+
+/** Switches the active public link between 'read' and 'write'. Conflict "publicShareNotActive" without an active link. */
+export async function setCollectionSharePermission(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  permission: PublicSharePermission,
+): Promise<CollectionShare> {
+  const response = await request<CollectionShare>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/share/permission`,
+    body: { permission },
+    headers: storedUnlockHeaders(collectionId),
   });
 
   if (!response.body) {
@@ -399,5 +609,6 @@ export async function revokeCollectionShare(
   await request<void>({
     method: 'DELETE',
     path: `/api/v1/collections/${collectionId}/share`,
+    headers: storedUnlockHeaders(collectionId),
   });
 }

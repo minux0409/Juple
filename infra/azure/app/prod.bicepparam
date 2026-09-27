@@ -75,3 +75,4 @@ param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_PROD_STORAGE_BL
 param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
 param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_SQL_CONNECTION_STRING')
 param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
+param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')

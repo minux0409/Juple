@@ -1,4 +1,4 @@
-namespace Juple.Domain.Collections;
+﻿namespace Juple.Domain.Collections;
 
 /// <summary>
 /// A user-named bucket of saved URLs (the "보관함" feature) - distinct from Category (a single-
@@ -64,8 +64,12 @@ public sealed class Collection
     public byte[] RowVersion { get; private set; } = [];
 
     /// <summary>
-    /// A user preference on this Collection (quick-access pinning in the Collections list), not a
-    /// separate resource - defaults to false for every newly-created Collection.
+    /// The OWNER's own favorite mark (legacy, pre-dates per-user favorites). During the favorites
+    /// transition it stays authoritative for the Owner: a previous API revision reads and writes
+    /// only this column, and the current one reads it for the Owner and writes it together with the
+    /// Owner's CollectionFavorite row in one transaction (see CollectionStore.SetFavoriteAsync).
+    /// Contributors' marks exist only in CollectionFavorites. A later cleanup round, after
+    /// FinalizeCollectionFavoriteTransition, can switch Owner reads to CollectionFavorites and drop it.
     /// </summary>
     public bool IsFavorite { get; private set; }
 
@@ -75,6 +79,27 @@ public sealed class Collection
     /// <summary>Decorative only. Holds a backward-compatible preset name or a validated custom
     /// #RRGGBB value; null means "fall back to the existing id-deterministic palette".</summary>
     public string? Color { get; private set; }
+
+    /// <summary>
+    /// Collection lock (see Lock/RemoveLock) - an extra gate on top of access rights, never a
+    /// substitute for them: content is released only to someone who already has access (Owner,
+    /// Contributor, Viewer, or an active public share) AND has proven the Owner's lock password
+    /// (UserCollectionLockSettings - one per Owner, see CollectionLockPasswordSource).
+    /// LockPasswordHash is a legacy per-Collection password hash (never the password, never returned
+    /// by any DTO): it still opens the Collection only while its Owner has no lock password row, and
+    /// is kept (never dropped here) for rolling-deploy safety until a later cleanup migration.
+    /// </summary>
+    public bool IsLocked { get; private set; }
+
+    public string? LockPasswordHash { get; private set; }
+
+    /// <summary>
+    /// Bumped on every lock set/change/removal; unlock grants embed the version they were issued
+    /// for, so any change immediately invalidates every outstanding grant (no revocation list).
+    /// </summary>
+    public int LockVersion { get; private set; }
+
+    public DateTimeOffset? LockPasswordChangedAtUtc { get; private set; }
 
     /// <summary>Callers must pass an already-normalized (trimmed, non-empty) name/nameNormalized pair.</summary>
     public void Rename(string name, string nameNormalized, DateTimeOffset updatedAtUtc)
@@ -125,6 +150,38 @@ public sealed class Collection
     }
 
     public void SetColor(CollectionColor color, DateTimeOffset updatedAtUtc) => SetColor(color.ToString(), updatedAtUtc);
+
+    /// <summary>
+    /// Locks the Collection under its Owner's lock password - no password of its own is created.
+    /// No-op when already locked. The caller checks that the Owner has a lock password.
+    /// </summary>
+    public void Lock(DateTimeOffset changedAtUtc)
+    {
+        if (IsLocked)
+        {
+            return;
+        }
+
+        IsLocked = true;
+        LockVersion++;
+        LockPasswordChangedAtUtc = changedAtUtc;
+        UpdatedAtUtc = changedAtUtc;
+    }
+
+    /// <summary>No-op when not locked; otherwise clears the hash and invalidates every outstanding grant.</summary>
+    public void RemoveLock(DateTimeOffset changedAtUtc)
+    {
+        if (!IsLocked)
+        {
+            return;
+        }
+
+        IsLocked = false;
+        LockPasswordHash = null;
+        LockVersion++;
+        LockPasswordChangedAtUtc = changedAtUtc;
+        UpdatedAtUtc = changedAtUtc;
+    }
 
     public void SoftDelete(DateTimeOffset deletedAtUtc)
     {

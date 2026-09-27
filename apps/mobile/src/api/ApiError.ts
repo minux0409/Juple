@@ -5,7 +5,8 @@ export type ApiErrorKind =
   | 'notFound'
   | 'conflict'
   | 'timeout'
-  | 'unavailable';
+  | 'unavailable'
+  | 'tooManyRequests';
 
 export class ApiError extends Error {
   constructor(readonly kind: ApiErrorKind, readonly status?: number, readonly code?: string) {

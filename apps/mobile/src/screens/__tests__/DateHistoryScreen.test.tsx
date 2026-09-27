@@ -72,6 +72,7 @@ function mockUseItemHistory(items: readonly ItemHistoryEntry[]): void {
     isRefreshing: false,
     isLoadingMore: false,
     error: null,
+    hasMore: false,
     refresh: jest.fn(),
     loadMore: jest.fn(),
     removeItem: jest.fn(),
@@ -96,6 +97,7 @@ function mockUseItemHistoryStateful(
       isRefreshing: false,
       isLoadingMore: false,
       error: null,
+      hasMore: false,
       refresh: jest.fn(async () => { setItems(refreshItems); }),
       loadMore: jest.fn(),
       removeItem: (itemId: number) =>
@@ -446,5 +448,63 @@ describe('DateHistoryScreen delete undo', () => {
     expect(restoreItem).toHaveBeenCalledTimes(1);
 
     await act(async () => { resolveRestore(); await Promise.resolve(); });
+  });
+});
+
+describe('DateHistoryScreen infinite loading', () => {
+  const loadMore = jest.fn();
+
+  function mockHistory(hasMore: boolean) {
+    jest.mocked(useItemHistory).mockReturnValue({
+      items: [makeItem({ id: 1, title: 'Only one', savedAtUtc: new Date().toISOString() })],
+      isLoading: false,
+      isRefreshing: false,
+      isLoadingMore: false,
+      error: null,
+      hasMore,
+      refresh: jest.fn(),
+      loadMore,
+      removeItem: jest.fn(),
+    } satisfies UseItemHistoryResult);
+  }
+
+  afterEach(() => jest.clearAllMocks());
+
+  it('asks for the next page as the end comes into reach - there is no "more" button', async () => {
+    mockHistory(true);
+    const renderer = await renderScreen();
+    const sectionList = renderer.root.findByType(SectionList);
+
+    expect(sectionList.props.onEndReached).toBe(loadMore);
+    expect(sectionList.props.onEndReachedThreshold).toBeGreaterThanOrEqual(1);
+  });
+
+  it('keeps loading while the list is shorter than the screen (collapsed dates), and stops once it fills it', async () => {
+    mockHistory(true);
+    const renderer = await renderScreen();
+    const sectionList = renderer.root.findByType(SectionList);
+
+    await act(async () => {
+      sectionList.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } });
+      sectionList.props.onContentSizeChange(400, 300);
+    });
+    expect(loadMore).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      sectionList.props.onContentSizeChange(400, 2000);
+    });
+    expect(loadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('never asks past the last page', async () => {
+    mockHistory(false);
+    const renderer = await renderScreen();
+    const sectionList = renderer.root.findByType(SectionList);
+
+    await act(async () => {
+      sectionList.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } });
+      sectionList.props.onContentSizeChange(400, 300);
+    });
+    expect(loadMore).not.toHaveBeenCalled();
   });
 });

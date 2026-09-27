@@ -21,7 +21,6 @@ import {
   removeItemFromCollection,
   renameCollection,
   restoreCollection,
-  revokeCollectionShare,
   setCollectionColor,
   setCollectionIcon,
   type Collection,
@@ -664,107 +663,33 @@ describe('CollectionDetailsScreen', () => {
     });
   });
 
-  describe('public sharing - single Switch, not two buttons', () => {
-    it('renders no more 공유하기/공유 해제 button pair - a single Switch instead', async () => {
+  describe('sharing - one entry point (the Share screen), never an inline switch', () => {
+    it('has no inline public-share switch in the header any more', async () => {
       const renderer = await renderScreen();
       const header = getHeaderElement(renderer);
 
-      expect(header.root.findAllByType(Switch)).toHaveLength(1);
+      expect(header.root.findAllByType(Switch)).toHaveLength(0);
     });
 
-    it('hides the description by default and reveals it inline only after the info icon is tapped', async () => {
+    it('the share icon opens the Share screen and never turns public sharing on by itself', async () => {
       const renderer = await renderScreen();
-      const header1 = getHeaderElement(renderer);
+      const header = getHeaderElement(renderer);
 
-      expect(
-        header1.root.findAll(node => node.props.children === i18n.t('collections.publicShareDescription')),
-      ).toHaveLength(0);
-
-      const infoButton = header1.root.findByProps({
-        accessibilityLabel: i18n.t('collections.publicShareInfoA11y'),
-      });
       act(() => {
-        infoButton.props.onPress();
+        header.root.findByProps({ testID: 'collection-details-share' }).props.onPress();
       });
 
-      // isShareInfoExpanded lives on the real screen component (unlike CategoryNameAndIconField's
-      // own local expand state) - re-fetching the header picks up its latest value.
-      const header2 = getHeaderElement(renderer);
-      expect(
-        header2.root.findAll(node => node.props.children === i18n.t('collections.publicShareDescription')).length,
-      ).toBeGreaterThan(0);
+      expect(jest.mocked(navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('CollectionShare', { collectionId: 1 });
+      expect(enableCollectionShare).not.toHaveBeenCalled();
+      expect(getCollectionShare).not.toHaveBeenCalled();
     });
 
-    it('turning the switch ON calls enableCollectionShare without opening the OS share sheet', async () => {
-      jest.mocked(enableCollectionShare).mockResolvedValue({
-        publicId: 'p1',
-        shareUrl: 'https://juple.example/c/p1',
-        createdAtUtc: new Date().toISOString(),
-      });
+    it('the collection menu no longer has a separate 공동작업 entry', async () => {
       const renderer = await renderScreen();
-      const header = getHeaderElement(renderer);
 
-      const toggle = header.root.findByType(Switch);
-      expect(toggle.props.value).toBe(false);
-
-      await act(async () => {
-        toggle.props.onValueChange(true);
-      });
-
-      expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 1);
-      expect(shareItem).not.toHaveBeenCalled();
-    });
-
-    it('turning the switch OFF asks for confirmation, then calls revokeCollectionShare', async () => {
-      jest.mocked(getCollectionShare).mockResolvedValue({
-        publicId: 'p1',
-        shareUrl: 'https://juple.example/c/p1',
-        createdAtUtc: new Date().toISOString(),
-      });
-      jest.mocked(revokeCollectionShare).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-      const header = getHeaderElement(renderer);
-
-      const toggle = header.root.findByType(Switch);
-      expect(toggle.props.value).toBe(true);
-
-      await act(async () => {
-        toggle.props.onValueChange(false);
-      });
-      expect(revokeCollectionShare).not.toHaveBeenCalled();
-
-      await act(async () => {
-        const confirmButton = renderer.root.findAll(
-          node => node.props.accessibilityLabel === i18n.t('collections.unshare'),
-        )[0];
-        confirmButton.props.onPress();
-      });
-
-      expect(revokeCollectionShare).toHaveBeenCalledWith(expect.anything(), 1);
-    });
-
-    it('shows a compact 링크 공유 action only while sharing is ON, which opens the OS share sheet', async () => {
-      jest.mocked(getCollectionShare).mockResolvedValue({
-        publicId: 'p1',
-        shareUrl: 'https://juple.example/c/p1',
-        createdAtUtc: new Date().toISOString(),
-      });
-      jest.mocked(shareItem).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-      const header = getHeaderElement(renderer);
-
-      const shareLinkButton = header.root.findAll(
-        node =>
-          node.props.accessibilityLabel === i18n.t('collections.shareAction') &&
-          typeof node.props.onPress === 'function',
-      )[0];
-      expect(shareLinkButton).toBeTruthy();
-
-      await act(async () => {
-        shareLinkButton?.props.onPress();
-      });
-
-      expect(shareItem).toHaveBeenCalledWith('https://juple.example/c/p1', 'Groceries');
+      const labels = renderer.root.findAll(node => typeof node.props.accessibilityLabel === 'string').map(node => node.props.accessibilityLabel);
+      expect(labels).not.toContain('공동작업');
+      expect(labels).not.toContain('Collaborate');
     });
   });
 

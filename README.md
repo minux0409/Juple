@@ -64,6 +64,22 @@ dotnet user-secrets set "PublicCollectionCursor:EncryptionKey" ([Convert]::ToBas
 Remove-Variable bytes
 ```
 
+### Collection unlock grant key
+
+잠긴 Collection(카테고리)의 unlock grant(앱 내 `X-Juple-Collection-Unlock` header, 공개 공유 페이지의 HttpOnly cookie)는 전용 키 `CollectionUnlockGrant:EncryptionKey`(Base64로 인코딩된 32바이트 키)로 AES-256-GCM 암호화된다. 위 cursor key와는 **반드시 별개의 값**이어야 하며, cursor key로 조용히 fallback하지 않는다. 이 값이 없거나 32바이트로 decode되지 않으면 Backend startup이 의도적으로 실패한다.
+
+- 실제 key 값은 어떤 형태로도 이 repository에 commit하지 않는다.
+- Local Development: 위와 같은 방식으로 `dotnet user-secrets`에 저장한다.
+- Dev/Production: 환경변수 `CollectionUnlockGrant__EncryptionKey` 또는 secret provider(Azure Key Vault, Container Apps secret)로 주입한다. 키를 교체하면 이미 발급된 grant만 무효화된다(사용자는 비밀번호를 다시 입력) - 저장된 데이터에는 영향이 없다.
+
+```powershell
+cd backend/src/Juple.Api
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+dotnet user-secrets set "CollectionUnlockGrant:EncryptionKey" ([Convert]::ToBase64String($bytes))
+Remove-Variable bytes
+```
+
 ## Mobile 실행
 
 에뮬레이터 또는 디바이스를 준비한 뒤 모바일 프로젝트에서 Metro를 실행한다.

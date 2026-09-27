@@ -28,8 +28,12 @@ interface SwipeableItemRowProps {
   /** Row content - unchanged tap-to-navigate behavior, always enabled regardless of `disabled`. */
   readonly children: ReactNode;
   readonly onPress: () => void;
-  /** Reveals a compact 삭제 action on the right when the row is swiped left. */
-  readonly onDelete: () => void;
+  /**
+   * Reveals a compact 삭제 action on the right when the row is swiped left. Omit it when the viewer
+   * may not delete/remove this row (e.g. a Contributor in a shared Category, or another member's
+   * link) - then there is no delete action at all and the row cannot be swiped left.
+   */
+  readonly onDelete?: () => void;
   /** Reveals a compact 공유 action on the left when the row is swiped right. */
   readonly onShare: () => void;
   /** Disables opening/using the swipe actions (e.g. another row's action is in flight) - navigation stays enabled. */
@@ -128,11 +132,11 @@ export function SwipeableItemRow({
               : openDirectionRef.current === 'right'
                 ? ACTION_WIDTH
                 : 0;
-          translateX.setValue(clamp(base + gesture.dx, -ACTION_WIDTH, ACTION_WIDTH));
+          translateX.setValue(clamp(base + gesture.dx, onDelete ? -ACTION_WIDTH : 0, ACTION_WIDTH));
         },
         onPanResponderRelease: () => {
           const offset = currentOffsetRef.current;
-          if (offset <= -OPEN_THRESHOLD) {
+          if (onDelete && offset <= -OPEN_THRESHOLD) {
             openTo('left');
           } else if (offset >= OPEN_THRESHOLD) {
             openTo('right');
@@ -142,7 +146,7 @@ export function SwipeableItemRow({
         },
         onPanResponderTerminate: close,
       }),
-    [disabled, translateX, openTo, close],
+    [disabled, translateX, openTo, close, onDelete],
   );
 
   const handleContentPress = () => {
@@ -174,6 +178,7 @@ export function SwipeableItemRow({
               <Text style={styles.actionLabel}>{t('common.share')}</Text>
             </Pressable>
           </View>
+          {onDelete ? (
           <View style={[styles.actionSlot, styles.deleteSlot]}>
             <Pressable
               accessibilityLabel={t('common.delete')}
@@ -189,16 +194,17 @@ export function SwipeableItemRow({
               <Text style={styles.actionLabel}>{t('common.delete')}</Text>
             </Pressable>
           </View>
+          ) : null}
         </View>
       ) : null}
       <Animated.View
         accessibilityActions={[
-          { name: 'delete', label: t('common.delete') },
+          ...(onDelete ? [{ name: 'delete', label: t('common.delete') }] : []),
           { name: 'share', label: t('common.share') },
         ]}
         onAccessibilityAction={event => {
           if (event.nativeEvent.actionName === 'delete') {
-            onDelete();
+            onDelete?.();
           } else if (event.nativeEvent.actionName === 'share') {
             onShare();
           }
