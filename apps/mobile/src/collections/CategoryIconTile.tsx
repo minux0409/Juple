@@ -1,4 +1,5 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, StyleSheet, View } from 'react-native';
 import { isCustomCollectionColor, resolveCollectionColorKey, resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
 import { resolveCollectionIconComponent } from './collectionIcons';
 import { categoryTilePalette, radii } from '../theme/tokens';
@@ -15,6 +16,12 @@ interface CategoryIconTileProps {
    * Collection's visual never changes just because Color became a real field.
    */
   readonly color?: string | null;
+  /**
+   * The Collection's icon photo (`iconImageUrl`, or a just-picked local photo in the editor's
+   * preview). Shown filling the tile; if it is missing or fails to load (e.g. an expired link),
+   * the built-in glyph is shown instead - never an empty tile.
+   */
+  readonly imageUrl?: string | null;
   /** Tile edge length in dp; the icon glyph itself is drawn at roughly 46% of this. */
   readonly size?: number;
 }
@@ -24,15 +31,22 @@ interface CategoryIconTileProps {
  * Collection's icon is shown (Categories list, Category Details header, the New Link
  * Review/Item Details category picker) so the same Collection always looks identical regardless
  * of screen, instead of each screen computing its own tile color or falling back to a plain
- * outline icon with no tile at all.
+ * outline icon with no tile at all. A Collection's own photo, when it has one, takes the tile.
  */
-export function CategoryIconTile({ icon, collectionId, color, size = 40 }: CategoryIconTileProps) {
+export function CategoryIconTile({ icon, collectionId, color, imageUrl, size = 40 }: CategoryIconTileProps) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setFailedUrl(null);
+  }, [imageUrl]);
+
   const IconComponent = resolveCollectionIconComponent(icon);
   const explicitColor = color ?? null;
   const explicitColorKey = resolveCollectionColorKey(explicitColor);
   const tile = explicitColorKey || isCustomCollectionColor(explicitColor)
     ? resolveCollectionColorTile((explicitColorKey ?? explicitColor) as CollectionColorValue)
     : categoryTilePalette[Math.abs(collectionId) % categoryTilePalette.length];
+  const borderRadius = radii.md + Math.round(size / 8);
+  const showImage = !!imageUrl && failedUrl !== imageUrl;
 
   return (
     <View
@@ -40,13 +54,23 @@ export function CategoryIconTile({ icon, collectionId, color, size = 40 }: Categ
         styles.tile,
         {
           backgroundColor: tile.background,
-          borderRadius: radii.md + Math.round(size / 8),
+          borderRadius,
           height: size,
           width: size,
         },
       ]}
+      testID={showImage ? 'collection-icon-image' : undefined}
     >
-      <IconComponent color={tile.icon} size={Math.round(size * 0.46)} />
+      {showImage ? (
+        <Image
+          onError={() => setFailedUrl(imageUrl)}
+          resizeMode="cover"
+          source={{ uri: imageUrl }}
+          style={[styles.image, { borderRadius }]}
+        />
+      ) : (
+        <IconComponent color={tile.icon} size={Math.round(size * 0.46)} />
+      )}
     </View>
   );
 }
@@ -55,5 +79,10 @@ const styles = StyleSheet.create({
   tile: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  image: {
+    height: '100%',
+    width: '100%',
   },
 });

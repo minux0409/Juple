@@ -2,10 +2,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getSharedCollectionItem, type SharedCollectionItem } from '../collections/api/collectionsApi';
+import { formatItemAdder } from '../collections/itemAdder';
 import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { isCollectionLockedError } from '../collections/useCollectionItems';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
@@ -97,6 +98,7 @@ export function CollectionSharedItemScreen({ route }: Props) {
   }
 
   const hostname = getHostnameFromUrl(item.url) ?? item.url;
+  const addedBy = formatItemAdder(item.addedBy, t);
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
@@ -112,6 +114,13 @@ export function CollectionSharedItemScreen({ route }: Props) {
             {item.url}
           </Text>
         </ContentPreviewCard>
+        {addedBy ? (
+          // Who put this link here - the same label the Collection's list shows.
+          <View style={styles.adderRow} testID="shared-item-added-by">
+            <Text style={styles.adderLabel}>{t('collections.addedByLabel')}</Text>
+            <Text numberOfLines={2} style={styles.adderValue}>{addedBy}</Text>
+          </View>
+        ) : null}
         <Text style={styles.readOnlyNote}>{t('collections.sharedItemReadOnly')}</Text>
         <Pressable accessibilityRole="button" onPress={openLink} style={styles.openButton} testID="shared-item-open">
           <ExternalLinkIcon color={colors.surface} size={18} />
@@ -133,6 +142,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     writingDirection: 'ltr',
   },
+  adderRow: { alignItems: 'baseline', columnGap: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.md },
+  adderLabel: { color: colors.textSecondary, fontSize: 13 },
+  adderValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600' },
   readOnlyNote: {
     color: colors.textSecondary,
     fontSize: 13,

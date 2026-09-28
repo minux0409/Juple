@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Domain.Images;
@@ -15,7 +16,7 @@ public sealed class ItemImageStore(
     BlobServiceClient blobServiceClient,
     BlobContainerClient blobContainerClient,
     UserDelegationKeyCache userDelegationKeyCache,
-    ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage
+    ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage, ICollectionIconImageStorage
 {
     /// <summary>
     /// Total effective images (the auto-extracted PreviewImageUrl, if any, plus the user's own
@@ -334,6 +335,45 @@ public sealed class ItemImageStore(
             return null;
         }
     }
+
+    // ---------- Collection icon photos (same container/prefix/signing as Item images) ----------
+
+    /// <summary>"items/{ownerUserId}/collections/{collectionId}/" - inside the Owner's own prefix (so account deletion removes it) and never colliding with an Item's numeric "items/{userId}/{itemId}/" folder.</summary>
+    private static string CollectionIconPrefix(long ownerUserId) => $"items/{ownerUserId}/collections/";
+
+    public async Task<string> UploadCollectionIconAsync(
+        long ownerUserId,
+        long collectionId,
+        ImageFormat format,
+        byte[] content,
+        CancellationToken cancellationToken = default)
+    {
+        var (contentType, extension) = GetFormatMetadata(format);
+        var blobName = $"{CollectionIconPrefix(ownerUserId)}{collectionId}/{Guid.NewGuid():N}.{extension}";
+        await using var uploadStream = new MemoryStream(content, writable: false);
+        await blobContainerClient.GetBlobClient(blobName).UploadAsync(
+            uploadStream,
+            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+            cancellationToken);
+        return blobName;
+    }
+
+    public async Task DeleteCollectionIconAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default)
+    {
+        if (!blobName.StartsWith(CollectionIconPrefix(ownerUserId), StringComparison.Ordinal))
+        {
+            logger.LogWarning("Refusing to delete a Blob outside the Owner's collection-icon prefix.");
+            return;
+        }
+
+        await DeleteBlobBestEffortAsync(blobName);
+    }
+
+    public Task<Uri?> CreateCollectionIconReadUrlAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default) =>
+        // A stored name outside this Owner's icon prefix is never signed (and never breaks a list).
+        blobName.StartsWith(CollectionIconPrefix(ownerUserId), StringComparison.Ordinal)
+            ? CreateReadUrlAsync(ownerUserId, blobName, cancellationToken)
+            : Task.FromResult<Uri?>(null);
 
     /// <summary>Returns whether the delete (or a not-found no-op) succeeded, for callers that need
     /// to know (see DeleteBlobsByPrefixAsync); callers that don't just discard it, unchanged from

@@ -102,9 +102,9 @@ public sealed class FriendRulesTests
 
         public Task<IReadOnlyList<FriendRequestDto>> ListRequestsAsync(long userId, int limit, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-        public Task<FriendDto> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<AcceptedFriendRequest> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
-        public Task DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<long> DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task RemoveFriendAsync(long userId, long friendshipId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 

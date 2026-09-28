@@ -209,6 +209,12 @@ public sealed class CollectionLockScopeTests
             return Task.CompletedTask;
         }
 
+        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"friend-answered:{answererUserId}->{requesterUserId}:{friendshipId}");
+            return Task.CompletedTask;
+        }
+
         public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default)
         {
             Events.Add($"invite:{ownerUserId}->{invitedUserId}:{collectionId}:{invitationId}");

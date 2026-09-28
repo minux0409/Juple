@@ -20,4 +20,7 @@ public enum NotificationType : byte
 
     /// <summary>Links were added to/removed from a Collection the recipient belongs to. Data-only Push - refreshes counts.</summary>
     CollectionContentChanged = 4,
+
+    /// <summary>A friend request the recipient sent was accepted or declined (SubjectId = the Friendship id). Data-only Push - refreshes the Friends screen.</summary>
+    FriendRequestAnswered = 5,
 }

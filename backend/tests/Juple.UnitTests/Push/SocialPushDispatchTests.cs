@@ -112,6 +112,13 @@ public sealed class SocialPushDispatchTests
         Assert.Null(refresh.Body);
         Assert.Null(refresh.BadgeCount);
         Assert.Equal("77", refresh.Data["invitationId"]);
+
+        var friendAnswered = DispatchPendingPushNotificationsService.BuildPayload(Pending(3, NotificationType.FriendRequestAnswered, Now), context, "ko");
+        Assert.Equal("friendRequestAnswered", friendAnswered.Type);
+        Assert.Null(friendAnswered.Title);
+        Assert.Null(friendAnswered.BadgeCount);
+        Assert.False(friendAnswered.Data.ContainsKey("invitationId"));
+        Assert.Equal(SocialNotificationPolicy.DataOnlyMaxAge, SocialNotificationPolicy.MaxAge(NotificationType.FriendRequestAnswered));
     }
 
     [Theory]

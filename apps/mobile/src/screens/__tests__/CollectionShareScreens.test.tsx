@@ -3,7 +3,7 @@ import { Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { KeyboardAvoidingView } from 'react-native';
-import { CollectionShareScreen, INVITE_CONCURRENCY } from '../CollectionShareScreen';
+import { CollectionShareScreen, INLINE_PERSON_ROW_MIN_WIDTH, INVITE_CONCURRENCY } from '../CollectionShareScreen';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import {
   changeCollaboratorRole,
@@ -34,6 +34,13 @@ beforeAll(async () => {
 });
 
 jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
+
+// The window the screen lays its person rows out for - a narrow phone unless a test says otherwise.
+const mockWindow = { current: { width: 360, height: 800, scale: 2, fontScale: 1 } };
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => mockWindow.current,
+}));
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
@@ -132,8 +139,23 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     });
   }
 
+  /** The 모든 사용자 공유 main tab (초대하기 is the default while no public link is on). */
+  async function openPublicTab(renderer: Renderer) {
+    if (!exists(renderer, 'share-all-users')) {
+      await press(renderer, 'share-main-tabs-public');
+    }
+  }
+
+  /** The 초대하기 main tab (모든 사용자 공유 is the default while the public link is on). */
+  async function openInviteTab(renderer: Renderer) {
+    if (!exists(renderer, 'share-invite')) {
+      await press(renderer, 'share-main-tabs-invite');
+    }
+  }
+
   /** The ID tab of 초대하기 (친구 is the default tab). */
   async function openIdTab(renderer: Renderer) {
+    await openInviteTab(renderer);
     if (!exists(renderer, 'id-invite-input')) {
       await press(renderer, 'share-invite-tabs-id');
     }
@@ -148,6 +170,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
   }
 
   async function pickFriends(renderer: Renderer, jupleIds: readonly string[]) {
+    await openInviteTab(renderer);
     await press(renderer, 'invite-choose-friends');
     await act(async () => {
       await new Promise<void>(resolve => setTimeout(resolve, 0));
@@ -175,18 +198,27 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     jest.mocked(changeInvitationRole).mockResolvedValue(undefined);
   });
 
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockWindow.current = { width: 360, height: 800, scale: 2, fontScale: 1 };
+  });
 
-  it('is one screen of three areas - 모든 사용자, 초대하기 [친구|ID], 공유 상태 [공유 중|초대 대기] - and opening it creates nothing', async () => {
+  it('is two main tabs - [모든 사용자 공유 | 초대하기] - over one panel, with 공유 상태 [공유 중|초대 대기] below, and opening it creates nothing', async () => {
     jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
     const renderer = await renderScreen();
 
-    for (const area of ['share-all-users', 'share-invite', 'share-status']) {
-      expect(exists(renderer, area)).toBe(true);
-    }
-    // Only the two in-card tab bars; no 일반 공유 / 공동작업 split and none of the old wording.
+    // No public link yet: 초대하기 is open, and only one panel is ever shown.
+    expect(texts(byId(renderer, 'share-main-tabs'))).toEqual([i18n.t('shareSheet.allUsersTitle'), i18n.t('shareSheet.inviteTitle')]);
+    expect(i18n.getFixedT('ko')('shareSheet.allUsersTitle')).toBe('모든 사용자 공유');
+    expect(byId(renderer, 'share-main-tabs-invite').props.accessibilityState.selected).toBe(true);
+    expect(exists(renderer, 'share-invite')).toBe(true);
+    expect(exists(renderer, 'share-all-users')).toBe(false);
+    expect(exists(renderer, 'share-status')).toBe(true);
+    expect(exists(renderer, 'share-main-tabs-public-active')).toBe(false);
+    // The main tabs, then the in-card tab bars; no 일반 공유 / 공동작업 split and none of the old wording.
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
     expect(tabs.map(tab => tab.props.testID)).toEqual([
+      'share-main-tabs-public', 'share-main-tabs-invite',
       'share-invite-tabs-friends', 'share-invite-tabs-id', 'share-status-tabs-members', 'share-status-tabs-pending',
     ]);
     expect(byId(renderer, 'share-invite-tabs-friends').props.accessibilityState.selected).toBe(true);
@@ -204,6 +236,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it('공유 시작 with 읽기 creates a read link, then offers 링크 공유 and 공유 중지 (after confirming)', async () => {
       jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
+      await openPublicTab(renderer);
 
       expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
       expect(texts(byId(renderer, 'share-all-users-description'))).toEqual([i18n.t('shareSheet.allUsersDescription')]);
@@ -221,6 +254,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it('작성 chosen before starting changes the description and creates a writable link', async () => {
       jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
       const renderer = await renderScreen();
+      await openPublicTab(renderer);
 
       await press(renderer, 'share-all-users-permission-write');
       expect(setCollectionSharePermission).not.toHaveBeenCalled();
@@ -244,6 +278,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it('a locked Collection says visitors need the lock password too', async () => {
       jest.mocked(getCollection).mockResolvedValue({ ...collection, isLocked: true });
       const renderer = await renderScreen();
+      await openPublicTab(renderer);
 
       expect(texts(byId(renderer, 'share-locked-note'))).toContain(i18n.t('shareSheet.lockedLinkNote'));
     });
@@ -251,6 +286,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it('읽기 members and pending 읽기 invitations coexist with it', async () => {
       jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
       const renderer = await renderScreen();
+      await openPublicTab(renderer);
 
       expect(exists(renderer, 'share-public-blocked')).toBe(false);
       expect(byId(renderer, 'share-create-link').props.disabled).toBe(false);
@@ -259,6 +295,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it('보기만 for everyone is blocked while someone has 링크 추가 - with the reason and a way to review them; 링크 추가 is allowed', async () => {
       jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[1]] });
       const renderer = await renderScreen();
+      await openPublicTab(renderer);
       expect(byId(renderer, 'share-create-link').props.disabled).toBe(true);
       expect(texts(byId(renderer, 'share-public-blocked'))).toContain(i18n.t('shareSheet.permissionMismatch'));
       await press(renderer, 'share-create-link');
@@ -268,6 +305,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       // Everyone is 링크 추가 already: sharing with everyone as 링크 추가 is fine.
       jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]], pendingInvitations: [] });
       const writable = await renderScreen();
+      await openPublicTab(writable);
       await press(writable, 'share-all-users-permission-write');
       expect(exists(writable, 'share-public-blocked')).toBe(false);
       await press(writable, 'share-create-link');
@@ -447,6 +485,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it('while the public link is on, everyone invited gets exactly its permission - no per-person choice, and that is what is sent', async () => {
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
+      await openInviteTab(renderer);
       expect(texts(byId(renderer, 'share-invite-fixed-role'))).toEqual([
         i18n.t('shareSheet.fixedByAllUsers', { permission: i18n.t('shareSheet.permissionRead') }),
       ]);
@@ -463,6 +502,90 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await press(writable, 'id-invite-add');
       await press(writable, 'invite-send');
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'DDDD2345', 'contributor');
+    });
+  });
+
+  describe('two main tabs, and person rows that never break awkwardly on a narrow screen', () => {
+    const activeLink = { publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' as const };
+
+    it('opens on 모든 사용자 공유 while its link is on - and keeps saying it is on from the 초대하기 tab', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue(activeLink);
+      const renderer = await renderScreen();
+
+      expect(byId(renderer, 'share-main-tabs-public').props.accessibilityState.selected).toBe(true);
+      expect(exists(renderer, 'share-all-users')).toBe(true);
+      expect(exists(renderer, 'share-invite')).toBe(false);
+
+      await press(renderer, 'share-main-tabs-invite');
+      expect(exists(renderer, 'share-invite')).toBe(true);
+      expect(exists(renderer, 'share-all-users')).toBe(false);
+      expect(exists(renderer, 'share-main-tabs-public-active')).toBe(true);
+      expect(exists(renderer, 'share-status')).toBe(true);
+    });
+
+    it('switching tabs never loses the invite batch or the typed Juple ID, and a refresh never switches the tab', async () => {
+      const renderer = await renderScreen();
+      await findById(renderer, 'AAAA2345');
+      await press(renderer, 'id-invite-add');
+      await act(async () => {
+        byId(renderer, 'id-invite-input').props.onChangeText('BBBB-2345');
+      });
+
+      await press(renderer, 'share-main-tabs-public');
+      jest.mocked(getCollectionShare).mockResolvedValue(activeLink);
+      await act(async () => {
+        emitSocialPushEvent({ type: 'collectionInvitationAnswered', collectionId: 5 });
+      });
+      expect(exists(renderer, 'share-all-users')).toBe(true);
+      await press(renderer, 'share-main-tabs-invite');
+
+      expect(exists(renderer, 'draft-AAAA2345')).toBe(true);
+      expect(byId(renderer, 'id-invite-input').props.value).toBe('BBBB-2345');
+    });
+
+    /** The lines of a batch row: the host View's own children (the name line, then what is below it). */
+    const linesOf = (renderer: Renderer, testID: string) => {
+      const host = renderer.root.findAll(node => typeof node.type === 'string' && node.props.testID === testID)[0];
+      return host.children.filter(child => typeof child !== 'string') as ReactTestRenderer.ReactTestInstance[];
+    };
+
+    /** Every node of the row with a testID, in render order. */
+    const idsIn = (node: ReactTestRenderer.ReactTestInstance) =>
+      node.findAll(child => typeof child.type === 'string' && typeof child.props.testID === 'string').map(child => String(child.props.testID));
+
+    it('narrow screen: a person row keeps name and X on one line and gives the permission its own full line', async () => {
+      mockWindow.current = { width: 320, height: 640, scale: 2, fontScale: 1 };
+      const renderer = await renderScreen();
+      await findById(renderer, 'AAAA2345');
+      await press(renderer, 'id-invite-add');
+
+      const [firstLine, secondLine] = linesOf(renderer, 'draft-AAAA2345');
+      expect(idsIn(firstLine)).toContain('draft-remove-AAAA2345');
+      expect(idsIn(firstLine).some(id => id.startsWith('draft-role-'))).toBe(false);
+      expect(idsIn(secondLine)).toEqual(expect.arrayContaining(['draft-role-AAAA2345-viewer', 'draft-role-AAAA2345-contributor']));
+      expect(texts(secondLine)).toEqual([i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionWrite')]);
+    });
+
+    it('wide screen: name, permission and X share one line', async () => {
+      mockWindow.current = { width: INLINE_PERSON_ROW_MIN_WIDTH + 200, height: 900, scale: 2, fontScale: 1 };
+      const renderer = await renderScreen();
+      await findById(renderer, 'AAAA2345');
+      await press(renderer, 'id-invite-add');
+
+      const [firstLine] = linesOf(renderer, 'draft-AAAA2345');
+      const ids = idsIn(firstLine);
+      expect(ids).toEqual(expect.arrayContaining(['draft-role-AAAA2345-viewer', 'draft-remove-AAAA2345']));
+      expect(ids.indexOf('draft-remove-AAAA2345')).toBeGreaterThan(ids.indexOf('draft-role-AAAA2345-contributor'));
+    });
+
+    it('a large font scale needs more room before the one-line layout is used', async () => {
+      mockWindow.current = { width: INLINE_PERSON_ROW_MIN_WIDTH + 200, height: 900, scale: 2, fontScale: 2 };
+      const renderer = await renderScreen();
+      await findById(renderer, 'AAAA2345');
+      await press(renderer, 'id-invite-add');
+
+      const [firstLine] = linesOf(renderer, 'draft-AAAA2345');
+      expect(idsIn(firstLine).some(id => id.startsWith('draft-role-'))).toBe(false);
     });
   });
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, SectionList } from 'react-native';
+import { Modal, SectionList, StyleSheet } from 'react-native';
 import i18n from '../../i18n';
 import { DateHistoryScreen } from '../DateHistoryScreen';
 
@@ -247,6 +247,26 @@ describe('DateHistoryScreen grid', () => {
     // Same date display rule as this section's List rows (today is a single-day section -> time only).
     expect(todaySection.showItemDate).toBe(false);
     expect(cells.every(cell => cell.props.dateDisplayMode === 'time')).toBe(true);
+  });
+
+  it('an expanded date is one card: the tiles sit inside the body that closes the header\'s card (borders, rounded bottom, padding)', async () => {
+    mockUseItemHistory([todayShort, todayLong, yesterdayItem]);
+    const renderer = await renderScreen();
+    await switchToGrid(renderer);
+
+    const [todaySection, yesterdaySection] = renderer.root.findByType(SectionList).props.sections;
+    const bodies = renderer.root.findAll(node => typeof node.type === 'string' && String(node.props.testID ?? '').startsWith('history-grid-body-'));
+    // Only the expanded date has a body, and every tile of it is inside that body.
+    expect(bodies.map(body => body.props.testID)).toEqual([`history-grid-body-${todaySection.dateKey}`]);
+    expect(bodies[0].findAllByType(SavedLinkGridCell).map(cell => cell.props.item.id)).toEqual([1, 3]);
+    expect(renderer.root.findAllByType(SavedLinkGridCell)).toHaveLength(2);
+    expect(yesterdaySection.dateKey).not.toBe(todaySection.dateKey);
+
+    const body = StyleSheet.flatten(bodies[0].props.style);
+    expect(body).toEqual(expect.objectContaining({ borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1 }));
+    expect(body.borderBottomLeftRadius).toBeGreaterThan(0);
+    expect(body.borderBottomRightRadius).toBeGreaterThan(0);
+    expect(body.paddingHorizontal).toBeGreaterThan(0);
   });
 });
 

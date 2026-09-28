@@ -34,6 +34,11 @@ interface SwipeableItemRowProps {
    * link) - then there is no delete action at all and the row cannot be swiped left.
    */
   readonly onDelete?: () => void;
+  /**
+   * What the delete action says - defaults to 삭제. A Collection's own list passes 컬렉션에서 삭제,
+   * since there it only takes the link out of that Collection (the saved link stays).
+   */
+  readonly deleteLabel?: string;
   /** Reveals a compact 공유 action on the left when the row is swiped right. */
   readonly onShare: () => void;
   /** Disables opening/using the swipe actions (e.g. another row's action is in flight) - navigation stays enabled. */
@@ -69,6 +74,7 @@ export function SwipeableItemRow({
   children,
   onPress,
   onDelete,
+  deleteLabel,
   onShare,
   disabled,
   containerStyle,
@@ -76,6 +82,7 @@ export function SwipeableItemRow({
   accessibilityLabel,
 }: SwipeableItemRowProps) {
   const { t } = useTranslation();
+  const deleteActionLabel = deleteLabel ?? t('common.delete');
   const translateX = useRef(new Animated.Value(0)).current;
   const openDirectionRef = useRef<'left' | 'right' | null>(null);
   const currentOffsetRef = useRef(0);
@@ -181,7 +188,7 @@ export function SwipeableItemRow({
           {onDelete ? (
           <View style={[styles.actionSlot, styles.deleteSlot]}>
             <Pressable
-              accessibilityLabel={t('common.delete')}
+              accessibilityLabel={deleteActionLabel}
               accessibilityRole="button"
               disabled={disabled}
               onPress={() => {
@@ -191,7 +198,7 @@ export function SwipeableItemRow({
               style={[styles.actionButton, styles.deleteAction]}
             >
               <TrashIcon color={colors.surface} size={18} />
-              <Text style={styles.actionLabel}>{t('common.delete')}</Text>
+              <Text numberOfLines={2} style={styles.actionLabel}>{deleteActionLabel}</Text>
             </Pressable>
           </View>
           ) : null}
@@ -199,7 +206,7 @@ export function SwipeableItemRow({
       ) : null}
       <Animated.View
         accessibilityActions={[
-          ...(onDelete ? [{ name: 'delete', label: t('common.delete') }] : []),
+          ...(onDelete ? [{ name: 'delete', label: deleteActionLabel }] : []),
           { name: 'share', label: t('common.share') },
         ]}
         onAccessibilityAction={event => {
@@ -281,5 +288,7 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 12,
     fontWeight: '600',
+    paddingHorizontal: spacing.xs,
+    textAlign: 'center',
   },
 });

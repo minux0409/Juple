@@ -4,6 +4,7 @@ import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
+import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, KEEP_ICON_IMAGE, type CollectionIconImageChange } from './collectionIconImage';
 import { canAddItemsTo, isCollectionLocked } from './collectionAccess';
 import type { CollectionColorValue } from './collectionColors';
 import type { CollectionIconKey } from './collectionIcons';
@@ -61,7 +62,12 @@ export interface UseCategoryPickerModalResult {
   /** Returns true on success (the CategoryEditorDialog closes itself), false on failure (the
    * dialog stays open showing createError, matching this app's existing "let the user fix and
    * retry" pattern - see CategoryEditorDialog's own remarks). */
-  readonly submitNewCollection: (name: string, icon: CollectionIconKey, color: CollectionColorValue) => Promise<boolean>;
+  readonly submitNewCollection: (
+    name: string,
+    icon: CollectionIconKey,
+    color: CollectionColorValue,
+    imageChange?: CollectionIconImageChange,
+  ) => Promise<boolean>;
   /**
    * Selecting OR deselecting a locked Collection changes its content, so it needs the password:
    * runs `toggle` at once for an unlocked Collection (or one already unlocked in this picker
@@ -132,8 +138,10 @@ export function useCategoryPickerModal(
         setPhase('owned');
       } else {
         const shared = await getCollections(authenticatedRequest, { scope: 'shared', limit: COLLECTION_OPTIONS_PAGE_LIMIT });
-        // A Collection shared view-only can never take this Item - it is not offered at all.
-        setCollectionPool([...page.items, ...shared.items.filter(canAddItemsTo)]);
+        // A Collection shared view-only can never take this Item - it is not offered at all. My own
+        // shared Collections come back under 'shared' too - they are already in the owned list.
+        const ownedIds = new Set(page.items.map(option => option.id));
+        setCollectionPool([...page.items, ...shared.items.filter(option => !ownedIds.has(option.id) && canAddItemsTo(option))]);
         setNextCursor(shared.nextCursor);
         setPhase(shared.nextCursor ? 'shared' : 'done');
       }
@@ -240,6 +248,7 @@ export function useCategoryPickerModal(
     name: string,
     icon: CollectionIconKey,
     color: CollectionColorValue,
+    imageChange: CollectionIconImageChange = KEEP_ICON_IMAGE,
   ): Promise<boolean> => {
     if (isCreatingCollection) {
       return false;
@@ -255,7 +264,13 @@ export function useCategoryPickerModal(
     setIsCreatingCollection(true);
     setCreateError(null);
     try {
-      const created = await createCollection(authenticatedRequest, trimmedName, icon, color);
+      let created = await createCollection(authenticatedRequest, trimmedName, icon, color);
+      // Created either way; a failed photo upload leaves the built-in icon and says so here.
+      try {
+        created = await applyCollectionIconImageChange(authenticatedRequest, created, imageChange);
+      } catch (caughtError) {
+        setError(getIconImageSaveErrorMessage(caughtError, t));
+      }
       setCollectionPool(previous => [...previous, created]);
       setIsCreateDialogVisible(false);
       onCollectionCreated?.(created);

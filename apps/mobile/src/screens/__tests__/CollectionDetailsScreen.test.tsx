@@ -216,7 +216,7 @@ describe('CollectionDetailsScreen', () => {
 
       const row = getRowElement(renderer, item);
       revealRow(row);
-      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
+      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0];
       await act(async () => {
         removeAction.props.onPress();
       });
@@ -224,7 +224,7 @@ describe('CollectionDetailsScreen', () => {
 
       await act(async () => {
         const confirmButton = renderer.root.findAll(
-          node => node.props.accessibilityLabel === i18n.t('collections.unlinkAction'),
+          node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'),
         )[0];
         confirmButton.props.onPress();
       });
@@ -250,11 +250,11 @@ describe('CollectionDetailsScreen', () => {
     async function unlinkViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
       const row = getRowElement(renderer, item);
       revealRow(row);
-      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === '삭제')[0];
+      const removeAction = row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0];
       await act(async () => removeAction.props.onPress());
       await act(async () => {
         const confirmButton = renderer.root.findAll(
-          node => node.props.accessibilityLabel === i18n.t('collections.unlinkAction'),
+          node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'),
         )[0];
         confirmButton.props.onPress();
       });
@@ -775,7 +775,7 @@ describe('CollectionDetailsScreen', () => {
         openPressable.props.onPress();
       });
 
-      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 42 });
+      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 42, collectionContext: { collectionId: 1, canRemove: true } });
     });
   });
 

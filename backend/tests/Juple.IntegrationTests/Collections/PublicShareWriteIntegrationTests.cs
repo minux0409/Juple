@@ -137,6 +137,17 @@ public sealed class PublicShareWriteIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task APublicWritersLink_ShowsTheOwnerOnly_ThatItCameThroughTheLink_NeverWho()
+    {
+        var share = await _shareService.EnableAsync(_owner, _collectionId, CollectionSharePermission.Write);
+        await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null);
+
+        var ownerView = (await _items.GetAsync(_owner, _collectionId, null, 50)).Items;
+        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.PublicLink), ownerView.Single(item => item.ItemId == _writerItem).AddedBy);
+        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.Me), ownerView.Single(item => item.ItemId == _ownerItem).AddedBy);
+    }
+
+    [Fact]
     public async Task OnlyTheCallersOwnLiveItem_CanBeAdded()
     {
         var share = await _shareService.EnableAsync(_owner, _collectionId, CollectionSharePermission.Write);

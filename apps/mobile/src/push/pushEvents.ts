@@ -8,7 +8,8 @@ export type SocialPushEventType =
   | 'friendRequest'
   | 'collectionInvitation'
   | 'collectionInvitationAnswered'
-  | 'collectionContentChanged';
+  | 'collectionContentChanged'
+  | 'friendRequestAnswered';
 
 export interface SocialPushEvent {
   readonly type: SocialPushEventType;
@@ -20,6 +21,7 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
   'collectionInvitation',
   'collectionInvitationAnswered',
   'collectionContentChanged',
+  'friendRequestAnswered',
 ]);
 
 type Listener = (event: SocialPushEvent) => void;

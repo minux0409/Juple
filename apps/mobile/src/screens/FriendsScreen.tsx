@@ -8,9 +8,10 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatJupleId, lookupJupleId, personLabel, type JupleIdLookupResult } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
-import { useLiveRefresh } from '../push/useLiveRefresh';
+import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
+import { TrashIcon } from '../icons/TrashIcon';
 import {
   acceptFriendRequest,
   cancelFriendRequest,
@@ -28,6 +29,10 @@ import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/t
 
 const PAGE_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 300;
+/** While a sent friend request is waiting (Friends screen open, app in the foreground). */
+export const OUTGOING_POLL_INTERVAL_MS = 10_000;
+/** Per visit - after that, Push / focus / returning to the app refresh it. */
+export const OUTGOING_POLL_MAX_MS = 10 * 60_000;
 
 function getLookupErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
@@ -118,16 +123,26 @@ export function FriendsScreen() {
     [authenticatedRequest, t],
   );
 
+  const searchRef = useRef(search);
+  searchRef.current = search;
+  // Sent requests seen in the last load: one that is gone now was accepted, declined or
+  // cancelled - the friend list is reloaded so an accepted one appears there at once.
+  const outgoingIdsRef = useRef<ReadonlySet<number>>(new Set());
+
   const loadRequests = useCallback(async () => {
     try {
-      setRequests(await getFriendRequests(authenticatedRequest));
+      const loaded = await getFriendRequests(authenticatedRequest);
+      setRequests(loaded);
+      const outgoingIds = new Set(loaded.filter(request => request.direction === 'outgoing').map(request => request.requestId));
+      const anAnswered = [...outgoingIdsRef.current].some(id => !outgoingIds.has(id));
+      outgoingIdsRef.current = outgoingIds;
+      if (anAnswered) {
+        loadFriends(searchRef.current);
+      }
     } catch {
       setError(t('friends.loadFallback'));
     }
-  }, [authenticatedRequest, t]);
-
-  const searchRef = useRef(search);
-  searchRef.current = search;
+  }, [authenticatedRequest, loadFriends, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,10 +152,26 @@ export function FriendsScreen() {
     }, [authenticatedRequest, loadFriends, loadRequests]),
   );
 
-  // A friend request arriving while this screen is open shows up at once (and on returning to the app).
-  useLiveRefresh(() => {
+  // A friend request arriving - or one I sent being accepted/declined - shows up at once while this
+  // screen is open (and on returning to the app): an answered request leaves 보낸 친구 신청, and an
+  // accepted one appears in the friend list (loadRequests notices the answered one and reloads it).
+  useLiveRefresh(event => {
     loadRequests();
-  }, ['friendRequest']);
+    if (event === null) {
+      loadFriends(searchRef.current);
+    }
+  }, ['friendRequest', 'friendRequestAnswered']);
+
+  // Push can lag (the dispatch Job runs once a minute) or not arrive at all (notifications off).
+  // So while this screen is open and I have a sent request waiting for an answer, re-check just
+  // the small request list every OUTGOING_POLL_INTERVAL_MS - only in the foreground, never two at
+  // once, and for at most OUTGOING_POLL_MAX_MS per visit. No sent request pending: no polling.
+  const hasOutgoing = requests.some(request => request.direction === 'outgoing');
+  useFocusedPolling(loadRequests, {
+    enabled: hasOutgoing,
+    intervalMs: OUTGOING_POLL_INTERVAL_MS,
+    maxDurationMs: OUTGOING_POLL_MAX_MS,
+  });
 
   // Searching (only within my own friends) as the text settles, never per keystroke.
   const isFirstSearchRef = useRef(true);
@@ -253,19 +284,19 @@ export function FriendsScreen() {
             accessibilityRole="button"
             disabled={busyKey !== null}
             onPress={() => runAction(`decline-${request.requestId}`, () => declineFriendRequest(authenticatedRequest, request.requestId))}
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, styles.cardButton]}
             testID={`friends-decline-${request.requestId}`}
           >
-            <Text style={styles.secondaryLabel}>{t('collaboration.decline')}</Text>
+            <Text numberOfLines={2} style={styles.secondaryLabel}>{t('collaboration.decline')}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             disabled={busyKey !== null}
             onPress={() => runAction(`accept-${request.requestId}`, () => acceptFriendRequest(authenticatedRequest, request.requestId))}
-            style={styles.primaryButton}
+            style={[styles.primaryButton, styles.cardButton]}
             testID={`friends-accept-${request.requestId}`}
           >
-            <Text style={styles.primaryLabel}>{t('collaboration.accept')}</Text>
+            <Text numberOfLines={2} style={styles.primaryLabel}>{t('collaboration.accept')}</Text>
           </Pressable>
         </View>
       ))}
@@ -304,8 +335,8 @@ export function FriendsScreen() {
             {lookupResult.displayName ? <Text numberOfLines={1} style={styles.name}>{lookupResult.displayName}</Text> : null}
             <Text style={[styles.meta, ltrTextStyle]}>{formatJupleId(lookupResult.jupleId)}</Text>
           </View>
-          <Pressable accessibilityRole="button" disabled={isSending} onPress={sendRequest} style={styles.primaryButton} testID="friends-add-send">
-            {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
+          <Pressable accessibilityRole="button" disabled={isSending} onPress={sendRequest} style={[styles.primaryButton, styles.cardButton]} testID="friends-add-send">
+            {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
           </Pressable>
         </View>
       ) : null}
@@ -334,16 +365,16 @@ export function FriendsScreen() {
         <View key={request.requestId} style={styles.card} testID={`friends-outgoing-${request.requestId}`}>
           <View style={styles.cardText}>
             <Text numberOfLines={1} style={styles.name}>{personLabel(request)}</Text>
-            <Text style={styles.meta}>{t('shareSheet.pendingLabel')}</Text>
+            <Text numberOfLines={1} style={styles.meta}>{t('shareSheet.pendingLabel')}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
             disabled={busyKey !== null}
             onPress={() => runAction(`cancel-${request.requestId}`, () => cancelFriendRequest(authenticatedRequest, request.requestId))}
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, styles.cardButton]}
             testID={`friends-cancel-${request.requestId}`}
           >
-            <Text style={styles.secondaryLabel}>{t('friends.cancelRequest')}</Text>
+            <Text numberOfLines={2} style={styles.secondaryLabel}>{t('friends.cancelRequest')}</Text>
           </Pressable>
         </View>
       ))}
@@ -456,13 +487,11 @@ function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: FriendDeta
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={[styles.meta, ltrTextStyle]}>{t('myPage.jupleId')} {formatJupleId(friend.jupleId)}</Text>
           <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
-          <Text style={styles.meta}>{t('friends.noteHint')}</Text>
           <TextInput
             accessibilityLabel={t('friends.note')}
             maxLength={FRIEND_NOTE_MAX_STORAGE_LENGTH}
             onChangeText={setNote}
-            placeholder={t('friends.notePlaceholder')}
-            style={styles.input}
+            style={styles.noteInput}
             testID="friend-note-input"
             value={note}
           />
@@ -470,8 +499,11 @@ function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: FriendDeta
           <Pressable accessibilityRole="button" disabled={isSaving} onPress={save} style={[styles.primaryButton, styles.fullWidth]} testID="friend-note-save">
             {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('friends.saveNote')}</Text>}
           </Pressable>
+          {/* A destructive action in the app's secondary-destructive look (red outline, like 계정 삭제);
+              the confirmation that follows carries the filled red button. */}
           <Pressable accessibilityRole="button" onPress={() => setIsRemoveConfirmVisible(true)} style={styles.removeButton} testID="friend-remove">
-            <Text style={styles.removeLabel}>{t('friends.remove')}</Text>
+            <TrashIcon color={colors.danger} size={16} />
+            <Text numberOfLines={2} style={styles.removeLabel}>{t('friends.remove')}</Text>
           </Pressable>
         </ScrollView>
       </AppModal>
@@ -518,6 +550,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   searchInput: { flex: 0, marginTop: spacing.xs },
+  // Inside a modal's ScrollView: a plain full-width field (flex: 1 would collapse it in a column).
+  noteInput: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
+    borderWidth: 1,
+    color: colors.textPrimary,
+    fontSize: 16,
+    marginTop: spacing.xs,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+  },
   card: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -534,14 +578,28 @@ const styles = StyleSheet.create({
   note: { color: colors.textSecondary, fontSize: 13, fontStyle: 'italic', marginTop: 2 },
   notice: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: spacing.sm },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700' },
+  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
   secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, minWidth: 64, paddingHorizontal: spacing.md },
-  secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  // A card's action buttons on a narrow screen (or with a long translation): they may shrink and
+  // wrap their label to two lines, but never squeeze the person's name out of the row.
+  cardButton: { flexShrink: 1, maxWidth: '45%', paddingHorizontal: spacing.sm },
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.lg },
   empty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.lg, textAlign: 'center' },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
   fullWidth: { marginTop: spacing.md },
-  removeButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget },
-  removeLabel: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  removeButton: {
+    alignItems: 'center',
+    borderColor: colors.danger,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+  },
+  removeLabel: { color: colors.danger, flexShrink: 1, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 });

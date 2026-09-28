@@ -28,7 +28,12 @@ const READY_LINGER_MS = 450;
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  ItemDetails: { itemId: number };
+  /**
+   * collectionContext: set only when opened from inside a Collection (CollectionDetailsScreen). The
+   * delete action then means "remove from this Collection" - the saved link itself stays - and
+   * canRemove says whether the caller may (only the Collection's Owner can, a server rule too).
+   */
+  ItemDetails: { itemId: number; collectionContext?: { readonly collectionId: number; readonly canRemove: boolean } };
   /**
    * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
    * refreshToken is optional and only ever meaningful when this exact screen might already be the

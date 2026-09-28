@@ -22,6 +22,8 @@ interface SavedLinkRowProps {
    */
   readonly preferEffectiveThumbnail?: boolean;
   readonly trailingAction?: { readonly accessibilityLabel: string; readonly onPress: () => void };
+  /** Who added the link inside a shared Collection (see SavedLinkMetaRow) - omitted everywhere else. */
+  readonly addedByLabel?: string | null;
 }
 
 /**
@@ -40,6 +42,7 @@ export function SavedLinkRow({
   dateDisplayMode = 'time',
   preferEffectiveThumbnail = false,
   trailingAction,
+  addedByLabel,
 }: SavedLinkRowProps) {
   const { t } = useTranslation();
   const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -73,7 +76,7 @@ export function SavedLinkRow({
             {item.memo}
           </Text>
         ) : null}
-        <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
+        <SavedLinkMetaRow addedByLabel={addedByLabel} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
       </View>
       {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>

@@ -165,9 +165,9 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
               <View style={styles.rowText}>
                 <Text numberOfLines={1} style={styles.name}>{personLabel(item)}</Text>
                 {item.myNote ? <Text numberOfLines={1} style={styles.note}>{item.myNote}</Text> : null}
-                {item.displayName ? <Text style={[styles.meta, ltrTextStyle]}>{formatJupleId(item.jupleId)}</Text> : null}
+                {item.displayName ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle]}>{formatJupleId(item.jupleId)}</Text> : null}
               </View>
-              {reason ? <Text style={styles.reason}>{reasonLabel(reason)}</Text> : null}
+              {reason ? <Text numberOfLines={2} style={styles.reason}>{reasonLabel(reason)}</Text> : null}
             </Pressable>
           );
         }}
@@ -203,7 +203,8 @@ const styles = StyleSheet.create({
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   note: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   meta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  reason: { color: colors.textSecondary, flexShrink: 0, fontSize: 12, fontWeight: '600' },
+  // A short status (참여 중 / 추가됨) - never allowed to push the name off a narrow row.
+  reason: { color: colors.textSecondary, flexShrink: 1, fontSize: 12, fontWeight: '600', maxWidth: '40%', textAlign: 'right' },
   selectedCount: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: spacing.sm },
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.lg },

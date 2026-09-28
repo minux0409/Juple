@@ -75,7 +75,7 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
             .ToList();
     }
 
-    public async Task<FriendDto> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    public async Task<AcceptedFriendRequest> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         var friendship = await dbContext.Friendships.FirstOrDefaultAsync(entry => entry.Id == requestId, cancellationToken);
         if (friendship is null || !friendship.Involves(userId))
@@ -104,21 +104,29 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
         }
 
         // Accepting an already-accepted friendship is an idempotent replay.
-        return await GetFriendAsync(userId, friendship.Id, cancellationToken) ?? throw new FriendNotFoundException();
+        var friend = await GetFriendAsync(userId, friendship.Id, cancellationToken) ?? throw new FriendNotFoundException();
+        return new AcceptedFriendRequest(friend, friendship.RequestedByUserId);
     }
 
-    public async Task DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default)
+    public async Task<long> DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default)
     {
-        var deleted = await dbContext.Friendships
+        var request = dbContext.Friendships
             .Where(friendship => friendship.Id == requestId
                 && friendship.Status == FriendshipStatus.Pending
                 && (friendship.UserLowId == userId || friendship.UserHighId == userId)
-                && (asRecipient ? friendship.RequestedByUserId != userId : friendship.RequestedByUserId == userId))
-            .ExecuteDeleteAsync(cancellationToken);
+                && (asRecipient ? friendship.RequestedByUserId != userId : friendship.RequestedByUserId == userId));
+        // The pair is fixed for the row's whole life, so reading it first cannot race the delete
+        // into naming the wrong person - the delete itself still decides whether anything matched.
+        var pair = await request
+            .Select(friendship => new { friendship.UserLowId, friendship.UserHighId })
+            .FirstOrDefaultAsync(cancellationToken);
+        var deleted = pair is null ? 0 : await request.ExecuteDeleteAsync(cancellationToken);
         if (deleted == 0)
         {
             throw new FriendNotFoundException();
         }
+
+        return pair!.UserLowId == userId ? pair.UserHighId : pair.UserLowId;
     }
 
     public async Task RemoveFriendAsync(long userId, long friendshipId, CancellationToken cancellationToken = default)

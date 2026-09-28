@@ -20,6 +20,13 @@ export interface Collection {
   readonly isLocked?: boolean;
   /** Owner view only: the Collection has at least one Contributor. */
   readonly hasCollaborators?: boolean;
+  /** Owner view only: its 모든 사용자 (public) link is on. */
+  readonly isPublicShareActive?: boolean;
+  /**
+   * The Owner's photo used as this Collection's icon - a short-lived read URL, shown instead of the
+   * built-in `icon` glyph (which stays as the fallback). Null/absent: no photo.
+   */
+  readonly iconImageUrl?: string | null;
   /** Contributor view only: the Owner's public Juple ID. */
   readonly ownerJupleId?: string | null;
   /** Contributor view only: the Owner's chosen display name (null when they have not set one). */
@@ -90,6 +97,19 @@ export interface CollectionItemEntry {
    * never the owner-only ItemDetails. Undefined (older fixtures) reads as true.
    */
   readonly isMine?: boolean;
+  /** Who put this link into this Collection (see CollectionItemAdder); null/undefined when unknown. */
+  readonly addedBy?: CollectionItemAdder | null;
+}
+
+/**
+ * Who added a link to a Collection, as the server lets the caller see them: "me"; the "owner" or a
+ * current "member" by public identity (the same the participant list shows); or "publicLink" - added
+ * through the 모든 사용자 link by someone who is not a participant, never identified.
+ */
+export interface CollectionItemAdder {
+  readonly kind: 'me' | 'owner' | 'member' | 'publicLink';
+  readonly jupleId?: string | null;
+  readonly displayName?: string | null;
 }
 
 export interface CollectionItemsPage {
@@ -114,8 +134,9 @@ export interface GetCollectionsOptions {
   readonly isFavorite?: boolean;
   /**
    * "owned" (default when omitted - the Collections the caller owns, unchanged behavior), "shared"
-   * (the caller is a Contributor), "all" (both, one server-side ordering) or "favorites" (both,
-   * only the caller's own favorites). isFavorite only applies to "owned".
+   * (shared with the caller, plus the caller's own currently-shared ones - which are therefore in
+   * "owned" too), "all" (owned + shared with the caller, each once, one server-side ordering) or
+   * "favorites" (all, only the caller's own favorites). isFavorite only applies to "owned".
    */
   readonly scope?: CollectionListScope;
 }
@@ -225,6 +246,54 @@ export async function setCollectionFavorite(
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/favorite`,
     body: { isFavorite },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
+}
+
+/** A picked photo for a Collection's icon (see setCollectionIconImage). */
+export interface CollectionIconImageAsset {
+  readonly uri: string;
+  /** The picker's own reported MIME type - the server checks the real format by magic bytes. */
+  readonly type?: string;
+  readonly fileName?: string;
+}
+
+const ICON_IMAGE_UPLOAD_TIMEOUT_MS = 60_000;
+
+/** Owner only: uses the photo as the Collection's icon (replacing any previous one). Returns the updated Collection. */
+export async function setCollectionIconImage(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  asset: CollectionIconImageAsset,
+): Promise<Collection> {
+  const formData = new FormData();
+  formData.append('file', { uri: asset.uri, type: asset.type, name: asset.fileName ?? 'icon' });
+  const response = await request<Collection>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/icon-image`,
+    headers: storedUnlockHeaders(collectionId),
+    formData,
+    timeoutMs: ICON_IMAGE_UPLOAD_TIMEOUT_MS,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection body.');
+  }
+
+  return response.body;
+}
+
+/** Owner only: back to the built-in icon (idempotent). Returns the updated Collection. */
+export async function removeCollectionIconImage(request: AuthenticatedApiRequest, collectionId: number): Promise<Collection> {
+  const response = await request<Collection>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}/icon-image`,
+    headers: storedUnlockHeaders(collectionId),
   });
 
   if (!response.body) {
@@ -350,6 +419,7 @@ export interface SharedCollectionItem {
   readonly previewImageUrl: string | null;
   readonly addedAtUtc: string;
   readonly isMine: boolean;
+  readonly addedBy?: CollectionItemAdder | null;
 }
 
 export async function getSharedCollectionItem(

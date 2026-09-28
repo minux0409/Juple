@@ -2,6 +2,7 @@
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.MergeCollections;
 using Juple.Application.Collections.Public;
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Images;
 using Juple.Application.Items;
@@ -13,7 +14,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Collections;
 
-public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
+public sealed class CollectionStore(
+    JupleDbContext dbContext,
+    ICollectionIconImageStorage? iconImageStorage = null) : ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
 {
     /// <summary>
     /// Spacing between adjacent CollectionItem.SortOrder values - wide enough that a manual move or
@@ -45,7 +48,7 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         return ListPageAsync(userId, query, itemId, excludeItemId, cursor, limit, cancellationToken);
     }
 
-    /// <summary>"공유 카테고리": active Collections the caller is a Contributor of (see ListByScopeAsync).</summary>
+    /// <summary>"공유 컬렉션": shared with the caller, or the caller's own currently-shared ones (see AccessibleCollections).</summary>
     public Task<CollectionPage> ListSharedAsync(
         long userId,
         long? itemId,
@@ -67,17 +70,22 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         ListPageAsync(userId, AccessibleCollections(userId, scope), itemId, excludeItemId, cursor, limit, cancellationToken);
 
     /// <summary>
-    /// The caller's active Collections in a scope: owned ones, ones they are a Contributor of
-    /// (UNION ALL of both for All/Favorites - an Owner is never a Contributor of their own
-    /// Collection, so no row can appear twice), optionally narrowed to their own favorite marks.
-    /// Each half is index-backed (Collections by UserId; CollectionCollaborators by UserId).
+    /// The caller's active Collections in a scope: owned ones, ones shared with them (as a
+    /// Contributor or Viewer) - UNION ALL of both for All/Favorites; an Owner is never a member of
+    /// their own Collection, so no row can appear twice - optionally narrowed to their own favorite
+    /// marks. Shared ("공유 컬렉션") is every Collection the caller takes part in with someone else:
+    /// the ones shared with them plus their own ones that are currently shared - with at least one
+    /// member, or with an active 모든 사용자 link. A pending invitation alone shares nothing yet.
+    /// The same owned Collection therefore also stays under Owned; each scope is its own list, so
+    /// within one scope it is still listed once. Each half is index-backed (Collections by UserId;
+    /// CollectionCollaborators by UserId / CollectionId; CollectionShares by CollectionId).
     /// </summary>
     private IQueryable<Collection> AccessibleCollections(long userId, CollectionListScope scope)
     {
         var owned = dbContext.Collections
             .AsNoTracking()
             .Where(collection => collection.UserId == userId && collection.DeletedAtUtc == null);
-        var shared =
+        var sharedWithMe =
             from collaborator in dbContext.CollectionCollaborators.AsNoTracking()
             where collaborator.UserId == userId
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
@@ -87,8 +95,12 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         var query = scope switch
         {
             CollectionListScope.Owned => owned,
-            CollectionListScope.Shared => shared,
-            _ => owned.Concat(shared),
+            CollectionListScope.Shared => owned
+                .Where(collection =>
+                    dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id)
+                    || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive))
+                .Concat(sharedWithMe),
+            _ => owned.Concat(sharedWithMe),
         };
 
         if (scope == CollectionListScope.Favorites)
@@ -186,6 +198,9 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                     favorite => favorite.UserId == userId && favorite.CollectionId == collection.Id),
             HasCollaborators = dbContext.CollectionCollaborators.Any(
                 collaborator => collaborator.CollectionId == collection.Id),
+            IsPublicShareActive = dbContext.CollectionShares.Any(
+                share => share.CollectionId == collection.Id && share.IsActive),
+            IconImageBlobName = collection.IconImageBlobName,
             // The caller's own membership role when the Collection is shared with them (null for
             // their own Collections).
             CallerRole = dbContext.CollectionCollaborators
@@ -233,6 +248,21 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 .GroupBy(entry => entry.CollectionId)
                 .ToDictionary(group => group.Key, group => group.Select(entry => entry.Person).ToList());
 
+        // Icon photos are signed for the Owner's own prefix - access to the row itself (checked by
+        // the query that produced it) is what allows seeing its icon. One local SAS per photo.
+        var iconImageUrls = new Dictionary<long, string>();
+        if (iconImageStorage is not null)
+        {
+            foreach (var row in rows.Where(row => row.IconImageBlobName is not null))
+            {
+                var url = await iconImageStorage.CreateCollectionIconReadUrlAsync(row.OwnerUserId, row.IconImageBlobName!, cancellationToken);
+                if (url is not null)
+                {
+                    iconImageUrls[row.Id] = url.ToString();
+                }
+            }
+        }
+
         return rows.Select(row =>
         {
             var isOwner = row.OwnerUserId == userId;
@@ -271,7 +301,9 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 OwnerJupleId: isOwner ? null : owner?.PublicCode,
                 OwnerDisplayName: isOwner ? null : owner?.DisplayName,
                 ParticipantPreview: preview,
-                OtherParticipantCount: otherParticipantCount);
+                OtherParticipantCount: otherParticipantCount,
+                IsPublicShareActive: isOwner && row.IsPublicShareActive,
+                IconImageUrl: iconImageUrls.GetValueOrDefault(row.Id));
         }).ToList();
     }
 
@@ -298,6 +330,10 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         public bool IsFavorite { get; init; }
 
         public bool HasCollaborators { get; init; }
+
+        public bool IsPublicShareActive { get; init; }
+
+        public string? IconImageBlobName { get; init; }
 
         public CollectionCollaboratorRole? CallerRole { get; init; }
     }
@@ -481,6 +517,35 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         return await GetAsync(userId, collectionId, cancellationToken);
     }
 
+    public async Task<(CollectionDto Collection, string? ReplacedBlobName)> SetIconImageAsync(
+        long userId,
+        long collectionId,
+        string? blobName,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var collection = await dbContext.Collections
+            .FirstOrDefaultAsync(
+                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
+        if (collection is null)
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        var replaced = collection.SetIconImage(blobName, updatedAtUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+
+        return (await GetAsync(userId, collectionId, cancellationToken), replaced);
+    }
+
     public async Task<CollectionDto> SetColorAsync(
         long userId,
         long collectionId,
@@ -580,6 +645,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
                 membership.SortOrder,
                 item.PreviewImageUrl,
                 IsMine = item.UserId == userId,
+                membership.AddedByUserId,
+                membership.AddedViaPublicShare,
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id && item.UserId == userId)
                     .OrderBy(image => image.SortOrder)
@@ -596,6 +663,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
 
         var hasMore = page.Count > limit;
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
+        var adders = await ResolveAddersAsync(
+            userId, collectionId, pageRows.Select(row => row.AddedByUserId).ToList(), cancellationToken);
 
         var items = new List<CollectionItemEntryDto>(pageRows.Count);
         var representativeImages = new Dictionary<long, ItemRepresentativeImageRef>();
@@ -604,7 +673,8 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
         {
             items.Add(new CollectionItemEntryDto(
                 row.Id, row.Url, row.Title, row.Memo, row.AddedAtUtc, row.SortOrder,
-                RepresentativeImage: null, row.PreviewImageUrl, CoverImage: null, IsMine: row.IsMine));
+                RepresentativeImage: null, row.PreviewImageUrl, CoverImage: null, IsMine: row.IsMine,
+                AddedBy: adders(row.AddedByUserId, row.AddedViaPublicShare)));
             if (!row.IsMine)
             {
                 continue;
@@ -647,14 +717,82 @@ public sealed class CollectionStore(JupleDbContext dbContext) : ICollectionStore
             throw new CollectionNotFoundException();
         }
 
-        return await (
+        var row = await (
             from membership in dbContext.CollectionItems.AsNoTracking()
             where membership.CollectionId == collectionId && membership.ItemId == itemId
             join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
-            select new SharedCollectionItemDto(
-                item.Id, item.Url, item.Title, item.PreviewImageUrl, membership.AddedAtUtc, item.UserId == userId))
+            select new
+            {
+                Item = new SharedCollectionItemDto(
+                    item.Id, item.Url, item.Title, item.PreviewImageUrl, membership.AddedAtUtc, item.UserId == userId, null),
+                membership.AddedByUserId,
+                membership.AddedViaPublicShare,
+            })
             .FirstOrDefaultAsync(cancellationToken);
+        if (row is null)
+        {
+            return null;
+        }
+
+        var adders = await ResolveAddersAsync(userId, collectionId, [row.AddedByUserId], cancellationToken);
+        return row.Item with { AddedBy = adders(row.AddedByUserId, row.AddedViaPublicShare) };
+    }
+
+    /// <summary>
+    /// Describes each link's adder to a caller who may view this Collection (checked by the caller
+    /// of this method): themselves, the Owner or a current member by their public identity, or -
+    /// for anyone else who added through the 모든 사용자 link - only that fact. Two small queries
+    /// for a whole page (members among the adders, then their public identity), never one per row.
+    /// AddedByUserId 0 is a pre-collaboration row, which was always the Owner's own add.
+    /// </summary>
+    private async Task<Func<long, bool, CollectionItemAdderDto?>> ResolveAddersAsync(
+        long userId,
+        long collectionId,
+        IReadOnlyCollection<long> addedByUserIds,
+        CancellationToken cancellationToken)
+    {
+        var ownerId = await dbContext.Collections.AsNoTracking()
+            .Where(collection => collection.Id == collectionId)
+            .Select(collection => collection.UserId)
+            .FirstAsync(cancellationToken);
+        long Normalize(long addedByUserId) => addedByUserId == 0 ? ownerId : addedByUserId;
+
+        var others = addedByUserIds.Select(Normalize).Where(id => id != userId).Distinct().ToList();
+        var memberIds = others.Count == 0
+            ? []
+            : (await dbContext.CollectionCollaborators.AsNoTracking()
+                .Where(collaborator => collaborator.CollectionId == collectionId && others.Contains(collaborator.UserId))
+                .Select(collaborator => collaborator.UserId)
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+        var visibleIds = others.Where(id => id == ownerId || memberIds.Contains(id)).ToList();
+        var people = visibleIds.Count == 0
+            ? new Dictionary<long, PersonRow>()
+            : (await dbContext.Users.AsNoTracking()
+                .Where(user => visibleIds.Contains(user.Id))
+                .Select(user => new PersonRow(user.Id, user.PublicCode, user.DisplayName, null))
+                .ToListAsync(cancellationToken))
+                .ToDictionary(person => person.UserId);
+
+        return (addedByUserId, addedViaPublicShare) =>
+        {
+            var adderId = Normalize(addedByUserId);
+            if (adderId == userId)
+            {
+                return new CollectionItemAdderDto(CollectionItemAdderKinds.Me);
+            }
+
+            if (people.TryGetValue(adderId, out var person))
+            {
+                return new CollectionItemAdderDto(
+                    adderId == ownerId ? CollectionItemAdderKinds.Owner : CollectionItemAdderKinds.Member,
+                    person.PublicCode,
+                    person.DisplayName);
+            }
+
+            return addedViaPublicShare ? new CollectionItemAdderDto(CollectionItemAdderKinds.PublicLink) : null;
+        };
     }
 
     /// <summary>Owner or any member (Contributor or Viewer) of this active Collection - the store-level backstop for every member read.</summary>

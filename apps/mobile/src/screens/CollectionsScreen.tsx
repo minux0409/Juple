@@ -30,10 +30,10 @@ import { isCollaborative, isCollectionLocked } from '../collections/collectionAc
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
-import { formatParticipantSummary } from '../collections/participantSummary';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
@@ -55,6 +55,9 @@ const PAGE_LIMIT = 50;
  * The four top-level Categories filters, all at the same level. Each is one server-side list scope
  * (see getCollections' scope) - owned vs shared is decided by the server's accessRole, never by
  * comparing ids here, and "all"/"favorites" are paged by the server as one list, never merged here.
+ * 공유 컬렉션 ("shared") also lists the caller's own Collections while they are shared (members or
+ * an active 모든 사용자 link) - the same row as under 내 컬렉션, never a copy: each filter keeps its
+ * own list, so a Collection appears at most once per filter.
  */
 type CategoryFilter = CollectionListScope;
 
@@ -349,7 +352,7 @@ export function CollectionsScreen() {
     })();
   }, [authenticatedRequest, filter, isLoading, isRefreshing, lists, t]);
 
-  const handleCreateSubmit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue) => {
+  const handleCreateSubmit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue, imageChange: CollectionIconImageChange) => {
     if (isCreating) {
       return;
     }
@@ -364,7 +367,14 @@ export function CollectionsScreen() {
     setIsCreating(true);
     setCreateError(null);
     try {
-      const created = await createCollection(authenticatedRequest, trimmedName, icon, color);
+      let created = await createCollection(authenticatedRequest, trimmedName, icon, color);
+      // The photo goes up only once the Collection exists. If that part fails, the Collection is
+      // still created (with its built-in icon) - the photo can be added again from its edit screen.
+      try {
+        created = await applyCollectionIconImageChange(authenticatedRequest, created, imageChange);
+      } catch (caughtError) {
+        setError(getIconImageSaveErrorMessage(caughtError, t));
+      }
       // A new Collection is owned and not a favorite: it belongs at the top of 전체/내 카테고리.
       setLists(previous => ({
         ...previous,
@@ -637,13 +647,14 @@ function CollectionTile({
   onToggleFavorite,
 }: CollectionTileProps) {
   const { t } = useTranslation();
-  const participantSummary = formatParticipantSummary(collection, t);
 
+  // Only what tells Collections apart at a glance: icon (or photo), name, and the lock / shared /
+  // favorite markers - link counts and participant names live on the Collection's own screen.
   return (
     <View style={styles.gridCell}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
         <View style={styles.tileIconSlot}>
-          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={56} />
+          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} size={56} />
           <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
           {/* The caller's own favorite mark - Owner and Contributor alike, never someone else's. */}
           <Pressable
@@ -663,23 +674,10 @@ function CollectionTile({
               size={13}
             />
           </Pressable>
-          {/* Informational only (not a button) - bottom corner, opposite the favorite star. */}
-          <View
-            accessibilityLabel={t('collections.detailItemCount', { count: collection.itemCount })}
-            style={styles.countBadge}
-            testID="collection-tile-item-count"
-          >
-            <Text numberOfLines={1} style={styles.countBadgeText}>{collection.itemCount}</Text>
-          </View>
         </View>
         <Text numberOfLines={1} style={styles.tileLabel}>
           {collection.name}
         </Text>
-        {participantSummary ? (
-          <Text numberOfLines={1} style={styles.tileOwner} testID="collection-tile-participants">
-            {participantSummary}
-          </Text>
-        ) : null}
       </Pressable>
     </View>
   );
@@ -816,13 +814,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   shareRequestsBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
-  tileOwner: {
-    color: colors.textSecondary,
-    fontSize: 10,
-    marginTop: 2,
-    maxWidth: 84,
-    textAlign: 'center',
-  },
   // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis
   // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line.
   gridCell: {
@@ -853,28 +844,6 @@ const styles = StyleSheet.create({
     width: 22,
     ...cardShadow,
   },
-  // Deliberately quieter than the icon and the star: muted text on a small surface pill, anchored to
-  // the icon's bottom-end corner and growing inward (minWidth, no fixed width) so a long count never
-  // widens the cell.
-  countBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: 9,
-    borderWidth: StyleSheet.hairlineWidth,
-    bottom: -4,
-    end: -4,
-    justifyContent: 'center',
-    minWidth: 18,
-    paddingHorizontal: 4,
-    position: 'absolute',
-  },
-  countBadgeText: {
-    color: colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '600',
-    lineHeight: 16,
-  },
   tileLabel: {
     color: colors.textPrimary,
     fontSize: 13,
@@ -889,34 +858,25 @@ const styles = StyleSheet.create({
   listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
   listName: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
   listText: { flex: 1, minWidth: 0 },
-  listOwner: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   listIconSlot: { position: 'relative' },
-  listCount: { color: colors.textSecondary, flexShrink: 0, fontSize: 13 },
   listFavorite: { padding: spacing.sm },
 });
 
 /**
  * The List form keeps the same marker hierarchy as the Grid tile: lock at the icon's top-start,
- * shared at its bottom-start; a collaborative row shows the other participants under the name,
- * and every row (owned or shared) has the caller's own favorite star.
+ * shared at its bottom-start, and every row (owned or shared) has the caller's own favorite star.
+ * Like the tile: no link count or participant names - just what identifies the Collection.
  */
 function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onPress, onToggleFavorite }: CollectionTileProps) {
   const { t } = useTranslation();
-  const participantSummary = formatParticipantSummary(collection, t);
   return <Pressable accessibilityRole="button" onPress={onPress} style={styles.listRow}>
     <View style={styles.listIconSlot}>
-      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={48} />
+      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} size={48} />
       <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
     </View>
     <View style={styles.listText}>
       <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
-      {participantSummary ? (
-        <Text numberOfLines={1} style={styles.listOwner} testID="collection-row-participants">
-          {participantSummary}
-        </Text>
-      ) : null}
     </View>
-    <Text numberOfLines={1} style={styles.listCount} testID="collection-row-item-count">{t('collections.detailItemCount', { count: collection.itemCount })}</Text>
     <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
       <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
     </Pressable>

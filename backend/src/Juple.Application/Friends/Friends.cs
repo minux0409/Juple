@@ -23,6 +23,9 @@ public static class FriendRequestDirections
 
 public sealed record FriendPage(IReadOnlyList<FriendDto> Items, long? NextCursor);
 
+/// <summary>The accepted friendship as the caller sees it, plus the requester's internal id for the answered-request notification.</summary>
+public sealed record AcceptedFriendRequest(FriendDto Friend, long RequesterUserId);
+
 /// <summary>No such friendship/request for this caller (also for anyone else's) - 404, never a hint that it exists.</summary>
 public sealed class FriendNotFoundException : Exception;
 
@@ -53,11 +56,17 @@ public interface IFriendStore
 
     Task<IReadOnlyList<FriendRequestDto>> ListRequestsAsync(long userId, int limit, CancellationToken cancellationToken = default);
 
-    /// <summary>Accepts a pending request addressed to userId; anything else is FriendNotFoundException.</summary>
-    Task<FriendDto> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Accepts a pending request addressed to userId; anything else is FriendNotFoundException.
+    /// Also returns who sent the request (an internal id - never leaves the Application layer).
+    /// </summary>
+    Task<AcceptedFriendRequest> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes a pending request the caller received (decline) or sent (cancel) - never an accepted friendship.</summary>
-    Task DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Deletes a pending request the caller received (decline) or sent (cancel) - never an accepted
+    /// friendship. Returns the other person's internal user id.
+    /// </summary>
+    Task<long> DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes an accepted friendship involving userId, with both private notes. Collaborations are untouched.</summary>
     Task RemoveFriendAsync(long userId, long friendshipId, CancellationToken cancellationToken = default);
@@ -129,12 +138,32 @@ public sealed class FriendService(
     public Task<IReadOnlyList<FriendRequestDto>> ListRequestsAsync(long userId, CancellationToken cancellationToken = default) =>
         friendStore.ListRequestsAsync(userId, MaxRequestsListed, cancellationToken);
 
-    public Task<FriendDto> AcceptAsync(long userId, long requestId, CancellationToken cancellationToken = default) =>
-        friendStore.AcceptAsync(userId, requestId, timeProvider.GetUtcNow(), cancellationToken);
+    /// <summary>
+    /// The requester's open Friends screen learns at once (data-only Push) that the request left
+    /// 보낸 친구 신청 and became a friend. An idempotent replay enqueues nothing new (same dedup key).
+    /// </summary>
+    public async Task<FriendDto> AcceptAsync(long userId, long requestId, CancellationToken cancellationToken = default)
+    {
+        var accepted = await friendStore.AcceptAsync(userId, requestId, timeProvider.GetUtcNow(), cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.FriendRequestAnsweredAsync(userId, accepted.RequesterUserId, requestId, cancellationToken);
+        }
 
-    public Task DeclineAsync(long userId, long requestId, CancellationToken cancellationToken = default) =>
-        friendStore.DeleteRequestAsync(userId, requestId, asRecipient: true, cancellationToken);
+        return accepted.Friend;
+    }
 
+    /// <summary>Like AcceptAsync: the requester's 보낸 친구 신청 drops it without waiting for their next visit.</summary>
+    public async Task DeclineAsync(long userId, long requestId, CancellationToken cancellationToken = default)
+    {
+        var requesterUserId = await friendStore.DeleteRequestAsync(userId, requestId, asRecipient: true, cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.FriendRequestAnsweredAsync(userId, requesterUserId, requestId, cancellationToken);
+        }
+    }
+
+    /// <summary>The recipient is not told - a cancelled request simply disappears on their next refresh.</summary>
     public Task CancelAsync(long userId, long requestId, CancellationToken cancellationToken = default) =>
         friendStore.DeleteRequestAsync(userId, requestId, asRecipient: false, cancellationToken);
 

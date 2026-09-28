@@ -25,6 +25,7 @@ using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Collections.UndoMergeCollections;
 using Juple.Application.Collections.UndoTransferCollectionItem;
@@ -115,6 +116,7 @@ builder.Services.AddScoped<IGetCollectionDetailService, GetCollectionDetailServi
 builder.Services.AddScoped<IRenameCollectionService, RenameCollectionService>();
 builder.Services.AddScoped<ISetCollectionFavoriteService, SetCollectionFavoriteService>();
 builder.Services.AddScoped<ISetCollectionIconService, SetCollectionIconService>();
+builder.Services.AddScoped<ISetCollectionIconImageService, SetCollectionIconImageService>();
 builder.Services.AddScoped<ISetCollectionColorService, SetCollectionColorService>();
 builder.Services.AddScoped<IDeleteCollectionService, DeleteCollectionService>();
 builder.Services.AddScoped<IRestoreCollectionService, RestoreCollectionService>();

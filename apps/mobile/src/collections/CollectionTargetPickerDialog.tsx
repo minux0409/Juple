@@ -54,7 +54,7 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
     <View style={styles.overlay}><Animated.View style={[styles.card, { paddingBottom: spacing.xl + insets.bottom, transform: [{ translateY: sheetTranslateY }] }]}><Text style={styles.title}>{t('collections.targetPickerTitle')}</Text>
       {isLoading ? <ActivityIndicator /> : <FlatList data={collections} keyExtractor={item => String(item.id)} onEndReached={onLoadMore} onEndReachedThreshold={0.5} renderItem={({ item }) =>
         <Pressable accessibilityLabel={item.name} accessibilityRole="button" onPress={() => onSelect(item)} style={styles.row}>
-          <CategoryIconTile collectionId={item.id} color={item.color} icon={item.icon} size={32} /><Text style={styles.name}>{item.name}</Text>
+          <CategoryIconTile collectionId={item.id} color={item.color} icon={item.icon} imageUrl={item.iconImageUrl} size={32} /><Text style={styles.name}>{item.name}</Text>
         </Pressable>} ListFooterComponent={isLoadingMore ? <ActivityIndicator /> : undefined} />}
       <Pressable accessibilityLabel={t('common.cancel')} accessibilityRole="button" onPress={onCancel} style={styles.cancel}><Text>{t('common.cancel')}</Text></Pressable>
     </Animated.View></View>

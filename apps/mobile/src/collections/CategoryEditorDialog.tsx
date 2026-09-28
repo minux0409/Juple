@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CategoryIconTile } from './CategoryIconTile';
 import { CollectionColorPicker } from './CollectionColorPicker';
 import { CollectionIconPicker } from './CollectionIconPicker';
 import { resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
-import { resolveCollectionIconComponent, type CollectionIconKey } from './collectionIcons';
+import { KEEP_ICON_IMAGE, pickCollectionIconImage, type CollectionIconImageChange } from './collectionIconImage';
+import { type CollectionIconKey } from './collectionIcons';
+import { ImageIcon } from '../icons/ImageIcon';
 import { colors, radii, spacing } from '../theme/tokens';
 
 interface CategoryEditorDialogProps {
@@ -14,6 +17,8 @@ interface CategoryEditorDialogProps {
   readonly initialName: string;
   readonly initialIcon: CollectionIconKey;
   readonly initialColor: CollectionColorValue;
+  /** The Collection's current icon photo (edit mode), if it has one. */
+  readonly initialImageUrl?: string | null;
   readonly isSubmitting: boolean;
   /** Set by the caller after a failed onSubmit (validation or API failure) - the dialog itself
    * stays open/visible so the user can fix the name or retry, matching this app's existing
@@ -21,7 +26,8 @@ interface CategoryEditorDialogProps {
    * (see CollectionDetailsScreen's own submitEdit for the edit-mode case: name can succeed while
    * icon/color fails, and the dialog stays open showing exactly that failure). */
   readonly error: string | null;
-  readonly onSubmit: (name: string, icon: CollectionIconKey, color: CollectionColorValue) => void;
+  /** imageChange: what to do with the icon photo - the caller applies it (see applyCollectionIconImageChange). */
+  readonly onSubmit: (name: string, icon: CollectionIconKey, color: CollectionColorValue, imageChange: CollectionIconImageChange) => void;
   readonly onCancel: () => void;
 }
 
@@ -46,6 +52,7 @@ export function CategoryEditorDialog({
   initialName,
   initialIcon,
   initialColor,
+  initialImageUrl = null,
   isSubmitting,
   error,
   onSubmit,
@@ -56,25 +63,53 @@ export function CategoryEditorDialog({
   const [name, setName] = useState(initialName);
   const [icon, setIcon] = useState(initialIcon);
   const [color, setColor] = useState(initialColor);
+  const [imageChange, setImageChange] = useState<CollectionIconImageChange>(KEEP_ICON_IMAGE);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
       setName(initialName);
       setIcon(initialIcon);
       setColor(initialColor);
+      setImageChange(KEEP_ICON_IMAGE);
+      setImageError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-seeds the draft on the false->true transition (a fresh open), not on every render of the caller passing the same initial* snapshot.
   }, [visible]);
 
-  const IconComponent = resolveCollectionIconComponent(icon);
   const tile = resolveCollectionColorTile(color);
   const isSubmitDisabled = isSubmitting || !name.trim();
+  // The photo shown right now: a newly picked one, none (removed), or the Collection's current one.
+  const imageUri = imageChange.kind === 'set' ? imageChange.asset.uri : imageChange.kind === 'remove' ? null : initialImageUrl;
+
+  const choosePhoto = async () => {
+    setImageError(null);
+    const picked = await pickCollectionIconImage(t);
+    if (picked.kind === 'picked') {
+      setImageChange({ kind: 'set', asset: picked.asset });
+    } else if (picked.kind === 'error') {
+      setImageError(picked.message);
+    }
+  };
+
+  const removePhoto = () => {
+    setImageError(null);
+    setImageChange(initialImageUrl ? { kind: 'remove' } : KEEP_ICON_IMAGE);
+  };
+
+  // Choosing a built-in icon means "use this icon" - so it also drops the photo.
+  const selectIcon = (next: CollectionIconKey) => {
+    setIcon(next);
+    if (imageUri) {
+      removePhoto();
+    }
+  };
 
   const handleSubmit = () => {
     if (isSubmitDisabled) {
       return;
     }
-    onSubmit(name, icon, color);
+    onSubmit(name, icon, color, imageChange);
   };
 
   return (
@@ -95,9 +130,7 @@ export function CategoryEditorDialog({
           <Text style={styles.title}>{mode === 'create' ? t('collections.create') : t('collections.editTitle')}</Text>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.previewRow}>
-              <View style={[styles.previewTile, { backgroundColor: tile.background }]}>
-                <IconComponent color={tile.icon} size={26} />
-              </View>
+              <CategoryIconTile collectionId={0} color={color} icon={icon} imageUrl={imageUri} size={44} />
               <TextInput
                 autoFocus
                 editable={!isSubmitting}
@@ -109,7 +142,34 @@ export function CategoryEditorDialog({
             </View>
 
             <Text style={styles.sectionTitle}>{t('collections.iconSectionTitle')}</Text>
-            <CollectionIconPicker disabled={isSubmitting} isVisible={visible} onSelect={setIcon} selected={icon} tile={tile} />
+            {/* Own photo: pick one (resized before upload), or remove it to go back to the icon below. */}
+            <View style={styles.photoRow}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSubmitting}
+                onPress={choosePhoto}
+                style={[styles.photoButton, isSubmitting && styles.confirmButtonDisabled]}
+                testID="collection-editor-choose-photo"
+              >
+                <ImageIcon color={colors.brand} size={18} />
+                <Text numberOfLines={2} style={styles.photoButtonLabel}>
+                  {imageUri ? t('collections.iconPhotoChange') : t('collections.iconPhotoChoose')}
+                </Text>
+              </Pressable>
+              {imageUri ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isSubmitting}
+                  onPress={removePhoto}
+                  style={[styles.photoRemoveButton, isSubmitting && styles.confirmButtonDisabled]}
+                  testID="collection-editor-remove-photo"
+                >
+                  <Text numberOfLines={2} style={styles.photoRemoveLabel}>{t('collections.iconPhotoRemove')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {imageError ? <Text style={styles.error}>{imageError}</Text> : null}
+            <CollectionIconPicker disabled={isSubmitting} isVisible={visible} onSelect={selectIcon} selected={icon} tile={tile} />
 
             <Text style={styles.sectionTitle}>{t('collections.colorSectionTitle')}</Text>
             <CollectionColorPicker disabled={isSubmitting} onSelect={setColor} selected={color} />
@@ -177,12 +237,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  previewTile: {
+  photoRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  photoButton: {
     alignItems: 'center',
-    borderRadius: radii.md + 6,
-    height: 44,
+    borderColor: colors.brand,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flexGrow: 1,
+    flexShrink: 1,
+    gap: spacing.xs + 2,
     justifyContent: 'center',
-    width: 44,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  photoButtonLabel: {
+    color: colors.brand,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  photoRemoveButton: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexShrink: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  photoRemoveLabel: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   nameInput: {
     backgroundColor: colors.background,

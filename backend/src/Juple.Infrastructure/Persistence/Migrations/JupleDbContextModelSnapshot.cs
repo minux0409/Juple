@@ -45,6 +45,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(20)")
                         .HasDefaultValue("Folder");
 
+                    b.Property<string>("IconImageBlobName")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
                     b.Property<bool>("IsFavorite")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -908,7 +912,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5)");
                         });
                 });
 

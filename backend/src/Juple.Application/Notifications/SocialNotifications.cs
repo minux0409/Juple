@@ -5,7 +5,7 @@ namespace Juple.Application.Notifications;
 
 /// <summary>
 /// Records social events for the Push outbox (notifications.Notifications - see NotificationType
-/// 1-4). Called by the friend/collaboration/Collection services only AFTER their own change has
+/// 1-5). Called by the friend/collaboration/Collection services only AFTER their own change has
 /// committed, and always best-effort: an implementation never throws, so a notification problem can
 /// never undo or fail the user's action. Nothing here sends anything - the push-dispatch Job does
 /// (see DispatchPendingPushNotificationsService), which keeps the Firebase credential out of the API.
@@ -13,6 +13,12 @@ namespace Juple.Application.Notifications;
 public interface ISocialNotificationPublisher
 {
     Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Tells the requester (data-only) that their request was accepted or declined, so an open
+    /// Friends screen drops it from 보낸 친구 신청 - and lists the new friend if accepted - at once.
+    /// </summary>
+    Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default);
 
     Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default);
 
@@ -84,7 +90,9 @@ public static class SocialNotificationPolicy
     public static readonly TimeSpan ContentChangeCoalescing = TimeSpan.FromMinutes(1);
 
     public static bool IsDataOnly(NotificationType type) =>
-        type is NotificationType.CollectionInvitationAnswered or NotificationType.CollectionContentChanged;
+        type is NotificationType.CollectionInvitationAnswered
+            or NotificationType.CollectionContentChanged
+            or NotificationType.FriendRequestAnswered;
 
     public static TimeSpan MaxAge(NotificationType type) => IsDataOnly(type) ? DataOnlyMaxAge : VisibleMaxAge;
 
@@ -95,6 +103,7 @@ public static class SocialNotificationPolicy
         NotificationType.CollectionInvitationReceived => "collectionInvitation",
         NotificationType.CollectionInvitationAnswered => "collectionInvitationAnswered",
         NotificationType.CollectionContentChanged => "collectionContentChanged",
+        NotificationType.FriendRequestAnswered => "friendRequestAnswered",
         _ => "unknown",
     };
 

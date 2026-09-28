@@ -26,6 +26,7 @@ import {
 import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
+import { isCollectionLockedError } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -154,7 +155,7 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { showNotificationToast } = useAppToast();
-  const { itemId } = route.params;
+  const { itemId, collectionContext } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
   // The fixed bottom action bar's height isn't a fixed constant (button text can wrap under long
@@ -210,6 +211,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isDeletingItem, setIsDeletingItem] = useState(false);
   const [itemActionError, setItemActionError] = useState<string | null>(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  const [isRemoveFromCollectionConfirmVisible, setIsRemoveFromCollectionConfirmVisible] = useState(false);
   // Flips true only once the Delete API call has actually succeeded - never before (see
   // deleteItemAction: dirty state itself is never cleared/reset by Delete). Gates both the
   // unsaved-changes guard below and Save, and drives the goBack() effect further down - see that
@@ -295,8 +297,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       let cursor: string | null = null;
       let allItems: Collection[] = [];
       do {
+        // scope 'all': the Item's own Collections AND the ones shared with me it was added to - the
+        // default (owned) scope silently left the shared ones out of this screen, so the summary
+        // disagreed with the Collections themselves and a save could never remove the Item there.
         const page = await getCollections(authenticatedRequest, {
           itemId,
+          scope: 'all',
           limit: COLLECTION_OPTIONS_PAGE_LIMIT,
           cursor: cursor ?? undefined,
         });
@@ -510,6 +516,59 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsDeleteConfirmVisible(true);
   };
 
+  /**
+   * Opened from inside a Collection, "delete" means "take it out of this Collection" - exactly the
+   * Collection list's own swipe action: only that one membership goes, the saved link and its other
+   * Collections stay. Only the Collection's Owner may do it (a server rule); anyone else is told so
+   * instead of being offered a delete that would fail. A locked Collection uses this visit's grant.
+   */
+  const removeFromContextCollectionAction = async () => {
+    if (!collectionContext || itemActionInFlightRef.current) {
+      return;
+    }
+    const contextCollectionId = collectionContext.collectionId;
+    itemActionInFlightRef.current = true;
+    setIsItemActionInFlight(true);
+    setIsDeletingItem(true);
+    setItemActionError(null);
+    try {
+      await removeItemFromCollection(authenticatedRequest, contextCollectionId, itemId);
+      setSelectedCategories(previous => previous.filter(option => option.id !== contextCollectionId));
+      setOriginalCategoryIds(previous => {
+        const next = new Set(previous);
+        next.delete(contextCollectionId);
+        return next;
+      });
+      showNotificationToast(t('toast.unlinkSuccess'));
+      // Back to the Collection, which reloads its list on focus. Unsaved title/memo edits still get
+      // the usual "leave without saving?" question - the link itself was not deleted.
+      navigation.goBack();
+    } catch (caughtError) {
+      setItemActionError(
+        isCollectionLockedError(caughtError) ? t('collections.lockRequiredForAction') : getCollectionMembershipErrorMessage(caughtError, t),
+      );
+    } finally {
+      itemActionInFlightRef.current = false;
+      setIsItemActionInFlight(false);
+      setIsDeletingItem(false);
+    }
+  };
+
+  const onDeletePress = () => {
+    if (!collectionContext) {
+      confirmDeleteItem();
+      return;
+    }
+    if (itemActionInFlightRef.current) {
+      return;
+    }
+    if (!collectionContext.canRemove) {
+      showNotificationToast(t('collections.removeFromSharedOwnerOnly'));
+      return;
+    }
+    setIsRemoveFromCollectionConfirmVisible(true);
+  };
+
   usePreventRemove(isDirty && !isDeleted, ({ data }) => {
     pendingLeaveRef.current = () => navigation.dispatch(data.action);
     setIsUnsavedChangesDialogVisible(true);
@@ -715,11 +774,12 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           accessibilityRole="button"
           accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
           disabled={isItemActionInFlight}
-          onPress={confirmDeleteItem}
+          onPress={onDeletePress}
           style={[styles.deleteActionButton, isItemActionInFlight && styles.disabledButton]}
+          testID="item-details-delete"
         >
-          <Text style={styles.deleteActionLabel}>
-            {isDeletingItem ? t('common.deleting') : t('common.delete')}
+          <Text numberOfLines={2} style={styles.deleteActionLabel}>
+            {isDeletingItem ? t('common.deleting') : collectionContext ? t('collections.removeFromCollection') : t('common.delete')}
           </Text>
         </Pressable>
         <Pressable
@@ -746,6 +806,18 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         }}
         title={t('item.deleteItemConfirmTitle')}
         visible={isDeleteConfirmVisible}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('collections.removeFromCollection')}
+        message={t('collections.unlinkConfirmMessage')}
+        onCancel={() => setIsRemoveFromCollectionConfirmVisible(false)}
+        onConfirm={() => {
+          setIsRemoveFromCollectionConfirmVisible(false);
+          removeFromContextCollectionAction();
+        }}
+        title={t('collections.unlinkConfirmTitle')}
+        visible={isRemoveFromCollectionConfirmVisible}
       />
 
 
@@ -792,10 +864,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         onCreateCollection={categoryPicker.submitNewCollection}
         onLoadMore={categoryPicker.loadMore}
         onOpenCreateDialog={categoryPicker.openCreateDialog}
-        onToggle={option =>
+        onToggle={option => {
+          // Only a Collection's Owner may take a link out of it (a server rule): once this link is
+          // in a Collection shared with me, deselecting it here would only fail on save.
+          if (selectedCategoryIds.has(option.id) && originalCategoryIds.has(option.id) && option.accessRole != null && option.accessRole !== 'owner') {
+            showNotificationToast(t('collections.removeFromSharedOwnerOnly'));
+            return;
+          }
           categoryPicker.requestToggle(option, () =>
-            selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option))
-        }
+            selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option));
+        }}
         onUnlockCancel={categoryPicker.cancelUnlock}
         onUnlockGranted={categoryPicker.onUnlockGranted}
         selectedIds={selectedCategoryIds}
@@ -882,6 +960,8 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 16,
     fontWeight: '700',
+    paddingHorizontal: spacing.xs,
+    textAlign: 'center',
   },
   saveActionButton: {
     alignItems: 'center',

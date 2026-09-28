@@ -29,7 +29,11 @@ export function needsUnlockForContent(collection: Pick<Collection, 'id' | 'isLoc
   return isCollectionLocked(collection) && getCollectionUnlockToken(collection.id) === null;
 }
 
-/** Shown with the "shared" marker: shared with me, or my own Collection that has Contributors. */
-export function isCollaborative(collection: Pick<Collection, 'accessRole' | 'hasCollaborators'>): boolean {
-  return isSharedWithMe(collection) || collection.hasCollaborators === true;
+/**
+ * Shown with the "shared" marker - exactly the server's 공유 컬렉션 ("shared") scope: shared with
+ * me, or my own Collection that has members or an active 모든 사용자 link. (Move/merge rules look
+ * at hasCollaborators alone - a public link never blocks those.)
+ */
+export function isCollaborative(collection: Pick<Collection, 'accessRole' | 'hasCollaborators' | 'isPublicShareActive'>): boolean {
+  return isSharedWithMe(collection) || collection.hasCollaborators === true || collection.isPublicShareActive === true;
 }

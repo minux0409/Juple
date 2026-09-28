@@ -111,6 +111,32 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task AnsweringAFriendRequest_TellsTheRequester_DataOnly_WithoutAnyId()
+    {
+        await RegisterDeviceAsync(_owner, "ko");
+        var accepted = await _friends.SendRequestAsync(_owner, await JupleIdOfAsync(_member));
+        await _friends.AcceptAsync(_member, accepted.RequestId);
+        await _friends.AcceptAsync(_member, accepted.RequestId); // an idempotent replay enqueues nothing new
+        var declined = await _friends.SendRequestAsync(_owner, await JupleIdOfAsync(_stranger));
+        await _friends.DeclineAsync(_stranger, declined.RequestId);
+        var cancelled = await _friends.SendRequestAsync(_stranger, await JupleIdOfAsync(_owner));
+        await _friends.CancelAsync(_stranger, cancelled.RequestId); // the requester cancelling tells nobody
+
+        await Dispatcher().RunOnceAsync();
+
+        var sent = _sender.SentTo(_owner);
+        Assert.Equal(2, sent.Count);
+        Assert.All(sent, message =>
+        {
+            Assert.Equal("friendRequestAnswered", message.Payload.Type);
+            Assert.Null(message.Payload.Title); // data-only: refreshes the Friends screen, no tray notification
+            Assert.Empty(message.Payload.Data);
+        });
+        Assert.Equal(1, await _db.Notifications.CountAsync(entry => entry.DedupKey == $"friend-request-answered:{accepted.RequestId}"));
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.DedupKey == $"friend-request-answered:{cancelled.RequestId}"));
+    }
+
+    [Fact]
     public async Task AnInvitation_IsPushedWithTheCollectionName_AndItsAnswerTellsTheOwner_DataOnly()
     {
         await RegisterDeviceAsync(_member, "en");

@@ -45,6 +45,9 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                             || dbContext.CollectionCollaborators.Any(
                                 collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)),
                     cancellationToken),
+            // Refresh signal about the recipient's own (now answered, possibly deleted) request:
+            // there is nothing left to re-check - the payload carries no id, only the type.
+            NotificationType.FriendRequestAnswered => true,
             _ => false,
         };
         if (!isRelevant)

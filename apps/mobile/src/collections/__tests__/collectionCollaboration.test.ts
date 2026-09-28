@@ -29,9 +29,15 @@ describe('collection access readers (always the server-provided accessRole, neve
     expect(isSharedWithMe({})).toBe(false); // older payloads read as owned
   });
 
-  it('marks a Collection collaborative when shared with me, or when I own it and it has collaborators', () => {
+  it('marks a Collection shared exactly as the 공유 컬렉션 scope does: shared with me, or mine with members or an active public link', () => {
     expect(isCollaborative({ accessRole: 'contributor' })).toBe(true);
+    expect(isCollaborative({ accessRole: 'viewer' })).toBe(true);
     expect(isCollaborative({ accessRole: 'owner', hasCollaborators: true })).toBe(true);
+    expect(isCollaborative({ accessRole: 'owner', hasCollaborators: true, isPublicShareActive: true })).toBe(true);
+    // Public link only, nobody accepted yet - still shared.
+    expect(isCollaborative({ accessRole: 'owner', hasCollaborators: false, isPublicShareActive: true })).toBe(true);
+    // Link turned off again with no members - no longer shared.
+    expect(isCollaborative({ accessRole: 'owner', hasCollaborators: false, isPublicShareActive: false })).toBe(false);
     expect(isCollaborative({ accessRole: 'owner', hasCollaborators: false })).toBe(false);
   });
 

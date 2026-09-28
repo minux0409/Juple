@@ -25,7 +25,27 @@ public sealed record CollectionItemEntryDto(
     // False for an Item another member owns: then Memo, RepresentativeImage and CoverImage are
     // always null (private to the Item's owner - they are never even selected from the database);
     // only Url/Title/automatic PreviewImageUrl/AddedAtUtc are shared.
-    bool IsMine = true);
+    bool IsMine = true,
+    // Who put this link into this Collection, as the caller may see them (see CollectionItemAdderDto).
+    CollectionItemAdderDto? AddedBy = null);
+
+/// <summary>
+/// Who added a link to a Collection, within what the caller may already see of the Collection's
+/// people: Kind "me" (the caller); "owner" / "member" (the Owner or a current member - their public
+/// Juple ID and display name, the same identity the participant list already shows); "publicLink"
+/// (added through the 모든 사용자 link by someone who is not a participant - never identified,
+/// since holding the link does not make them visible to the Collection's people). Null when the
+/// adder is none of these any more.
+/// </summary>
+public sealed record CollectionItemAdderDto(string Kind, string? JupleId = null, string? DisplayName = null);
+
+public static class CollectionItemAdderKinds
+{
+    public const string Me = "me";
+    public const string Owner = "owner";
+    public const string Member = "member";
+    public const string PublicLink = "publicLink";
+}
 
 /// <summary>
 /// Read-only view of one link inside a Collection, for a member opening someone else's Item (the
@@ -37,4 +57,5 @@ public sealed record SharedCollectionItemDto(
     string? Title,
     string? PreviewImageUrl,
     DateTimeOffset AddedAtUtc,
-    bool IsMine);
+    bool IsMine,
+    CollectionItemAdderDto? AddedBy = null);

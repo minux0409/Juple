@@ -6,8 +6,10 @@ using Juple.Application.Collections.Access;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.GetCollectionItems;
+using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.Locking;
 using Juple.Application.Collections.Public;
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Domain.Collections;
@@ -116,7 +118,7 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     // ---------- membership & listing ----------
 
     [Fact]
-    public async Task SharedTab_ListsOnlyContributorCollections_WithOwnerJupleId_AndFullItemCount()
+    public async Task SharedTab_ListsCollectionsSharedWithMe_WithOwnerJupleId_AndFullItemCount()
     {
         var shared = await _collections.ListSharedAsync(_contributor, null, null, null, 50);
         var owned = await _collections.ListAsync(_contributor, null, null, null, null, 50);
@@ -127,12 +129,46 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
         Assert.Equal(CollectionDtoAccessRoles.Contributor, row.AccessRole);
         Assert.Equal(await JupleIdOfAsync(_owner), row.OwnerJupleId);
         Assert.False(row.IsFavorite);
+        Assert.False(row.IsPublicShareActive); // Owner-only, like HasCollaborators
         Assert.Equal(2, row.ItemCount); // Owner's link + Contributor's link
 
         Assert.DoesNotContain(owned.Items, collection => collection.Id == _sharedId);
         Assert.Contains(owned.Items, collection => collection.Id == _contributorOwnId);
         Assert.True(ownerOwned.Items.Single(collection => collection.Id == _sharedId).HasCollaborators);
-        Assert.Empty((await _collections.ListSharedAsync(_owner, null, null, null, 50)).Items);
+
+        // The Owner sees their own shared Collection under 공유 컬렉션 too (still under 내 컬렉션),
+        // once, as the Owner - never their unshared ones.
+        var ownerShared = Assert.Single((await _collections.ListSharedAsync(_owner, null, null, null, 50)).Items);
+        Assert.Equal(_sharedId, ownerShared.Id);
+        Assert.Equal(CollectionDtoAccessRoles.Owner, ownerShared.AccessRole);
+        Assert.True(ownerShared.HasCollaborators);
+        Assert.Equal(2, ownerShared.ItemCount);
+        var ownerAll = (await _collections.ListByScopeAsync(_owner, CollectionListScope.All, null, null, null, 50)).Items;
+        Assert.Single(ownerAll, collection => collection.Id == _sharedId);
+    }
+
+    [Fact]
+    public async Task SharedTab_ListsMyOwnCollection_WhileItHasAnActiveEveryoneLink_Only()
+    {
+        Assert.DoesNotContain((await _collections.ListSharedAsync(_owner, null, null, null, 50)).Items, collection => collection.Id == _ownerOtherId);
+
+        _db.CollectionShares.Add(new CollectionShare(_ownerOtherId, Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        var publicRow = Assert.Single((await _collections.ListSharedAsync(_owner, null, null, null, 50)).Items, collection => collection.Id == _ownerOtherId);
+        Assert.Equal(CollectionDtoAccessRoles.Owner, publicRow.AccessRole);
+        // The card's shared marker reads the same fact the scope used: a public link with no members.
+        Assert.True(publicRow.IsPublicShareActive);
+        Assert.False(publicRow.HasCollaborators);
+        Assert.True((await _collections.GetAsync(_owner, _ownerOtherId)).IsPublicShareActive);
+
+        var share = await _db.CollectionShares.SingleAsync(entry => entry.CollectionId == _ownerOtherId && entry.IsActive);
+        share.Revoke(DateTimeOffset.UtcNow);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        Assert.DoesNotContain((await _collections.ListSharedAsync(_owner, null, null, null, 50)).Items, collection => collection.Id == _ownerOtherId);
+        var afterRevoke = Assert.Single((await _collections.ListAsync(_owner, null, null, null, null, 50)).Items, collection => collection.Id == _ownerOtherId);
+        Assert.False(afterRevoke.IsPublicShareActive);
     }
 
     [Fact]
@@ -181,6 +217,65 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
         var (_, representative, cover) = await _collections.GetItemsAsync(_owner, _sharedId, null, 50);
         Assert.False(representative.ContainsKey(_contributorItem));
         Assert.False(cover.ContainsKey(_contributorItem));
+    }
+
+    [Fact]
+    public async Task EachLink_SaysWhoAddedIt_AsTheViewerMaySeeThem()
+    {
+        var ownerJupleId = await JupleIdOfAsync(_owner);
+        var contributorJupleId = await JupleIdOfAsync(_contributor);
+
+        var ownerView = (await _items.GetAsync(_owner, _sharedId, null, 50)).Items;
+        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.Me), ownerView.Single(item => item.ItemId == _ownerItemInShared).AddedBy);
+        Assert.Equal(
+            new CollectionItemAdderDto(CollectionItemAdderKinds.Member, contributorJupleId, null),
+            ownerView.Single(item => item.ItemId == _contributorItem).AddedBy);
+
+        var contributorView = (await _items.GetAsync(_contributor, _sharedId, null, 50)).Items;
+        Assert.Equal(
+            new CollectionItemAdderDto(CollectionItemAdderKinds.Owner, ownerJupleId, null),
+            contributorView.Single(item => item.ItemId == _ownerItemInShared).AddedBy);
+        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.Me), contributorView.Single(item => item.ItemId == _contributorItem).AddedBy);
+
+        // The read-only single-link view carries the same answer.
+        Assert.Equal(CollectionItemAdderKinds.Owner, (await _items.GetItemAsync(_contributor, _sharedId, _ownerItemInShared))!.AddedBy!.Kind);
+    }
+
+    [Fact]
+    public async Task IconPhoto_OnlyTheOwnerSetsIt_EveryoneWhoSeesTheCollectionGetsItsUrl()
+    {
+        var store = new CollectionStore(_db, new FakeIconStorage());
+        var first = $"items/{_owner}/collections/{_sharedId}/first.jpg";
+        var second = $"items/{_owner}/collections/{_sharedId}/second.jpg";
+
+        var (set, replaced) = await store.SetIconImageAsync(_owner, _sharedId, first, DateTimeOffset.UtcNow);
+        Assert.Null(replaced);
+        Assert.Equal($"https://blob.example.test/{first}", set.IconImageUrl);
+        _db.ChangeTracker.Clear();
+
+        // A member sees the Owner's photo on both the detail and the list; the built-in icon stays.
+        Assert.Equal($"https://blob.example.test/{first}", (await store.GetAsync(_contributor, _sharedId)).IconImageUrl);
+        var listed = Assert.Single((await store.ListSharedAsync(_contributor, null, null, null, 50)).Items);
+        Assert.Equal($"https://blob.example.test/{first}", listed.IconImageUrl);
+        Assert.Equal("Folder", listed.Icon);
+        Assert.Null((await store.GetAsync(_owner, _ownerOtherId)).IconImageUrl);
+
+        // Never a member's (or a stranger's) to change.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.SetIconImageAsync(_contributor, _sharedId, second, DateTimeOffset.UtcNow));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.SetIconImageAsync(_stranger, _sharedId, null, DateTimeOffset.UtcNow));
+        _db.ChangeTracker.Clear();
+
+        // Replacing hands back the old Blob for deletion; clearing returns to the built-in icon.
+        Assert.Equal(first, (await store.SetIconImageAsync(_owner, _sharedId, second, DateTimeOffset.UtcNow)).ReplacedBlobName);
+        _db.ChangeTracker.Clear();
+        var (cleared, clearedBlob) = await store.SetIconImageAsync(_owner, _sharedId, null, DateTimeOffset.UtcNow);
+        Assert.Equal(second, clearedBlob);
+        Assert.Null(cleared.IconImageUrl);
+
+        // A store without photo storage (and every older response) simply has no URL.
+        _db.ChangeTracker.Clear();
+        await store.SetIconImageAsync(_owner, _sharedId, first, DateTimeOffset.UtcNow);
+        Assert.Null((await _collections.GetAsync(_owner, _sharedId)).IconImageUrl);
     }
 
     [Fact]
@@ -567,6 +662,17 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
         await _db.Users.AsNoTracking().Where(user => user.Id == userId).Select(user => user.PublicCode).SingleAsync();
 
     private static string NewPublicId() => Guid.NewGuid().ToString("N");
+
+    private sealed class FakeIconStorage : ICollectionIconImageStorage
+    {
+        public Task<string> UploadCollectionIconAsync(long ownerUserId, long collectionId, ImageFormat format, byte[] content, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task DeleteCollectionIconAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Uri?> CreateCollectionIconReadUrlAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Uri?>(new Uri($"https://blob.example.test/{blobName}"));
+    }
 
     private sealed class FakeImageStorage : IItemImageStorage
     {

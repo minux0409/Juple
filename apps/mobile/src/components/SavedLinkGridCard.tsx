@@ -20,6 +20,11 @@ interface SavedLinkGridCardProps {
   readonly preferEffectiveThumbnail?: boolean;
   /** Same value the screen passes to its List-mode SavedLinkRow, so both modes show the same timestamp. */
   readonly dateDisplayMode?: SavedLinkDateDisplayMode;
+  /**
+   * Who added the link inside a shared Collection (see SavedLinkMetaRow). The caller passes it for
+   * every tile of a list or for none (see shouldShowItemAdders), so tiles keep one height.
+   */
+  readonly addedByLabel?: string | null;
 }
 
 /**
@@ -29,7 +34,7 @@ interface SavedLinkGridCardProps {
  * scales lineHeight with it too), so a one-line title card is exactly as tall as a two-line one and a
  * 2-column grid never turns ragged/masonry-like.
  */
-export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time' }: SavedLinkGridCardProps) {
+export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedByLabel }: SavedLinkGridCardProps) {
   const { fontScale } = useWindowDimensions();
   const { t } = useTranslation();
   const displayTitle = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -41,7 +46,7 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
       {isActionInFlight ? <View style={styles.overlay}><ActivityIndicator color={colors.surface} size="small" /></View> : null}
     </View>
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>
-    <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={[styles.meta, { minHeight: META_LINE_HEIGHT * fontScale }]} url={item.url} />
+    <SavedLinkMetaRow addedByLabel={addedByLabel} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={[styles.meta, { minHeight: META_LINE_HEIGHT * (addedByLabel ? 2 : 1) * fontScale }]} url={item.url} />
   </View>;
 }
 

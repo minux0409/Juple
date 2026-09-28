@@ -9,7 +9,7 @@ namespace Juple.IntegrationTests.Users;
 
 /// <summary>
 /// Covers the one-time default-Category seed added to CurrentUserProvisioningStore.CreateAsync
-/// (see the UI refactor plan's §5) - a brand-new external identity gets exactly 4 seeded Collections
+/// (see the UI refactor plan's §5) - a brand-new external identity gets exactly 3 seeded Collections
 /// in the right locale's names, and calling CreateAsync again for the same identity (the same
 /// code path a concurrent race takes - see ExternalIdentityRaceRecovery) never doubles them.
 /// </summary>
@@ -89,8 +89,8 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
             .Select(c => c.Name)
             .ToListAsync();
 
-        Assert.Equal(4, names.Count);
-        Assert.Equal(new[] { "위시리스트", "음식", "영화", "애니" }.OrderBy(n => n), names.OrderBy(n => n));
+        Assert.Equal(3, names.Count);
+        Assert.Equal(new[] { "위시리스트", "음식", "영화" }.OrderBy(n => n), names.OrderBy(n => n));
         Assert.All(
             await _dbContext.Collections.AsNoTracking().Where(c => c.UserId == userId).ToListAsync(),
             c => Assert.False(c.IsFavorite));
@@ -111,8 +111,8 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
             .Select(c => c.Name)
             .ToListAsync();
 
-        Assert.Equal(4, names.Count);
-        Assert.Equal(new[] { "Anime", "Food", "Movies", "Wishlist" }.OrderBy(n => n), names.OrderBy(n => n));
+        Assert.Equal(3, names.Count);
+        Assert.Equal(new[] { "Food", "Movies", "Wishlist" }.OrderBy(n => n), names.OrderBy(n => n));
     }
 
     [Fact]
@@ -121,13 +121,13 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
         var store = new CurrentUserProvisioningStore(_dbContext);
         var data = MakeBootstrapData(Guid.NewGuid(), "ko-KR");
 
-        // First call: commits a new User + its 4 seeded Collections + the ExternalIdentity row.
+        // First call: commits a new User + its 3 seeded Collections + the ExternalIdentity row.
         await store.CreateAsync(data);
         _dbContext.ChangeTracker.Clear();
 
         // Second call for the exact same external identity takes the same code path a genuine
         // concurrent race would (ExternalIdentityRaceRecovery): it still builds a brand-new User +
-        // 4 Collections in its own transaction, but the ExternalIdentity insert violates the unique
+        // 3 Collections in its own transaction, but the ExternalIdentity insert violates the unique
         // (TenantId, ObjectId) index, so the whole second transaction - User and Collections
         // included - rolls back. This must not throw (the recovery path swallows it) and must not
         // leave a second User or a second set of Collections behind.
@@ -140,6 +140,6 @@ public sealed class DefaultCollectionSeedIntegrationTests : IAsyncLifetime
 
         var userId = await GetSeededUserIdAsync(data.ExternalIdentity);
         var collectionCount = await _dbContext.Collections.AsNoTracking().CountAsync(c => c.UserId == userId);
-        Assert.Equal(4, collectionCount);
+        Assert.Equal(3, collectionCount);
     }
 }

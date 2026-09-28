@@ -7,6 +7,7 @@ describe('social Push payloads', () => {
   it('parses only the known types, with an optional positive collection id', () => {
     expect(parseSocialPushEvent({ type: 'collectionContentChanged', collectionId: '42' })).toEqual({ type: 'collectionContentChanged', collectionId: 42 });
     expect(parseSocialPushEvent({ type: 'friendRequest' })).toEqual({ type: 'friendRequest', collectionId: null });
+    expect(parseSocialPushEvent({ type: 'friendRequestAnswered' })).toEqual({ type: 'friendRequestAnswered', collectionId: null });
     expect(parseSocialPushEvent({ type: 'collectionInvitation', collectionId: 'abc' })).toEqual({ type: 'collectionInvitation', collectionId: null });
     expect(parseSocialPushEvent({ type: 'repeatPurchaseDue' })).toBeNull();
     expect(parseSocialPushEvent({})).toBeNull();

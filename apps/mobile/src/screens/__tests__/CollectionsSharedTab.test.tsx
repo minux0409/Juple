@@ -134,25 +134,42 @@ describe('CollectionsScreen 내 카테고리 / 공유 카테고리', () => {
     expect(jest.mocked(getCollections)).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ scope: 'shared' }));
   });
 
+  it.each(['grid', 'list'] as const)('%s: the shared marker means the same as the 공유 컬렉션 filter - members, or a public link alone', async mode => {
+    mockViewMode.current = mode;
+    const publicOnly = makeCollection({ id: 3, name: 'Public only', accessRole: 'owner', hasCollaborators: false, isPublicShareActive: true });
+    const publicOff = makeCollection({ id: 4, name: 'Link off', accessRole: 'owner', hasCollaborators: false, isPublicShareActive: false });
+    mockLists([ownedLockedShared, publicOnly, sharedOpen]);
+    const renderer = await renderScreen();
+    await openSharedTab(renderer);
+
+    const hasSharedBadge = (item: Collection) =>
+      renderRow(renderer, item).root.findAll(node => node.props.testID === 'collection-badge-shared').length > 0;
+    expect(renderer.root.findByType(FlatList).props.data).toEqual([ownedLockedShared, publicOnly, sharedOpen]);
+    expect(hasSharedBadge(ownedLockedShared)).toBe(true); // mine, with members
+    expect(hasSharedBadge(publicOnly)).toBe(true); // mine, public link only
+    expect(hasSharedBadge(sharedOpen)).toBe(true); // shared with me
+    expect(hasSharedBadge(publicOff)).toBe(false); // mine, link turned off, no members
+    expect(hasSharedBadge(ownedPlain)).toBe(false);
+  });
+
   it('shows the empty state when nothing is shared with me', async () => {
     mockLists([]);
     const renderer = await renderScreen();
     await openSharedTab(renderer);
 
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '공유받은 컬렉션이 없습니다')).toBe(true);
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '공유 중인 컬렉션이 없습니다')).toBe(true);
   });
 
-  it.each(['grid', 'list'] as const)('%s: a shared tile shows who else is in it and the item count, and the caller\'s own favorite star', async mode => {
+  it.each(['grid', 'list'] as const)('%s: a shared tile shows its name, the shared marker and the caller\'s own favorite star - no participants, no item count', async mode => {
     mockViewMode.current = mode;
     mockLists();
     const renderer = await renderScreen();
     await openSharedTab(renderer);
 
     const row = renderRow(renderer, sharedOpen);
-    const texts = row.root.findAllByType(Text).map(node => node.props.children);
-    // No display name set: the Owner's Juple ID stands in.
-    expect(texts).toContain('ABCD-2345');
-    expect(texts.some(text => String(text).includes('3'))).toBe(true);
+    const texts = row.root.findAllByType(Text).map(node => String(node.props.children));
+    expect(texts).toEqual(['Trip']);
+    expect(row.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
     expect(row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function')).toHaveLength(1);
   });
 

@@ -43,7 +43,7 @@ public sealed class Notification
     }
 
     /// <summary>
-    /// A social event for the Push outbox (see NotificationType 1-4). Only ids are stored - the
+    /// A social event for the Push outbox (see NotificationType 1-5). Only ids are stored - the
     /// actor's display name and the Collection's name are read when the Push is sent, so a renamed
     /// Collection or a changed display name is never frozen here and nothing private is copied.
     /// DedupKey makes the same event enqueue at most once (see NotificationConfiguration).

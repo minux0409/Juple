@@ -24,6 +24,8 @@ using Juple.Application.Collections.RestoreCollection;
 using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
+using Juple.Application.Collections.SetCollectionIconImage;
+using Juple.Application.Images;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Collections.UndoMergeCollections;
 using Juple.Application.Collections.UndoTransferCollectionItem;
@@ -86,8 +88,9 @@ public sealed class CollectionsController(
     /// either of them.
     /// </summary>
     /// <remarks>
-    /// scope selects which accessible Collections to list: "owned" (내 카테고리), "shared" (공유
-    /// 카테고리: the caller is a Contributor), "all" (both, one server-side ordering - the
+    /// scope selects which accessible Collections to list: "owned" (내 컬렉션), "shared" (공유
+    /// 컬렉션: shared with the caller, plus the caller's own currently-shared ones - see
+    /// CollectionListScope.Shared), "all" (owned + shared with the caller, one server-side ordering - the
     /// Categories screen's default filter) or "favorites" (both, only the caller's own favorite
     /// marks). Omitting scope keeps its original meaning, owned, so existing callers (the Direct
     /// Share category snapshot, older app versions) are unchanged. Each row carries an explicit
@@ -391,6 +394,86 @@ public sealed class CollectionsController(
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The Collection was modified concurrently.");
+        }
+    }
+
+    /// <summary>
+    /// The Owner's photo as this Collection's icon (multipart field "file"; JPEG/PNG/WebP by magic
+    /// bytes, at most 5MB - the app sends a ~512px resize). Replaces any previous photo; the
+    /// built-in icon stays as the fallback. Same Owner-only + unlock gate as the icon/color edits.
+    /// Returns the updated CollectionDto (with a fresh IconImageUrl).
+    /// </summary>
+    [HttpPut("{id:long}/icon-image")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
+    public async Task<IActionResult> SetIconImageAsync(
+        long id,
+        IFormFile? file,
+        [FromServices] ISetCollectionIconImageService setCollectionIconImageService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            // Only the file's own bytes are used - never its client-supplied name or Content-Type.
+            byte[]? content = null;
+            if (file is not null && file.Length > 0)
+            {
+                using var memoryStream = new MemoryStream();
+                await file.CopyToAsync(memoryStream, cancellationToken);
+                content = memoryStream.ToArray();
+            }
+
+            return Ok(await setCollectionIconImageService.UploadAsync(currentUser.UserId, id, content, cancellationToken));
+        }
+        catch (InvalidItemImageException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionConcurrencyException)
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "The Collection was modified concurrently.");
+        }
+    }
+
+    /// <summary>Back to the built-in icon (idempotent). Returns the updated CollectionDto.</summary>
+    [HttpDelete("{id:long}/icon-image")]
+    [CollectionPermission(CollectionPermission.Edit, requireUnlock: true)]
+    public async Task<IActionResult> RemoveIconImageAsync(
+        long id,
+        [FromServices] ISetCollectionIconImageService setCollectionIconImageService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            return Ok(await setCollectionIconImageService.RemoveAsync(currentUser.UserId, id, cancellationToken));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionConcurrencyException)
+        {
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "The Collection was modified concurrently.");
         }
     }
 

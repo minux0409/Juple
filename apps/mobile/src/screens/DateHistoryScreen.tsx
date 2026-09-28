@@ -239,7 +239,16 @@ export function DateHistoryScreen() {
           if (viewMode !== 'grid' || !expandedDateKeys?.has(section.dateKey)) {
             return null;
           }
-          return <View style={styles.gridWrap}>{section.items.map(item => <SavedLinkGridCell key={item.id} dateDisplayMode={section.showItemDate ? 'dateTime' : 'time'} disabled={actionInFlightItemId !== null} isActionInFlight={actionInFlightItemId === item.id} item={item} onDelete={() => confirmDelete(item.id)} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })} onShare={() => runShare(item)} preferEffectiveThumbnail />)}</View>;
+          // Image view: the tiles are the body of the same accordion card as the header above -
+          // side and bottom borders, rounded bottom corners and inner padding close the card, just
+          // like the list view's last row does (see historyCardLast).
+          return (
+            <View style={styles.gridSectionBody} testID={`history-grid-body-${section.dateKey}`}>
+              <View style={styles.gridWrap}>
+                {section.items.map(item => <SavedLinkGridCell key={item.id} dateDisplayMode={section.showItemDate ? 'dateTime' : 'time'} disabled={actionInFlightItemId !== null} isActionInFlight={actionInFlightItemId === item.id} item={item} onDelete={() => confirmDelete(item.id)} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })} onShare={() => runShare(item)} preferEffectiveThumbnail />)}
+              </View>
+            </View>
+          );
         }}
         ListFooterComponent={
           isLoadingMore ? (
@@ -350,5 +359,19 @@ const styles = StyleSheet.create({
   footerLoading: {
     paddingVertical: spacing.lg,
   },
-  gridWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.lg },
+  // The expanded body of a date card in image view (see sectionHeader, which opens the card).
+  gridSectionBody: {
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+    borderBottomWidth: 1,
+    borderColor: colors.inputBorder,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderTopWidth: 1,
+    marginBottom: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
 });

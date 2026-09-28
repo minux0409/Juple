@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import i18n from '../i18n';
 import { SiteIcon } from '../icons/SiteIcon';
+import { UserIcon } from '../icons/UserIcon';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors, spacing } from '../theme/tokens';
 
@@ -36,6 +37,11 @@ interface SavedLinkMetaRowProps {
   readonly dateDisplayMode: SavedLinkDateDisplayMode;
   /** Outer spacing only (each container decides its own gap above this row) - never the row's own content rules. */
   readonly style?: StyleProp<ViewStyle>;
+  /**
+   * Who added the link, inside a shared Collection (see collections/itemAdder.ts) - shown as its own
+   * muted second line with a small person glyph, so the time line above never loses room to it.
+   */
+  readonly addedByLabel?: string | null;
 }
 
 /**
@@ -44,14 +50,33 @@ interface SavedLinkMetaRowProps {
  * formatting and icon (dedicated site icon, generic globe otherwise) - never a hostname/site name.
  * Single line: the time text shrinks with an ellipsis before the icon is ever pushed out.
  */
-export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style }: SavedLinkMetaRowProps) {
-  return (
-    <View style={[styles.metaRow, style]}>
+export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedByLabel }: SavedLinkMetaRowProps) {
+  const timeRow = (
+    <View style={[styles.metaRow, addedByLabel ? null : style]}>
       <Text numberOfLines={1} style={styles.time}>
         {formatSavedLinkTimestamp(savedAtUtc, dateDisplayMode)}
       </Text>
       <View style={styles.icon}>
         <SiteIcon siteId={resolveSiteInfo(url).id} size={15} />
+      </View>
+    </View>
+  );
+  if (!addedByLabel) {
+    return timeRow;
+  }
+  return (
+    <View style={style}>
+      {timeRow}
+      <View
+        accessibilityLabel={i18n.t('collections.addedByA11y', { name: addedByLabel })}
+        accessible
+        style={[styles.metaRow, styles.adderRow]}
+        testID="saved-link-added-by"
+      >
+        <UserIcon color={colors.textSecondary} size={12} strokeWidth={2} />
+        <Text numberOfLines={1} style={styles.adder}>
+          {addedByLabel}
+        </Text>
       </View>
     </View>
   );
@@ -71,5 +96,14 @@ const styles = StyleSheet.create({
   },
   icon: {
     flexShrink: 0,
+  },
+  adderRow: {
+    marginTop: 2,
+  },
+  adder: {
+    color: colors.textSecondary,
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

@@ -31,9 +31,10 @@ public interface ICollectionStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Active Collections the caller is a Contributor of (never ones they own), each with
-    /// AccessRole "contributor", the Owner's Juple ID and lock state. Same cursor/limit/filters as
-    /// ListAsync except isFavorite (a Contributor has no favorite state).
+    /// The "shared" scope (see CollectionListScope.Shared): Collections shared with the caller -
+    /// each with their AccessRole, the Owner's Juple ID and lock state - plus the caller's own
+    /// currently-shared ones (AccessRole "owner"). Same cursor/limit/filters as ListAsync except
+    /// isFavorite.
     /// </summary>
     Task<CollectionPage> ListSharedAsync(
         long userId,
@@ -120,5 +121,19 @@ public interface ICollectionStore
     Task DeleteAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
 
     Task RestoreAsync(long userId, long collectionId, CancellationToken cancellationToken = default) =>
+        throw new CollectionNotFoundException();
+
+    /// <summary>
+    /// Sets (null clears) the Owner's icon photo on their own active Collection and returns the
+    /// caller's full view plus the Blob that was replaced (for the caller to delete). Same
+    /// ownership rule and lost-update protection as SetIconAsync. Defaulted like RestoreAsync -
+    /// only CollectionStore implements it.
+    /// </summary>
+    Task<(CollectionDto Collection, string? ReplacedBlobName)> SetIconImageAsync(
+        long userId,
+        long collectionId,
+        string? blobName,
+        DateTimeOffset updatedAtUtc,
+        CancellationToken cancellationToken = default) =>
         throw new CollectionNotFoundException();
 }

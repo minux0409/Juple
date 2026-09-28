@@ -7,6 +7,53 @@ import { subscribeSocialPushEvents, type SocialPushEvent, type SocialPushEventTy
 export const FOREGROUND_STALE_MS = 15_000;
 
 /**
+ * A narrow, bounded poll for one screen - never a global one. `poll` runs every `intervalMs` only
+ * while ALL of these hold: the screen is focused, `enabled` (e.g. "I have a sent request someone
+ * still has to answer"), the app is in the foreground, and the previous poll has finished; and at
+ * most for `maxDurationMs` after the screen gained focus or `enabled` last turned on - after that
+ * the screen falls back to Push / focus / app-resume refresh (useLiveRefresh) alone, so an
+ * unanswered request left on screen does not poll forever. Leaving the screen, disabling or
+ * unmounting clears the timer.
+ */
+export function useFocusedPolling(
+  poll: () => Promise<unknown> | void,
+  { intervalMs, maxDurationMs, enabled }: { readonly intervalMs: number; readonly maxDurationMs: number; readonly enabled: boolean },
+): void {
+  const pollRef = useRef(poll);
+  pollRef.current = poll;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!enabled) {
+        return undefined;
+      }
+      const startedAt = Date.now();
+      let inFlight = false;
+      const timer = setInterval(() => {
+        if (Date.now() - startedAt > maxDurationMs) {
+          clearInterval(timer);
+          return;
+        }
+        // Paused while backgrounded/inactive (an iOS app can still report 'unknown' before its
+        // first state change - that is not treated as background).
+        const appState = AppState.currentState;
+        if (inFlight || appState === 'background' || appState === 'inactive') {
+          return;
+        }
+        inFlight = true;
+        Promise.resolve()
+          .then(() => pollRef.current())
+          .catch(() => undefined)
+          .finally(() => {
+            inFlight = false;
+          });
+      }, intervalMs);
+      return () => clearInterval(timer);
+    }, [enabled, intervalMs, maxDurationMs]),
+  );
+}
+
+/**
  * Keeps a focused screen's server data fresh without polling: refreshes when the app comes back
  * to the foreground (if the last refresh is older than FOREGROUND_STALE_MS) and whenever a matching
  * social Push arrives while the app is open. Only while the screen is focused - an unfocused screen

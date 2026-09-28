@@ -9,8 +9,8 @@ namespace Juple.Infrastructure.Users.BootstrapCurrentUser;
 /// </summary>
 internal static class DefaultCollectionSeed
 {
-    private static readonly string[] NamesKo = ["위시리스트", "음식", "영화", "애니"];
-    private static readonly string[] NamesEn = ["Wishlist", "Food", "Movies", "Anime"];
+    private static readonly string[] NamesKo = ["위시리스트", "음식", "영화"];
+    private static readonly string[] NamesEn = ["Wishlist", "Food", "Movies"];
 
     internal static IReadOnlyList<string> NamesFor(string preferredLocale) =>
         preferredLocale.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? NamesEn : NamesKo;

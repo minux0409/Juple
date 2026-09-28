@@ -25,6 +25,12 @@ public sealed class SocialNotificationPublisher(
                 $"friend-request:{friendshipId}", timeProvider.GetUtcNow())],
             cancellationToken));
 
+    public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default) =>
+        SafelyAsync(NotificationType.FriendRequestAnswered, () => EnqueueAsync(
+            [Notification.Social(requesterUserId, NotificationType.FriendRequestAnswered, answererUserId, null, friendshipId,
+                $"friend-request-answered:{friendshipId}", timeProvider.GetUtcNow())],
+            cancellationToken));
+
     public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default) =>
         SafelyAsync(NotificationType.CollectionInvitationReceived, () => EnqueueAsync(
             [Notification.Social(invitedUserId, NotificationType.CollectionInvitationReceived, ownerUserId, collectionId, invitationId,

@@ -37,12 +37,14 @@ import {
 } from '../collections/api/collectionsApi';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
+import { formatItemAdder, shouldShowItemAdders } from '../collections/itemAdder';
 import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
 import { beginCollectionVisit, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { formatParticipantSummary } from '../collections/participantSummary';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import {
   resolveEffectiveCollectionColorValue,
   type CollectionColorValue,
@@ -274,6 +276,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
   const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
   const sortedItems = sortCollectionItems(items, sortOption);
+  // Who added each link - only where more than one person can add (see shouldShowItemAdders).
+  const showItemAdders = shouldShowItemAdders(collection, items);
 
   const loadCollection = useCallback(async () => {
     setIsLoadingCollection(true);
@@ -360,7 +364,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
    * follow, not an all-or-nothing transaction. On any failure the dialog stays open (isEditDialogVisible
    * untouched) showing editError, so the user can see exactly what happened and retry.
    */
-  const submitEdit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue) => {
+  const submitEdit = async (name: string, icon: CollectionIconKey, color: CollectionColorValue, imageChange: CollectionIconImageChange) => {
     if (isSavingEdit || !collection) {
       return;
     }
@@ -374,8 +378,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const nameChanged = trimmedName !== collection.name;
     const iconChanged = icon !== resolveCollectionIconKey(collection.icon);
     const colorChanged = color !== resolveEffectiveCollectionColorValue(collection.color, collection.id);
+    const imageChanged = imageChange.kind === 'set' || (imageChange.kind === 'remove' && !!collection.iconImageUrl);
 
-    if (!nameChanged && !iconChanged && !colorChanged) {
+    if (!nameChanged && !iconChanged && !colorChanged && !imageChanged) {
       setIsEditDialogVisible(false);
       return;
     }
@@ -411,6 +416,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         setCollection(updated);
       } catch (caughtError) {
         setEditError(getColorUpdateErrorMessage(caughtError, t));
+        setIsSavingEdit(false);
+        return;
+      }
+    }
+
+    if (imageChanged) {
+      try {
+        setCollection(await applyCollectionIconImageChange(authenticatedRequest, collection, imageChange));
+      } catch (caughtError) {
+        setEditError(getIconImageSaveErrorMessage(caughtError, t));
         setIsSavingEdit(false);
         return;
       }
@@ -662,7 +677,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             <View>
                 <View style={styles.headerTitleRow}>
                   <View style={styles.headerIconBadge}>
-                    <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} size={32} />
+                    <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} size={32} />
                   </View>
                   <Text style={styles.title}>{collection.name}</Text>
                   {isCollectionLocked(collection) ? (
@@ -772,19 +787,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           const isMine = item.isMine !== false;
           const canManageItem = isOwner && isMine;
           const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
+          const addedByLabel = showItemAdders ? formatItemAdder(item.addedBy, t) : null;
           return (
           <SwipeableItemRow
             containerStyle={[styles.row, viewMode === 'grid' && styles.gridCard]}
             disabled={itemActionInFlightId !== null || isRefreshing}
             // Removing a link from the Category is Owner-only (it never deletes anyone's Item).
             onDelete={isOwner ? () => confirmUnlinkItem(item.itemId) : undefined}
+            deleteLabel={t('collections.removeFromCollection')}
             // Grid tiles have no room for a separate trailing "More" button (see SavedLinkGridCard) -
             // long-press reaches the exact same Add/Move menu List mode's trailingAction opens, so
             // Grid never loses that functionality, only its always-visible affordance.
             onLongPress={canManageItem ? openItemMenu : undefined}
             onPress={() => {
               if (isMine) {
-                navigation.navigate('ItemDetails', { itemId: item.itemId });
+                // Opened from this Collection: its delete action removes the link from here only.
+                navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: isOwner } });
               } else {
                 navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId });
               }
@@ -798,9 +816,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
                 a History section does - matches this row's own prior "always show the full date"
                 behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
             {viewMode === 'grid' ? (
-              <SavedLinkGridCard dateDisplayMode="dateTime" isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+              <SavedLinkGridCard addedByLabel={addedByLabel} dateDisplayMode="dateTime" isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
             ) : (
               <SavedLinkRow
+                addedByLabel={addedByLabel}
                 dateDisplayMode="dateTime"
                 isActionInFlight={itemActionInFlightId === item.itemId}
                 item={toSavedLinkRowItem(item)}
@@ -823,6 +842,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         error={editError}
         initialColor={resolveEffectiveCollectionColorValue(collection.color, collection.id)}
         initialIcon={resolveCollectionIconKey(collection.icon)}
+        initialImageUrl={collection.iconImageUrl ?? null}
         initialName={collection.name}
         isSubmitting={isSavingEdit}
         mode="edit"
@@ -844,7 +864,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
-        confirmLabel={t('collections.unlinkAction')}
+        confirmLabel={t('collections.removeFromCollection')}
         message={t('collections.unlinkConfirmMessage')}
         onCancel={() => setPendingUnlinkItemId(null)}
         onConfirm={() => {

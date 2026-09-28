@@ -15,7 +15,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         {
             // Same DB-level guard as RepeatPurchaseConfiguration's CK_RepeatPurchases_IntervalUnit_Valid
             // for its own byte enum - blocks any value outside the currently-defined Type range.
-            table.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4)");
+            table.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5)");
         });
 
         builder.HasKey(notification => notification.Id);
@@ -51,7 +51,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.Property(notification => notification.ReadAtUtc)
             .HasColumnType("datetimeoffset");
 
-        // Social notifications (Types 1-4) - plain ids, deliberately no FKs: a row must never block
+        // Social notifications (Types 1-5) - plain ids, deliberately no FKs: a row must never block
         // deleting the actor, the Collection or the invitation/request it mentions (account
         // deletion removes rows by UserId and ActorUserId - see AccountDeletionStore), and the
         // dispatcher re-checks that the subject still exists/is still pending before sending.

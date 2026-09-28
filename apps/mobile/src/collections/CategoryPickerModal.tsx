@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CategoryEditorDialog } from './CategoryEditorDialog';
 import { CategoryIconTile } from './CategoryIconTile';
+import type { CollectionIconImageChange } from './collectionIconImage';
 import { isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionUnlockDialog } from './CollectionUnlockDialog';
 import { CollectionStatusBadges } from './CollectionStatusBadges';
@@ -50,6 +51,7 @@ interface CategoryPickerModalProps {
     name: string,
     icon: CollectionIconKey,
     color: CollectionColorValue,
+    imageChange?: CollectionIconImageChange,
   ) => Promise<boolean>;
   /** A locked Collection the user touched: its password prompt is shown over this sheet. */
   readonly unlockTarget?: Collection | null;
@@ -159,7 +161,7 @@ export function CategoryPickerModal({
                     testID={`category-picker-option-${option.id}`}
                   >
                     <View style={styles.tileIconSlot}>
-                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} size={48} />
+                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} size={48} />
                       {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
                       <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
                       {isSelected ? (

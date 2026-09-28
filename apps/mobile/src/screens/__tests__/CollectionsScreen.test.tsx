@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, StyleSheet, Text, TextInput } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TextInput } from 'react-native';
 import { collectionFilterColors } from '../../theme/tokens';
 import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
@@ -270,13 +270,14 @@ describe('CollectionsScreen filters', () => {
     expect(jest.mocked(getCollections).mock.calls.length).toBe(calls);
   });
 
-  it('shows the other participants under a collaborative Category: display name, else Juple ID, then 외 N명', async () => {
+  it('a collaborative Category card no longer lists its participants - only the shared marker says it is shared', async () => {
     setUpGetCollectionsMock();
     const renderer = await renderScreen();
     await selectFilter(renderer, 'all');
 
-    const summary = renderer.root.findByProps({ testID: 'collection-tile-participants' });
-    expect(summary.props.children).toBe(i18n.t('collections.participantsMore', { names: '피카츄 · CNTR-B234', count: 2 }));
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-tile-participants')).toHaveLength(0);
+    expect(renderer.root.findAllByType(Text).some(node => String(node.props.children).includes('피카츄'))).toBe(false);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
   });
 
   it('a Contributor can favorite a shared Category too (their own mark)', async () => {
@@ -360,7 +361,7 @@ describe('CollectionsScreen row', () => {
   });
 });
 
-describe('CollectionsScreen item count', () => {
+describe('CollectionsScreen card contents', () => {
   afterEach(() => {
     jest.clearAllMocks();
     mockRouteParams = undefined;
@@ -380,42 +381,60 @@ describe('CollectionsScreen item count', () => {
     });
   }
 
-  it('Grid: shows the bare link count as a small non-interactive badge on the tile', async () => {
-    mockSingleCollection({ itemCount: 5 });
-    const renderer = await renderScreen();
+  const sharedLockedFavorite: Partial<Collection> = {
+    itemCount: 5,
+    isFavorite: true,
+    isLocked: true,
+    accessRole: 'contributor',
+    ownerJupleId: 'K7MP4Q8N',
+    participantPreview: [{ jupleId: 'K7MP4Q8N', displayName: '피카츄', role: 'owner' }],
+    otherParticipantCount: 1,
+  };
 
-    const badge = renderer.root.findByProps({ testID: 'collection-tile-item-count' });
-    expect(badge.findByType(Text).props.children).toBe(5);
-    expect(badge.props.onPress).toBeUndefined();
-    expect(badge.props.accessibilityLabel).toBe(i18n.t('collections.detailItemCount', { count: 5 }));
+  const texts = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(node => String(node.props.children));
+
+  it.each(['grid', 'list'] as const)('%s: a card shows only icon, name and the favorite / shared / lock markers - no link count, no participant names', async mode => {
+    mockSingleCollection(sharedLockedFavorite);
+    const renderer = await renderScreen();
+    if (mode === 'list') {
+      await switchToListView(renderer);
+    }
+
+    expect(texts(renderer)).toContain('Counted');
+    expect(texts(renderer)).not.toContain('5');
+    expect(texts(renderer).some(text => text.includes('피카츄'))).toBe(false);
+    expect(texts(renderer)).not.toContain(i18n.t('collections.detailItemCount', { count: 5 }));
+    for (const testID of ['collection-tile-item-count', 'collection-row-item-count', 'collection-tile-participants', 'collection-row-participants']) {
+      expect(renderer.root.findAll(node => node.props.testID === testID)).toHaveLength(0);
+    }
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFavorite')).length).toBeGreaterThan(0);
   });
 
-  it('Grid: shows 0 for an empty category', async () => {
-    mockSingleCollection({ itemCount: 0 });
+  it.each(['grid', 'list'] as const)('%s: a Collection with its own photo shows the photo as its icon; without one, the built-in icon', async mode => {
+    jest.mocked(getCollections).mockImplementation(async () => ({
+      items: [
+        makeCollection({ id: 7, name: 'With photo', iconImageUrl: 'https://blob.example.test/icon.jpg' }),
+        makeCollection({ id: 8, name: 'Without photo' }),
+      ],
+      nextCursor: null,
+    }));
     const renderer = await renderScreen();
+    if (mode === 'list') {
+      await switchToListView(renderer);
+    }
 
-    expect(renderer.root.findByProps({ testID: 'collection-tile-item-count' }).findByType(Text).props.children).toBe(0);
+    const images = renderer.root.findAll(node => node.type === Image && node.props.source?.uri === 'https://blob.example.test/icon.jpg');
+    expect(images).toHaveLength(1);
+    expect(renderer.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'collection-icon-image')).toHaveLength(1);
   });
 
-  it('List: shows the localized count as trailing text, separate from the favorite button', async () => {
-    mockSingleCollection({ itemCount: 5 });
-    const renderer = await renderScreen();
-    await switchToListView(renderer);
-
-    const count = renderer.root.findByProps({ testID: 'collection-row-item-count' });
-    expect(count.props.children).toBe(i18n.t('collections.detailItemCount', { count: 5 }));
-    expect(count.props.onPress).toBeUndefined();
-    const starButton = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function')[0];
-    expect(starButton.findAll(node => node.props.testID === 'collection-row-item-count')).toHaveLength(0);
-  });
-
-  it('List: shows 0 for an empty category, and the favorite star still toggles without navigating', async () => {
+  it('the favorite star still toggles without navigating', async () => {
     mockSingleCollection({ itemCount: 0 });
     jest.mocked(setCollectionFavorite).mockResolvedValue(makeCollection({ id: 7, name: 'Counted', isFavorite: true }));
     const renderer = await renderScreen();
     await switchToListView(renderer);
-
-    expect(renderer.root.findByProps({ testID: 'collection-row-item-count' }).props.children).toBe(i18n.t('collections.detailItemCount', { count: 0 }));
 
     const starButton = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite') && typeof node.props.onPress === 'function')[0];
     await act(async () => {
@@ -727,10 +746,10 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
 
     expect(renderer.root.findByProps({ testID: 'share-request-role-3' }).props.children).toBe(i18n.t('collaboration.roleViewer'));
     expect(renderer.root.findByProps({ testID: 'share-request-role-4' }).props.children).toBe(i18n.t('collaboration.roleContributor'));
-    // Plain 보기만 / 링크 추가 - never 읽기/작성, a "공동작업" concept, an internal role name, or a
+    // Plain 읽기 전용 / 링크 추가 가능 - never a "공동작업" concept, an internal role name, or a
     // stronger promise (편집/수정 가능) than a Contributor actually has.
-    expect(i18n.getFixedT('ko')('collaboration.roleViewer')).toBe('보기만');
-    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('링크 추가');
+    expect(i18n.getFixedT('ko')('collaboration.roleViewer')).toBe('읽기 전용');
+    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('링크 추가 가능');
   });
 
   it('a Collection shared view-only shows the shared marker and can be favorited like any other', async () => {

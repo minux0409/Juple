@@ -71,6 +71,12 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
         builder.Property(collection => collection.Color)
             .HasColumnType("varchar(20)");
 
+        // Nullable, no default: existing Collections simply have no icon photo. Same length as
+        // ItemImages.BlobName (the same naming scheme under the Owner's prefix).
+        builder.Property(collection => collection.IconImageBlobName)
+            .HasColumnType("nvarchar(400)")
+            .HasMaxLength(400);
+
         builder.Property(collection => collection.IsLocked)
             .HasColumnType("bit")
             .IsRequired()

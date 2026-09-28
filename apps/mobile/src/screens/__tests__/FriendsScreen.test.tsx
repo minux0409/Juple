@@ -1,8 +1,9 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { AppState, StyleSheet, Text } from 'react-native';
+import { colors } from '../../theme/tokens';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
-import { FriendsScreen } from '../FriendsScreen';
+import { FriendsScreen, OUTGOING_POLL_INTERVAL_MS, OUTGOING_POLL_MAX_MS } from '../FriendsScreen';
 import { lookupJupleId } from '../../collections/api/collaborationApi';
 import { getMyProfile } from '../../api/profileApi';
 import { TextInput } from 'react-native';
@@ -230,6 +231,120 @@ describe('FriendsScreen', () => {
 
     expect(jest.mocked(getFriendRequests).mock.calls.length).toBeGreaterThan(calls);
     expect(renderer.root.findAll(node => node.props.testID === 'friend-7').length).toBeGreaterThan(0);
+  });
+
+  it('a sent request being accepted leaves 보낸 친구 신청 and joins the friend list at once, while the screen is open', async () => {
+    const renderer = await renderScreen();
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-outgoing-2').length).toBeGreaterThan(0);
+
+    const togepi: Friend = { friendshipId: 2, jupleId: 'TGNG2345', displayName: null, myNote: null, friendsSinceUtc: '' };
+    jest.mocked(getFriendRequests).mockResolvedValue([
+      { requestId: 1, jupleId: 'NCMNG234', displayName: '파이리', direction: 'incoming', createdAtUtc: '' },
+    ]);
+    jest.mocked(getFriends).mockResolvedValue({ items: [togepi, pikachu], nextCursor: null });
+    await act(async () => {
+      emitSocialPushEvent({ type: 'friendRequestAnswered', collectionId: null });
+    });
+
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-outgoing-2')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-outgoing-title')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'friend-2').length).toBeGreaterThan(0);
+  });
+
+  describe('while a sent request waits: a short, bounded re-check of the request list only', () => {
+    const tick = async (ms: number) => {
+      await act(async () => {
+        jest.advanceTimersByTime(ms);
+      });
+    };
+
+    it('re-checks every OUTGOING_POLL_INTERVAL_MS, and an accepted request moves to the friend list without any Push', async () => {
+      const renderer = await renderScreen();
+      const requestCalls = jest.mocked(getFriendRequests).mock.calls.length;
+      const friendCalls = jest.mocked(getFriends).mock.calls.length;
+
+      await tick(OUTGOING_POLL_INTERVAL_MS - 100);
+      expect(jest.mocked(getFriendRequests).mock.calls.length).toBe(requestCalls);
+
+      const togepi: Friend = { friendshipId: 2, jupleId: 'TGNG2345', displayName: null, myNote: null, friendsSinceUtc: '' };
+      jest.mocked(getFriendRequests).mockResolvedValue([]);
+      jest.mocked(getFriends).mockResolvedValue({ items: [togepi, pikachu], nextCursor: null });
+      await tick(200);
+
+      expect(jest.mocked(getFriendRequests).mock.calls.length).toBe(requestCalls + 1);
+      // Only the request list is polled - the friend list is reloaded once, because one was answered.
+      expect(jest.mocked(getFriends).mock.calls.length).toBe(friendCalls + 1);
+      expect(renderer.root.findAll(node => node.props.testID === 'friends-outgoing-2')).toHaveLength(0);
+      expect(renderer.root.findAll(node => node.props.testID === 'friend-2').length).toBeGreaterThan(0);
+
+      // Nothing pending any more: polling stops.
+      await tick(OUTGOING_POLL_INTERVAL_MS * 3);
+      expect(jest.mocked(getFriendRequests).mock.calls.length).toBe(requestCalls + 1);
+    });
+
+    it('never polls without a sent request, and stops after OUTGOING_POLL_MAX_MS on screen', async () => {
+      jest.mocked(getFriendRequests).mockResolvedValue([
+        { requestId: 1, jupleId: 'NCMNG234', displayName: '파이리', direction: 'incoming', createdAtUtc: '' },
+      ]);
+      await renderScreen();
+      const onlyIncoming = jest.mocked(getFriendRequests).mock.calls.length;
+      await tick(OUTGOING_POLL_INTERVAL_MS * 5);
+      expect(jest.mocked(getFriendRequests).mock.calls.length).toBe(onlyIncoming);
+      jest.clearAllMocks();
+
+      jest.mocked(getFriends).mockResolvedValue({ items: [pikachu], nextCursor: null });
+      jest.mocked(getFriendRequests).mockResolvedValue([
+        { requestId: 2, jupleId: 'TGNG2345', displayName: null, direction: 'outgoing', createdAtUtc: '' },
+      ]);
+      await renderScreen();
+      await tick(OUTGOING_POLL_MAX_MS + OUTGOING_POLL_INTERVAL_MS);
+      const atCap = jest.mocked(getFriendRequests).mock.calls.length;
+      expect(atCap).toBeLessThanOrEqual(1 + OUTGOING_POLL_MAX_MS / OUTGOING_POLL_INTERVAL_MS + 1);
+      await tick(OUTGOING_POLL_INTERVAL_MS * 5);
+      expect(jest.mocked(getFriendRequests).mock.calls.length).toBe(atCap);
+    });
+
+    it('pauses while the app is in the background', async () => {
+      const mutableAppState = AppState as unknown as { currentState: unknown };
+      const original = mutableAppState.currentState;
+      mutableAppState.currentState = 'background';
+      try {
+        await renderScreen();
+        const calls = jest.mocked(getFriendRequests).mock.calls.length;
+        await tick(OUTGOING_POLL_INTERVAL_MS * 3);
+        expect(jest.mocked(getFriendRequests).mock.calls.length).toBe(calls);
+      } finally {
+        mutableAppState.currentState = original;
+      }
+    });
+  });
+
+  it('a declined one simply disappears from 보낸 친구 신청', async () => {
+    const renderer = await renderScreen();
+    jest.mocked(getFriendRequests).mockResolvedValue([]);
+    await act(async () => {
+      emitSocialPushEvent({ type: 'friendRequestAnswered', collectionId: null });
+    });
+
+    expect(renderer.root.findAll(node => node.props.testID === 'friends-outgoing-2')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'friend-7').length).toBeGreaterThan(0);
+  });
+
+  it('the friend modal: my note field has no example text or extra hint, and 친구 삭제 looks destructive', async () => {
+    const renderer = await renderScreen();
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'friend-7' }).props.onPress();
+    });
+
+    const detail = renderer.root.findByType(AppModal);
+    expect(renderer.root.findByProps({ testID: 'friend-note-input' }).props.placeholder).toBeUndefined();
+    const detailTexts = detail.findAllByType(Text).map(node => node.props.children);
+    expect(detailTexts).toContain(i18n.t('friends.note'));
+    expect(detailTexts.some(text => /나만 볼 수|예:/.test(String(text)))).toBe(false);
+
+    const remove = renderer.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'friend-remove')[0];
+    expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.danger);
+    expect(StyleSheet.flatten(remove.findByType(Text).props.style).color).toBe(colors.danger);
   });
 
   describe('layout: 받은 친구 신청 → 친구 추가 → 친구 → 보낸 친구 신청', () => {

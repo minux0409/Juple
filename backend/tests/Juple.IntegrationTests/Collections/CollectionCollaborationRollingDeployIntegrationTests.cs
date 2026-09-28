@@ -160,6 +160,11 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await MigrateToAsync(FavoritesAndDisplayName);
         Assert.True(await HasFavoriteRowAsync(owner, unstarredLater));
 
+        // The new revision is played by today's model, which also maps Collections.IconImageBlobName
+        // (a later, purely additive nullable column - AddCollectionIconImage): it is added here the
+        // way that migration adds it and given back before the real migrations run in step 10.
+        await ExecuteAsync("ALTER TABLE [collections].[Collections] ADD [IconImageBlobName] nvarchar(400) NULL");
+
         // 3-4. The previous revision stars a Collection (legacy column only) - the new revision
         // already shows it as the Owner's favorite: nothing it wrote is missed.
         await OldRevisionSetFavoriteAsync(starredLater, true);
@@ -197,6 +202,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // 10-11. The previous revision is gone; the contract rebuilds the Owners' rows from the
         // legacy column (the stale backfilled row of the un-starred Collection goes, the
         // legacy-only star gets its row) and leaves the Contributor's row alone.
+        await ExecuteAsync("ALTER TABLE [collections].[Collections] DROP COLUMN [IconImageBlobName]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));
         Assert.True(await HasFavoriteRowAsync(owner, starredLater));

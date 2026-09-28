@@ -717,6 +717,52 @@ describe('ItemDetailsScreen', () => {
       expect(addItemToCollection).toHaveBeenCalledTimes(3);
       expect(isSaveDisabled(renderer)).toBe(true);
     });
+
+    describe('Collections shared with me', () => {
+      const wishlist = makeCollection({ id: 5, name: 'Wishlist', accessRole: 'owner' });
+      const sharedTrip = makeCollection({ id: 9, name: 'Shared Trip', accessRole: 'contributor', ownerJupleId: 'WNER2345' });
+
+      beforeEach(() => {
+        jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => {
+          if (options.itemId) {
+            // Only the 'all' scope includes the ones shared with me.
+            return { items: options.scope === 'all' ? [wishlist, sharedTrip] : [wishlist], nextCursor: null };
+          }
+          if (options.scope === 'shared') {
+            // The server lists my own shared Collection under 'shared' as well.
+            return { items: [wishlist, sharedTrip], nextCursor: null };
+          }
+          return { items: [wishlist], nextCursor: null };
+        });
+      });
+
+      it('lists every Collection the link is in - my own and the ones shared with me', async () => {
+        const renderer = await renderScreen();
+
+        expect(getCollections).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ itemId: 1, scope: 'all' }));
+        const shown = renderer.root.findAllByType(Text).map(node => node.props.children);
+        expect(shown).toEqual(expect.arrayContaining(['Wishlist', 'Shared Trip']));
+        expect(isSaveDisabled(renderer)).toBe(true);
+      });
+
+      it('a shared-with-me Collection the link is already in is not deselected - only its Owner can take the link out', async () => {
+        const renderer = await renderScreen();
+        await openCategoryModal(renderer);
+        await toggleCategoryInModal(renderer, 'Shared Trip');
+
+        expect(isSaveDisabled(renderer)).toBe(true);
+        expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.removeFromSharedOwnerOnly'))).toBe(true);
+
+        // The picker lists my own shared Collection once, not again among the shared ones.
+        expect(renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Wishlist')).toHaveLength(1);
+
+        // My own Collection is still mine to change.
+        await toggleCategoryInModal(renderer, 'Wishlist');
+        expect(isSaveDisabled(renderer)).toBe(false);
+        expect(removeItemFromCollection).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+      });
+    });
   });
 
   describe('category summary (compact chips)', () => {
@@ -816,7 +862,91 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
+  describe('opened from inside a Collection: delete means "remove from this Collection"', () => {
+    async function renderFromCollection(canRemove: boolean) {
+      const collectionRoute = {
+        key: 'ItemDetails',
+        name: 'ItemDetails',
+        params: { itemId: 1, collectionContext: { collectionId: 9, canRemove } },
+      } as never;
+      let renderer!: ReactTestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = ReactTestRenderer.create(
+          <AppToastProvider>
+            <ItemDetailsScreen navigation={navigation} route={collectionRoute} />
+          </AppToastProvider>,
+        );
+      });
+      return renderer;
+    }
+
+    it('the button says 컬렉션에서 삭제 and, after confirming, removes only this Collection membership - never the link itself', async () => {
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      const renderer = await renderFromCollection(true);
+
+      const button = renderer.root.findByProps({ testID: 'item-details-delete' });
+      expect(button.findByType(Text).props.children).toBe(i18n.t('collections.removeFromCollection'));
+      expect(findPressableByText(renderer, '삭제')).toBeUndefined();
+
+      await act(async () => {
+        button.props.onPress();
+      });
+      expect(removeItemFromCollection).not.toHaveBeenCalled();
+      const confirm = renderer.root.findAll(
+        node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('collections.unlinkConfirmTitle'),
+      )[0];
+      expect(confirm.props.message).toBe(i18n.t('collections.unlinkConfirmMessage'));
+
+      await act(async () => {
+        await confirm.props.onConfirm();
+      });
+
+      // Collection 9 only (the one it was opened from), with this visit's stored unlock grant.
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 9, 1);
+      expect(deleteItem).not.toHaveBeenCalled();
+      expect((navigation as unknown as { goBack: jest.Mock }).goBack).toHaveBeenCalled();
+      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('toast.unlinkSuccess'))).toBe(true);
+      act(() => renderer.unmount());
+    });
+
+    it('someone who is not the Collection\'s Owner is told why, and nothing is removed or deleted', async () => {
+      const renderer = await renderFromCollection(false);
+
+      await act(async () => {
+        renderer.root.findByProps({ testID: 'item-details-delete' }).props.onPress();
+      });
+
+      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.removeFromSharedOwnerOnly'))).toBe(true);
+      expect(renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true)).toHaveLength(0);
+      expect(removeItemFromCollection).not.toHaveBeenCalled();
+      expect(deleteItem).not.toHaveBeenCalled();
+      act(() => renderer.unmount());
+    });
+
+    it('a failed removal stays on the screen with the reason', async () => {
+      jest.mocked(removeItemFromCollection).mockRejectedValue(new Error('network'));
+      const renderer = await renderFromCollection(true);
+
+      await act(async () => {
+        renderer.root.findByProps({ testID: 'item-details-delete' }).props.onPress();
+      });
+      const confirm = renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true)[0];
+      await act(async () => {
+        await confirm.props.onConfirm();
+      });
+
+      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.errorMembershipFallback'))).toBe(true);
+      expect((navigation as unknown as { goBack: jest.Mock }).goBack).not.toHaveBeenCalled();
+    });
+  });
+
   describe('bottom action row - Delete/Save', () => {
+    it('opened from Home/History (no Collection): the button is still a plain 삭제 of the link', async () => {
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findByProps({ testID: 'item-details-delete' }).findByType(Text).props.children).toBe(i18n.t('common.delete'));
+    });
+
     it('renders Delete and Save as a single action row', async () => {
       const renderer = await renderScreen();
 

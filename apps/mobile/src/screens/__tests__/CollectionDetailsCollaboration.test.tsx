@@ -314,7 +314,8 @@ describe('CollectionDetailsScreen - Contributor', () => {
     expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2 });
 
     pressRow(mine);
-    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 1 });
+    // Opened from the Collection, but a Contributor may not take links out of it.
+    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 1, collectionContext: { collectionId: COLLECTION_ID, canRemove: false } });
   });
 
   it('never offers removing a link from the Category, nor the Add/Move menu', async () => {
@@ -349,6 +350,49 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
     expect(actionNames).toContain('delete');
     expect(hasLabel(theirRow, i18n.t('collections.itemManageAction'))).toBe(false);
     expect(hasLabel(row(renderer, mine), i18n.t('collections.itemManageAction'))).toBe(true);
+  });
+});
+
+describe('CollectionDetailsScreen - who added each link', () => {
+  const addedByTexts = (part: ReactTestRenderer.ReactTestRenderer) =>
+    part.root
+      .findAll(node => typeof node.type === 'string' && node.props.testID === 'saved-link-added-by')
+      .flatMap(node => node.findAllByType(Text).map(text => text.props.children));
+
+  afterEach(() => jest.clearAllMocks());
+
+  it('in a shared Collection every link says who added it: 나, the Owner, or another member', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
+    const ownersLink = makeItem({ itemId: 2, title: 'Theirs', isMine: false, addedBy: { kind: 'owner', jupleId: 'K7MP4Q8N', displayName: '피카츄' } });
+    const membersLink = makeItem({ itemId: 3, title: 'Member', isMine: false, addedBy: { kind: 'member', jupleId: 'CNTRC234', displayName: null } });
+    const myLink = makeItem({ itemId: 1, title: 'Mine', isMine: true, addedBy: { kind: 'me' } });
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLink, ownersLink, membersLink], nextCursor: null });
+    const renderer = await renderScreen();
+
+    expect(addedByTexts(row(renderer, myLink))).toEqual([i18n.t('collections.addedByMe')]);
+    expect(addedByTexts(row(renderer, ownersLink))).toEqual([i18n.t('collections.addedByOwner', { name: '피카츄' })]);
+    expect(addedByTexts(row(renderer, membersLink))).toEqual(['CNTR-C234']);
+    expect(i18n.getFixedT('ko')('collections.addedByOwner', { name: '피카츄' })).toBe('피카츄 · 소유자');
+  });
+
+  it('a link that came in through the 모든 사용자 link says only that - never who', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: false }));
+    const publicLink = makeItem({ itemId: 2, title: 'Via link', isMine: false, addedBy: { kind: 'publicLink' } });
+    const myLink = makeItem({ itemId: 1, title: 'Mine', isMine: true, addedBy: { kind: 'me' } });
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLink, publicLink], nextCursor: null });
+    const renderer = await renderScreen();
+
+    expect(addedByTexts(row(renderer, publicLink))).toEqual([i18n.t('collections.addedViaPublicLink')]);
+    expect(addedByTexts(row(renderer, myLink))).toEqual([i18n.t('collections.addedByMe')]);
+  });
+
+  it('a private Collection stays as quiet as before - no "added by" line at all', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: false }));
+    const myLink = makeItem({ itemId: 1, title: 'Mine', isMine: true, addedBy: { kind: 'me' } });
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLink], nextCursor: null });
+    const renderer = await renderScreen();
+
+    expect(addedByTexts(row(renderer, myLink))).toEqual([]);
   });
 });
 

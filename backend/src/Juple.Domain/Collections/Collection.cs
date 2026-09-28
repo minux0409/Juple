@@ -152,6 +152,29 @@ public sealed class Collection
     public void SetColor(CollectionColor color, DateTimeOffset updatedAtUtc) => SetColor(color.ToString(), updatedAtUtc);
 
     /// <summary>
+    /// The Owner's own photo used as this Collection's icon, instead of the built-in Icon glyph
+    /// (which is kept, so removing the photo falls back to it). The Blob lives under the Owner's
+    /// storage prefix ("items/{UserId}/collections/{Id}/...") - account deletion's prefix
+    /// cleanup therefore covers it. Null (the common case, and every Collection created before
+    /// this existed) means "no photo".
+    /// </summary>
+    public string? IconImageBlobName { get; private set; }
+
+    /// <summary>Sets (or, with null, clears) the icon photo; returns the Blob it replaced, if any, for the caller to delete.</summary>
+    public string? SetIconImage(string? blobName, DateTimeOffset updatedAtUtc)
+    {
+        var previous = IconImageBlobName;
+        if (previous == blobName)
+        {
+            return null;
+        }
+
+        IconImageBlobName = blobName;
+        UpdatedAtUtc = updatedAtUtc;
+        return previous;
+    }
+
+    /// <summary>
     /// Locks the Collection under its Owner's lock password - no password of its own is created.
     /// No-op when already locked. The caller checks that the Owner has a lock password.
     /// </summary>

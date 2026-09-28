@@ -25,7 +25,13 @@ public sealed record CollectionDto(
     // participants (never the caller) - the Owner first, then Contributors in joining order - and
     // how many other participants there are in total. Pending invitations are never participants.
     IReadOnlyList<CollectionParticipantDto>? ParticipantPreview = null,
-    int OtherParticipantCount = 0);
+    int OtherParticipantCount = 0,
+    // Owner view only (like HasCollaborators): the 모든 사용자 link is on. Together with
+    // HasCollaborators this is exactly what puts an owned Collection under the "shared" scope.
+    bool IsPublicShareActive = false,
+    // The Collection's icon photo (Owner-chosen), as a short-lived read URL - shown instead of the
+    // Icon glyph by everyone who can see the Collection. Null: no photo (or it could not be signed).
+    string? IconImageUrl = null);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the
