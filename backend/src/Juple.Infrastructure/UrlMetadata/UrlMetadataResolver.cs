@@ -30,6 +30,8 @@ public sealed class UrlMetadataResolver(
     private const int MaxRedirects = 5;
     private const long MaxResponseBytes = 1024 * 1024; // 1 MB - enough for metadata typically near the top of <head>.
     private static readonly TimeSpan TotalRequestBudget = TimeSpan.FromSeconds(8);
+    /// <summary>Own budget for the YouTube video-ID fallback (see ResolveFromYouTubeVideoIdAsync) - the page attempt may already have used up TotalRequestBudget.</summary>
+    private static readonly TimeSpan YouTubeVideoIdFallbackBudget = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
 
     private static readonly MemoryCacheEntryOptions CacheEntryOptions = new()
@@ -263,6 +265,24 @@ public sealed class UrlMetadataResolver(
             failureCategory = "network_error";
         }
 
+        // The YouTube page itself could not be read - e.g. YouTube answering this server's request
+        // with a redirect to a rate-limit page (observed on Azure Dev, 2026-09-28: youtu.be ->
+        // www.google.com, HTTP 429), which left a shared video with no title and no thumbnail at
+        // all. The video ID is part of the URL the user shared, so the same official public
+        // endpoints this class already uses when a page lacks metadata still apply: YouTube's oEmbed
+        // API for the title and the existence-checked i.ytimg.com thumbnail. The failed page is
+        // never retried or worked around, and nothing is guessed - each value is either confirmed
+        // by YouTube's own endpoint or left empty.
+        if (failureCategory is not null
+            && YouTubeThumbnailResolver.TryExtractVideoIdFromPageUrl(initialUri, out var sharedVideoId))
+        {
+            (result, youTubeImageVariantForDiagnostics) =
+                await ResolveFromYouTubeVideoIdAsync(sharedVideoId!, cancellationToken);
+            logger.LogInformation(
+                "URL metadata YouTube video-id fallback after page failure. PageFailure={FailureCategory} TitleFound={TitleFound} ImageFound={ImageFound} YouTubeImageVariant={YouTubeImageVariant}",
+                failureCategory, result.Title is not null, result.PreviewImageUrl is not null, youTubeImageVariantForDiagnostics);
+        }
+
         var elapsedMs = timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
         LogOutcome(
             lastAttemptedHost, result, imageSourceForDiagnostics, youTubeImageVariantForDiagnostics,
@@ -270,6 +290,35 @@ public sealed class UrlMetadataResolver(
 
         memoryCache.Set(cacheKey, result, CacheEntryOptions);
         return result;
+    }
+
+    /// <summary>
+    /// Title (oEmbed) and verified thumbnail (i.ytimg.com) for one YouTube video ID, straight from
+    /// YouTube's own public endpoints - used only when the video's page could not be read. Both
+    /// halves are best-effort and independent: either may be null.
+    /// </summary>
+    private async Task<(UrlMetadataResult Result, string? YouTubeImageVariant)> ResolveFromYouTubeVideoIdAsync(
+        string videoId, CancellationToken cancellationToken)
+    {
+        using var fallbackCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        fallbackCts.CancelAfter(YouTubeVideoIdFallbackBudget);
+
+        // videoId passed TryValidateVideoId's strict character set, so it is safe as a URL segment.
+        var watchUri = new Uri($"https://www.youtube.com/watch?v={videoId}");
+        var title = await YouTubeOEmbedTitleResolver.ResolveTitleAsync(httpClient, watchUri, fallbackCts.Token);
+        string? previewImageUrl = null;
+        string? variant = null;
+        try
+        {
+            (previewImageUrl, variant) = await YouTubeThumbnailResolver.ResolveExistingThumbnailForVideoIdAsync(
+                httpClient, videoId, fallbackCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Out of fallback budget - no thumbnail rather than a guessed one.
+        }
+
+        return (new UrlMetadataResult(title, title is null ? null : UrlMetadataSource.YouTubeOEmbed, previewImageUrl), variant);
     }
 
     /// <summary>Only http/https on their default port (80/443) - see ResolveUrlMetadataService.ValidateUrl for the same rule at the request-shape level; this re-checks it per redirect hop.</summary>

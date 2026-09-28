@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { isCustomCollectionColor, resolveCollectionColorKey, resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
 import { resolveCollectionIconComponent } from './collectionIcons';
+import { replaceFailedCollectionIconUri, resolveCollectionIconUri } from './collectionIconImageCache';
 import { categoryTilePalette, radii } from '../theme/tokens';
 
 interface CategoryIconTileProps {
@@ -22,6 +23,12 @@ interface CategoryIconTileProps {
    * the built-in glyph is shown instead - never an empty tile.
    */
   readonly imageUrl?: string | null;
+  /**
+   * The photo's `iconImageVersion` - with it, the same photo keeps one URI across responses (see
+   * collectionIconImageCache), so it comes from the image cache instead of flashing on every
+   * refresh. Absent (a just-picked preview, an older server): imageUrl is shown as-is.
+   */
+  readonly imageVersion?: string | null;
   /** Tile edge length in dp; the icon glyph itself is drawn at roughly 46% of this. */
   readonly size?: number;
 }
@@ -33,10 +40,10 @@ interface CategoryIconTileProps {
  * of screen, instead of each screen computing its own tile color or falling back to a plain
  * outline icon with no tile at all. A Collection's own photo, when it has one, takes the tile.
  */
-export function CategoryIconTile({ icon, collectionId, color, imageUrl, size = 40 }: CategoryIconTileProps) {
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+export function CategoryIconTile({ icon, collectionId, color, imageUrl, imageVersion, size = 40 }: CategoryIconTileProps) {
+  const [failedUris, setFailedUris] = useState<ReadonlySet<string>>(() => new Set());
   useEffect(() => {
-    setFailedUrl(null);
+    setFailedUris(new Set());
   }, [imageUrl]);
 
   const IconComponent = resolveCollectionIconComponent(icon);
@@ -46,7 +53,20 @@ export function CategoryIconTile({ icon, collectionId, color, imageUrl, size = 4
     ? resolveCollectionColorTile((explicitColorKey ?? explicitColor) as CollectionColorValue)
     : categoryTilePalette[Math.abs(collectionId) % categoryTilePalette.length];
   const borderRadius = radii.md + Math.round(size / 8);
-  const showImage = !!imageUrl && failedUrl !== imageUrl;
+  // The kept URI for this photo first; if it cannot load (evicted from the cache after its URL
+  // expired, or a picked local file was cleaned up), this response's fresh URL; then the glyph.
+  const keptUri = resolveCollectionIconUri(collectionId, imageVersion, imageUrl);
+  const displayUri = [keptUri, imageUrl].find(uri => !!uri && !failedUris.has(uri)) ?? null;
+  const showImage = displayUri !== null;
+  const handleImageError = () => {
+    if (!displayUri) {
+      return;
+    }
+    if (imageUrl && displayUri !== imageUrl) {
+      replaceFailedCollectionIconUri(collectionId, displayUri, imageUrl);
+    }
+    setFailedUris(previous => new Set(previous).add(displayUri));
+  };
 
   return (
     <View
@@ -63,9 +83,9 @@ export function CategoryIconTile({ icon, collectionId, color, imageUrl, size = 4
     >
       {showImage ? (
         <Image
-          onError={() => setFailedUrl(imageUrl)}
+          onError={handleImageError}
           resizeMode="cover"
-          source={{ uri: imageUrl }}
+          source={{ uri: displayUri }}
           style={[styles.image, { borderRadius }]}
         />
       ) : (

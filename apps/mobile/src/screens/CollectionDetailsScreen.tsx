@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -9,9 +9,12 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  SectionList,
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -50,7 +53,7 @@ import {
   type CollectionColorValue,
 } from '../collections/collectionColors';
 import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
-import { isCollectionLockedError, useCollectionItems } from '../collections/useCollectionItems';
+import { isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -62,6 +65,8 @@ import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
+import { useNearEndLoadMore } from '../components/useNearEndLoadMore';
 import { EditIcon } from '../icons/EditIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
@@ -70,8 +75,9 @@ import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
-import { sortCollectionItems } from '../collections/sortCollectionItems';
+import { groupCollectionItemsByDate, sortCollectionItemsByName } from '../collections/sortCollectionItems';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
+import { todayDateKey } from '../items/historyDateGrouping';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useSortPreference } from '../settings/sortPreference';
@@ -256,6 +262,21 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // it runs right after a successful unlock, so the user never has to find the menu again.
   const [pendingUnlockAction, setPendingUnlockAction] = useState<(() => void) | null>(null);
 
+  // Independent of view mode on purpose - switching List/Grid must never reset the chosen sort
+  // (this round's explicit "View mode를 바꿔도 현재 sort 유지" requirement). Both are separately
+  // persisted screen preferences (see viewModePreference.ts/sortPreference.ts), not one combined
+  // state.
+  const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
+  const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
+  // 이름순 needs the whole Collection (see NAME_ORDER_MAX_LINKS): a larger one - known up front
+  // from its link count, or found while loading - stays on 일자순 instead of a partial name order.
+  const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
+  const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
+  const effectiveSort = sortOption === 'title' && isNameOrderUnavailable ? 'newest' : sortOption;
+  // 일자순 (newest ↓ / oldest ↑) is ordered by the server over the whole Collection and paged as
+  // the list scrolls; 이름순 loads the whole Collection first and sorts it here.
+  const dateSortDirection = effectiveSort === 'title' ? null : effectiveSort;
+
   const {
     items,
     isLoading,
@@ -263,19 +284,66 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     isLoadingMore,
     error,
     isLocked: isContentLocked,
+    hasMore,
+    isTooLargeForNameOrder,
     refresh,
     loadMore,
     removeLocally,
-  } = useCollectionItems(collectionId);
+  } = useCollectionItems(collectionId, dateSortDirection === null ? 'whole' : dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc');
 
-  // Independent of view mode on purpose - switching List/Grid must never reset the chosen sort
-  // (this round's explicit "View mode를 바꿔도 현재 sort 유지" requirement). Both are separately
-  // persisted screen preferences (see viewModePreference.ts/sortPreference.ts), not one combined
-  // state. Applied as a pure display-time re-sort over whatever `items` currently holds (see
-  // sortCollectionItems's own remarks) - never mutates load/pagination itself.
-  const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
-  const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
-  const sortedItems = sortCollectionItems(items, sortOption);
+  useEffect(() => {
+    if (isTooLargeForNameOrder) {
+      setIsNameOrderTooLarge(true);
+      setNotice(t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }));
+    }
+  }, [isTooLargeForNameOrder, t]);
+
+  // Name order only ever over the whole Collection (the 'whole' load publishes nothing until every
+  // link is in); date order exactly as the server returned it - never re-sorted here.
+  const displayedItems = useMemo(
+    () => (dateSortDirection === null ? sortCollectionItemsByName(items) : items),
+    [dateSortDirection, items],
+  );
+  const dateSections = useMemo(
+    () => (dateSortDirection ? groupCollectionItemsByDate(items, dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc', t) : []),
+    [dateSortDirection, items, t],
+  );
+  // Which date sections are open - chosen once (today's, else the first), then only by the user: a
+  // refresh, a page that loads more, a removed link or flipping ↓/↑ never resets it (section keys
+  // are the same in both directions).
+  const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
+  useEffect(() => {
+    if (expandedDateKeys !== null || dateSections.length === 0) {
+      return;
+    }
+    const initialKey = dateSections.find(section => section.dateKey === todayDateKey())?.dateKey ?? dateSections[0]?.dateKey;
+    if (initialKey) {
+      setExpandedDateKeys(new Set([initialKey]));
+    }
+  }, [dateSections, expandedDateKeys]);
+  const toggleDateSection = (dateKey: string) => {
+    setExpandedDateKeys(previous => {
+      const next = new Set(previous ?? []);
+      if (next.has(dateKey)) {
+        next.delete(dateKey);
+      } else {
+        next.add(dateKey);
+      }
+      return next;
+    });
+  };
+  /** 일자순: first press picks it (newest first); pressed again it flips ↓ newest ↔ ↑ oldest. */
+  const pressDateSort = () => setSortOption(effectiveSort === 'newest' ? 'oldest' : 'newest');
+  /** 이름순, unless this Collection is too large to be name-ordered as a whole - then it says so. */
+  const pressNameSort = () => {
+    if (isNameOrderUnavailable) {
+      setNotice(t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }));
+      return;
+    }
+    setSortOption('title');
+  };
+  // Collapsed dates can absorb a whole page without the list growing - keep paging near the end.
+  const nearEndLoadMore = useNearEndLoadMore({ hasMore, isLoadingMore, loadedCount: items.length, loadMore });
   // Who added each link - only where more than one person can add (see shouldShowItemAdders).
   const showItemAdders = shouldShowItemAdders(collection, items);
 
@@ -451,11 +519,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         onUndo: async () => {
           await restoreCollection(authenticatedRequest, collectionId);
           syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-          navigation.navigate('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
+          navigation.popTo('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
         },
         undoErrorMessage: t('toast.undoCollectionDeleteError'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'),
       });
-      navigation.replace('MainTabs', {
+      // Back to the MainTabs already under this screen - never a new one (replace, or navigate in
+      // React Navigation 7, would mount fresh tabs and lose the Collections filter, History's
+      // scroll/expanded dates and Home's state). The refreshToken makes Collections reload.
+      navigation.popTo('MainTabs', {
         screen: 'Collections',
         params: { refreshToken: Date.now() },
       });
@@ -660,184 +731,244 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const participantSummary = formatParticipantSummary(collection, t);
 
+  /**
+   * One link of this Collection as a swipeable List row or Grid tile - the same in the flat 이름순
+   * list and inside a 일자순 date section (which passes its accordion card's own row style).
+   */
+  const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>) => {
+    // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
+    // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
+    const isMine = item.isMine !== false;
+    const canManageItem = isOwner && isMine;
+    const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
+    const addedByLabel = showItemAdders ? formatItemAdder(item.addedBy, t) : null;
+    return (
+      <SwipeableItemRow
+        containerStyle={containerStyle ?? [styles.row, viewMode === 'grid' && styles.gridCard]}
+        disabled={itemActionInFlightId !== null || isRefreshing}
+        // Removing a link from the Category is Owner-only (it never deletes anyone's Item).
+        onDelete={isOwner ? () => confirmUnlinkItem(item.itemId) : undefined}
+        deleteLabel={t('collections.removeFromCollection')}
+        // Grid tiles have no room for a separate trailing "More" button (see SavedLinkGridCard) -
+        // long-press reaches the exact same Add/Move menu List mode's trailingAction opens, so
+        // Grid never loses that functionality, only its always-visible affordance.
+        onLongPress={canManageItem ? openItemMenu : undefined}
+        onPress={() => {
+          if (isMine) {
+            // Opened from this Collection: its delete action removes the link from here only.
+            navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: isOwner } });
+          } else {
+            navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId });
+          }
+        }}
+        onShare={() => shareItemAction(item)}
+      >
+        {/* Exactly Home/History's own row/tile - see SavedLinkRow.tsx/SavedLinkGridCard.tsx -
+            so a Category's link cards are visually indistinguishable from the same Item shown
+            anywhere else in the app. dateDisplayMode="dateTime" (not the default "time")
+            because a Category's items span arbitrary dates, never a single grouped day the way
+            a History section does - matches this row's own prior "always show the full date"
+            behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
+        {viewMode === 'grid' ? (
+          <SavedLinkGridCard addedByLabel={addedByLabel} dateDisplayMode="dateTime" isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+        ) : (
+          <SavedLinkRow
+            addedByLabel={addedByLabel}
+            dateDisplayMode="dateTime"
+            isActionInFlight={itemActionInFlightId === item.itemId}
+            item={toSavedLinkRowItem(item)}
+            preferEffectiveThumbnail
+            trailingAction={canManageItem ? { accessibilityLabel: t('collections.itemManageAction'), onPress: openItemMenu } : undefined}
+          />
+        )}
+      </SwipeableItemRow>
+    );
+  };
+
+  const listHeader = (
+    <View>
+      <View>
+          <View style={styles.headerTitleRow}>
+            <View style={styles.headerIconBadge}>
+              <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={32} />
+            </View>
+            <Text style={styles.title}>{collection.name}</Text>
+            {isCollectionLocked(collection) ? (
+              <View accessibilityLabel={t('collections.lockedA11y')} testID="collection-details-locked">
+                <LockIcon color={colors.textSecondary} size={18} />
+              </View>
+            ) : null}
+          </View>
+          {participantSummary ? (
+            <Pressable
+              accessibilityHint={t('collections.participantsTitle')}
+              accessibilityRole="button"
+              onPress={() => setIsParticipantsSheetVisible(true)}
+              style={styles.sharedByRow}
+              testID="collection-details-participants"
+            >
+              <PeopleIcon color={colors.brand} size={14} />
+              <Text numberOfLines={1} style={styles.sharedByText}>{participantSummary}</Text>
+            </Pressable>
+          ) : null}
+          <View style={styles.headerMetaRow}>
+            <Text style={styles.itemCount}>
+              {t('collections.detailItemCount', { count: collection.itemCount })}
+            </Text>
+            <View style={styles.headerActions}>
+              {/* The caller's own favorite mark - a Contributor has one too; it changes
+                  nothing for anyone else, so it is not an Owner-only control. */}
+              <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton} testID="collection-details-favorite">
+                <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
+              </Pressable>
+            {isOwner ? (
+            <>
+              <Pressable accessibilityLabel={t('common.edit')} accessibilityRole="button" onPress={() => runUnlocked(openEditDialog)} style={styles.iconButton} testID="collection-details-edit">
+                <EditIcon color={colors.textPrimary} size={20} />
+              </Pressable>
+              {/* The single entry point for sharing - opens the one Share screen;
+                  tapping it never turns anything on by itself. */}
+              <Pressable
+                accessibilityLabel={t('collections.shareAction')}
+                accessibilityRole="button"
+                onPress={() => runUnlocked(() => navigation.navigate('CollectionShare', { collectionId }))}
+                style={styles.iconButton}
+                testID="collection-details-share"
+              >
+                <ShareIcon color={colors.textPrimary} size={20} />
+              </Pressable>
+              <Pressable accessibilityLabel={t('collections.manageAction')} accessibilityRole="button" onPress={() => setIsCollectionMenuVisible(true)} style={styles.iconButton}><MoreIcon color={colors.textSecondary} size={20} /></Pressable>
+              <Pressable
+                accessibilityLabel={t('common.delete')}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
+                disabled={isDeletingCollection}
+                onPress={() => runUnlocked(confirmDeleteCollection)}
+                testID="collection-details-delete"
+                style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
+              >
+                <TrashIcon color={colors.danger} size={20} />
+              </Pressable>
+            </>
+            ) : null}
+            </View>
+          </View>
+      </View>
+      {/* View mode (List/Grid) and sort are two independent, separately-persisted
+          preferences (see useViewModePreference/useSortPreference) - switching one never
+          resets the other, this round's explicit requirement. */}
+      <View style={styles.sortRow}>
+        <Pressable
+          accessibilityLabel={
+            effectiveSort === 'oldest' ? t('collections.sortDateOldestA11y') : t('collections.sortDateNewestA11y')
+          }
+          accessibilityRole="button"
+          accessibilityState={{ selected: dateSortDirection !== null }}
+          onPress={pressDateSort}
+          style={[styles.sortChip, dateSortDirection !== null && styles.sortChipSelected]}
+          testID="collection-sort-date"
+        >
+          <Text style={[styles.sortChipLabel, dateSortDirection !== null && styles.sortChipLabelSelected]}>
+            {dateSortDirection === null
+              ? t('collections.sortDate')
+              : `${t('collections.sortDate')} ${dateSortDirection === 'oldest' ? '↑' : '↓'}`}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: effectiveSort === 'title' }}
+          onPress={pressNameSort}
+          style={[styles.sortChip, effectiveSort === 'title' && styles.sortChipSelected]}
+          testID="collection-sort-name"
+        >
+          <Text style={[styles.sortChipLabel, effectiveSort === 'title' && styles.sortChipLabelSelected]}>
+            {t('collections.sortName')}
+          </Text>
+        </Pressable>
+        <View style={styles.sortRowSpacer} />
+        <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+      </View>
+      {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
+
+      {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
+      {removeError ? <Text style={styles.error}>{removeError}</Text> : null}
+      {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </View>
+  );
+
+  const listEmpty = isContentLocked ? (
+    <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} onUnlocked={refresh} />
+  ) : isLoading ? (
+    <ActivityIndicator style={styles.listLoading} testID="collection-items-loading" />
+  ) : !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined;
+
+  const listFooter = isLoadingMore ? (
+    <View style={styles.footerLoading}>
+      <ActivityIndicator />
+    </View>
+  ) : undefined;
+
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <FlatList
-        key={viewMode}
-        contentContainerStyle={styles.content}
-        style={styles.list}
-        data={isContentLocked ? [] : sortedItems}
-        keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
-        numColumns={viewMode === 'grid' ? 2 : 1}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
-        ListHeaderComponent={
-          <View>
-            <View>
-                <View style={styles.headerTitleRow}>
-                  <View style={styles.headerIconBadge}>
-                    <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} size={32} />
-                  </View>
-                  <Text style={styles.title}>{collection.name}</Text>
-                  {isCollectionLocked(collection) ? (
-                    <View accessibilityLabel={t('collections.lockedA11y')} testID="collection-details-locked">
-                      <LockIcon color={colors.textSecondary} size={18} />
-                    </View>
-                  ) : null}
+      {dateSortDirection && !isContentLocked ? (
+        <SectionList
+          key={viewMode}
+          contentContainerStyle={styles.content}
+          style={styles.list}
+          sections={dateSections.map(section => ({
+            ...section,
+            data: viewMode === 'list' && expandedDateKeys?.has(section.dateKey) ? section.items : [],
+          }))}
+          keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
+          {...nearEndLoadMore}
+          onEndReached={loadMore}
+          onEndReachedThreshold={1}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          onScrollBeginDrag={closeOpenRow}
+          renderSectionHeader={({ section }) => (
+            <DateSectionHeader
+              count={section.items.length}
+              isExpanded={expandedDateKeys?.has(section.dateKey) ?? false}
+              label={section.label}
+              onPress={() => toggleDateSection(section.dateKey)}
+            />
+          )}
+          renderItem={({ item, index, section }) =>
+            renderCollectionItem(item, [dateAccordionStyles.row, index === section.data.length - 1 && dateAccordionStyles.rowLast])
+          }
+          renderSectionFooter={({ section }) =>
+            viewMode === 'grid' && expandedDateKeys?.has(section.dateKey) ? (
+              <View style={dateAccordionStyles.gridBody} testID={`collection-date-grid-${section.dateKey}`}>
+                <View style={dateAccordionStyles.gridWrap}>
+                  {section.items.map(item => <Fragment key={item.itemId}>{renderCollectionItem(item, styles.gridCard)}</Fragment>)}
                 </View>
-                {participantSummary ? (
-                  <Pressable
-                    accessibilityHint={t('collections.participantsTitle')}
-                    accessibilityRole="button"
-                    onPress={() => setIsParticipantsSheetVisible(true)}
-                    style={styles.sharedByRow}
-                    testID="collection-details-participants"
-                  >
-                    <PeopleIcon color={colors.brand} size={14} />
-                    <Text numberOfLines={1} style={styles.sharedByText}>{participantSummary}</Text>
-                  </Pressable>
-                ) : null}
-                <View style={styles.headerMetaRow}>
-                  <Text style={styles.itemCount}>
-                    {t('collections.detailItemCount', { count: collection.itemCount })}
-                  </Text>
-                  <View style={styles.headerActions}>
-                    {/* The caller's own favorite mark - a Contributor has one too; it changes
-                        nothing for anyone else, so it is not an Owner-only control. */}
-                    <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton} testID="collection-details-favorite">
-                      <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
-                    </Pressable>
-                  {isOwner ? (
-                  <>
-                    <Pressable accessibilityLabel={t('common.edit')} accessibilityRole="button" onPress={() => runUnlocked(openEditDialog)} style={styles.iconButton} testID="collection-details-edit">
-                      <EditIcon color={colors.textPrimary} size={20} />
-                    </Pressable>
-                    {/* The single entry point for sharing - opens the one Share screen;
-                        tapping it never turns anything on by itself. */}
-                    <Pressable
-                      accessibilityLabel={t('collections.shareAction')}
-                      accessibilityRole="button"
-                      onPress={() => runUnlocked(() => navigation.navigate('CollectionShare', { collectionId }))}
-                      style={styles.iconButton}
-                      testID="collection-details-share"
-                    >
-                      <ShareIcon color={colors.textPrimary} size={20} />
-                    </Pressable>
-                    <Pressable accessibilityLabel={t('collections.manageAction')} accessibilityRole="button" onPress={() => setIsCollectionMenuVisible(true)} style={styles.iconButton}><MoreIcon color={colors.textSecondary} size={20} /></Pressable>
-                    <Pressable
-                      accessibilityLabel={t('common.delete')}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: isDeletingCollection, busy: isDeletingCollection }}
-                      disabled={isDeletingCollection}
-                      onPress={() => runUnlocked(confirmDeleteCollection)}
-                      testID="collection-details-delete"
-                      style={[styles.iconButton, isDeletingCollection && styles.disabledButton]}
-                    >
-                      <TrashIcon color={colors.danger} size={20} />
-                    </Pressable>
-                  </>
-                  ) : null}
-                  </View>
-                </View>
-            </View>
-            {/* View mode (List/Grid) and sort are two independent, separately-persisted
-                preferences (see useViewModePreference/useSortPreference) - switching one never
-                resets the other, this round's explicit requirement. */}
-            <View style={styles.sortRow}>
-              {(
-                [
-                  ['newest', t('collections.sortNewest')],
-                  ['oldest', t('collections.sortOldest')],
-                  ['title', t('collections.sortTitle')],
-                ] as const
-              ).map(([option, label]) => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: sortOption === option }}
-                  key={option}
-                  onPress={() => setSortOption(option)}
-                  style={[styles.sortChip, sortOption === option && styles.sortChipSelected]}
-                >
-                  <Text style={[styles.sortChipLabel, sortOption === option && styles.sortChipLabelSelected]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              ))}
-              <View style={styles.sortRowSpacer} />
-              <ViewModeToggle onChange={changeViewMode} value={viewMode} />
-            </View>
-            {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-
-            {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
-            {removeError ? <Text style={styles.error}>{removeError}</Text> : null}
-            {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-          </View>
-        }
-        ListEmptyComponent={
-          isContentLocked ? (
-            <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} onUnlocked={refresh} />
-          ) : !isLoading && !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined
-        }
-        onScrollBeginDrag={closeOpenRow}
-        renderItem={({ item }) => {
-          // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
-          // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
-          const isMine = item.isMine !== false;
-          const canManageItem = isOwner && isMine;
-          const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
-          const addedByLabel = showItemAdders ? formatItemAdder(item.addedBy, t) : null;
-          return (
-          <SwipeableItemRow
-            containerStyle={[styles.row, viewMode === 'grid' && styles.gridCard]}
-            disabled={itemActionInFlightId !== null || isRefreshing}
-            // Removing a link from the Category is Owner-only (it never deletes anyone's Item).
-            onDelete={isOwner ? () => confirmUnlinkItem(item.itemId) : undefined}
-            deleteLabel={t('collections.removeFromCollection')}
-            // Grid tiles have no room for a separate trailing "More" button (see SavedLinkGridCard) -
-            // long-press reaches the exact same Add/Move menu List mode's trailingAction opens, so
-            // Grid never loses that functionality, only its always-visible affordance.
-            onLongPress={canManageItem ? openItemMenu : undefined}
-            onPress={() => {
-              if (isMine) {
-                // Opened from this Collection: its delete action removes the link from here only.
-                navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: isOwner } });
-              } else {
-                navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId });
-              }
-            }}
-            onShare={() => shareItemAction(item)}
-          >
-            {/* Exactly Home/History's own row/tile - see SavedLinkRow.tsx/SavedLinkGridCard.tsx -
-                so a Category's link cards are visually indistinguishable from the same Item shown
-                anywhere else in the app. dateDisplayMode="dateTime" (not the default "time")
-                because a Category's items span arbitrary dates, never a single grouped day the way
-                a History section does - matches this row's own prior "always show the full date"
-                behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
-            {viewMode === 'grid' ? (
-              <SavedLinkGridCard addedByLabel={addedByLabel} dateDisplayMode="dateTime" isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
-            ) : (
-              <SavedLinkRow
-                addedByLabel={addedByLabel}
-                dateDisplayMode="dateTime"
-                isActionInFlight={itemActionInFlightId === item.itemId}
-                item={toSavedLinkRowItem(item)}
-                preferEffectiveThumbnail
-                trailingAction={canManageItem ? { accessibilityLabel: t('collections.itemManageAction'), onPress: openItemMenu } : undefined}
-              />
-            )}
-          </SwipeableItemRow>
-          );
-        }}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.footerLoading}>
-              <ActivityIndicator />
-            </View>
-          ) : undefined
-        }
-      />
+              </View>
+            ) : null
+          }
+          ListFooterComponent={listFooter}
+        />
+      ) : (
+        <FlatList
+          key={viewMode}
+          contentContainerStyle={styles.content}
+          style={styles.list}
+          data={isContentLocked ? [] : displayedItems}
+          keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
+          numColumns={viewMode === 'grid' ? 2 : 1}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          onScrollBeginDrag={closeOpenRow}
+          renderItem={({ item }) => renderCollectionItem(item)}
+          ListFooterComponent={listFooter}
+        />
+      )}
       <CategoryEditorDialog
         error={editError}
         initialColor={resolveEffectiveCollectionColorValue(collection.color, collection.id)}
@@ -1116,5 +1247,8 @@ const styles = StyleSheet.create({
   },
   footerLoading: {
     paddingVertical: 20,
+  },
+  listLoading: {
+    paddingVertical: spacing.xl,
   },
 });

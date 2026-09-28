@@ -1,3 +1,4 @@
+using Juple.Application.Collections;
 using Juple.Api.Collections;
 
 namespace Juple.UnitTests.Collections;
@@ -66,5 +67,26 @@ public sealed class CollectionsQueryParametersTests
         var parsed = CollectionsQueryParameters.TryParseItemId(value, out _);
 
         Assert.False(parsed);
+    }
+
+    [Theory]
+    [InlineData(null, CollectionItemSort.Manual)]
+    [InlineData("dateDesc", CollectionItemSort.DateDesc)]
+    [InlineData("dateAsc", CollectionItemSort.DateAsc)]
+    [InlineData("DATEASC", CollectionItemSort.DateAsc)]
+    public void TryParseItemSort_AcceptsNothingOrADateOrder(string? value, CollectionItemSort expected)
+    {
+        Assert.True(CollectionsQueryParameters.TryParseItemSort(value, out var sort));
+        Assert.Equal(expected, sort);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("name")]
+    [InlineData("title")]
+    [InlineData("newest")]
+    public void TryParseItemSort_RefusesAnythingElse(string value)
+    {
+        Assert.False(CollectionsQueryParameters.TryParseItemSort(value, out _));
     }
 }

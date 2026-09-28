@@ -251,14 +251,22 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
         var (set, replaced) = await store.SetIconImageAsync(_owner, _sharedId, first, DateTimeOffset.UtcNow);
         Assert.Null(replaced);
         Assert.Equal($"https://blob.example.test/{first}", set.IconImageUrl);
+        // The photo's own version: stable for the same photo on every response, never the Blob name.
+        Assert.NotNull(set.IconImageVersion);
+        Assert.DoesNotContain("first", set.IconImageVersion);
         _db.ChangeTracker.Clear();
 
         // A member sees the Owner's photo on both the detail and the list; the built-in icon stays.
-        Assert.Equal($"https://blob.example.test/{first}", (await store.GetAsync(_contributor, _sharedId)).IconImageUrl);
+        var memberView = await store.GetAsync(_contributor, _sharedId);
+        Assert.Equal($"https://blob.example.test/{first}", memberView.IconImageUrl);
+        Assert.Equal(set.IconImageVersion, memberView.IconImageVersion);
         var listed = Assert.Single((await store.ListSharedAsync(_contributor, null, null, null, 50)).Items);
         Assert.Equal($"https://blob.example.test/{first}", listed.IconImageUrl);
+        Assert.Equal(set.IconImageVersion, listed.IconImageVersion);
         Assert.Equal("Folder", listed.Icon);
-        Assert.Null((await store.GetAsync(_owner, _ownerOtherId)).IconImageUrl);
+        var withoutPhoto = await store.GetAsync(_owner, _ownerOtherId);
+        Assert.Null(withoutPhoto.IconImageUrl);
+        Assert.Null(withoutPhoto.IconImageVersion);
 
         // Never a member's (or a stranger's) to change.
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => store.SetIconImageAsync(_contributor, _sharedId, second, DateTimeOffset.UtcNow));
@@ -266,16 +274,22 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
         _db.ChangeTracker.Clear();
 
         // Replacing hands back the old Blob for deletion; clearing returns to the built-in icon.
-        Assert.Equal(first, (await store.SetIconImageAsync(_owner, _sharedId, second, DateTimeOffset.UtcNow)).ReplacedBlobName);
+        var (replacedView, replacedBlob) = await store.SetIconImageAsync(_owner, _sharedId, second, DateTimeOffset.UtcNow);
+        Assert.Equal(first, replacedBlob);
+        Assert.NotNull(replacedView.IconImageVersion);
+        Assert.NotEqual(set.IconImageVersion, replacedView.IconImageVersion);
         _db.ChangeTracker.Clear();
         var (cleared, clearedBlob) = await store.SetIconImageAsync(_owner, _sharedId, null, DateTimeOffset.UtcNow);
         Assert.Equal(second, clearedBlob);
         Assert.Null(cleared.IconImageUrl);
+        Assert.Null(cleared.IconImageVersion);
 
         // A store without photo storage (and every older response) simply has no URL.
         _db.ChangeTracker.Clear();
         await store.SetIconImageAsync(_owner, _sharedId, first, DateTimeOffset.UtcNow);
-        Assert.Null((await _collections.GetAsync(_owner, _sharedId)).IconImageUrl);
+        var unsigned = await _collections.GetAsync(_owner, _sharedId);
+        Assert.Null(unsigned.IconImageUrl);
+        Assert.Null(unsigned.IconImageVersion);
     }
 
     [Fact]
@@ -454,28 +468,32 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     // ---------- public share vs collaboration, reorganize guard ----------
 
     [Fact]
-    public async Task PublicShare_RequiresEveryoneToHaveItsPermission_IncludingPendingInvitations()
+    public async Task PublicShare_PermissionIsTheMinimum_IncludingPendingInvitations()
     {
-        // _sharedId has a Contributor member: 보기만 for everyone is refused, 링크 추가 is allowed.
-        var readConflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow));
-        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, readConflict.Code);
-        Assert.NotNull(await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow, CollectionSharePermission.Write));
+        // _sharedId has a Contributor member: 보기만 for everyone is allowed (a member may have more),
+        // and so is raising it to 링크 추가.
+        Assert.NotNull(await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow));
+        Assert.NotNull(await _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write, DateTimeOffset.UtcNow));
 
-        // A pending (default Contributor) invitation counts too.
+        // A pending Viewer invitation counts too: it blocks 링크 추가 for everyone, never 보기만.
         var pendingOnly = (await _collections.CreateAsync(_owner, "Pending", "PENDING", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
-        await _collaboration.InviteAsync(_owner, pendingOnly, await JupleIdOfAsync(_stranger));
-        await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _shares.EnableAsync(_owner, pendingOnly, NewPublicId(), DateTimeOffset.UtcNow));
+        await _collaboration.InviteAsync(_owner, pendingOnly, await JupleIdOfAsync(_stranger), CollectionCollaboratorRole.Viewer);
+        var writeConflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _shares.EnableAsync(_owner, pendingOnly, NewPublicId(), DateTimeOffset.UtcNow, CollectionSharePermission.Write));
+        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, writeConflict.Code);
+        Assert.NotNull(await _shares.EnableAsync(_owner, pendingOnly, NewPublicId(), DateTimeOffset.UtcNow));
 
-        // While 보기만 is on, only Viewers can be invited.
+        // While 보기만 is on, either role can be invited; while 링크 추가 is on, never a Viewer.
         var publicOne = (await _collections.CreateAsync(_owner, "Public", "PUBLIC", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         await _shares.EnableAsync(_owner, publicOne, NewPublicId(), DateTimeOffset.UtcNow);
         var strangerJupleId = await JupleIdOfAsync(_stranger);
+        var invited = await _collaboration.InviteAsync(_owner, publicOne, strangerJupleId);
+        await _collaboration.RevokeInvitationAsync(_owner, publicOne, invited.InvitationId);
+        await _shares.SetPermissionAsync(_owner, publicOne, CollectionSharePermission.Write, DateTimeOffset.UtcNow);
         var conflictWithShare = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _collaboration.InviteAsync(_owner, publicOne, strangerJupleId));
+            _collaboration.InviteAsync(_owner, publicOne, strangerJupleId, CollectionCollaboratorRole.Viewer));
         Assert.Equal(CollectionCollaborationConflictException.PublicShareActive, conflictWithShare.Code);
-        Assert.NotNull(await _collaboration.InviteAsync(_owner, publicOne, strangerJupleId, CollectionCollaboratorRole.Viewer));
+        Assert.NotNull(await _collaboration.InviteAsync(_owner, publicOne, strangerJupleId));
     }
 
     [Fact]

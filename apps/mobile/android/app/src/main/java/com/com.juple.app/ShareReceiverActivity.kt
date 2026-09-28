@@ -42,8 +42,10 @@ class ShareReceiverActivity : Activity() {
     )
 
     val preselectedCollectionId = resolvePreselectedCollectionId()
-    val pendingShareId = PendingShareQueue.capture(this, intent, preselectedCollectionId)
     val quickSaveOn = QuickSaveOnSharePreference.isEnabled(this)
+    // Marked as an automatic save from the start, so the foreground router never opens it for
+    // review while that save is still running (see IncomingShareRouter).
+    val pendingShareId = PendingShareQueue.capture(this, intent, preselectedCollectionId, autoSave = quickSaveOn)
     Log.d(LogTag, "captured pendingShare=${pendingShareId != null} quickSaveOn=$quickSaveOn")
 
     if (pendingShareId != null) {

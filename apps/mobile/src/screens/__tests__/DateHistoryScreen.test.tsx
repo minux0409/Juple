@@ -474,12 +474,12 @@ describe('DateHistoryScreen delete undo', () => {
 describe('DateHistoryScreen infinite loading', () => {
   const loadMore = jest.fn();
 
-  function mockHistory(hasMore: boolean) {
+  function mockHistory(hasMore: boolean, isLoadingMore = false, items = [makeItem({ id: 1, title: 'Only one', savedAtUtc: new Date().toISOString() })]) {
     jest.mocked(useItemHistory).mockReturnValue({
-      items: [makeItem({ id: 1, title: 'Only one', savedAtUtc: new Date().toISOString() })],
+      items,
       isLoading: false,
       isRefreshing: false,
-      isLoadingMore: false,
+      isLoadingMore,
       error: null,
       hasMore,
       refresh: jest.fn(),
@@ -514,6 +514,76 @@ describe('DateHistoryScreen infinite loading', () => {
       sectionList.props.onContentSizeChange(400, 2000);
     });
     expect(loadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('a page that lands inside a collapsed month (no height change) still loads the next one while the end is near', async () => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 2);
+    const firstPage = [makeItem({ id: 1, savedAtUtc: lastMonth.toISOString() })];
+    mockHistory(true, false, firstPage);
+    const renderer = await renderScreen();
+    const sectionList = renderer.root.findByType(SectionList);
+    await act(async () => {
+      sectionList.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } });
+      sectionList.props.onContentSizeChange(400, 1500);
+      sectionList.props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: 400 } } });
+    });
+    loadMore.mockClear();
+
+    // A page is in flight: nothing more is asked for until it lands.
+    mockHistory(true, true, firstPage);
+    await act(async () => {
+      renderer.update(<AppToastProvider><DateHistoryScreen /></AppToastProvider>);
+    });
+    expect(loadMore).not.toHaveBeenCalled();
+
+    // It lands in the same collapsed month - the list is exactly as tall as before, so
+    // onEndReached would never fire again; the near-end re-check asks for the next page.
+    mockHistory(true, false, [...firstPage, makeItem({ id: 2, savedAtUtc: lastMonth.toISOString() })]);
+    await act(async () => {
+      renderer.update(<AppToastProvider><DateHistoryScreen /></AppToastProvider>);
+    });
+    expect(loadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not load ahead while the user is far from the end', async () => {
+    mockHistory(true);
+    const renderer = await renderScreen();
+    const sectionList = renderer.root.findByType(SectionList);
+    await act(async () => {
+      sectionList.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } });
+      sectionList.props.onScroll({ nativeEvent: { contentOffset: { x: 0, y: 0 } } });
+      sectionList.props.onContentSizeChange(400, 5000);
+    });
+    loadMore.mockClear();
+
+    mockHistory(true, false, [makeItem({ id: 1 }), makeItem({ id: 2 })]);
+    await act(async () => {
+      renderer.update(<AppToastProvider><DateHistoryScreen /></AppToastProvider>);
+    });
+    expect(loadMore).not.toHaveBeenCalled();
+  });
+
+  it('keeps each date section open or closed across a page that loads more', async () => {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 2);
+    const today = makeItem({ id: 1, title: 'Today link' });
+    mockHistory(true, false, [today, makeItem({ id: 2, savedAtUtc: lastMonth.toISOString() })]);
+    const renderer = await renderScreen();
+    const monthKey = () => renderer.root.findByType(SectionList).props.sections.find((section: { dateKey: string }) => section.dateKey.startsWith('month:'));
+    // Open the older month, then a page lands with more of that month.
+    const header = renderer.root.findByType(SectionList).props.renderSectionHeader({ section: monthKey() });
+    await act(async () => {
+      header.props.onPress();
+    });
+    mockHistory(true, false, [today, makeItem({ id: 2, savedAtUtc: lastMonth.toISOString() }), makeItem({ id: 3, savedAtUtc: lastMonth.toISOString() })]);
+    await act(async () => {
+      renderer.update(<AppToastProvider><DateHistoryScreen /></AppToastProvider>);
+    });
+
+    const sections = renderer.root.findByType(SectionList).props.sections;
+    expect(sections[0].data.map((item: ItemHistoryEntry) => item.id)).toEqual([1]);
+    expect(monthKey().data.map((item: ItemHistoryEntry) => item.id)).toEqual([2, 3]);
   });
 
   it('never asks past the last page', async () => {

@@ -27,6 +27,12 @@ export interface Collection {
    * built-in `icon` glyph (which stays as the fallback). Null/absent: no photo.
    */
   readonly iconImageUrl?: string | null;
+  /**
+   * Stable identity of that photo: the same while it stays, new once it is replaced, null with no
+   * photo. The image cache keys on this (see collectionIconImageCache) - never on the signed URL,
+   * which is different in every response. Absent from an older server.
+   */
+  readonly iconImageVersion?: string | null;
   /** Contributor view only: the Owner's public Juple ID. */
   readonly ownerJupleId?: string | null;
   /** Contributor view only: the Owner's chosen display name (null when they have not set one). */
@@ -372,7 +378,15 @@ export interface GetCollectionItemsOptions {
   readonly cursor?: string;
   /** Short-lived grant from unlockCollection, required while the Collection is locked. */
   readonly unlockToken?: string | null;
+  /**
+   * The whole Collection by when each link was added - newest ('dateDesc') or oldest ('dateAsc')
+   * first. A cursor is only valid with the sort that issued it. Omitted: the server's original
+   * manual order.
+   */
+  readonly sort?: CollectionItemsSort;
 }
+
+export type CollectionItemsSort = 'dateDesc' | 'dateAsc';
 
 /** The request header the unlock grant travels in (a header, so it never lands in a URL/log line). */
 export const COLLECTION_UNLOCK_HEADER = COLLECTION_UNLOCK_HEADER_NAME;
@@ -381,7 +395,7 @@ function unlockHeaders(unlockToken: string | null | undefined): Readonly<Record<
   return unlockToken ? { [COLLECTION_UNLOCK_HEADER]: unlockToken } : undefined;
 }
 
-/** A Collection's Item list, newest-added-first - always paginated, a Collection's size is unbounded. */
+/** A Collection's Item list (see GetCollectionItemsOptions.sort) - always paginated, a Collection's size is unbounded. */
 export async function getCollectionItems(
   request: AuthenticatedApiRequest,
   collectionId: number,
@@ -393,6 +407,9 @@ export async function getCollectionItems(
   }
   if (options.cursor) {
     query.set('cursor', options.cursor);
+  }
+  if (options.sort) {
+    query.set('sort', options.sort);
   }
   const queryString = query.toString();
 

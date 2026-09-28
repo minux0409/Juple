@@ -12,6 +12,17 @@ export interface PendingShare {
   /** Always null - reserved wire-format field, kept for native queue schema compatibility with a since-removed Quick Save composer draft. */
   readonly draftTitle: string | null;
   readonly draftCollectionId: number | null;
+  /**
+   * Captured with Quick Save ON, so a background save was started for it immediately. Absent on a
+   * share queued by an older build (treated as false).
+   */
+  readonly autoSave?: boolean;
+  /**
+   * The last reported outcome of that background save while the share is still pending
+   * (reviewRequired, authenticationRequired, retryableFailure, permanentFailure), or null while no
+   * attempt has ended yet - a successful save removes the share instead.
+   */
+  readonly autoSaveOutcome?: string | null;
 }
 
 export interface CategorySnapshotEntry {

@@ -3,7 +3,7 @@ import i18n from '../i18n';
 import { formatDateOnly } from './dateOnly';
 import type { ItemHistoryEntry } from './api/itemsApi';
 
-export interface HistorySection {
+export interface HistorySection<T = ItemHistoryEntry> {
   /**
    * Unique per section. "YYYY-MM-DD" for Today/Yesterday (the device's local calendar date - never
    * a UTC substring, see formatDateOnly), the literal "thisWeek" for the current-week bucket, or
@@ -13,7 +13,7 @@ export interface HistorySection {
   readonly dateKey: string;
   /** Localized "오늘"/"Today", "어제"/"Yesterday", "이번 주"/"This week", or a localized "YYYY년 M월"-style month label. */
   readonly label: string;
-  readonly items: readonly ItemHistoryEntry[];
+  readonly items: readonly T[];
   /**
    * Today/Yesterday sections are exactly one calendar day, so a per-item time-of-day is
    * unambiguous. "This week" and month sections each span multiple days, so their rows must show
@@ -61,19 +61,36 @@ export function groupHistoryByLocalDate(
   items: readonly ItemHistoryEntry[],
   t: TFunction,
 ): readonly HistorySection[] {
+  return groupByLocalDate(items, t, item => item.savedAtUtc);
+}
+
+/**
+ * The same 오늘 / 어제 / 이번 주 / month buckets for any date-ordered list of entries (e.g. a
+ * Collection's links by the time they were added) - one grouping rule for every date-grouped list,
+ * never a second copy of it. `items` must already be in `order` (newest or oldest first - the order
+ * comes from the caller's data, e.g. the server; nothing is re-sorted here): 'newestFirst' lays the
+ * sections out 오늘 → 어제 → 이번 주 → newer months → older months, 'oldestFirst' the exact reverse,
+ * and each section keeps its entries in the input order, so they read in the same direction.
+ */
+export function groupByLocalDate<T>(
+  items: readonly T[],
+  t: TFunction,
+  savedAtUtcOf: (item: T) => string,
+  order: 'newestFirst' | 'oldestFirst' = 'newestFirst',
+): readonly HistorySection<T>[] {
   const now = new Date();
   const todayKey = formatDateOnly(now);
   const yesterdayKey = formatDateOnly(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
   const weekStartKey = startOfWeekKey(now);
 
-  const todayItems: ItemHistoryEntry[] = [];
-  const yesterdayItems: ItemHistoryEntry[] = [];
-  const thisWeekItems: ItemHistoryEntry[] = [];
+  const todayItems: T[] = [];
+  const yesterdayItems: T[] = [];
+  const thisWeekItems: T[] = [];
   const monthOrder: string[] = [];
-  const monthItems = new Map<string, ItemHistoryEntry[]>();
+  const monthItems = new Map<string, T[]>();
 
   for (const item of items) {
-    const key = formatDateOnly(new Date(item.savedAtUtc));
+    const key = formatDateOnly(new Date(savedAtUtcOf(item)));
     if (key === todayKey) {
       todayItems.push(item);
     } else if (key === yesterdayKey) {
@@ -92,24 +109,23 @@ export function groupHistoryByLocalDate(
     }
   }
 
-  const sections: HistorySection[] = [];
+  const recentSections: HistorySection<T>[] = [];
   if (todayItems.length > 0) {
-    sections.push({ dateKey: todayKey, label: t('history.today'), items: todayItems, showItemDate: false });
+    recentSections.push({ dateKey: todayKey, label: t('history.today'), items: todayItems, showItemDate: false });
   }
   if (yesterdayItems.length > 0) {
-    sections.push({ dateKey: yesterdayKey, label: t('history.yesterday'), items: yesterdayItems, showItemDate: false });
+    recentSections.push({ dateKey: yesterdayKey, label: t('history.yesterday'), items: yesterdayItems, showItemDate: false });
   }
   if (thisWeekItems.length > 0) {
-    sections.push({ dateKey: 'thisWeek', label: t('history.thisWeek'), items: thisWeekItems, showItemDate: true });
+    recentSections.push({ dateKey: 'thisWeek', label: t('history.thisWeek'), items: thisWeekItems, showItemDate: true });
   }
-  for (const monthKey of monthOrder) {
-    sections.push({
-      dateKey: monthKey,
-      label: formatMonthLabel(monthKey),
-      items: monthItems.get(monthKey) ?? [],
-      showItemDate: true,
-    });
-  }
+  // Months appear in the order the (already ordered) input reaches them.
+  const monthSections = monthOrder.map<HistorySection<T>>(monthKey => ({
+    dateKey: monthKey,
+    label: formatMonthLabel(monthKey),
+    items: monthItems.get(monthKey) ?? [],
+    showItemDate: true,
+  }));
 
-  return sections;
+  return order === 'newestFirst' ? [...recentSections, ...monthSections] : [...monthSections, ...recentSections.reverse()];
 }

@@ -8,6 +8,7 @@ import {
   type Collection,
   type CollectionIconImageAsset,
 } from './api/collectionsApi';
+import { forgetCollectionIcon, rememberLocalCollectionIcon } from './collectionIconImageCache';
 
 /**
  * What the Collection editor decided about the icon photo: leave it, use a newly picked one, or go
@@ -61,17 +62,25 @@ export async function pickCollectionIconImage(t: TFunction): Promise<PickedIconI
   }
 }
 
-/** Applies the editor's photo decision to an existing Collection; resolves with the updated Collection. */
+/**
+ * Applies the editor's photo decision to an existing Collection; resolves with the updated
+ * Collection. A new photo is shown from the file just picked (already on this device) as soon as it
+ * is saved - never downloaded back first; a removed one is dropped from the image cache at once.
+ */
 export async function applyCollectionIconImageChange(
   request: AuthenticatedApiRequest,
   collection: Collection,
   change: CollectionIconImageChange,
 ): Promise<Collection> {
   if (change.kind === 'set') {
-    return setCollectionIconImage(request, collection.id, change.asset);
+    const updated = await setCollectionIconImage(request, collection.id, change.asset);
+    rememberLocalCollectionIcon(updated.id, updated.iconImageVersion, change.asset.uri);
+    return updated;
   }
   if (change.kind === 'remove' && collection.iconImageUrl) {
-    return removeCollectionIconImage(request, collection.id);
+    const updated = await removeCollectionIconImage(request, collection.id);
+    forgetCollectionIcon(collection.id);
+    return updated;
   }
   return collection;
 }

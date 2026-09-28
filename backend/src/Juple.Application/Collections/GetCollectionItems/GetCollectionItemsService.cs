@@ -14,12 +14,13 @@ public sealed class GetCollectionItemsService(
         CollectionItemPageCursor? cursor,
         int limit,
         string? unlockToken = null,
+        CollectionItemSort sort = CollectionItemSort.Manual,
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
 
         var (page, representativeImages, coverImages) = await collectionItemStore.GetItemsAsync(
-            userId, collectionId, cursor, limit, cancellationToken);
+            userId, collectionId, cursor, limit, sort, cancellationToken);
 
         var enrichedItems = new List<CollectionItemEntryDto>(page.Items.Count);
         foreach (var item in page.Items)

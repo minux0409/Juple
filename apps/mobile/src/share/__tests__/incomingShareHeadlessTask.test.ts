@@ -6,6 +6,7 @@ import { setItemPreviewImage, submitInstagramMetadataCandidate, updateItemDetail
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { fetchInstagramOpenGraphCandidate } from '../../urlMetadata/instagramOpenGraphFetch';
 import { ApiError } from '../../api/ApiError';
+import { onAutoSaveSettled } from '../autoSaveInFlight';
 
 jest.mock('../specs/NativeIncomingShare', () => ({
   __esModule: true,
@@ -278,6 +279,51 @@ describe('incomingShareHeadlessTask', () => {
     expect(saveInboxEntry).toHaveBeenNthCalledWith(1, expect.anything(), pendingShare.text, pendingShare.id);
     expect(saveInboxEntry).toHaveBeenNthCalledWith(2, expect.anything(), pendingShare.text, pendingShare.id);
     expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledTimes(1);
+  });
+
+  it('Quick Save ON, YouTube share (youtu.be + EXTRA_SUBJECT): saved directly with the video title and the metadata thumbnail, then acknowledged and signalled', async () => {
+    const settled = jest.fn();
+    const unsubscribe = onAutoSaveSettled(settled);
+    const pendingShare = makePendingShare({
+      id: 'yt-1',
+      text: 'https://youtu.be/dQw4w9WgXcQ?si=abc',
+      initialTitle: 'Rick Astley - Never Gonna Give You Up',
+      autoSave: true,
+    });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 77, url: pendingShare.text, savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    jest.mocked(resolveUrlMetadata).mockResolvedValue({
+      title: 'Rick Astley - Never Gonna Give You Up',
+      source: 'openGraph',
+      previewImageUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+    });
+
+    await task({ pendingShareId: 'yt-1' });
+
+    expect(saveInboxEntry).toHaveBeenCalledWith(expect.anything(), 'https://youtu.be/dQw4w9WgXcQ?si=abc', 'yt-1');
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 77, { title: 'Rick Astley - Never Gonna Give You Up', memo: '' });
+    expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 77, 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg');
+    expect(NativeIncomingShare!.acknowledgePendingShare).toHaveBeenCalledWith('yt-1');
+    expect(NativeIncomingShare!.reportAttemptOutcome).not.toHaveBeenCalled();
+    expect(settled).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it('a failed save reports its outcome first and then signals, so the share can be reviewed', async () => {
+    const order: string[] = [];
+    const unsubscribe = onAutoSaveSettled(() => order.push('settled'));
+    jest.mocked(NativeIncomingShare!.reportAttemptOutcome).mockImplementation(async () => {
+      order.push('reported');
+    });
+    const pendingShare = makePendingShare();
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('unavailable'));
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(order).toEqual(['reported', 'settled']);
+    unsubscribe();
   });
 
   it('does not acknowledge the pending share when the save fails', async () => {

@@ -303,7 +303,8 @@ public sealed class CollectionStore(
                 ParticipantPreview: preview,
                 OtherParticipantCount: otherParticipantCount,
                 IsPublicShareActive: isOwner && row.IsPublicShareActive,
-                IconImageUrl: iconImageUrls.GetValueOrDefault(row.Id));
+                IconImageUrl: iconImageUrls.GetValueOrDefault(row.Id),
+                IconImageVersion: iconImageUrls.ContainsKey(row.Id) ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null);
         }).ToList();
     }
 
@@ -607,8 +608,14 @@ public sealed class CollectionStore(
         long collectionId,
         CollectionItemPageCursor? cursor,
         int limit,
+        CollectionItemSort sort = CollectionItemSort.Manual,
         CancellationToken cancellationToken = default)
     {
+        if (cursor is not null && cursor.Sort != sort)
+        {
+            throw new ArgumentException("The cursor belongs to a different sort order.", nameof(cursor));
+        }
+
         if (!await CanViewAsync(userId, collectionId, cancellationToken))
         {
             throw new CollectionNotFoundException();
@@ -618,11 +625,23 @@ public sealed class CollectionStore(
             .AsNoTracking()
             .Where(membership => membership.CollectionId == collectionId);
 
+        // Keyset position after the previous page, in the requested order. The date orders are over
+        // the whole Collection (AddedAtUtc, ItemId) - never a re-sort of one page - and ItemId is
+        // unique within a Collection, so equal timestamps still page without duplicates or gaps.
         if (cursor is not null)
         {
-            membershipQuery = membershipQuery.Where(membership =>
-                membership.SortOrder > cursor.SortOrder
-                || (membership.SortOrder == cursor.SortOrder && membership.ItemId > cursor.ItemId));
+            membershipQuery = sort switch
+            {
+                CollectionItemSort.DateDesc => membershipQuery.Where(membership =>
+                    membership.AddedAtUtc < cursor.AddedAtUtc
+                    || (membership.AddedAtUtc == cursor.AddedAtUtc && membership.ItemId < cursor.ItemId)),
+                CollectionItemSort.DateAsc => membershipQuery.Where(membership =>
+                    membership.AddedAtUtc > cursor.AddedAtUtc
+                    || (membership.AddedAtUtc == cursor.AddedAtUtc && membership.ItemId > cursor.ItemId)),
+                _ => membershipQuery.Where(membership =>
+                    membership.SortOrder > cursor.SortOrder
+                    || (membership.SortOrder == cursor.SortOrder && membership.ItemId > cursor.ItemId)),
+            };
         }
 
         // Every active Item of this Collection, whoever owns it - access to the Collection (checked
@@ -634,7 +653,6 @@ public sealed class CollectionStore(
             join item in dbContext.Items.AsNoTracking()
                 .Where(item => item.DeletedAtUtc == null)
                 on membership.ItemId equals item.Id
-            orderby membership.SortOrder ascending, membership.ItemId ascending
             select new
             {
                 item.Id,
@@ -659,7 +677,14 @@ public sealed class CollectionStore(
                     .FirstOrDefault(),
             };
 
-        var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
+        var orderedQuery = sort switch
+        {
+            CollectionItemSort.DateDesc => pagedQuery.OrderByDescending(row => row.AddedAtUtc).ThenByDescending(row => row.Id),
+            CollectionItemSort.DateAsc => pagedQuery.OrderBy(row => row.AddedAtUtc).ThenBy(row => row.Id),
+            _ => pagedQuery.OrderBy(row => row.SortOrder).ThenBy(row => row.Id),
+        };
+
+        var page = await orderedQuery.Take(limit + 1).ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
@@ -691,9 +716,11 @@ public sealed class CollectionStore(
             }
         }
 
-        var nextCursor = hasMore
-            ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].Id)
-            : null;
+        var nextCursor = !hasMore
+            ? null
+            : sort == CollectionItemSort.Manual
+                ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].Id)
+                : CollectionItemPageCursor.ForDate(sort, pageRows[^1].AddedAtUtc, pageRows[^1].Id);
 
         return (new CollectionItemPage(items, nextCursor), representativeImages, coverImages);
     }

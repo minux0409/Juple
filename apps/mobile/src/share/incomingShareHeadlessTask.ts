@@ -1,5 +1,6 @@
 import { AppRegistry } from 'react-native';
 import NativeIncomingShare from './specs/NativeIncomingShare';
+import { notifyAutoSaveSettled } from './autoSaveInFlight';
 import { resolveIncomingShare } from './resolveIncomingShare';
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
@@ -97,6 +98,8 @@ async function reportOutcome(
     return;
   }
   await NativeIncomingShare.reportAttemptOutcome(pendingShareId, outcome);
+  // Not saved: the share may now be shown for review (see autoSaveInFlight.ts).
+  notifyAutoSaveSettled();
 }
 
 /**
@@ -227,6 +230,7 @@ async function incomingShareHeadlessTask(
 
   console.log('[IncomingShareHeadlessTask] success');
   await NativeIncomingShare.acknowledgePendingShare(pendingShare.id);
+  notifyAutoSaveSettled();
 
   // Instagram device fallback (see instagramDeviceFallback.ts) - only when the Backend's own
   // metadata left the title or image missing, and only after the share is saved and acknowledged,

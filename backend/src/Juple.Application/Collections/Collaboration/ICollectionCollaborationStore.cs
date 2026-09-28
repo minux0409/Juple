@@ -9,7 +9,7 @@ public interface ICollectionCollaborationStore
 {
     /// <summary>
     /// Creates a Pending invitation with the given role. Throws CollectionCollaborationConflictException
-    /// when a Contributor is invited while a public share is active (a Viewer coexists with it), the
+    /// when the role is below an active public share's permission (a Viewer while it grants 링크 추가), the
     /// user already is a collaborator, or an unexpired invitation is pending (stale expired ones are
     /// closed first).
     /// </summary>
@@ -32,7 +32,7 @@ public interface ICollectionCollaborationStore
     /// Changes a still-pending invitation's role, under the Collection row lock. 404
     /// (CollectionInvitationNotFoundException) for an invitation of another Collection;
     /// InvitationNotPending once it was answered/revoked/expired; PublicShareActive when changing
-    /// to Contributor while the public link is on (nothing is auto-disabled).
+    /// to Viewer while the public link grants 링크 추가 (nothing is auto-disabled).
     /// </summary>
     Task ChangeInvitationRoleAsync(
         long collectionId,
@@ -45,7 +45,7 @@ public interface ICollectionCollaborationStore
     /// <summary>
     /// Changes an accepted member's role, under the Collection row lock.
     /// CollectionCollaboratorNotFoundException when they are not a member; PublicShareActive when
-    /// changing to Contributor while the public link is on (nothing is auto-disabled).
+    /// changing to Viewer while the public link grants 링크 추가 (nothing is auto-disabled).
     /// </summary>
     Task ChangeCollaboratorRoleAsync(
         long collectionId,

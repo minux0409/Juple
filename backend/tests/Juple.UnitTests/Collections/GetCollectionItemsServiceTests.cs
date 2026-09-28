@@ -19,6 +19,20 @@ public sealed class GetCollectionItemsServiceTests
         Assert.Equal(9, store.LastCollectionId);
         Assert.Equal(cursor, store.LastCursor);
         Assert.Equal(2, store.LastLimit);
+        Assert.Equal(CollectionItemSort.Manual, store.LastSort);
+    }
+
+    [Theory]
+    [InlineData(CollectionItemSort.DateDesc)]
+    [InlineData(CollectionItemSort.DateAsc)]
+    public async Task GetAsync_PassesTheRequestedOrderThroughToStore(CollectionItemSort sort)
+    {
+        var store = new FakeCollectionItemStore();
+        var service = new GetCollectionItemsService(CollectionAccessTestDoubles.OwnerOf(9), store, new FakeItemImageStorage());
+
+        await service.GetAsync(17, 9, cursor: null, limit: 50, sort: sort);
+
+        Assert.Equal(sort, store.LastSort);
     }
 
     [Fact]
@@ -144,6 +158,8 @@ public sealed class GetCollectionItemsServiceTests
 
         public int? LastLimit { get; private set; }
 
+        public CollectionItemSort? LastSort { get; private set; }
+
         public IReadOnlyList<CollectionItemEntryDto> Items { get; init; } = [];
 
         public CollectionItemPageCursor? NextCursor { get; init; }
@@ -159,12 +175,14 @@ public sealed class GetCollectionItemsServiceTests
             long collectionId,
             CollectionItemPageCursor? cursor,
             int limit,
+            CollectionItemSort sort = CollectionItemSort.Manual,
             CancellationToken cancellationToken = default)
         {
             LastUserId = userId;
             LastCollectionId = collectionId;
             LastCursor = cursor;
             LastLimit = limit;
+            LastSort = sort;
 
             if (ThrowNotFound)
             {

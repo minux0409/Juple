@@ -31,6 +31,10 @@ object IncomingShareAttemptResultStore {
     prefs(context).edit().putString(pendingShareId, outcome).commit()
   }
 
+  /** The stored outcome for [pendingShareId], if any, without removing it (for the foreground router). */
+  fun peek(context: Context, pendingShareId: String): Outcome? =
+    Outcome.fromWireValue(prefs(context).getString(pendingShareId, null))
+
   /** Reads and removes the stored outcome for [pendingShareId], if any. */
   fun consume(context: Context, pendingShareId: String): Outcome? {
     val preferences = prefs(context)

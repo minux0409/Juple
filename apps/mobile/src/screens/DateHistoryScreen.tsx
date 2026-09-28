@@ -1,12 +1,11 @@
 import { useNavigation } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  Pressable,
   RefreshControl,
   SectionList,
   StyleSheet,
@@ -25,13 +24,14 @@ import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
-import { ChevronIcon } from '../icons/ChevronIcon';
+import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
+import { useNearEndLoadMore } from '../components/useNearEndLoadMore';
 import { groupHistoryByLocalDate, todayDateKey } from '../items/historyDateGrouping';
 import { useItemHistory } from '../items/useItemHistory';
 import { deleteItem, restoreItem, type ItemHistoryEntry } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
 
 function getHistoryDeleteErrorMessage(error: unknown, t: TFunction): string {
@@ -71,15 +71,9 @@ export function DateHistoryScreen() {
   const { items, isLoading, isRefreshing, isLoadingMore, error, hasMore, refresh, loadMore, removeItem } =
     useItemHistory();
 
-  // Older dates start collapsed, so a loaded page can be only a few header rows tall. When the list
-  // does not even fill the screen there is nothing to scroll and onEndReached may never fire -
-  // keep loading until it does (bounded by the viewport, never "all pages").
-  const viewportHeightRef = useRef(0);
-  const fillViewportIfShort = (contentHeight: number) => {
-    if (hasMore && viewportHeightRef.current > 0 && contentHeight < viewportHeightRef.current) {
-      loadMore();
-    }
-  };
+  // Older dates start collapsed, so a page can land without the list growing at all - the near-end
+  // re-check (see useNearEndLoadMore) keeps paging while the end is within about one screen.
+  const nearEndLoadMore = useNearEndLoadMore({ hasMore, isLoadingMore, loadedCount: items.length, loadMore });
 
   const sections = useMemo(() => groupHistoryByLocalDate(items, t), [items, t]);
 
@@ -168,13 +162,10 @@ export function DateHistoryScreen() {
           data: viewMode === 'list' && expandedDateKeys?.has(section.dateKey) ? section.items : [],
         }))}
         keyExtractor={item => item.id.toString()}
-        onContentSizeChange={(_width, height) => fillViewportIfShort(height)}
+        {...nearEndLoadMore}
         onEndReached={loadMore}
         // About one screen ahead, so the next page is usually in place before the user reaches it.
         onEndReachedThreshold={1}
-        onLayout={event => {
-          viewportHeightRef.current = event.nativeEvent.layout.height;
-        }}
         onScrollBeginDrag={closeOpenRow}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         stickySectionHeadersEnabled={false}
@@ -189,31 +180,19 @@ export function DateHistoryScreen() {
           </View>
         }
         ListEmptyComponent={!error ? <CenteredEmptyState message={t('history.empty')} /> : undefined}
-        renderSectionHeader={({ section }) => {
-          const isExpanded = expandedDateKeys?.has(section.dateKey) ?? false;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ expanded: isExpanded }}
-              onPress={() => toggleSection(section.dateKey)}
-              style={[styles.sectionHeader, !isExpanded && styles.sectionHeaderCollapsed]}
-            >
-              <Text style={styles.sectionHeaderLabel}>
-                {t('history.sectionHeader', { label: section.label, count: section.items.length })}
-              </Text>
-              <ChevronIcon
-                color={colors.textSecondary}
-                direction={isExpanded ? 'up' : 'down'}
-                size={18}
-              />
-            </Pressable>
-          );
-        }}
+        renderSectionHeader={({ section }) => (
+          <DateSectionHeader
+            count={section.items.length}
+            isExpanded={expandedDateKeys?.has(section.dateKey) ?? false}
+            label={section.label}
+            onPress={() => toggleSection(section.dateKey)}
+          />
+        )}
         renderItem={({ item, index, section }) => {
           const isLast = index === section.data.length - 1;
           return (
             <SwipeableItemRow
-              containerStyle={[styles.historyCard, isLast && styles.historyCardLast]}
+              containerStyle={[dateAccordionStyles.row, isLast && dateAccordionStyles.rowLast]}
               disabled={actionInFlightItemId !== null}
               onDelete={() => confirmDelete(item.id)}
               onPress={() => {
@@ -241,10 +220,10 @@ export function DateHistoryScreen() {
           }
           // Image view: the tiles are the body of the same accordion card as the header above -
           // side and bottom borders, rounded bottom corners and inner padding close the card, just
-          // like the list view's last row does (see historyCardLast).
+          // like the list view's last row does (see dateAccordionStyles.rowLast).
           return (
-            <View style={styles.gridSectionBody} testID={`history-grid-body-${section.dateKey}`}>
-              <View style={styles.gridWrap}>
+            <View style={dateAccordionStyles.gridBody} testID={`history-grid-body-${section.dateKey}`}>
+              <View style={dateAccordionStyles.gridWrap}>
                 {section.items.map(item => <SavedLinkGridCell key={item.id} dateDisplayMode={section.showItemDate ? 'dateTime' : 'time'} disabled={actionInFlightItemId !== null} isActionInFlight={actionInFlightItemId === item.id} item={item} onDelete={() => confirmDelete(item.id)} onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })} onShare={() => runShare(item)} preferEffectiveThumbnail />)}
               </View>
             </View>
@@ -309,69 +288,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.md,
   },
-  // A date section reads as one grouped card: the header always rounds its top corners, and only
-  // rounds its bottom corners (and gets a matching gap below) when collapsed - i.e. when it's the
-  // entire visible card for that date on its own. When expanded, that bottom corner/gap job moves
-  // to the section's last item instead (see historyCardLast), so there is exactly one gap between
-  // this date's card and the next, never a doubled one.
-  sectionHeader: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.inputBorder,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderTopWidth: 1,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  sectionHeaderCollapsed: {
-    borderBottomWidth: 1,
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
-    marginBottom: spacing.sm + 2,
-  },
-  sectionHeaderLabel: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  // Every item in an expanded section shares one continuous side border with the header above it
-  // (see sectionHeader) and a thin top separator - never a full bold rule, and inset from the
-  // screen edge by the same amount as the header/Home cards. Only the section's last item closes
-  // the shape off with rounded bottom corners and the gap before the next date's card.
-  historyCard: {
-    borderColor: colors.inputBorder,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderTopWidth: 1,
-  },
-  historyCardLast: {
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
-    borderBottomWidth: 1,
-    marginBottom: spacing.sm + 2,
-  },
   footerLoading: {
     paddingVertical: spacing.lg,
   },
-  // The expanded body of a date card in image view (see sectionHeader, which opens the card).
-  gridSectionBody: {
-    backgroundColor: colors.surface,
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
-    borderBottomWidth: 1,
-    borderColor: colors.inputBorder,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderTopWidth: 1,
-    marginBottom: spacing.sm + 2,
-    paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-  gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
 });

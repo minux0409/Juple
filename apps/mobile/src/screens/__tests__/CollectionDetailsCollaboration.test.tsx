@@ -1,7 +1,7 @@
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Switch, Text } from 'react-native';
+import { FlatList, SectionList, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
@@ -102,9 +102,33 @@ const mine = makeItem({ itemId: 1, title: 'Mine', isMine: true, memo: 'my memo' 
 const theirs = makeItem({ itemId: 2, title: 'Theirs', isMine: false });
 const lockedError = new ApiError('forbidden', 403, 'collectionLocked');
 
+
+/**
+ * The link list, whichever one the current sort renders: 일자순 (the default) is a date-grouped
+ * SectionList, 이름순 a flat FlatList. Exposed with FlatList-like props - `data` is every loaded
+ * link in display order, `renderItem` renders one row - so tests about rows and data do not depend
+ * on which of the two is on screen.
+ */
+function findItemList(
+  renderer: ReactTestRenderer.ReactTestRenderer | ReactTestRenderer.ReactTestInstance,
+): { readonly props: ReactTestRenderer.ReactTestInstance['props'] } {
+  const root = 'root' in renderer ? renderer.root : renderer;
+  const [sectionList] = root.findAllByType(SectionList);
+  if (!sectionList) {
+    return root.findByType(FlatList);
+  }
+  return {
+    props: {
+      ...sectionList.props,
+      data: sectionList.props.sections.flatMap((section: { items: readonly CollectionItemEntry[] }) => section.items),
+      renderItem: ({ item }: { item: CollectionItemEntry }) => sectionList.props.renderItem({ item, index: 0, section: { data: [item] } }),
+    },
+  };
+}
+
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: COLLECTION_ID } } as never;
 const mockNavigate = jest.fn();
-const navigation = { navigate: mockNavigate, goBack: jest.fn(), replace: jest.fn(), setParams: jest.fn() } as never;
+const navigation = { navigate: mockNavigate, goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams: jest.fn() } as never;
 
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
@@ -127,10 +151,10 @@ function renderPart(element: React.ReactElement) {
 }
 
 const header = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-  renderPart(renderer.root.findByType(FlatList).props.ListHeaderComponent);
+  renderPart(findItemList(renderer).props.ListHeaderComponent);
 
 const row = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
-  renderPart(renderer.root.findByType(FlatList).props.renderItem({ item, index: 0 }));
+  renderPart(findItemList(renderer).props.renderItem({ item, index: 0 }));
 
 const hasLabel = (part: ReactTestRenderer.ReactTestRenderer, label: string) =>
   part.root.findAll(node => node.props.accessibilityLabel === label).length > 0;
@@ -170,7 +194,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     }
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(getCollectionShare).not.toHaveBeenCalled();
-    expect(renderer.root.findByType(FlatList).props.data).toEqual([ownersLink]);
+    expect(findItemList(renderer).props.data).toEqual([ownersLink]);
   });
 
   it('opens a link only as the read-only shared view, and never offers removing, moving or reordering it', async () => {
@@ -209,7 +233,7 @@ describe('CollectionDetailsScreen - an unlock lasts for one visit', () => {
   });
 
   async function unlockFromThePanel(renderer: ReactTestRenderer.ReactTestRenderer) {
-    const panel = renderPart(renderer.root.findByType(FlatList).props.ListEmptyComponent);
+    const panel = renderPart(findItemList(renderer).props.ListEmptyComponent);
     await act(async () => {
       panel.root.findByProps({ testID: 'collection-unlock-password' }).props.onChangeText('correct horse');
     });
@@ -230,7 +254,7 @@ describe('CollectionDetailsScreen - an unlock lasts for one visit', () => {
     expect(getCollectionUnlockToken(COLLECTION_ID)).toBeNull();
 
     const again = await renderScreen();
-    expect(renderPart(again.root.findByType(FlatList).props.ListEmptyComponent).root
+    expect(renderPart(findItemList(again).props.ListEmptyComponent).root
       .findAll(node => node.props.testID === 'collection-unlock-panel').length).toBeGreaterThan(0);
     expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), COLLECTION_ID, expect.objectContaining({ unlockToken: null }));
   });
@@ -258,7 +282,7 @@ describe('CollectionDetailsScreen - an unlock lasts for one visit', () => {
     expect(renderer.root.findByType(CollectionParticipantsSheet).props.visible).toBe(false);
 
     expect(getCollectionUnlockToken(COLLECTION_ID)).toBe('visit-grant');
-    expect(renderer.root.findByType(FlatList).props.data).toEqual([mine]);
+    expect(findItemList(renderer).props.data).toEqual([mine]);
   });
 });
 
@@ -407,7 +431,7 @@ describe('CollectionDetailsScreen - locked Collection', () => {
   });
 
   const emptyArea = (renderer: ReactTestRenderer.ReactTestRenderer) => {
-    const list = renderer.root.findByType(FlatList);
+    const list = findItemList(renderer);
     return { list, part: list.props.ListEmptyComponent ? renderPart(list.props.ListEmptyComponent) : null };
   };
 
@@ -473,7 +497,7 @@ describe('CollectionDetailsScreen - locked Collection', () => {
     expect(unlockCollection).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 'correct horse');
     expect(getCollectionUnlockToken(COLLECTION_ID)).toBe('grant-1');
     expect(jest.mocked(getCollectionItems)).toHaveBeenLastCalledWith(expect.anything(), COLLECTION_ID, expect.objectContaining({ unlockToken: 'grant-1' }));
-    expect(renderer.root.findByType(FlatList).props.data).toEqual([theirs]);
+    expect(findItemList(renderer).props.data).toEqual([theirs]);
   });
 
   it('a grant already held for this visit loads the links without asking again', async () => {
@@ -483,7 +507,7 @@ describe('CollectionDetailsScreen - locked Collection', () => {
     const renderer = await renderScreen();
 
     expect(jest.mocked(getCollectionItems)).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, expect.objectContaining({ unlockToken: 'grant-2' }));
-    expect(renderer.root.findByType(FlatList).props.data).toEqual([theirs]);
+    expect(findItemList(renderer).props.data).toEqual([theirs]);
     expect(unlockCollection).not.toHaveBeenCalled();
   });
 
@@ -494,7 +518,7 @@ describe('CollectionDetailsScreen - locked Collection', () => {
     const renderer = await renderScreen();
 
     expect(getCollectionUnlockToken(COLLECTION_ID)).toBeNull();
-    expect(renderer.root.findByType(FlatList).props.data).toEqual([]);
+    expect(findItemList(renderer).props.data).toEqual([]);
     expect(emptyArea(renderer).part!.root.findAll(node => node.props.testID === 'collection-unlock-panel').length).toBeGreaterThan(0);
   });
 });

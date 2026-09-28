@@ -72,9 +72,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CollectionShare'>;
  */
 export const INVITE_CONCURRENCY = 3;
 
-/** While 모든 사용자 is on, every specific person gets exactly this role (a server rule too). */
-export function roleForPublicPermission(permission: PublicSharePermission): InvitationRole {
-  return permission === 'write' ? 'contributor' : 'viewer';
+/**
+ * While 모든 사용자 is on, its permission is the minimum every specific person has (a server rule
+ * too): under 읽기 전용 each person keeps their own choice (null - any role), under 링크 추가 가능
+ * everyone is 링크 추가 가능, since a lower role would misstate what the link already lets them do.
+ */
+export function minimumRoleForPublicPermission(permission: PublicSharePermission): InvitationRole | null {
+  return permission === 'write' ? 'contributor' : null;
 }
 
 /** A person waiting in the invitation batch - picked from friends or found by Juple ID - with their own 읽기 전용/링크 추가 가능. */
@@ -158,7 +162,13 @@ function getActionErrorMessage(error: unknown, t: TFunction): string {
   return t('collaboration.actionFallback');
 }
 
-function getShareManagementErrorMessage(error: unknown, t: TFunction): string {
+/**
+ * attemptedPermission: what the user just tried to turn 모든 사용자 into (null for stopping it). The
+ * "someone is 읽기 전용, so 링크 추가 can't apply to everyone" reason is only ever shown for an attempt
+ * to make it 링크 추가 가능 - the one case the server refuses it for (publicSharePermissionMismatch);
+ * 읽기 전용 is the minimum and never conflicts with anyone.
+ */
+function getShareManagementErrorMessage(error: unknown, t: TFunction, attemptedPermission: PublicSharePermission | null): string {
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }
@@ -166,7 +176,7 @@ function getShareManagementErrorMessage(error: unknown, t: TFunction): string {
     if (error.kind === 'unauthorized') {
       return t('errors.unauthorized');
     }
-    if (error.kind === 'conflict' && (error.code === 'publicSharePermissionMismatch' || error.code === 'collaborationActive')) {
+    if (error.kind === 'conflict' && error.code === 'publicSharePermissionMismatch' && attemptedPermission === 'write') {
       return t('shareSheet.permissionMismatch');
     }
     return t('collections.errorShareManagementFallback');
@@ -225,14 +235,12 @@ function RoleToggle({ value, onChange, disabled = false, label, testID, stretch 
   );
 }
 
-/** Shown instead of RoleToggle while 모든 사용자 is on: the person gets exactly the link's permission. */
-function FixedRoleBadge({ role, testID }: { readonly role: InvitationRole; readonly testID: string }) {
+/** Shown instead of RoleToggle while 모든 사용자 is 링크 추가 가능: nobody can be given less than that. */
+function FixedRoleBadge({ testID }: { readonly testID: string }) {
   const { t } = useTranslation();
   return (
     <View style={styles.fixedRole} testID={testID}>
-      <Text numberOfLines={2} style={styles.fixedRoleLabel}>
-        {t('shareSheet.fixedByAllUsers', { permission: role === 'contributor' ? t('shareSheet.permissionWrite') : t('shareSheet.permissionRead') })}
-      </Text>
+      <Text style={styles.fixedRoleLabel}>{t('collaboration.blockedByPublicShare')}</Text>
     </View>
   );
 }
@@ -257,10 +265,13 @@ function Segmented<T extends string>({
   size = 'regular',
   disabled = false,
   testID,
+  onReselect,
 }: {
   readonly options: readonly SegmentOption<T>[];
   readonly value: T;
   readonly onChange: (key: T) => void;
+  /** Tapping the segment that is already selected - by default nothing happens. */
+  readonly onReselect?: (key: T) => void;
   readonly kind: 'tabs' | 'radio';
   readonly size?: 'regular' | 'large';
   readonly disabled?: boolean;
@@ -280,6 +291,8 @@ function Segmented<T extends string>({
             onPress={() => {
               if (!isSelected) {
                 onChange(option.key);
+              } else {
+                onReselect?.(option.key);
               }
             }}
             style={[styles.segment, isLarge && styles.segmentLarge, isSelected && styles.segmentSelected, disabled && styles.disabled]}
@@ -334,9 +347,10 @@ function SectionCard({
  *   or 링크 추가 가능 (contributor); sent a few at a time, they must accept.
  * - 공유 상태 (always shown): [공유 중 N] | [초대 대기 N] tabs of one-line rows with a role badge;
  *   changing the permission, removing and cancelling live behind each row's "⋯" menu.
- * While 모든 사용자 is on, every specific person has exactly its permission (a server rule): the
- * per-person choice is fixed to it, and turning the link on or changing its permission is refused
- * while someone has a different one - nothing is ever changed automatically. The lists refresh on
+ * While 모든 사용자 is on, its permission is the minimum for every specific person (a server rule):
+ * under 읽기 전용 each person still gets 읽기 전용 or 링크 추가 가능; under 링크 추가 가능 the per-person
+ * choice is fixed to 링크 추가 가능, and turning the link on as (or raising it to) 링크 추가 가능 is
+ * refused while someone is still 읽기 전용 - nothing is ever changed automatically. The lists refresh on
  * focus, on returning to the app and when an invitation is answered (Push). Opening this screen
  * never changes anything by itself.
  */
@@ -454,20 +468,22 @@ export function CollectionShareScreen({ route }: Props) {
     (left, right) => ROLE_ORDER[memberRoleOf(left.role)] - ROLE_ORDER[memberRoleOf(right.role)],
   );
   const pendingInvitations = participants?.pendingInvitations ?? [];
-  /** Someone (member or still-pending invitation) whose role differs from what this permission requires. */
+  /** Someone (member or still-pending invitation) below this permission's minimum - i.e. 읽기 전용 under 링크 추가 가능. */
   const hasRoleMismatch = (permission: PublicSharePermission): boolean => {
-    const required = roleForPublicPermission(permission);
+    if (minimumRoleForPublicPermission(permission) !== 'contributor') {
+      return false;
+    }
     return (
-      members.some(member => member.role !== 'owner' && memberRoleOf(member.role) !== required)
-      || pendingInvitations.some(invitation => invitationRoleOf(invitation.role) !== required)
+      members.some(member => member.role !== 'owner' && memberRoleOf(member.role) === 'viewer')
+      || pendingInvitations.some(invitation => invitationRoleOf(invitation.role) === 'viewer')
     );
   };
 
   // ---------- 모든 사용자 (public link: 읽기 or 작성) ----------
 
   const publicPermission: PublicSharePermission = share ? share.permission ?? 'read' : pendingPublicPermission;
-  // While the link is on, every specific person gets exactly its role.
-  const lockedRole: InvitationRole | null = share ? roleForPublicPermission(share.permission ?? 'read') : null;
+  // While the link is on as 링크 추가 가능, every specific person is 링크 추가 가능 too; under 읽기 전용 each keeps their own choice.
+  const lockedRole: InvitationRole | null = share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
   const isPublicBlocked = !share && hasRoleMismatch(pendingPublicPermission);
 
   const showMembers = () => {
@@ -503,7 +519,7 @@ export function CollectionShareScreen({ route }: Props) {
     try {
       setShare(await enableCollectionShare(authenticatedRequest, collectionId, pendingPublicPermission));
     } catch (caughtError) {
-      setShareError(getShareManagementErrorMessage(caughtError, t));
+      setShareError(getShareManagementErrorMessage(caughtError, t, pendingPublicPermission));
     } finally {
       setIsManagingShare(false);
     }
@@ -519,7 +535,7 @@ export function CollectionShareScreen({ route }: Props) {
       await revokeCollectionShare(authenticatedRequest, collectionId);
       setShare(null);
     } catch (caughtError) {
-      setShareError(getShareManagementErrorMessage(caughtError, t));
+      setShareError(getShareManagementErrorMessage(caughtError, t, null));
     } finally {
       setIsManagingShare(false);
     }
@@ -527,6 +543,8 @@ export function CollectionShareScreen({ route }: Props) {
 
   /** 읽기 ↔ 작성 for everyone: before the link exists it is only remembered; afterwards it is saved at once. */
   const changePublicPermission = async (permission: PublicSharePermission) => {
+    // A reason shown for an earlier attempt never lingers under a different choice.
+    setShareError(null);
     if (!share) {
       setPendingPublicPermission(permission);
       return;
@@ -543,7 +561,7 @@ export function CollectionShareScreen({ route }: Props) {
     try {
       setShare(await setCollectionSharePermission(authenticatedRequest, collectionId, permission));
     } catch (caughtError) {
-      setShareError(getShareManagementErrorMessage(caughtError, t));
+      setShareError(getShareManagementErrorMessage(caughtError, t, permission));
     } finally {
       setIsManagingShare(false);
     }
@@ -579,7 +597,7 @@ export function CollectionShareScreen({ route }: Props) {
     return null;
   };
 
-  /** Friends picked in 친구 선택 join the batch with 읽기 전용 (or the link's fixed role); each can be switched on its own. */
+  /** Friends picked in 친구 선택 join the batch with 읽기 전용 (or 링크 추가 가능 when the link fixes it); each can be switched on its own. */
   const addFriends = (friends: readonly Friend[]) => {
     setIsFriendPickerVisible(false);
     setInviteNotice(null);
@@ -654,7 +672,7 @@ export function CollectionShareScreen({ route }: Props) {
   /**
    * Sends the whole batch - friends and Juple IDs alike - one invitation per person, at most
    * INVITE_CONCURRENCY at a time (the server has no batch endpoint and rate-limits per identity).
-   * While 모든 사용자 is on, the role sent is always the link's - never whatever a row showed. Sent
+   * While 모든 사용자 is 링크 추가 가능, the role sent is always that - never whatever a row showed. Sent
    * ones leave the batch (they appear under 초대 대기), failed ones stay with their own reason. A
    * synchronous ref guards against a double tap sending twice.
    */
@@ -729,7 +747,7 @@ export function CollectionShareScreen({ route }: Props) {
     }
   };
 
-  /** The "⋯" menu of one row: switch to the other permission (not while 모든 사용자 fixes it), then remove / cancel. */
+  /** The "⋯" menu of one row: switch to the other permission (not while 모든 사용자 링크 추가 가능 fixes it), then remove / cancel. */
   const menuActions: readonly ActionMenuDialogAction[] = managed
     ? [
         ...(lockedRole
@@ -805,7 +823,9 @@ export function CollectionShareScreen({ route }: Props) {
 
         {participants ? (
           <View ref={contentRef} testID="share-unified">
-            {/* The two ways to share, as two main tabs over one panel (never two stacked cards). */}
+            {/* The two ways to share, as two main tabs over one panel (never two stacked cards) -
+                together one bordered section, set apart from 공유 상태 below. */}
+            <View style={[styles.card, styles.shareWaysSection]} testID="share-ways-section">
             <Segmented
               kind="tabs"
               onChange={tab => {
@@ -823,11 +843,14 @@ export function CollectionShareScreen({ route }: Props) {
 
             {activeMainTab === 'public' ? (
               // A. 모든 사용자 공유: the public link with its permission.
-              <View style={[styles.card, styles.panelCard]} testID="share-all-users">
+              <View style={styles.panel} testID="share-all-users">
                 <Segmented
                   disabled={isManagingShare}
                   kind="radio"
                   onChange={changePublicPermission}
+                  // Re-choosing the current permission (e.g. 읽기 전용 after a refused 링크 추가) clears
+                  // that attempt's reason - it never stays under a choice it was not about.
+                  onReselect={() => setShareError(null)}
                   options={[
                     { key: 'read', label: t('shareSheet.permissionRead') },
                     { key: 'write', label: t('shareSheet.permissionWrite') },
@@ -888,7 +911,7 @@ export function CollectionShareScreen({ route }: Props) {
               </View>
             ) : (
               // B. 초대하기: [친구] | [ID] feeding one batch of people, each with their own permission.
-              <View style={[styles.card, styles.panelCard]} testID="share-invite">
+              <View style={styles.panel} testID="share-invite">
                 <Segmented
                   kind="tabs"
                   onChange={setInviteTab}
@@ -899,7 +922,7 @@ export function CollectionShareScreen({ route }: Props) {
                   testID="share-invite-tabs"
                   value={inviteTab}
                 />
-                {lockedRole ? <FixedRoleBadge role={lockedRole} testID="share-invite-fixed-role" /> : null}
+                {lockedRole ? <FixedRoleBadge testID="share-invite-fixed-role" /> : null}
                 {inviteTab === 'friends' ? (
                   <Pressable
                     accessibilityRole="button"
@@ -1035,7 +1058,8 @@ export function CollectionShareScreen({ route }: Props) {
                 {inviteNotice ? <Text style={styles.notice} testID="invite-notice">{inviteNotice}</Text> : null}
               </View>
             )}
-            {actionError ? <Text style={styles.error} testID="share-action-error">{actionError}</Text> : null}
+            </View>
+            {actionError ? <Text style={[styles.error, styles.actionError]} testID="share-action-error">{actionError}</Text> : null}
 
             {/* C. 공유 상태: [공유 중 N] | [초대 대기 N] - pending invitations are not always spread out. */}
             <View ref={statusCardRef}>
@@ -1161,9 +1185,22 @@ const badgeLabelStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: CONTENT_MAX_WIDTH, padding: spacing.lg, width: '100%' },
-  card: { backgroundColor: colors.surface, borderRadius: radii.lg, gap: spacing.sm, marginBottom: spacing.md, padding: spacing.lg },
-  // The selected main tab's panel, right under the tabs.
-  panelCard: { marginTop: spacing.sm },
+  // A section card: a light neutral 1px outline (the app's own soft card border) so each section
+  // reads as its own block on the screen background, without a heavy rule.
+  card: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+  },
+  // The main tabs and the selected tab's panel, one section - a wider gap before 공유 상태.
+  shareWaysSection: { marginBottom: spacing.xl, padding: spacing.md },
+  // The selected main tab's panel, right under the tabs inside the same section.
+  panel: { gap: spacing.sm, marginTop: spacing.md, paddingHorizontal: spacing.xs },
+  actionError: { marginBottom: spacing.md },
   cardHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 14, height: 28, justifyContent: 'center', width: 28 },
   cardTitle: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 16, fontWeight: '700' },

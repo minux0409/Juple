@@ -161,7 +161,7 @@ export function CategoryPickerModal({
                     testID={`category-picker-option-${option.id}`}
                   >
                     <View style={styles.tileIconSlot}>
-                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} size={48} />
+                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} imageVersion={option.iconImageVersion} size={48} />
                       {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
                       <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
                       {isSelected ? (

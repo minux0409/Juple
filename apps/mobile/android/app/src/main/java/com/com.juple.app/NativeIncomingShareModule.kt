@@ -31,6 +31,10 @@ class NativeIncomingShareModule(
           putNullableLong("preselectedCollectionId", share.preselectedCollectionId)
           putString("draftTitle", share.draftTitle)
           putNullableLong("draftCollectionId", share.draftCollectionId)
+          putBoolean("autoSave", share.autoSave)
+          // Whether this share's automatic save already ended without saving it (see
+          // IncomingShareRouter) - peeked, never consumed: the retry Worker still reads it.
+          putString("autoSaveOutcome", IncomingShareAttemptResultStore.peek(reactContext, share.id)?.wireValue)
         },
       )
     }

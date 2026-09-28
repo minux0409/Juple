@@ -10,11 +10,16 @@ public interface ICollectionItemStore
     /// missing access check upstream still fails closed). Private fields (Memo, uploaded/cover image
     /// refs) are selected only for the viewer's own Items.
     /// </summary>
+    /// <remarks>
+    /// sort picks the order (Manual when omitted - the original contract); cursor must belong to that
+    /// same order (ArgumentException otherwise).
+    /// </remarks>
     Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
         long userId,
         long collectionId,
         CollectionItemPageCursor? cursor,
         int limit,
+        CollectionItemSort sort = CollectionItemSort.Manual,
         CancellationToken cancellationToken = default);
 
     /// <summary>

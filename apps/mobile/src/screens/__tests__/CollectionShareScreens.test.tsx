@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { KeyboardAvoidingView } from 'react-native';
@@ -18,6 +18,7 @@ import {
 import { CrownIcon } from '../../icons/CrownIcon';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { shareItem } from '../../items/shareItem';
 import { getFriends, type Friend } from '../../friends/api/friendsApi';
 import {
@@ -292,15 +293,33 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(byId(renderer, 'share-create-link').props.disabled).toBe(false);
     });
 
-    it('보기만 for everyone is blocked while someone has 링크 추가 - with the reason and a way to review them; 링크 추가 is allowed', async () => {
-      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[1]] });
+    it('읽기 전용 for everyone is the minimum: people who can add links may stay as they are', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]] });
       const renderer = await renderScreen();
       await openPublicTab(renderer);
+
+      expect(exists(renderer, 'share-public-blocked')).toBe(false);
+      expect(byId(renderer, 'share-create-link').props.disabled).toBe(false);
+      await press(renderer, 'share-create-link');
+      expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'read');
+      expect(changeCollaboratorRole).not.toHaveBeenCalled();
+    });
+
+    it('링크 추가 for everyone is blocked while someone is 읽기 전용 - with the reason and a way to review them; nobody is changed', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      const renderer = await renderScreen();
+      await openPublicTab(renderer);
+      await press(renderer, 'share-all-users-permission-write');
+
       expect(byId(renderer, 'share-create-link').props.disabled).toBe(true);
-      expect(texts(byId(renderer, 'share-public-blocked'))).toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(texts(byId(renderer, 'share-public-blocked'))).toEqual(expect.arrayContaining([
+        i18n.t('shareSheet.permissionMismatch'),
+        i18n.t('shareSheet.permissionMismatchHint'),
+      ]));
       await press(renderer, 'share-create-link');
       expect(enableCollectionShare).not.toHaveBeenCalled();
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
+      expect(changeInvitationRole).not.toHaveBeenCalled();
 
       // Everyone is 링크 추가 already: sharing with everyone as 링크 추가 is fine.
       jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]], pendingInvitations: [] });
@@ -310,6 +329,88 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(exists(writable, 'share-public-blocked')).toBe(false);
       await press(writable, 'share-create-link');
       expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'write');
+    });
+
+    it.each([
+      ['읽기 전용 members and invitations', () => readersOnly],
+      ['a member and an invitation who can add links', () => ({ ...withWriter, participants: [owner, withWriter.participants[2]] })],
+    ])('turning 모든 사용자 on as 읽기 전용 with %s succeeds - no permission reason at all', async (_label, participants) => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(participants());
+      const renderer = await renderScreen();
+      await openPublicTab(renderer);
+
+      expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
+      expect(exists(renderer, 'share-public-blocked')).toBe(false);
+      await press(renderer, 'share-create-link');
+
+      expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'read');
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+    });
+
+    it('the 링크 추가 reason is never shown for a 읽기 전용 attempt, even if the server refuses it', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      jest.mocked(enableCollectionShare).mockRejectedValue(new ApiError('conflict', 409, 'publicSharePermissionMismatch'));
+      const renderer = await renderScreen();
+      await openPublicTab(renderer);
+
+      await press(renderer, 'share-create-link');
+
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(texts(renderer.root)).toContain(i18n.t('collections.errorShareManagementFallback'));
+    });
+
+    it('an unrelated conflict (collaborationActive) is never described as a permission problem', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]], pendingInvitations: [] });
+      jest.mocked(setCollectionSharePermission).mockRejectedValue(new ApiError('conflict', 409, 'collaborationActive'));
+      const renderer = await renderScreen();
+
+      await press(renderer, 'share-all-users-permission-write');
+
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(texts(renderer.root)).toContain(i18n.t('collections.errorShareManagementFallback'));
+    });
+
+    it('a refused 링크 추가 attempt says so, and the reason goes away as soon as 읽기 전용 is chosen', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      jest.mocked(setCollectionSharePermission).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      const renderer = await renderScreen();
+
+      await press(renderer, 'share-all-users-permission-write');
+      expect(texts(renderer.root)).toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(i18n.t('shareSheet.permissionMismatch')).toBe('읽기 전용으로 공유 중인 사용자가 있어 모든 사용자에게 링크 추가 권한을 적용할 수 없어요.');
+
+      await act(async () => {
+        byId(renderer, 'share-all-users-permission-read').props.onPress();
+      });
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+    });
+
+    it('before the link exists: choosing 링크 추가 shows the reason, going back to 읽기 전용 removes it and allows starting', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      const renderer = await renderScreen();
+      await openPublicTab(renderer);
+
+      await press(renderer, 'share-all-users-permission-write');
+      expect(exists(renderer, 'share-public-blocked')).toBe(true);
+      await press(renderer, 'share-all-users-permission-read');
+
+      expect(exists(renderer, 'share-public-blocked')).toBe(false);
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(byId(renderer, 'share-create-link').props.disabled).toBe(false);
+    });
+
+    it('lowering an active 링크 추가 link to 읽기 전용 is always allowed - people who can add links keep it', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
+      jest.mocked(setCollectionSharePermission).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]] });
+      const renderer = await renderScreen();
+
+      await press(renderer, 'share-all-users-permission-read');
+
+      expect(setCollectionSharePermission).toHaveBeenCalledWith(expect.anything(), 5, 'read');
+      expect(changeCollaboratorRole).not.toHaveBeenCalled();
     });
 
     it('switching an active link to a permission some people do not have is refused - nobody is changed', async () => {
@@ -482,26 +583,52 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(maxInFlight).toBeLessThanOrEqual(INVITE_CONCURRENCY);
     });
 
-    it('while the public link is on, everyone invited gets exactly its permission - no per-person choice, and that is what is sent', async () => {
+    it('while the link is 읽기 전용, each person invited still gets their own choice - and that is what is sent', async () => {
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
       await openInviteTab(renderer);
-      expect(texts(byId(renderer, 'share-invite-fixed-role'))).toEqual([
-        i18n.t('shareSheet.fixedByAllUsers', { permission: i18n.t('shareSheet.permissionRead') }),
-      ]);
-      await findById(renderer, 'CCCC2345');
-      expect(exists(renderer, 'id-invite-role-contributor')).toBe(false);
-      await press(renderer, 'id-invite-add');
-      expect(exists(renderer, 'draft-role-CCCC2345-contributor')).toBe(false);
-      await press(renderer, 'invite-send');
-      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'CCCC2345', 'viewer');
 
+      expect(exists(renderer, 'share-invite-fixed-role')).toBe(false);
+      await findById(renderer, 'CCCC2345');
+      await press(renderer, 'id-invite-role-contributor');
+      await press(renderer, 'id-invite-add');
+      await findById(renderer, 'EEEE2345');
+      await press(renderer, 'id-invite-add');
+      expect(byId(renderer, 'draft-role-CCCC2345-contributor').props.accessibilityState.checked).toBe(true);
+      expect(byId(renderer, 'draft-role-EEEE2345-viewer').props.accessibilityState.checked).toBe(true);
+      await press(renderer, 'invite-send');
+
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'CCCC2345', 'contributor');
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'EEEE2345', 'viewer');
+    });
+
+    it('while the link is 링크 추가 가능, everyone invited gets 링크 추가 가능 - no lower choice, the reason is shown, and that is what is sent', async () => {
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
-      const writable = await renderScreen();
-      await findById(writable, 'DDDD2345');
-      await press(writable, 'id-invite-add');
-      await press(writable, 'invite-send');
+      const renderer = await renderScreen();
+      await openInviteTab(renderer);
+
+      expect(texts(byId(renderer, 'share-invite-fixed-role'))).toEqual([i18n.t('collaboration.blockedByPublicShare')]);
+      await findById(renderer, 'DDDD2345');
+      expect(exists(renderer, 'id-invite-role-viewer')).toBe(false);
+      await press(renderer, 'id-invite-add');
+      expect(exists(renderer, 'draft-role-DDDD2345-viewer')).toBe(false);
+      await press(renderer, 'invite-send');
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'DDDD2345', 'contributor');
+    });
+
+    it('while the link is 읽기 전용, a member can still be switched to 링크 추가 가능 (and back)', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      jest.mocked(changeCollaboratorRole).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+
+      await press(renderer, 'member-actions-RDER2345');
+      const change = renderer.root.findByType(ActionMenuDialog).props.actions
+        .find((action: { label: string }) => action.label === i18n.t('shareSheet.changeToWrite'));
+      await act(async () => {
+        change.onPress();
+      });
+      expect(changeCollaboratorRole).toHaveBeenCalledWith(expect.anything(), 5, 'RDER2345', 'contributor');
     });
   });
 
@@ -658,15 +785,15 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 5, 9);
     });
 
-    it('while the public link is on, the menu offers no permission change - nothing is sent or switched off', async () => {
-      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
-      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+    it('while the public link is 링크 추가 가능, the menu offers no lower permission - nothing is sent or switched off', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]] });
       const renderer = await renderScreen();
 
-      await press(renderer, 'member-actions-RDER2345');
+      await press(renderer, 'member-actions-WRTR2345');
       const labels = renderer.root.findByType(ActionMenuDialog).props.actions.map((action: { label: string }) => action.label);
-      expect(labels).not.toContain(i18n.t('shareSheet.changeToWrite'));
-      expect(labels).toContain(i18n.t('shareSheet.removeMember'));
+      expect(labels).not.toContain(i18n.t('shareSheet.changeToRead'));
+      expect(labels).toEqual([i18n.t('shareSheet.removeMember')]);
 
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
       expect(changeInvitationRole).not.toHaveBeenCalled();
@@ -693,6 +820,19 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(exists(renderer, 'pending-8')).toBe(false);
       await press(renderer, 'share-status-tabs-members');
       expect(exists(renderer, `participant-${accepted.jupleId}`)).toBe(true);
+    });
+
+    it('the sharing section and 공유 상태 are two separately outlined cards with room between them', async () => {
+      const renderer = await renderScreen();
+      const hostById = (testID: string) => renderer.root.find(node => typeof node.type === 'string' && node.props.testID === testID);
+      const ways = StyleSheet.flatten(hostById('share-ways-section').props.style);
+      const status = StyleSheet.flatten(hostById('share-status').props.style);
+      for (const section of [ways, status]) {
+        expect(section).toEqual(expect.objectContaining({ borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radii.lg }));
+      }
+      expect(ways.marginBottom).toBeGreaterThanOrEqual(spacing.lg);
+      // The tabs and their panel are inside the same outlined section.
+      expect(hostById('share-ways-section').findAll(node => node.props.testID === 'share-main-tabs').length).toBeGreaterThan(0);
     });
 
     it('keeps the Juple ID field above the keyboard', async () => {

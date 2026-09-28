@@ -18,6 +18,13 @@ data class PendingShare(
     /** Always null - reserved wire-format field, kept for native queue schema compatibility with a since-removed Quick Save composer draft. */
     val draftTitle: String?,
     val draftCollectionId: Long?,
+    /**
+     * Captured while "공유 즉시 저장" was ON, so a background save was started for it right away
+     * (see ShareReceiverActivity). While that save is still running the share must not be opened
+     * for review - see IncomingShareRouter. False for Quick Save OFF shares and for entries queued
+     * by an older build (field absent).
+     */
+    val autoSave: Boolean = false,
 )
 
 object PendingShareQueue {
@@ -26,7 +33,7 @@ object PendingShareQueue {
   private val lock = Any()
 
   /** Captures an ACTION_SEND text/plain intent and returns the new pending share's id, or null if not applicable. */
-  fun capture(context: Context, intent: Intent?, preselectedCollectionId: Long?): String? {
+  fun capture(context: Context, intent: Intent?, preselectedCollectionId: Long?, autoSave: Boolean = false): String? {
     if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") {
       return null
     }
@@ -46,7 +53,8 @@ object PendingShareQueue {
           .put("text", text)
           .put("receivedAtEpochMs", System.currentTimeMillis())
           .putOpt("initialTitle", initialTitle)
-          .putOpt("preselectedCollectionId", preselectedCollectionId),
+          .putOpt("preselectedCollectionId", preselectedCollectionId)
+          .put("autoSave", autoSave),
       )
       writeEntries(context, entries)
     }
@@ -71,6 +79,7 @@ object PendingShareQueue {
             preselectedCollectionId = entry.optLongOrNull("preselectedCollectionId"),
             draftTitle = entry.optStringOrNull("draftTitle"),
             draftCollectionId = entry.optLongOrNull("draftCollectionId"),
+            autoSave = entry.optBoolean("autoSave", false),
           ),
         )
       }

@@ -31,7 +31,11 @@ public sealed record CollectionDto(
     bool IsPublicShareActive = false,
     // The Collection's icon photo (Owner-chosen), as a short-lived read URL - shown instead of the
     // Icon glyph by everyone who can see the Collection. Null: no photo (or it could not be signed).
-    string? IconImageUrl = null);
+    string? IconImageUrl = null,
+    // A stable identity of the photo itself (see CollectionIconImageVersion): unchanged while the
+    // same photo stays, different after it is replaced, null together with IconImageUrl. Clients
+    // key their image cache on this - never on the signed URL, which differs on every response.
+    string? IconImageVersion = null);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the

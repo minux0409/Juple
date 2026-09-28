@@ -167,9 +167,9 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
     }
 
     /// <summary>
-    /// While the public link is active a specific person gets exactly its permission (see
-    /// PublicShareRoles) - 보기만 everywhere or 링크 추가 everywhere. Checked under the Collection row
-    /// lock the caller holds; nothing is ever changed automatically to make it fit.
+    /// While the public link is active its permission is the minimum a specific person may have (see
+    /// PublicShareRoles): under 보기만 either role, under 링크 추가 only 링크 추가. Checked under the
+    /// Collection row lock the caller holds; nothing is ever changed automatically to make it fit.
     /// </summary>
     private async Task RequireRoleMatchesPublicShareAsync(
         long collectionId,
@@ -180,7 +180,7 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             .Where(share => share.CollectionId == collectionId && share.IsActive)
             .Select(share => (CollectionSharePermission?)share.Permission)
             .FirstOrDefaultAsync(cancellationToken);
-        if (activePermission is { } permission && PublicShareRoles.For(permission) != role)
+        if (activePermission is { } permission && !PublicShareRoles.Allows(permission, role))
         {
             throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicShareActive);
         }

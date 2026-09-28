@@ -1,3 +1,5 @@
+using Juple.Application.Collections;
+
 namespace Juple.Api.Collections;
 
 /// <summary>
@@ -27,6 +29,29 @@ public static class CollectionsQueryParameters
 
         limit = value.Value;
         return true;
+    }
+
+    /// <summary>
+    /// A Collection's link order: missing is the original manual order; otherwise exactly
+    /// "dateDesc" or "dateAsc" (any case). Anything else is invalid - never silently ignored.
+    /// </summary>
+    public static bool TryParseItemSort(string? value, out CollectionItemSort sort)
+    {
+        switch (value?.ToLowerInvariant())
+        {
+            case null:
+                sort = CollectionItemSort.Manual;
+                return true;
+            case "datedesc":
+                sort = CollectionItemSort.DateDesc;
+                return true;
+            case "dateasc":
+                sort = CollectionItemSort.DateAsc;
+                return true;
+            default:
+                sort = default;
+                return false;
+        }
     }
 
     /// <summary>A missing `itemId` is valid (no filter) and returns null; a present one must be positive.</summary>

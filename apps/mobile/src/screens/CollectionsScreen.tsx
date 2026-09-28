@@ -34,6 +34,7 @@ import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
+import { prefetchCollectionIcons } from '../collections/collectionIconImageCache';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
@@ -204,6 +205,7 @@ export function CollectionsScreen() {
           return;
         }
         setLists(previous => ({ ...previous, [target]: { items: page.items, nextCursor: page.nextCursor, isLoaded: true } }));
+        prefetchCollectionIcons(page.items);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -329,6 +331,7 @@ export function CollectionsScreen() {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
+        prefetchCollectionIcons(page.items);
         setLists(previous => {
           const existing = previous[target];
           const seenIds = new Set(existing.items.map(collection => collection.id));
@@ -654,7 +657,7 @@ function CollectionTile({
     <View style={styles.gridCell}>
       <Pressable accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
         <View style={styles.tileIconSlot}>
-          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} size={56} />
+          <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={56} />
           <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
           {/* The caller's own favorite mark - Owner and Contributor alike, never someone else's. */}
           <Pressable
@@ -871,7 +874,7 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
   const { t } = useTranslation();
   return <Pressable accessibilityRole="button" onPress={onPress} style={styles.listRow}>
     <View style={styles.listIconSlot}>
-      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} size={48} />
+      <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={48} />
       <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
     </View>
     <View style={styles.listText}>

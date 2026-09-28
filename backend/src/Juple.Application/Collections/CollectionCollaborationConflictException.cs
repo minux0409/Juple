@@ -2,8 +2,8 @@ namespace Juple.Application.Collections;
 
 /// <summary>
 /// An operation conflicts with the Collection's collaboration/public-share state (409) - e.g. a role
-/// different from the active public link's permission (PublicShareActive), turning the public link
-/// on or changing its permission while someone has a different role (PublicSharePermissionMismatch),
+/// below the active public link's permission, its minimum (PublicShareActive), turning the public link
+/// on or raising its permission while someone has a lower role (PublicSharePermissionMismatch),
 /// merging/transferring a collaborative Collection, a duplicate invitation.
 /// Code is a stable machine-readable reason; nothing is ever auto-disabled to resolve it.
 /// </summary>

@@ -164,6 +164,25 @@ describe('CollectionsScreen filters', () => {
     expect(renderer.root.findByType(FlatList).props.data).toEqual(allCollections);
   });
 
+  it.each([['all'], ['owned'], ['shared']])(
+    'coming back from a Collection (focus, then the delete refreshToken) keeps %s selected and reloads that scope',
+    async selected => {
+      setUpGetCollectionsMock();
+      const renderer = await renderScreen();
+      await selectFilter(renderer, selected);
+
+      // CollectionDetails' delete returns to this same screen instance with a refreshToken.
+      mockRouteParams = { refreshToken: Date.now() };
+      await act(async () => {
+        renderer.update(<CollectionsScreen />);
+      });
+
+      expect(renderer.root.findByProps({ testID: `collections-filter-${selected}` }).props.accessibilityState).toEqual({ selected: true });
+      expect(renderer.root.findByProps({ testID: 'collections-filter-favorites' }).props.accessibilityState).toEqual({ selected: false });
+      expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: selected }));
+    },
+  );
+
   it.each([
     ['favorites'],
     ['all'],

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { getCollectionItems, type CollectionItemEntry } from './api/collectionsApi';
+import { getCollectionItems, type CollectionItemEntry, type CollectionItemsSort } from './api/collectionsApi';
 import { forgetCollectionUnlock, getCollectionUnlockToken } from './collectionUnlockGrants';
 
 /** The server's "locked and no valid grant" answer - content is withheld until the password is entered. */
@@ -13,6 +13,23 @@ export function isCollectionLockedError(error: unknown): boolean {
 }
 
 const PAGE_LIMIT = 50;
+
+/**
+ * 이름순 needs every link of the Collection before it can show any order at all (a name order over
+ * only the loaded pages would look like the whole Collection's and be wrong), and the server cannot
+ * sort by name in each app language's own rules. So a name-ordered Collection is loaded whole, up
+ * to this many links (at most five 100-link requests); a larger one is never shown name-ordered -
+ * see isTooLargeForNameOrder.
+ */
+export const NAME_ORDER_MAX_LINKS = 500;
+const WHOLE_COLLECTION_PAGE_LIMIT = 100;
+
+/**
+ * How the list is loaded: one of the server's own date orders ('dateDesc' newest first, 'dateAsc'
+ * oldest first - over the whole Collection, page by page as the list scrolls), or 'whole' - every
+ * link at once, for an order only the client can apply (이름순).
+ */
+export type CollectionItemsLoadMode = CollectionItemsSort | 'whole';
 
 function getCollectionItemsErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
@@ -40,8 +57,15 @@ export interface UseCollectionItemsResult {
    * returned (none are ever sent before the password is proven). Cleared by a successful load.
    */
   readonly isLocked: boolean;
+  /** More pages exist on the server (a next cursor is held). */
+  readonly hasMore: boolean;
   readonly refresh: () => void;
   readonly loadMore: () => void;
+  /**
+   * 'whole' mode only: the Collection has more than NAME_ORDER_MAX_LINKS links, so nothing was kept
+   * (items is empty) - the caller must not offer a name order for it.
+   */
+  readonly isTooLargeForNameOrder: boolean;
   /** Removes an Item from the in-memory list immediately after a successful remove-from-Collection call. */
   readonly removeLocally: (itemId: number) => void;
   /**
@@ -57,14 +81,15 @@ export interface UseCollectionItemsResult {
 }
 
 /**
- * Loads and paginates a single Collection's Item list (newest-added-first - see
- * GET /api/v1/collections/{id}/items). Mirrors useItemHistory's verified pattern exactly: loading
- * is driven by focus (first focus = full-screen spinner, every later focus = a fresh first page,
- * so an Item added/removed elsewhere shows up without a manual pull-to-refresh), a monotonic
- * request generation discards stale in-flight results, and loadMore is guarded against firing more
- * than once per page.
+ * Loads and paginates a single Collection's Item list (see GET /api/v1/collections/{id}/items and
+ * CollectionItemsLoadMode). Mirrors useItemHistory's verified pattern exactly: loading is driven by
+ * focus (first focus = full-screen spinner, every later focus = a fresh first page, so an Item
+ * added/removed elsewhere shows up without a manual pull-to-refresh), a monotonic request
+ * generation discards stale in-flight results, and loadMore is guarded against firing more than
+ * once per page. Changing the mode starts over: the list and cursor are dropped and the new order's
+ * first page is loaded - a cursor is never carried from one order into another.
  */
-export function useCollectionItems(collectionId: number): UseCollectionItemsResult {
+export function useCollectionItems(collectionId: number, loadMode: CollectionItemsLoadMode = 'dateDesc'): UseCollectionItemsResult {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [items, setItems] = useState<readonly CollectionItemEntry[]>([]);
@@ -74,15 +99,59 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [isTooLargeForNameOrder, setIsTooLargeForNameOrder] = useState(false);
 
   const loadingMoreRef = useRef(false);
   const loadRequestIdRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
+  // The mode the shown list was loaded in - a different one must never extend or show it.
+  const loadedModeRef = useRef<CollectionItemsLoadMode | null>(null);
+
+  /** Every link of the Collection (newest first), or null when it is over NAME_ORDER_MAX_LINKS. */
+  const fetchWholeCollection = useCallback(
+    async (isCurrent: () => boolean): Promise<readonly CollectionItemEntry[] | null> => {
+      const collected: CollectionItemEntry[] = [];
+      const seenIds = new Set<number>();
+      let cursor: string | undefined;
+      do {
+        const page = await getCollectionItems(authenticatedRequest, collectionId, {
+          limit: WHOLE_COLLECTION_PAGE_LIMIT,
+          cursor,
+          sort: 'dateDesc',
+          unlockToken: getCollectionUnlockToken(collectionId),
+        });
+        if (!isCurrent()) {
+          return [];
+        }
+        for (const item of page.items) {
+          if (!seenIds.has(item.itemId)) {
+            seenIds.add(item.itemId);
+            collected.push(item);
+          }
+        }
+        if (collected.length > NAME_ORDER_MAX_LINKS || (page.nextCursor !== null && collected.length >= NAME_ORDER_MAX_LINKS)) {
+          return null;
+        }
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return collected;
+    },
+    [authenticatedRequest, collectionId],
+  );
 
   const load = useCallback(
     async (mode: 'initial' | 'refresh') => {
       const requestId = ++loadRequestIdRef.current;
-      if (mode === 'refresh') {
+      const isCurrent = () => loadRequestIdRef.current === requestId;
+      const isModeChange = loadedModeRef.current !== null && loadedModeRef.current !== loadMode;
+      if (isModeChange) {
+        // A new order starts from nothing: no link or cursor of the previous order stays.
+        loadedModeRef.current = null;
+        setItems([]);
+        setNextCursor(null);
+        setIsTooLargeForNameOrder(false);
+      }
+      if (mode === 'refresh' && !isModeChange) {
         setIsRefreshing(true);
       } else {
         setIsLoading(true);
@@ -90,14 +159,29 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
       setError(null);
 
       try {
+        if (loadMode === 'whole') {
+          const whole = await fetchWholeCollection(isCurrent);
+          if (!isCurrent()) {
+            return;
+          }
+          setIsLocked(false);
+          loadedModeRef.current = loadMode;
+          setItems(whole ?? []);
+          setNextCursor(null);
+          setIsTooLargeForNameOrder(whole === null);
+          return;
+        }
+
         const page = await getCollectionItems(authenticatedRequest, collectionId, {
           limit: PAGE_LIMIT,
+          sort: loadMode,
           unlockToken: getCollectionUnlockToken(collectionId),
         });
-        if (loadRequestIdRef.current !== requestId) {
+        if (!isCurrent()) {
           return;
         }
         setIsLocked(false);
+        loadedModeRef.current = loadMode;
         setItems(page.items);
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
@@ -123,7 +207,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
         }
       }
     },
-    [authenticatedRequest, collectionId, t],
+    [authenticatedRequest, collectionId, fetchWholeCollection, loadMode, t],
   );
 
   useFocusEffect(
@@ -140,7 +224,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
   }, [isRefreshing, load]);
 
   const loadMore = useCallback(() => {
-    if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor) {
+    if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor || loadMode === 'whole' || loadedModeRef.current !== loadMode) {
       return;
     }
 
@@ -153,6 +237,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
         const page = await getCollectionItems(authenticatedRequest, collectionId, {
           limit: PAGE_LIMIT,
           cursor: nextCursor,
+          sort: loadMode,
           unlockToken: getCollectionUnlockToken(collectionId),
         });
         if (loadRequestIdRef.current !== requestId) {
@@ -180,7 +265,7 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, collectionId, nextCursor, isLoading, isRefreshing, t]);
+  }, [authenticatedRequest, collectionId, nextCursor, isLoading, isRefreshing, loadMode, t]);
 
   const removeLocally = useCallback((itemId: number) => {
     setItems(previousItems => previousItems.filter(item => item.itemId !== itemId));
@@ -217,6 +302,8 @@ export function useCollectionItems(collectionId: number): UseCollectionItemsResu
     isLoadingMore,
     error,
     isLocked,
+    hasMore: nextCursor !== null,
+    isTooLargeForNameOrder,
     refresh,
     loadMore,
     removeLocally,

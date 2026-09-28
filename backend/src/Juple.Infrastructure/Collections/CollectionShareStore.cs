@@ -162,9 +162,10 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
     }
 
     /// <summary>
-    /// The public link may be on only while every member and every still-pending invitation has
-    /// exactly its permission's role (see PublicShareRoles). A mismatch is refused - never fixed up by
-    /// changing anyone's role automatically; the Owner aligns them first.
+    /// The public link may be on only while every member and every still-pending invitation has at
+    /// least its permission's role (see PublicShareRoles) - so 보기만 never conflicts, and 링크 추가 is
+    /// refused while anyone is still 보기만. Never fixed up by changing anyone's role automatically;
+    /// the Owner raises them first.
     /// </summary>
     private async Task RequireEveryoneMatchesAsync(
         long collectionId,
@@ -172,12 +173,17 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
-        var role = PublicShareRoles.For(permission);
+        if (permission != CollectionSharePermission.Write)
+        {
+            return;
+        }
+
+        var belowBaseline = CollectionCollaboratorRole.Viewer;
         var mismatch = await dbContext.CollectionCollaborators
-                .AnyAsync(collaborator => collaborator.CollectionId == collectionId && collaborator.Role != role, cancellationToken)
+                .AnyAsync(collaborator => collaborator.CollectionId == collectionId && collaborator.Role == belowBaseline, cancellationToken)
             || await dbContext.CollectionInvitations
                 .AnyAsync(invitation => invitation.CollectionId == collectionId
-                    && invitation.Role != role
+                    && invitation.Role == belowBaseline
                     && invitation.Status == CollectionInvitationStatus.Pending
                     && invitation.ExpiresAtUtc > nowUtc, cancellationToken);
         if (mismatch)

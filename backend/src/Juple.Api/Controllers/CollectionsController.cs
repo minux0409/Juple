@@ -602,7 +602,10 @@ public sealed class CollectionsController(
     /// <summary>
     /// A day's/Collection's worth of Items is unbounded, so this is always cursor-paginated - the
     /// same limit/cursor conventions and page-boundary keyset semantics as GET
-    /// /api/v1/items/history, just with its own CollectionItemPageCursorCodec.
+    /// /api/v1/items/history, just with its own CollectionItemPageCursorCodec. Optional `sort`:
+    /// "dateDesc" (newest added first) or "dateAsc" (oldest first) orders the whole Collection by
+    /// when each link was added; omitted, the original manual order is returned unchanged. A cursor
+    /// is only valid with the `sort` that issued it (400 otherwise) - changing the order starts over.
     /// </summary>
     [HttpGet("{id:long}/items")]
     public async Task<IActionResult> GetItemsAsync(
@@ -610,8 +613,17 @@ public sealed class CollectionsController(
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
         CancellationToken cancellationToken,
-        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null)
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null,
+        [FromQuery] string? sort = null)
     {
+        if (!CollectionsQueryParameters.TryParseItemSort(sort, out var resolvedSort))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["sort"] = ["sort must be \"dateDesc\" or \"dateAsc\"."],
+            }));
+        }
+
         if (!CollectionsQueryParameters.TryParseLimit(limit, out var resolvedLimit))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -623,7 +635,8 @@ public sealed class CollectionsController(
         }
 
         CollectionItemPageCursor? typedCursor = null;
-        if (cursor is not null && !CollectionItemPageCursorCodec.TryDecode(cursor, out typedCursor))
+        if (cursor is not null
+            && (!CollectionItemPageCursorCodec.TryDecode(cursor, out typedCursor) || typedCursor!.Sort != resolvedSort))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
@@ -636,7 +649,7 @@ public sealed class CollectionsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = await getCollectionItemsService.GetAsync(
-                currentUser.UserId, id, typedCursor, resolvedLimit, unlockToken, cancellationToken);
+                currentUser.UserId, id, typedCursor, resolvedLimit, unlockToken, resolvedSort, cancellationToken);
 
             return Ok(new CollectionItemsPageResponse(
                 page.Items,
@@ -830,8 +843,8 @@ public sealed class CollectionsController(
 
     /// <summary>
     /// Changes what a still-pending invitation grants: "viewer" (읽기) or "contributor" (쓰기).
-    /// 409 invitationNotPending once answered, publicShareActive for "contributor" while the public
-    /// link is on (nothing is switched off automatically).
+    /// 409 invitationNotPending once answered, publicShareActive for "viewer" while the public link
+    /// grants 링크 추가 - its permission is the minimum (nothing is switched off automatically).
     /// </summary>
     [HttpPut("{id:long}/invitations/{invitationId:long}/role")]
     [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]
@@ -854,8 +867,8 @@ public sealed class CollectionsController(
 
     /// <summary>
     /// Changes an accepted member's role (addressed by Juple ID): "viewer" (읽기) or "contributor"
-    /// (쓰기), effective on their next request. 409 publicShareActive for "contributor" while the
-    /// public link is on. The Owner has no member row, so their own role can never be changed here.
+    /// (쓰기), effective on their next request. 409 publicShareActive for "viewer" while the public
+    /// link grants 링크 추가 (its permission is the minimum). The Owner has no member row, so their own role can never be changed here.
     /// </summary>
     [HttpPut("{id:long}/collaborators/{jupleId}/role")]
     [CollectionPermission(CollectionPermission.ManageCollaborators, requireUnlock: true)]

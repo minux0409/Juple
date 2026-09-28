@@ -986,6 +986,121 @@ public sealed class UrlMetadataResolverTests
     // YouTube oEmbed title fallback - see YouTubeOEmbedTitleResolver. Scenarios A-G per this
     // round's spec.
 
+    /// <summary>
+    /// YouTube answering this server with a redirect to a rate-limit page (Azure Dev, 2026-09-28:
+    /// youtu.be -> www.google.com/sorry, HTTP 429) - the page is unreadable, but the shared URL's
+    /// own video ID still yields the official oEmbed title and a verified i.ytimg.com thumbnail.
+    /// </summary>
+    private static HttpResponseMessage RateLimitedYouTube(HttpRequestMessage request, bool oEmbedWorks, bool thumbnailExists)
+    {
+        if (request.RequestUri!.Host == "youtu.be")
+        {
+            var redirect = new HttpResponseMessage(HttpStatusCode.Found);
+            redirect.Headers.Location = new Uri("https://www.google.com/sorry/index?continue=x");
+            return redirect;
+        }
+
+        if (request.RequestUri.Host == "www.google.com")
+        {
+            return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        }
+
+        if (request.RequestUri.Host == "www.youtube.com" && request.RequestUri.AbsolutePath == "/watch")
+        {
+            return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        }
+
+        if (IsOEmbedRequest(request))
+        {
+            return oEmbedWorks
+                ? OEmbedJsonResponse("{\"title\":\"Never Gonna Give You Up\"}")
+                : new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+        }
+
+        if (request.Method == HttpMethod.Head && request.RequestUri.Host == "i.ytimg.com")
+        {
+            return thumbnailExists && request.RequestUri.AbsolutePath.EndsWith("/hqdefault.jpg", StringComparison.Ordinal)
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[50_000]) }
+                : new HttpResponseMessage(HttpStatusCode.NotFound);
+        }
+
+        throw new InvalidOperationException($"Unexpected request {request.Method} {request.RequestUri}");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenThePageIsRateLimited_StillGetsTheOEmbedTitleAndAVerifiedThumbnail_FromTheSharedVideoId()
+    {
+        var oEmbedUrls = new List<Uri>();
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                if (IsOEmbedRequest(request))
+                {
+                    oEmbedUrls.Add(request.RequestUri!);
+                }
+
+                return RateLimitedYouTube(request, oEmbedWorks: true, thumbnailExists: true);
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://youtu.be/dQw4w9WgXcQ?si=abc");
+
+            Assert.Equal("Never Gonna Give You Up", result.Title);
+            Assert.Equal(Juple.Application.UrlMetadata.UrlMetadataSource.YouTubeOEmbed, result.Source);
+            // The existence-checked quality, never an unverified maxresdefault guess.
+            Assert.Equal("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg", result.PreviewImageUrl);
+            // oEmbed is asked about the canonical watch URL built from the validated video ID.
+            Assert.Contains(Uri.EscapeDataString("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), Assert.Single(oEmbedUrls).Query);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenThePageAndOEmbedAreBothRateLimited_KeepsOnlyTheVerifiedThumbnail()
+    {
+        var resolver = CreateResolver((request, _) => RateLimitedYouTube(request, oEmbedWorks: false, thumbnailExists: true), out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://youtu.be/dQw4w9WgXcQ");
+
+            Assert.Null(result.Title);
+            Assert.Null(result.Source);
+            Assert.Equal("https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg", result.PreviewImageUrl);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_YouTube_WhenNothingIsConfirmed_ReturnsNothing_NotAGuess()
+    {
+        var resolver = CreateResolver((request, _) => RateLimitedYouTube(request, oEmbedWorks: false, thumbnailExists: false), out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+            Assert.Equal(new Juple.Application.UrlMetadata.UrlMetadataResult(null, null, null), result);
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NonYouTubePageFailure_NeverTriesTheYouTubeFallback()
+    {
+        var requestedHosts = new List<string>();
+        var resolver = CreateResolver(
+            (request, _) =>
+            {
+                requestedHosts.Add(request.RequestUri!.Host);
+                return new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+            },
+            out _, out var cache);
+        using (cache)
+        {
+            var result = await resolver.ResolveAsync("https://example.com/watch?v=dQw4w9WgXcQ");
+
+            Assert.Equal(new Juple.Application.UrlMetadata.UrlMetadataResult(null, null, null), result);
+            Assert.Equal(["example.com"], requestedHosts);
+        }
+    }
+
     [Fact]
     public async Task ResolveAsync_YouTube_WhenHtmlAlreadyHasARealTitle_NeverCallsOEmbed()
     {

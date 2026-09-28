@@ -147,7 +147,7 @@ public sealed class CollectionLockScopeTests
         public int Moves { get; private set; }
 
         public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
-            long userId, long collectionId, CollectionItemPageCursor? cursor, int limit, CancellationToken cancellationToken = default) =>
+            long userId, long collectionId, CollectionItemPageCursor? cursor, int limit, CollectionItemSort sort = CollectionItemSort.Manual, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<SharedCollectionItemDto?> GetSharedItemAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>

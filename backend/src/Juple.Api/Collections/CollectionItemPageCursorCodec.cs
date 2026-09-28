@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Juple.Application.Collections;
 
 namespace Juple.Api.Collections;
@@ -19,9 +20,21 @@ public static class CollectionItemPageCursorCodec
     // misinterpreted as a SortOrder value.
     private const int CurrentVersion = 2;
 
+    // A date-ordered position (see CollectionItemPageCursor.ForDate): its own version, carrying which
+    // date order it belongs to and the AddedAtUtc/ItemId keyset. Manual cursors keep version 2's exact
+    // wire shape, so what older clients hold and send is unchanged.
+    private const int DateVersion = 3;
+    private const string DateDescWire = "dateDesc";
+    private const string DateAscWire = "dateAsc";
+
     public static string Encode(CollectionItemPageCursor cursor)
     {
-        var payload = new CursorPayload(CurrentVersion, cursor.SortOrder, cursor.ItemId);
+        var payload = cursor.Sort switch
+        {
+            CollectionItemSort.DateDesc => new CursorPayload(DateVersion, 0, cursor.ItemId, DateDescWire, cursor.AddedAtUtc),
+            CollectionItemSort.DateAsc => new CursorPayload(DateVersion, 0, cursor.ItemId, DateAscWire, cursor.AddedAtUtc),
+            _ => new CursorPayload(CurrentVersion, cursor.SortOrder, cursor.ItemId),
+        };
         var json = JsonSerializer.SerializeToUtf8Bytes(payload);
         return Convert.ToBase64String(json)
             .Replace('+', '-')
@@ -41,13 +54,33 @@ public static class CollectionItemPageCursorCodec
 
             var json = Convert.FromBase64String(base64);
             var payload = JsonSerializer.Deserialize<CursorPayload>(json);
-            if (payload is null || payload.V != CurrentVersion || payload.ItemId <= 0)
+            if (payload is null || payload.ItemId <= 0)
             {
                 return false;
             }
 
-            cursor = new CollectionItemPageCursor(payload.S, payload.ItemId);
-            return true;
+            if (payload.V == CurrentVersion && payload.O is null && payload.T is null)
+            {
+                cursor = new CollectionItemPageCursor(payload.S, payload.ItemId);
+                return true;
+            }
+
+            if (payload.V == DateVersion && payload.T is { } addedAtUtc)
+            {
+                var sort = payload.O switch
+                {
+                    DateDescWire => CollectionItemSort.DateDesc,
+                    DateAscWire => CollectionItemSort.DateAsc,
+                    _ => (CollectionItemSort?)null,
+                };
+                if (sort is { } dateSort)
+                {
+                    cursor = CollectionItemPageCursor.ForDate(dateSort, addedAtUtc, payload.ItemId);
+                    return true;
+                }
+            }
+
+            return false;
         }
         catch (Exception exception) when (
             exception is FormatException or JsonException or ArgumentException)
@@ -56,5 +89,11 @@ public static class CollectionItemPageCursorCodec
         }
     }
 
-    private sealed record CursorPayload(int V, int S, long ItemId);
+    // O (order) and T (AddedAtUtc) are present only in a date cursor, and omitted from a manual one.
+    private sealed record CursorPayload(
+        int V,
+        int S,
+        long ItemId,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? O = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? T = null);
 }

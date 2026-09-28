@@ -379,7 +379,7 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
     }
 
     [Fact]
-    public async Task PublicLink_AndSpecificRoles_AlwaysMatch_AndNothingIsSwitchedOffAutomatically()
+    public async Task PublicLink_IsTheMinimumForSpecificRoles_AndNothingIsSwitchedOffAutomatically()
     {
         // A read member and a pending read invitation: 보기만 for everyone is allowed.
         await InviteAndAcceptAsync(_reader, CollectionCollaboratorRole.Viewer);
@@ -387,35 +387,52 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
         var publicId = NewPublicId();
         await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
 
-        // While it is on, nobody can be made a writer - and nothing changes to make room.
+        // While 보기만 is on, a specific person may still be given 링크 추가 - and back again.
         var readerJupleId = await JupleIdOfAsync(_reader);
-        var strangerJupleId = await JupleIdOfAsync(_stranger);
-        var memberToWrite = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, readerJupleId, CollectionCollaboratorRole.Contributor));
-        var pendingToWrite = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _collaboration.ChangeInvitationRoleAsync(_owner, _sharedId, pendingRead.InvitationId, CollectionCollaboratorRole.Contributor));
-        var inviteWriter = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _collaboration.InviteAsync(_owner, _sharedId, strangerJupleId, CollectionCollaboratorRole.Contributor));
-        Assert.All(new[] { memberToWrite, pendingToWrite, inviteWriter },
-            exception => Assert.Equal(CollectionCollaborationConflictException.PublicShareActive, exception.Code));
-        _db.ChangeTracker.Clear();
-        Assert.NotNull(await new PublicCollectionStore(_db).GetStateAsync(publicId));
+        await _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, readerJupleId, CollectionCollaboratorRole.Contributor);
+        Assert.Equal(CollectionAccessRole.Contributor, (await _access.RequireAsync(_reader, _sharedId, CollectionPermission.View)).Role);
+        await _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, readerJupleId, CollectionCollaboratorRole.Viewer);
         Assert.Equal(CollectionAccessRole.Viewer, (await _access.RequireAsync(_reader, _sharedId, CollectionPermission.View)).Role);
 
-        // Switching everyone to 링크 추가 is refused while 보기만 people exist.
+        // Raising everyone to 링크 추가 is refused while 보기만 people exist - and nothing changes to make room.
         var mismatch = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
             _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write, DateTimeOffset.UtcNow));
         Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, mismatch.Code);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(CollectionSharePermission.Read, (await new PublicCollectionStore(_db).GetStateAsync(publicId))!.Permission);
+        Assert.Equal(CollectionAccessRole.Viewer, (await _access.RequireAsync(_reader, _sharedId, CollectionPermission.View)).Role);
 
-        // With the link off, roles are free again; turning it on needs them to match its permission.
-        await _shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
-        await _collaboration.ChangeInvitationRoleAsync(_owner, _sharedId, pendingRead.InvitationId, CollectionCollaboratorRole.Contributor);
+        // Once the Owner raises them, 링크 추가 for everyone goes through; the invitee joins as a writer.
         await _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, readerJupleId, CollectionCollaboratorRole.Contributor);
-        var readBlocked = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
-            _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow));
-        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, readBlocked.Code);
-        Assert.NotNull(await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow, CollectionSharePermission.Write));
+        await _collaboration.ChangeInvitationRoleAsync(_owner, _sharedId, pendingRead.InvitationId, CollectionCollaboratorRole.Contributor);
+        Assert.NotNull(await _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write, DateTimeOffset.UtcNow));
+        await _collaboration.AcceptInvitationAsync(_writer, pendingRead.InvitationId);
+        _db.ChangeTracker.Clear();
+        await _addItem.AddAsync(_writer, _sharedId, _writerItem);
+
+        // While 링크 추가 is on, nobody can be lowered to (or invited as) 보기만.
+        var strangerJupleId = await JupleIdOfAsync(_stranger);
+        var memberToRead = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, readerJupleId, CollectionCollaboratorRole.Viewer));
+        var inviteReader = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _collaboration.InviteAsync(_owner, _sharedId, strangerJupleId, CollectionCollaboratorRole.Viewer));
+        var pendingWriter = await _collaboration.InviteAsync(_owner, _sharedId, strangerJupleId, CollectionCollaboratorRole.Contributor);
+        var pendingToRead = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _collaboration.ChangeInvitationRoleAsync(_owner, _sharedId, pendingWriter.InvitationId, CollectionCollaboratorRole.Viewer));
+        Assert.All(new[] { memberToRead, inviteReader, pendingToRead },
+            exception => Assert.Equal(CollectionCollaborationConflictException.PublicShareActive, exception.Code));
+        _db.ChangeTracker.Clear();
         Assert.Equal(CollectionAccessRole.Contributor, (await _access.RequireAsync(_reader, _sharedId, CollectionPermission.View)).Role);
+
+        // With the link off, roles are free again; turning 링크 추가 on needs everyone at least there.
+        await _shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
+        await _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, readerJupleId, CollectionCollaboratorRole.Viewer);
+        var writeBlocked = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(() =>
+            _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow, CollectionSharePermission.Write));
+        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, writeBlocked.Code);
+        Assert.NotNull(await _shares.EnableAsync(_owner, _sharedId, NewPublicId(), DateTimeOffset.UtcNow));
+        Assert.Equal(CollectionAccessRole.Viewer, (await _access.RequireAsync(_reader, _sharedId, CollectionPermission.View)).Role);
+        Assert.Equal(CollectionAccessRole.Contributor, (await _access.RequireAsync(_writer, _sharedId, CollectionPermission.View)).Role);
     }
 
     [Fact]

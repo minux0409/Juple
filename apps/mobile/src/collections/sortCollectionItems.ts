@@ -1,41 +1,59 @@
-import type { LinkSortOption } from '../settings/sortPreference';
-import type { CollectionItemEntry } from './api/collectionsApi';
+import type { TFunction } from 'i18next';
+import i18n from '../i18n';
+import { groupByLocalDate, type HistorySection } from '../items/historyDateGrouping';
+import { resolveSavedLinkPrimaryText } from '../items/savedLinkPrimaryText';
+import type { CollectionItemsSort, CollectionItemEntry } from './api/collectionsApi';
 
 /**
- * Pure client-side re-sort of a Collection's already-fetched item pages (the server itself has no
- * sort query parameter - see getCollectionItems/useCollectionItems, which always returns newest-
- * added-first) - applied fresh over the full accumulated `items` array on every render, so it stays
- * correct regardless of how many pages loadMore has pulled in so far. 'newest'/'oldest' sort by
- * addedAtUtc (an ISO 8601 string, so plain lexicographic comparison already sorts chronologically);
- * 'title' does a locale-aware compare, with title-less items (SavedLinkRow's own hostname-fallback
- * case) sorted after every titled item rather than mixed in arbitrarily.
+ * A comparer for the app's current language: accents and letter case only break ties (base
+ * sensitivity), and digit runs compare by value ("Item 2" before "Item 10"). An unknown or
+ * malformed language tag falls back to the runtime's default collation rather than throwing.
  */
-export function sortCollectionItems(
-  items: readonly CollectionItemEntry[],
-  sort: LinkSortOption,
-): readonly CollectionItemEntry[] {
-  const sorted = [...items];
-  switch (sort) {
-    case 'newest':
-      sorted.sort((a, b) => b.addedAtUtc.localeCompare(a.addedAtUtc));
-      break;
-    case 'oldest':
-      sorted.sort((a, b) => a.addedAtUtc.localeCompare(b.addedAtUtc));
-      break;
-    case 'title':
-      sorted.sort((a, b) => {
-        if (a.title === null && b.title === null) {
-          return 0;
-        }
-        if (a.title === null) {
-          return 1;
-        }
-        if (b.title === null) {
-          return -1;
-        }
-        return a.title.localeCompare(b.title);
-      });
-      break;
+function createNameCollator(locale: string | undefined): Intl.Collator {
+  const options: Intl.CollatorOptions = { numeric: true, sensitivity: 'base' };
+  try {
+    return new Intl.Collator(locale, options);
+  } catch {
+    return new Intl.Collator(undefined, options);
   }
-  return sorted;
+}
+
+/**
+ * 이름순: a locale-aware compare in the app's current language (see createNameCollator) over what
+ * each row shows as its name; title-less links (shown by their site name - see
+ * resolveSavedLinkPrimaryText) come after every titled link, never mixed in. Only ever applied to a
+ * WHOLE Collection (useCollectionItems' 'whole' mode) - over some loaded pages it would present a
+ * partial order as the Collection's. One flat list: initial-letter grouping differs per language
+ * and is not designed yet. Never mutates the input.
+ */
+export function sortCollectionItemsByName(
+  items: readonly CollectionItemEntry[],
+  locale: string | undefined = i18n.language,
+): readonly CollectionItemEntry[] {
+  const collator = createNameCollator(locale);
+  return [...items].sort((a, b) => {
+    if ((a.title === null) !== (b.title === null)) {
+      return a.title === null ? 1 : -1;
+    }
+    return (
+      collator.compare(resolveSavedLinkPrimaryText(a.title, a.url), resolveSavedLinkPrimaryText(b.title, b.url))
+      // Same name (or equal under base sensitivity): newest first, so the order never shuffles.
+      || b.addedAtUtc.localeCompare(a.addedAtUtc)
+      || b.itemId - a.itemId
+    );
+  });
+}
+
+/**
+ * 일자순 as History's own date accordion (see groupByLocalDate - one grouping rule, never a second
+ * copy): the links arrive already in the server's order for `sort` (the whole Collection by
+ * AddedAtUtc), so 'dateDesc' reads 오늘 → 어제 → 이번 주 → newer months → older months and 'dateAsc'
+ * the exact reverse, each section in the same direction. Nothing is re-sorted here.
+ */
+export function groupCollectionItemsByDate(
+  items: readonly CollectionItemEntry[],
+  sort: CollectionItemsSort,
+  t: TFunction,
+): readonly HistorySection<CollectionItemEntry>[] {
+  return groupByLocalDate(items, t, item => item.addedAtUtc, sort === 'dateAsc' ? 'oldestFirst' : 'newestFirst');
 }

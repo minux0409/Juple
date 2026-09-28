@@ -13,12 +13,19 @@ public enum CollectionSharePermission
 }
 
 /// <summary>
-/// While a public link is active, every specific person's role equals the link's permission:
-/// 보기만 (Read) → Viewer, 링크 추가 (Write) → Contributor. Checked by the stores on every invite,
+/// While a public link is active, its permission is the minimum any specific person has - a baseline,
+/// not an exact match: 보기만 (Read) lets a specific person be a Viewer or a Contributor, while 링크
+/// 추가 (Write) allows only Contributor, because a Viewer listed below what everyone with the link
+/// can already do would misstate their effective permission. Checked by the stores on every invite,
 /// role change, accept and public-link change - never fixed up automatically.
 /// </summary>
 public static class PublicShareRoles
 {
-    public static CollectionCollaboratorRole For(CollectionSharePermission permission) =>
+    /// <summary>The lowest role a specific person may have while a link with this permission is active.</summary>
+    public static CollectionCollaboratorRole MinimumFor(CollectionSharePermission permission) =>
         permission == CollectionSharePermission.Write ? CollectionCollaboratorRole.Contributor : CollectionCollaboratorRole.Viewer;
+
+    /// <summary>Whether a specific person may hold this role while a link with this permission is active.</summary>
+    public static bool Allows(CollectionSharePermission permission, CollectionCollaboratorRole role) =>
+        permission != CollectionSharePermission.Write || role == CollectionCollaboratorRole.Contributor;
 }

@@ -1,7 +1,8 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, StyleSheet, Switch } from 'react-native';
+import { FlatList, SectionList, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
+import { NAME_ORDER_MAX_LINKS } from '../../collections/useCollectionItems';
 import { StackScreenSafeArea } from '../../components/StackScreenSafeArea';
 import { SavedLinkGridCard } from '../../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../../components/SavedLinkRow';
@@ -113,8 +114,32 @@ function makeItemEntry(overrides: Partial<CollectionItemEntry> = {}): Collection
   };
 }
 
+
+/**
+ * The link list, whichever one the current sort renders: 일자순 (the default) is a date-grouped
+ * SectionList, 이름순 a flat FlatList. Exposed with FlatList-like props - `data` is every loaded
+ * link in display order, `renderItem` renders one row - so tests about rows and data do not depend
+ * on which of the two is on screen.
+ */
+function findItemList(
+  renderer: ReactTestRenderer.ReactTestRenderer | ReactTestRenderer.ReactTestInstance,
+): { readonly props: ReactTestRenderer.ReactTestInstance['props'] } {
+  const root = 'root' in renderer ? renderer.root : renderer;
+  const [sectionList] = root.findAllByType(SectionList);
+  if (!sectionList) {
+    return root.findByType(FlatList);
+  }
+  return {
+    props: {
+      ...sectionList.props,
+      data: sectionList.props.sections.flatMap((section: { items: readonly CollectionItemEntry[] }) => section.items),
+      renderItem: ({ item }: { item: CollectionItemEntry }) => sectionList.props.renderItem({ item, index: 0, section: { data: [item] } }),
+    },
+  };
+}
+
 const route = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1 } } as never;
-const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn() } as never;
+const navigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn() } as never;
 
 // Wrapped in the real AppToastProvider (not mocked) - Move/Unlink/Collection-Delete Undo now show
 // via the global AppToast Host (see useAppToast), so these tests exercise the real Provider and
@@ -138,7 +163,7 @@ async function renderScreen() {
  * FlatList's own `renderItem` prop directly rather than its internal virtualization.
  */
 function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
-  const flatList = renderer.root.findByType(FlatList);
+  const flatList = findItemList(renderer);
   const element = flatList.props.renderItem({ item, index: 0 });
   let rowRenderer!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
@@ -174,7 +199,7 @@ function revealRow(row: ReactTestRenderer.ReactTestRenderer): void {
  * still be queried from the main `renderer`, not this isolated one).
  */
 function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
-  const flatList = renderer.root.findByType(FlatList);
+  const flatList = findItemList(renderer);
   let headerRenderer!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
     headerRenderer = ReactTestRenderer.create(flatList.props.ListHeaderComponent);
@@ -271,7 +296,7 @@ describe('CollectionDetailsScreen', () => {
 
       expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
       expect(deleteItem).not.toHaveBeenCalled();
-      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(findItemList(renderer).props.data).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
       expect(renderer.root.findByProps({ children: i18n.t('toast.unlinkSuccess') })).toBeTruthy();
       expect(renderer.root.findAllByProps({ children: i18n.t('toast.deleteSuccess') })).toHaveLength(0);
@@ -296,7 +321,7 @@ describe('CollectionDetailsScreen', () => {
       // bespoke unlink-undo endpoint, and never the Item restore API (soft-delete is unrelated).
       expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
       expect(restoreItem).not.toHaveBeenCalled();
-      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(1);
+      expect(findItemList(renderer).props.data).toHaveLength(1);
       expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 1 }) })).toBeTruthy();
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ children: i18n.t('collections.addSuccess') })).toHaveLength(0);
@@ -317,7 +342,7 @@ describe('CollectionDetailsScreen', () => {
         await Promise.resolve();
       });
 
-      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(findItemList(renderer).props.data).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('toast.undoUnlinkError') })).toBeTruthy();
@@ -404,10 +429,12 @@ describe('CollectionDetailsScreen', () => {
       // Collections re-fetches on any refreshToken bump (see CollectionsScreen's own route.params
       // effect) rather than trusting a one-shot deletedCollectionId param - the global AppToast
       // Host owns the Undo toast itself, shown before this navigate call.
-      expect((navigation as { replace: jest.Mock }).replace).toHaveBeenCalledWith('MainTabs', {
+      // Back to the existing MainTabs (its Collections filter survives) - never a fresh one.
+      expect((navigation as { popTo: jest.Mock }).popTo).toHaveBeenCalledWith('MainTabs', {
         screen: 'Collections',
         params: { refreshToken: expect.any(Number) },
       });
+      expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
       expect(renderer.root.findByProps({ children: i18n.t('toast.collectionDeleteSuccess') })).toBeTruthy();
     });
 
@@ -428,7 +455,7 @@ describe('CollectionDetailsScreen', () => {
         await Promise.resolve();
       });
 
-      expect((navigation as { replace: jest.Mock }).replace).not.toHaveBeenCalled();
+      expect((navigation as { popTo: jest.Mock }).popTo).not.toHaveBeenCalled();
       expect(renderer.root.findByProps({ children: i18n.t('collections.errorDeleteFallback') })).toBeTruthy();
     });
   });
@@ -694,36 +721,239 @@ describe('CollectionDetailsScreen', () => {
   });
 
   describe('link sort + view mode', () => {
-    it('sorting by title reorders the FlatList data, and switching view mode does not reset the chosen sort', async () => {
-      const items = [
-        makeItemEntry({ itemId: 1, title: 'Banana', addedAtUtc: '2026-01-01T00:00:00Z' }),
-        makeItemEntry({ itemId: 2, title: 'Apple', addedAtUtc: '2026-01-02T00:00:00Z' }),
-        makeItemEntry({ itemId: 3, title: 'Cherry', addedAtUtc: '2026-01-03T00:00:00Z' }),
-      ];
-      jest.mocked(getCollectionItems).mockResolvedValue({ items, nextCursor: null });
+    const sortChip = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') =>
+      renderer.root.find(node => node.props.testID === `collection-sort-${which}` && typeof node.props.onPress === 'function');
+    const sortChipLabel = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') =>
+      sortChip(renderer, which).findByType(Text).props.children;
+    const sectionIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderer.root.findByType(SectionList).props.sections.map((section: { items: readonly CollectionItemEntry[] }) => section.items.map(item => item.itemId));
+
+    it('offers just 일자순 and 이름순 - 일자순 ↓ (newest first) by default', async () => {
       const renderer = await renderScreen();
 
-      // Default (newest-first) order, as the server already returns it.
-      expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([3, 2, 1]);
+      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
+      expect(sortChipLabel(renderer, 'name')).toBe(i18n.t('collections.sortName'));
+      expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
+      expect(sortChip(renderer, 'date').props.accessibilityLabel).toBe(i18n.t('collections.sortDateNewestA11y'));
+      expect(renderer.root.findAllByProps({ children: '최신순' })).toHaveLength(0);
+      expect(renderer.root.findAllByProps({ children: '오래된순' })).toHaveLength(0);
+    });
+
+    it('opened/closed date sections stay as the user left them when the direction flips', async () => {
+      const now = new Date();
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 10, 12).toISOString();
+      jest.mocked(getCollectionItems).mockResolvedValue({
+        items: [
+          makeItemEntry({ itemId: 1, addedAtUtc: now.toISOString() }),
+          makeItemEntry({ itemId: 3, addedAtUtc: twoMonthsAgo }),
+        ],
+        nextCursor: null,
+      });
+      const renderer = await renderScreen();
+      const shownIds = () =>
+        renderer.root.findByType(SectionList).props.sections.flatMap((section: { data: readonly CollectionItemEntry[] }) => section.data.map(item => item.itemId));
+      // Today's section starts open, the older month closed.
+      expect(shownIds()).toEqual([1]);
 
       await act(async () => {
-        let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findByProps({
-          children: i18n.t('collections.sortTitle'),
-        });
-        while (node && typeof node.props.onPress !== 'function') {
-          node = node.parent;
-        }
-        node!.props.onPress();
+        const [, month] = renderer.root.findByType(SectionList).props.sections;
+        renderer.root.findByType(SectionList).props.renderSectionHeader({ section: month }).props.onPress();
       });
-      // Title order (Apple, Banana, Cherry) is a real reorder relative to the newest-first default.
-      expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([2, 1, 3]);
+      expect(shownIds()).toEqual([1, 3]);
+
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+      expect(shownIds()).toEqual([3, 1]);
+    });
+
+    /**
+     * A server over `links` that orders and pages exactly like GET /collections/{id}/items: sort
+     * 'dateAsc'/'dateDesc' over the whole Collection by addedAtUtc (ties by itemId), a cursor that
+     * names its order, `limit` links per page.
+     */
+    function serveCollection(links: readonly CollectionItemEntry[]) {
+      jest.mocked(getCollectionItems).mockImplementation(async (_request, _collectionId, options = {}) => {
+        const sort = options.sort ?? 'dateDesc';
+        const ordered = [...links].sort((a, b) =>
+          sort === 'dateAsc'
+            ? a.addedAtUtc.localeCompare(b.addedAtUtc) || a.itemId - b.itemId
+            : b.addedAtUtc.localeCompare(a.addedAtUtc) || b.itemId - a.itemId);
+        let start = 0;
+        if (options.cursor) {
+          const [cursorSort, offset] = options.cursor.split(':');
+          if (cursorSort !== sort) {
+            throw new Error('a cursor from another order');
+          }
+          start = Number(offset);
+        }
+        const limit = options.limit ?? 50;
+        const end = start + limit;
+        return { items: ordered.slice(start, end), nextCursor: end < ordered.length ? `${sort}:${end}` : null };
+      });
+    }
+
+    /** 120 links, one a day - so the oldest ones are far outside the first (newest) 50-link page. */
+    function manyLinks(count = 120): CollectionItemEntry[] {
+      const now = new Date();
+      return Array.from({ length: count }, (_, index) => makeItemEntry({
+        itemId: index + 1,
+        title: `Link ${String(index + 1).padStart(3, '0')}`,
+        addedAtUtc: new Date(now.getFullYear(), now.getMonth(), now.getDate() - index * 3, 12).toISOString(),
+      }));
+    }
+
+    it('일자순 ↓ starts with the newest of the whole Collection, and ↑ asks the server afresh (no cursor) - its first link is the oldest of all 120', async () => {
+      const links = manyLinks();
+      serveCollection(links);
+      const renderer = await renderScreen();
+
+      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 50 }));
+      expect(findItemList(renderer).props.data[0].itemId).toBe(1);
+      expect(findItemList(renderer).props.data).toHaveLength(50);
+
+      jest.mocked(getCollectionItems).mockClear();
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+
+      expect(getCollectionItems).toHaveBeenCalledTimes(1);
+      const [, , options] = jest.mocked(getCollectionItems).mock.calls[0];
+      expect(options).toEqual(expect.objectContaining({ sort: 'dateAsc' }));
+      expect(options?.cursor).toBeUndefined();
+      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↑`);
+      // The oldest link of the whole Collection - not the oldest of the 50 newest.
+      expect(findItemList(renderer).props.data[0].itemId).toBe(120);
+      const sections = renderer.root.findByType(SectionList).props.sections;
+      expect(sections[0].items[0].itemId).toBe(120);
+      // Only the 50 oldest are in so far - 오늘 (the newest) comes last, once paged to, never early.
+      expect(sections.map((section: { label: string }) => section.label)).not.toContain(i18n.t('history.today'));
+    });
+
+    it('pages through the rest of the chosen order as the list scrolls, with no duplicate or missing link', async () => {
+      const links = manyLinks();
+      serveCollection(links);
+      const renderer = await renderScreen();
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+
+      for (let page = 0; page < 5 && findItemList(renderer).props.data.length < links.length; page++) {
+        await act(async () => {
+          renderer.root.findByType(SectionList).props.onEndReached();
+        });
+      }
+
+      const ids = findItemList(renderer).props.data.map((item: CollectionItemEntry) => item.itemId);
+      expect(ids).toEqual(links.map(link => link.itemId).reverse());
+      for (const call of jest.mocked(getCollectionItems).mock.calls.slice(1)) {
+        expect(call[2]?.sort).toBe('dateAsc');
+      }
+    });
+
+    it('일자순 groups links like History (오늘 / 어제 / months), in the server order, and flips back to ↓', async () => {
+      const now = new Date();
+      serveCollection([
+        makeItemEntry({ itemId: 1, title: 'Today', addedAtUtc: now.toISOString() }),
+        makeItemEntry({ itemId: 2, title: 'Yesterday', addedAtUtc: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12).toISOString() }),
+        makeItemEntry({ itemId: 3, title: 'Two months', addedAtUtc: new Date(now.getFullYear(), now.getMonth() - 2, 10, 12).toISOString() }),
+        makeItemEntry({ itemId: 4, title: 'Three months', addedAtUtc: new Date(now.getFullYear(), now.getMonth() - 3, 10, 12).toISOString() }),
+      ]);
+      const renderer = await renderScreen();
+
+      const labels = renderer.root.findByType(SectionList).props.sections.map((section: { label: string }) => section.label);
+      expect(labels.slice(0, 2)).toEqual([i18n.t('history.today'), i18n.t('history.yesterday')]);
+      expect(sectionIds(renderer)).toEqual([[1], [2], [3], [4]]);
+
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+      expect(sortChip(renderer, 'date').props.accessibilityLabel).toBe(i18n.t('collections.sortDateOldestA11y'));
+      expect(sectionIds(renderer)).toEqual([[4], [3], [2], [1]]);
+
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
+      expect(sectionIds(renderer)).toEqual([[1], [2], [3], [4]]);
+    });
+
+    it('이름순 loads the whole Collection first - never a name order of just the loaded page - then shows it as one flat list', async () => {
+      const links = manyLinks();
+      serveCollection(links);
+      let finishSecondPage!: () => void;
+      const serve = jest.mocked(getCollectionItems).getMockImplementation()!;
+      const renderer = await renderScreen();
+
+      // Hold the second 100-link page back: while the Collection is only partly in, nothing is shown.
+      jest.mocked(getCollectionItems).mockImplementation(async (request, collectionId, options = {}) => {
+        if (options.cursor) {
+          await new Promise<void>(resolve => {
+            finishSecondPage = resolve;
+          });
+        }
+        return serve(request, collectionId, options);
+      });
+      await act(async () => {
+        sortChip(renderer, 'name').props.onPress();
+      });
+      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ limit: 100, sort: 'dateDesc', cursor: 'dateDesc:100' }));
+      expect(renderer.root.findAllByType(SectionList)).toHaveLength(0);
+      expect(renderer.root.findByType(FlatList).props.data).toEqual([]);
+      expect(renderer.root.findByProps({ testID: 'collection-items-loading' })).toBeTruthy();
+
+      await act(async () => {
+        finishSecondPage();
+      });
+
+      const names = renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.title);
+      expect(names).toHaveLength(120);
+      expect(names[0]).toBe('Link 001');
+      expect(names[119]).toBe('Link 120');
+      expect(sortChipLabel(renderer, 'date')).toBe(i18n.t('collections.sortDate'));
 
       // Switching List -> Grid view mode must not reset the sort choice just made.
       await act(async () => {
         renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
       });
       expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
-      expect(renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.itemId)).toEqual([2, 1, 3]);
+      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(120);
+
+      // Back to 일자순 starts newest first again, from the server's first page.
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
+      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.not.objectContaining({ cursor: expect.anything() }));
+    });
+
+    it('이름순 of a Collection with more links than can be name-ordered as a whole is refused with the reason - it stays on 일자순', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: NAME_ORDER_MAX_LINKS + 1 }));
+      serveCollection(manyLinks(60));
+      const renderer = await renderScreen();
+      jest.mocked(getCollectionItems).mockClear();
+
+      await act(async () => {
+        sortChip(renderer, 'name').props.onPress();
+      });
+
+      expect(getCollectionItems).not.toHaveBeenCalled();
+      expect(renderer.root.findByProps({ children: i18n.t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }) })).toBeTruthy();
+      expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
+    });
+
+    it('if the Collection turns out larger than that while loading for 이름순, nothing partial is shown and it goes back to 일자순', async () => {
+      serveCollection(manyLinks(NAME_ORDER_MAX_LINKS + 20));
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        sortChip(renderer, 'name').props.onPress();
+      });
+
+      expect(renderer.root.findByProps({ children: i18n.t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }) })).toBeTruthy();
+      expect(renderer.root.findAllByType(SectionList)).toHaveLength(1);
+      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 50 }));
+      expect(findItemList(renderer).props.data[0].itemId).toBe(1);
     });
   });
 
@@ -733,7 +963,7 @@ describe('CollectionDetailsScreen', () => {
     async function expectListInsideStackSafeArea(renderer: ReactTestRenderer.ReactTestRenderer) {
       const safeAreaRoots = renderer.root.findAllByType(StackScreenSafeArea);
       expect(safeAreaRoots).toHaveLength(1);
-      const list = safeAreaRoots[0].findByType(FlatList);
+      const list = findItemList(safeAreaRoots[0]);
       expect(StyleSheet.flatten(list.props.style)).toMatchObject({ flex: 1 });
       expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingBottom).toBe(spacing.xl);
     }
@@ -745,7 +975,8 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => {
         renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
       });
-      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+      // 일자순 Grid: tiles inside the open date section's card.
+      expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeGreaterThan(0);
       await expectListInsideStackSafeArea(renderer);
     });
 
@@ -866,11 +1097,11 @@ describe('CollectionDetailsScreen', () => {
       const renderer = await renderScreen(); await openItemMenu(renderer, item);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
-      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(findItemList(renderer).props.data).toHaveLength(0);
       await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
       expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, true);
-      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(1);
-      expect(renderer.root.findByType(FlatList).props.data[0].itemId).toBe(9);
+      expect(findItemList(renderer).props.data).toHaveLength(1);
+      expect(findItemList(renderer).props.data[0].itemId).toBe(9);
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findAll(node => node.props.children === '되돌렸습니다.').length).toBe(0);
     });
@@ -883,7 +1114,7 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
       await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
-      expect(renderer.root.findByType(FlatList).props.data).toHaveLength(0);
+      expect(findItemList(renderer).props.data).toHaveLength(0);
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('toast.undoMoveError') })).toBeTruthy();
     });
