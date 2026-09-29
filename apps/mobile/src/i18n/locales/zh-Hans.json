@@ -83,6 +83,7 @@
     "yesterday": "昨天",
     "thisWeek": "本周",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "重试",
     "deleteConfirmTitle": "删除项目",
     "deleteConfirmMessage": "确定删除此项目吗？删除后无法恢复。",
     "errorDeleteFallback": "无法删除该项目。"

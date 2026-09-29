@@ -83,6 +83,7 @@
     "yesterday": "Dün",
     "thisWeek": "Bu hafta",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Tekrar dene",
     "deleteConfirmTitle": "Öğeyi sil",
     "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
     "errorDeleteFallback": "Öğe silinemedi."

@@ -31,4 +31,22 @@ public interface IItemHistoryQueryStore
         ItemHistoryPageCursor? cursor,
         int limit,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The SavedAtUtc of the user's oldest History Item saved before beforeUtc (null: none) - one
+    /// seek on IX_Items_UserId_SavedAtUtc_Id. Defaulted: only ItemStore implements the History summary.
+    /// </summary>
+    Task<DateTimeOffset?> GetOldestSavedAtUtcAsync(long userId, DateTimeOffset beforeUtc, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    /// <summary>
+    /// How many History Items (the same rows GetHistoryAsync pages through) fall in each [FromUtc,
+    /// ToUtc) window, in the given order - one query for every window, never one per window or per
+    /// Item. Defaulted like GetOldestSavedAtUtcAsync.
+    /// </summary>
+    Task<IReadOnlyList<int>> CountByRangesAsync(
+        long userId,
+        IReadOnlyList<(DateTimeOffset FromUtc, DateTimeOffset ToUtc)> ranges,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
 }

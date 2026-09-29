@@ -95,4 +95,22 @@ export const dateAccordionStyles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  // The same image-view body, one virtualized list row per line of tiles (see DateHistoryScreen):
+  // every line carries the side borders, the first opens the body under the header, the last
+  // closes the card - so it reads exactly like gridBody while only the lines on screen mount.
+  gridRow: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    flexDirection: 'row',
+    paddingHorizontal: spacing.sm,
+  },
+  gridRowFirst: { borderTopWidth: 1, paddingTop: spacing.sm },
+  gridRowLast: {
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+    borderBottomWidth: 1,
+    marginBottom: spacing.sm + 2,
+  },
 });

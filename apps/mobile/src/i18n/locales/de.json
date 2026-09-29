@@ -83,6 +83,7 @@
     "yesterday": "Gestern",
     "thisWeek": "Diese Woche",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Erneut versuchen",
     "deleteConfirmTitle": "Eintrag löschen",
     "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."

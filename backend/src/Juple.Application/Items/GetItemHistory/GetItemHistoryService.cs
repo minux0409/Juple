@@ -14,7 +14,29 @@ public sealed class GetItemHistoryService(
     {
         var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetHistoryAsync(
             userId, cursor, limit, cancellationToken);
+        return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
+    }
 
+    public async Task<ItemHistoryPage> GetRangeAsync(
+        long userId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        ItemHistoryPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetByDateRangeAsync(
+            userId, fromUtc, toUtc, cursor, limit, cancellationToken);
+        return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
+    }
+
+    private async Task<ItemHistoryPage> EnrichAsync(
+        long userId,
+        ItemHistoryPage page,
+        IReadOnlyDictionary<long, ItemRepresentativeImageRef> representativeImages,
+        IReadOnlyDictionary<long, ItemRepresentativeImageRef> coverImages,
+        CancellationToken cancellationToken)
+    {
         var enrichedItems = new List<ItemHistoryEntryDto>(page.Items.Count);
         foreach (var item in page.Items)
         {

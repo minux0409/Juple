@@ -83,6 +83,7 @@
     "yesterday": "Вчера",
     "thisWeek": "На этой неделе",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Повторить",
     "deleteConfirmTitle": "Удалить элемент",
     "deleteConfirmMessage": "Удалить этот элемент? Это действие нельзя отменить.",
     "errorDeleteFallback": "Не удалось удалить элемент."

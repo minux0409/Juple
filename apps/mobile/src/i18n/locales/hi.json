@@ -83,6 +83,7 @@
     "yesterday": "कल",
     "thisWeek": "इस सप्ताह",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "फिर से प्रयास करें",
     "deleteConfirmTitle": "आइटम हटाएं",
     "deleteConfirmMessage": "क्या इस आइटम को हटाना है? यह वापस नहीं किया जा सकता।",
     "errorDeleteFallback": "आइटम हटाया नहीं जा सका।"

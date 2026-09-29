@@ -83,6 +83,7 @@
     "yesterday": "Hôm qua",
     "thisWeek": "Tuần này",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Thử lại",
     "deleteConfirmTitle": "Xóa mục",
     "deleteConfirmMessage": "Xóa mục này? Không thể hoàn tác sau khi xóa.",
     "errorDeleteFallback": "Không thể xóa mục này."

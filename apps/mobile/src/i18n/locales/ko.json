@@ -83,6 +83,7 @@
     "yesterday": "어제",
     "thisWeek": "이번 주",
     "sectionHeader": "{{label}} · {{count}}개",
+    "retry": "다시 시도",
     "deleteConfirmTitle": "항목 삭제",
     "deleteConfirmMessage": "이 항목을 삭제할까요? 삭제 후 되돌릴 수 없습니다.",
     "errorDeleteFallback": "항목을 삭제할 수 없습니다."

@@ -83,6 +83,7 @@
     "yesterday": "昨日",
     "thisWeek": "今週",
     "sectionHeader": "{{label}} ・ {{count}}",
+    "retry": "再試行",
     "deleteConfirmTitle": "項目を削除",
     "deleteConfirmMessage": "この項目を削除しますか？この操作は取り消せません。",
     "errorDeleteFallback": "項目を削除できませんでした。"

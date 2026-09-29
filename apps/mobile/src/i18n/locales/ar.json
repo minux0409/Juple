@@ -83,6 +83,7 @@
     "yesterday": "أمس",
     "thisWeek": "هذا الأسبوع",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "إعادة المحاولة",
     "deleteConfirmTitle": "حذف العنصر",
     "deleteConfirmMessage": "هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.",
     "errorDeleteFallback": "تعذّر حذف العنصر."

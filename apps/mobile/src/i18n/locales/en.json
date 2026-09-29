@@ -83,6 +83,7 @@
     "yesterday": "Yesterday",
     "thisWeek": "This week",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Try again",
     "deleteConfirmTitle": "Delete item",
     "deleteConfirmMessage": "Delete this item? This can't be undone.",
     "errorDeleteFallback": "Couldn't delete the item."

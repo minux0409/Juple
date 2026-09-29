@@ -9,6 +9,7 @@ using Juple.Application.Items.EmptyItemTrash;
 using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Items.GetItemHistory;
 using Juple.Application.Items.GetItemHistoryByDate;
+using Juple.Application.Items.GetItemHistorySections;
 using Juple.Application.Items.GetItemTrash;
 using Juple.Application.Items.InstagramMetadataCandidate;
 using Juple.Application.Items.PermanentlyDeleteItem;
@@ -45,14 +46,27 @@ public sealed class ItemsController(
 {
     /// <summary>
     /// All Items the user has ever saved, newest-saved-first. See docs/product-overview.md
-    /// "History".
+    /// "History". Optional fromUtc/toUtc (additive - omitted, the response is unchanged) restrict it
+    /// to SavedAtUtc in [fromUtc, toUtc): one History section's window, as given by
+    /// GET /api/v1/items/history/sections - same order, cursor and page shape, and a cursor from a
+    /// window only ever continues inside that window.
     /// </summary>
     [HttpGet("history")]
     public async Task<IActionResult> GetHistoryAsync(
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] DateTimeOffset? fromUtc = null,
+        [FromQuery] DateTimeOffset? toUtc = null)
     {
+        if (fromUtc is { } from && toUtc is { } to && to <= from)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["toUtc"] = ["toUtc must be later than fromUtc."],
+            }));
+        }
+
         if (!ItemsQueryParameters.TryParseLimit(limit, out var resolvedLimit))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -76,12 +90,45 @@ public sealed class ItemsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var page = await getItemHistoryService.GetAsync(
-                currentUser.UserId, typedCursor, resolvedLimit, cancellationToken);
+            var page = fromUtc is null && toUtc is null
+                ? await getItemHistoryService.GetAsync(currentUser.UserId, typedCursor, resolvedLimit, cancellationToken)
+                : await getItemHistoryService.GetRangeAsync(
+                    currentUser.UserId,
+                    fromUtc ?? DateTimeOffset.MinValue,
+                    toUtc ?? DateTimeOffset.MaxValue,
+                    typedCursor,
+                    resolvedLimit,
+                    cancellationToken);
 
             return Ok(new ItemHistoryPageResponse(
                 page.Items,
                 page.NextCursor is { } nextCursor ? ItemHistoryPageCursorCodec.Encode(nextCursor) : null));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
+
+    /// <summary>
+    /// The History summary: every non-empty section (오늘 / 어제 / 이번 주 / each month, in the user's
+    /// stored time zone - see GetItemHistorySectionsService) with its exact link count and the UTC
+    /// window its links are read from via GET /api/v1/items/history?fromUtc&amp;toUtc. No link data,
+    /// no display text - the app labels sections itself.
+    /// </summary>
+    [HttpGet("history/sections")]
+    public async Task<IActionResult> GetHistorySectionsAsync(
+        [FromServices] IGetItemHistorySectionsService getItemHistorySectionsService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var sections = await getItemHistorySectionsService.GetAsync(currentUser.UserId, currentUser.TimeZoneId, cancellationToken);
+            return Ok(new ItemHistorySectionsResponse(sections));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -396,6 +443,8 @@ public sealed class ItemsController(
     }
 
     public sealed record ItemHistoryPageResponse(IReadOnlyList<ItemHistoryEntryDto> Items, string? NextCursor);
+
+    public sealed record ItemHistorySectionsResponse(IReadOnlyList<ItemHistorySectionDto> Sections);
 
     public sealed record ItemTrashResponse(IReadOnlyList<ItemTrashEntryDto> Items);
 

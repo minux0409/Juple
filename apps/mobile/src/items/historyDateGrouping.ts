@@ -1,7 +1,7 @@
 import type { TFunction } from 'i18next';
 import i18n from '../i18n';
 import { formatDateOnly } from './dateOnly';
-import type { ItemHistoryEntry } from './api/itemsApi';
+import type { ItemHistoryEntry, ItemHistorySection } from './api/itemsApi';
 
 export interface HistorySection<T = ItemHistoryEntry> {
   /**
@@ -52,9 +52,38 @@ function monthKeyOf(dateKey: string): string {
 
 function formatMonthLabel(monthKey: string): string {
   const [year, month] = monthKey.slice('month:'.length).split('-').map(Number);
+  return formatYearMonth(year, month);
+}
+
+function formatYearMonth(year: number, month: number): string {
   return new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: 'long' }).format(
     new Date(year, month - 1, 1),
   );
+}
+
+/**
+ * A server History section (see getItemHistorySections) worded exactly like groupByLocalDate's own
+ * sections: 오늘 / 어제 / 이번 주 / a localized month - the server never sends display text.
+ */
+export function historySectionLabel(
+  section: Pick<ItemHistorySection, 'kind' | 'key' | 'year' | 'month'>,
+  t: TFunction,
+): string {
+  switch (section.kind) {
+    case 'today':
+      return t('history.today');
+    case 'yesterday':
+      return t('history.yesterday');
+    case 'thisWeek':
+      return t('history.thisWeek');
+    default:
+      return section.year !== null && section.month !== null ? formatYearMonth(section.year, section.month) : formatMonthLabel(section.key);
+  }
+}
+
+/** Same rule as groupByLocalDate's showItemDate: one-day sections show times, longer ones full dates. */
+export function historySectionShowsItemDate(kind: ItemHistorySection['kind']): boolean {
+  return kind !== 'today' && kind !== 'yesterday';
 }
 
 export function groupHistoryByLocalDate(

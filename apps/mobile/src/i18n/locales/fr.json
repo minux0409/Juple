@@ -83,6 +83,7 @@
     "yesterday": "Hier",
     "thisWeek": "Cette semaine",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Réessayer",
     "deleteConfirmTitle": "Supprimer l'élément",
     "deleteConfirmMessage": "Supprimer cet élément ? Cette action est irréversible.",
     "errorDeleteFallback": "Impossible de supprimer l'élément."

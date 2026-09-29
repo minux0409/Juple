@@ -83,6 +83,7 @@
     "yesterday": "เมื่อวาน",
     "thisWeek": "สัปดาห์นี้",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "ลองอีกครั้ง",
     "deleteConfirmTitle": "ลบรายการ",
     "deleteConfirmMessage": "ลบรายการนี้หรือไม่? ไม่สามารถย้อนกลับได้หลังจากลบแล้ว",
     "errorDeleteFallback": "ไม่สามารถลบรายการได้"

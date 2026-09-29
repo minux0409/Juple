@@ -5,6 +5,7 @@ using Juple.Application.Items.InstagramMetadataCandidate;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Items;
@@ -609,5 +610,58 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             : null;
 
         return (new ItemHistoryPage(items, nextCursor), representativeImages, coverImages);
+    }
+
+    public async Task<DateTimeOffset?> GetOldestSavedAtUtcAsync(long userId, DateTimeOffset beforeUtc, CancellationToken cancellationToken = default) =>
+        await dbContext.Items
+            .AsNoTracking()
+            .Where(item => item.UserId == userId && item.DeletedAtUtc == null && item.SavedAtUtc < beforeUtc)
+            .MinAsync(item => (DateTimeOffset?)item.SavedAtUtc, cancellationToken);
+
+    /// <summary>
+    /// One statement for every window: the windows travel as one JSON parameter (OPENJSON, as EF's
+    /// own primitive collections do), and each gets a correlated COUNT over the same rows
+    /// GetHistoryAsync pages through - a range seek on IX_Items_UserId_SavedAtUtc_Id per window.
+    /// </summary>
+    public async Task<IReadOnlyList<int>> CountByRangesAsync(
+        long userId,
+        IReadOnlyList<(DateTimeOffset FromUtc, DateTimeOffset ToUtc)> ranges,
+        CancellationToken cancellationToken = default)
+    {
+        if (ranges.Count == 0)
+        {
+            return [];
+        }
+
+        var windows = System.Text.Json.JsonSerializer.Serialize(
+            ranges.Select((range, index) => new { i = index, f = range.FromUtc, t = range.ToUtc }));
+        var rows = await dbContext.Database
+            .SqlQueryRaw<HistoryRangeCount>(
+                """
+                SELECT w.[Idx], (
+                    SELECT COUNT(*)
+                    FROM [items].[Items] AS i
+                    WHERE i.[UserId] = @userId AND i.[DeletedAtUtc] IS NULL
+                        AND i.[SavedAtUtc] >= w.[FromUtc] AND i.[SavedAtUtc] < w.[ToUtc]) AS [Count]
+                FROM OPENJSON(@windows) WITH ([Idx] int '$.i', [FromUtc] datetimeoffset '$.f', [ToUtc] datetimeoffset '$.t') AS w
+                """,
+                new SqlParameter("@userId", userId),
+                new SqlParameter("@windows", windows))
+            .ToListAsync(cancellationToken);
+
+        var counts = new int[ranges.Count];
+        foreach (var row in rows)
+        {
+            counts[row.Idx] = row.Count;
+        }
+
+        return counts;
+    }
+
+    private sealed class HistoryRangeCount
+    {
+        public int Idx { get; init; }
+
+        public int Count { get; init; }
     }
 }

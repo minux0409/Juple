@@ -83,6 +83,7 @@
     "yesterday": "Ieri",
     "thisWeek": "Questa settimana",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Riprova",
     "deleteConfirmTitle": "Elimina elemento",
     "deleteConfirmMessage": "Eliminare questo elemento? L'operazione non può essere annullata.",
     "errorDeleteFallback": "Impossibile eliminare l'elemento."

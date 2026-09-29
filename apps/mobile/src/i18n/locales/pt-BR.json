@@ -83,6 +83,7 @@
     "yesterday": "Ontem",
     "thisWeek": "Esta semana",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Tentar novamente",
     "deleteConfirmTitle": "Excluir item",
     "deleteConfirmMessage": "Excluir este item? Essa ação não pode ser desfeita.",
     "errorDeleteFallback": "Não foi possível excluir o item."

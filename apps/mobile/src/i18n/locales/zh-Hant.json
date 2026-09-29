@@ -83,6 +83,7 @@
     "yesterday": "昨天",
     "thisWeek": "本週",
     "sectionHeader": "{{label}} ‧ {{count}}",
+    "retry": "重試",
     "deleteConfirmTitle": "刪除項目",
     "deleteConfirmMessage": "確定要刪除此項目嗎？刪除後無法復原。",
     "errorDeleteFallback": "無法刪除該項目。"

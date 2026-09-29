@@ -44,9 +44,16 @@ export interface GetItemHistoryOptions {
   readonly limit?: number;
   /** Opaque value from a previous ItemHistoryPage.nextCursor; never parsed or modified. */
   readonly cursor?: string;
+  /**
+   * One History section's window, exactly as GET /api/v1/items/history/sections returned it
+   * (ItemHistorySection.fromUtc/toUtc) - the page then holds only that section's links, and its
+   * cursor only continues inside it. Omitted: the whole History, unchanged.
+   */
+  readonly fromUtc?: string;
+  readonly toUtc?: string | null;
 }
 
-/** All Items the user has ever saved, newest-saved-first. */
+/** All Items the user has ever saved, newest-saved-first (or one section's window of them - see fromUtc). */
 export async function getItemHistory(
   request: AuthenticatedApiRequest,
   options: GetItemHistoryOptions = {},
@@ -57,6 +64,12 @@ export async function getItemHistory(
   }
   if (options.cursor) {
     query.set('cursor', options.cursor);
+  }
+  if (options.fromUtc) {
+    query.set('fromUtc', options.fromUtc);
+  }
+  if (options.toUtc) {
+    query.set('toUtc', options.toUtc);
   }
   const queryString = query.toString();
 
@@ -70,6 +83,37 @@ export async function getItemHistory(
   }
 
   return response.body;
+}
+
+/**
+ * One non-empty History section from the summary: identity (key matches groupByLocalDate's
+ * dateKey - "YYYY-MM-DD" for today/yesterday, "thisWeek", "month:YYYY-MM"), the exact number of
+ * links in it, and the window its links are read from. Never a display label - see
+ * historySectionLabel.
+ */
+export interface ItemHistorySection {
+  readonly key: string;
+  readonly kind: 'today' | 'yesterday' | 'thisWeek' | 'month';
+  readonly year: number | null;
+  readonly month: number | null;
+  readonly fromUtc: string;
+  /** Null: open-ended (today). */
+  readonly toUtc: string | null;
+  readonly count: number;
+}
+
+/** The History summary - every non-empty section with its exact count, newest first; no link data. */
+export async function getItemHistorySections(request: AuthenticatedApiRequest): Promise<readonly ItemHistorySection[]> {
+  const response = await request<{ readonly sections: readonly ItemHistorySection[] }>({
+    method: 'GET',
+    path: '/api/v1/items/history/sections',
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Item history sections body.');
+  }
+
+  return response.body.sections;
 }
 
 export interface ItemHistoryByDate {

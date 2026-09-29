@@ -83,6 +83,7 @@
     "yesterday": "Kemarin",
     "thisWeek": "Minggu ini",
     "sectionHeader": "{{label}} · {{count}}",
+    "retry": "Coba lagi",
     "deleteConfirmTitle": "Hapus item",
     "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
     "errorDeleteFallback": "Tidak dapat menghapus item."

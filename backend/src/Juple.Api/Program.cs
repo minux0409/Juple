@@ -96,6 +96,7 @@ builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
 builder.Services.AddScoped<IGetItemHistoryService, GetItemHistoryService>();
 builder.Services.AddScoped<IGetItemHistoryByDateService, GetItemHistoryByDateService>();
+builder.Services.AddScoped<Juple.Application.Items.GetItemHistorySections.IGetItemHistorySectionsService, Juple.Application.Items.GetItemHistorySections.GetItemHistorySectionsService>();
 builder.Services.AddScoped<IRecordItemOpenService, RecordItemOpenService>();
 builder.Services.AddScoped<IGetRecentlyOpenedLinksService, GetRecentlyOpenedLinksService>();
 builder.Services.AddScoped<IDeleteRecentlyOpenedLinkService, DeleteRecentlyOpenedLinkService>();
