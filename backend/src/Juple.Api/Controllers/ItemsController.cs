@@ -118,6 +118,50 @@ public sealed class ItemsController(
     /// window its links are read from via GET /api/v1/items/history?fromUtc&amp;toUtc. No link data,
     /// no display text - the app labels sections itself.
     /// </summary>
+    /// <summary>
+    /// How many History links fall in [fromUtc, toUtc) - the exact total of the window GET history
+    /// pages through with the same fromUtc/toUtc (toUtc omitted: open-ended). Home asks for its own
+    /// "today" (from the device's local midnight) so its header shows the whole day's count while
+    /// the rows arrive a page at a time. Counts only - no link data.
+    /// </summary>
+    [HttpGet("history/count")]
+    public async Task<IActionResult> GetHistoryCountAsync(
+        [FromQuery] DateTimeOffset? fromUtc,
+        CancellationToken cancellationToken,
+        [FromQuery] DateTimeOffset? toUtc = null)
+    {
+        if (fromUtc is null)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["fromUtc"] = ["fromUtc is required."],
+            }));
+        }
+
+        if (toUtc is { } to && to <= fromUtc.Value)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["toUtc"] = ["toUtc must be later than fromUtc."],
+            }));
+        }
+
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var count = await getItemHistoryService.CountRangeAsync(
+                currentUser.UserId, fromUtc.Value, toUtc ?? DateTimeOffset.MaxValue, cancellationToken);
+            return Ok(new ItemHistoryCountResponse(count));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
+
     [HttpGet("history/sections")]
     public async Task<IActionResult> GetHistorySectionsAsync(
         [FromServices] IGetItemHistorySectionsService getItemHistorySectionsService,
@@ -445,6 +489,8 @@ public sealed class ItemsController(
     public sealed record ItemHistoryPageResponse(IReadOnlyList<ItemHistoryEntryDto> Items, string? NextCursor);
 
     public sealed record ItemHistorySectionsResponse(IReadOnlyList<ItemHistorySectionDto> Sections);
+
+    public sealed record ItemHistoryCountResponse(int Count);
 
     public sealed record ItemTrashResponse(IReadOnlyList<ItemTrashEntryDto> Items);
 

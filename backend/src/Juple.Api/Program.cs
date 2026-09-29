@@ -122,6 +122,7 @@ builder.Services.AddScoped<ISetCollectionColorService, SetCollectionColorService
 builder.Services.AddScoped<IDeleteCollectionService, DeleteCollectionService>();
 builder.Services.AddScoped<IRestoreCollectionService, RestoreCollectionService>();
 builder.Services.AddScoped<IGetCollectionItemsService, GetCollectionItemsService>();
+builder.Services.AddScoped<IGetCollectionItemSectionsService, GetCollectionItemSectionsService>();
 builder.Services.AddScoped<IAddItemToCollectionService, AddItemToCollectionService>();
 builder.Services.AddScoped<IRemoveItemFromCollectionService, RemoveItemFromCollectionService>();
 builder.Services.AddScoped<IMoveCollectionItemService, MoveCollectionItemService>();

@@ -17,6 +17,22 @@ public interface IGetCollectionItemsService
         CollectionItemSort sort = CollectionItemSort.Manual,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Same gates, rows, order and cursor as GetAsync, restricted to links added (AddedAtUtc) within
+    /// [fromUtc, toUtc) - one date section (see IGetCollectionItemSectionsService). A cursor from this
+    /// window only ever continues inside it.
+    /// </summary>
+    Task<CollectionItemPage> GetRangeAsync(
+        long userId,
+        long collectionId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        string? unlockToken = null,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Same gates; one link as the read-only shared view (null when not in this Collection).</summary>
     Task<SharedCollectionItemDto?> GetItemAsync(
         long userId,

@@ -5,9 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  ActivityIndicator,
   AppState,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -23,7 +23,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
-import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCell, savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -32,19 +33,34 @@ import { LinkIcon } from '../icons/LinkIcon';
 import {
   deleteItem,
   getItemHistory,
+  getItemHistoryCount,
   restoreItem,
   type ItemHistoryEntry,
 } from '../items/api/itemsApi';
 import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
-import { filterTodayItemsPage } from '../items/todayItemsFilter';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
 
-const PAGE_LIMIT = 50;
+/** Links per request - a screenful or two; the rest of the day comes a page at a time. */
+export const HOME_PAGE_SIZE = 25;
+/** The server's page limit - a refresh never asks for more rows than this in one request. */
+const MAX_PAGE_LIMIT = 100;
+/** Skeleton rows while the first page loads, and under the loaded rows while a next one does. */
+export const HOME_FIRST_PAGE_SKELETON_ROWS = 6;
+export const HOME_NEXT_PAGE_SKELETON_ROWS = 2;
+
+/**
+ * Today's window as the device sees it right now: from its own local midnight (as a UTC instant),
+ * open-ended - the same "today" History's own 오늘 used to be decided by on the device, never a
+ * server-stored timezone that can go stale (see GET items/history's fromUtc/toUtc).
+ */
+function todayWindowStartUtc(now: Date): string {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+}
 
 function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): string {
   if (error instanceof ApiError) {
@@ -89,9 +105,12 @@ function getShareErrorMessage(t: TFunction): string {
  * from this screen; only viewing (tap -> ItemDetails), sharing, and deleting remain (share/delete
  * live behind a row swipe - see SwipeableItemRow - not as always-visible buttons).
  *
- * A day's worth of saves is unbounded, so - mirroring useItemHistory.ts's verified
- * pagination/refresh pattern exactly - only one page loads up front and the rest is fetched via
- * onEndReached/loadMore, never all at once.
+ * A day's worth of saves is unbounded: the server returns only today's window (from the device's
+ * own local midnight - see todayWindowStartUtc), HOME_PAGE_SIZE links at a time, and the rest is
+ * fetched via onEndReached/loadMore as the list scrolls, never all at once. The header count is the
+ * whole day's exact total (GET items/history/count over the same window), not how many are loaded.
+ * Returning to Home (e.g. from ItemDetails) reloads what was already shown in place - the same
+ * number of rows - so edits appear without the list collapsing back to its first page.
  */
 export function DailyInboxScreen() {
   const { t } = useTranslation();
@@ -105,7 +124,11 @@ export function DailyInboxScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   useToastBottomAnchor(tabBarHeight);
   const [date, setDate] = useState<string | null>(null);
+  // The window the shown rows (and their cursor) belong to - a next page never leaves it.
+  const [windowStartUtc, setWindowStartUtc] = useState<string | null>(null);
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
+  // The whole day's exact total (null until known, or if only the count request failed).
+  const [todayCount, setTodayCount] = useState<number | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -142,6 +165,9 @@ export function DailyInboxScreen() {
     itemsRef.current = items;
   }, [items]);
 
+  const dateRef = useRef(date);
+  dateRef.current = date;
+
   useEffect(() => {
     actionInFlightItemIdRef.current = actionInFlightItemId;
   }, [actionInFlightItemId]);
@@ -163,21 +189,28 @@ export function DailyInboxScreen() {
       try {
         // Recomputed on every load (not cached in state) so the app staying open across local
         // midnight picks up the new day on its next focus/refresh instead of continuing to show
-        // yesterday's date. Always the device's own live local date - see todayItemsFilter.ts's
-        // own remarks on why this screen no longer asks the server to do this filtering (its
-        // stored-TimeZoneId-based window can go stale and silently exclude items that are
-        // unambiguously "today" on the device right now).
-        const today = formatDateOnly(new Date());
-        const page = await getItemHistory(authenticatedRequest, { limit: PAGE_LIMIT });
+        // yesterday's date. Always the device's own live local date, never the server's stored
+        // TimeZoneId (which can go stale and silently exclude items that are unambiguously "today"
+        // on the device right now).
+        const now = new Date();
+        const today = formatDateOnly(now);
+        const fromUtc = todayWindowStartUtc(now);
+        // A refresh of the same day reloads as many rows as are shown (in place); a new day starts over.
+        const shown = today === dateRef.current ? itemsRef.current.length : 0;
+        const limit = Math.min(Math.max(shown, HOME_PAGE_SIZE), MAX_PAGE_LIMIT);
+        const [page, count] = await Promise.all([
+          getItemHistory(authenticatedRequest, { limit, fromUtc }),
+          // Best-effort: without it the header shows how many are loaded.
+          getItemHistoryCount(authenticatedRequest, { fromUtc }).catch(() => null),
+        ]);
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        const { todayItems, canLoadMoreToday } = filterTodayItemsPage(
-          page.items, page.nextCursor !== null, today,
-        );
         setDate(today);
-        setItems(todayItems);
-        setNextCursor(canLoadMoreToday ? page.nextCursor : null);
+        setWindowStartUtc(fromUtc);
+        setItems(page.items);
+        setNextCursor(page.nextCursor);
+        setTodayCount(count);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -196,7 +229,7 @@ export function DailyInboxScreen() {
   );
 
   const loadMore = useCallback(() => {
-    if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor || !date) {
+    if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor || !windowStartUtc) {
       return;
     }
 
@@ -206,19 +239,16 @@ export function DailyInboxScreen() {
 
     (async () => {
       try {
-        const page = await getItemHistory(authenticatedRequest, { limit: PAGE_LIMIT, cursor: nextCursor });
+        const page = await getItemHistory(authenticatedRequest, { limit: HOME_PAGE_SIZE, cursor: nextCursor, fromUtc: windowStartUtc });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        const { todayItems, canLoadMoreToday } = filterTodayItemsPage(
-          page.items, page.nextCursor !== null, date,
-        );
         setItems(previousItems => {
           const seenIds = new Set(previousItems.map(item => item.id));
-          const additionalItems = todayItems.filter(item => !seenIds.has(item.id));
+          const additionalItems = page.items.filter(item => !seenIds.has(item.id));
           return [...previousItems, ...additionalItems];
         });
-        setNextCursor(canLoadMoreToday ? page.nextCursor : null);
+        setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
           setError(getInboxErrorMessage(caughtError, false, t));
@@ -228,7 +258,7 @@ export function DailyInboxScreen() {
         setIsLoadingMore(false);
       }
     })();
-  }, [authenticatedRequest, date, nextCursor, isLoading, isRefreshing, t]);
+  }, [authenticatedRequest, windowStartUtc, nextCursor, isLoading, isRefreshing, t]);
 
   // Refetches every time the Home tab regains focus (including returning from ItemDetails after
   // an edit), matching the same focus-driven refresh already used for Wishlist/Archive.
@@ -322,9 +352,14 @@ export function DailyInboxScreen() {
       const deletedItem = itemsRef.current.find(item => item.id === itemId);
       setItems(previousItems => previousItems.filter(item => item.id !== itemId));
       if (deletedItem) {
+        setTodayCount(previous => (previous === null ? previous : Math.max(0, previous - 1)));
         showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => {
           await restoreItem(authenticatedRequest, deletedItem.id);
-          setItems(previous => previous.some(item => item.id === deletedItem.id) ? previous : [deletedItem, ...previous]);
+          // A refresh that already brought it back (and counted it) needs nothing more.
+          if (!itemsRef.current.some(item => item.id === deletedItem.id)) {
+            setItems(previous => previous.some(item => item.id === deletedItem.id) ? previous : [deletedItem, ...previous]);
+            setTodayCount(count => (count === null ? count : count + 1));
+          }
         } });
       }
     } catch (caughtError) {
@@ -354,13 +389,25 @@ export function DailyInboxScreen() {
     setPendingDeleteItemId(previous => previous ?? itemId);
   };
 
-  if (isLoading && items.length === 0 && !error) {
-    return (
-      <SafeAreaView edges={['top']} style={styles.loadingContainer}>
-        <ActivityIndicator />
-      </SafeAreaView>
+  // Where links are about to appear - only while that request is actually on its way.
+  const renderSkeletons = (count: number, testID: string) =>
+    viewMode === 'grid' ? (
+      <View style={styles.gridSkeletons} testID={testID}>
+        {Array.from({ length: count }, (_, index) => (
+          <View key={index} style={savedLinkGridLayout.cell}>
+            <SavedLinkGridCardSkeleton testID="home-skeleton" />
+          </View>
+        ))}
+      </View>
+    ) : (
+      <View testID={testID}>
+        {Array.from({ length: count }, (_, index) => (
+          <View key={index} style={[styles.card, styles.skeletonCard]}>
+            <SavedLinkRowSkeleton testID="home-skeleton" />
+          </View>
+        ))}
+      </View>
     );
-  }
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -370,6 +417,11 @@ export function DailyInboxScreen() {
         data={items}
         keyExtractor={entry => entry.id.toString()}
         numColumns={viewMode === 'grid' ? 2 : 1}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        // Android: rows scrolled far away drop their native views (and images) entirely.
+        removeClippedSubviews={Platform.OS === 'android'}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
@@ -415,11 +467,13 @@ export function DailyInboxScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.recentHeaderRow}>
               <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
-              <View style={styles.recentHeaderActions}><Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: items.length })}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
+              <View style={styles.recentHeaderActions}><Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: todayCount ?? items.length })}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
             </View>
           </View>
         }
-        ListEmptyComponent={<CenteredEmptyState message={t('inbox.empty')} />}
+        ListEmptyComponent={
+          isLoading && !error ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
+        }
         renderItem={({ item }) => viewMode === 'grid' ? (
           <SavedLinkGridCell
             disabled={actionInFlightItemId !== null || isRefreshing}
@@ -447,13 +501,7 @@ export function DailyInboxScreen() {
             />
           </SwipeableItemRow>
         )}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.footerLoading}>
-              <ActivityIndicator />
-            </View>
-          ) : undefined
-        }
+        ListFooterComponent={isLoadingMore ? renderSkeletons(HOME_NEXT_PAGE_SKELETON_ROWS, 'home-next-page-loading') : undefined}
       />
       {saveError !== null && (
         <ConfirmDialog
@@ -488,11 +536,6 @@ const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   // This screen sits inside a bottom-tab navigator, whose scene container is already sized to
   // exclude the real, non-overlay Juple tab bar (which itself already pads for the system nav/
@@ -593,7 +636,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm + 2,
   },
   recentHeaderActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  footerLoading: {
-    paddingVertical: spacing.lg,
-  },
+  skeletonCard: { overflow: 'hidden' },
+  gridSkeletons: { flexDirection: 'row', flexWrap: 'wrap' },
 });

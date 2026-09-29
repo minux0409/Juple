@@ -606,6 +606,8 @@ public sealed class CollectionsController(
     /// "dateDesc" (newest added first) or "dateAsc" (oldest first) orders the whole Collection by
     /// when each link was added; omitted, the original manual order is returned unchanged. A cursor
     /// is only valid with the `sort` that issued it (400 otherwise) - changing the order starts over.
+    /// Optional fromUtc/toUtc (date orders only): just the links added within [fromUtc, toUtc) - one
+    /// section from GET {id}/items/sections, paged on its own; omitted, the whole Collection, unchanged.
     /// </summary>
     [HttpGet("{id:long}/items")]
     public async Task<IActionResult> GetItemsAsync(
@@ -614,13 +616,32 @@ public sealed class CollectionsController(
         [FromQuery] string? cursor,
         CancellationToken cancellationToken,
         [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null,
-        [FromQuery] string? sort = null)
+        [FromQuery] string? sort = null,
+        [FromQuery] DateTimeOffset? fromUtc = null,
+        [FromQuery] DateTimeOffset? toUtc = null)
     {
         if (!CollectionsQueryParameters.TryParseItemSort(sort, out var resolvedSort))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
                 ["sort"] = ["sort must be \"dateDesc\" or \"dateAsc\"."],
+            }));
+        }
+
+        var isWindowed = fromUtc is not null || toUtc is not null;
+        if (isWindowed && resolvedSort == CollectionItemSort.Manual)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["fromUtc"] = ["fromUtc/toUtc require sort \"dateDesc\" or \"dateAsc\"."],
+            }));
+        }
+
+        if (fromUtc is { } from && toUtc is { } to && to <= from)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["toUtc"] = ["toUtc must be later than fromUtc."],
             }));
         }
 
@@ -648,12 +669,60 @@ public sealed class CollectionsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var page = await getCollectionItemsService.GetAsync(
-                currentUser.UserId, id, typedCursor, resolvedLimit, unlockToken, resolvedSort, cancellationToken);
+            var page = isWindowed
+                ? await getCollectionItemsService.GetRangeAsync(
+                    currentUser.UserId,
+                    id,
+                    fromUtc ?? DateTimeOffset.MinValue,
+                    toUtc ?? DateTimeOffset.MaxValue,
+                    typedCursor,
+                    resolvedLimit,
+                    resolvedSort,
+                    unlockToken,
+                    cancellationToken)
+                : await getCollectionItemsService.GetAsync(
+                    currentUser.UserId, id, typedCursor, resolvedLimit, unlockToken, resolvedSort, cancellationToken);
 
             return Ok(new CollectionItemsPageResponse(
                 page.Items,
                 page.NextCursor is { } nextCursor ? CollectionItemPageCursorCodec.Encode(nextCursor) : null));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionLockedException)
+        {
+            return CollectionProblems.CollectionLocked();
+        }
+    }
+
+    /// <summary>
+    /// 일자순 summary of a Collection: its non-empty 오늘 / 어제 / 이번 주 / month sections (the caller's
+    /// stored TimeZoneId, like GET /api/v1/items/history/sections) with exact link counts - no link
+    /// data. Each section's links then come from GET {id}/items with its fromUtc/toUtc. Same access
+    /// and lock gates as the item list.
+    /// </summary>
+    [HttpGet("{id:long}/items/sections")]
+    public async Task<IActionResult> GetItemSectionsAsync(
+        long id,
+        [FromServices] IGetCollectionItemSectionsService getCollectionItemSectionsService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var sections = await getCollectionItemSectionsService.GetAsync(
+                currentUser.UserId, id, currentUser.TimeZoneId, unlockToken, cancellationToken);
+            return Ok(new CollectionItemSectionsResponse(sections));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -1136,6 +1205,8 @@ public sealed class CollectionsController(
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 
     public sealed record CollectionItemsPageResponse(IReadOnlyList<CollectionItemEntryDto> Items, string? NextCursor);
+
+    public sealed record CollectionItemSectionsResponse(IReadOnlyList<CollectionItemSectionDto> Sections);
 
     public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc, string Permission);
 

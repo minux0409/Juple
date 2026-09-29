@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -33,8 +33,8 @@ import { formatBadgeCount } from '../components/badgeCount';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { CollectionCardSkeleton } from '../collections/CollectionCardSkeleton';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
-import { prefetchCollectionIcons } from '../collections/collectionIconImageCache';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
@@ -50,7 +50,15 @@ import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spac
 
 const GRID_COLUMNS = 4;
 
-const PAGE_LIMIT = 50;
+/** Collections per request - a few screenfuls of cards (the grid shows GRID_COLUMNS per row). */
+export const COLLECTIONS_PAGE_SIZE = 24;
+const PAGE_LIMIT = COLLECTIONS_PAGE_SIZE;
+/** The server's page limit - a refresh never asks for more cards than this in one request. */
+const MAX_PAGE_LIMIT = 100;
+/** Skeleton cards while a filter's first page loads, and under the cards while a next one does. */
+const FIRST_PAGE_SKELETON_GRID_ROWS = 3;
+const FIRST_PAGE_SKELETON_LIST_ROWS = 6;
+const NEXT_PAGE_SKELETON_LIST_ROWS = 2;
 
 /**
  * The four top-level Categories filters, all at the same level. Each is one server-side list scope
@@ -187,8 +195,15 @@ export function CollectionsScreen() {
   const loadRequestIdRef = useRef(0);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
   const loadingMoreRef = useRef(false);
+  const listsRef = useRef(lists);
+  listsRef.current = lists;
 
-  /** Loads the first page of one filter; a newer load (or filter switch) makes an older one a no-op. */
+  /**
+   * Loads the first page of one filter; a newer load (or filter switch) makes an older one a no-op.
+   * A refresh reloads as many cards as the filter already shows (capped at the server's page
+   * limit), so returning from a Collection keeps the list where it was instead of shrinking it back
+   * to its first page.
+   */
   const load = useCallback(
     async (target: CategoryFilter, mode: 'initial' | 'refresh') => {
       const requestId = ++loadRequestIdRef.current;
@@ -198,14 +213,16 @@ export function CollectionsScreen() {
         setIsLoading(true);
       }
       setError(null);
+      const shown = mode === 'refresh' ? listsRef.current[target].items.length : 0;
+      const limit = Math.min(Math.max(shown, PAGE_LIMIT), MAX_PAGE_LIMIT);
 
       try {
-        const page = await getCollections(authenticatedRequest, { scope: target, limit: PAGE_LIMIT });
+        const page = await getCollections(authenticatedRequest, { scope: target, limit });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
+        // Card metadata only - each card's photo loads when that card mounts (nothing is prefetched).
         setLists(previous => ({ ...previous, [target]: { items: page.items, nextCursor: page.nextCursor, isLoaded: true } }));
-        prefetchCollectionIcons(page.items);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -331,7 +348,6 @@ export function CollectionsScreen() {
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        prefetchCollectionIcons(page.items);
         setLists(previous => {
           const existing = previous[target];
           const seenIds = new Set(existing.items.map(collection => collection.id));
@@ -469,6 +485,21 @@ export function CollectionsScreen() {
 
   const activeList = lists[filter];
   const isActiveInitialLoading = !activeList.isLoaded && isLoading && !error;
+  // Where cards are about to appear - only while that request is actually on its way.
+  const renderSkeletons = (rows: number, testID: string) =>
+    viewMode === 'grid' ? (
+      <View style={styles.skeletonGrid} testID={testID}>
+        {Array.from({ length: rows * GRID_COLUMNS }, (_, index) => (
+          <CollectionCardSkeleton gridBasis={`${100 / GRID_COLUMNS}%`} key={index} testID="collections-skeleton" variant="grid" />
+        ))}
+      </View>
+    ) : (
+      <View testID={testID}>
+        {Array.from({ length: rows }, (_, index) => (
+          <CollectionCardSkeleton key={index} testID="collections-skeleton" variant="list" />
+        ))}
+      </View>
+    );
   const openCollection = (collection: Collection) =>
     navigation.navigate('CollectionDetails', { collectionId: collection.id });
 
@@ -491,6 +522,12 @@ export function CollectionsScreen() {
           />
         }
         numColumns={viewMode === 'grid' ? GRID_COLUMNS : 1}
+        // With columns these count rows (GRID_COLUMNS cards each), not cards.
+        initialNumToRender={viewMode === 'grid' ? 5 : 10}
+        maxToRenderPerBatch={viewMode === 'grid' ? 3 : 10}
+        windowSize={7}
+        // Android: cards scrolled far away drop their native views (and photos) entirely.
+        removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={
           <View>
             <View style={styles.titleRow}>
@@ -575,7 +612,7 @@ export function CollectionsScreen() {
         }
         ListEmptyComponent={
           isActiveInitialLoading ? (
-            <ActivityIndicator style={styles.tabLoading} />
+            renderSkeletons(viewMode === 'grid' ? FIRST_PAGE_SKELETON_GRID_ROWS : FIRST_PAGE_SKELETON_LIST_ROWS, 'collections-first-page-loading')
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.empty}>{t(FILTER_EMPTY_KEYS[filter])}</Text>
@@ -591,13 +628,7 @@ export function CollectionsScreen() {
             onToggleFavorite={() => toggleFavoriteAction(item)}
           />
         ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.footerLoading}>
-              <ActivityIndicator />
-            </View>
-          ) : undefined
-        }
+        ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
       />
 
       <ReceivedInvitationsSheet
@@ -736,9 +767,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  tabLoading: {
-    paddingVertical: spacing.lg,
-  },
+  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   // The four same-level filters as a 2x2 grid on one muted track (the previous pill language):
   // equal halves; the selected cell the Collection blue with the blue folder-glyph outline, the
   // others light gray (collectionFilterColors). Same border width everywhere - no layout shift.
@@ -854,9 +883,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs + 2,
     maxWidth: 84,
     textAlign: 'center',
-  },
-  footerLoading: {
-    paddingVertical: spacing.lg,
   },
   listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
   listName: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },

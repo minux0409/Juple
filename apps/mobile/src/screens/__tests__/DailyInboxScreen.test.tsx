@@ -2,7 +2,8 @@ jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.tes
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, TextInput } from 'react-native';
 import i18n from '../../i18n';
-import { DailyInboxScreen } from '../DailyInboxScreen';
+import { DailyInboxScreen, HOME_FIRST_PAGE_SKELETON_ROWS, HOME_NEXT_PAGE_SKELETON_ROWS, HOME_PAGE_SIZE } from '../DailyInboxScreen';
+import { SavedLinkRow } from '../../components/SavedLinkRow';
 import { UndoToast } from '../../components/UndoToast';
 import { AppToastProvider } from '../../components/AppToast';
 import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
@@ -13,7 +14,7 @@ import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
-import { deleteItem, getItemHistory, restoreItem, type ItemHistoryEntry } from '../../items/api/itemsApi';
+import { deleteItem, getItemHistory, getItemHistoryCount, restoreItem, type GetItemHistoryOptions, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { shareItem } from '../../items/shareItem';
 import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
@@ -48,6 +49,7 @@ jest.mock('../../inbox/api/inboxApi', () => ({
 
 jest.mock('../../items/api/itemsApi', () => ({
   getItemHistory: jest.fn(),
+  getItemHistoryCount: jest.fn(),
   deleteItem: jest.fn(),
   restoreItem: jest.fn(),
   updateItemDetails: jest.fn(),
@@ -76,11 +78,41 @@ function makeItem(overrides: Partial<ItemHistoryEntry>): ItemHistoryEntry {
   };
 }
 
-function setUpItems(items: readonly ItemHistoryEntry[]): void {
-  jest.mocked(getItemHistory).mockResolvedValue({
-    items,
-    nextCursor: null,
+/**
+ * Stands in for the server's today window: getItemHistory pages through `items` (already only
+ * today's - the server filters by the window) with an offset cursor, and getItemHistoryCount
+ * answers the whole day's total (`total`, by default every item).
+ */
+function setUpItems(items: readonly ItemHistoryEntry[], total: number = items.length): void {
+  jest.mocked(getItemHistory).mockImplementation(async (_request, options: GetItemHistoryOptions = {}) => servePage(items, options));
+  jest.mocked(getItemHistoryCount).mockResolvedValue(total);
+}
+
+function servePage(items: readonly ItemHistoryEntry[], options: GetItemHistoryOptions) {
+  const offset = options.cursor ? Number(options.cursor) : 0;
+  const limit = options.limit ?? 50;
+  return {
+    items: items.slice(offset, offset + limit),
+    nextCursor: offset + limit < items.length ? String(offset + limit) : null,
+  };
+}
+
+function manyItems(count: number): ItemHistoryEntry[] {
+  return Array.from({ length: count }, (_, index) => makeItem({ id: index + 1, title: `Link ${index + 1}` }));
+}
+
+/** Today's local midnight as the UTC instant Home sends as fromUtc. */
+function localMidnightUtc(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(done => {
+    resolve = done;
   });
+  return { promise, resolve };
 }
 
 // Wrapped in the real AppToastProvider (not mocked) - Delete Undo now shows via the global
@@ -484,11 +516,20 @@ describe('DailyInboxScreen header', () => {
     expect(renderer.root.findByProps({ children: '0개' })).toBeTruthy();
   });
 
-  it('the recent-saved count reflects the loaded item count', async () => {
-    setUpItems([makeItem({ id: 1 }), makeItem({ id: 2 }), makeItem({ id: 3 })]);
+  it('the recent-saved count is the whole day\'s total from the server, not how many rows are loaded', async () => {
+    setUpItems([makeItem({ id: 1 }), makeItem({ id: 2 }), makeItem({ id: 3 })], 40);
     const renderer = await renderScreen();
 
-    expect(renderer.root.findByProps({ children: '3개' })).toBeTruthy();
+    expect(renderer.root.findByProps({ children: '40개' })).toBeTruthy();
+  });
+
+  it('falls back to the loaded count when only the count request fails', async () => {
+    setUpItems([makeItem({ id: 1 }), makeItem({ id: 2 })]);
+    jest.mocked(getItemHistoryCount).mockRejectedValue(new Error('offline'));
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByProps({ children: '2개' })).toBeTruthy();
+    expect(renderer.root.findAllByProps({ children: 'Example' }).length).toBeGreaterThan(0);
   });
 });
 
@@ -497,16 +538,17 @@ describe('DailyInboxScreen recent-items data source', () => {
     jest.clearAllMocks();
   });
 
-  // Regression test for the "History shows 3, Home shows 0" bug: Home used to call a dedicated
-  // server-side-date-filtered endpoint whose window depended on the User's stored TimeZoneId and
-  // could silently return nothing even though items were genuinely saved today. Home now calls the
-  // exact same plain, unfiltered feed History uses (getItemHistory), and filters "today" itself -
-  // so any item History's own "오늘" section would show must also render here.
-  it('fetches from the plain getItemHistory feed (the same source History uses), not a date-scoped endpoint', async () => {
+  // Regression guard for the "History shows 3, Home shows 0" bug: Home used to call a dedicated
+  // date endpoint whose window came from the User's stored TimeZoneId, which can go stale. Home
+  // asks the same History feed for the device's own "today" - from its live local midnight - so the
+  // server filters exactly what the device calls today, a page at a time.
+  it('asks the History feed for one page of the device\'s own today (from its local midnight) and that day\'s total', async () => {
     setUpItems([makeItem({ id: 1 })]);
     await renderScreen();
 
-    expect(getItemHistory).toHaveBeenCalledWith(expect.anything(), { limit: 50 });
+    expect(getItemHistory).toHaveBeenCalledTimes(1);
+    expect(getItemHistory).toHaveBeenCalledWith(expect.anything(), { limit: HOME_PAGE_SIZE, fromUtc: localMidnightUtc() });
+    expect(getItemHistoryCount).toHaveBeenCalledWith(expect.anything(), { fromUtc: localMidnightUtc() });
   });
 
   it('renders every item the feed returns whose SavedAtUtc falls on today\'s local date', async () => {
@@ -518,24 +560,6 @@ describe('DailyInboxScreen recent-items data source', () => {
     for (const item of todayItems) {
       expect(renderer.root.findAllByProps({ children: item.title }).length).toBeGreaterThan(0);
     }
-  });
-
-  // The plain feed is not itself date-filtered server-side, so Home must filter client-side - this
-  // is what actually keeps Home in sync with History's own client-side "오늘" bucketing instead of
-  // trusting a server date window that (as confirmed for this bug) can be wrong.
-  it('excludes items whose SavedAtUtc is not today, even though the feed itself returns them', async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const items = [
-      makeItem({ id: 1, title: 'Today item' }),
-      makeItem({ id: 2, title: 'Yesterday item', savedAtUtc: yesterday.toISOString() }),
-    ];
-    setUpItems(items);
-    const renderer = await renderScreen();
-
-    expect(renderer.root.findByProps({ children: '1개' })).toBeTruthy();
-    expect(renderer.root.findAllByProps({ children: 'Today item' }).length).toBeGreaterThan(0);
-    expect(renderer.root.findAllByProps({ children: 'Yesterday item' })).toHaveLength(0);
   });
 
   it('refetches on (re-)focus and picks up a newly-saved item (e.g. after Quick Save or NewLinkReview)', async () => {
@@ -554,5 +578,114 @@ describe('DailyInboxScreen recent-items data source', () => {
 
     expect(second.root.findByProps({ children: '1개' })).toBeTruthy();
     expect(second.root.findAllByProps({ children: 'Newly saved' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('DailyInboxScreen paging and virtualization', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  function skeletons(renderer: ReactTestRenderer.ReactTestRenderer) {
+    return renderer.root.findAll(node => node.props.testID === 'home-skeleton' && typeof node.type === 'string');
+  }
+
+  it('shows skeleton rows (not a full-screen spinner) while the first page loads, then the links', async () => {
+    const items = manyItems(3);
+    setUpItems(items);
+    const pending = deferred<ReturnType<typeof servePage>>();
+    jest.mocked(getItemHistory).mockImplementationOnce(() => pending.promise);
+    const renderer = await renderScreen();
+
+    // The input and header stay usable while it loads.
+    expect(renderer.root.findByType(TextInput)).toBeTruthy();
+    expect(skeletons(renderer)).toHaveLength(HOME_FIRST_PAGE_SKELETON_ROWS);
+
+    await act(async () => {
+      pending.resolve(servePage(items, { limit: HOME_PAGE_SIZE }));
+    });
+
+    expect(skeletons(renderer)).toHaveLength(0);
+    expect(renderer.root.findAllByType(SavedLinkRow)).toHaveLength(3);
+  });
+
+  it('loads the next page of today as the end comes into reach - once, with skeletons only while it is on its way', async () => {
+    const items = manyItems(30);
+    setUpItems(items);
+    const renderer = await renderScreen();
+    // More exist, but nothing is being requested: no skeleton.
+    expect(skeletons(renderer)).toHaveLength(0);
+
+    const pending = deferred<ReturnType<typeof servePage>>();
+    jest.mocked(getItemHistory).mockImplementationOnce(() => pending.promise);
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.onEndReached();
+      renderer.root.findByType(FlatList).props.onEndReached();
+    });
+
+    expect(getItemHistory).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(getItemHistory).mock.calls[1][1]).toEqual({ limit: HOME_PAGE_SIZE, cursor: String(HOME_PAGE_SIZE), fromUtc: localMidnightUtc() });
+    expect(skeletons(renderer)).toHaveLength(HOME_NEXT_PAGE_SKELETON_ROWS);
+
+    await act(async () => {
+      pending.resolve(servePage(items, { limit: HOME_PAGE_SIZE, cursor: String(HOME_PAGE_SIZE) }));
+    });
+    expect(skeletons(renderer)).toHaveLength(0);
+    expect(renderer.root.findByType(FlatList).props.data.map((item: ItemHistoryEntry) => item.id)).toEqual(items.map(item => item.id));
+
+    // The last page is in - reaching the end asks for nothing more.
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.onEndReached();
+    });
+    expect(getItemHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('with 1,000 links today, loads one page and mounts only a window of rows, whatever the total', async () => {
+    const items = manyItems(1000);
+    setUpItems(items);
+    const renderer = await renderScreen();
+
+    expect(getItemHistory).toHaveBeenCalledTimes(1);
+    expect(renderer.root.findByProps({ children: '1000개' })).toBeTruthy();
+    const list = renderer.root.findByType(FlatList);
+    expect(list.props.data).toHaveLength(HOME_PAGE_SIZE);
+    expect(renderer.root.findAllByType(SavedLinkRow).length).toBeLessThanOrEqual(list.props.initialNumToRender);
+  });
+
+  it('coming back to Home reloads what was shown in place - as many rows as were loaded, not just the first page', async () => {
+    const items = manyItems(60);
+    setUpItems(items);
+    const renderer = await renderScreen();
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.onEndReached();
+    });
+    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(50);
+    jest.mocked(getItemHistory).mockClear();
+
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.refreshControl.props.onRefresh();
+    });
+
+    expect(getItemHistory).toHaveBeenCalledWith(expect.anything(), { limit: 50, fromUtc: localMidnightUtc() });
+    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(50);
+  });
+
+  it('drops a stale first page that lands after a newer refresh', async () => {
+    const items = manyItems(3);
+    setUpItems(items);
+    const first = deferred<ReturnType<typeof servePage>>();
+    jest.mocked(getItemHistory).mockImplementationOnce(() => first.promise);
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.refreshControl.props.onRefresh();
+    });
+    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(3);
+
+    await act(async () => {
+      first.resolve({ items: [makeItem({ id: 999, title: 'Stale' })], nextCursor: null });
+    });
+    expect(renderer.root.findAllByProps({ children: 'Stale' })).toHaveLength(0);
+    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(3);
   });
 });

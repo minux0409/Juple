@@ -102,6 +102,30 @@ export interface ItemHistorySection {
   readonly count: number;
 }
 
+/**
+ * How many History links fall in [fromUtc, toUtc) (toUtc omitted: open-ended) - the exact total of
+ * the window getItemHistory pages through with the same fromUtc/toUtc. Counts only, no link data.
+ */
+export async function getItemHistoryCount(
+  request: AuthenticatedApiRequest,
+  window: { readonly fromUtc: string; readonly toUtc?: string | null },
+): Promise<number> {
+  const query = new URLSearchParams({ fromUtc: window.fromUtc });
+  if (window.toUtc) {
+    query.set('toUtc', window.toUtc);
+  }
+  const response = await request<{ readonly count: number }>({
+    method: 'GET',
+    path: `/api/v1/items/history/count?${query.toString()}`,
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Item history count body.');
+  }
+
+  return response.body.count;
+}
+
 /** The History summary - every non-empty section with its exact count, newest first; no link data. */
 export async function getItemHistorySections(request: AuthenticatedApiRequest): Promise<readonly ItemHistorySection[]> {
   const response = await request<{ readonly sections: readonly ItemHistorySection[] }>({

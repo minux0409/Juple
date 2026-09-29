@@ -21,7 +21,34 @@ public sealed class GetCollectionItemsService(
 
         var (page, representativeImages, coverImages) = await collectionItemStore.GetItemsAsync(
             userId, collectionId, cursor, limit, sort, cancellationToken);
+        return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
+    }
 
+    public async Task<CollectionItemPage> GetRangeAsync(
+        long userId,
+        long collectionId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        string? unlockToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
+
+        var (page, representativeImages, coverImages) = await collectionItemStore.GetItemsInRangeAsync(
+            userId, collectionId, fromUtc, toUtc, cursor, limit, sort, cancellationToken);
+        return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
+    }
+
+    private async Task<CollectionItemPage> EnrichAsync(
+        long userId,
+        CollectionItemPage page,
+        IReadOnlyDictionary<long, ItemRepresentativeImageRef> representativeImages,
+        IReadOnlyDictionary<long, ItemRepresentativeImageRef> coverImages,
+        CancellationToken cancellationToken)
+    {
         var enrichedItems = new List<CollectionItemEntryDto>(page.Items.Count);
         foreach (var item in page.Items)
         {

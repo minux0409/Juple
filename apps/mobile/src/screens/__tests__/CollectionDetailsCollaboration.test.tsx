@@ -1,7 +1,7 @@
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, SectionList, Switch, Text } from 'react-native';
+import { FlatList, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
@@ -9,6 +9,7 @@ import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import {
   getCollection,
   getCollectionItems,
+  getCollectionItemSections,
   getCollectionShare,
   setCollectionLock,
   unlockCollection,
@@ -42,6 +43,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../collections/api/collectionsApi', () => ({
   getCollection: jest.fn(),
   getCollectionItems: jest.fn(),
+  getCollectionItemSections: jest.fn(),
   getCollectionShare: jest.fn().mockResolvedValue(null),
   getCollections: jest.fn(),
   unlockCollection: jest.fn(),
@@ -104,24 +106,62 @@ const lockedError = new ApiError('forbidden', 403, 'collectionLocked');
 
 
 /**
- * The link list, whichever one the current sort renders: 일자순 (the default) is a date-grouped
- * SectionList, 이름순 a flat FlatList. Exposed with FlatList-like props - `data` is every loaded
- * link in display order, `renderItem` renders one row - so tests about rows and data do not depend
- * on which of the two is on screen.
+ * 일자순 as the server now serves it, standing in for GET collections/{id}/items/sections: every
+ * link the test's own getCollectionItems mock returns (paged through with the same unlock grant -
+ * so a locked Collection is locked here too) as one 오늘 section with its exact count. Each section
+ * page request then gets the same links from that mock (it ignores the window), so the one section
+ * holds exactly what the test set up.
+ */
+async function sectionsFromItemsMock(request: unknown, collectionId: number, unlockToken?: string | null) {
+  let count = 0;
+  let cursor: string | undefined;
+  let guard = 0;
+  do {
+    const page = await getCollectionItems(request as never, collectionId, { limit: 100, sort: 'dateDesc', cursor, unlockToken });
+    count += page.items.length;
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor && ++guard < 50);
+  return count === 0
+    ? []
+    : [{ key: 'all-links', kind: 'today' as const, year: null, month: null, fromUtc: '2000-01-01T00:00:00.000Z', toUtc: null, count }];
+}
+beforeEach(() => {
+  jest.mocked(getCollectionItemSections).mockImplementation(sectionsFromItemsMock as never);
+});
+
+type ListRow = { readonly kind: string; readonly item?: CollectionItemEntry; readonly items?: readonly CollectionItemEntry[] };
+
+/**
+ * The link list, whichever one the current sort renders: 일자순 (the default) is one flat list of
+ * date-section rows (headers, links, skeletons), 이름순 a flat FlatList of links. Exposed with
+ * FlatList-like props - `data` is every loaded link in display order, `renderItem` renders one
+ * link's row - so tests about rows and data do not depend on which of the two is on screen.
  */
 function findItemList(
   renderer: ReactTestRenderer.ReactTestRenderer | ReactTestRenderer.ReactTestInstance,
 ): { readonly props: ReactTestRenderer.ReactTestInstance['props'] } {
   const root = 'root' in renderer ? renderer.root : renderer;
-  const [sectionList] = root.findAllByType(SectionList);
-  if (!sectionList) {
-    return root.findByType(FlatList);
+  const list = root.findByType(FlatList);
+  const data: readonly unknown[] = list.props.data;
+  // The 일자순 list is the one without columns (이름순 always sets numColumns).
+  if (list.props.numColumns !== undefined) {
+    return list;
   }
+  const rows = data as readonly ListRow[];
   return {
     props: {
-      ...sectionList.props,
-      data: sectionList.props.sections.flatMap((section: { items: readonly CollectionItemEntry[] }) => section.items),
-      renderItem: ({ item }: { item: CollectionItemEntry }) => sectionList.props.renderItem({ item, index: 0, section: { data: [item] } }),
+      ...list.props,
+      data: rows.flatMap(entry => (entry.kind === 'item' ? [entry.item!] : entry.kind === 'gridRow' ? [...entry.items!] : [])),
+      renderItem: ({ item }: { item: CollectionItemEntry }) => {
+        const owner = rows.find(entry =>
+          (entry.kind === 'item' && entry.item!.itemId === item.itemId)
+          || (entry.kind === 'gridRow' && entry.items!.some(candidate => candidate.itemId === item.itemId)));
+        if (!owner) {
+          // A link the list has not loaded: rendered as a lone row of a section, as it would be.
+          return list.props.renderItem({ item: { kind: 'item', key: `i:${item.itemId}`, section: { key: 'all-links', kind: 'today' }, item, position: 0, isLast: true }, index: 0 });
+        }
+        return list.props.renderItem({ item: owner.kind === 'gridRow' ? { ...owner, items: [item] } : owner, index: 0 });
+      },
     },
   };
 }
@@ -138,6 +178,10 @@ async function renderScreen() {
         <CollectionDetailsScreen navigation={navigation} route={route} />
       </AppToastProvider>,
     );
+  });
+  // 일자순 loads the section summary, then the open section's first page - let both land.
+  await act(async () => {
+    await new Promise<void>(resolve => setImmediate(() => resolve()));
   });
   return renderer;
 }

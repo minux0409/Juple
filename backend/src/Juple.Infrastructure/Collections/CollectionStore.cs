@@ -603,13 +603,108 @@ public sealed class CollectionStore(
         }
     }
 
-    public async Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
+    public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
         long userId,
         long collectionId,
         CollectionItemPageCursor? cursor,
         int limit,
         CollectionItemSort sort = CollectionItemSort.Manual,
+        CancellationToken cancellationToken = default) =>
+        GetItemsPageAsync(userId, collectionId, window: null, cursor, limit, sort, cancellationToken);
+
+    public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsInRangeAsync(
+        long userId,
+        long collectionId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        CancellationToken cancellationToken = default) =>
+        GetItemsPageAsync(userId, collectionId, (fromUtc, toUtc), cursor, limit, sort, cancellationToken);
+
+    public async Task<DateTimeOffset?> GetOldestAddedAtUtcAsync(
+        long userId,
+        long collectionId,
+        DateTimeOffset beforeUtc,
         CancellationToken cancellationToken = default)
+    {
+        if (!await CanViewAsync(userId, collectionId, cancellationToken))
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        return await (
+            from membership in dbContext.CollectionItems.AsNoTracking()
+            where membership.CollectionId == collectionId && membership.AddedAtUtc < beforeUtc
+            join item in dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null)
+                on membership.ItemId equals item.Id
+            select (DateTimeOffset?)membership.AddedAtUtc)
+            .MinAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// One statement for every window, like ItemStore.CountByRangesAsync: the windows travel as one
+    /// JSON parameter and each gets a correlated COUNT over exactly the rows GetItemsPageAsync pages
+    /// through (this Collection's memberships whose Item is not in the trash).
+    /// </summary>
+    public async Task<IReadOnlyList<int>> CountByAddedRangesAsync(
+        long userId,
+        long collectionId,
+        IReadOnlyList<(DateTimeOffset FromUtc, DateTimeOffset ToUtc)> ranges,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await CanViewAsync(userId, collectionId, cancellationToken))
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        if (ranges.Count == 0)
+        {
+            return [];
+        }
+
+        var windows = System.Text.Json.JsonSerializer.Serialize(
+            ranges.Select((range, index) => new { i = index, f = range.FromUtc, t = range.ToUtc }));
+        var rows = await dbContext.Database
+            .SqlQueryRaw<AddedRangeCount>(
+                """
+                SELECT w.[Idx], (
+                    SELECT COUNT(*)
+                    FROM [collections].[CollectionItems] AS m
+                    INNER JOIN [items].[Items] AS i ON i.[Id] = m.[ItemId]
+                    WHERE m.[CollectionId] = @collectionId AND i.[DeletedAtUtc] IS NULL
+                        AND m.[AddedAtUtc] >= w.[FromUtc] AND m.[AddedAtUtc] < w.[ToUtc]) AS [Count]
+                FROM OPENJSON(@windows) WITH ([Idx] int '$.i', [FromUtc] datetimeoffset '$.f', [ToUtc] datetimeoffset '$.t') AS w
+                """,
+                new SqlParameter("@collectionId", collectionId),
+                new SqlParameter("@windows", windows))
+            .ToListAsync(cancellationToken);
+
+        var counts = new int[ranges.Count];
+        foreach (var row in rows)
+        {
+            counts[row.Idx] = row.Count;
+        }
+
+        return counts;
+    }
+
+    private sealed class AddedRangeCount
+    {
+        public int Idx { get; init; }
+
+        public int Count { get; init; }
+    }
+
+    private async Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsPageAsync(
+        long userId,
+        long collectionId,
+        (DateTimeOffset FromUtc, DateTimeOffset ToUtc)? window,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        CancellationToken cancellationToken)
     {
         if (cursor is not null && cursor.Sort != sort)
         {
@@ -624,6 +719,12 @@ public sealed class CollectionStore(
         var membershipQuery = dbContext.CollectionItems
             .AsNoTracking()
             .Where(membership => membership.CollectionId == collectionId);
+
+        if (window is { } range)
+        {
+            var (fromUtc, toUtc) = range;
+            membershipQuery = membershipQuery.Where(membership => membership.AddedAtUtc >= fromUtc && membership.AddedAtUtc < toUtc);
+        }
 
         // Keyset position after the previous page, in the requested order. The date orders are over
         // the whole Collection (AddedAtUtc, ItemId) - never a re-sort of one page - and ItemId is

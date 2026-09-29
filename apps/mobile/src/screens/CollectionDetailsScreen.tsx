@@ -1,15 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
-  SectionList,
   StyleSheet,
   Text,
   View,
@@ -24,6 +24,8 @@ import {
   deleteCollection,
   addItemToCollection,
   getCollection,
+  getCollectionItems,
+  getCollectionItemSections,
   getCollections,
   mergeCollection,
   removeItemFromCollection,
@@ -42,7 +44,7 @@ import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
 import { formatItemAdder, shouldShowItemAdders } from '../collections/itemAdder';
 import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
-import { beginCollectionVisit, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
+import { beginCollectionVisit, forgetCollectionUnlock, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { formatParticipantSummary } from '../collections/participantSummary';
@@ -53,7 +55,7 @@ import {
   type CollectionColorValue,
 } from '../collections/collectionColors';
 import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
-import { isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
+import { getCollectionItemsErrorMessage, isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -62,11 +64,20 @@ import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
-import { useNearEndLoadMore } from '../components/useNearEndLoadMore';
+import {
+  buildDateSectionRows,
+  DateSectionErrorRow,
+  DateSectionGridRow,
+  DateSectionSkeletonRow,
+  FIRST_PAGE_SKELETON_ROWS,
+  useDateSectionViewability,
+  type DateSectionRow,
+} from '../components/DateSectionList';
 import { EditIcon } from '../icons/EditIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
@@ -75,9 +86,10 @@ import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
-import { groupCollectionItemsByDate, sortCollectionItemsByName } from '../collections/sortCollectionItems';
+import { sortCollectionItemsByName } from '../collections/sortCollectionItems';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
-import { todayDateKey } from '../items/historyDateGrouping';
+import { historySectionLabel } from '../items/historyDateGrouping';
+import { useDateSectionPages, type DateSectionPagesSource } from '../items/useDateSectionPages';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useSortPreference } from '../settings/sortPreference';
@@ -273,23 +285,67 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
   const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
   const effectiveSort = sortOption === 'title' && isNameOrderUnavailable ? 'newest' : sortOption;
-  // 일자순 (newest ↓ / oldest ↑) is ordered by the server over the whole Collection and paged as
-  // the list scrolls; 이름순 loads the whole Collection first and sorts it here.
+  // 일자순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
+  // expanded section's links from the server a page at a time (see useDateSectionPages). 이름순
+  // loads the whole Collection first and sorts it here (see NAME_ORDER_MAX_LINKS).
   const dateSortDirection = effectiveSort === 'title' ? null : effectiveSort;
+  const isDateOrder = dateSortDirection !== null;
+  const pageSort = dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc';
 
-  const {
-    items,
-    isLoading,
-    isRefreshing,
-    isLoadingMore,
-    error,
-    isLocked: isContentLocked,
-    hasMore,
-    isTooLargeForNameOrder,
-    refresh,
-    loadMore,
-    removeLocally,
-  } = useCollectionItems(collectionId, dateSortDirection === null ? 'whole' : dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc');
+  const nameOrdered = useCollectionItems(collectionId, 'whole', !isDateOrder);
+
+  // Which date sections are open - chosen once (today's, else the first shown), then only by the
+  // user: a refresh, a page that loads more, a removed link or flipping ↓/↑ never resets it
+  // (section keys are the same in both directions).
+  const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
+  const expandedDateKeysRef = useRef<ReadonlySet<string>>(new Set());
+  expandedDateKeysRef.current = expandedDateKeys ?? new Set();
+  const isDateSectionExpanded = useCallback((key: string) => expandedDateKeysRef.current.has(key), []);
+  const [isDateOrderLocked, setIsDateOrderLocked] = useState(false);
+  const dateSource = useMemo<DateSectionPagesSource<CollectionItemEntry>>(
+    () => ({
+      loadSections: () => getCollectionItemSections(authenticatedRequest, collectionId, getCollectionUnlockToken(collectionId)),
+      loadPage: (section, limit, cursor) =>
+        getCollectionItems(authenticatedRequest, collectionId, {
+          limit,
+          cursor,
+          sort: pageSort,
+          fromUtc: section.fromUtc,
+          toUtc: section.toUtc,
+          unlockToken: getCollectionUnlockToken(collectionId),
+        }),
+      idOf: item => item.itemId,
+      errorMessage: caughtError => getCollectionItemsErrorMessage(caughtError, t),
+      // Locked with no valid grant: a stale grant is dropped and nothing stays on screen.
+      onBlockingError: caughtError => {
+        if (!isCollectionLockedError(caughtError)) {
+          return false;
+        }
+        forgetCollectionUnlock(collectionId);
+        setIsDateOrderLocked(true);
+        return true;
+      },
+      onSectionsLoaded: () => setIsDateOrderLocked(false),
+    }),
+    [authenticatedRequest, collectionId, pageSort, t],
+  );
+  const dated = useDateSectionPages(dateSource, isDateSectionExpanded, { enabled: isDateOrder, resetKey: pageSort });
+
+  const isLoading = isDateOrder ? dated.isLoading : nameOrdered.isLoading;
+  const isRefreshing = isDateOrder ? dated.isRefreshing : nameOrdered.isRefreshing;
+  const error = isDateOrder ? dated.error : nameOrdered.error;
+  const isContentLocked = isDateOrder ? isDateOrderLocked : nameOrdered.isLocked;
+  const isTooLargeForNameOrder = nameOrdered.isTooLargeForNameOrder;
+  const refresh = isDateOrder ? dated.refresh : nameOrdered.refresh;
+  const removeLocally = (itemId: number) => {
+    dated.removeItem(itemId);
+    nameOrdered.removeLocally(itemId);
+  };
+  // Every link currently loaded, whichever way the Collection is shown.
+  const items = useMemo(
+    () => (isDateOrder ? [...dated.pages.values()].flatMap(page => page.items) : nameOrdered.items),
+    [dated.pages, isDateOrder, nameOrdered.items],
+  );
 
   useEffect(() => {
     if (isTooLargeForNameOrder) {
@@ -299,28 +355,32 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   }, [isTooLargeForNameOrder, t]);
 
   // Name order only ever over the whole Collection (the 'whole' load publishes nothing until every
-  // link is in); date order exactly as the server returned it - never re-sorted here.
-  const displayedItems = useMemo(
-    () => (dateSortDirection === null ? sortCollectionItemsByName(items) : items),
-    [dateSortDirection, items],
-  );
+  // link is in).
+  const displayedItems = useMemo(() => sortCollectionItemsByName(nameOrdered.items), [nameOrdered.items]);
+  // The server's sections are newest first; ↑ oldest shows them (and each one's pages) the other way.
   const dateSections = useMemo(
-    () => (dateSortDirection ? groupCollectionItemsByDate(items, dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc', t) : []),
-    [dateSortDirection, items, t],
+    () => (dateSortDirection === 'oldest' ? [...dated.sections].reverse() : dated.sections),
+    [dateSortDirection, dated.sections],
   );
-  // Which date sections are open - chosen once (today's, else the first), then only by the user: a
-  // refresh, a page that loads more, a removed link or flipping ↓/↑ never resets it (section keys
-  // are the same in both directions).
-  const [expandedDateKeys, setExpandedDateKeys] = useState<ReadonlySet<string> | null>(null);
   useEffect(() => {
     if (expandedDateKeys !== null || dateSections.length === 0) {
       return;
     }
-    const initialKey = dateSections.find(section => section.dateKey === todayDateKey())?.dateKey ?? dateSections[0]?.dateKey;
-    if (initialKey) {
-      setExpandedDateKeys(new Set([initialKey]));
-    }
+    const initial = dateSections.find(section => section.kind === 'today') ?? dateSections[0];
+    setExpandedDateKeys(new Set([initial.key]));
   }, [dateSections, expandedDateKeys]);
+  // An expanded section that has never loaded fetches its first page (collapsed ones never do).
+  const { ensureLoaded: ensureDateSectionLoaded } = dated;
+  useEffect(() => {
+    if (isDateOrder) {
+      expandedDateKeys?.forEach(key => ensureDateSectionLoaded(key));
+    }
+  }, [dated.sections, ensureDateSectionLoaded, expandedDateKeys, isDateOrder]);
+  const dateRows = useMemo(
+    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), viewMode, item => item.itemId) : []),
+    [dateSections, dated.pages, expandedDateKeys, isDateOrder, viewMode],
+  );
+  const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(dated.pages, dated.loadMore);
   const toggleDateSection = (dateKey: string) => {
     setExpandedDateKeys(previous => {
       const next = new Set(previous ?? []);
@@ -342,8 +402,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     setSortOption('title');
   };
-  // Collapsed dates can absorb a whole page without the list growing - keep paging near the end.
-  const nearEndLoadMore = useNearEndLoadMore({ hasMore, isLoadingMore, loadedCount: items.length, loadMore });
   // Who added each link - only where more than one person can add (see shouldShowItemAdders).
   const showItemAdders = shouldShowItemAdders(collection, items);
 
@@ -897,59 +955,86 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     </View>
   );
 
+  // Nothing to show yet: where the links are about to appear (a whole name-ordered Collection, or
+  // the date summary) - skeletons only while that request is actually on its way.
   const listEmpty = isContentLocked ? (
     <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} onUnlocked={refresh} />
   ) : isLoading ? (
-    <ActivityIndicator style={styles.listLoading} testID="collection-items-loading" />
+    <View testID="collection-items-loading">
+      {Array.from({ length: FIRST_PAGE_SKELETON_ROWS }, (_, index) => (
+        <View key={index} style={[styles.row, styles.skeletonRow]}>
+          <SavedLinkRowSkeleton testID="collection-items-skeleton" />
+        </View>
+      ))}
+    </View>
   ) : !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined;
 
-  const listFooter = isLoadingMore ? (
-    <View style={styles.footerLoading}>
-      <ActivityIndicator />
-    </View>
-  ) : undefined;
+  const renderDateRow = ({ item: row }: { item: DateSectionRow<CollectionItemEntry> }) => {
+    switch (row.kind) {
+      case 'header':
+        return (
+          <DateSectionHeader
+            count={row.section.count}
+            isExpanded={expandedDateKeys?.has(row.section.key) ?? false}
+            label={historySectionLabel(row.section, t)}
+            onPress={() => toggleDateSection(row.section.key)}
+          />
+        );
+      case 'item':
+        return renderCollectionItem(row.item, [dateAccordionStyles.row, row.isLast && dateAccordionStyles.rowLast]);
+      case 'gridRow':
+        // Image view: each pair of tiles is one list row of the date's card.
+        return (
+          <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} testID={`collection-date-grid-${row.section.key}-${row.position}`}>
+            {row.items.map(item => (
+              <View key={item.itemId} style={styles.gridCard}>
+                {renderCollectionItem(item, styles.gridCardInner)}
+              </View>
+            ))}
+          </DateSectionGridRow>
+        );
+      case 'skeleton':
+        return <DateSectionSkeletonRow grid={row.grid} isFirst={row.isFirst} isLast={row.isLast} testID="collection-items-skeleton" />;
+      case 'error':
+        return (
+          <DateSectionErrorRow
+            message={row.message}
+            onRetry={() => {
+              const page = dated.pages.get(row.section.key);
+              if (page && page.items.length > 0) {
+                dated.loadMore(row.section.key);
+              } else {
+                dated.ensureLoaded(row.section.key);
+              }
+            }}
+            retryTestID={`collection-section-retry-${row.section.key}`}
+            testID={`collection-section-error-${row.section.key}`}
+          />
+        );
+    }
+  };
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      {dateSortDirection && !isContentLocked ? (
-        <SectionList
-          key={viewMode}
+      {isDateOrder && !isContentLocked ? (
+        // One virtualized list: headers, the loaded rows of expanded dates (in image view one list
+        // row per pair of tiles), skeletons while a page is on its way, and a retry row.
+        <FlatList
           contentContainerStyle={styles.content}
           style={styles.list}
-          sections={dateSections.map(section => ({
-            ...section,
-            data: viewMode === 'list' && expandedDateKeys?.has(section.dateKey) ? section.items : [],
-          }))}
-          keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
-          {...nearEndLoadMore}
-          onEndReached={loadMore}
-          onEndReachedThreshold={1}
+          data={dateRows}
+          keyExtractor={row => row.key}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
-          stickySectionHeadersEnabled={false}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
-          renderSectionHeader={({ section }) => (
-            <DateSectionHeader
-              count={section.items.length}
-              isExpanded={expandedDateKeys?.has(section.dateKey) ?? false}
-              label={section.label}
-              onPress={() => toggleDateSection(section.dateKey)}
-            />
-          )}
-          renderItem={({ item, index, section }) =>
-            renderCollectionItem(item, [dateAccordionStyles.row, index === section.data.length - 1 && dateAccordionStyles.rowLast])
-          }
-          renderSectionFooter={({ section }) =>
-            viewMode === 'grid' && expandedDateKeys?.has(section.dateKey) ? (
-              <View style={dateAccordionStyles.gridBody} testID={`collection-date-grid-${section.dateKey}`}>
-                <View style={dateAccordionStyles.gridWrap}>
-                  {section.items.map(item => <Fragment key={item.itemId}>{renderCollectionItem(item, styles.gridCard)}</Fragment>)}
-                </View>
-              </View>
-            ) : null
-          }
-          ListFooterComponent={listFooter}
+          renderItem={renderDateRow}
         />
       ) : (
         <FlatList
@@ -959,14 +1044,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           data={isContentLocked ? [] : displayedItems}
           keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
           numColumns={viewMode === 'grid' ? 2 : 1}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
           renderItem={({ item }) => renderCollectionItem(item)}
-          ListFooterComponent={listFooter}
         />
       )}
       <CategoryEditorDialog
@@ -1221,6 +1307,9 @@ const styles = StyleSheet.create({
   // Mirrors DailyInboxScreen's identical gridCard - 2 columns, no card border/background (the
   // thumbnail itself is the visual focus, matching Category tile's "icon + name" density).
   gridCard: { flexBasis: '50%', marginTop: spacing.sm, paddingHorizontal: 2 },
+  // A tile inside a date card's grid row: the row cell (gridCard) already spaces it.
+  gridCardInner: { flex: 1 },
+  skeletonRow: { overflow: 'hidden' },
   sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   sortRowSpacer: { flex: 1 },
   sortChip: {
@@ -1244,11 +1333,5 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-  },
-  footerLoading: {
-    paddingVertical: 20,
-  },
-  listLoading: {
-    paddingVertical: spacing.xl,
   },
 });

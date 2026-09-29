@@ -8,12 +8,10 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
-  type ListViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -24,26 +22,27 @@ import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
-import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
+import {
+  buildDateSectionRows,
+  DateSectionErrorRow,
+  DateSectionGridRow,
+  DateSectionSkeletonRow,
+  useDateSectionViewability,
+  type DateSectionRow,
+} from '../components/DateSectionList';
 import { historySectionLabel, historySectionShowsItemDate } from '../items/historyDateGrouping';
 import { useHistorySections, type HistorySectionPage } from '../items/useHistorySections';
 import { deleteItem, restoreItem, type ItemHistoryEntry, type ItemHistorySection } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
 
-/** Skeleton rows while a section's first page loads (never more than the section holds). */
-export const FIRST_PAGE_SKELETON_ROWS = 6;
-/** Skeleton rows under the loaded ones while a section's next page loads. */
-export const NEXT_PAGE_SKELETON_ROWS = 2;
-/** A section's next page is requested once a row this close to its loaded end is on screen. */
-export const NEAR_END_ROWS = 8;
-const GRID_COLUMNS = 2;
+export { FIRST_PAGE_SKELETON_ROWS, NEAR_END_ROWS, NEXT_PAGE_SKELETON_ROWS } from '../components/DateSectionList';
 
 function getHistoryDeleteErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError && error.kind === 'unauthorized') {
@@ -57,73 +56,17 @@ function getHistoryShareErrorMessage(t: TFunction): string {
   return t('item.shareError');
 }
 
-/**
- * One row of the single History list. Only expanded sections contribute anything below their
- * header, and only what they have loaded (plus a few skeletons) - so the list's length follows
- * what the user opened, never how many links exist.
- */
-export type HistoryRow =
-  | { readonly kind: 'header'; readonly key: string; readonly section: ItemHistorySection }
-  | { readonly kind: 'item'; readonly key: string; readonly section: ItemHistorySection; readonly item: ItemHistoryEntry; readonly position: number; readonly isLast: boolean }
-  | { readonly kind: 'gridRow'; readonly key: string; readonly section: ItemHistorySection; readonly items: readonly ItemHistoryEntry[]; readonly position: number; readonly isFirst: boolean; readonly isLast: boolean }
-  | { readonly kind: 'skeleton'; readonly key: string; readonly section: ItemHistorySection; readonly grid: boolean; readonly isFirst: boolean; readonly isLast: boolean }
-  | { readonly kind: 'error'; readonly key: string; readonly section: ItemHistorySection; readonly message: string };
+/** One row of the single History list (see DateSectionRow). */
+export type HistoryRow = DateSectionRow<ItemHistoryEntry>;
 
-/** The flat rows for the current sections, expansion and loaded pages (pure - see HistoryRow). */
+/** The flat rows for the current sections, expansion and loaded pages (pure - see buildDateSectionRows). */
 export function buildHistoryRows(
   sections: readonly ItemHistorySection[],
   pages: ReadonlyMap<string, HistorySectionPage>,
   expandedKeys: ReadonlySet<string>,
   viewMode: 'list' | 'grid',
 ): readonly HistoryRow[] {
-  const rows: HistoryRow[] = [];
-  for (const section of sections) {
-    rows.push({ kind: 'header', key: `h:${section.key}`, section });
-    if (!expandedKeys.has(section.key)) {
-      continue;
-    }
-    const page = pages.get(section.key);
-    const items = page?.items ?? [];
-    const firstLoad = !page || (page.isLoading && items.length === 0);
-    const body: HistoryRow[] = [];
-    const grid = viewMode === 'grid';
-
-    if (grid) {
-      for (let index = 0; index < items.length; index += GRID_COLUMNS) {
-        body.push({ kind: 'gridRow', key: `g:${section.key}:${items[index].id}`, section, items: items.slice(index, index + GRID_COLUMNS), position: index, isFirst: false, isLast: false });
-      }
-    } else {
-      items.forEach((item, position) => body.push({ kind: 'item', key: `i:${item.id}`, section, item, position, isLast: false }));
-    }
-
-    // Only while a request is actually on its way: a screenful for a first page, a couple under
-    // the loaded rows for a next one - never just because more exist (see NEAR_END_ROWS).
-    const skeletons = firstLoad
-      ? Math.min(section.count, FIRST_PAGE_SKELETON_ROWS)
-      : page.isLoadingMore
-        ? NEXT_PAGE_SKELETON_ROWS
-        : 0;
-    const skeletonRows = grid ? Math.ceil(skeletons / GRID_COLUMNS) : skeletons;
-    for (let index = 0; index < skeletonRows; index++) {
-      body.push({ kind: 'skeleton', key: `s:${section.key}:${index}`, section, grid, isFirst: false, isLast: false });
-    }
-    if (page?.error) {
-      body.push({ kind: 'error', key: `e:${section.key}`, section, message: page.error });
-    }
-
-    body.forEach((row, index) => {
-      const isFirst = index === 0;
-      const isLast = index === body.length - 1;
-      if (row.kind === 'gridRow' || row.kind === 'skeleton') {
-        rows.push({ ...row, isFirst, isLast });
-      } else if (row.kind === 'item') {
-        rows.push({ ...row, isLast });
-      } else {
-        rows.push(row);
-      }
-    });
-  }
-  return rows;
+  return buildDateSectionRows(sections, pages, expandedKeys, viewMode, item => item.id);
 }
 
 /**
@@ -233,31 +176,8 @@ export function DateHistoryScreen() {
     [sections, pages, expandedKeys, viewMode],
   );
 
-  // A section's next page is asked for once one of its last NEAR_END_ROWS loaded links (or its
-  // skeleton rows) comes on screen - only for that section, and only while it has more.
-  const pagesRef = useRef(pages);
-  pagesRef.current = pages;
-  const loadMoreRef = useRef(loadMore);
-  loadMoreRef.current = loadMore;
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: readonly ListViewToken[] }) => {
-    const wanted = new Set<string>();
-    for (const token of viewableItems) {
-      const row = token.item as HistoryRow | undefined;
-      if (!row || row.kind === 'header' || row.kind === 'error') {
-        continue;
-      }
-      const page = pagesRef.current.get(row.section.key);
-      if (!page?.nextCursor) {
-        continue;
-      }
-      const reached = row.kind === 'skeleton' ? page.items.length : row.position + (row.kind === 'gridRow' ? row.items.length : 1);
-      if (page.items.length - reached < NEAR_END_ROWS) {
-        wanted.add(row.section.key);
-      }
-    }
-    wanted.forEach(key => loadMoreRef.current(key));
-  }).current;
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 10, minimumViewTime: 0 }).current;
+  // A section's next page is asked for once its loaded end comes on screen (see useDateSectionViewability).
+  const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(pages, loadMore);
 
   const renderRow = ({ item: row }: { item: HistoryRow }) => {
     switch (row.kind) {
@@ -296,10 +216,7 @@ export function DateHistoryScreen() {
         // Image view: each pair of tiles is one list row, and together they are the body of the
         // header's card (see dateAccordionStyles.gridRow*).
         return (
-          <View
-            style={[dateAccordionStyles.gridRow, row.isFirst && dateAccordionStyles.gridRowFirst, row.isLast && dateAccordionStyles.gridRowLast]}
-            testID={`history-grid-row-${row.section.key}-${row.position}`}
-          >
+          <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} testID={`history-grid-row-${row.section.key}-${row.position}`}>
             {row.items.map(item => (
               <SavedLinkGridCell
                 dateDisplayMode={historySectionShowsItemDate(row.section.kind) ? 'dateTime' : 'time'}
@@ -313,42 +230,25 @@ export function DateHistoryScreen() {
                 preferEffectiveThumbnail
               />
             ))}
-          </View>
+          </DateSectionGridRow>
         );
       case 'skeleton':
-        return row.grid ? (
-          <View style={[dateAccordionStyles.gridRow, row.isFirst && dateAccordionStyles.gridRowFirst, row.isLast && dateAccordionStyles.gridRowLast]}>
-            {Array.from({ length: GRID_COLUMNS }, (_, index) => (
-              <View key={index} style={styles.gridSkeletonCell}>
-                <SavedLinkGridCardSkeleton testID="history-skeleton" />
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={[dateAccordionStyles.row, styles.skeletonRow, row.isLast && dateAccordionStyles.rowLast]}>
-            <SavedLinkRowSkeleton testID="history-skeleton" />
-          </View>
-        );
+        return <DateSectionSkeletonRow grid={row.grid} isFirst={row.isFirst} isLast={row.isLast} testID="history-skeleton" />;
       case 'error':
         return (
-          <View style={[dateAccordionStyles.row, dateAccordionStyles.rowLast, styles.errorRow]} testID={`history-section-error-${row.section.key}`}>
-            <Text style={styles.errorRowText}>{row.message}</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                const page = pages.get(row.section.key);
-                if (page && page.items.length > 0) {
-                  loadMore(row.section.key);
-                } else {
-                  ensureLoaded(row.section.key);
-                }
-              }}
-              style={styles.retryButton}
-              testID={`history-section-retry-${row.section.key}`}
-            >
-              <Text style={styles.retryLabel}>{t('history.retry')}</Text>
-            </Pressable>
-          </View>
+          <DateSectionErrorRow
+            message={row.message}
+            onRetry={() => {
+              const page = pages.get(row.section.key);
+              if (page && page.items.length > 0) {
+                loadMore(row.section.key);
+              } else {
+                ensureLoaded(row.section.key);
+              }
+            }}
+            retryTestID={`history-section-retry-${row.section.key}`}
+            testID={`history-section-error-${row.section.key}`}
+          />
         );
     }
   };
@@ -440,10 +340,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.md,
   },
-  skeletonRow: { backgroundColor: colors.surface, overflow: 'hidden' },
-  gridSkeletonCell: { flexBasis: '50%', maxWidth: '50%', paddingHorizontal: 2 },
-  errorRow: { alignItems: 'center', backgroundColor: colors.surface, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  errorRowText: { color: colors.danger, flex: 1, fontSize: 14 },
-  retryButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  retryLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
 });

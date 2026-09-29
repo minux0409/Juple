@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, SectionList, StyleSheet, Switch, Text } from 'react-native';
+import { FlatList, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { NAME_ORDER_MAX_LINKS } from '../../collections/useCollectionItems';
@@ -12,6 +12,7 @@ import {
   enableCollectionShare,
   getCollection,
   getCollectionItems,
+  getCollectionItemSections,
   getCollectionShare,
   getCollections,
   addItemToCollection,
@@ -65,6 +66,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   enableCollectionShare: jest.fn(),
   getCollection: jest.fn(),
   getCollectionItems: jest.fn().mockResolvedValue({ items: [], nextCursor: null }),
+  getCollectionItemSections: jest.fn(),
   getCollectionShare: jest.fn(),
   getCollections: jest.fn(),
   addItemToCollection: jest.fn(),
@@ -116,24 +118,62 @@ function makeItemEntry(overrides: Partial<CollectionItemEntry> = {}): Collection
 
 
 /**
- * The link list, whichever one the current sort renders: 일자순 (the default) is a date-grouped
- * SectionList, 이름순 a flat FlatList. Exposed with FlatList-like props - `data` is every loaded
- * link in display order, `renderItem` renders one row - so tests about rows and data do not depend
- * on which of the two is on screen.
+ * 일자순 as the server now serves it, standing in for GET collections/{id}/items/sections: every
+ * link the test's own getCollectionItems mock returns (paged through with the same unlock grant -
+ * so a locked Collection is locked here too) as one 오늘 section with its exact count. Each section
+ * page request then gets the same links from that mock (it ignores the window), so the one section
+ * holds exactly what the test set up.
+ */
+async function sectionsFromItemsMock(request: unknown, collectionId: number, unlockToken?: string | null) {
+  let count = 0;
+  let cursor: string | undefined;
+  let guard = 0;
+  do {
+    const page = await getCollectionItems(request as never, collectionId, { limit: 100, sort: 'dateDesc', cursor, unlockToken });
+    count += page.items.length;
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor && ++guard < 50);
+  return count === 0
+    ? []
+    : [{ key: 'all-links', kind: 'today' as const, year: null, month: null, fromUtc: '2000-01-01T00:00:00.000Z', toUtc: null, count }];
+}
+beforeEach(() => {
+  jest.mocked(getCollectionItemSections).mockImplementation(sectionsFromItemsMock as never);
+});
+
+type ListRow = { readonly kind: string; readonly item?: CollectionItemEntry; readonly items?: readonly CollectionItemEntry[] };
+
+/**
+ * The link list, whichever one the current sort renders: 일자순 (the default) is one flat list of
+ * date-section rows (headers, links, skeletons), 이름순 a flat FlatList of links. Exposed with
+ * FlatList-like props - `data` is every loaded link in display order, `renderItem` renders one
+ * link's row - so tests about rows and data do not depend on which of the two is on screen.
  */
 function findItemList(
   renderer: ReactTestRenderer.ReactTestRenderer | ReactTestRenderer.ReactTestInstance,
 ): { readonly props: ReactTestRenderer.ReactTestInstance['props'] } {
   const root = 'root' in renderer ? renderer.root : renderer;
-  const [sectionList] = root.findAllByType(SectionList);
-  if (!sectionList) {
-    return root.findByType(FlatList);
+  const list = root.findByType(FlatList);
+  const data: readonly unknown[] = list.props.data;
+  // The 일자순 list is the one without columns (이름순 always sets numColumns).
+  if (list.props.numColumns !== undefined) {
+    return list;
   }
+  const rows = data as readonly ListRow[];
   return {
     props: {
-      ...sectionList.props,
-      data: sectionList.props.sections.flatMap((section: { items: readonly CollectionItemEntry[] }) => section.items),
-      renderItem: ({ item }: { item: CollectionItemEntry }) => sectionList.props.renderItem({ item, index: 0, section: { data: [item] } }),
+      ...list.props,
+      data: rows.flatMap(entry => (entry.kind === 'item' ? [entry.item!] : entry.kind === 'gridRow' ? [...entry.items!] : [])),
+      renderItem: ({ item }: { item: CollectionItemEntry }) => {
+        const owner = rows.find(entry =>
+          (entry.kind === 'item' && entry.item!.itemId === item.itemId)
+          || (entry.kind === 'gridRow' && entry.items!.some(candidate => candidate.itemId === item.itemId)));
+        if (!owner) {
+          // A link the list has not loaded: rendered as a lone row of a section, as it would be.
+          return list.props.renderItem({ item: { kind: 'item', key: `i:${item.itemId}`, section: { key: 'all-links', kind: 'today' }, item, position: 0, isLast: true }, index: 0 });
+        }
+        return list.props.renderItem({ item: owner.kind === 'gridRow' ? { ...owner, items: [item] } : owner, index: 0 });
+      },
     },
   };
 }
@@ -153,6 +193,10 @@ async function renderScreen() {
         <CollectionDetailsScreen navigation={navigation} route={route} />
       </AppToastProvider>,
     );
+  });
+  // 일자순 loads the section summary, then the open section's first page - let both land.
+  await act(async () => {
+    await new Promise<void>(resolve => setImmediate(() => resolve()));
   });
   return renderer;
 }
@@ -725,57 +769,71 @@ describe('CollectionDetailsScreen', () => {
       renderer.root.find(node => node.props.testID === `collection-sort-${which}` && typeof node.props.onPress === 'function');
     const sortChipLabel = (renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') =>
       sortChip(renderer, which).findByType(Text).props.children;
-    const sectionIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-      renderer.root.findByType(SectionList).props.sections.map((section: { items: readonly CollectionItemEntry[] }) => section.items.map(item => item.itemId));
 
-    it('offers just 일자순 and 이름순 - 일자순 ↓ (newest first) by default', async () => {
-      const renderer = await renderScreen();
-
-      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
-      expect(sortChipLabel(renderer, 'name')).toBe(i18n.t('collections.sortName'));
-      expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
-      expect(sortChip(renderer, 'date').props.accessibilityLabel).toBe(i18n.t('collections.sortDateNewestA11y'));
-      expect(renderer.root.findAllByProps({ children: '최신순' })).toHaveLength(0);
-      expect(renderer.root.findAllByProps({ children: '오래된순' })).toHaveLength(0);
-    });
-
-    it('opened/closed date sections stay as the user left them when the direction flips', async () => {
-      const now = new Date();
-      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 10, 12).toISOString();
-      jest.mocked(getCollectionItems).mockResolvedValue({
-        items: [
-          makeItemEntry({ itemId: 1, addedAtUtc: now.toISOString() }),
-          makeItemEntry({ itemId: 3, addedAtUtc: twoMonthsAgo }),
-        ],
-        nextCursor: null,
-      });
-      const renderer = await renderScreen();
-      const shownIds = () =>
-        renderer.root.findByType(SectionList).props.sections.flatMap((section: { data: readonly CollectionItemEntry[] }) => section.data.map(item => item.itemId));
-      // Today's section starts open, the older month closed.
-      expect(shownIds()).toEqual([1]);
-
+    type Row = { readonly kind: string; readonly key: string; readonly section: { readonly key: string; readonly count: number }; readonly item?: CollectionItemEntry; readonly items?: readonly CollectionItemEntry[] };
+    const dateList = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(FlatList);
+    const rows = (renderer: ReactTestRenderer.ReactTestRenderer): readonly Row[] => dateList(renderer).props.data;
+    const headers = (renderer: ReactTestRenderer.ReactTestRenderer) => rows(renderer).filter(row => row.kind === 'header');
+    const shownIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      rows(renderer).flatMap(row => (row.kind === 'item' ? [row.item!.itemId] : row.kind === 'gridRow' ? row.items!.map(item => item.itemId) : []));
+    const headerProps = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      headers(renderer).map(row => dateList(renderer).props.renderItem({ item: row, index: 0 }).props as { label: string; count: number; isExpanded: boolean });
+    async function toggle(renderer: ReactTestRenderer.ReactTestRenderer, sectionKey: string) {
+      const header = headers(renderer).find(row => row.section.key === sectionKey)!;
       await act(async () => {
-        const [, month] = renderer.root.findByType(SectionList).props.sections;
-        renderer.root.findByType(SectionList).props.renderSectionHeader({ section: month }).props.onPress();
+        dateList(renderer).props.renderItem({ item: header, index: 0 }).props.onPress();
       });
-      expect(shownIds()).toEqual([1, 3]);
-
+      await flush();
+    }
+    async function flush() {
       await act(async () => {
-        sortChip(renderer, 'date').props.onPress();
+        await new Promise<void>(resolve => setImmediate(() => resolve()));
       });
-      expect(shownIds()).toEqual([3, 1]);
-    });
+    }
+    /** Reports the given rows as on screen, as the FlatList would while the user scrolls. */
+    async function show(renderer: ReactTestRenderer.ReactTestRenderer, shown: readonly Row[]) {
+      const viewableItems = shown.map(row => ({ item: row, key: row.key, index: rows(renderer).indexOf(row), isViewable: true }));
+      await act(async () => {
+        dateList(renderer).props.onViewableItemsChanged({ viewableItems, changed: viewableItems });
+      });
+      await flush();
+    }
+    const itemCalls = () => jest.mocked(getCollectionItems).mock.calls.filter(([, , options]) => options?.fromUtc !== undefined);
 
     /**
-     * A server over `links` that orders and pages exactly like GET /collections/{id}/items: sort
-     * 'dateAsc'/'dateDesc' over the whole Collection by addedAtUtc (ties by itemId), a cursor that
-     * names its order, `limit` links per page.
+     * A server over `links` that answers exactly like GET /collections/{id}/items/sections and
+     * GET /collections/{id}/items: 오늘 (from local midnight, open-ended) and one section per older
+     * local month, newest first, with exact counts; a section's page is only its window's links, in
+     * the requested date order (ties by itemId), `limit` at a time with a cursor that names its order.
      */
     function serveCollection(links: readonly CollectionItemEntry[]) {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const sections: { key: string; kind: 'today' | 'month'; year: number | null; month: number | null; fromUtc: string; toUtc: string | null; count: number }[] = [];
+      const todayCount = links.filter(link => new Date(link.addedAtUtc) >= todayStart).length;
+      if (todayCount > 0) {
+        sections.push({ key: 'today', kind: 'today', year: null, month: null, fromUtc: todayStart.toISOString(), toUtc: null, count: todayCount });
+      }
+      const older = links.filter(link => new Date(link.addedAtUtc) < todayStart);
+      const monthKeys = [...new Set(older.map(link => {
+        const date = new Date(link.addedAtUtc);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }))].sort().reverse();
+      for (const monthKey of monthKeys) {
+        const [year, month] = monthKey.split('-').map(Number);
+        const from = new Date(year, month - 1, 1);
+        const nextMonth = new Date(year, month, 1);
+        const to = nextMonth < todayStart ? nextMonth : todayStart;
+        const count = older.filter(link => new Date(link.addedAtUtc) >= from && new Date(link.addedAtUtc) < to).length;
+        sections.push({ key: `month:${monthKey}`, kind: 'month', year, month, fromUtc: from.toISOString(), toUtc: to.toISOString(), count });
+      }
+      jest.mocked(getCollectionItemSections).mockImplementation(async () => sections);
       jest.mocked(getCollectionItems).mockImplementation(async (_request, _collectionId, options = {}) => {
         const sort = options.sort ?? 'dateDesc';
-        const ordered = [...links].sort((a, b) =>
+        const inWindow = links.filter(link =>
+          options.fromUtc === undefined
+          || (new Date(link.addedAtUtc) >= new Date(options.fromUtc) && (!options.toUtc || new Date(link.addedAtUtc) < new Date(options.toUtc))));
+        const ordered = [...inWindow].sort((a, b) =>
           sort === 'dateAsc'
             ? a.addedAtUtc.localeCompare(b.addedAtUtc) || a.itemId - b.itemId
             : b.addedAtUtc.localeCompare(a.addedAtUtc) || b.itemId - a.itemId);
@@ -791,91 +849,202 @@ describe('CollectionDetailsScreen', () => {
         const end = start + limit;
         return { items: ordered.slice(start, end), nextCursor: end < ordered.length ? `${sort}:${end}` : null };
       });
+      return sections;
     }
 
-    /** 120 links, one a day - so the oldest ones are far outside the first (newest) 50-link page. */
-    function manyLinks(count = 120): CollectionItemEntry[] {
+    /** `count` links, one every `everyDays` days back from today - most of them in older months. */
+    function manyLinks(count = 120, everyDays = 3): CollectionItemEntry[] {
       const now = new Date();
       return Array.from({ length: count }, (_, index) => makeItemEntry({
         itemId: index + 1,
-        title: `Link ${String(index + 1).padStart(3, '0')}`,
-        addedAtUtc: new Date(now.getFullYear(), now.getMonth(), now.getDate() - index * 3, 12).toISOString(),
+        title: `Link ${String(index + 1).padStart(4, '0')}`,
+        addedAtUtc: new Date(now.getFullYear(), now.getMonth(), now.getDate() - index * everyDays, 12).toISOString(),
       }));
     }
 
-    it('일자순 ↓ starts with the newest of the whole Collection, and ↑ asks the server afresh (no cursor) - its first link is the oldest of all 120', async () => {
-      const links = manyLinks();
-      serveCollection(links);
+    it('offers just 일자순 and 이름순 - 일자순 ↓ (newest first) by default', async () => {
       const renderer = await renderScreen();
 
-      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 50 }));
-      expect(findItemList(renderer).props.data[0].itemId).toBe(1);
-      expect(findItemList(renderer).props.data).toHaveLength(50);
+      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
+      expect(sortChipLabel(renderer, 'name')).toBe(i18n.t('collections.sortName'));
+      expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
+      expect(sortChip(renderer, 'date').props.accessibilityLabel).toBe(i18n.t('collections.sortDateNewestA11y'));
+      expect(renderer.root.findAllByProps({ children: '최신순' })).toHaveLength(0);
+      expect(renderer.root.findAllByProps({ children: '오래된순' })).toHaveLength(0);
+    });
+
+    it('opens with the date summary and only the open section\'s first page - collapsed sections load nothing', async () => {
+      const links = manyLinks();
+      const sections = serveCollection(links);
+      const renderer = await renderScreen();
+
+      expect(getCollectionItemSections).toHaveBeenCalledTimes(1);
+      // Every section with its exact total, newest first.
+      expect(headerProps(renderer).map(header => header.count)).toEqual(sections.map(section => section.count));
+      expect(headerProps(renderer)[0]).toEqual(expect.objectContaining({ label: i18n.t('history.today'), isExpanded: true }));
+      expect(itemCalls()).toHaveLength(1);
+      expect(itemCalls()[0][2]).toEqual({ limit: 25, cursor: undefined, sort: 'dateDesc', fromUtc: sections[0].fromUtc, toUtc: null, unlockToken: null });
+      expect(shownIds(renderer)).toEqual([1]);
+    });
+
+    it('expanding a section loads just that section\'s first page; a collapsed-then-reopened one shows its links without asking again', async () => {
+      const links = manyLinks();
+      const sections = serveCollection(links);
+      const renderer = await renderScreen();
+      const month = sections[2];
+
+      await toggle(renderer, month.key);
+      expect(itemCalls()).toHaveLength(2);
+      expect(itemCalls()[1][2]).toEqual(expect.objectContaining({ limit: 25, sort: 'dateDesc', fromUtc: month.fromUtc, toUtc: month.toUtc }));
+      const monthIds = shownIds(renderer).slice(1);
+      expect(monthIds).toHaveLength(month.count);
+
+      await toggle(renderer, month.key);
+      expect(shownIds(renderer)).toEqual([1]);
+      await toggle(renderer, month.key);
+      expect(shownIds(renderer).slice(1)).toEqual(monthIds);
+      expect(itemCalls()).toHaveLength(2);
+    });
+
+    it('opened/closed date sections stay as the user left them when the direction flips; ↑ reverses them and reloads the open ones from their own window', async () => {
+      const now = new Date();
+      const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 10, 12).toISOString();
+      const sections = serveCollection([
+        makeItemEntry({ itemId: 1, addedAtUtc: now.toISOString() }),
+        makeItemEntry({ itemId: 3, addedAtUtc: twoMonthsAgo }),
+      ]);
+      const renderer = await renderScreen();
+      // Today's section starts open, the older month closed.
+      expect(shownIds(renderer)).toEqual([1]);
+
+      await toggle(renderer, sections[1].key);
+      expect(shownIds(renderer)).toEqual([1, 3]);
 
       jest.mocked(getCollectionItems).mockClear();
       await act(async () => {
         sortChip(renderer, 'date').props.onPress();
       });
-
-      expect(getCollectionItems).toHaveBeenCalledTimes(1);
-      const [, , options] = jest.mocked(getCollectionItems).mock.calls[0];
-      expect(options).toEqual(expect.objectContaining({ sort: 'dateAsc' }));
-      expect(options?.cursor).toBeUndefined();
-      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↑`);
-      // The oldest link of the whole Collection - not the oldest of the 50 newest.
-      expect(findItemList(renderer).props.data[0].itemId).toBe(120);
-      const sections = renderer.root.findByType(SectionList).props.sections;
-      expect(sections[0].items[0].itemId).toBe(120);
-      // Only the 50 oldest are in so far - 오늘 (the newest) comes last, once paged to, never early.
-      expect(sections.map((section: { label: string }) => section.label)).not.toContain(i18n.t('history.today'));
-    });
-
-    it('pages through the rest of the chosen order as the list scrolls, with no duplicate or missing link', async () => {
-      const links = manyLinks();
-      serveCollection(links);
-      const renderer = await renderScreen();
-      await act(async () => {
-        sortChip(renderer, 'date').props.onPress();
-      });
-
-      for (let page = 0; page < 5 && findItemList(renderer).props.data.length < links.length; page++) {
-        await act(async () => {
-          renderer.root.findByType(SectionList).props.onEndReached();
-        });
-      }
-
-      const ids = findItemList(renderer).props.data.map((item: CollectionItemEntry) => item.itemId);
-      expect(ids).toEqual(links.map(link => link.itemId).reverse());
-      for (const call of jest.mocked(getCollectionItems).mock.calls.slice(1)) {
-        expect(call[2]?.sort).toBe('dateAsc');
-      }
-    });
-
-    it('일자순 groups links like History (오늘 / 어제 / months), in the server order, and flips back to ↓', async () => {
-      const now = new Date();
-      serveCollection([
-        makeItemEntry({ itemId: 1, title: 'Today', addedAtUtc: now.toISOString() }),
-        makeItemEntry({ itemId: 2, title: 'Yesterday', addedAtUtc: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12).toISOString() }),
-        makeItemEntry({ itemId: 3, title: 'Two months', addedAtUtc: new Date(now.getFullYear(), now.getMonth() - 2, 10, 12).toISOString() }),
-        makeItemEntry({ itemId: 4, title: 'Three months', addedAtUtc: new Date(now.getFullYear(), now.getMonth() - 3, 10, 12).toISOString() }),
-      ]);
-      const renderer = await renderScreen();
-
-      const labels = renderer.root.findByType(SectionList).props.sections.map((section: { label: string }) => section.label);
-      expect(labels.slice(0, 2)).toEqual([i18n.t('history.today'), i18n.t('history.yesterday')]);
-      expect(sectionIds(renderer)).toEqual([[1], [2], [3], [4]]);
-
-      await act(async () => {
-        sortChip(renderer, 'date').props.onPress();
-      });
+      await flush();
       expect(sortChip(renderer, 'date').props.accessibilityLabel).toBe(i18n.t('collections.sortDateOldestA11y'));
-      expect(sectionIds(renderer)).toEqual([[4], [3], [2], [1]]);
+      expect(headers(renderer).map(header => header.section.key)).toEqual([sections[1].key, sections[0].key]);
+      expect(shownIds(renderer)).toEqual([3, 1]);
+      // Both open sections start over in the new order - from the top of their own window, no cursor.
+      expect(itemCalls().map(([, , options]) => [options?.sort, options?.cursor])).toEqual([['dateAsc', undefined], ['dateAsc', undefined]]);
+      // The summary is the same in both directions - it is not asked for again.
+      expect(getCollectionItemSections).toHaveBeenCalledTimes(1);
+    });
+
+    it('pages a large section by its own cursor as its end comes on screen - in order, no duplicate or missing link, skeletons only while a page is on its way', async () => {
+      // 90 links in the current month alone (every 8 hours).
+      const now = new Date();
+      const links = Array.from({ length: 90 }, (_, index) => makeItemEntry({
+        itemId: index + 1,
+        addedAtUtc: new Date(now.getTime() - (index + 1) * 8 * 3_600_000).toISOString(),
+      }));
+      const sections = serveCollection(links);
+      const renderer = await renderScreen();
+      const target = sections.find(section => section.kind === 'month' && section.count >= 30) ?? sections[sections.length - 1];
+      if (!headerProps(renderer).find((_, index) => headers(renderer)[index].section.key === target.key)?.isExpanded) {
+        await toggle(renderer, target.key);
+      }
+      const sectionRows = () => rows(renderer).filter(row => row.section.key === target.key && row.kind !== 'header');
+      // Idle with more to come: no skeleton.
+      expect(sectionRows().filter(row => row.kind === 'skeleton')).toHaveLength(0);
+
+      for (let guard = 0; guard < 10 && sectionRows().filter(row => row.kind === 'item').length < target.count; guard++) {
+        await show(renderer, sectionRows().slice(-2));
+      }
+
+      const ids = sectionRows().filter(row => row.kind === 'item').map(row => row.item!.itemId);
+      const expected = links
+        .filter(link => new Date(link.addedAtUtc) >= new Date(target.fromUtc) && (!target.toUtc || new Date(link.addedAtUtc) < new Date(target.toUtc)))
+        .map(link => link.itemId);
+      expect(ids).toEqual(expected);
+      expect(new Set(ids).size).toBe(ids.length);
+      for (const [, , options] of itemCalls().filter(([, , call]) => call?.fromUtc === target.fromUtc)) {
+        expect(options).toEqual(expect.objectContaining({ sort: 'dateDesc', limit: 25, toUtc: target.toUtc }));
+      }
+      // At the end: nothing more is asked for.
+      const callsAtEnd = itemCalls().length;
+      await show(renderer, sectionRows().slice(-2));
+      expect(itemCalls()).toHaveLength(callsAtEnd);
+    });
+
+    it('with 1,200 links, loads the summary and one page - and mounts only a window of rows, in List and Grid', async () => {
+      const links = manyLinks(1200, 0.25);
+      const sections = serveCollection(links);
+      const renderer = await renderScreen();
+
+      expect(headerProps(renderer).reduce((sum, header) => sum + header.count, 0)).toBe(1200);
+      expect(sections.length).toBeGreaterThan(3);
+      // Open every section: one first page each - never the whole Collection.
+      for (const section of sections.slice(1)) {
+        await toggle(renderer, section.key);
+      }
+      expect(itemCalls()).toHaveLength(sections.length);
+      expect(itemCalls().every(([, , options]) => options?.limit === 25 && options.cursor === undefined)).toBe(true);
+      const loaded = shownIds(renderer).length;
+      expect(loaded).toBeLessThanOrEqual(sections.length * 25);
+      // The list mounts only a window of what is loaded.
+      expect(renderer.root.findAllByType(SavedLinkRow).length).toBeLessThanOrEqual(dateList(renderer).props.initialNumToRender);
 
       await act(async () => {
-        sortChip(renderer, 'date').props.onPress();
+        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
       });
-      expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
-      expect(sectionIds(renderer)).toEqual([[1], [2], [3], [4]]);
+      // Image view: one virtualized row per pair of tiles - the same links, no extra request.
+      expect(rows(renderer).filter(row => row.kind === 'gridRow').length).toBe(sections.reduce((sum, section) => sum + Math.ceil(Math.min(section.count, 25) / 2), 0));
+      expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeLessThanOrEqual(dateList(renderer).props.initialNumToRender * 2);
+      expect(itemCalls()).toHaveLength(sections.length);
+    });
+
+    it('removing a link lowers its section\'s count at once, and an emptied section goes', async () => {
+      const now = new Date();
+      const sections = serveCollection([
+        makeItemEntry({ itemId: 1, addedAtUtc: now.toISOString() }),
+        makeItemEntry({ itemId: 2, addedAtUtc: new Date(now.getFullYear(), now.getMonth() - 2, 10, 12).toISOString() }),
+        makeItemEntry({ itemId: 3, addedAtUtc: new Date(now.getFullYear(), now.getMonth() - 2, 11, 12).toISOString() }),
+      ]);
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+      await toggle(renderer, sections[1].key);
+      const unlink = async (itemId: number) => {
+        const row = getRowElement(renderer, makeItemEntry({ itemId }));
+        revealRow(row);
+        await act(async () => {
+          row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0].props.onPress();
+        });
+        await act(async () => {
+          renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFromCollection'))[0].props.onPress();
+        });
+      };
+
+      await unlink(3);
+      expect(headerProps(renderer).map(header => header.count)).toEqual([1, 1]);
+      await unlink(1);
+      expect(headers(renderer).map(header => header.section.key)).toEqual([sections[1].key]);
+      expect(getCollectionItemSections).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows skeleton rows while a section\'s first page is on its way, then the links', async () => {
+      const links = manyLinks(10);
+      serveCollection(links);
+      const serve = jest.mocked(getCollectionItems).getMockImplementation()!;
+      let release!: () => void;
+      jest.mocked(getCollectionItems).mockImplementationOnce(async (...args) => {
+        await new Promise<void>(resolve => {
+          release = resolve;
+        });
+        return serve(...args);
+      });
+      const renderer = await renderScreen();
+
+      expect(rows(renderer).filter(row => row.kind === 'skeleton')).toHaveLength(1);
+      await act(async () => {
+        release();
+      });
+      await flush();
+      expect(rows(renderer).filter(row => row.kind === 'skeleton')).toHaveLength(0);
+      expect(shownIds(renderer)).toEqual([1]);
     });
 
     it('이름순 loads the whole Collection first - never a name order of just the loaded page - then shows it as one flat list', async () => {
@@ -898,7 +1067,7 @@ describe('CollectionDetailsScreen', () => {
         sortChip(renderer, 'name').props.onPress();
       });
       expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ limit: 100, sort: 'dateDesc', cursor: 'dateDesc:100' }));
-      expect(renderer.root.findAllByType(SectionList)).toHaveLength(0);
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
       expect(renderer.root.findByType(FlatList).props.data).toEqual([]);
       expect(renderer.root.findByProps({ testID: 'collection-items-loading' })).toBeTruthy();
 
@@ -908,8 +1077,8 @@ describe('CollectionDetailsScreen', () => {
 
       const names = renderer.root.findByType(FlatList).props.data.map((item: CollectionItemEntry) => item.title);
       expect(names).toHaveLength(120);
-      expect(names[0]).toBe('Link 001');
-      expect(names[119]).toBe('Link 120');
+      expect(names[0]).toBe('Link 0001');
+      expect(names[119]).toBe('Link 0120');
       expect(sortChipLabel(renderer, 'date')).toBe(i18n.t('collections.sortDate'));
 
       // Switching List -> Grid view mode must not reset the sort choice just made.
@@ -919,12 +1088,15 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
       expect(renderer.root.findByType(FlatList).props.data).toHaveLength(120);
 
-      // Back to 일자순 starts newest first again, from the server's first page.
+      // Back to 일자순: the date summary again, then the open section's first page (no cursor).
+      jest.mocked(getCollectionItemSections).mockClear();
       await act(async () => {
         sortChip(renderer, 'date').props.onPress();
       });
+      await flush();
       expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
-      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.not.objectContaining({ cursor: expect.anything() }));
+      expect(getCollectionItemSections).toHaveBeenCalledTimes(1);
+      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 25, cursor: undefined, fromUtc: expect.any(String) }));
     });
 
     it('이름순 of a Collection with more links than can be name-ordered as a whole is refused with the reason - it stays on 일자순', async () => {
@@ -949,10 +1121,11 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => {
         sortChip(renderer, 'name').props.onPress();
       });
+      await flush();
 
       expect(renderer.root.findByProps({ children: i18n.t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }) })).toBeTruthy();
-      expect(renderer.root.findAllByType(SectionList)).toHaveLength(1);
-      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 50 }));
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBeUndefined();
+      expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 25, fromUtc: expect.any(String) }));
       expect(findItemList(renderer).props.data[0].itemId).toBe(1);
     });
   });
@@ -967,6 +1140,10 @@ describe('CollectionDetailsScreen', () => {
       expect(StyleSheet.flatten(list.props.style)).toMatchObject({ flex: 1 });
       expect(StyleSheet.flatten(list.props.contentContainerStyle).paddingBottom).toBe(spacing.xl);
     }
+
+    beforeEach(() => {
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [makeItemEntry({ itemId: 1 }), makeItemEntry({ itemId: 2 })], nextCursor: null });
+    });
 
     it('keeps List and Grid inside the StackScreenSafeArea root', async () => {
       const renderer = await renderScreen();

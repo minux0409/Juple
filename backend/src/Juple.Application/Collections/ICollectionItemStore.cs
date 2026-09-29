@@ -23,6 +23,45 @@ public interface ICollectionItemStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// GetItemsAsync restricted to links added (AddedAtUtc) within [fromUtc, toUtc) - one date
+    /// section of the Collection (see GetCollectionItemSectionsService). Same access check, rows,
+    /// order and keyset cursor; a cursor from this window only ever continues inside it. Defaulted:
+    /// only CollectionStore implements the sectioned view.
+    /// </summary>
+    Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsInRangeAsync(
+        long userId,
+        long collectionId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    /// <summary>
+    /// The AddedAtUtc of the Collection's oldest active link added before beforeUtc (null: none).
+    /// Same access check as GetItemsAsync. Defaulted like GetItemsInRangeAsync.
+    /// </summary>
+    Task<DateTimeOffset?> GetOldestAddedAtUtcAsync(
+        long userId,
+        long collectionId,
+        DateTimeOffset beforeUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    /// <summary>
+    /// For each [FromUtc, ToUtc) window, how many active links GetItemsInRangeAsync pages through in
+    /// it - in one statement (never one query per window). Same access check as GetItemsAsync.
+    /// </summary>
+    Task<IReadOnlyList<int>> CountByAddedRangesAsync(
+        long userId,
+        long collectionId,
+        IReadOnlyList<(DateTimeOffset FromUtc, DateTimeOffset ToUtc)> ranges,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    /// <summary>
     /// Throws CollectionNotFoundException when collectionId is missing or not owned by userId, and
     /// ItemNotFoundException when itemId is missing or not owned by userId - mirrors
     /// AssignItemCategoryService's cross-ownership check. A no-op (success) when the Item is

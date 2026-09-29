@@ -30,6 +30,13 @@ public sealed class GetItemHistoryService(
         return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
     }
 
+    public async Task<int> CountRangeAsync(
+        long userId,
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        CancellationToken cancellationToken = default) =>
+        (await itemHistoryQueryStore.CountByRangesAsync(userId, [(fromUtc, toUtc)], cancellationToken))[0];
+
     private async Task<ItemHistoryPage> EnrichAsync(
         long userId,
         ItemHistoryPage page,

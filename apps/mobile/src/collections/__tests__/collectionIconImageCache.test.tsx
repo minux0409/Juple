@@ -3,7 +3,6 @@ import { Image } from 'react-native';
 import { CategoryIconTile } from '../CategoryIconTile';
 import {
   forgetCollectionIcon,
-  prefetchCollectionIcons,
   rememberLocalCollectionIcon,
   resetCollectionIconCacheForTests,
   resolveCollectionIconUri,
@@ -18,26 +17,15 @@ beforeEach(() => {
 });
 
 describe('collectionIconImageCache', () => {
-  it('first load: the fresh signed URL is used and warmed once', () => {
-    const prefetch = jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
-
-    prefetchCollectionIcons([{ id: 42, iconImageUrl: signed(1), iconImageVersion: 'v1' }]);
-
-    expect(prefetch).toHaveBeenCalledTimes(1);
-    expect(prefetch).toHaveBeenCalledWith(signed(1));
+  it('first load: the fresh signed URL is used', () => {
     expect(resolveCollectionIconUri(42, 'v1', signed(1))).toBe(signed(1));
-    prefetch.mockRestore();
   });
 
-  it('a later response for the same photo keeps the first URI (image-cache hit), and is not downloaded again', () => {
-    const prefetch = jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
-    prefetchCollectionIcons([{ id: 42, iconImageUrl: signed(1), iconImageVersion: 'v1' }]);
+  it('a later response for the same photo keeps the first URI (image-cache hit) - never a new download', () => {
+    resolveCollectionIconUri(42, 'v1', signed(1));
 
-    prefetchCollectionIcons([{ id: 42, iconImageUrl: signed(2), iconImageVersion: 'v1' }]);
-
+    expect(resolveCollectionIconUri(42, 'v1', signed(2))).toBe(signed(1));
     expect(resolveCollectionIconUri(42, 'v1', signed(3))).toBe(signed(1));
-    expect(prefetch).toHaveBeenCalledTimes(1);
-    prefetch.mockRestore();
   });
 
   it('a replaced photo (new version) is never shown from the old entry', () => {
@@ -71,15 +59,13 @@ describe('collectionIconImageCache', () => {
     expect(resolveCollectionIconUri(42, undefined, signed(2))).toBe(signed(2));
   });
 
-  it('only warms http(s) photos, and at most the first screenful', () => {
+  it('never fetches a photo ahead of time - resolving a URI downloads nothing', () => {
     const prefetch = jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
-    rememberLocalCollectionIcon(1, 'v', 'file:///cache/local.jpg');
-    const many = Array.from({ length: 40 }, (_, index) => ({ id: index + 2, iconImageUrl: signed(index), iconImageVersion: `v${index}` }));
+    for (let id = 1; id <= 40; id++) {
+      resolveCollectionIconUri(id, `v${id}`, signed(id));
+    }
 
-    prefetchCollectionIcons([{ id: 1, iconImageUrl: signed(99), iconImageVersion: 'v' }, ...many]);
-
-    expect(prefetch).not.toHaveBeenCalledWith('file:///cache/local.jpg');
-    expect(prefetch.mock.calls.length).toBeLessThanOrEqual(24);
+    expect(prefetch).not.toHaveBeenCalled();
     prefetch.mockRestore();
   });
 });

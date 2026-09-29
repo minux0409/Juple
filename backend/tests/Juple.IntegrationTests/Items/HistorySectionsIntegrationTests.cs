@@ -99,6 +99,33 @@ public sealed class HistorySectionsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task HomesToday_FromTheDevicesLocalMidnight_CountsAndPagesExactlyTheSameLinks()
+    {
+        // Home asks for its own today: from the device's local midnight, open-ended.
+        var history = new GetItemHistoryService(new ItemStore(_db), new NoImages());
+        foreach (var (fromUtc, expected) in new[] { (Local(9, 30, 0), 12), (Local(9, 29, 0), 12 + 31) })
+        {
+            var count = await history.CountRangeAsync(_userId, fromUtc, DateTimeOffset.MaxValue);
+            var seen = new List<long>();
+            ItemHistoryPageCursor? cursor = null;
+            do
+            {
+                var page = await history.GetRangeAsync(_userId, fromUtc, DateTimeOffset.MaxValue, cursor, 5);
+                seen.AddRange(page.Items.Select(item => item.Id));
+                cursor = page.NextCursor;
+            }
+            while (cursor is not null);
+
+            Assert.Equal(expected, count);
+            Assert.Equal(expected, seen.Count);
+            Assert.Equal(seen.Count, seen.Distinct().Count());
+        }
+
+        // Nobody else's links, and nothing in the trash, is ever counted.
+        Assert.Equal(0, await history.CountRangeAsync(_emptyUserId, Local(1, 1, 0), DateTimeOffset.MaxValue));
+    }
+
+    [Fact]
     public async Task AnEmptyHistory_HasNoSections()
     {
         Assert.Empty(await Sections().GetAsync(_emptyUserId, Seoul));

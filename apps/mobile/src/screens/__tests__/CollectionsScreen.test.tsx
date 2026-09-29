@@ -848,3 +848,174 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
     expect(jest.mocked(getReceivedCollectionInvitations).mock.calls.length).toBe(loadsBefore + 1);
   });
 });
+
+describe('CollectionsScreen large lists', () => {
+  beforeEach(() => {
+    // The platform image cache: warming a photo resolves (or fails) on its own.
+    jest.spyOn(Image, 'prefetch').mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  /** 300 Collections (every one with a photo), paged by the server like GET /collections: offset cursor, `limit` per page, per scope. */
+  const many = Array.from({ length: 300 }, (_, index) => makeCollection({
+    id: index + 1,
+    name: `Collection ${index + 1}`,
+    isFavorite: true,
+    itemCount: index,
+    iconImageUrl: `https://blob.example/icon-${index + 1}.jpg?sig=${index}`,
+    iconImageVersion: `v${index + 1}`,
+  }));
+  function serveMany(): void {
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => {
+      const offset = options.cursor ? Number(options.cursor) : 0;
+      const limit = options.limit ?? 50;
+      return { items: many.slice(offset, offset + limit), nextCursor: offset + limit < many.length ? String(offset + limit) : null };
+    });
+  }
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>(done => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+  const list = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(FlatList);
+  const skeletons = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'collections-skeleton' && typeof node.type === 'string');
+
+  const photoImages = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(Image).filter(node => String(node.props.source?.uri ?? '').startsWith('https://blob.example/'));
+  const mountedCards = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => typeof node.props.collectionId === 'number' && node.props.imageVersion !== undefined && typeof node.type !== 'string');
+
+  it('with 300 Collections, asks for one page of card metadata only and mounts only a window of cards - each photo loads only with its mounted card, nothing prefetched', async () => {
+    serveMany();
+    const renderer = await renderScreen();
+
+    expect(getCollections).toHaveBeenCalledTimes(1);
+    expect(getCollections).toHaveBeenCalledWith(expect.anything(), { scope: 'favorites', limit: 24 });
+    expect(list(renderer).props.data).toHaveLength(24);
+    // Only a window of cards is mounted (initialNumToRender counts grid rows of 4 cards)...
+    expect(mountedCards(renderer).length).toBeLessThanOrEqual(list(renderer).props.initialNumToRender * 4);
+    expect(mountedCards(renderer).length).toBeLessThan(24);
+    // ...and exactly those cards show their photos - the rest of the page requests nothing.
+    expect(photoImages(renderer).map(node => node.props.source.uri).sort())
+      .toEqual(mountedCards(renderer).map(node => node.props.imageUrl).sort());
+    expect(Image.prefetch).not.toHaveBeenCalled();
+  });
+
+  it('scrolling loads the next page of card metadata only - photos still follow the mounted cards, never a whole page ahead', async () => {
+    serveMany();
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      list(renderer).props.onEndReached();
+    });
+
+    expect(list(renderer).props.data).toHaveLength(48);
+    expect(Image.prefetch).not.toHaveBeenCalled();
+    expect(photoImages(renderer).length).toBe(mountedCards(renderer).length);
+    expect(photoImages(renderer).length).toBeLessThan(48);
+  });
+
+  it('a failing image API can never cost a page of Collections (regression)', async () => {
+    jest.mocked(Image.prefetch).mockImplementation(() => {
+      throw new Error('image module unavailable');
+    });
+    serveMany();
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      list(renderer).props.onEndReached();
+    });
+
+    expect(list(renderer).props.data).toHaveLength(48);
+    expect(renderer.root.findAllByProps({ children: i18n.t('collections.errorListFallback') })).toHaveLength(0);
+  });
+
+  it('loads the next page as the end comes into reach - once, with skeleton cards only while it is on its way, and never past the last page', async () => {
+    serveMany();
+    const renderer = await renderScreen();
+    // More exist, but nothing is being requested: no skeleton.
+    expect(skeletons(renderer)).toHaveLength(0);
+
+    const pending = deferred<{ items: Collection[]; nextCursor: string | null }>();
+    jest.mocked(getCollections).mockImplementationOnce(() => pending.promise);
+    await act(async () => {
+      list(renderer).props.onEndReached();
+      list(renderer).props.onEndReached();
+    });
+    expect(getCollections).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(getCollections).mock.calls[1][1]).toEqual({ scope: 'favorites', limit: 24, cursor: '24' });
+    expect(skeletons(renderer).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      pending.resolve({ items: many.slice(24, 48), nextCursor: '48' });
+    });
+    expect(skeletons(renderer)).toHaveLength(0);
+    expect(list(renderer).props.data.map((collection: Collection) => collection.id)).toEqual(many.slice(0, 48).map(collection => collection.id));
+
+    jest.mocked(getCollections).mockResolvedValueOnce({ items: many.slice(48, 60), nextCursor: null });
+    await act(async () => {
+      list(renderer).props.onEndReached();
+    });
+    await act(async () => {
+      list(renderer).props.onEndReached();
+    });
+    expect(getCollections).toHaveBeenCalledTimes(3);
+  });
+
+  it('switching filters starts that filter from its first page, and a late page of the previous filter never lands on it', async () => {
+    serveMany();
+    const renderer = await renderScreen();
+    const late = deferred<{ items: Collection[]; nextCursor: string | null }>();
+    jest.mocked(getCollections).mockImplementationOnce(() => late.promise);
+    await act(async () => {
+      list(renderer).props.onEndReached();
+    });
+
+    await selectFilter(renderer, 'owned');
+    const ownedCall = jest.mocked(getCollections).mock.calls.slice(-1)[0][1];
+    expect(ownedCall).toEqual({ scope: 'owned', limit: 24 });
+
+    await act(async () => {
+      late.resolve({ items: [makeCollection({ id: 999, name: 'Late favorite' })], nextCursor: null });
+    });
+    expect(list(renderer).props.data.some((collection: Collection) => collection.id === 999)).toBe(false);
+    expect(renderer.root.findByProps({ testID: 'collections-filter-owned' }).props.accessibilityState).toEqual({ selected: true });
+  });
+
+  it('a refresh reloads as many cards as the filter shows - it never shrinks back to the first page', async () => {
+    serveMany();
+    const renderer = await renderScreen();
+    await act(async () => {
+      list(renderer).props.onEndReached();
+    });
+    expect(list(renderer).props.data).toHaveLength(48);
+
+    await act(async () => {
+      list(renderer).props.refreshControl.props.onRefresh();
+    });
+
+    expect(jest.mocked(getCollections).mock.calls.slice(-1)[0][1]).toEqual({ scope: 'favorites', limit: 48 });
+    expect(list(renderer).props.data).toHaveLength(48);
+  });
+
+  it('shows skeleton cards (not a spinner) while a filter\'s first page loads', async () => {
+    const pending = deferred<{ items: Collection[]; nextCursor: string | null }>();
+    jest.mocked(getCollections).mockImplementationOnce(() => pending.promise);
+    const renderer = await renderScreen();
+
+    expect(skeletons(renderer).length).toBeGreaterThan(0);
+    await act(async () => {
+      pending.resolve({ items: many.slice(0, 3), nextCursor: null });
+    });
+    expect(skeletons(renderer)).toHaveLength(0);
+    expect(list(renderer).props.data).toHaveLength(3);
+  });
+});

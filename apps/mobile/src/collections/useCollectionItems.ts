@@ -31,7 +31,7 @@ const WHOLE_COLLECTION_PAGE_LIMIT = 100;
  */
 export type CollectionItemsLoadMode = CollectionItemsSort | 'whole';
 
-function getCollectionItemsErrorMessage(error: unknown, t: TFunction): string {
+export function getCollectionItemsErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
       return t('collections.errorNotFound');
@@ -89,7 +89,12 @@ export interface UseCollectionItemsResult {
  * once per page. Changing the mode starts over: the list and cursor are dropped and the new order's
  * first page is loaded - a cursor is never carried from one order into another.
  */
-export function useCollectionItems(collectionId: number, loadMode: CollectionItemsLoadMode = 'dateDesc'): UseCollectionItemsResult {
+export function useCollectionItems(
+  collectionId: number,
+  loadMode: CollectionItemsLoadMode = 'dateDesc',
+  /** False: nothing is requested (a screen showing this Collection another way, e.g. by date section). */
+  enabled = true,
+): UseCollectionItemsResult {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [items, setItems] = useState<readonly CollectionItemEntry[]>([]);
@@ -212,8 +217,10 @@ export function useCollectionItems(collectionId: number, loadMode: CollectionIte
 
   useFocusEffect(
     useCallback(() => {
-      load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
-    }, [load]),
+      if (enabled) {
+        load(hasLoadedOnceRef.current ? 'refresh' : 'initial');
+      }
+    }, [enabled, load]),
   );
 
   const refresh = useCallback(() => {

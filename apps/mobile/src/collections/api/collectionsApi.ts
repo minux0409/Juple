@@ -384,6 +384,27 @@ export interface GetCollectionItemsOptions {
    * manual order.
    */
   readonly sort?: CollectionItemsSort;
+  /**
+   * One date section's window, exactly as getCollectionItemSections returned it (fromUtc/toUtc) -
+   * the page then holds only that section's links, and its cursor only continues inside it. Needs a
+   * date sort. Omitted: the whole Collection, unchanged.
+   */
+  readonly fromUtc?: string;
+  readonly toUtc?: string | null;
+}
+
+/**
+ * One 일자순 section of a Collection (see getCollectionItemSections) - the same shape and meaning as
+ * a History section (ItemHistorySection), over when each link was added to this Collection.
+ */
+export interface CollectionItemSection {
+  readonly key: string;
+  readonly kind: 'today' | 'yesterday' | 'thisWeek' | 'month';
+  readonly year: number | null;
+  readonly month: number | null;
+  readonly fromUtc: string;
+  readonly toUtc: string | null;
+  readonly count: number;
 }
 
 export type CollectionItemsSort = 'dateDesc' | 'dateAsc';
@@ -411,6 +432,12 @@ export async function getCollectionItems(
   if (options.sort) {
     query.set('sort', options.sort);
   }
+  if (options.fromUtc) {
+    query.set('fromUtc', options.fromUtc);
+  }
+  if (options.toUtc) {
+    query.set('toUtc', options.toUtc);
+  }
   const queryString = query.toString();
 
   const response = await request<CollectionItemsPage>({
@@ -426,6 +453,29 @@ export async function getCollectionItems(
   }
 
   return response.body;
+}
+
+/**
+ * A Collection's 일자순 summary: its non-empty 오늘 / 어제 / 이번 주 / month sections, newest first,
+ * with exact link counts and no link data - one small request however large the Collection is. Each
+ * section's links come from getCollectionItems with its fromUtc/toUtc. Same lock gate as the list.
+ */
+export async function getCollectionItemSections(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  unlockToken?: string | null,
+): Promise<readonly CollectionItemSection[]> {
+  const response = await request<{ readonly sections: readonly CollectionItemSection[] }>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/items/sections`,
+    headers: unlockHeaders(unlockToken),
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection item sections body.');
+  }
+
+  return response.body.sections;
 }
 
 /** Read-only view of one link in a Collection (for another member's link - never memo/photos). */
