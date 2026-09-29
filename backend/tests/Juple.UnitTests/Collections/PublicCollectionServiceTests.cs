@@ -15,7 +15,11 @@ public sealed class PublicCollectionServiceTests
     {
         var store = new FakeStore
         {
-            State = new PublicShareState(ShareId, CollectionId, "Books to read", isLocked, lockVersion),
+            // A locked link here is one locked before share passwords existed (legacy mode): it opens
+            // with the Owner's lock password, as it always did. Share passwords: see SharePasswordPublicTests.
+            State = new PublicShareState(
+                ShareId, CollectionId, "Books to read", isLocked, lockVersion,
+                SharePasswordMode: isLocked ? Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock : Juple.Domain.Collections.CollectionSharePasswordMode.None),
         };
         var locks = new InMemoryCollectionLockStore();
         if (isLocked)

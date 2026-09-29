@@ -635,11 +635,18 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     // ---------- helpers ----------
 
     /// <summary>Sets the Owner's one lock password (as right after a real sign-in) and locks the Collection under it.</summary>
+    /// <summary>
+    /// Locks it under the Owner's lock password as a Collection locked before share passwords existed
+    /// (the migration's legacy mode): these tests cover the lock gating its recipients too, as it
+    /// did then. A Collection locked today gates only its Owner - see CollectionSharePasswordIntegrationTests.
+    /// </summary>
     private async Task LockAsync(long collectionId, string password)
     {
         await new CollectionLockPasswordService(new CollectionLockSettingsStore(_db), new CollectionLockPasswordHasher(), TimeProvider.System)
             .ResetAsync(_owner, password, password, DateTimeOffset.UtcNow);
         await _locks.LockAsync(_owner, collectionId);
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO collections.CollectionSharePasswords (CollectionId, Mode, PasswordVersion, CreatedAtUtc, UpdatedAtUtc) VALUES ({collectionId}, 'LegacyCommonLock', 1, {DateTimeOffset.UtcNow}, {DateTimeOffset.UtcNow})");
         _db.ChangeTracker.Clear();
     }
 

@@ -14,7 +14,12 @@ public sealed class CollectionAccessAndLockServiceTests
     private const long LegacyB = 12;
     private static readonly DateTimeOffset Now = new(2026, 9, 26, 0, 0, 0, TimeSpan.Zero);
 
-    private readonly InMemoryCollectionAccessStore _accessStore = new InMemoryCollectionAccessStore().Add(CollectionId, Owner, Contributor);
+    // These cover the lock as it always was - also for recipients - so the Collections are in the
+    // legacy share mode (locked before share passwords existed); the new rules are in
+    // CollectionSharePasswordServiceTests.
+    private readonly InMemoryCollectionAccessStore _accessStore = new InMemoryCollectionAccessStore()
+        .Add(CollectionId, Owner, Contributor)
+        .WithSharePassword(CollectionId, Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock);
     private readonly InMemoryCollectionLockStore _lockStore = new InMemoryCollectionLockStore().Unlocked(CollectionId).OwnedBy(CollectionId, Owner);
     private readonly MutableTimeProvider _time = new(Now);
     private readonly InMemoryCollectionLockSettingsStore _settings;
@@ -48,7 +53,7 @@ public sealed class CollectionAccessAndLockServiceTests
     /// <summary>Another Collection of the same Owner, locked with its own legacy per-Collection password.</summary>
     private void AddLegacyLocked(long collectionId, string password)
     {
-        _accessStore.Add(collectionId, Owner, Contributor);
+        _accessStore.Add(collectionId, Owner, Contributor).WithSharePassword(collectionId, Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock);
         _lockStore.Locked(collectionId, "hash:" + password).OwnedBy(collectionId, Owner);
         SyncLockIntoAccessStore(collectionId);
     }
@@ -203,7 +208,7 @@ public sealed class CollectionAccessAndLockServiceTests
     {
         const long otherOwner = 4;
         const long otherCollection = 20;
-        _accessStore.Add(otherCollection, otherOwner, Contributor);
+        _accessStore.Add(otherCollection, otherOwner, Contributor).WithSharePassword(otherCollection, Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock);
         _lockStore.Locked(otherCollection, null).OwnedBy(otherCollection, otherOwner).WithOwnerPassword(otherOwner, "hash:theirs-1");
         await LockWithOwnerPasswordAsync("common-1");
 

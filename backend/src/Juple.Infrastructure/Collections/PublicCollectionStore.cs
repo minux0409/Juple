@@ -1,5 +1,6 @@
 using Juple.Application.Collections;
 using Juple.Application.Collections.Public;
+using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +25,19 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
             join collection in dbContext.Collections.AsNoTracking()
                 on share.CollectionId equals collection.Id
             where collection.DeletedAtUtc == null
-            select new PublicShareState(share.Id, collection.Id, collection.Name, collection.IsLocked, collection.LockVersion, share.Permission)
+            let sharePassword = dbContext.CollectionSharePasswords
+                .Where(candidate => candidate.CollectionId == collection.Id)
+                .Select(candidate => new { candidate.Mode, candidate.PasswordVersion })
+                .FirstOrDefault()
+            select new PublicShareState(
+                share.Id,
+                collection.Id,
+                collection.Name,
+                collection.IsLocked,
+                collection.LockVersion,
+                share.Permission,
+                sharePassword == null ? CollectionSharePasswordMode.None : sharePassword.Mode,
+                sharePassword == null ? 0 : sharePassword.PasswordVersion)
         ).FirstOrDefaultAsync(cancellationToken);
     }
 

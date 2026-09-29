@@ -184,6 +184,9 @@ public sealed class PublicShareWriteIntegrationTests : IAsyncLifetime
         await new CollectionLockPasswordService(new CollectionLockSettingsStore(_db), new CollectionLockPasswordHasher(), TimeProvider.System)
             .ResetAsync(_owner, "board-pass", "board-pass", DateTimeOffset.UtcNow);
         await lockService.LockAsync(_owner, _collectionId);
+        // Locked before share passwords existed (legacy mode): the link still opens with the lock password.
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO collections.CollectionSharePasswords (CollectionId, Mode, PasswordVersion, CreatedAtUtc, UpdatedAtUtc) VALUES ({_collectionId}, 'LegacyCommonLock', 1, {DateTimeOffset.UtcNow}, {DateTimeOffset.UtcNow})");
         _db.ChangeTracker.Clear();
 
         await Assert.ThrowsAsync<CollectionLockedException>(() => _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null));

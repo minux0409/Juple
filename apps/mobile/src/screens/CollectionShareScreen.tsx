@@ -46,6 +46,8 @@ import {
   type PublicSharePermission,
 } from '../collections/api/collectionsApi';
 import { isCollectionLocked } from '../collections/collectionAccess';
+import { SharePasswordCard } from '../collections/SharePasswordCard';
+import type { SharePasswordMode } from '../collections/api/sharePasswordApi';
 import { isCollectionLockedError } from '../collections/useCollectionItems';
 import { runWithConcurrency } from '../collections/runWithConcurrency';
 import { FriendPickerModal, type FriendUnavailableReason } from '../friends/FriendPickerModal';
@@ -147,6 +149,8 @@ function getActionErrorMessage(error: unknown, t: TFunction): string {
           return t('collaboration.blockedByPublicShare');
         case 'invitationNotPending':
           return t('collaboration.invitationNoLongerValid');
+        case 'sharePasswordMigrationRequired':
+          return t('collections.sharePasswordLegacyNotice');
       }
     }
     if (error.kind === 'badRequest') {
@@ -178,6 +182,9 @@ function getShareManagementErrorMessage(error: unknown, t: TFunction, attemptedP
     }
     if (error.kind === 'conflict' && error.code === 'publicSharePermissionMismatch' && attemptedPermission === 'write') {
       return t('shareSheet.permissionMismatch');
+    }
+    if (error.kind === 'conflict' && error.code === 'sharePasswordMigrationRequired') {
+      return t('collections.sharePasswordLegacyNotice');
     }
     return t('collections.errorShareManagementFallback');
   }
@@ -367,6 +374,8 @@ export function CollectionShareScreen({ route }: Props) {
 
   const [isManagingShare, setIsManagingShare] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  // Reported by the 공유 비밀번호 card below (Owner only).
+  const [sharePasswordMode, setSharePasswordMode] = useState<SharePasswordMode | null>(null);
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
   // 모든 사용자 읽기 전용/링크 추가 가능 chosen before the link exists; once it exists, the link's own permission rules.
   const [pendingPublicPermission, setPendingPublicPermission] = useState<PublicSharePermission>('read');
@@ -485,6 +494,10 @@ export function CollectionShareScreen({ route }: Props) {
   // While the link is on as 링크 추가 가능, every specific person is 링크 추가 가능 too; under 읽기 전용 each keeps their own choice.
   const lockedRole: InvitationRole | null = share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
   const isPublicBlocked = !share && hasRoleMismatch(pendingPublicPermission);
+  // Still protected by the Owner's lock password for the recipients it already had (legacy): no new
+  // recipient - neither a new link nor an invitation - until the Owner sets this Collection's own
+  // share password or removes the protection in the card below. The server refuses it as well.
+  const needsSharePasswordMigration = sharePasswordMode === 'legacyCommonLock';
 
   const showMembers = () => {
     Keyboard.dismiss();
@@ -791,7 +804,7 @@ export function CollectionShareScreen({ route }: Props) {
   pendingInvitations.forEach(invitation => unavailableFriends.set(invitation.jupleId, 'pending'));
   drafts.forEach(draft => unavailableFriends.set(draft.jupleId, 'added'));
 
-  const inviteDisabled = !isOwnerView || isSending;
+  const inviteDisabled = !isOwnerView || isSending || needsSharePasswordMigration;
 
   const personText = (person: { readonly jupleId: string; readonly displayName?: string | null }, label?: string) => (
     <View style={styles.personText}>
@@ -883,6 +896,11 @@ export function CollectionShareScreen({ route }: Props) {
                   </>
                 ) : (
                   <>
+                    {needsSharePasswordMigration ? (
+                      <View style={styles.noticeBox} testID="share-public-migration-required">
+                        <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
+                      </View>
+                    ) : null}
                     {isPublicBlocked ? (
                       <View style={styles.noticeBox} testID="share-public-blocked">
                         <Text style={styles.noticeText}>{t('shareSheet.permissionMismatch')}</Text>
@@ -894,10 +912,10 @@ export function CollectionShareScreen({ route }: Props) {
                     ) : null}
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityState={{ disabled: isManagingShare || isPublicBlocked, busy: isManagingShare }}
-                      disabled={isManagingShare || isPublicBlocked}
+                      accessibilityState={{ disabled: isManagingShare || isPublicBlocked || needsSharePasswordMigration, busy: isManagingShare }}
+                      disabled={isManagingShare || isPublicBlocked || needsSharePasswordMigration}
                       onPress={startPublicShare}
-                      style={[styles.primaryButton, (isManagingShare || isPublicBlocked) && styles.disabled]}
+                      style={[styles.primaryButton, (isManagingShare || isPublicBlocked || needsSharePasswordMigration) && styles.disabled]}
                       testID="share-create-link"
                     >
                       {isManagingShare ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.startSharing')}</Text>}
@@ -912,6 +930,11 @@ export function CollectionShareScreen({ route }: Props) {
             ) : (
               // B. 초대하기: [친구] | [ID] feeding one batch of people, each with their own permission.
               <View style={styles.panel} testID="share-invite">
+                {needsSharePasswordMigration ? (
+                  <View style={styles.noticeBox} testID="share-invite-migration-required">
+                    <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
+                  </View>
+                ) : null}
                 <Segmented
                   kind="tabs"
                   onChange={setInviteTab}
@@ -1060,6 +1083,12 @@ export function CollectionShareScreen({ route }: Props) {
             )}
             </View>
             {actionError ? <Text style={[styles.error, styles.actionError]} testID="share-action-error">{actionError}</Text> : null}
+
+            {/* B. 공유 비밀번호: one setting for every way of sharing above, separate from both - and
+                from the Owner's own Collection lock. Owner only. */}
+            {isOwnerView ? (
+              <SharePasswordCard authenticatedRequest={authenticatedRequest} collectionId={collectionId} onModeChange={setSharePasswordMode} />
+            ) : null}
 
             {/* C. 공유 상태: [공유 중 N] | [초대 대기 N] - pending invitations are not always spread out. */}
             <View ref={statusCardRef}>

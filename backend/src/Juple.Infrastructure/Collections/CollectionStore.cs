@@ -190,6 +190,10 @@ public sealed class CollectionStore(
             Icon = collection.Icon,
             Color = collection.Color,
             IsLocked = collection.IsLocked,
+            SharePasswordMode = dbContext.CollectionSharePasswords
+                .Where(sharePassword => sharePassword.CollectionId == collection.Id)
+                .Select(sharePassword => (CollectionSharePasswordMode?)sharePassword.Mode)
+                .FirstOrDefault(),
             // The caller's own mark: an Owner's is the legacy column (see SetFavoriteAsync), a
             // Contributor's is their CollectionFavorites row.
             IsFavorite = collection.UserId == userId
@@ -296,7 +300,9 @@ public sealed class CollectionStore(
                 AccessRole: isOwner
                     ? CollectionDtoAccessRoles.Owner
                     : CollectionDtoAccessRoles.ForCollaborator(row.CallerRole ?? CollectionCollaboratorRole.Contributor),
-                IsLocked: row.IsLocked,
+                // The lock is the Owner's own gate; a recipient is only ever asked for it on a legacy
+                // Collection (see CollectionSharePasswordMode) - otherwise their gate is the share password.
+                IsLocked: isOwner ? row.IsLocked : row.IsLocked && row.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock,
                 HasCollaborators: isOwner && row.HasCollaborators,
                 OwnerJupleId: isOwner ? null : owner?.PublicCode,
                 OwnerDisplayName: isOwner ? null : owner?.DisplayName,
@@ -304,7 +310,8 @@ public sealed class CollectionStore(
                 OtherParticipantCount: otherParticipantCount,
                 IsPublicShareActive: isOwner && row.IsPublicShareActive,
                 IconImageUrl: iconImageUrls.GetValueOrDefault(row.Id),
-                IconImageVersion: iconImageUrls.ContainsKey(row.Id) ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null);
+                IconImageVersion: iconImageUrls.ContainsKey(row.Id) ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null,
+                IsSharePasswordProtected: row.SharePasswordMode == CollectionSharePasswordMode.PerCollection);
         }).ToList();
     }
 
@@ -327,6 +334,8 @@ public sealed class CollectionStore(
         public string? Color { get; init; }
 
         public bool IsLocked { get; init; }
+
+        public CollectionSharePasswordMode? SharePasswordMode { get; init; }
 
         public bool IsFavorite { get; init; }
 

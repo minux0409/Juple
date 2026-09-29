@@ -15,6 +15,15 @@ internal sealed class InMemoryCollectionAccessStore : ICollectionAccessStore
         return this;
     }
 
+    /// <summary>Each Collection's share-password setting (absent = none).</summary>
+    public Dictionary<long, (Juple.Domain.Collections.CollectionSharePasswordMode Mode, int Version)> SharePasswords { get; } = [];
+
+    public InMemoryCollectionAccessStore WithSharePassword(long collectionId, Juple.Domain.Collections.CollectionSharePasswordMode mode, int version = 1)
+    {
+        SharePasswords[collectionId] = (mode, version);
+        return this;
+    }
+
     public void SetLock(long collectionId, bool isLocked, int lockVersion)
     {
         var entry = Collections[collectionId];
@@ -28,26 +37,30 @@ internal sealed class InMemoryCollectionAccessStore : ICollectionAccessStore
             return Task.FromResult<CollectionAccess?>(null);
         }
 
+        var (mode, version) = SharePasswords.GetValueOrDefault(collectionId, (Juple.Domain.Collections.CollectionSharePasswordMode.None, 0));
         CollectionAccess? access = entry.OwnerId == userId
-            ? new CollectionAccess(collectionId, CollectionAccessRole.Owner, entry.IsLocked, entry.LockVersion)
+            ? new CollectionAccess(collectionId, CollectionAccessRole.Owner, entry.IsLocked, entry.LockVersion, mode, version)
             : entry.Collaborators.Contains(userId)
-                ? new CollectionAccess(collectionId, CollectionAccessRole.Contributor, entry.IsLocked, entry.LockVersion)
+                ? new CollectionAccess(collectionId, CollectionAccessRole.Contributor, entry.IsLocked, entry.LockVersion, mode, version)
                 : null;
         return Task.FromResult(access);
     }
 }
 
-/// <summary>Grants "valid:{collectionId}:{kind}{id}:{lockVersion}" tokens - only for exercising the gate logic around them.</summary>
+/// <summary>
+/// Grants "valid:{collectionId}:{kind}{id}:{version}" lock tokens and "share:{collectionId}:{kind}{id}:{version}"
+/// share-password tokens - only for exercising the gate logic around them.
+/// </summary>
 internal sealed class FakeUnlockTokenProtector : ICollectionUnlockTokenProtector
 {
-    public CollectionUnlockGrant Issue(long collectionId, CollectionUnlockSubject subject, int lockVersion, DateTimeOffset nowUtc) =>
-        new(Token(collectionId, subject, lockVersion), nowUtc.AddMinutes(15));
+    public CollectionUnlockGrant Issue(long collectionId, CollectionUnlockSubject subject, int version, DateTimeOffset nowUtc, CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock) =>
+        new(Token(collectionId, subject, version, purpose), nowUtc.AddMinutes(15));
 
-    public bool IsValid(string? token, long collectionId, CollectionUnlockSubject subject, int lockVersion, DateTimeOffset nowUtc) =>
-        token == Token(collectionId, subject, lockVersion);
+    public bool IsValid(string? token, long collectionId, CollectionUnlockSubject subject, int version, DateTimeOffset nowUtc, CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock) =>
+        token == Token(collectionId, subject, version, purpose);
 
-    public static string Token(long collectionId, CollectionUnlockSubject subject, int lockVersion) =>
-        $"valid:{collectionId}:{subject.Kind}{subject.Id}:{lockVersion}";
+    public static string Token(long collectionId, CollectionUnlockSubject subject, int version, CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock) =>
+        $"{(purpose == CollectionUnlockPurpose.SharePassword ? "share" : "valid")}:{collectionId}:{subject.Kind}{subject.Id}:{version}";
 }
 
 /// <summary>

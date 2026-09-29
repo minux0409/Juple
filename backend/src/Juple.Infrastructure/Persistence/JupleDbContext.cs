@@ -53,6 +53,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<UserCollectionLockSettings> UserCollectionLockSettings => Set<UserCollectionLockSettings>();
 
+    public DbSet<CollectionSharePassword> CollectionSharePasswords => Set<CollectionSharePassword>();
+
     public DbSet<CollectionMergeOperation> CollectionMergeOperations => Set<CollectionMergeOperation>();
 
     public DbSet<CollectionMergeCreatedMembership> CollectionMergeCreatedMemberships => Set<CollectionMergeCreatedMembership>();

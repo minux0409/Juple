@@ -26,7 +26,7 @@ import {
 import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
-import { isCollectionLockedError } from '../collections/useCollectionItems';
+import { contentGateOfError } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -545,7 +545,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       navigation.goBack();
     } catch (caughtError) {
       setItemActionError(
-        isCollectionLockedError(caughtError) ? t('collections.lockRequiredForAction') : getCollectionMembershipErrorMessage(caughtError, t),
+        contentGateOfError(caughtError) === 'sharePassword'
+          ? t('collections.sharePasswordRequiredForAction')
+          : contentGateOfError(caughtError) === 'lock'
+            ? t('collections.lockRequiredForAction')
+            : getCollectionMembershipErrorMessage(caughtError, t),
       );
     } finally {
       itemActionInFlightRef.current = false;

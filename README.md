@@ -80,6 +80,23 @@ dotnet user-secrets set "CollectionUnlockGrant:EncryptionKey" ([Convert]::ToBase
 Remove-Variable bytes
 ```
 
+### Collection share password key
+
+컬렉션별 공유 비밀번호는 두 번 저장된다. 공유받은 사용자 확인용 hash(PBKDF2)와, owner가 다시 볼 수 있도록 하는 암호문(AES-256-GCM)이다. 암호문의 키는 전용 키 `CollectionSharePassword:EncryptionKey`(Base64로 인코딩된 32바이트 키)이며, 위의 두 키와 **반드시 별개의 값**이어야 한다. 이 값이 없거나 32바이트로 decode되지 않으면 **HTTP API** startup이 의도적으로 실패한다(조용히 기능만 꺼지지 않는다). 같은 이미지로 실행되는 one-shot Job(`--run-push-dispatch`, `--run-blob-cleanup-retry`, `--run-instagram-metadata-retry`)은 이 검증 전에 분기하고 이 키를 쓰는 서비스를 만들지 않으므로 이 키가 필요 없다 - Job에는 넣지 않는다.
+
+- 실제 key 값은 어떤 형태로도 이 repository에 commit하지 않는다.
+- Local Development: 위와 같은 방식으로 `dotnet user-secrets`에 저장한다.
+- Dev/Production: API Container App에만, 환경마다 서로 다른 값을 환경변수 `CollectionSharePassword__EncryptionKey` 또는 secret provider(Azure Key Vault, Container Apps secret)로 주입한다. **이 키를 설정하기 전에 새 Backend를 배포하면 API가 시작되지 않는다.**
+- 이 키를 잃거나 바꾸면 기존 공유 비밀번호를 owner가 다시 볼 수 없다(보기 요청 시 409 `sharePasswordUnreadable`). 공유받은 사용자 확인(hash)은 영향이 없으며, owner가 새 공유 비밀번호를 설정하면 된다. 암호문 형식에는 key id(`CollectionSharePassword:KeyId`, 기본 1)가 들어 있지만, **현재 runtime은 단일 active key만 지원한다** - 이전 key를 함께 읽는 keyring이 없으므로 키(또는 KeyId)를 바꾸면 그 전에 봉인된 암호문은 전부 읽을 수 없게 된다(위와 같이 409, owner가 새로 설정). 무중단 key rotation은 아직 지원하지 않는다.
+
+```powershell
+cd backend/src/Juple.Api
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+dotnet user-secrets set "CollectionSharePassword:EncryptionKey" ([Convert]::ToBase64String($bytes))
+Remove-Variable bytes
+```
+
 ## Mobile 실행
 
 에뮬레이터 또는 디바이스를 준비한 뒤 모바일 프로젝트에서 Metro를 실행한다.

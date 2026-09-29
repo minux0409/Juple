@@ -25,6 +25,7 @@ using Juple.Application.Collections.SetCollectionColor;
 using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Collections.SetCollectionIconImage;
+using Juple.Application.Collections.SharePassword;
 using Juple.Application.Images;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Collections.UndoMergeCollections;
@@ -697,6 +698,10 @@ public sealed class CollectionsController(
         {
             return NotFound();
         }
+        catch (CollectionSharePasswordRequiredException)
+        {
+            return CollectionProblems.SharePasswordRequired();
+        }
         catch (CollectionLockedException)
         {
             return CollectionProblems.CollectionLocked();
@@ -733,6 +738,10 @@ public sealed class CollectionsController(
         catch (CollectionNotFoundException)
         {
             return NotFound();
+        }
+        catch (CollectionSharePasswordRequiredException)
+        {
+            return CollectionProblems.SharePasswordRequired();
         }
         catch (CollectionLockedException)
         {
@@ -820,6 +829,90 @@ public sealed class CollectionsController(
         CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => lockService.UnlockAsync(userId, id, request.Password, cancellationToken),
+            grant => Ok(new UnlockCollectionResponse(grant.Token, grant.ExpiresAtUtc)),
+            cancellationToken);
+
+    // ---- Share password (the Owner manages it; recipients prove it) ----
+
+    /// <summary>
+    /// Owner only. The share-password setting of this Collection: mode ("none", "legacyCommonLock",
+    /// "perCollection") and whether it is on - never the password, its hash or its ciphertext.
+    /// </summary>
+    [HttpGet("{id:long}/share-password")]
+    public Task<IActionResult> GetSharePasswordAsync(
+        long id,
+        [FromServices] ICollectionSharePasswordService sharePasswordService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => sharePasswordService.GetStatusAsync(userId, id, cancellationToken),
+            status => Ok(status),
+            cancellationToken);
+
+    /// <summary>
+    /// Owner only; a locked Collection also needs the Owner's lock grant (X-Juple-Collection-Unlock).
+    /// Sets or changes the share password (4-64 characters) - every recipient grant stops working.
+    /// </summary>
+    [HttpPut("{id:long}/share-password")]
+    public Task<IActionResult> SetSharePasswordAsync(
+        long id,
+        SetSharePasswordRequest request,
+        [FromServices] ICollectionSharePasswordService sharePasswordService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => sharePasswordService.SetAsync(userId, id, request.Password, request.ConfirmPassword, unlockToken, cancellationToken),
+            status => Ok(status),
+            cancellationToken);
+
+    /// <summary>
+    /// Owner only, same gates. Removes the share-password protection - the sharing itself (members,
+    /// the public link and its permission) is untouched.
+    /// </summary>
+    [HttpDelete("{id:long}/share-password")]
+    public Task<IActionResult> RemoveSharePasswordAsync(
+        long id,
+        [FromServices] ICollectionSharePasswordService sharePasswordService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => sharePasswordService.RemoveAsync(userId, id, unlockToken, cancellationToken),
+            status => Ok(status),
+            cancellationToken);
+
+    /// <summary>
+    /// Owner only, same gates. The share password itself, only on this explicit request (a POST, so
+    /// nothing caches or prefetches it) - never stored by any cache (Cache-Control: no-store).
+    /// </summary>
+    [HttpPost("{id:long}/share-password/reveal")]
+    public async Task<IActionResult> RevealSharePasswordAsync(
+        long id,
+        [FromServices] ICollectionSharePasswordService sharePasswordService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null)
+    {
+        Response.Headers.CacheControl = "no-store";
+        Response.Headers.Pragma = "no-cache";
+        return await ExecuteAsync(
+            userId => sharePasswordService.RevealAsync(userId, id, unlockToken, cancellationToken),
+            password => Ok(new RevealSharePasswordResponse(password)),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// A member (Contributor/Viewer) proves the share password (throttled, persisted across
+    /// replicas) and gets a short-lived grant for this user and Collection - sent back in the
+    /// X-Juple-Collection-Unlock header. A stranger gets 404 whatever the password: it never grants
+    /// access, a role or a membership.
+    /// </summary>
+    [HttpPost("{id:long}/share-password/unlock")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
+    public Task<IActionResult> UnlockSharePasswordAsync(
+        long id,
+        UnlockCollectionRequest request,
+        [FromServices] ICollectionSharePasswordService sharePasswordService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => sharePasswordService.UnlockAsync(userId, id, request.Password, cancellationToken),
             grant => Ok(new UnlockCollectionResponse(grant.Token, grant.ExpiresAtUtc)),
             cancellationToken);
 
@@ -1130,6 +1223,10 @@ public sealed class CollectionsController(
         {
             return CollectionProblems.CollectionForbidden();
         }
+        catch (CollectionSharePasswordRequiredException)
+        {
+            return CollectionProblems.SharePasswordRequired();
+        }
         catch (CollectionLockedException)
         {
             return CollectionProblems.CollectionLocked();
@@ -1141,6 +1238,16 @@ public sealed class CollectionsController(
         catch (CollectionNotLockedException)
         {
             return CollectionProblems.CollectionNotLocked();
+        }
+        catch (CollectionSharePasswordNotSetException)
+        {
+            return CollectionProblems.Create(
+                StatusCodes.Status409Conflict, "This Collection has no share password.", CollectionProblems.SharePasswordNotSetCode);
+        }
+        catch (CollectionSharePasswordUnreadableException)
+        {
+            return CollectionProblems.Create(
+                StatusCodes.Status409Conflict, "The share password cannot be shown - set a new one.", CollectionProblems.SharePasswordUnreadableCode);
         }
         catch (InvalidCollectionPasswordException)
         {
@@ -1205,6 +1312,10 @@ public sealed class CollectionsController(
     public sealed record CollectionsResponse(IReadOnlyList<CollectionDto> Items, string? NextCursor);
 
     public sealed record CollectionItemsPageResponse(IReadOnlyList<CollectionItemEntryDto> Items, string? NextCursor);
+
+    public sealed record SetSharePasswordRequest(string? Password, string? ConfirmPassword);
+
+    public sealed record RevealSharePasswordResponse(string Password);
 
     public sealed record CollectionItemSectionsResponse(IReadOnlyList<CollectionItemSectionDto> Sections);
 

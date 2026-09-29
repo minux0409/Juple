@@ -20,13 +20,33 @@ export function isCollectionLocked(collection: Pick<Collection, 'isLocked'>): bo
   return collection.isLocked === true;
 }
 
+/** Which password stands before a Collection's content for the caller - see contentGateOf. */
+export type CollectionContentGate = 'lock' | 'sharePassword';
+
 /**
- * A locked Collection whose content this app session has not unlocked yet: adding/removing links
- * would be rejected by the server (for the Owner too), so the UI must send the user through the
- * password panel first rather than let them pick it as a target.
+ * The password the caller must prove before this Collection's content opens, as the server
+ * decides it (never inferred beyond these fields): the Owner - only their Collection lock; someone
+ * it is shared with - its own share password when it has one, else the Owner's lock password only on
+ * a legacy Collection (the server reports isLocked to a member only then). Null: nothing to prove.
  */
-export function needsUnlockForContent(collection: Pick<Collection, 'id' | 'isLocked'>): boolean {
-  return isCollectionLocked(collection) && getCollectionUnlockToken(collection.id) === null;
+export function contentGateOf(
+  collection: Pick<Collection, 'accessRole' | 'isLocked' | 'isSharePasswordProtected'>,
+): CollectionContentGate | null {
+  if (isSharedWithMe(collection) && collection.isSharePasswordProtected === true) {
+    return 'sharePassword';
+  }
+  return isCollectionLocked(collection) ? 'lock' : null;
+}
+
+/**
+ * A Collection whose content this app session has not unlocked yet (see contentGateOf): adding/
+ * removing links would be rejected by the server, so the UI must send the user through the password
+ * panel first rather than let them pick it as a target.
+ */
+export function needsUnlockForContent(
+  collection: Pick<Collection, 'id' | 'accessRole' | 'isLocked' | 'isSharePasswordProtected'>,
+): boolean {
+  return contentGateOf(collection) !== null && getCollectionUnlockToken(collection.id) === null;
 }
 
 /**

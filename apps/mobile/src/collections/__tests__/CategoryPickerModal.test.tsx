@@ -2,6 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import '../../i18n';
 import { CategoryPickerModal } from '../CategoryPickerModal';
 import { CheckIcon } from '../../icons/CheckIcon';
+import { KeyIcon } from '../../icons/KeyIcon';
 import type { Collection } from '../api/collectionsApi';
 import { clearCollectionUnlockGrants } from '../collectionUnlockGrants';
 
@@ -60,6 +61,21 @@ describe('CategoryPickerModal selection indicator', () => {
     expect(renderer.root.findAllByType(CheckIcon)).toHaveLength(0);
     const row = renderer.root.findByProps({ accessibilityLabel: 'Groceries' });
     expect(row.props.accessibilityState).toEqual({ selected: false });
+  });
+
+  it('a share password puts no key badge on an option - the Collection lock keeps its own badge', () => {
+    const renderer = render(
+      <CategoryPickerModal
+        {...baseProps}
+        collectionPool={[makeCollection({ id: 1, name: 'Groceries', accessRole: 'owner', isLocked: true, isSharePasswordProtected: true })]}
+        onToggle={jest.fn()}
+        selectedIds={new Set()}
+      />,
+    );
+
+    expect(renderer.root.findAllByType(KeyIcon)).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-share-password')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
   });
 
   it('shows a CheckIcon and marks the row selected for an option in selectedIds', () => {

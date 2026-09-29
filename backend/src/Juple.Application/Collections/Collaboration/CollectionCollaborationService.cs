@@ -34,8 +34,17 @@ public sealed class CollectionCollaborationService(
         CollectionCollaboratorRole role = CollectionCollaboratorRole.Contributor,
         CancellationToken cancellationToken = default)
     {
-        await accessService.RequireAsync(userId, collectionId, CollectionPermission.ManageCollaborators, cancellationToken);
+        var access = await accessService.RequireAsync(userId, collectionId, CollectionPermission.ManageCollaborators, cancellationToken);
         RequireKnownRole(role);
+
+        // The legacy mode only keeps the recipients this Collection already had when share passwords
+        // were introduced; a new one is never handed the Owner's lock password. The Owner first sets
+        // the Collection's own share password or turns share-password protection off - both leave
+        // the legacy mode for good, so this check cannot go stale.
+        if (access.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock)
+        {
+            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.SharePasswordMigrationRequired);
+        }
 
         var (invitedUserId, _) = await ResolveAsync(jupleId, cancellationToken);
         if (invitedUserId == userId)

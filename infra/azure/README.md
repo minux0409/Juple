@@ -491,6 +491,22 @@ stale해질 수 있다. 현재 revision은 Owner 즐겨찾기를 legacy 컬럼�
 규칙과 2026-09-07 배포 라운드의 임시 migration 규칙은 모두 제거되었다(2026-09-07). 현재 SQL
 Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있다.
 
+## Collection share password key - DEV 수동 설정, Bicep 미반영 (Production blocker)
+
+컬렉션 공유 비밀번호 암호문 키(`CollectionSharePassword:EncryptionKey`, 루트 `README.md`의
+"Collection share password key" 참고)는 **DEV에서 현재 Azure 수동 설정**이다:
+`ca-juple-api-dev`의 secret `collection-share-password-key` + env
+`CollectionSharePassword__EncryptionKey=secretref:collection-share-password-key` (API에만, Job에는
+없음 - one-shot Job은 이 키를 쓰지 않는다). `app/main.bicep`에는 아직 없으므로, 이대로 Bicep 배포를
+하면 새 revision이 키 없이 떠서 API startup이 실패한다. Production 전에 필요한 것:
+
+1. `app/main.bicep`에 secure parameter, API secret, 그 secret을 참조하는 env 추가
+2. dev/prod 파라미터 전략(`dev.bicepparam`은 DEV의 기존 값을 그대로 전달 - 새로 생성하면 DEV의
+   기존 암호문을 owner가 볼 수 없게 된다)
+3. Production 전용 키를 별도로 생성(DEV 값 재사용 금지)
+4. Production migration 순서: `AddCollectionSharePasswords` 적용 → secret/env 준비 → 새 API image
+5. 현재 runtime은 단일 active key만 지원(keyring 없음) - 키를 바꾸면 기존 암호문은 읽을 수 없다
+
 ## 아직 provisioning되지 않은 것
 
 다음은 구독에 실제로 존재하지 않는다(subscription-wide 조회로 확인) — **not provisioned yet**:

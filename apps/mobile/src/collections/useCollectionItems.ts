@@ -12,6 +12,16 @@ export function isCollectionLockedError(error: unknown): boolean {
   return error instanceof ApiError && error.kind === 'forbidden' && error.code === 'collectionLocked';
 }
 
+/** The server's "this shared Collection needs its share password" answer (never for the Owner). */
+export function isSharePasswordRequiredError(error: unknown): boolean {
+  return error instanceof ApiError && error.kind === 'forbidden' && error.code === 'sharePasswordRequired';
+}
+
+/** Which password withheld the content, or null for any other error. */
+export function contentGateOfError(error: unknown): 'lock' | 'sharePassword' | null {
+  return isCollectionLockedError(error) ? 'lock' : isSharePasswordRequiredError(error) ? 'sharePassword' : null;
+}
+
 const PAGE_LIMIT = 50;
 
 /**
@@ -57,6 +67,8 @@ export interface UseCollectionItemsResult {
    * returned (none are ever sent before the password is proven). Cleared by a successful load.
    */
   readonly isLocked: boolean;
+  /** Which password withheld the content while isLocked (the Owner's lock, or the share password). */
+  readonly lockKind: 'lock' | 'sharePassword' | null;
   /** More pages exist on the server (a next cursor is held). */
   readonly hasMore: boolean;
   readonly refresh: () => void;
@@ -103,7 +115,8 @@ export function useCollectionItems(
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLocked, setIsLocked] = useState(false);
+  const [lockKind, setLockKind] = useState<'lock' | 'sharePassword' | null>(null);
+  const isLocked = lockKind !== null;
   const [isTooLargeForNameOrder, setIsTooLargeForNameOrder] = useState(false);
 
   const loadingMoreRef = useRef(false);
@@ -169,7 +182,7 @@ export function useCollectionItems(
           if (!isCurrent()) {
             return;
           }
-          setIsLocked(false);
+          setLockKind(null);
           loadedModeRef.current = loadMode;
           setItems(whole ?? []);
           setNextCursor(null);
@@ -185,7 +198,7 @@ export function useCollectionItems(
         if (!isCurrent()) {
           return;
         }
-        setIsLocked(false);
+        setLockKind(null);
         loadedModeRef.current = loadMode;
         setItems(page.items);
         setNextCursor(page.nextCursor);
@@ -193,13 +206,14 @@ export function useCollectionItems(
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
-        if (isCollectionLockedError(caughtError)) {
+        const gate = contentGateOfError(caughtError);
+        if (gate) {
           // A stale/invalidated grant (password changed, lock re-set) is dropped, and nothing
           // previously shown stays on screen.
           forgetCollectionUnlock(collectionId);
           setItems([]);
           setNextCursor(null);
-          setIsLocked(true);
+          setLockKind(gate);
           return;
         }
         // Failure keeps whatever Items are already shown - only the error text changes.
@@ -258,11 +272,12 @@ export function useCollectionItems(
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
-          if (isCollectionLockedError(caughtError)) {
+          const gate = contentGateOfError(caughtError);
+          if (gate) {
             forgetCollectionUnlock(collectionId);
             setItems([]);
             setNextCursor(null);
-            setIsLocked(true);
+            setLockKind(gate);
           } else {
             setError(getCollectionItemsErrorMessage(caughtError, t));
           }
@@ -309,6 +324,7 @@ export function useCollectionItems(
     isLoadingMore,
     error,
     isLocked,
+    lockKind,
     hasMore: nextCursor !== null,
     isTooLargeForNameOrder,
     refresh,

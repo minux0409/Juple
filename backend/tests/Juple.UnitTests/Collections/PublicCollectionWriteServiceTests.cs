@@ -72,7 +72,7 @@ public sealed class PublicCollectionWriteServiceTests
     [Fact]
     public async Task ALockedCollection_NeedsTheLinksUnlockGrant_JustLikeReadingIt()
     {
-        _shares.State = new PublicShareState(ShareId, CollectionId, "Trip", true, 4, CollectionSharePermission.Write);
+        _shares.State = new PublicShareState(ShareId, CollectionId, "Trip", true, 4, CollectionSharePermission.Write, CollectionSharePasswordMode.LegacyCommonLock);
 
         await Assert.ThrowsAsync<CollectionLockedException>(() => Service().AddItemAsync(Writer, PublicId, 55, null));
         // A grant for a signed-in user is not the link's grant.

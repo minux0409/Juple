@@ -55,7 +55,7 @@ import {
   type CollectionColorValue,
 } from '../collections/collectionColors';
 import { resolveCollectionIconKey, type CollectionIconKey } from '../collections/collectionIcons';
-import { getCollectionItemsErrorMessage, isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
+import { contentGateOfError, getCollectionItemsErrorMessage, isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -108,6 +108,12 @@ function getCollectionLoadErrorMessage(error: unknown, t: TFunction): string {
     }
   }
   return t('collections.errorDetailLoadFallback');
+}
+
+/** A target Collection that needs its lock (or, shared with me, its share password) opened first. */
+function gateNoticeKey(error: unknown): string | null {
+  const gate = contentGateOfError(error);
+  return gate === 'sharePassword' ? 'collections.sharePasswordRequiredForAction' : gate === 'lock' ? 'collections.lockRequiredForAction' : null;
 }
 
 function getRenameErrorMessage(error: unknown, t: TFunction): string {
@@ -301,7 +307,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const expandedDateKeysRef = useRef<ReadonlySet<string>>(new Set());
   expandedDateKeysRef.current = expandedDateKeys ?? new Set();
   const isDateSectionExpanded = useCallback((key: string) => expandedDateKeysRef.current.has(key), []);
-  const [isDateOrderLocked, setIsDateOrderLocked] = useState(false);
+  // Which password withheld the date-ordered content (the Owner's lock, or - for a member - the share password).
+  const [dateOrderLockKind, setDateOrderLockKind] = useState<'lock' | 'sharePassword' | null>(null);
   const dateSource = useMemo<DateSectionPagesSource<CollectionItemEntry>>(
     () => ({
       loadSections: () => getCollectionItemSections(authenticatedRequest, collectionId, getCollectionUnlockToken(collectionId)),
@@ -316,16 +323,18 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }),
       idOf: item => item.itemId,
       errorMessage: caughtError => getCollectionItemsErrorMessage(caughtError, t),
-      // Locked with no valid grant: a stale grant is dropped and nothing stays on screen.
+      // Locked (or share-password protected) with no valid grant: a stale grant is dropped and
+      // nothing stays on screen - never a flash of the content behind it.
       onBlockingError: caughtError => {
-        if (!isCollectionLockedError(caughtError)) {
+        const gate = contentGateOfError(caughtError);
+        if (!gate) {
           return false;
         }
         forgetCollectionUnlock(collectionId);
-        setIsDateOrderLocked(true);
+        setDateOrderLockKind(gate);
         return true;
       },
-      onSectionsLoaded: () => setIsDateOrderLocked(false),
+      onSectionsLoaded: () => setDateOrderLockKind(null),
     }),
     [authenticatedRequest, collectionId, pageSort, t],
   );
@@ -334,7 +343,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const isLoading = isDateOrder ? dated.isLoading : nameOrdered.isLoading;
   const isRefreshing = isDateOrder ? dated.isRefreshing : nameOrdered.isRefreshing;
   const error = isDateOrder ? dated.error : nameOrdered.error;
-  const isContentLocked = isDateOrder ? isDateOrderLocked : nameOrdered.isLocked;
+  const isContentLocked = isDateOrder ? dateOrderLockKind !== null : nameOrdered.isLocked;
+  const contentLockKind = isDateOrder ? dateOrderLockKind : nameOrdered.lockKind;
   const isTooLargeForNameOrder = nameOrdered.isTooLargeForNameOrder;
   const refresh = isDateOrder ? dated.refresh : nameOrdered.refresh;
   const removeLocally = (itemId: number) => {
@@ -720,7 +730,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     if (!actionMenuItem || isMembershipMutation) return;
     setIsMembershipMutation(true); setTargetMode(null);
     try { await addItemToCollection(authenticatedRequest, target.id, actionMenuItem.itemId); showNotificationToast(t('collections.addSuccess')); }
-    catch (caughtError) { setNotice(t(isCollectionLockedError(caughtError) ? 'collections.lockRequiredForAction' : 'collections.addError')); }
+    catch (caughtError) { setNotice(t(gateNoticeKey(caughtError) ?? 'collections.addError')); }
     finally { setActionMenuItem(null); setTargetMode(null); setIsMembershipMutation(false); }
   };
 
@@ -765,8 +775,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         } });
       }
     } catch (caughtError) {
-      if (isCollectionLockedError(caughtError)) setNotice(t('collections.lockRequiredForAction'));
-      else setNotice(t(targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError'));
+      setNotice(t(gateNoticeKey(caughtError) ?? (targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError')));
     }
     finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
   };
@@ -958,7 +967,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Nothing to show yet: where the links are about to appear (a whole name-ordered Collection, or
   // the date summary) - skeletons only while that request is actually on its way.
   const listEmpty = isContentLocked ? (
-    <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} onUnlocked={refresh} />
+    <CollectionUnlockPanel collectionId={collectionId} isOwner={isOwner} kind={contentLockKind ?? 'lock'} onUnlocked={refresh} />
   ) : isLoading ? (
     <View testID="collection-items-loading">
       {Array.from({ length: FIRST_PAGE_SKELETON_ROWS }, (_, index) => (

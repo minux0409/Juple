@@ -35,7 +35,12 @@ public sealed record CollectionDto(
     // A stable identity of the photo itself (see CollectionIconImageVersion): unchanged while the
     // same photo stays, different after it is replaced, null together with IconImageUrl. Clients
     // key their image cache on this - never on the signed URL, which differs on every response.
-    string? IconImageVersion = null);
+    string? IconImageVersion = null,
+    // The Collection has its own share password (see CollectionSharePassword): recipients are asked
+    // for it before its content opens; the Owner never is. Reported to everyone who can see the
+    // card - never the password or anything about it. Separate from IsLocked, which for a recipient
+    // only ever means a legacy Collection still opening with its Owner's lock password.
+    bool IsSharePasswordProtected = false);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the

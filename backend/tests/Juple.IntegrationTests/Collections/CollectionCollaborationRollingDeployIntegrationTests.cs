@@ -161,9 +161,17 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         Assert.True(await HasFavoriteRowAsync(owner, unstarredLater));
 
         // The new revision is played by today's model, which also maps Collections.IconImageBlobName
-        // (a later, purely additive nullable column - AddCollectionIconImage): it is added here the
-        // way that migration adds it and given back before the real migrations run in step 10.
+        // (a later, purely additive nullable column - AddCollectionIconImage) and reads the later
+        // CollectionSharePasswords table (AddCollectionSharePasswords): both are added here the way
+        // those migrations add them and given back before the real migrations run in step 10.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] ADD [IconImageBlobName] nvarchar(400) NULL");
+        await ExecuteAsync(
+            """
+            CREATE TABLE [collections].[CollectionSharePasswords] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [CollectionId] bigint NOT NULL, [Mode] varchar(20) NOT NULL,
+                [PasswordHash] nvarchar(512) NULL, [EncryptedPassword] varchar(512) NULL, [PasswordVersion] int NOT NULL,
+                [CreatedAtUtc] datetimeoffset NOT NULL, [UpdatedAtUtc] datetimeoffset NOT NULL)
+            """);
 
         // 3-4. The previous revision stars a Collection (legacy column only) - the new revision
         // already shows it as the Owner's favorite: nothing it wrote is missed.
@@ -203,6 +211,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // legacy column (the stale backfilled row of the un-starred Collection goes, the
         // legacy-only star gets its row) and leaves the Contributor's row alone.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] DROP COLUMN [IconImageBlobName]");
+        await ExecuteAsync("DROP TABLE [collections].[CollectionSharePasswords]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));
         Assert.True(await HasFavoriteRowAsync(owner, starredLater));

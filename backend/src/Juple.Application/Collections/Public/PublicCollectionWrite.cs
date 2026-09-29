@@ -93,9 +93,7 @@ public sealed class PublicCollectionWriteService(
         }
 
         var nowUtc = timeProvider.GetUtcNow();
-        if (state.IsLocked
-            && !unlockTokenProtector.IsValid(
-                unlockToken, state.CollectionId, CollectionUnlockSubject.ForPublicShare(state.ShareId), state.LockVersion, nowUtc))
+        if (!PublicShareGate.IsUnlocked(state, unlockToken, unlockTokenProtector, nowUtc))
         {
             throw new CollectionLockedException();
         }

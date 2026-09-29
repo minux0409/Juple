@@ -24,7 +24,7 @@ public sealed class CollectionLockCryptoTests
     public void Grant_IsValidOnlyForItsCollectionSubjectVersion_AndUntilExpiry()
     {
         var protector = Protector();
-        var grant = protector.Issue(5, User9, lockVersion: 3, Now);
+        var grant = protector.Issue(5, User9, version: 3, Now);
 
         Assert.Equal(Now + CollectionUnlockTokenProtector.Lifetime, grant.ExpiresAtUtc);
         Assert.True(protector.IsValid(grant.Token, 5, User9, 3, Now));

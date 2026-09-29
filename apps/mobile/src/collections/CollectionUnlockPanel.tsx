@@ -4,15 +4,17 @@ import type { TFunction } from 'i18next';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { KeyIcon } from '../icons/KeyIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { unlockCollection } from './api/collectionsApi';
+import { unlockSharePassword } from './api/sharePasswordApi';
 import { rememberCollectionUnlock } from './collectionUnlockGrants';
 
-export function getUnlockErrorMessage(error: unknown, t: TFunction): string {
+export function getUnlockErrorMessage(error: unknown, t: TFunction, kind: 'lock' | 'sharePassword' = 'lock'): string {
   if (error instanceof ApiError) {
     if (error.kind === 'forbidden' && error.code === 'invalidCollectionPassword') {
-      return t('collections.lockWrongPassword');
+      return t(kind === 'sharePassword' ? 'collections.sharePasswordWrong' : 'collections.lockWrongPassword');
     }
     if (error.kind === 'tooManyRequests') {
       return t('collections.lockTooManyAttempts');
@@ -38,6 +40,12 @@ interface CollectionUnlockPanelProps {
    * manages (and can reset) theirs in Settings > 컬렉션 잠금.
    */
   readonly isOwner?: boolean;
+  /**
+   * Which password this panel asks for: 'lock' - the Owner's Collection lock password (the Owner,
+   * or a member of a legacy Collection); 'sharePassword' - the Collection's own share password (a
+   * member only). The two are never mixed up in wording or in what the server checks.
+   */
+  readonly kind?: 'lock' | 'sharePassword';
 }
 
 /**
@@ -45,7 +53,8 @@ interface CollectionUnlockPanelProps {
  * requested again after the Owner's lock password is verified server-side and a short-lived grant is
  * stored in memory (see collectionUnlockGrants). The password is never stored or logged anywhere.
  */
-export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isOwner = true }: CollectionUnlockPanelProps) {
+export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isOwner = true, kind = 'lock' }: CollectionUnlockPanelProps) {
+  const isSharePassword = kind === 'sharePassword';
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [password, setPassword] = useState('');
@@ -59,7 +68,9 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isO
     setIsSubmitting(true);
     setError(null);
     try {
-      const grant = await unlockCollection(authenticatedRequest, collectionId, password);
+      const grant = isSharePassword
+        ? await unlockSharePassword(authenticatedRequest, collectionId, password)
+        : await unlockCollection(authenticatedRequest, collectionId, password);
       if (onGranted) {
         onGranted(grant.unlockToken, grant.expiresAtUtc);
       } else {
@@ -68,7 +79,7 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isO
       setPassword('');
       onUnlocked();
     } catch (caughtError) {
-      setError(getUnlockErrorMessage(caughtError, t));
+      setError(getUnlockErrorMessage(caughtError, t, kind));
     } finally {
       setIsSubmitting(false);
     }
@@ -77,21 +88,21 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isO
   const isSubmitDisabled = isSubmitting || password.length === 0;
 
   return (
-    <View style={styles.card} testID="collection-unlock-panel">
+    <View style={styles.card} testID={isSharePassword ? 'collection-share-password-panel' : 'collection-unlock-panel'}>
       <View style={styles.iconCircle}>
-        <LockIcon color={colors.textPrimary} size={22} />
+        {isSharePassword ? <KeyIcon color={colors.textPrimary} size={22} /> : <LockIcon color={colors.textPrimary} size={22} />}
       </View>
-      <Text style={styles.title}>{t('collections.lockedTitle')}</Text>
-      <Text style={styles.message}>{t('collections.lockedMessage')}</Text>
+      <Text style={styles.title}>{t(isSharePassword ? 'collections.sharePasswordLockedTitle' : 'collections.lockedTitle')}</Text>
+      <Text style={styles.message}>{t(isSharePassword ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage')}</Text>
       <TextInput
-        accessibilityLabel={t('collections.lockPasswordLabel')}
+        accessibilityLabel={t(isSharePassword ? 'collections.sharePasswordLabel' : 'collections.lockPasswordLabel')}
         autoCapitalize="none"
         autoComplete="off"
         autoCorrect={false}
         editable={!isSubmitting}
         onChangeText={setPassword}
         onSubmitEditing={submit}
-        placeholder={t('collections.lockPasswordLabel')}
+        placeholder={t(isSharePassword ? 'collections.sharePasswordLabel' : 'collections.lockPasswordLabel')}
         returnKeyType="done"
         secureTextEntry
         style={styles.input}
@@ -114,7 +125,9 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isO
         )}
       </Pressable>
       {isOwner ? null : (
-        <Text style={styles.hint} testID="collection-unlock-contact-owner">{t('collections.lockContactOwner')}</Text>
+        <Text style={styles.hint} testID="collection-unlock-contact-owner">
+          {t(isSharePassword ? 'collections.sharePasswordContactOwner' : 'collections.lockContactOwner')}
+        </Text>
       )}
     </View>
   );

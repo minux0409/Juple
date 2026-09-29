@@ -8,7 +8,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getSharedCollectionItem, type SharedCollectionItem } from '../collections/api/collectionsApi';
 import { formatItemAdder } from '../collections/itemAdder';
 import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
-import { isCollectionLockedError } from '../collections/useCollectionItems';
+import { contentGateOfError } from '../collections/useCollectionItems';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -50,8 +50,9 @@ export function CollectionSharedItemScreen({ route }: Props) {
           if (!isActive) {
             return;
           }
-          if (isCollectionLockedError(caughtError)) {
-            setError(t('collections.lockedMessage'));
+          const gate = contentGateOfError(caughtError);
+          if (gate) {
+            setError(t(gate === 'sharePassword' ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage'));
           } else if (caughtError instanceof ApiError && caughtError.kind === 'notFound') {
             setError(t('collections.sharedItemNotFound'));
           } else {

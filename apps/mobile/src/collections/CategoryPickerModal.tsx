@@ -4,7 +4,7 @@ import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleS
 import { CategoryEditorDialog } from './CategoryEditorDialog';
 import { CategoryIconTile } from './CategoryIconTile';
 import type { CollectionIconImageChange } from './collectionIconImage';
-import { isCollaborative, isCollectionLocked } from './collectionAccess';
+import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionUnlockDialog } from './CollectionUnlockDialog';
 import { CollectionStatusBadges } from './CollectionStatusBadges';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from './collectionColors';
@@ -149,7 +149,7 @@ export function CategoryPickerModal({
                 const isSelected = selectedIds.has(option.id);
                 // Touching a locked Collection (to select or to deselect it) asks for its password
                 // first - the caller's onToggle decides (see useCategoryPickerModal.requestToggle).
-                const isLocked = isCollectionLocked(option);
+                const isLocked = contentGateOf(option) !== null;
                 return (
                   <Pressable
                     accessibilityHint={isLocked ? t('collections.lockRequiredForAction') : undefined}

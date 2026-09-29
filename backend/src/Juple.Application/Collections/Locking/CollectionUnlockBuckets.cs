@@ -33,6 +33,13 @@ public static partial class CollectionUnlockBuckets
     public static IReadOnlyList<CollectionUnlockBucket> ForUser(long userId) =>
         [new(CollectionUnlockSubject.ForUser(userId).ThrottleKey, CollectionUnlockThrottle.MaxFailures, ResetOnSuccess: true)];
 
+    /// <summary>
+    /// A member's share-password attempts: their own bucket, the same limit as the lock - but a key of
+    /// its own, so share-password and lock attempts never count against each other.
+    /// </summary>
+    public static IReadOnlyList<CollectionUnlockBucket> ForSharePasswordUser(long userId) =>
+        [new($"su:{userId}", CollectionUnlockThrottle.MaxFailures, ResetOnSuccess: true)];
+
     public static IReadOnlyList<CollectionUnlockBucket> ForPublicShare(long shareId, string? clientAttemptId) =>
     [
         new($"pc:{shareId}:{ClientKey(clientAttemptId)}", CollectionUnlockThrottle.MaxFailures, ResetOnSuccess: true),

@@ -9,8 +9,8 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
 {
     /// <summary>
     /// One indexed query: the Collection (active only) plus whether the caller is its Owner or one
-    /// of its collaborators, and in which role. Anyone else - including for a soft-deleted
-    /// Collection - gets null.
+    /// of its collaborators, and in which role, and its share-password setting (mode and version -
+    /// never the hash). Anyone else - including for a soft-deleted Collection - gets null.
     /// </summary>
     public async Task<CollectionAccess?> FindAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
     {
@@ -26,6 +26,10 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
                     .FirstOrDefault(),
                 collection.IsLocked,
                 collection.LockVersion,
+                SharePassword = dbContext.CollectionSharePasswords
+                    .Where(sharePassword => sharePassword.CollectionId == collection.Id)
+                    .Select(sharePassword => new { sharePassword.Mode, sharePassword.PasswordVersion })
+                    .FirstOrDefault(),
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -34,16 +38,23 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
             return null;
         }
 
-        if (row.IsOwner)
-        {
-            return new CollectionAccess(collectionId, CollectionAccessRole.Owner, row.IsLocked, row.LockVersion);
-        }
+        var role = row.IsOwner
+            ? CollectionAccessRole.Owner
+            : row.CollaboratorRole switch
+            {
+                CollectionCollaboratorRole.Contributor => CollectionAccessRole.Contributor,
+                CollectionCollaboratorRole.Viewer => CollectionAccessRole.Viewer,
+                _ => (CollectionAccessRole?)null,
+            };
 
-        return row.CollaboratorRole switch
-        {
-            CollectionCollaboratorRole.Contributor => new CollectionAccess(collectionId, CollectionAccessRole.Contributor, row.IsLocked, row.LockVersion),
-            CollectionCollaboratorRole.Viewer => new CollectionAccess(collectionId, CollectionAccessRole.Viewer, row.IsLocked, row.LockVersion),
-            _ => null,
-        };
+        return role is { } resolvedRole
+            ? new CollectionAccess(
+                collectionId,
+                resolvedRole,
+                row.IsLocked,
+                row.LockVersion,
+                row.SharePassword?.Mode ?? CollectionSharePasswordMode.None,
+                row.SharePassword?.PasswordVersion ?? 0)
+            : null;
     }
 }

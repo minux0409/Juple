@@ -84,6 +84,11 @@ public sealed class CollectionPermissionFilter(
             context.Result = CollectionProblems.CollectionForbidden();
             return;
         }
+        catch (CollectionSharePasswordRequiredException)
+        {
+            context.Result = CollectionProblems.SharePasswordRequired();
+            return;
+        }
         catch (CollectionLockedException)
         {
             context.Result = CollectionProblems.CollectionLocked();

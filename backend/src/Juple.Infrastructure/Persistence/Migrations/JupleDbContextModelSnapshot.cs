@@ -397,6 +397,47 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("CollectionShares", "collections");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionSharePassword", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("EncryptedPassword")
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int>("PasswordVersion")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectionId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionSharePasswords_CollectionId");
+
+                    b.ToTable("CollectionSharePasswords", "collections");
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionUnlockThrottle", b =>
                 {
                     b.Property<long>("Id")
@@ -1340,6 +1381,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Juple.Domain.Collections.CollectionShare", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionSharePassword", b =>
                 {
                     b.HasOne("Juple.Domain.Collections.Collection", null)
                         .WithMany()

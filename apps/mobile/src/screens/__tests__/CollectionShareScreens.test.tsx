@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { StyleSheet, Text } from 'react-native';
+import { Modal, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { KeyboardAvoidingView } from 'react-native';
@@ -29,6 +29,7 @@ import {
   setCollectionSharePermission,
   type Collection,
 } from '../../collections/api/collectionsApi';
+import { getSharePasswordStatus, removeSharePassword, setSharePassword } from '../../collections/api/sharePasswordApi';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -69,6 +70,15 @@ jest.mock('../../collections/api/collaborationApi', () => ({
   removeCollaborator: jest.fn(),
   changeCollaboratorRole: jest.fn(),
   changeInvitationRole: jest.fn(),
+}));
+
+// The 공유 비밀번호 card on this screen: off unless a test says otherwise.
+jest.mock('../../collections/api/sharePasswordApi', () => ({
+  getSharePasswordStatus: jest.fn().mockResolvedValue({ mode: 'none', isEnabled: false, updatedAtUtc: null }),
+  setSharePassword: jest.fn(),
+  removeSharePassword: jest.fn(),
+  revealSharePassword: jest.fn(),
+  unlockSharePassword: jest.fn(),
 }));
 
 jest.mock('../../collections/api/collectionsApi', () => ({
@@ -866,6 +876,98 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         confirm.props.onConfirm();
       });
       expect(removeCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'WRTR2345');
+    });
+  });
+
+  describe('still protected by the old lock password (legacy) - no new sharing until the Owner moves on', () => {
+    const legacy = { mode: 'legacyCommonLock', isEnabled: true, updatedAtUtc: null } as const;
+    const off = { mode: 'none', isEnabled: false, updatedAtUtc: null } as const;
+    const own = { mode: 'perCollection', isEnabled: true, updatedAtUtc: '2026-09-29T00:00:00Z' } as const;
+    const notice = () => i18n.t('collections.sharePasswordLegacyNotice');
+
+    beforeEach(() => {
+      jest.mocked(getFriends).mockResolvedValue({ items: [friend('FRND2345', '피카츄')], nextCursor: null });
+    });
+
+    afterEach(() => {
+      jest.mocked(getSharePasswordStatus).mockResolvedValue(off);
+    });
+
+    async function expectNewSharingHeldBack(renderer: Renderer, heldBack: boolean) {
+      await pickFriends(renderer, ['FRND2345']);
+      expect(exists(renderer, 'share-invite-migration-required')).toBe(heldBack);
+      expect(byId(renderer, 'invite-send').props.accessibilityState.disabled).toBe(heldBack);
+      await openPublicTab(renderer);
+      expect(exists(renderer, 'share-public-migration-required')).toBe(heldBack);
+      expect(byId(renderer, 'share-create-link').props.accessibilityState.disabled).toBe(heldBack);
+    }
+
+    it('says why, and holds back both a new invitation and a new link', async () => {
+      jest.mocked(getSharePasswordStatus).mockResolvedValue(legacy);
+      const renderer = await renderScreen();
+
+      await expectNewSharingHeldBack(renderer, true);
+      expect(texts(byId(renderer, 'share-public-migration-required'))).toEqual([notice()]);
+      expect(notice()).toBe('이 컬렉션은 기존 잠금 비밀번호를 공유 보호에 사용 중이에요. 새로운 공유를 시작하려면 공유 비밀번호를 새로 설정하거나 공유 비밀번호 보호를 해제해 주세요.');
+      expect(enableCollectionShare).not.toHaveBeenCalled();
+      expect(inviteCollaborator).not.toHaveBeenCalled();
+    });
+
+    it('keeps the link it already had - that is not a new one', async () => {
+      jest.mocked(getSharePasswordStatus).mockResolvedValue(legacy);
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      const renderer = await renderScreen();
+      await openPublicTab(renderer);
+
+      expect(byId(renderer, 'share-link').props.children).toBe('https://juple.test/c/p');
+      expect(exists(renderer, 'share-public-migration-required')).toBe(false);
+    });
+
+    it('a share password of its own lets new sharing start', async () => {
+      jest.mocked(getSharePasswordStatus).mockResolvedValue(legacy);
+      jest.mocked(setSharePassword).mockResolvedValue(own);
+      const renderer = await renderScreen();
+
+      await press(renderer, 'share-password-set-new');
+      await act(async () => {
+        byId(renderer, 'share-password-input').props.onChangeText('trip-2026');
+      });
+      await press(renderer, 'share-password-submit');
+
+      expect(setSharePassword).toHaveBeenCalledWith(expect.anything(), 5, 'trip-2026');
+      await expectNewSharingHeldBack(renderer, false);
+    });
+
+    it('switching the protection off (the switch - there is no separate 보호 해제 button) lets new sharing start', async () => {
+      jest.mocked(getSharePasswordStatus).mockResolvedValue(legacy);
+      jest.mocked(removeSharePassword).mockResolvedValue(off);
+      const renderer = await renderScreen();
+
+      expect(exists(renderer, 'share-password-remove')).toBe(false);
+      await act(async () => {
+        byId(renderer, 'share-password-toggle').props.onValueChange(false);
+      });
+      const confirmDialog = renderer.root.findAllByType(Modal).find(modal => modal.props.visible)!;
+      await act(async () => {
+        confirmDialog.findAll(node => node.props.accessibilityLabel === i18n.t('collections.sharePasswordRemove'))[0].props.onPress();
+      });
+
+      expect(removeSharePassword).toHaveBeenCalledWith(expect.anything(), 5);
+      await expectNewSharingHeldBack(renderer, false);
+    });
+
+    it('the server\'s own refusal (sharePasswordMigrationRequired) reads the same', async () => {
+      jest.mocked(inviteCollaborator).mockRejectedValue(new ApiError('conflict', 409, 'sharePasswordMigrationRequired'));
+      jest.mocked(enableCollectionShare).mockRejectedValue(new ApiError('conflict', 409, 'sharePasswordMigrationRequired'));
+      const renderer = await renderScreen();
+
+      await pickFriends(renderer, ['FRND2345']);
+      await press(renderer, 'invite-send');
+      expect(texts(byId(renderer, 'draft-error-FRND2345'))).toEqual([notice()]);
+
+      await openPublicTab(renderer);
+      await press(renderer, 'share-create-link');
+      expect(texts(renderer)).toContain(notice());
     });
   });
 

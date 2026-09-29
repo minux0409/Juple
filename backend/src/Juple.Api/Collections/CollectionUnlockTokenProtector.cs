@@ -20,9 +20,12 @@ namespace Juple.Api.Collections;
 /// re-enter the password).
 ///
 /// Payload (encrypted, so nothing - not even the internal user/share id - is readable by the holder):
-/// Collection id, subject kind + id, LockVersion, expiry. A grant is valid only for that exact
-/// Collection, that exact subject, that exact LockVersion (any lock set/change/removal bumps it), and
-/// until expiry. The password itself is never part of it and cannot be derived from it.
+/// Collection id, subject kind + id, purpose, version, expiry. A grant is valid only for that exact
+/// Collection, that exact subject, that exact purpose (the Collection lock, or the Collection's share
+/// password - never one for the other), that exact version (LockVersion, or the share password's
+/// PasswordVersion - any set/change/removal bumps it), and until expiry. A grant issued before
+/// purposes existed carries none and counts as a Collection lock grant, exactly as it always did. The
+/// password itself is never part of it and cannot be derived from it.
 /// </summary>
 public sealed class CollectionUnlockTokenProtector : ICollectionUnlockTokenProtector
 {
@@ -63,11 +66,16 @@ public sealed class CollectionUnlockTokenProtector : ICollectionUnlockTokenProte
         _key = HKDF.DeriveKey(HashAlgorithmName.SHA256, inputKeyMaterial, 32, salt: [], info: KeyDerivationInfo);
     }
 
-    public CollectionUnlockGrant Issue(long collectionId, CollectionUnlockSubject subject, int lockVersion, DateTimeOffset nowUtc)
+    public CollectionUnlockGrant Issue(
+        long collectionId,
+        CollectionUnlockSubject subject,
+        int version,
+        DateTimeOffset nowUtc,
+        CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock)
     {
         var expiresAtUtc = nowUtc + Lifetime;
         var plaintext = JsonSerializer.SerializeToUtf8Bytes(new Payload(
-            collectionId, subject.Kind.ToString(), subject.Id, lockVersion, expiresAtUtc.ToUnixTimeSeconds()));
+            collectionId, subject.Kind.ToString(), subject.Id, version, expiresAtUtc.ToUnixTimeSeconds(), PurposeCode(purpose)));
 
         var envelope = new byte[1 + NonceSizeBytes + plaintext.Length + TagSizeBytes];
         envelope[0] = EnvelopeVersion;
@@ -86,7 +94,13 @@ public sealed class CollectionUnlockTokenProtector : ICollectionUnlockTokenProte
         return new CollectionUnlockGrant(Base64UrlEncode(envelope), DateTimeOffset.FromUnixTimeSeconds(expiresAtUtc.ToUnixTimeSeconds()));
     }
 
-    public bool IsValid(string? token, long collectionId, CollectionUnlockSubject subject, int lockVersion, DateTimeOffset nowUtc)
+    public bool IsValid(
+        string? token,
+        long collectionId,
+        CollectionUnlockSubject subject,
+        int version,
+        DateTimeOffset nowUtc,
+        CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock)
     {
         if (string.IsNullOrEmpty(token) || token.Length > MaxTokenLength || !TryBase64UrlDecode(token, out var envelope))
         {
@@ -129,7 +143,8 @@ public sealed class CollectionUnlockTokenProtector : ICollectionUnlockTokenProte
             && payload.C == collectionId
             && payload.K == subject.Kind.ToString()
             && payload.S == subject.Id
-            && payload.V == lockVersion
+            && payload.V == version
+            && (payload.P ?? LockPurposeCode) == PurposeCode(purpose)
             && payload.E > nowUtc.ToUnixTimeSeconds();
     }
 
@@ -163,5 +178,15 @@ public sealed class CollectionUnlockTokenProtector : ICollectionUnlockTokenProte
         }
     }
 
-    private sealed record Payload(long C, string K, long S, int V, long E);
+    private const string LockPurposeCode = "l";
+
+    private static string PurposeCode(CollectionUnlockPurpose purpose) => purpose switch
+    {
+        CollectionUnlockPurpose.CollectionLock => LockPurposeCode,
+        CollectionUnlockPurpose.SharePassword => "s",
+        _ => throw new ArgumentOutOfRangeException(nameof(purpose)),
+    };
+
+    /// <param name="P">Purpose code; absent (null) in grants issued before purposes existed - read as the lock.</param>
+    private sealed record Payload(long C, string K, long S, int V, long E, string? P = null);
 }

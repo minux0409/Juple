@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
-import { isSharedWithMe } from './collectionAccess';
+import { contentGateOf, isSharedWithMe } from './collectionAccess';
 import { CollectionUnlockPanel } from './CollectionUnlockPanel';
 
 interface CollectionUnlockDialogProps {
@@ -14,7 +14,8 @@ interface CollectionUnlockDialogProps {
 }
 
 /**
- * The password prompt for touching a locked Collection from outside it (the Collection picker):
+ * The password prompt for touching a protected Collection from outside it (the Collection picker) -
+ * the Owner's lock password, or for a member the Collection's share password (see contentGateOf):
  * a correct password resolves with a grant for the caller; a wrong one keeps the prompt open with
  * the reason, and cancelling changes nothing.
  */
@@ -29,6 +30,7 @@ export function CollectionUnlockDialog({ collection, onGranted, onCancel }: Coll
             <CollectionUnlockPanel
               collectionId={collection.id}
               isOwner={!isSharedWithMe(collection)}
+              kind={contentGateOf(collection) ?? 'lock'}
               onGranted={onGranted}
               onUnlocked={() => undefined}
             />

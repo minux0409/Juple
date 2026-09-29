@@ -18,9 +18,11 @@ public sealed class CollectionCollaborationServiceTests
 
     private readonly RecordingCollaborationStore _store = new();
 
+    private readonly InMemoryCollectionAccessStore _access = new InMemoryCollectionAccessStore().Add(CollectionId, Owner, Contributor);
+
     private CollectionCollaborationService Service() => new(
         new Juple.Application.Collections.Access.CollectionAccessService(
-            new InMemoryCollectionAccessStore().Add(CollectionId, Owner, Contributor), new FakeUnlockTokenProtector(), TimeProvider.System),
+            _access, new FakeUnlockTokenProtector(), TimeProvider.System),
         _directory,
         _store,
         TimeProvider.System);
@@ -71,6 +73,24 @@ public sealed class CollectionCollaborationServiceTests
 
         var self = await Assert.ThrowsAsync<InvalidCollectionException>(() => Service().InviteAsync(Owner, CollectionId, "WNER2345"));
         Assert.Equal("jupleId", self.Field);
+    }
+
+    [Fact]
+    public async Task Invite_IsRefused_WhileTheCollectionIsInTheLegacyShareMode_AndAllowedOnceItLeftIt()
+    {
+        _access.WithSharePassword(CollectionId, CollectionSharePasswordMode.LegacyCommonLock);
+
+        var conflict = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(
+            () => Service().InviteAsync(Owner, CollectionId, "NVTEE234", CollectionCollaboratorRole.Viewer));
+        Assert.Equal(CollectionCollaborationConflictException.SharePasswordMigrationRequired, conflict.Code);
+        Assert.Null(_store.LastInvite);
+
+        foreach (var mode in new[] { CollectionSharePasswordMode.PerCollection, CollectionSharePasswordMode.None })
+        {
+            _access.WithSharePassword(CollectionId, mode, version: 2);
+            await Service().InviteAsync(Owner, CollectionId, "NVTEE234", CollectionCollaboratorRole.Viewer);
+            Assert.Equal((CollectionId, Owner, Invitee), _store.LastInvite);
+        }
     }
 
     [Fact]

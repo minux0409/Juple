@@ -13,6 +13,7 @@ using Juple.Application.Collections.Access;
 using Juple.Application.Users.Profile;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.Locking;
+using Juple.Application.Collections.SharePassword;
 using Juple.Application.Notifications;
 using Juple.Infrastructure.Notifications;
 using Juple.Infrastructure.Users;
@@ -80,6 +81,7 @@ public static class DependencyInjection
         services.AddScoped<IPublicCollectionShareStore, PublicCollectionStore>();
         services.AddScoped<ICollectionAccessStore, CollectionAccessStore>();
         services.AddScoped<ICollectionLockStore, CollectionLockStore>();
+        services.AddScoped<ICollectionSharePasswordStore, CollectionSharePasswordStore>();
         services.AddScoped<ICollectionLockSettingsStore, CollectionLockSettingsStore>();
         services.AddScoped<ISocialNotificationPublisher, SocialNotificationPublisher>();
         services.AddScoped<IPushDispatchStore, PushDispatchStore>();

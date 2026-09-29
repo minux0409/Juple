@@ -14,11 +14,13 @@ public interface ICollectionAccessService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The permission AND, for a locked Collection, a valid unlock grant for this user and the
-    /// Collection's current LockVersion (CollectionLockedException otherwise) - required for every
-    /// operation on the Collection's content: reading links, adding/removing links, reordering,
-    /// transfer/merge. The Owner is not exempt. unlockToken may carry several grants separated by
-    /// commas (an operation spanning two Collections sends one for each).
+    /// The permission AND the content gate for who the caller is - required for every operation on
+    /// the Collection's content (reading links, adding/removing links, reordering, transfer/merge) and
+    /// for managing it: the Owner needs a lock grant for a locked Collection (CollectionLockedException);
+    /// a recipient needs a share-password grant when the Collection has its own share password
+    /// (CollectionSharePasswordRequiredException), and a lock grant only on a legacy Collection that
+    /// is locked. unlockToken may carry several grants separated by commas (an operation spanning two
+    /// Collections sends one for each).
     /// </summary>
     Task<CollectionAccess> RequireUnlockedAsync(
         long userId,
@@ -27,11 +29,7 @@ public interface ICollectionAccessService
         string? unlockToken,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// View permission AND, for a locked Collection, a valid unlock grant for this user and the
-    /// Collection's current LockVersion - otherwise CollectionLockedException. The Owner is not
-    /// exempt from the lock.
-    /// </summary>
+    /// <summary>View permission AND the same content gate as RequireUnlockedAsync.</summary>
     Task<CollectionAccess> RequireContentAsync(
         long userId,
         long collectionId,

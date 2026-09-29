@@ -830,3 +830,126 @@ describe('CollectionDetailsScreen - participant management on a locked Collectio
     expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-revoke-'))).toHaveLength(0);
   });
 });
+
+// ---------- The Collection's own share password (separate from the Owner's lock) ----------
+
+jest.mock('../../collections/api/sharePasswordApi', () => ({
+  ...jest.requireActual('../../collections/api/sharePasswordApi'),
+  unlockSharePassword: jest.fn(),
+}));
+
+describe('CollectionDetailsScreen - share password (recipient)', () => {
+  const sharePasswordRequired = new ApiError('forbidden', 403, 'sharePasswordRequired');
+  const { unlockSharePassword } = jest.requireMock('../../collections/api/sharePasswordApi') as { unlockSharePassword: jest.Mock };
+  const grant = (token: string) => ({ unlockToken: token, expiresAtUtc: new Date(Date.now() + 15 * 60_000).toISOString() });
+  const texts = (part: ReactTestRenderer.ReactTestRenderer) => part.root.findAllByType(Text).map(node => String(node.props.children));
+  const emptyPart = (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    const list = findItemList(renderer);
+    return { list, part: list.props.ListEmptyComponent ? renderPart(list.props.ListEmptyComponent) : null };
+  };
+  async function submit(part: ReactTestRenderer.ReactTestRenderer, password: string) {
+    await act(async () => {
+      part.root.findByProps({ testID: 'collection-unlock-password' }).props.onChangeText(password);
+    });
+    await act(async () => {
+      await part.root.findByProps({ testID: 'collection-unlock-submit' }).props.onPress();
+    });
+  }
+
+  beforeEach(() => {
+    jest.mocked(getCollection).mockResolvedValue(
+      makeCollection({ accessRole: 'viewer', ownerJupleId: 'K7MP4Q8N', isSharePasswordProtected: true }),
+    );
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    clearCollectionUnlockGrants();
+  });
+
+  it('asks for the share password before any link - in its own words, never the Owner\'s lock password', async () => {
+    jest.mocked(getCollectionItems).mockRejectedValue(sharePasswordRequired);
+    const renderer = await renderScreen();
+    const { list, part } = emptyPart(renderer);
+
+    expect(list.props.data).toEqual([]);
+    expect(part!.root.findAll(node => node.props.testID === 'collection-share-password-panel').length).toBeGreaterThan(0);
+    expect(part!.root.findAll(node => node.props.testID === 'collection-unlock-panel')).toHaveLength(0);
+    expect(texts(part!)).toContain(i18n.t('collections.sharePasswordLockedTitle'));
+    expect(texts(part!).some(text => text.includes('잠금 비밀번호'))).toBe(false);
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === 'Theirs' || node.props.children === 'Mine')).toBe(false);
+  });
+
+  it('a wrong share password shows the error and stores nothing', async () => {
+    jest.mocked(getCollectionItems).mockRejectedValue(sharePasswordRequired);
+    unlockSharePassword.mockRejectedValue(new ApiError('forbidden', 403, 'invalidCollectionPassword'));
+    const renderer = await renderScreen();
+    const { part } = emptyPart(renderer);
+
+    await submit(part!, 'nope');
+
+    expect(texts(part!)).toContain(i18n.t('collections.sharePasswordWrong'));
+    expect(getCollectionUnlockToken(COLLECTION_ID)).toBeNull();
+  });
+
+  it('too many attempts says to wait', async () => {
+    jest.mocked(getCollectionItems).mockRejectedValue(sharePasswordRequired);
+    unlockSharePassword.mockRejectedValue(new ApiError('tooManyRequests', 429, 'collectionUnlockThrottled'));
+    const renderer = await renderScreen();
+    const { part } = emptyPart(renderer);
+
+    await submit(part!, 'nope');
+
+    expect(texts(part!)).toContain(i18n.t('collections.lockTooManyAttempts'));
+  });
+
+  it('the right one keeps a grant for this visit and loads the links with it', async () => {
+    jest.mocked(getCollectionItems).mockImplementation(async (_request, _id, options) => {
+      if (options?.unlockToken !== 'share-grant-1') {
+        throw sharePasswordRequired;
+      }
+      return { items: [theirs], nextCursor: null };
+    });
+    unlockSharePassword.mockResolvedValue(grant('share-grant-1'));
+    const renderer = await renderScreen();
+    const { part } = emptyPart(renderer);
+
+    await submit(part!, 'trip-2026');
+    await act(async () => {
+      await new Promise<void>(resolve => setImmediate(() => resolve()));
+    });
+
+    expect(unlockSharePassword).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 'trip-2026');
+    expect(getCollectionUnlockToken(COLLECTION_ID)).toBe('share-grant-1');
+    expect(findItemList(renderer).props.data).toEqual([theirs]);
+    expect(jest.mocked(getCollectionItems)).toHaveBeenLastCalledWith(expect.anything(), COLLECTION_ID, expect.objectContaining({ unlockToken: 'share-grant-1' }));
+  });
+
+  it('after the Owner changes it, the old grant is dropped and the prompt comes back', async () => {
+    rememberCollectionUnlock(COLLECTION_ID, 'share-grant-old', new Date(Date.now() + 10 * 60_000).toISOString());
+    jest.mocked(getCollectionItems).mockRejectedValue(sharePasswordRequired);
+
+    const renderer = await renderScreen();
+
+    expect(getCollectionUnlockToken(COLLECTION_ID)).toBeNull();
+    expect(emptyPart(renderer).part!.root.findAll(node => node.props.testID === 'collection-share-password-panel').length).toBeGreaterThan(0);
+  });
+
+  it('the Owner is never asked for it - their own lock is the only thing they may be asked', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', isSharePasswordProtected: true }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    expect(findItemList(renderer).props.data).toEqual([mine]);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-share-password-panel')).toHaveLength(0);
+
+    // Locked as well: the lock panel - never a share-password panel, and no share password opens it.
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', isLocked: true, isSharePasswordProtected: true }));
+    jest.mocked(getCollectionItems).mockRejectedValue(lockedError);
+    const locked = await renderScreen();
+    const { part } = emptyPart(locked);
+    expect(part!.root.findAll(node => node.props.testID === 'collection-unlock-panel').length).toBeGreaterThan(0);
+    expect(part!.root.findAll(node => node.props.testID === 'collection-share-password-panel')).toHaveLength(0);
+    expect(unlockSharePassword).not.toHaveBeenCalled();
+  });
+});

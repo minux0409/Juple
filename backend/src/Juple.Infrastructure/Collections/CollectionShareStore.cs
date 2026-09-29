@@ -35,6 +35,17 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
             return ToDto(existing);
         }
 
+        // A new public link is a new recipient: never under the legacy mode, which only keeps the
+        // Owner's lock password for the recipients this Collection already had (see
+        // CollectionSharePasswordMode.LegacyCommonLock). An already-active link above is not new.
+        if (await dbContext.CollectionSharePasswords.AsNoTracking().AnyAsync(
+                sharePassword => sharePassword.CollectionId == collectionId
+                    && sharePassword.Mode == CollectionSharePasswordMode.LegacyCommonLock,
+                cancellationToken))
+        {
+            throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.SharePasswordMigrationRequired);
+        }
+
         await RequireEveryoneMatchesAsync(collectionId, permission, enabledAtUtc, cancellationToken);
 
         var share = new CollectionShare(collectionId, candidatePublicId, enabledAtUtc);

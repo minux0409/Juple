@@ -1,5 +1,6 @@
 using Juple.Application.Collections;
 using Juple.Application.Collections.Locking;
+using Juple.Application.Collections.SharePassword;
 
 namespace Juple.Application.Collections.Public;
 
@@ -8,7 +9,8 @@ public sealed class PublicCollectionService(
     ICollectionLockStore lockStore,
     CollectionPasswordVerifier passwordVerifier,
     ICollectionUnlockTokenProtector unlockTokenProtector,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICollectionSharePasswordStore? sharePasswordStore = null)
     : IPublicCollectionService
 {
     public async Task<PublicCollectionDto?> GetCollectionAsync(
@@ -22,8 +24,10 @@ public sealed class PublicCollectionService(
             return null;
         }
 
+        // IsLocked on the wire: a password stands before this link's content (whichever one).
+        var isProtected = PublicShareGate.RequirementOf(state) != PublicShareRequirement.None;
         return IsUnlocked(state, unlockToken)
-            ? new PublicCollectionDto(state.Name, state.IsLocked, PublicSharePermissions.ToWire(state.Permission))
+            ? new PublicCollectionDto(state.Name, isProtected, PublicSharePermissions.ToWire(state.Permission))
             : new PublicCollectionDto(Name: null, IsLocked: true);
     }
 
@@ -60,30 +64,51 @@ public sealed class PublicCollectionService(
             return null;
         }
 
-        var lockState = await lockStore.GetStateAsync(share.CollectionId, cancellationToken);
-        if (lockState is null)
-        {
-            return null;
-        }
-
-        if (!lockState.IsLocked)
-        {
-            throw new CollectionNotLockedException();
-        }
-
         var nowUtc = timeProvider.GetUtcNow();
-        await passwordVerifier.VerifyAsync(
-            lockState, CollectionUnlockBuckets.ForPublicShare(share.ShareId, clientAttemptId), password, nowUtc, cancellationToken);
-        return unlockTokenProtector.Issue(
-            share.CollectionId, CollectionUnlockSubject.ForPublicShare(share.ShareId), lockState.LockVersion, nowUtc);
+        var buckets = CollectionUnlockBuckets.ForPublicShare(share.ShareId, clientAttemptId);
+        var subject = CollectionUnlockSubject.ForPublicShare(share.ShareId);
+        switch (PublicShareGate.RequirementOf(share))
+        {
+            case PublicShareRequirement.SharePassword:
+            {
+                var record = sharePasswordStore is null ? null : await sharePasswordStore.GetAsync(share.CollectionId, cancellationToken);
+                if (record is not { Mode: Juple.Domain.Collections.CollectionSharePasswordMode.PerCollection, PasswordHash: { } passwordHash })
+                {
+                    throw new CollectionNotLockedException();
+                }
+
+                await passwordVerifier.VerifyAsync(
+                    new CollectionLockState(share.CollectionId, IsLocked: true, passwordHash, record.PasswordVersion),
+                    buckets,
+                    CollectionSharePasswordPolicy.Normalize(password),
+                    nowUtc,
+                    cancellationToken);
+                return unlockTokenProtector.Issue(
+                    share.CollectionId, subject, record.PasswordVersion, nowUtc, CollectionUnlockPurpose.SharePassword);
+            }
+
+            case PublicShareRequirement.LockPassword:
+            {
+                var lockState = await lockStore.GetStateAsync(share.CollectionId, cancellationToken);
+                if (lockState is null)
+                {
+                    return null;
+                }
+
+                if (!lockState.IsLocked)
+                {
+                    throw new CollectionNotLockedException();
+                }
+
+                await passwordVerifier.VerifyAsync(lockState, buckets, password, nowUtc, cancellationToken);
+                return unlockTokenProtector.Issue(share.CollectionId, subject, lockState.LockVersion, nowUtc);
+            }
+
+            default:
+                throw new CollectionNotLockedException();
+        }
     }
 
     private bool IsUnlocked(PublicShareState state, string? unlockToken) =>
-        !state.IsLocked
-        || unlockTokenProtector.IsValid(
-            unlockToken,
-            state.CollectionId,
-            CollectionUnlockSubject.ForPublicShare(state.ShareId),
-            state.LockVersion,
-            timeProvider.GetUtcNow());
+        PublicShareGate.IsUnlocked(state, unlockToken, unlockTokenProtector, timeProvider.GetUtcNow());
 }

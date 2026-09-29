@@ -256,6 +256,13 @@ public sealed class CollectionLockPasswordAndRoleIntegrationTests : IAsyncLifeti
         await _locks.LockAsync(_owner, privateOne);
         var publicId = NewPublicId();
         await _shares.EnableAsync(_owner, _sharedId, publicId, DateTimeOffset.UtcNow);
+        // Locked, with this member and link, before share passwords existed (the migration's legacy
+        // mode): those recipients still open it with the Owner's lock password.
+        foreach (var collectionId in new[] { _sharedId, privateOne })
+        {
+            await _db.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT INTO collections.CollectionSharePasswords (CollectionId, Mode, PasswordVersion, CreatedAtUtc, UpdatedAtUtc) VALUES ({collectionId}, 'LegacyCommonLock', 1, {DateTimeOffset.UtcNow}, {DateTimeOffset.UtcNow})");
+        }
         _db.ChangeTracker.Clear();
 
         var grant = await _locks.UnlockAsync(_reader, _sharedId, "common-pass-1");

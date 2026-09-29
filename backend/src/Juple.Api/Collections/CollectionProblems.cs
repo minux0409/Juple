@@ -18,6 +18,9 @@ public static class CollectionProblems
     public const string RecentAuthenticationRequiredCode = "recentAuthenticationRequired";
     public const string PublicShareReadOnly = "publicShareReadOnly";
     public const string PublicShareNotActive = "publicShareNotActive";
+    public const string SharePasswordRequiredCode = "sharePasswordRequired";
+    public const string SharePasswordNotSetCode = "sharePasswordNotSet";
+    public const string SharePasswordUnreadableCode = "sharePasswordUnreadable";
 
     public static ObjectResult Create(int statusCode, string title, string code)
     {
@@ -31,6 +34,10 @@ public static class CollectionProblems
 
     public static ObjectResult CollectionLocked() =>
         Create(StatusCodes.Status403Forbidden, "This Collection is locked.", Locked);
+
+    /// <summary>A recipient without a valid share-password grant for this protected Collection.</summary>
+    public static ObjectResult SharePasswordRequired() =>
+        Create(StatusCodes.Status403Forbidden, "This shared Collection needs its share password.", SharePasswordRequiredCode);
 
     public static ObjectResult InvalidCollectionPassword() =>
         Create(StatusCodes.Status403Forbidden, "The password is incorrect.", InvalidPassword);

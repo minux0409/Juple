@@ -5,7 +5,7 @@ import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, KEEP_ICON_IMAGE, type CollectionIconImageChange } from './collectionIconImage';
-import { canAddItemsTo, isCollectionLocked } from './collectionAccess';
+import { canAddItemsTo, contentGateOf } from './collectionAccess';
 import type { CollectionColorValue } from './collectionColors';
 import type { CollectionIconKey } from './collectionIcons';
 
@@ -164,7 +164,7 @@ export function useCategoryPickerModal(
   };
 
   const requestToggle = (collection: Collection, toggle: () => void) => {
-    if (!isCollectionLocked(collection) || sessionUnlockedIds.has(collection.id)) {
+    if (contentGateOf(collection) === null || sessionUnlockedIds.has(collection.id)) {
       toggle();
       return;
     }

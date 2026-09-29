@@ -7,6 +7,7 @@ using Juple.Api.Collections;
 using Juple.Application.Collections.Access;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.Locking;
+using Juple.Application.Collections.SharePassword;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.CreateCollection;
 using Juple.Application.Collections.DeleteCollection;
@@ -146,11 +147,15 @@ builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<Juple.Application.Friends.IFriendService, Juple.Application.Friends.FriendService>();
 builder.Services.AddSingleton<ICollectionLockPasswordHasher, CollectionLockPasswordHasher>();
 builder.Services.AddSingleton<ICollectionUnlockTokenProtector, CollectionUnlockTokenProtector>();
+builder.Services.AddSingleton<ICollectionSharePasswordProtector, CollectionSharePasswordProtector>();
+builder.Services.AddScoped<ICollectionSharePasswordService, CollectionSharePasswordService>();
 builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("PublicWeb"));
 builder.Services.Configure<PublicCollectionCursorOptions>(
     builder.Configuration.GetSection("PublicCollectionCursor"));
 builder.Services.Configure<CollectionUnlockGrantOptions>(
     builder.Configuration.GetSection("CollectionUnlockGrant"));
+builder.Services.Configure<CollectionSharePasswordOptions>(
+    builder.Configuration.GetSection("CollectionSharePassword"));
 builder.Services.AddSingleton<IPublicCollectionItemPageCursorCodec, PublicCollectionItemPageCursorCodec>();
 builder.Services.AddScoped<IRegisterPushDeviceService, RegisterPushDeviceService>();
 builder.Services.AddScoped<IDispatchPendingPushNotificationsService, DispatchPendingPushNotificationsService>();
@@ -283,6 +288,9 @@ app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();
 // malformed grant key stops the API at startup; there is no fallback to any other key. The one-shot
 // Job modes above return before this point and never need it.
 app.Services.GetRequiredService<ICollectionUnlockTokenProtector>();
+// Same for CollectionSharePassword:EncryptionKey (see CollectionSharePasswordProtector) - its own key,
+// no fallback: without it the API does not start rather than failing the first reveal.
+app.Services.GetRequiredService<ICollectionSharePasswordProtector>();
 
 if (app.Environment.IsDevelopment())
 {

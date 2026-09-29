@@ -57,7 +57,15 @@ public sealed class CollectionLockService(
     {
         // Access first: without a membership this is a plain 404 whether or not the password would
         // have been right - the password never substitutes for access.
-        await accessService.RequireAsync(userId, collectionId, CollectionPermission.View, cancellationToken);
+        var access = await accessService.RequireAsync(userId, collectionId, CollectionPermission.View, cancellationToken);
+
+        // The lock password is the Owner's own: a recipient is never asked for it (their gate is the
+        // Collection's share password) and so may never test it here either - except a legacy
+        // Collection, whose recipients still open it with that password (see CollectionSharePasswordMode).
+        if (!access.IsOwner && access.SharePasswordMode != Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock)
+        {
+            throw new CollectionNotLockedException();
+        }
         var nowUtc = timeProvider.GetUtcNow();
 
         var state = await lockStore.GetStateAsync(collectionId, cancellationToken) ?? throw new CollectionNotFoundException();

@@ -33,6 +33,13 @@ export interface Collection {
    * which is different in every response. Absent from an older server.
    */
   readonly iconImageVersion?: string | null;
+  /**
+   * The Collection has its own share password: members and public-link visitors must prove it
+   * before its content opens; the Owner never does. Absent from an older server (read as false).
+   * Separate from isLocked, which for a member only ever means a legacy Collection still opening
+   * with its Owner's lock password.
+   */
+  readonly isSharePasswordProtected?: boolean;
   /** Contributor view only: the Owner's public Juple ID. */
   readonly ownerJupleId?: string | null;
   /** Contributor view only: the Owner's chosen display name (null when they have not set one). */

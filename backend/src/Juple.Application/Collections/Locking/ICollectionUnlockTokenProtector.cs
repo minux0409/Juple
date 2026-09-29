@@ -8,7 +8,19 @@ namespace Juple.Application.Collections.Locking;
 /// </summary>
 public interface ICollectionUnlockTokenProtector
 {
-    CollectionUnlockGrant Issue(long collectionId, CollectionUnlockSubject subject, int lockVersion, DateTimeOffset nowUtc);
+    /// <param name="version">LockVersion for CollectionLock, the share PasswordVersion for SharePassword.</param>
+    CollectionUnlockGrant Issue(
+        long collectionId,
+        CollectionUnlockSubject subject,
+        int version,
+        DateTimeOffset nowUtc,
+        CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock);
 
-    bool IsValid(string? token, long collectionId, CollectionUnlockSubject subject, int lockVersion, DateTimeOffset nowUtc);
+    bool IsValid(
+        string? token,
+        long collectionId,
+        CollectionUnlockSubject subject,
+        int version,
+        DateTimeOffset nowUtc,
+        CollectionUnlockPurpose purpose = CollectionUnlockPurpose.CollectionLock);
 }

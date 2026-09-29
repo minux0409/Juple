@@ -9,7 +9,9 @@ public sealed record PublicShareState(
     string Name,
     bool IsLocked,
     int LockVersion,
-    Juple.Domain.Collections.CollectionSharePermission Permission = Juple.Domain.Collections.CollectionSharePermission.Read);
+    Juple.Domain.Collections.CollectionSharePermission Permission = Juple.Domain.Collections.CollectionSharePermission.Read,
+    Juple.Domain.Collections.CollectionSharePasswordMode SharePasswordMode = Juple.Domain.Collections.CollectionSharePasswordMode.None,
+    int SharePasswordVersion = 0);
 
 public interface IPublicCollectionShareStore
 {

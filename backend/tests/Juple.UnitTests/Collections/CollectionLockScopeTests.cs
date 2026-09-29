@@ -32,10 +32,11 @@ public sealed class CollectionLockScopeTests
 
     public CollectionLockScopeTests()
     {
-        _accessStore.Add(Locked, Owner, Contributor);
+        // Locked before share passwords existed: recipients keep needing the lock grant (legacy mode).
+        _accessStore.Add(Locked, Owner, Contributor).WithSharePassword(Locked, Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock);
         _accessStore.SetLock(Locked, isLocked: true, lockVersion: 3);
         _accessStore.Add(Unlocked, Owner, Contributor);
-        _accessStore.Add(OtherLocked, Owner);
+        _accessStore.Add(OtherLocked, Owner).WithSharePassword(OtherLocked, Juple.Domain.Collections.CollectionSharePasswordMode.LegacyCommonLock);
         _accessStore.SetLock(OtherLocked, isLocked: true, lockVersion: 1);
         _access = new CollectionAccessService(_accessStore, new FakeUnlockTokenProtector(), TimeProvider.System);
     }

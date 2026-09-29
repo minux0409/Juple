@@ -1,3 +1,4 @@
+import { KeyIcon } from '../../icons/KeyIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Image, StyleSheet, Text, TextInput } from 'react-native';
 import { collectionFilterColors } from '../../theme/tokens';
@@ -429,6 +430,19 @@ describe('CollectionsScreen card contents', () => {
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-shared').length).toBeGreaterThan(0);
     expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
     expect(renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.removeFavorite')).length).toBeGreaterThan(0);
+  });
+
+  it.each(['grid', 'list'] as const)('%s: a share password puts no key badge on the icon - the Collection lock keeps its own badge', async mode => {
+    mockSingleCollection({ ...sharedLockedFavorite, accessRole: 'owner', isSharePasswordProtected: true });
+    const renderer = await renderScreen();
+    if (mode === 'list') {
+      await switchToListView(renderer);
+    }
+
+    expect(renderer.root.findAllByType(KeyIcon)).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-share-password')).toHaveLength(0);
+    expect(renderer.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityLabel.includes('공유 비밀번호'))).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-badge-locked').length).toBeGreaterThan(0);
   });
 
   it.each(['grid', 'list'] as const)('%s: a Collection with its own photo shows the photo as its icon; without one, the built-in icon', async mode => {

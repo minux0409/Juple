@@ -25,5 +25,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^react-native-localize$': 'react-native-localize/mock',
+    // The package's own Jest mock (its native TurboModule does not exist under Jest).
+    '^@react-native-clipboard/clipboard$': '@react-native-clipboard/clipboard/jest/clipboard-mock.js',
   },
 };
