@@ -1,3 +1,4 @@
+using Juple.Application.Collections.Locking;
 using Juple.Application.Images;
 using Juple.Application.Images.BlobCleanup;
 
@@ -9,6 +10,14 @@ public sealed class DeleteAccountService(
     IBlobCleanupService blobCleanupService,
     TimeProvider timeProvider) : IDeleteAccountService
 {
+    public Task DeleteRecentlyAuthenticatedAsync(long userId, DateTimeOffset? authenticatedAtUtc, CancellationToken cancellationToken = default)
+    {
+        // The same rule (5 minutes, auth_time only, never iat or a client flag) as replacing the
+        // Collection lock password - one definition of "signed in again just now".
+        RecentAuthentication.Require(authenticatedAtUtc, timeProvider.GetUtcNow());
+        return DeleteAsync(userId, cancellationToken);
+    }
+
     public async Task DeleteAsync(long userId, CancellationToken cancellationToken = default)
     {
         var blobPrefix = itemImageStorage.GetUserBlobPrefix(userId);

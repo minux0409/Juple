@@ -1229,6 +1229,10 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("varchar(35)");
 
+                    b.Property<string>("ProfileImageBlobName")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
                     b.Property<string>("PublicCode")
                         .IsRequired()
                         .HasMaxLength(8)

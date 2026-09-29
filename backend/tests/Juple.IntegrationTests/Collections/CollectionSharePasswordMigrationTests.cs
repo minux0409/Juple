@@ -104,12 +104,21 @@ public sealed class CollectionSharePasswordMigrationTests : IAsyncLifetime
         Assert.Equal(before, await SnapshotAsync());
     }
 
+    /// <summary>
+    /// Raw SQL with only the columns the previous migration's Users table has - the current EF
+    /// model may carry Users columns added by later migrations (e.g. ProfileImageBlobName), which
+    /// this older schema does not have yet.
+    /// </summary>
     private async Task<long> NewUserAsync()
     {
-        var user = new User("ko-KR", "Asia/Seoul", null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
-        return user.Id;
+#pragma warning disable EF1002 // Test-only SQL; the only interpolated value is a freshly generated Juple ID.
+        return (await _db.Database.SqlQueryRaw<long>(
+            $"""
+            INSERT INTO [users].[Users] ([CreatedAtUtc], [DefaultCurrencyCode], [PreferredLocale], [TimeZoneId], [UpdatedAtUtc], [PublicCode])
+            OUTPUT INSERTED.[Id] AS [Value]
+            VALUES (SYSUTCDATETIME(), NULL, 'ko-KR', 'Asia/Seoul', SYSUTCDATETIME(), '{UserPublicCode.Generate()}');
+            """).ToListAsync()).Single();
+#pragma warning restore EF1002
     }
 
     private async Task<long> NewCollectionAsync(long ownerId, string name, bool locked, bool deleted = false)

@@ -1,4 +1,5 @@
 using Juple.Application.Friends;
+using Juple.Application.Users.Profile;
 using Juple.Domain.Friends;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -6,7 +7,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Friends;
 
-public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
+public sealed class FriendStore(
+    JupleDbContext dbContext,
+    IUserProfileImageStorage? profileImageStorage = null) : IFriendStore
 {
     public async Task<FriendRequestDto> CreateRequestAsync(
         long requesterUserId,
@@ -41,9 +44,11 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
 
         var recipient = await dbContext.Users.AsNoTracking()
             .Where(user => user.Id == recipientUserId)
-            .Select(user => new { user.PublicCode, user.DisplayName })
+            .Select(user => new { user.PublicCode, user.DisplayName, user.ProfileImageBlobName })
             .FirstAsync(cancellationToken);
-        return new FriendRequestDto(created.Id, recipient.PublicCode, recipient.DisplayName, FriendRequestDirections.Outgoing, created.CreatedAtUtc);
+        var image = await profileImageStorage.ResolveProfileImageAsync(recipientUserId, recipient.ProfileImageBlobName, cancellationToken);
+        return new FriendRequestDto(
+            created.Id, recipient.PublicCode, recipient.DisplayName, FriendRequestDirections.Outgoing, created.CreatedAtUtc, image.Url, image.Version);
     }
 
     private static string ConflictCodeFor(Friendship existing, long requesterUserId) =>
@@ -62,17 +67,26 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
             join other in dbContext.Users.AsNoTracking()
                 on (friendship.UserLowId == userId ? friendship.UserHighId : friendship.UserLowId) equals other.Id
             orderby friendship.CreatedAtUtc descending, friendship.Id descending
-            select new { friendship.Id, friendship.RequestedByUserId, friendship.CreatedAtUtc, other.PublicCode, other.DisplayName })
+            select new { friendship.Id, friendship.RequestedByUserId, friendship.CreatedAtUtc, OtherUserId = other.Id, other.PublicCode, other.DisplayName, other.ProfileImageBlobName })
             .Take(limit)
             .ToListAsync(cancellationToken);
 
-        return rows.Select(row => new FriendRequestDto(
+        // One query above for the whole list; each photo below is a local signing step, never a DB call.
+        var requests = new List<FriendRequestDto>(rows.Count);
+        foreach (var row in rows)
+        {
+            var image = await profileImageStorage.ResolveProfileImageAsync(row.OtherUserId, row.ProfileImageBlobName, cancellationToken);
+            requests.Add(new FriendRequestDto(
                 row.Id,
                 row.PublicCode,
                 row.DisplayName,
                 row.RequestedByUserId == userId ? FriendRequestDirections.Outgoing : FriendRequestDirections.Incoming,
-                row.CreatedAtUtc))
-            .ToList();
+                row.CreatedAtUtc,
+                image.Url,
+                image.Version));
+        }
+
+        return requests;
     }
 
     public async Task<AcceptedFriendRequest> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
@@ -214,14 +228,19 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
             .ToListAsync(cancellationToken);
 
         var hasMore = page.Count > limit;
-        var items = (hasMore ? page.GetRange(0, limit) : page).Select(ToDto).ToList();
+        var items = new List<FriendDto>(Math.Min(page.Count, limit));
+        foreach (var row in hasMore ? page.GetRange(0, limit) : page)
+        {
+            items.Add(await ToDtoAsync(row, cancellationToken));
+        }
+
         return new FriendPage(items, hasMore ? items[^1].FriendshipId : null);
     }
 
     private async Task<FriendDto?> GetFriendAsync(long userId, long friendshipId, CancellationToken cancellationToken)
     {
         var row = await FriendRows(userId).FirstOrDefaultAsync(entry => entry.FriendshipId == friendshipId, cancellationToken);
-        return row is null ? null : ToDto(row);
+        return row is null ? null : await ToDtoAsync(row, cancellationToken);
     }
 
     /// <summary>
@@ -238,8 +257,10 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
         select new FriendRow
         {
             FriendshipId = friendship.Id,
+            OtherUserId = other.Id,
             PublicCode = other.PublicCode,
             DisplayName = other.DisplayName,
+            ProfileImageBlobName = other.ProfileImageBlobName,
             MyNote = dbContext.FriendshipNotes
                 .Where(note => note.FriendshipId == friendship.Id && note.UserId == userId)
                 .Select(note => note.Note)
@@ -247,12 +268,20 @@ public sealed class FriendStore(JupleDbContext dbContext) : IFriendStore
             FriendsSinceUtc = friendship.AcceptedAtUtc ?? friendship.CreatedAtUtc,
         };
 
-    private static FriendDto ToDto(FriendRow row) =>
-        new(row.FriendshipId, row.PublicCode, row.DisplayName, row.MyNote, row.FriendsSinceUtc);
+    private async Task<FriendDto> ToDtoAsync(FriendRow row, CancellationToken cancellationToken)
+    {
+        var image = await profileImageStorage.ResolveProfileImageAsync(row.OtherUserId, row.ProfileImageBlobName, cancellationToken);
+        return new FriendDto(row.FriendshipId, row.PublicCode, row.DisplayName, row.MyNote, row.FriendsSinceUtc, image.Url, image.Version);
+    }
 
     private sealed class FriendRow
     {
         public long FriendshipId { get; init; }
+
+        /// <summary>Internal only - used to sign the photo, never returned.</summary>
+        public long OtherUserId { get; init; }
+
+        public string? ProfileImageBlobName { get; init; }
 
         public string PublicCode { get; init; } = null!;
 

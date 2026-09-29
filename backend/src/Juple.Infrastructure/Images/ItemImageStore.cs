@@ -4,6 +4,7 @@ using Azure.Storage.Sas;
 using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Images;
 using Juple.Application.Items;
+using Juple.Application.Users.Profile;
 using Juple.Domain.Images;
 using Juple.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ public sealed class ItemImageStore(
     BlobServiceClient blobServiceClient,
     BlobContainerClient blobContainerClient,
     UserDelegationKeyCache userDelegationKeyCache,
-    ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage, ICollectionIconImageStorage
+    ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage, ICollectionIconImageStorage, IUserProfileImageStorage
 {
     /// <summary>
     /// Total effective images (the auto-extracted PreviewImageUrl, if any, plus the user's own
@@ -373,6 +374,44 @@ public sealed class ItemImageStore(
         // A stored name outside this Owner's icon prefix is never signed (and never breaks a list).
         blobName.StartsWith(CollectionIconPrefix(ownerUserId), StringComparison.Ordinal)
             ? CreateReadUrlAsync(ownerUserId, blobName, cancellationToken)
+            : Task.FromResult<Uri?>(null);
+
+    // ---------- Profile photos (same container/prefix/signing as Item images) ----------
+
+    /// <summary>"items/{userId}/profile/" - inside the user's own prefix (so account deletion removes it) and never colliding with an Item's numeric "items/{userId}/{itemId}/" folder or "collections/".</summary>
+    private static string ProfileImagePrefix(long userId) => $"items/{userId}/profile/";
+
+    public async Task<string> UploadProfileImageAsync(
+        long userId,
+        ImageFormat format,
+        byte[] content,
+        CancellationToken cancellationToken = default)
+    {
+        var (contentType, extension) = GetFormatMetadata(format);
+        var blobName = $"{ProfileImagePrefix(userId)}{Guid.NewGuid():N}.{extension}";
+        await using var uploadStream = new MemoryStream(content, writable: false);
+        await blobContainerClient.GetBlobClient(blobName).UploadAsync(
+            uploadStream,
+            new BlobUploadOptions { HttpHeaders = new BlobHttpHeaders { ContentType = contentType } },
+            cancellationToken);
+        return blobName;
+    }
+
+    public async Task DeleteProfileImageAsync(long userId, string blobName, CancellationToken cancellationToken = default)
+    {
+        if (!blobName.StartsWith(ProfileImagePrefix(userId), StringComparison.Ordinal))
+        {
+            logger.LogWarning("Refusing to delete a Blob outside the user's profile-image prefix.");
+            return;
+        }
+
+        await DeleteBlobBestEffortAsync(blobName);
+    }
+
+    public Task<Uri?> CreateProfileImageReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default) =>
+        // A stored name outside this user's profile prefix is never signed (and never breaks a list).
+        blobName.StartsWith(ProfileImagePrefix(userId), StringComparison.Ordinal)
+            ? CreateReadUrlAsync(userId, blobName, cancellationToken)
             : Task.FromResult<Uri?>(null);
 
     /// <summary>Returns whether the delete (or a not-found no-op) succeeded, for callers that need

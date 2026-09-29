@@ -65,6 +65,42 @@ public sealed class DeleteAccountServiceTests
         await service.DeleteAsync(17);
     }
 
+    [Fact]
+    public async Task DeleteRecentlyAuthenticatedAsync_AfterAFreshSignIn_DeletesExactlyWhatDeleteAsyncDeletes()
+    {
+        var deletionStore = new FakeAccountDeletionStore();
+        var blobCleanupService = new FakeBlobCleanupService();
+        var service = new DeleteAccountService(deletionStore, new FakeItemImageStorage(), blobCleanupService, NewTimeProvider());
+
+        await service.DeleteRecentlyAuthenticatedAsync(17, authenticatedAtUtc: Now.AddMinutes(-1));
+
+        Assert.Equal(17L, deletionStore.LastUserId);
+        Assert.Equal("items/17/", deletionStore.LastBlobCleanupPrefix);
+        Assert.NotNull(blobCleanupService.LastTryCleanupCall);
+    }
+
+    public static TheoryData<DateTimeOffset?> StaleOrMissingSignIns => new()
+    {
+        null, // no verifiable auth_time on the token
+        Now.AddMinutes(-6), // older than RecentAuthentication.MaxAge (a refreshed session keeps its old auth_time)
+        Now.AddMinutes(5), // implausibly in the future
+    };
+
+    [Theory]
+    [MemberData(nameof(StaleOrMissingSignIns))]
+    public async Task DeleteRecentlyAuthenticatedAsync_WithoutARecentSignIn_DeletesNothing(DateTimeOffset? authenticatedAtUtc)
+    {
+        var deletionStore = new FakeAccountDeletionStore();
+        var blobCleanupService = new FakeBlobCleanupService();
+        var service = new DeleteAccountService(deletionStore, new FakeItemImageStorage(), blobCleanupService, NewTimeProvider());
+
+        await Assert.ThrowsAsync<Juple.Application.Collections.Locking.RecentAuthenticationRequiredException>(
+            () => service.DeleteRecentlyAuthenticatedAsync(17, authenticatedAtUtc));
+
+        Assert.Null(deletionStore.LastUserId);
+        Assert.Null(blobCleanupService.LastTryCleanupCall);
+    }
+
     private static FakeTimeProvider NewTimeProvider() => new(Now);
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

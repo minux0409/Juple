@@ -1,4 +1,6 @@
 using Juple.Api.Authentication;
+using Juple.Api.Collections;
+using Juple.Application.Collections.Locking;
 using Juple.Application.Identity;
 using Juple.Application.Users.CurrentUser;
 using Juple.Application.Users.DeleteAccount;
@@ -17,10 +19,12 @@ public sealed class AccountController(
 {
     /// <summary>
     /// Permanently deletes the current user's Juple account and all data Juple owns for it (see
-    /// IDeleteAccountService/IAccountDeletionStore). Not soft delete, not recoverable. A second
-    /// call with the same token after a first success hits CurrentJupleUserNotFoundException -
-    /// the identity no longer resolves to a Juple user - which is the expected, existing 409
-    /// semantics for this exception, not a bug.
+    /// IDeleteAccountService/IAccountDeletionStore). Not soft delete, not recoverable. Requires a
+    /// recent interactive sign-in: the access token's server-verified auth_time must be at most
+    /// RecentAuthentication.MaxAge old, otherwise 403 recentAuthenticationRequired and nothing is
+    /// deleted. A second call with the same token after a first success hits
+    /// CurrentJupleUserNotFoundException first - the identity no longer resolves to a Juple user -
+    /// which is the expected, existing 409 semantics for this exception, not a bug.
     /// </summary>
     [HttpDelete]
     public async Task<IActionResult> DeleteAsync(CancellationToken cancellationToken)
@@ -29,7 +33,8 @@ public sealed class AccountController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            await deleteAccountService.DeleteAsync(currentUser.UserId, cancellationToken);
+            await deleteAccountService.DeleteRecentlyAuthenticatedAsync(
+                currentUser.UserId, AuthenticationTimeClaim.Read(User), cancellationToken);
             return NoContent();
         }
         catch (CurrentJupleUserNotFoundException)
@@ -37,6 +42,10 @@ public sealed class AccountController(
             return Problem(
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Juple user bootstrap is required.");
+        }
+        catch (RecentAuthenticationRequiredException)
+        {
+            return CollectionProblems.RecentAuthenticationRequired();
         }
     }
 }

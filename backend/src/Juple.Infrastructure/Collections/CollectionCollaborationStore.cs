@@ -1,5 +1,6 @@
 ﻿using Juple.Application.Collections;
 using Juple.Application.Collections.Collaboration;
+using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -7,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Collections;
 
-public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICollectionCollaborationStore
+public sealed class CollectionCollaborationStore(
+    JupleDbContext dbContext,
+    IUserProfileImageStorage? profileImageStorage = null) : ICollectionCollaborationStore
 {
     public async Task<CollectionPendingInvitationDto> CreateInvitationAsync(
         long collectionId,
@@ -64,10 +67,11 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
         var invited = await dbContext.Users
             .AsNoTracking()
             .Where(user => user.Id == invitedUserId)
-            .Select(user => new { user.PublicCode, user.DisplayName })
+            .Select(user => new { user.PublicCode, user.DisplayName, user.ProfileImageBlobName })
             .FirstAsync(cancellationToken);
+        var invitedImage = await profileImageStorage.ResolveProfileImageAsync(invitedUserId, invited.ProfileImageBlobName, cancellationToken);
         return new CollectionPendingInvitationDto(
-            created.Id, invited.PublicCode, created.Role.ToString(), created.CreatedAtUtc, created.ExpiresAtUtc, invited.DisplayName);
+            created.Id, invited.PublicCode, created.Role.ToString(), created.CreatedAtUtc, created.ExpiresAtUtc, invited.DisplayName, invitedImage.Url, invitedImage.Version);
     }
 
     public async Task RevokeInvitationAsync(
@@ -196,7 +200,7 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             where collaborator.CollectionId == collectionId
             join user in dbContext.Users.AsNoTracking() on collaborator.UserId equals user.Id
             orderby collaborator.CreatedAtUtc, collaborator.Id
-            select new { user.PublicCode, user.DisplayName, collaborator.Role, collaborator.CreatedAtUtc })
+            select new { UserId = user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName, collaborator.Role, collaborator.CreatedAtUtc })
             .ToListAsync(cancellationToken);
 
         var pending = await (
@@ -206,13 +210,27 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
                 && invitation.ExpiresAtUtc > nowUtc
             join user in dbContext.Users.AsNoTracking() on invitation.InvitedUserId equals user.Id
             orderby invitation.CreatedAtUtc, invitation.Id
-            select new { invitation.Id, user.PublicCode, user.DisplayName, invitation.Role, invitation.CreatedAtUtc, invitation.ExpiresAtUtc })
+            select new { invitation.Id, UserId = user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName, invitation.Role, invitation.CreatedAtUtc, invitation.ExpiresAtUtc })
             .ToListAsync(cancellationToken);
 
-        return new CollectionCollaborationOverview(
-            collaborators.Select(row => new CollectionCollaboratorDto(row.PublicCode, row.Role.ToString(), row.CreatedAtUtc, row.DisplayName)).ToList(),
-            pending.Select(row => new CollectionPendingInvitationDto(
-                row.Id, row.PublicCode, row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.DisplayName)).ToList());
+        // Two queries above for everyone; each photo below is a local signing step, never a DB call.
+        var collaboratorDtos = new List<CollectionCollaboratorDto>(collaborators.Count);
+        foreach (var row in collaborators)
+        {
+            var image = await profileImageStorage.ResolveProfileImageAsync(row.UserId, row.ProfileImageBlobName, cancellationToken);
+            collaboratorDtos.Add(new CollectionCollaboratorDto(
+                row.PublicCode, row.Role.ToString(), row.CreatedAtUtc, row.DisplayName, image.Url, image.Version));
+        }
+
+        var pendingDtos = new List<CollectionPendingInvitationDto>(pending.Count);
+        foreach (var row in pending)
+        {
+            var image = await profileImageStorage.ResolveProfileImageAsync(row.UserId, row.ProfileImageBlobName, cancellationToken);
+            pendingDtos.Add(new CollectionPendingInvitationDto(
+                row.Id, row.PublicCode, row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.DisplayName, image.Url, image.Version));
+        }
+
+        return new CollectionCollaborationOverview(collaboratorDtos, pendingDtos);
     }
 
     public async Task<CollectionParticipantsDto> GetParticipantsAsync(
@@ -226,7 +244,7 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             from collection in dbContext.Collections.AsNoTracking()
             where collection.Id == collectionId
             join user in dbContext.Users.AsNoTracking() on collection.UserId equals user.Id
-            select new { user.Id, user.PublicCode, user.DisplayName })
+            select new { user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new CollectionNotFoundException();
 
@@ -235,15 +253,20 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
             where collaborator.CollectionId == collectionId
             join user in dbContext.Users.AsNoTracking() on collaborator.UserId equals user.Id
             orderby collaborator.CreatedAtUtc, collaborator.Id
-            select new { user.Id, user.PublicCode, user.DisplayName, collaborator.Role })
+            select new { user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName, collaborator.Role })
             .ToListAsync(cancellationToken);
 
+        var ownerImage = await profileImageStorage.ResolveProfileImageAsync(owner.Id, owner.ProfileImageBlobName, cancellationToken);
         var participants = new List<CollectionParticipantDto>
         {
-            new(owner.PublicCode, owner.DisplayName, CollectionDtoAccessRoles.Owner, owner.Id == callerUserId),
+            new(owner.PublicCode, owner.DisplayName, CollectionDtoAccessRoles.Owner, owner.Id == callerUserId, ownerImage.Url, ownerImage.Version),
         };
-        participants.AddRange(members.Select(member => new CollectionParticipantDto(
-            member.PublicCode, member.DisplayName, CollectionDtoAccessRoles.ForCollaborator(member.Role), member.Id == callerUserId)));
+        foreach (var member in members)
+        {
+            var image = await profileImageStorage.ResolveProfileImageAsync(member.Id, member.ProfileImageBlobName, cancellationToken);
+            participants.Add(new CollectionParticipantDto(
+                member.PublicCode, member.DisplayName, CollectionDtoAccessRoles.ForCollaborator(member.Role), member.Id == callerUserId, image.Url, image.Version));
+        }
 
         var pending = includePending
             ? (await GetOverviewAsync(collectionId, nowUtc, cancellationToken)).PendingInvitations
@@ -299,17 +322,25 @@ public sealed class CollectionCollaborationStore(JupleDbContext dbContext) : ICo
                 collection.Icon,
                 collection.Color,
                 OwnerPublicCode = owner.PublicCode,
+                OwnerUserId = owner.Id,
                 OwnerDisplayName = owner.DisplayName,
+                OwnerProfileImageBlobName = owner.ProfileImageBlobName,
                 invitation.Role,
                 invitation.CreatedAtUtc,
                 invitation.ExpiresAtUtc,
             })
             .ToListAsync(cancellationToken);
 
-        return rows.Select(row => new ReceivedCollectionInvitationDto(
+        var invitations = new List<ReceivedCollectionInvitationDto>(rows.Count);
+        foreach (var row in rows)
+        {
+            var ownerImage = await profileImageStorage.ResolveProfileImageAsync(row.OwnerUserId, row.OwnerProfileImageBlobName, cancellationToken);
+            invitations.Add(new ReceivedCollectionInvitationDto(
                 row.Id, row.CollectionId, row.Name, row.Icon.ToString(), row.Color, row.OwnerPublicCode,
-                row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.OwnerDisplayName))
-            .ToList();
+                row.Role.ToString(), row.CreatedAtUtc, row.ExpiresAtUtc, row.OwnerDisplayName, ownerImage.Url, ownerImage.Version));
+        }
+
+        return invitations;
     }
 
     public async Task AcceptAsync(long userId, long invitationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)

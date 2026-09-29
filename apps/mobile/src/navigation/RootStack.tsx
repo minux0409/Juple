@@ -3,14 +3,17 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
+import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
+import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
+import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { StartupProgressScreen } from '../screens/StartupProgressScreen';
@@ -68,6 +71,12 @@ export type RootStackParamList = {
   LanguageSettings: undefined;
   /** Settings > 컬렉션 잠금: the user's own locked Collections and the passwords this device remembers. */
   CollectionLockSettings: undefined;
+  /** 내 페이지 > 프로필 편집: the profile photo and nickname (the Juple ID is shown read-only). */
+  ProfileEdit: undefined;
+  /** 설정 > 계정 관리: Juple ID, sign-in method, password management where the provider offers it, and account deletion. */
+  AccountManagement: undefined;
+  /** 계정 관리 > 계정 삭제: warning, a fresh sign-in, then typing the Juple ID - never a single tap. */
+  DeleteAccount: undefined;
   Trash: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
@@ -160,6 +169,9 @@ export function RootStack() {
               options={{ title: t('nav.collectionLockSettings') }}
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash') }} />
+            <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit') }} />
+            <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title') }} />
+            <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle') }} />
           </Stack.Group>
         ) : isInitializing || isAuthenticated ? (
           <Stack.Screen

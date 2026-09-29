@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAppToast } from '../components/AppToast';
+import { UserAvatar } from '../components/UserAvatar';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import {
   acceptCollectionInvitation,
@@ -103,11 +104,20 @@ export function ReceivedInvitationsSheet({
                     <CategoryIconTile collectionId={invitation.collectionId} color={invitation.color} icon={invitation.icon} size={44} />
                     <View style={styles.headerText}>
                       <Text numberOfLines={2} style={styles.name}>{invitation.collectionName}</Text>
-                      <Text numberOfLines={1} style={styles.meta}>
-                        {t('collections.sharedByOwner', {
-                          jupleId: personLabel({ jupleId: invitation.ownerJupleId, displayName: invitation.ownerDisplayName }),
-                        })}
-                      </Text>
+                      <View style={styles.ownerRow}>
+                        <UserAvatar
+                          displayName={invitation.ownerDisplayName}
+                          imageUrl={invitation.ownerProfileImageUrl}
+                          imageVersion={invitation.ownerProfileImageVersion}
+                          jupleId={invitation.ownerJupleId}
+                          size={20}
+                        />
+                        <Text numberOfLines={1} style={[styles.meta, styles.ownerText]}>
+                          {t('collections.sharedByOwner', {
+                            jupleId: personLabel({ jupleId: invitation.ownerJupleId, displayName: invitation.ownerDisplayName }),
+                          })}
+                        </Text>
+                      </View>
                       {/* What accepting gives: 읽기 전용, or 읽기·쓰기 (view + add own links). */}
                       <Text numberOfLines={2} style={styles.meta} testID={`share-request-role-${invitation.invitationId}`}>
                         {invitationRoleOf(invitation.role) === 'viewer' ? t('collaboration.roleViewer') : t('collaboration.roleContributor')}
@@ -167,6 +177,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.background, borderRadius: radii.lg, marginTop: spacing.sm, padding: spacing.md },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
   headerText: { flex: 1, minWidth: 0 },
+  ownerRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: 2 },
+  ownerText: { flexShrink: 1, marginTop: 0 },
   name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },

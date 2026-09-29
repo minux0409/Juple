@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<IItemImageStore, ItemImageStore>();
         services.AddScoped<IItemImageStorage, ItemImageStore>();
         services.AddScoped<Juple.Application.Collections.SetCollectionIconImage.ICollectionIconImageStorage, ItemImageStore>();
+        services.AddScoped<Juple.Application.Users.Profile.IUserProfileImageStorage, ItemImageStore>();
 
         // Construction itself makes no network call, so this does not require a live Blob
         // endpoint at app startup - only whichever caller first resolves

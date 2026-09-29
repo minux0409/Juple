@@ -81,6 +81,28 @@ public sealed class User
         UpdatedAtUtc = updatedAtUtc;
     }
 
+    /// <summary>
+    /// The user's own profile photo (see UserProfileImage in Juple.Application), stored under the
+    /// user's own Blob prefix ("items/{Id}/profile/...") so account deletion's prefix cleanup
+    /// removes it. Null (the common case, and every user created before this existed): no photo -
+    /// clients show a fallback avatar.
+    /// </summary>
+    public string? ProfileImageBlobName { get; private set; }
+
+    /// <summary>Sets (or, with null, clears) the profile photo; returns the Blob it replaced, if any, for the caller to delete.</summary>
+    public string? SetProfileImage(string? blobName, DateTimeOffset updatedAtUtc)
+    {
+        var previous = ProfileImageBlobName;
+        if (previous == blobName)
+        {
+            return null;
+        }
+
+        ProfileImageBlobName = blobName;
+        UpdatedAtUtc = updatedAtUtc;
+        return previous;
+    }
+
     public void UpdateTimeZone(string timeZoneId, DateTimeOffset updatedAtUtc)
     {
         TimeZoneId = timeZoneId;

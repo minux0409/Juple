@@ -507,6 +507,28 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
 4. Production migration 순서: `AddCollectionSharePasswords` 적용 → secret/env 준비 → 새 API image
 5. 현재 runtime은 단일 active key만 지원(keyring 없음) - 키를 바꾸면 기존 암호문은 읽을 수 없다
 
+## Profile & Account (Round 21 - 아직 DEV 미배포)
+
+- Migration `AddUserProfileImage`: `users.Users.ProfileImageBlobName nvarchar(400) NULL` 하나만 추가(기존 row
+  변경 없음, 이전 API revision은 이 column을 모르고도 그대로 동작). 프로필 사진 Blob은 기존 container의
+  `items/{userId}/profile/{random}.{ext}` - 계정 삭제의 기존 prefix cleanup(`items/{userId}/`)이 그대로 지운다.
+  새 Azure 리소스/secret/Bicep 변경 없음.
+- **`DELETE /api/v1/account`는 이제 최근 재로그인을 요구한다**: 잠금 비밀번호 재설정과 같은
+  `RecentAuthentication`(access token `auth_time` 5분)으로, 아니면 `403 recentAuthenticationRequired`이고 아무것도
+  지우지 않는다. 이전 APK는 재로그인 없이 바로 DELETE를 보내므로 새 API에서는 계정 삭제가 403으로 실패한다(안전한
+  방향 - 데이터 손실 없음). API와 새 APK를 함께 배포한다.
+- 닉네임 정책(금지 문자·예약어·금지어)은 **변경할 때만** 적용된다. 기존 닉네임은 migration으로 바꾸지 않는다.
+  목록은 `backend/src/Juple.Application/Users/Profile/NicknameTerms.json`(embedded resource) - 바꾸면 API 재배포 필요.
+- 로그인 방식 표시는 access token의 `idp` claim으로 판단한다(Juple은 비밀번호/provider 기록을 저장하지 않는다).
+  `idp` 없음 = 이메일 계정. DEV에서 access token에 `idp`가 없는 것은 **아직 실측하지 않았다(NOT TESTED)** - 배포
+  후 실제 기기에서 계정 관리 화면이 "이메일"로 나오는지 확인한다.
+- "비밀번호 재설정"은 앱 내 변경이 아니라 `prompt=login` 로그인 화면을 여는 것이다(Entra External ID의 셀프
+  서비스 비밀번호 재설정을 그 화면에서 사용). DEV user flow `JupleSignUpSignIn`에서 비밀번호 재설정 링크가 실제로
+  노출·동작하는지(Email one-time passcode 인증 방법 활성화 필요 여부 포함) **NOT TESTED** - DEV 배포 전 확인한다.
+- **Google / Apple (launch requirement)**: `idp` 값 매핑(`google.com`, `apple.com` 등)과 `prompt=login` 이후
+  `auth_time` 갱신은 두 provider 모두 NOT TESTED다(위 "잠금 비밀번호 재설정" 절과 같은 A~D 실측 필요). 매핑되지 않는
+  `idp`는 "unknown"으로 표시되고 비밀번호 관리 메뉴가 나오지 않는다.
+
 ## 아직 provisioning되지 않은 것
 
 다음은 구독에 실제로 존재하지 않는다(subscription-wide 조회로 확인) — **not provisioned yet**:

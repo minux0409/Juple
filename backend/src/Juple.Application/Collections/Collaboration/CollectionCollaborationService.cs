@@ -1,5 +1,6 @@
 ﻿using Juple.Application.Collections.Access;
 using Juple.Application.Notifications;
+using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Domain.Users;
 
@@ -14,13 +15,16 @@ public sealed class CollectionCollaborationService(
     IUserDirectoryStore userDirectory,
     ICollectionCollaborationStore collaborationStore,
     TimeProvider timeProvider,
-    ISocialNotificationPublisher? notifications = null) : ICollectionCollaborationService
+    ISocialNotificationPublisher? notifications = null,
+    IUserProfileImageStorage? profileImageStorage = null) : ICollectionCollaborationService
 {
     public async Task<JupleIdLookupResult> LookupAsync(long userId, string? jupleId, CancellationToken cancellationToken = default)
     {
         var (targetUserId, publicCode) = await ResolveAsync(jupleId, cancellationToken);
+        var image = await profileImageStorage.ResolveProfileImageAsync(
+            targetUserId, await userDirectory.GetProfileImageBlobNameAsync(targetUserId, cancellationToken), cancellationToken);
         return new JupleIdLookupResult(
-            publicCode, targetUserId == userId, await userDirectory.GetDisplayNameAsync(targetUserId, cancellationToken));
+            publicCode, targetUserId == userId, await userDirectory.GetDisplayNameAsync(targetUserId, cancellationToken), image.Url, image.Version);
     }
 
     public async Task<string> GetMyJupleIdAsync(long userId, CancellationToken cancellationToken = default) =>

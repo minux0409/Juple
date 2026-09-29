@@ -8,12 +8,27 @@ namespace Juple.Application.Friends;
 /// <summary>
 /// An accepted friend as the caller sees them: public Juple ID, the friend's chosen display name,
 /// and the caller's OWN private note (never the friend's note about the caller). Never an internal
-/// id, email or identity-provider id.
+/// id, email or identity-provider id. ProfileImageUrl/Version: the friend's own photo (see
+/// UserProfileImageRef) - both null without one.
 /// </summary>
-public sealed record FriendDto(long FriendshipId, string JupleId, string? DisplayName, string? MyNote, DateTimeOffset FriendsSinceUtc);
+public sealed record FriendDto(
+    long FriendshipId,
+    string JupleId,
+    string? DisplayName,
+    string? MyNote,
+    DateTimeOffset FriendsSinceUtc,
+    string? ProfileImageUrl = null,
+    string? ProfileImageVersion = null);
 
 /// <summary>A pending request involving the caller. Direction is "incoming" (to answer) or "outgoing" (to cancel).</summary>
-public sealed record FriendRequestDto(long RequestId, string JupleId, string? DisplayName, string Direction, DateTimeOffset CreatedAtUtc);
+public sealed record FriendRequestDto(
+    long RequestId,
+    string JupleId,
+    string? DisplayName,
+    string Direction,
+    DateTimeOffset CreatedAtUtc,
+    string? ProfileImageUrl = null,
+    string? ProfileImageVersion = null);
 
 public static class FriendRequestDirections
 {

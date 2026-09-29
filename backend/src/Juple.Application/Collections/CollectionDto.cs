@@ -45,9 +45,16 @@ public sealed record CollectionDto(
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the
 /// optional display name they chose - never an internal id or an email. Role is "owner",
-/// "contributor" or "viewer". IsMe marks the caller in a full participant list.
+/// "contributor" or "viewer". IsMe marks the caller in a full participant list. The profile photo is
+/// filled in the full participant list only (not the card preview on every Collection).
 /// </summary>
-public sealed record CollectionParticipantDto(string JupleId, string? DisplayName, string Role, bool IsMe = false);
+public sealed record CollectionParticipantDto(
+    string JupleId,
+    string? DisplayName,
+    string Role,
+    bool IsMe = false,
+    string? ProfileImageUrl = null,
+    string? ProfileImageVersion = null);
 
 public static class CollectionParticipantSummary
 {

@@ -4,6 +4,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { UserAvatar } from '../components/UserAvatar';
 import { CrownIcon } from '../icons/CrownIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import {
@@ -108,6 +109,13 @@ export function CollectionParticipantsSheet({
             {isLoading && !data ? <ActivityIndicator style={styles.loading} /> : null}
             {data?.participants.map(participant => (
               <View key={participant.jupleId} style={styles.row} testID={`participants-sheet-${participant.jupleId}`}>
+                <UserAvatar
+                  displayName={participant.displayName}
+                  imageUrl={participant.profileImageUrl}
+                  imageVersion={participant.profileImageVersion}
+                  jupleId={participant.jupleId}
+                  size={32}
+                />
                 <View style={styles.rowText}>
                   <View style={styles.nameRow}>
                     {participant.role === 'owner' ? <OwnerCrown /> : null}
@@ -135,6 +143,13 @@ export function CollectionParticipantsSheet({
                 <Text style={styles.sectionTitle}>{t('collaboration.pendingCollaborationTitle')}</Text>
                 {data.pendingInvitations.map(invitation => (
                   <View key={invitation.invitationId} style={styles.row} testID={`participants-sheet-pending-${invitation.invitationId}`}>
+                    <UserAvatar
+                      displayName={invitation.displayName}
+                      imageUrl={invitation.profileImageUrl}
+                      imageVersion={invitation.profileImageVersion}
+                      jupleId={invitation.jupleId}
+                      size={32}
+                    />
                     <View style={styles.rowText}>
                       <Text numberOfLines={1} style={styles.name}>{personLabel(invitation)}</Text>
                       <Text style={styles.role}>{t(participantRoleLabelKey(invitationRoleOf(invitation.role)))}</Text>

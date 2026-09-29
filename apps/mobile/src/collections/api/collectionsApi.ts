@@ -84,6 +84,9 @@ export interface CollectionParticipant {
   readonly role: string;
   /** Only in a full participant list: marks the signed-in user. */
   readonly isMe?: boolean;
+  /** Only in a full participant list: the person's profile photo (signed URL + stable version). */
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
 }
 
 /**

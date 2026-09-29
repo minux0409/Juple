@@ -54,6 +54,13 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnType($"nvarchar({UserDisplayName.MaxStorageLength})")
             .HasMaxLength(UserDisplayName.MaxStorageLength);
 
+        // Nullable, no default: existing users simply have no photo. Same length as
+        // ItemImages.BlobName / Collections.IconImageBlobName (the same naming scheme under the
+        // user's own prefix). Not indexed - only ever read with the row it belongs to.
+        builder.Property(user => user.ProfileImageBlobName)
+            .HasColumnType("nvarchar(400)")
+            .HasMaxLength(400);
+
         // Exact Juple ID lookup (invitations) and the uniqueness invariant itself.
         builder.HasIndex(user => user.PublicCode)
             .IsUnique()

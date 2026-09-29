@@ -1,12 +1,12 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Share, Text } from 'react-native';
+import { Image, Text } from 'react-native';
 import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
 import { useAuth } from '../../auth/AuthContext';
 import { getReceivedCollectionInvitations } from '../../collections/api/collaborationApi';
-import { getMyProfile, setMyDisplayName } from '../../api/profileApi';
-import { ApiError } from '../../api/ApiError';
+import { getMyProfile } from '../../api/profileApi';
 import { getFriendRequests } from '../../friends/api/friendsApi';
+import { resetProfileImageCacheForTests } from '../../profile/profileImageCache';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
@@ -25,7 +25,6 @@ jest.mock('../../friends/api/friendsApi', () => ({
 jest.mock('../../api/profileApi', () => ({
   ...jest.requireActual('../../api/profileApi'),
   getMyProfile: jest.fn(),
-  setMyDisplayName: jest.fn(),
 }));
 
 const mockNavigate = jest.fn();
@@ -45,6 +44,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  resetProfileImageCacheForTests();
   jest.mocked(useAuth).mockReturnValue({ signOut: jest.fn(), userEmail: null } as never);
   jest.mocked(getMyProfile).mockResolvedValue({ displayName: null, jupleId: 'K7MP4Q8N' });
   jest.mocked(getReceivedCollectionInvitations).mockResolvedValue([
@@ -63,25 +63,46 @@ async function renderScreen() {
   return renderer;
 }
 
-describe('MyPageScreen Juple ID and collaboration invitations', () => {
-  it('shows my Juple ID (selectable, display-formatted) - never an internal id or email', async () => {
+const headerTexts = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findByProps({ testID: 'my-profile-header' }).findAllByType(Text).map(node => node.props.children);
+
+describe('MyPageScreen profile header', () => {
+  it('shows my Juple ID as @ID (selectable, display-formatted) - never an internal id or email', async () => {
     const renderer = await renderScreen();
 
-    const value = renderer.root.findAllByType(Text).find(node => node.props.children === 'K7MP-4Q8N');
-    expect(value).toBeDefined();
-    expect(value!.props.selectable).toBe(true);
+    const value = renderer.root.findByProps({ testID: 'my-juple-id' });
+    expect(value.props.children).toBe('@K7MP-4Q8N');
+    expect(value.props.selectable).toBe(true);
   });
 
-  it('copy/share hands the canonical ID to the OS share sheet (which offers Copy)', async () => {
-    const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as never);
+  it('says the nickname is not set, with a fallback avatar, when there is neither', async () => {
+    const renderer = await renderScreen();
+
+    expect(headerTexts(renderer)).toContain(i18n.t('myPage.nicknameNotSet'));
+    expect(renderer.root.findByProps({ testID: 'my-profile-header' }).findByProps({ testID: 'user-avatar-fallback' })).toBeTruthy();
+  });
+
+  it('shows the nickname and the profile photo', async () => {
+    jest.mocked(getMyProfile).mockResolvedValue({
+      displayName: '피카츄',
+      jupleId: 'K7MP4Q8N',
+      profileImageUrl: 'https://blob/me?sig=1',
+      profileImageVersion: 'v1',
+    });
+    const renderer = await renderScreen();
+
+    expect(headerTexts(renderer)).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N']));
+    const header = renderer.root.findByProps({ testID: 'my-profile-header' });
+    expect(header.findByType(Image).props.source.uri).toBe('https://blob/me?sig=1');
+  });
+
+  it('프로필 편집 opens the Profile Edit screen', async () => {
     const renderer = await renderScreen();
 
     await act(async () => {
-      renderer.root.findByProps({ testID: 'my-juple-id-copy' }).props.onPress();
+      renderer.root.findByProps({ testID: 'my-profile-edit' }).props.onPress();
     });
-
-    expect(shareSpy).toHaveBeenCalledWith({ message: 'K7MP4Q8N' });
-    shareSpy.mockRestore();
+    expect(mockNavigate).toHaveBeenCalledWith('ProfileEdit');
   });
 
   it('has no 초대 및 공동작업 entry - received collaboration invitations live under Categories > 공유 카테고리', async () => {
@@ -95,65 +116,7 @@ describe('MyPageScreen Juple ID and collaboration invitations', () => {
   });
 });
 
-describe('MyPageScreen display name', () => {
-  const texts = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    renderer.root.findByProps({ testID: 'my-display-name' }).findAllByType(Text).map(node => node.props.children);
-
-  it('says it is not set (the Juple ID stands in) when there is none', async () => {
-    const renderer = await renderScreen();
-
-    expect(texts(renderer)).toContain(i18n.t('myPage.nicknameNotSet'));
-  });
-
-  it('shows the name, and saves a new one through the profile API', async () => {
-    jest.mocked(getMyProfile).mockResolvedValue({ displayName: '피카츄', jupleId: 'K7MP4Q8N' });
-    jest.mocked(setMyDisplayName).mockResolvedValue({ displayName: '파이리', jupleId: 'K7MP4Q8N' });
-    const renderer = await renderScreen();
-    expect(texts(renderer)).toContain('피카츄');
-
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'my-display-name-edit' }).props.onPress();
-    });
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'display-name-input' }).props.onChangeText('  파이리 ');
-    });
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'display-name-save' }).props.onPress();
-    });
-
-    expect(setMyDisplayName).toHaveBeenCalledWith(expect.anything(), '  파이리 ');
-    expect(texts(renderer)).toContain('파이리');
-  });
-
-  it('shows why an invalid name was refused, keeping the dialog open', async () => {
-    jest.mocked(setMyDisplayName).mockRejectedValue(new ApiError('badRequest', 400));
-    const renderer = await renderScreen();
-
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'my-display-name-edit' }).props.onPress();
-    });
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'display-name-save' }).props.onPress();
-    });
-
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('myPage.displayNameInvalid'))).toBe(true);
-    expect(renderer.root.findByProps({ testID: 'display-name-input' })).toBeTruthy();
-  });
-});
-
-describe('MyPageScreen compact account card and friends entry', () => {
-  it('shows the account, 닉네임 and Juple ID as rows of one card - with no long explanation', async () => {
-    jest.mocked(getMyProfile).mockResolvedValue({ displayName: '쥬플', jupleId: '6WAUWBER' });
-    const renderer = await renderScreen();
-
-    const card = renderer.root.findByProps({ testID: 'my-account-card' });
-    const shown = card.findAllByType(Text).map(node => node.props.children);
-    expect(shown).toEqual(expect.arrayContaining(['닉네임', '쥬플', 'Juple ID', '6WAU-WBER']));
-    expect(card.findByProps({ testID: 'my-display-name' })).toBeTruthy();
-    expect(card.findByProps({ testID: 'my-juple-id' })).toBeTruthy();
-    expect(renderer.root.findAllByType(Text).some(node => String(node.props.children).includes('공동작업하는 사람들에게'))).toBe(false);
-  });
-
+describe('MyPageScreen friends entry', () => {
   it('has a 친구 entry with the number of received friend requests, separate from collaboration invitations', async () => {
     jest.mocked(getFriendRequests).mockResolvedValue([
       { requestId: 1, jupleId: 'AAAA2345', displayName: null, direction: 'incoming', createdAtUtc: '' },

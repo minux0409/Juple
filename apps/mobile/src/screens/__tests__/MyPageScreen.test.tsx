@@ -68,19 +68,9 @@ function findTextValues(renderer: ReactTestRenderer.ReactTestRenderer): unknown[
   return renderer.root.findAllByType(Text).map(node => node.props.children);
 }
 
-/** Finds the Text node with exactly this children text, then walks up to its nearest onPress-bearing ancestor. */
-function findPressableContainingText(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
-  let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findByProps({ children: text });
-  while (node && typeof node.props.onPress !== 'function') {
-    node = node.parent;
-  }
-  return node;
-}
-
 /**
- * MyPageScreen renders two ConfirmDialogs (sign-out, account-deletion), each a Modal always
- * present in the tree with its own `visible` prop - only the currently-open one is queried, so a
- * shared button label (both dialogs' Cancel is 취소) still resolves unambiguously.
+ * MyPageScreen renders one ConfirmDialog (sign-out), a Modal always present in the tree with its
+ * own `visible` prop - only the currently-open one is queried.
  */
 function getConfirmDialogButton(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
   const openDialog = renderer.root.findAll(node => node.type === Modal && node.props.visible === true)[0];
@@ -96,41 +86,18 @@ function isInsideModal(node: ReactTestRenderer.ReactTestInstance): boolean {
   return false;
 }
 
-/** The settings-list sign-out row (see MyPageScreen's own settingsGroup) shares its label text
- * (로그아웃) with the sign-out ConfirmDialog's confirm button - excluding anything inside a Modal
- * disambiguates the two. The row itself has no accessibilityLabel (same as every other
- * settingsRow, e.g. 언어) - it's found by its onPress-bearing ancestor containing that label Text. */
-function findSignOutRow(renderer: ReactTestRenderer.ReactTestRenderer) {
+/** A settings row (outside any Modal) by the label text it contains. */
+function findSettingsRow(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
   return renderer.root
     .findAll(
       node =>
         typeof node.props.onPress === 'function' &&
-        node.findAll(inner => inner.props.children === i18n.t('auth.logout')).length > 0,
+        node.findAll(inner => inner.props.children === label).length > 0,
     )
     .find(node => !isInsideModal(node));
 }
 
-describe('MyPageScreen account section', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("renders the user's email when available", async () => {
-    mockUseAuth({ userEmail: 'user@example.com' });
-    const renderer = await renderScreen();
-
-    expect(findTextValues(renderer)).toContain('user@example.com');
-  });
-
-  it('falls back to the generic signed-in message when no email is available (never a placeholder)', async () => {
-    mockUseAuth({ userEmail: null });
-    const renderer = await renderScreen();
-
-    expect(findTextValues(renderer)).toContain(i18n.t('myPage.loggedInAs'));
-  });
-});
-
-describe('MyPageScreen trash entry point', () => {
+describe('MyPageScreen settings entry points', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -139,19 +106,24 @@ describe('MyPageScreen trash entry point', () => {
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
-    const trashRow = renderer.root
-      .findAll(
-        node =>
-          typeof node.props.onPress === 'function' &&
-          node.findAll(inner => inner.props.children === i18n.t('settings.trash')).length > 0,
-      )
-      .find(node => !isInsideModal(node));
-
     await act(async () => {
-      trashRow!.props.onPress();
+      findSettingsRow(renderer, i18n.t('settings.trash'))!.props.onPress();
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('Trash');
+  });
+
+  it('has a 계정 관리 row that opens Account Management', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    const row = renderer.root.findByProps({ testID: 'my-account-management' });
+    expect(row.findAllByType(Text).map(node => node.props.children)).toContain(i18n.t('account.title'));
+    await act(async () => {
+      row.props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('AccountManagement');
   });
 
   it('has no developer re-authentication test entry (removed after the DEV measurement)', async () => {
@@ -176,7 +148,7 @@ describe('MyPageScreen sign-out', () => {
 
     const renderer = await renderScreen();
 
-    const signOutRow = findSignOutRow(renderer);
+    const signOutRow = findSettingsRow(renderer, i18n.t('auth.logout'));
     expect(signOutRow).toBeDefined();
 
     await act(async () => {
@@ -197,10 +169,8 @@ describe('MyPageScreen sign-out', () => {
     mockUseAuth({ signOut, userEmail: null });
     const renderer = await renderScreen();
 
-    const signOutRow = findSignOutRow(renderer);
-
     await act(async () => {
-      signOutRow!.props.onPress();
+      findSettingsRow(renderer, i18n.t('auth.logout'))!.props.onPress();
     });
 
     await act(async () => {
@@ -230,45 +200,22 @@ describe('MyPageScreen has no plan tiers', () => {
   });
 });
 
-describe('MyPageScreen account deletion', () => {
+describe('MyPageScreen account deletion is not on My Page', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('gates account deletion behind the shared ConfirmDialog, and only deletes after confirming', async () => {
-    const signOut = jest.fn();
-    mockUseAuth({ signOut, userEmail: null });
-    jest.mocked(deleteAccount).mockResolvedValue(undefined);
-    const renderer = await renderScreen();
-
-    const deleteButton = findPressableContainingText(renderer, i18n.t('myPage.deleteAccount'));
-    await act(async () => {
-      deleteButton!.props.onPress();
-    });
-
-    expect(deleteAccount).not.toHaveBeenCalled();
-
-    await act(async () => {
-      getConfirmDialogButton(renderer, i18n.t('common.delete')).props.onPress();
-    });
-
-    expect(deleteAccount).toHaveBeenCalledWith(expect.anything());
-    expect(signOut).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not delete the account when the ConfirmDialog is cancelled', async () => {
+  it('shows no delete-account action at the top level - it lives under 계정 관리', async () => {
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
-    const deleteButton = findPressableContainingText(renderer, i18n.t('myPage.deleteAccount'));
-    await act(async () => {
-      deleteButton!.props.onPress();
-    });
-
-    await act(async () => {
-      getConfirmDialogButton(renderer, i18n.t('common.cancel')).props.onPress();
-    });
-
+    expect(findTextValues(renderer)).not.toContain(i18n.t('account.deleteAction'));
+    expect(findTextValues(renderer)).not.toContain(i18n.t('deleteAccount.deleteNow'));
+    for (const node of renderer.root.findAll(candidate => typeof candidate.props.onPress === 'function')) {
+      await act(async () => {
+        node.props.onPress();
+      });
+    }
     expect(deleteAccount).not.toHaveBeenCalled();
   });
 });

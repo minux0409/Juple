@@ -287,12 +287,13 @@ public sealed class CollectionFavoritesAndParticipantsIntegrationTests : IAsyncL
     public async Task DisplayName_EveryMaxValidValue_IsActuallyStorable_AndRoundTripsExactly()
     {
         var family = "\U0001F468\u200D\U0001F469\u200D\U0001F467";
-        var stacked = (int marks) => "e" + new string('\u0301', marks);
+        // One text element of 170 ZWJ-joined emoji (509 UTF-16 units) + 3 letters = exactly the 512-unit column.
+        var zwjChain = string.Join("\u200D", Enumerable.Repeat("\U0001F600", 170));
         foreach (var value in new[]
                  {
                      string.Concat(Enumerable.Repeat("가", UserDisplayName.MaxTextElements)),
                      string.Concat(Enumerable.Repeat(family, UserDisplayName.MaxTextElements)),
-                     string.Concat(Enumerable.Repeat(stacked(16), 29)) + stacked(18), // exactly 512 units
+                     zwjChain + "abc", // exactly 512 units
                  })
         {
             Assert.True(UserDisplayName.TryNormalize(value, out _, out _));

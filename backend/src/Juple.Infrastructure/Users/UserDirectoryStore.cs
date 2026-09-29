@@ -27,4 +27,11 @@ public sealed class UserDirectoryStore(JupleDbContext dbContext) : IUserDirector
             .Where(user => user.Id == userId)
             .Select(user => user.DisplayName)
             .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<string?> GetProfileImageBlobNameAsync(long userId, CancellationToken cancellationToken = default) =>
+        await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.ProfileImageBlobName)
+            .FirstOrDefaultAsync(cancellationToken);
 }

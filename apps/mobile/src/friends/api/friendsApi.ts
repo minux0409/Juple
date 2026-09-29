@@ -12,6 +12,9 @@ export interface Friend {
   readonly displayName: string | null;
   readonly myNote: string | null;
   readonly friendsSinceUtc: string;
+  /** The friend's own profile photo (signed URL + stable version) - both absent/null without one. */
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
 }
 
 export type FriendRequestDirection = 'incoming' | 'outgoing';
@@ -22,6 +25,8 @@ export interface FriendRequest {
   readonly displayName: string | null;
   readonly direction: FriendRequestDirection;
   readonly createdAtUtc: string;
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
 }
 
 export interface FriendsPage {

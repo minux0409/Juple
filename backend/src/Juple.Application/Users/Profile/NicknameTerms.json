@@ -1,0 +1,34 @@
+{
+  "$comment": [
+    "Nickname terms enforced by NicknamePolicy (embedded resource - edit here, not in code).",
+    "Every term and every nickname are compared by the same match key: NFKD, lowercased, only letters and digits kept (spaces, punctuation, symbols, emoji and accents dropped), NFC. So 'J U P L E', 'juple.official' and 'ＪＵＰＬＥ' all reach 'juple...'.",
+    "exact: the WHOLE nickname's key equals the term's key. Use it for short words that also occur inside normal words or names (ass in 'Cassandra', 시발 in '시발점', 보지 in '보지 마').",
+    "contains: the term's key appears anywhere in the nickname's key. Only for terms with no ordinary word containing them - every addition needs a false-positive test in NicknamePolicyTests.",
+    "reserved = impersonating Juple or its staff (code nicknameReserved); prohibited = obvious slurs/abuse (code nicknameProhibited). Not an exhaustive dictionary - Korean and English baseline only."
+  ],
+  "reserved": {
+    "exact": [
+      "admin", "administrator", "sysadmin", "root", "moderator", "operator", "official", "officialaccount",
+      "support", "supportteam", "helpdesk", "customerservice", "customersupport", "staff", "system", "security",
+      "관리자", "운영자", "운영진", "운영팀", "고객센터", "고객지원", "공식", "공식계정", "시스템", "보안팀",
+      "管理者", "運営", "公式", "サポート", "システム",
+      "管理员", "管理員", "官方", "客服", "系统", "系統",
+      "administrador", "soporte", "suporte", "administrateur", "amministratore", "yönetici", "quản trị viên",
+      "администратор", "поддержка", "مسؤول", "مشرف", "व्यवस्थापक", "ผู้ดูแลระบบ"
+    ],
+    "contains": [
+      "juple", "쥬플", "주플"
+    ]
+  },
+  "prohibited": {
+    "exact": [
+      "ass", "shit", "dick", "cock", "cunt", "pussy", "slut", "rape", "retard", "porn", "sex", "nazi", "penis",
+      "bastard", "kike", "chink", "rapist",
+      "시발", "ㅅㅂ", "ㅆㅂ", "새끼", "보지", "자지", "닥쳐", "미친놈", "미친년"
+    ],
+    "contains": [
+      "fuck", "bitch", "whore", "asshole", "nigger", "nigga", "faggot", "hitler", "killyourself",
+      "씨발", "씨바", "씨팔", "병신", "좆", "개새끼", "지랄", "섹스", "엠창", "느금마", "니애미", "한남충", "김치녀", "틀딱"
+    ]
+  }
+}

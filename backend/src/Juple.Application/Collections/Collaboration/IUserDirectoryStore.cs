@@ -10,4 +10,8 @@ public interface IUserDirectoryStore
     /// <summary>The user's own chosen display name, or null when they have not set one.</summary>
     Task<string?> GetDisplayNameAsync(long userId, CancellationToken cancellationToken = default) =>
         Task.FromResult<string?>(null);
+
+    /// <summary>The user's profile photo Blob name (the caller signs it), or null without one.</summary>
+    Task<string?> GetProfileImageBlobNameAsync(long userId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<string?>(null);
 }

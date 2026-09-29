@@ -4,8 +4,8 @@ import type { CollectionParticipant } from './collectionsApi';
 
 /**
  * Sharing a Collection with specific people - people are identified to each other only by their
- * public Juple ID and the display name they chose themselves; the server never returns an internal
- * id or an email. Typing a Juple ID never grants anything by itself: the Owner invites, and only the
+ * public Juple ID, the display name they chose themselves and their optional profile photo; the
+ * server never returns an internal id or an email. Typing a Juple ID never grants anything by itself: the Owner invites, and only the
  * invited person can accept.
  */
 
@@ -16,6 +16,8 @@ export interface CollectionPendingInvitation {
   readonly createdAtUtc: string;
   readonly expiresAtUtc: string;
   readonly displayName?: string | null;
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
 }
 
 /**
@@ -36,6 +38,8 @@ export interface ReceivedCollectionInvitation {
   readonly color: string | null;
   readonly ownerJupleId: string;
   readonly ownerDisplayName?: string | null;
+  readonly ownerProfileImageUrl?: string | null;
+  readonly ownerProfileImageVersion?: string | null;
   readonly role: string;
   readonly createdAtUtc: string;
   readonly expiresAtUtc: string;
@@ -46,6 +50,8 @@ export interface JupleIdLookupResult {
   readonly isSelf: boolean;
   /** The person's own chosen display name, if they set one. */
   readonly displayName?: string | null;
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
 }
 
 /**
