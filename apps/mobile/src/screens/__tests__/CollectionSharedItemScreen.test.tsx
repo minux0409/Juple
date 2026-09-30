@@ -51,6 +51,10 @@ describe('CollectionSharedItemScreen', () => {
     expect(title.props.value).toBe('Shared title');
     expect(title.props.editable).toBe(false);
     expect(renderer.root.findByProps({ testID: 'shared-item-url' }).props.children).toBe('https://example.com/a');
+    // Who saved it, and nothing more - the old "보고 열 수는 있지만…" sentence is gone.
+    const shown = renderer.root.findAllByType(Text).map(node => node.props.children);
+    expect(shown).toContain('다른 참여자가 저장한 링크입니다.');
+    expect(JSON.stringify(shown)).not.toContain('수정할 수는 없습니다');
 
     await act(async () => {
       await renderer.root.findByProps({ testID: 'shared-item-open' }).props.onPress();

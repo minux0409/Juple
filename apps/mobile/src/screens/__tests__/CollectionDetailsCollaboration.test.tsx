@@ -1,4 +1,6 @@
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { BellIcon } from '../../icons/BellIcon';
+import { CopyIcon } from '../../icons/CopyIcon';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import ReactTestRenderer, { act } from 'react-test-renderer';
@@ -217,6 +219,12 @@ const row = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItem
 const hasLabel = (part: ReactTestRenderer.ReactTestRenderer, label: string) =>
   part.root.findAll(node => node.props.accessibilityLabel === label).length > 0;
 
+/** The header's own buttons, in order. */
+const headerButtonIds = (part: ReactTestRenderer.ReactTestRenderer) =>
+  part.root
+    .findAll(node => typeof node.props.testID === 'string' && typeof node.props.onPress === 'function' && /^collection-details-(favorite|notifications|share|more)$/.test(node.props.testID))
+    .map(node => node.props.testID as string);
+
 describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
   const ownersLink = makeItem({ itemId: 2, title: 'Owner link', isMine: false });
 
@@ -249,11 +257,12 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     ]) {
       expect(hasLabel(top, label)).toBe(false);
     }
-    // Their ⋯ holds only what is theirs: their own 새 링크 알림 and copying into their own Collection.
-    expect(await recipientMenuLabels(renderer)).toEqual([
-      i18n.t('collections.newLinkNotificationsOn'),
-      i18n.t('collections.copyToMine'),
-    ]);
+    // [★] [🔔] [⋯]: their own 새 링크 알림 is the bell; the ⋯ holds only copying into their own Collection.
+    expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine')]);
+    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
+    expect(menu.findAllByType(BellIcon)).toHaveLength(0);
+    expect(menu.findAllByType(CopyIcon)).toHaveLength(1);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(getCollectionShare).not.toHaveBeenCalled();
     expect(findItemList(renderer).props.data).toEqual([ownersLink]);
@@ -312,24 +321,26 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     clearCollectionUnlockGrants();
   });
 
-  it('turns 새 링크 알림 off at once, and flips it back with a message when saving fails', async () => {
+  it('the header bell turns 새 링크 알림 off at once, and flips it back with a message when saving fails', async () => {
     jest.mocked(setCollectionNotificationPreference).mockResolvedValueOnce({ newItemNotificationsEnabled: false });
     const renderer = await renderScreen();
     expect(getCollectionNotificationPreference).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID);
+    const bell = () => header(renderer).root.findAll(node => node.props.testID === 'collection-details-notifications' && typeof node.props.onPress === 'function')[0];
+    const pressBell = async () => {
+      const onPress = bell().props.onPress;
+      await act(async () => onPress());
+    };
 
-    await pressMenu(renderer, i18n.t('collections.newLinkNotificationsOn'));
-    const switchOf = () => renderer.root.findAll(node => node.props.testID === 'collection-notification-switch' && typeof node.props.onValueChange === 'function')[0];
-    expect(switchOf().props.value).toBe(true);
-
-    await act(async () => switchOf().props.onValueChange(false));
+    expect(bell().props.accessibilityLabel).toBe(i18n.t('collections.newLinkNotificationsOnA11y'));
+    await pressBell();
     expect(setCollectionNotificationPreference).toHaveBeenLastCalledWith(expect.anything(), COLLECTION_ID, false);
-    expect(switchOf().props.value).toBe(false);
-    expect(await recipientMenuLabels(renderer)).toContain(i18n.t('collections.newLinkNotificationsOff'));
+    expect(bell().props.accessibilityLabel).toBe(i18n.t('collections.newLinkNotificationsOffA11y'));
+    // No dialog any more - the bell is the whole control.
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-notification-dialog')).toHaveLength(0);
 
     jest.mocked(setCollectionNotificationPreference).mockRejectedValueOnce(new Error('offline'));
-    await pressMenu(renderer, i18n.t('collections.newLinkNotificationsOff'));
-    await act(async () => switchOf().props.onValueChange(true));
-    expect(switchOf().props.value).toBe(false); // rolled back
+    await pressBell();
+    expect(bell().props.accessibilityLabel).toBe(i18n.t('collections.newLinkNotificationsOffA11y')); // rolled back
     expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.newLinkNotificationsError'))).toBe(true);
   });
 
@@ -372,7 +383,10 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     jest.mocked(getCollectionItems).mockRejectedValue(new ApiError('forbidden', 403, 'sharePasswordRequired'));
     const renderer = await renderScreen();
 
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.newLinkNotificationsOn')]);
+    // Nothing to copy yet, so no ⋯ at all - their own bell is still there.
+    const top = header(renderer);
+    expect(top.root.findAll(node => node.props.testID === 'collection-details-more')).toHaveLength(0);
+    expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications']);
   });
 });
 
@@ -477,11 +491,9 @@ describe('CollectionDetailsScreen - Contributor', () => {
     ]) {
       expect(hasLabel(top, label)).toBe(false);
     }
-    // Their ⋯ holds only what is theirs: their own 새 링크 알림 and copying into their own Collection.
-    expect(await recipientMenuLabels(renderer)).toEqual([
-      i18n.t('collections.newLinkNotificationsOn'),
-      i18n.t('collections.copyToMine'),
-    ]);
+    // Their own bell in the header; the ⋯ holds only copying into their own Collection.
+    expect(headerButtonIds(top)).toContain('collection-details-notifications');
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine')]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(top.root.findAllByType(Switch)).toHaveLength(0);
     // Share management is never even queried for a Contributor.

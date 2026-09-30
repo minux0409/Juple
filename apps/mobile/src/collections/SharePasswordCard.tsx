@@ -6,8 +6,9 @@ import { ActivityIndicator, AppState, Modal, Platform, Pressable, StyleSheet, Sw
 import Clipboard from '@react-native-clipboard/clipboard';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import { useAppToast } from '../components/AppToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { EyeIcon } from '../icons/EyeIcon';
+import { EyeOffIcon } from '../icons/EyeOffIcon';
 import { KeyIcon } from '../icons/KeyIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import {
@@ -21,6 +22,9 @@ import {
 import { beginCollectionVisit } from './collectionUnlockGrants';
 import { CollectionUnlockPanel } from './CollectionUnlockPanel';
 import { isCollectionLockedError } from './useCollectionItems';
+
+/** One dot per character while the password is hidden. */
+const PASSWORD_MASK = '•';
 
 /** Mirrors the server's CollectionSharePasswordPolicy: 4-64 characters, no control characters, no surrounding spaces. */
 export const SHARE_PASSWORD_MIN_LENGTH = 4;
@@ -74,8 +78,9 @@ interface SharePasswordCardProps {
  * 컬렉션 잠금): the Owner is never asked for this one, recipients never for the lock.
  *
  * The switch is the only on/off control: on asks for a password, off (after a confirmation) removes
- * the protection - the sharing itself stays. While it is on, the Owner simply sees the password:
- * each time this screen is focused, the card asks the owner-only reveal endpoint for it (the general
+ * the protection - the sharing itself stays. While it is on, the password is shown masked (••••) until
+ * the Owner taps the eye; 복사 copies the real password either way. Each visit and each return to the
+ * foreground starts masked again. To have it at all, each time this screen is focused, the card asks the owner-only reveal endpoint for it (the general
  * status response never carries it) and holds it in component state only - never stored, logged or
  * reported - and drops it as soon as the screen loses focus or the app leaves the foreground
  * (background/inactive); back in the foreground on this same screen, it is revealed again. A reveal
@@ -85,7 +90,6 @@ interface SharePasswordCardProps {
  */
 export function SharePasswordCard({ collectionId, authenticatedRequest, onModeChange }: SharePasswordCardProps) {
   const { t } = useTranslation();
-  const { showNotificationToast } = useAppToast();
   const [status, setStatus] = useState<SharePasswordStatus | null>(null);
   const [password, setPassword] = useState<string | null>(null);
   const [busy, setBusy] = useState<'load' | 'save' | 'remove' | null>('load');
@@ -93,6 +97,9 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
   const [needsLockUnlock, setNeedsLockUnlock] = useState(false);
   const [dialog, setDialog] = useState<'set' | 'change' | null>(null);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
+  // Shown in plain text only after the eye is tapped - display only; the password itself is held
+  // (and dropped) exactly as below either way.
+  const [isRevealed, setIsRevealed] = useState(false);
   // Only a focused screen of an app in the foreground may hold the password. Every reveal carries a
   // generation; losing focus, leaving the foreground or saving a new password starts a new one, so an
   // answer that arrives after any of that is dropped instead of bringing the password back.
@@ -104,6 +111,7 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
   const forgetPassword = useCallback(() => {
     revealGenerationRef.current += 1;
     setPassword(null);
+    setIsRevealed(false);
   }, []);
 
   // A lock grant entered here is kept only while this screen (or the Collection itself) is open.
@@ -184,9 +192,9 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
   }, [loadedMode, onModeChange]);
 
   /**
-   * Copies exactly the password on screen - the password itself is never logged, reported or put in
-   * any message. A platform refusal only says so and points to the selectable text; it never breaks
-   * the screen.
+   * Copies the real password, masked or shown - the password itself is never logged, reported or put
+   * in any message. No toast of its own: the OS already says "copied" (as with the Juple ID). A
+   * platform refusal only says so - it never shows the password and never breaks the screen.
    */
   const copy = () => {
     if (password === null) {
@@ -195,8 +203,8 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
     try {
       Clipboard.setString(password);
       setError(null);
-      showNotificationToast(t('collections.sharePasswordCopied'));
     } catch {
+      // Only a short reason - it stays masked until the Owner taps the eye.
       setError(t('collections.sharePasswordCopyFailed'));
     }
   };
@@ -259,7 +267,7 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
     <View style={styles.card} testID="share-password-card">
       <View style={styles.header}>
         <View style={styles.headerIcon}>
-          <KeyIcon color={colors.textSecondary} size={18} />
+          <KeyIcon color={colors.textSecondary} size={16} />
         </View>
         <Text accessibilityRole="header" style={styles.title}>{t('collections.sharePasswordTitle')}</Text>
         {status ? (
@@ -309,17 +317,30 @@ export function SharePasswordCard({ collectionId, authenticatedRequest, onModeCh
       {mode === 'perCollection' && !needsLockUnlock ? (
         <View style={styles.enabled} testID="share-password-enabled">
           <View style={styles.valueBox}>
-            {password !== null ? (
-              <Text selectable style={[styles.value, ltrTextStyle]} testID="share-password-value">{password}</Text>
-            ) : (
-              <ActivityIndicator size="small" testID="share-password-value-loading" />
-            )}
+            <View style={styles.valueSlot}>
+              {password !== null ? (
+                <Text numberOfLines={1} selectable={isRevealed} style={[styles.value, ltrTextStyle]} testID="share-password-value">
+                  {isRevealed ? password : PASSWORD_MASK.repeat(password.length)}
+                </Text>
+              ) : (
+                <ActivityIndicator size="small" testID="share-password-value-loading" />
+              )}
+            </View>
+            <Pressable
+              accessibilityLabel={t(isRevealed ? 'collections.sharePasswordHide' : 'collections.sharePasswordShow')}
+              accessibilityRole="button"
+              disabled={password === null}
+              onPress={() => setIsRevealed(previous => !previous)}
+              style={styles.eyeButton}
+              testID="share-password-visibility"
+            >
+              {isRevealed ? <EyeIcon color={colors.textSecondary} size={20} /> : <EyeOffIcon color={colors.textSecondary} size={20} />}
+            </Pressable>
           </View>
           <View style={styles.actions}>
             <ActionButton disabled={isDisabled || password === null} label={t('collections.sharePasswordCopy')} onPress={copy} primary testID="share-password-copy" />
             <ActionButton disabled={isDisabled} label={t('collections.sharePasswordChange')} onPress={() => setDialog('change')} testID="share-password-change" />
           </View>
-          <Text style={styles.help}>{t('collections.sharePasswordAppliesToAll')}</Text>
         </View>
       ) : null}
 
@@ -458,27 +479,30 @@ function SharePasswordDialog({ mode, isSaving, onSubmit, onCancel }: SharePasswo
 }
 
 const styles = StyleSheet.create({
-  // The Share screen's own section card look (a light 1px outline), set apart from the sharing
-  // tabs above and 공유 상태 below.
+  // The Share screen's own compact section card (a light 1px outline), one of its four equal cards.
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
     borderRadius: radii.lg,
     borderWidth: 1,
     gap: spacing.sm,
-    marginBottom: spacing.xl,
-    padding: spacing.lg,
+    marginBottom: spacing.sm + 2,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.md,
   },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  headerIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 14, height: 28, justifyContent: 'center', width: 28 },
-  title: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 16, fontWeight: '700' },
-  help: { color: colors.textSecondary, fontSize: 13 },
+  headerIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
+  title: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 15, fontWeight: '600' },
+  help: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   loading: { paddingVertical: spacing.sm },
   notice: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, gap: spacing.sm, padding: spacing.md },
   noticeText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
   enabled: { gap: spacing.sm },
-  valueBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, minHeight: minTouchTarget, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  value: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
+  // One line: the (masked) password, then the eye. The same height hidden or shown.
+  valueBox: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radii.md, flexDirection: 'row', minHeight: minTouchTarget, paddingStart: spacing.md },
+  valueSlot: { flex: 1, justifyContent: 'center', minWidth: 0 },
+  value: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', letterSpacing: 1 },
+  eyeButton: { alignItems: 'center', flexShrink: 0, height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   // Wraps onto more lines on a narrow screen (360dp PDA, large font) instead of overflowing.
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   actionButton: {

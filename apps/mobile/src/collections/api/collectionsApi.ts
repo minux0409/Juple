@@ -680,6 +680,35 @@ export async function copyCollectionItems(
   return response.body;
 }
 
+/** addedCount + skippedCount (the Item was already there) = the distinct Collections sent. */
+export interface AddItemToCollectionsResult {
+  readonly addedCount: number;
+  readonly skippedCount: number;
+}
+
+/**
+ * 다른 컬렉션에 복제: puts one of the caller's Items into several of their own Collections in one call
+ * (the same membership as the single add - never a copy of the Item). A locked destination's grant
+ * travels with that destination (unlockTokens: collectionId → grant); the server checks every
+ * destination before writing any of them.
+ */
+export async function addItemToCollections(
+  request: AuthenticatedApiRequest,
+  itemId: number,
+  collectionIds: readonly number[],
+  unlockTokens: Readonly<Record<number, string>> = {},
+): Promise<AddItemToCollectionsResult> {
+  const response = await request<AddItemToCollectionsResult>({
+    method: 'POST',
+    path: `/api/v1/items/${itemId}/collections`,
+    body: { collectionIds, unlockTokens },
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no replicate body.');
+  }
+  return response.body;
+}
+
 /** The caller's own 새 링크 알림 setting for one Collection they own or belong to (ON by default). */
 export interface CollectionNotificationPreference {
   readonly newItemNotificationsEnabled: boolean;

@@ -44,8 +44,9 @@ import {
   type Collection,
   type CollectionItemEntry,
 } from '../collections/api/collectionsApi';
-import { CollectionNotificationDialog } from '../collections/CollectionNotificationDialog';
 import { CopyDestinationPicker } from '../collections/CopyDestinationPicker';
+import { CategoryPickerModal } from '../collections/CategoryPickerModal';
+import { formatReplicateResultMessage, useReplicateItemPicker } from '../collections/useReplicateItemPicker';
 import { formatCopyResultMessage } from '../collections/copyResultMessage';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { isCollaborative, isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
@@ -85,8 +86,16 @@ import {
   useDateSectionViewability,
   type DateSectionRow,
 } from '../components/DateSectionList';
+import { BellIcon } from '../icons/BellIcon';
+import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
+import { CopyIcon } from '../icons/CopyIcon';
+import { EditIcon } from '../icons/EditIcon';
 import { LockIcon } from '../icons/LockIcon';
+import { MergeIcon } from '../icons/MergeIcon';
+import { MoveIcon } from '../icons/MoveIcon';
+import { TrashIcon } from '../icons/TrashIcon';
+import { UnlockIcon } from '../icons/UnlockIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
@@ -272,7 +281,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
   const [isItemActionMenuVisible, setIsItemActionMenuVisible] = useState(false);
   const [isCollectionMenuVisible, setIsCollectionMenuVisible] = useState(false);
-  const [targetMode, setTargetMode] = useState<'add' | 'move' | 'merge' | null>(null);
+  const [targetMode, setTargetMode] = useState<'move' | 'merge' | null>(null);
   const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
   const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
   const [isLoadingMoreTargets, setIsLoadingMoreTargets] = useState(false);
@@ -283,8 +292,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   // 새 링크 알림 - the caller's own setting for this Collection (null until loaded / not offered).
   const [newLinkNotifications, setNewLinkNotifications] = useState<boolean | null>(null);
-  const [isNotificationDialogVisible, setIsNotificationDialogVisible] = useState(false);
-  const [notificationError, setNotificationError] = useState<string | null>(null);
   const notificationRequestRef = useRef(0);
   // 내 컬렉션으로 복사: non-null while selecting (the chosen link ids, in the order they were picked).
   const [selectedItemIds, setSelectedItemIds] = useState<ReadonlySet<number> | null>(null);
@@ -452,7 +459,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const isOwner = collection !== null && !isSharedWithMe(collection);
 
   // 새 링크 알림 is offered wherever someone else can add links: a Collection shared with the caller,
-  // or the caller's own one that has members or a public link.
+  // or the caller's own one that has members or a public link. It is the header's bell - one tap
+  // turns it on or off, no dialog.
   const offersNewLinkNotifications = collection !== null && isCollaborative(collection);
   useEffect(() => {
     if (!offersNewLinkNotifications) {
@@ -472,16 +480,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     };
   }, [authenticatedRequest, collectionId, offersNewLinkNotifications]);
 
-  /** Flips at once; a failed save flips it back and says so (only the latest change counts). */
+  /** Flips at once; a failed save flips it back and says so briefly (only the latest change counts). */
   const changeNewLinkNotifications = (enabled: boolean) => {
     const previous = newLinkNotifications;
     const requestId = ++notificationRequestRef.current;
     setNewLinkNotifications(enabled);
-    setNotificationError(null);
     setCollectionNotificationPreference(authenticatedRequest, collectionId, enabled).catch(() => {
       if (requestId === notificationRequestRef.current) {
         setNewLinkNotifications(previous);
-        setNotificationError(t('collections.newLinkNotificationsError'));
+        showNotificationToast(t('collections.newLinkNotificationsError'));
       }
     });
   };
@@ -767,7 +774,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setPendingUnlinkItemId(previous => previous ?? itemId);
   };
 
-  const openTargetPicker = async (mode: 'add' | 'move' | 'merge') => {
+  const openTargetPicker = async (mode: 'move' | 'merge') => {
     setIsItemActionMenuVisible(false);
     if (mode === 'merge') setActionMenuItem(null);
     setIsCollectionMenuVisible(false);
@@ -809,16 +816,20 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const selectTarget = (target: Collection) => {
     if (!targetMode) return;
-    if (targetMode === 'add') { void addToTarget(target); return; }
     setPendingTarget(target);
   };
 
-  const addToTarget = async (target: Collection) => {
-    if (!actionMenuItem || isMembershipMutation) return;
-    setIsMembershipMutation(true); setTargetMode(null);
-    try { await addItemToCollection(authenticatedRequest, target.id, actionMenuItem.itemId); showNotificationToast(t('collections.addSuccess')); }
-    catch (caughtError) { setNotice(t(gateNoticeKey(caughtError) ?? 'collections.addError')); }
-    finally { setActionMenuItem(null); setTargetMode(null); setIsMembershipMutation(false); }
+  // 다른 컬렉션에 복제: this link into any number of my own Collections at once (a multi-choice picker
+  // of its own - 이동/병합 keep choosing exactly one target above).
+  const replicatePicker = useReplicateItemPicker(authenticatedRequest, t, result => {
+    showNotificationToast(formatReplicateResultMessage(result, t));
+  });
+  const openReplicatePicker = () => {
+    setIsItemActionMenuVisible(false);
+    if (actionMenuItem) {
+      replicatePicker.open(actionMenuItem.itemId);
+    }
+    setActionMenuItem(null);
   };
 
   const confirmTargetAction = async () => {
@@ -973,37 +984,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   // The Collection's ⋯ menu - what this caller may do, in a fixed order. The Owner: 수정, the lock,
   // 병합, then 삭제 last (destructive). Edit and delete used to be header icons of their own.
-  const newLinkNotificationsAction: ActionMenuDialogAction[] = offersNewLinkNotifications
-    ? [{
-        label: newLinkNotifications === null
-          ? t('collections.newLinkNotifications')
-          : t(newLinkNotifications ? 'collections.newLinkNotificationsOn' : 'collections.newLinkNotificationsOff'),
-        onPress: closeCollectionMenuThen(() => {
-          setNotificationError(null);
-          setIsNotificationDialogVisible(true);
-        }),
-      }]
-    : [];
   const collectionMenuActions: ActionMenuDialogAction[] = isOwner
     ? [
-        { label: t('common.edit'), onPress: closeCollectionMenuThen(() => runUnlocked(openEditDialog)) },
-        ...newLinkNotificationsAction,
+        { label: t('common.edit'), icon: EditIcon, onPress: closeCollectionMenuThen(() => runUnlocked(openEditDialog)) },
         // The lock password itself is managed only in Settings > 컬렉션 잠금 - here a Collection is
         // just locked (a confirmation) or unlocked (that password).
         isCollectionLocked(collection)
-          ? { label: t('collections.lockRemoveAction'), destructive: true, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
-          : { label: t('collections.lockSetTitle'), onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
+          ? { label: t('collections.lockRemoveAction'), destructive: true, icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
+          : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
         // Merging moves this Category's links, so it is offered only once its content is unlocked.
-        ...(collection.hasCollaborators || isContentLocked ? [] : [{ label: t('collections.mergeWithOther'), onPress: () => void openTargetPicker('merge') }]),
-        { label: t('common.delete'), destructive: true, onPress: closeCollectionMenuThen(() => runUnlocked(confirmDeleteCollection)) },
+        ...(collection.hasCollaborators || isContentLocked ? [] : [{ label: t('collections.mergeWithOther'), icon: MergeIcon, onPress: () => void openTargetPicker('merge') }]),
+        { label: t('common.delete'), destructive: true, icon: TrashIcon, onPress: closeCollectionMenuThen(() => runUnlocked(confirmDeleteCollection)) },
       ]
     : [
-        // Shared with me: my own 새 링크 알림, and copying links into a Collection of my own - only
-        // once the content is open (a share password first) and there is something to copy.
-        ...newLinkNotificationsAction,
+        // Shared with me: copying links into a Collection of my own - only once the content is open
+        // (a share password first) and there is something to copy. 새 링크 알림 is the header's bell.
         ...(isContentLocked || items.length === 0
           ? []
-          : [{ label: t('collections.copyToMine'), onPress: closeCollectionMenuThen(() => setSelectedItemIds(new Set())) }]),
+          : [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: closeCollectionMenuThen(() => setSelectedItemIds(new Set())) }]),
       ];
 
   const listHeader = (
@@ -1042,6 +1040,21 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isTogglingFavorite, busy: isTogglingFavorite }} disabled={isTogglingFavorite} onPress={toggleFavoriteAction} style={styles.iconButton} testID="collection-details-favorite">
                 <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
               </Pressable>
+              {/* 새 링크 알림 - a plain on/off toggle of the caller's own preference, shown once it is known. */}
+              {offersNewLinkNotifications && newLinkNotifications !== null ? (
+                <Pressable
+                  accessibilityLabel={t(newLinkNotifications ? 'collections.newLinkNotificationsOnA11y' : 'collections.newLinkNotificationsOffA11y')}
+                  accessibilityRole="button"
+                  onPress={() => changeNewLinkNotifications(!newLinkNotifications)}
+                  style={styles.iconButton}
+                  testID="collection-details-notifications"
+                >
+                  {/* The shape alone tells the state: a bell when on, a slashed bell when off - no badge. */}
+                  {newLinkNotifications
+                    ? <BellIcon color={colors.textPrimary} size={20} />
+                    : <BellOffIcon color={colors.textSecondary} size={20} />}
+                </Pressable>
+              ) : null}
             {isOwner ? (
               // The single entry point for sharing - opens the one Share screen; tapping it never
               // turns anything on by itself.
@@ -1250,13 +1263,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         visible={isCopyPickerVisible}
       />
-      <CollectionNotificationDialog
-        enabled={newLinkNotifications}
-        error={notificationError}
-        onChange={changeNewLinkNotifications}
-        onClose={() => setIsNotificationDialogVisible(false)}
-        visible={isNotificationDialogVisible}
-      />
       <CategoryEditorDialog
         error={editError}
         initialColor={resolveEffectiveCollectionColorValue(collection.color, collection.id)}
@@ -1296,7 +1302,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         title={t('collections.unlinkConfirmTitle')}
         visible={pendingUnlinkItemId !== null}
       />
-      <ActionMenuDialog actions={[{ label: t('collections.addToOther'), onPress: () => void openTargetPicker('add') }, ...(collection.hasCollaborators ? [] : [{ label: t('collections.moveToOther'), onPress: () => void openTargetPicker('move') }])]} cancelLabel={t('common.cancel')} onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }} visible={isItemActionMenuVisible} />
+      <ActionMenuDialog
+        actions={[
+          { label: t('collections.addToOther'), icon: CopyIcon, onPress: openReplicatePicker },
+          ...(collection.hasCollaborators ? [] : [{ label: t('collections.moveToOther'), icon: MoveIcon, onPress: () => void openTargetPicker('move') }]),
+        ]}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }}
+        visible={isItemActionMenuVisible}
+      />
       <ActionMenuDialog
         actions={collectionMenuActions}
         cancelLabel={t('common.cancel')}
@@ -1340,6 +1354,34 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
       </Modal>
+      <CategoryPickerModal
+        bottomInset={insets.bottom}
+        collectionPool={replicatePicker.collections}
+        disabledIds={replicatePicker.containedIds}
+        error={replicatePicker.error}
+        isCreatingCollection={false}
+        isLoadingMore={replicatePicker.isLoadingMore}
+        isLoadingOptions={replicatePicker.isLoading}
+        onClose={replicatePicker.close}
+        onLoadMore={replicatePicker.loadMore}
+        onToggle={replicatePicker.toggle}
+        onUnlockCancel={replicatePicker.cancelUnlock}
+        onUnlockGranted={replicatePicker.onUnlockGranted}
+        selectedIds={replicatePicker.selectedIds}
+        showCreateTile={false}
+        sort={{ value: replicatePicker.sort, onChange: replicatePicker.changeSort }}
+        submit={{
+          label: replicatePicker.selectedIds.size > 0
+            ? t('collections.replicateSubmitCount', { count: replicatePicker.selectedIds.size })
+            : t('collections.replicateSubmit'),
+          onSubmit: replicatePicker.submit,
+          isSubmitting: replicatePicker.isSubmitting,
+        }}
+        title={t('collections.targetPickerTitle')}
+        unlockTarget={replicatePicker.unlockTarget}
+        viewModeKey="replicatePickerViewMode"
+        visible={replicatePicker.isVisible}
+      />
       <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
       <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
       <CollectionParticipantsSheet

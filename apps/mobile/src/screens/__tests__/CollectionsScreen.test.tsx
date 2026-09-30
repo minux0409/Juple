@@ -779,10 +779,10 @@ describe('CollectionsScreen 공유 요청 (received collaboration invitations)',
 
     expect(renderer.root.findByProps({ testID: 'share-request-role-3' }).props.children).toBe(i18n.t('collaboration.roleViewer'));
     expect(renderer.root.findByProps({ testID: 'share-request-role-4' }).props.children).toBe(i18n.t('collaboration.roleContributor'));
-    // Plain 읽기 전용 / 링크 추가 가능 - never a "공동작업" concept, an internal role name, or a
+    // Plain 읽기 전용 / 링크 추가 - never a "공동작업" concept, an internal role name, or a
     // stronger promise (편집/수정 가능) than a Contributor actually has.
     expect(i18n.getFixedT('ko')('collaboration.roleViewer')).toBe('읽기 전용');
-    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('링크 추가 가능');
+    expect(i18n.getFixedT('ko')('collaboration.roleContributor')).toBe('링크 추가');
   });
 
   it('a Collection shared view-only shows the shared marker and can be favorited like any other', async () => {

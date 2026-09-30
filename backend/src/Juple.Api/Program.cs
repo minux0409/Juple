@@ -9,6 +9,7 @@ using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.Locking;
 using Juple.Application.Collections.SharePassword;
 using Juple.Application.Collections.AddItemToCollection;
+using Juple.Application.Collections.AddItemToCollections;
 using Juple.Application.Collections.CreateCollection;
 using Juple.Application.Collections.DeleteCollection;
 using Juple.Application.Collections.RestoreCollection;
@@ -136,6 +137,7 @@ builder.Services.AddScoped<IRestoreCollectionService, RestoreCollectionService>(
 builder.Services.AddScoped<IGetCollectionItemsService, GetCollectionItemsService>();
 builder.Services.AddScoped<IGetCollectionItemSectionsService, GetCollectionItemSectionsService>();
 builder.Services.AddScoped<IAddItemToCollectionService, AddItemToCollectionService>();
+builder.Services.AddScoped<IAddItemToCollectionsService, AddItemToCollectionsService>();
 builder.Services.AddScoped<IRemoveItemFromCollectionService, RemoveItemFromCollectionService>();
 builder.Services.AddScoped<IMoveCollectionItemService, MoveCollectionItemService>();
 builder.Services.AddScoped<ITransferCollectionItemService, TransferCollectionItemService>();

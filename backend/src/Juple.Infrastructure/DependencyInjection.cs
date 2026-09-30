@@ -75,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<IRecentlyOpenedItemStore, RecentlyOpenedItemStore>();
         services.AddScoped<ICollectionStore, CollectionStore>();
         services.AddScoped<ICollectionItemStore, CollectionStore>();
+        services.AddScoped<ICollectionWriteTransactions, CollectionWriteTransactions>();
         services.AddScoped<ICollectionManagementStore, CollectionStore>();
         services.AddScoped<Juple.Application.Collections.Public.IPublicCollectionWriteStore, CollectionStore>();
         services.AddScoped<ICollectionShareStore, CollectionShareStore>();

@@ -63,6 +63,9 @@ describe('CollectionLockDialog - the Owner\'s one lock password', () => {
 
     expect(fieldIds(renderer)).toEqual([]);
     expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('collections.lockConfirmTitle'), i18n.t('collections.lockConfirmMessage')]));
+    // Only what the lock is - not how sharing is protected (that is the Share screen's 접근 비밀번호).
+    expect(i18n.t('collections.lockConfirmMessage')).toBe('내 계정에서 이 컬렉션을 잠금 비밀번호로 보호해요.');
+    expect(JSON.stringify(texts(renderer))).not.toMatch(/접근 비밀번호|공유받은/);
 
     await press(renderer, 'lock-save');
     expect(setCollectionLock).toHaveBeenCalledWith(expect.anything(), 5);

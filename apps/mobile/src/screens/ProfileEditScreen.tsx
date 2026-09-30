@@ -2,7 +2,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import {
   DISPLAY_NAME_MAX_LENGTH,
@@ -18,11 +18,15 @@ import {
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { pickCollectionIconImage } from '../collections/collectionIconImage';
-import { useAppToast } from '../components/AppToast';
+import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { UserAvatar } from '../components/UserAvatar';
-import { CloseIcon } from '../icons/CloseIcon';
+import { CheckIcon } from '../icons/CheckIcon';
+import { CopyIcon } from '../icons/CopyIcon';
+import { EditIcon } from '../icons/EditIcon';
+import { ImageIcon } from '../icons/ImageIcon';
+import { TrashIcon } from '../icons/TrashIcon';
 import { forgetProfileImage, rememberLocalProfileImage } from '../profile/profileImageCache';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -37,22 +41,25 @@ const KEEP: PhotoChange = { kind: 'keep' };
 const pickProfileImage = pickCollectionIconImage;
 
 const AVATAR_SIZE = 104;
+const EDIT_BADGE_SIZE = 28;
+/** How long the copy icon shows a check after a copy - the only in-app copy feedback (see copyJupleId). */
+const COPIED_FEEDBACK_MS = 1500;
 
 /**
  * 프로필 편집: the photo and the nickname - the only two things a person edits about themselves -
- * plus their Juple ID, read-only, with 복사.
+ * plus their Juple ID, read-only, with a copy icon inside its field.
  *
- * The photo is the control: tapping it picks a new one (previewed from the device file and uploaded
- * on 저장 - the app resizes it first; the circle crops it to the center). Only when there is a photo,
- * a small × on its corner removes it - after a confirmation, right away (the server photo is deleted
- * then; a just-picked photo is simply dropped). The nickname is sent on 저장; the server is the only
- * authority on whether it is allowed and answers with a stable code this screen maps to a message.
+ * The photo (or the small pencil on its corner) opens one menu: 사진 변경 / 사진 삭제 when there is a
+ * photo, 사진 선택 when there is none. A picked photo is previewed from the device file and uploaded
+ * on 저장 (the app resizes it first; the circle crops it to the center). 사진 삭제 asks first, then
+ * removes it right away (the server photo is deleted then; a just-picked photo is simply dropped).
+ * The nickname is sent on 저장; the server is the only authority on whether it is allowed and
+ * answers with a stable code this screen maps to a message.
  */
 export function ProfileEditScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const authenticatedRequest = useAuthenticatedApi();
-  const { showNotificationToast } = useAppToast();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -62,7 +69,11 @@ export function ProfileEditScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
   const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
+  const [isPhotoMenuVisible, setIsPhotoMenuVisible] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const isSavingRef = useRef(false);
+  const isPickingRef = useRef(false);
+  const afterPhotoMenuRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -83,20 +94,56 @@ export function ProfileEditScreen() {
     };
   }, [authenticatedRequest, t]);
 
+  useEffect(() => {
+    if (!isCopied) {
+      return;
+    }
+    const timeout = setTimeout(() => setIsCopied(false), COPIED_FEEDBACK_MS);
+    return () => clearTimeout(timeout);
+  }, [isCopied]);
+
+  /** One picker at a time - a second tap while the system picker is opening does nothing. */
   const pickPhoto = async () => {
+    if (isPickingRef.current) {
+      return;
+    }
+    isPickingRef.current = true;
     setError(null);
-    const picked = await pickProfileImage(t);
-    if (picked.kind === 'picked') {
-      setPhotoChange({ kind: 'set', asset: picked.asset });
-    } else if (picked.kind === 'error') {
-      setError(picked.message);
+    try {
+      const picked = await pickProfileImage(t);
+      if (picked.kind === 'picked') {
+        setPhotoChange({ kind: 'set', asset: picked.asset });
+      } else if (picked.kind === 'error') {
+        setError(picked.message);
+      }
+    } finally {
+      isPickingRef.current = false;
+    }
+  };
+
+  const runAfterPhotoMenu = () => {
+    const action = afterPhotoMenuRef.current;
+    afterPhotoMenuRef.current = null;
+    action?.();
+  };
+
+  /**
+   * Closes the photo menu, then runs the chosen action. On iOS a system picker or another modal
+   * can't be presented while this one is still animating away, so it waits for the menu's
+   * onDismiss; Android has no such limit (and no onDismiss), so it runs right away.
+   */
+  const choosePhotoAction = (action: () => void) => () => {
+    afterPhotoMenuRef.current = action;
+    setIsPhotoMenuVisible(false);
+    if (Platform.OS !== 'ios') {
+      runAfterPhotoMenu();
     }
   };
 
   const hasPhoto = photoChange.kind === 'set' || !!profile?.profileImageUrl;
   const isBusy = isSaving || isRemovingPhoto;
 
-  /** Confirmed ×: a just-picked photo is dropped; a saved photo is deleted on the server right away. */
+  /** Confirmed 사진 삭제: a just-picked photo is dropped; a saved photo is deleted on the server right away. */
   const removePhoto = async () => {
     setIsRemoveConfirmVisible(false);
     if (!profile || isBusy) {
@@ -122,10 +169,30 @@ export function ProfileEditScreen() {
   // The shareable form, exactly as shown (`@XXXX-XXXX`) - what is copied is what the user sees.
   const displayedJupleId = profile ? `@${formatJupleId(profile.jupleId)}` : '';
 
+  // No toast of its own: Android 13+ (and e.g. Samsung One UI) already shows its own "copied"
+  // message for every clipboard write, and a second, app-made one only doubled it. The icon turns
+  // into a check for a moment instead - the same quiet feedback on every platform.
   const copyJupleId = () => {
     if (profile) {
       Clipboard.setString(displayedJupleId);
-      showNotificationToast(t('account.jupleIdCopied'));
+      setIsCopied(true);
+    }
+  };
+
+  const photoMenuActions: ActionMenuDialogAction[] = hasPhoto
+    ? [
+        { label: t('profile.photoChange'), icon: ImageIcon, onPress: choosePhotoAction(pickPhoto) },
+        {
+          label: t('profile.photoRemove'),
+          destructive: true,
+          icon: TrashIcon,
+          onPress: choosePhotoAction(() => setIsRemoveConfirmVisible(true)),
+        },
+      ]
+    : [{ label: t('profile.photoChoose'), icon: ImageIcon, onPress: choosePhotoAction(pickPhoto) }];
+  const openPhotoMenu = () => {
+    if (!isBusy && !isPickingRef.current) {
+      setIsPhotoMenuVisible(true);
     }
   };
 
@@ -187,14 +254,15 @@ export function ProfileEditScreen() {
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.photoSection}>
-          {/* The avatar and its × are siblings (never nested), so tapping × can never also open the picker. */}
+          {/* The avatar and its pencil are siblings (never nested), so one tap is only ever one press -
+              and both open the same menu, so there is nothing to open twice. */}
           <View style={styles.photoFrame}>
             <Pressable
               accessibilityLabel={t('profile.changePhoto')}
               accessibilityRole="button"
               accessibilityState={{ disabled: isBusy }}
               disabled={isBusy}
-              onPress={pickPhoto}
+              onPress={openPhotoMenu}
               style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}
               testID="profile-photo"
             >
@@ -207,20 +275,18 @@ export function ProfileEditScreen() {
                 size={AVATAR_SIZE}
               />
             </Pressable>
-            {hasPhoto ? (
-              <Pressable
-                accessibilityLabel={t('profile.removePhoto')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: isBusy, busy: isRemovingPhoto }}
-                disabled={isBusy}
-                hitSlop={8}
-                onPress={() => setIsRemoveConfirmVisible(true)}
-                style={styles.removeBadge}
-                testID="profile-photo-remove"
-              >
-                {isRemovingPhoto ? <ActivityIndicator color={colors.surface} size="small" /> : <CloseIcon color={colors.surface} size={16} strokeWidth={2.5} />}
-              </Pressable>
-            ) : null}
+            <Pressable
+              accessibilityLabel={t('profile.editPhoto')}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isBusy, busy: isRemovingPhoto }}
+              disabled={isBusy}
+              hitSlop={8}
+              onPress={openPhotoMenu}
+              style={({ pressed }) => [styles.editBadge, pressed && styles.pressed]}
+              testID="profile-photo-edit"
+            >
+              {isRemovingPhoto ? <ActivityIndicator color={colors.textSecondary} size="small" /> : <EditIcon color={colors.textPrimary} size={15} strokeWidth={2} />}
+            </Pressable>
           </View>
         </View>
 
@@ -239,21 +305,20 @@ export function ProfileEditScreen() {
           value={nickname}
         />
 
-        <View style={styles.labelRow}>
-          <Text style={[styles.label, styles.labelInRow]}>{t('myPage.jupleId')}</Text>
+        <Text style={styles.label}>{t('myPage.jupleId')}</Text>
+        <View style={styles.readOnlyField} testID="profile-juple-id">
+          <Text numberOfLines={1} selectable style={[styles.readOnlyValue, ltrTextStyle]}>{displayedJupleId}</Text>
           <Pressable
-            accessibilityLabel={`${t('myPage.jupleId')} ${t('account.copy')}`}
+            accessibilityLabel={t('profile.copyJupleId')}
             accessibilityRole="button"
-            hitSlop={8}
             onPress={copyJupleId}
-            style={styles.copyButton}
+            style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}
             testID="profile-juple-id-copy"
           >
-            <Text style={styles.copyLabel}>{t('account.copy')}</Text>
+            {isCopied
+              ? <CheckIcon color={colors.brand} size={20} />
+              : <CopyIcon color={colors.textSecondary} size={20} />}
           </Pressable>
-        </View>
-        <View style={styles.readOnlyField} testID="profile-juple-id">
-          <Text selectable style={[styles.readOnlyValue, ltrTextStyle]}>{displayedJupleId}</Text>
         </View>
 
         {error ? <Text style={styles.error} testID="profile-error">{error}</Text> : null}
@@ -269,6 +334,13 @@ export function ProfileEditScreen() {
           {isSaving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.saveLabel}>{t('common.save')}</Text>}
         </Pressable>
       </ScrollView>
+      <ActionMenuDialog
+        actions={photoMenuActions}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setIsPhotoMenuVisible(false)}
+        onDismiss={runAfterPhotoMenu}
+        visible={isPhotoMenuVisible}
+      />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
@@ -290,26 +362,24 @@ const styles = StyleSheet.create({
   photoFrame: { height: AVATAR_SIZE, width: AVATAR_SIZE },
   avatarButton: { borderRadius: AVATAR_SIZE / 2 },
   pressed: { opacity: 0.7 },
-  // A 30dp danger-colored × on the photo's lower-end corner, outlined in the surface color so it
-  // stays visible on any photo; hitSlop extends it to a full touch target.
-  removeBadge: {
+  // A small neutral pencil on the photo's lower-end corner, outlined so it stays visible on any
+  // photo; hitSlop extends it to a full touch target.
+  editBadge: {
     alignItems: 'center',
-    backgroundColor: colors.danger,
-    borderColor: colors.surface,
-    borderRadius: 15,
-    borderWidth: 2,
-    bottom: 0,
-    end: 0,
-    height: 30,
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: EDIT_BADGE_SIZE / 2,
+    borderWidth: 1,
+    bottom: 2,
+    end: 2,
+    height: EDIT_BADGE_SIZE,
     justifyContent: 'center',
     position: 'absolute',
-    width: 30,
+    width: EDIT_BADGE_SIZE,
   },
   label: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.xs, marginTop: spacing.lg },
-  labelRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs, marginTop: spacing.lg },
-  labelInRow: { flexShrink: 1, marginBottom: 0, marginTop: 0 },
-  copyButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget - 12, paddingHorizontal: spacing.sm },
-  copyLabel: { color: colors.brand, fontSize: 14, fontWeight: '600' },
+  // The copy icon sits inside the field at its end - the whole square is the touch target.
+  copyButton: { alignItems: 'center', flexShrink: 0, height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
@@ -321,13 +391,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   readOnlyField: {
+    alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md + 4,
-    justifyContent: 'center',
+    flexDirection: 'row',
     minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
+    paddingStart: spacing.md,
   },
-  readOnlyValue: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', letterSpacing: 1 },
+  readOnlyValue: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 16, fontWeight: '600', letterSpacing: 1 },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
   saveButton: {
     alignItems: 'center',

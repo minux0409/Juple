@@ -3,6 +3,7 @@ using Juple.Api.Configuration;
 using Juple.Application.Collections;
 using Juple.Application.Collections.Access;
 using Juple.Application.Collections.AddItemToCollection;
+using Juple.Application.Collections.AddItemToCollections;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.CopyItems;
 using Juple.Application.Collections.EnableCollectionShare;
@@ -411,7 +412,172 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
         Assert.Empty(await ItemsAddedEvents(_sharedId));
     }
 
+    [Fact]
+    public async Task ReplicatingToSeveralOfMyCollections_AddsEachOnce_AndNotifiesOnlyTheSharedOnesThatGainedIt()
+    {
+        var replicate = new AddItemToCollectionsService(Access(), _collections, new CollectionWriteTransactions(_db), TimeProvider.System, _publisher);
+        var privateId = (await _collections.CreateAsync(_owner, "혼자", "혼자", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var alreadyThereId = (await _collections.CreateAsync(_owner, "이미", "이미", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+        var item = await NewItemAsync(_owner, "https://example.test/replicate");
+        await _addItem.AddAsync(_owner, alreadyThereId, item);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        // A repeated id counts once; the one it was already in is skipped.
+        var result = await replicate.AddAsync(_owner, item, [_sharedId, privateId, alreadyThereId, _sharedId], null);
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Equal(new AddItemToCollectionsResult(2, 1), result);
+        foreach (var collectionId in new[] { _sharedId, privateId, alreadyThereId })
+        {
+            Assert.Equal(1, await _db.CollectionItems.CountAsync(entry => entry.CollectionId == collectionId && entry.ItemId == item));
+        }
+
+        // The member of the shared one hears about it once; the actor and the pending invitee never.
+        Assert.Equal("피카츄님이 '여행'에 새 링크를 추가했어요.", Assert.Single(Visible(_member)).Payload.Body);
+        Assert.Empty(Visible(_owner));
+        Assert.Empty(Visible(_pendingInvitee));
+        Assert.Single(await ItemsAddedEvents(_sharedId));
+        Assert.Empty(await ItemsAddedEvents(privateId));
+
+        // Again: nothing new anywhere, so nobody is told again.
+        _sender.Clear();
+        Assert.Equal(new AddItemToCollectionsResult(0, 3), await replicate.AddAsync(_owner, item, [_sharedId, privateId, alreadyThereId], null));
+        await Dispatcher().RunOnceAsync();
+        Assert.Empty(Visible(_member));
+        Assert.Single(await ItemsAddedEvents(_sharedId));
+    }
+
+    [Fact]
+    public async Task Replicating_IntoACollectionSharedWithMe_IsRefused_AndWritesNothing()
+    {
+        var replicate = new AddItemToCollectionsService(Access(), _collections, new CollectionWriteTransactions(_db), TimeProvider.System, _publisher);
+        await _db.CollectionCollaborators.Where(entry => entry.UserId == _member)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Role, CollectionCollaboratorRole.Contributor));
+        var membersOwnId = (await _collections.CreateAsync(_member, "내것", "내것", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+        var item = await NewItemAsync(_member, "https://example.test/not-mine-to-fill");
+
+        // Even as a Contributor who may add there one at a time, the shared Collection is not a
+        // destination of this batch - and the refusal leaves the member's own one untouched too.
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => replicate.AddAsync(_member, item, [membersOwnId, _sharedId], null));
+        Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.ItemId == item));
+        // Someone else's Item is not found.
+        var ownersItem = await NewItemAsync(_owner, "https://example.test/owners");
+        await Assert.ThrowsAsync<Juple.Application.Items.ItemNotFoundException>(() => replicate.AddAsync(_member, ownersItem, [membersOwnId], null));
+    }
+
+    [Fact]
+    public async Task ADatabaseFailurePartWayThroughTheWrites_RollsBackEveryLinkOfTheBatch()
+    {
+        var first = (await _collections.CreateAsync(_owner, "첫째", "첫째", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var second = (await _collections.CreateAsync(_owner, "둘째", "둘째", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+        var item = await NewItemAsync(_owner, "https://example.test/rollback-writes");
+        var notificationsBefore = await _db.Notifications.CountAsync();
+        // The first write really reaches the database (inside the transaction); the second fails.
+        var failing = new FailingItemStore(_collections, failOnAddNumber: 2);
+        var replicate = new AddItemToCollectionsService(Access(), failing, new CollectionWriteTransactions(_db), TimeProvider.System, _publisher);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => replicate.AddAsync(_owner, item, [_sharedId, first, second], null));
+
+        Assert.Equal(1, failing.RealWrites);
+        _db.ChangeTracker.Clear();
+        Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.ItemId == item)); // the first write is gone too
+        Assert.Equal(notificationsBefore, await _db.Notifications.CountAsync());
+
+        // Nothing half-done is left behind: the same batch simply succeeds afterwards.
+        var retry = new AddItemToCollectionsService(Access(), _collections, new CollectionWriteTransactions(_db), TimeProvider.System, _publisher);
+        Assert.Equal(new AddItemToCollectionsResult(3, 0), await retry.AddAsync(_owner, item, [_sharedId, first, second], null));
+    }
+
+    [Fact]
+    public async Task AFailureAfterTheNotificationRowsWereWritten_RollsBackTheLinksAndThoseRows()
+    {
+        var other = (await _collections.CreateAsync(_owner, "다른", "다른", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+        var item = await NewItemAsync(_owner, "https://example.test/rollback-notifications");
+        var sharedEventsBefore = (await ItemsAddedEvents(_sharedId)).Count;
+        // The real publisher writes the new-link row for the shared Collection, then the next write fails.
+        var failing = new FailingAfterItemsAddedPublisher(_publisher);
+        var replicate = new AddItemToCollectionsService(Access(), _collections, new CollectionWriteTransactions(_db), TimeProvider.System, failing);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => replicate.AddAsync(_owner, item, [_sharedId, other], null));
+
+        Assert.True(failing.RealRowsWritten);
+        _db.ChangeTracker.Clear();
+        Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.ItemId == item));
+        Assert.Equal(sharedEventsBefore, (await ItemsAddedEvents(_sharedId)).Count); // the row it wrote is gone
+        await Dispatcher().RunOnceAsync();
+        Assert.Empty(Visible(_member)); // nobody is told about a link that is not there
+    }
+
     // ---------- helpers ----------
+
+    /// <summary>The real CollectionStore, except that the Nth AddAsync fails like a broken database write.</summary>
+    private sealed class FailingItemStore(CollectionStore inner, int failOnAddNumber) : ICollectionItemStore
+    {
+        private int _calls;
+
+        public int RealWrites { get; private set; }
+
+        public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsAsync(
+            long userId, long collectionId, CollectionItemPageCursor? cursor, int limit, CollectionItemSort sort = CollectionItemSort.Manual, CancellationToken cancellationToken = default) =>
+            inner.GetItemsAsync(userId, collectionId, cursor, limit, sort, cancellationToken);
+
+        public Task<SharedCollectionItemDto?> GetSharedItemAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+            inner.GetSharedItemAsync(userId, collectionId, itemId, cancellationToken);
+
+        public async Task<bool> AddAsync(long userId, long collectionId, long itemId, DateTimeOffset addedAtUtc, CancellationToken cancellationToken = default)
+        {
+            if (++_calls == failOnAddNumber)
+            {
+                throw new InvalidOperationException("database write failed");
+            }
+
+            var added = await inner.AddAsync(userId, collectionId, itemId, addedAtUtc, cancellationToken);
+            RealWrites++;
+            return added;
+        }
+
+        public Task RemoveAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+            inner.RemoveAsync(userId, collectionId, itemId, cancellationToken);
+
+        public Task MoveItemAsync(long userId, long collectionId, long itemId, long? afterItemId, CancellationToken cancellationToken = default) =>
+            inner.MoveItemAsync(userId, collectionId, itemId, afterItemId, cancellationToken);
+    }
+
+    /// <summary>The real publisher; right after it has written a new-link row, the operation fails.</summary>
+    private sealed class FailingAfterItemsAddedPublisher(ISocialNotificationPublisher inner) : ISocialNotificationPublisher
+    {
+        public bool RealRowsWritten { get; private set; }
+
+        public Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default) =>
+            inner.FriendRequestReceivedAsync(requesterUserId, recipientUserId, friendshipId, cancellationToken);
+
+        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default) =>
+            inner.FriendRequestAnsweredAsync(answererUserId, requesterUserId, friendshipId, cancellationToken);
+
+        public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default) =>
+            inner.CollectionInvitationReceivedAsync(ownerUserId, invitedUserId, collectionId, invitationId, cancellationToken);
+
+        public Task CollectionInvitationAnsweredAsync(long inviteeUserId, long invitationId, CancellationToken cancellationToken = default) =>
+            inner.CollectionInvitationAnsweredAsync(inviteeUserId, invitationId, cancellationToken);
+
+        public Task CollectionsChangedAsync(long actorUserId, IReadOnlyCollection<long> collectionIds, CancellationToken cancellationToken = default) =>
+            inner.CollectionsChangedAsync(actorUserId, collectionIds, cancellationToken);
+
+        public Task ItemCollectionsChangedAsync(long actorUserId, long itemId, CancellationToken cancellationToken = default) =>
+            inner.ItemCollectionsChangedAsync(actorUserId, itemId, cancellationToken);
+
+        public async Task CollectionItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, CancellationToken cancellationToken = default)
+        {
+            await inner.CollectionItemsAddedAsync(actorUserId, collectionId, itemCount, hideActor, cancellationToken);
+            RealRowsWritten = true;
+            throw new InvalidOperationException("database write failed after the notification row");
+        }
+    }
 
     private CollectionUnlockTokenProtector Tokens() => new(Options.Create(new CollectionUnlockGrantOptions
     {

@@ -1086,7 +1086,8 @@ public sealed class CollectionStore(
             .MinAsync(cancellationToken);
         var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
 
-        dbContext.CollectionItems.Add(new CollectionItem(collectionId, itemId, userId, addedAtUtc, sortOrder));
+        var membership = new CollectionItem(collectionId, itemId, userId, addedAtUtc, sortOrder);
+        dbContext.CollectionItems.Add(membership);
 
         try
         {
@@ -1096,7 +1097,10 @@ public sealed class CollectionStore(
             SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
         {
             // A concurrent Add for the same (collectionId, itemId) pair already won the race - the
-            // desired end state (membership exists) was already reached.
+            // desired end state (membership exists) was already reached. Stop tracking the refused
+            // row, so a later save on this context (another Collection of the same batch, its
+            // notification) does not try to insert it again.
+            dbContext.Entry(membership).State = EntityState.Detached;
             return false;
         }
 

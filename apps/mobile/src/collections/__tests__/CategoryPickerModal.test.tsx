@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import '../../i18n';
+import i18n from '../../i18n';
 import { CategoryPickerModal } from '../CategoryPickerModal';
 import { CheckIcon } from '../../icons/CheckIcon';
 import { KeyIcon } from '../../icons/KeyIcon';
@@ -191,5 +191,56 @@ describe('CategoryPickerModal - locked Collections', () => {
 
     expect(renderer.root.findByProps({ testID: 'collection-unlock-dialog' })).toBeTruthy();
     expect(renderer.root.findByProps({ testID: 'collection-unlock-password' })).toBeTruthy();
+  });
+});
+
+describe('CategoryPickerModal - the optional 복제 mode (defaults unchanged)', () => {
+  const pool = [makeCollection({ id: 1, name: 'Groceries' }), makeCollection({ id: 2, name: 'Travel' })];
+  const byTestId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
+
+  it('without the new props: the + tile, 닫기, no order control, nothing disabled', () => {
+    const renderer = render(<CategoryPickerModal {...baseProps} collectionPool={pool} onToggle={jest.fn()} selectedIds={new Set()} />);
+
+    expect(renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addNew') && typeof node.props.onPress === 'function')).toHaveLength(1);
+    expect(renderer.root.findAll(node => node.props.testID === 'category-picker-sort')).toHaveLength(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'category-picker-submit')).toHaveLength(0);
+    expect(byTestId(renderer, 'category-picker-option-1').props.disabled).toBeUndefined();
+  });
+
+  it('with them: its own title, 최신순 | 이름순, 이미 포함됨 not choosable, and N개 선택됨 with [취소] [복제] (off until something is chosen)', () => {
+    const onSubmit = jest.fn();
+    const onSort = jest.fn();
+    const onToggle = jest.fn();
+    const props = {
+      ...baseProps,
+      collectionPool: pool,
+      disabledIds: new Set([1]),
+      onToggle,
+      showCreateTile: false,
+      sort: { value: 'newest' as const, onChange: onSort },
+      submit: { label: '복제', onSubmit, isSubmitting: false },
+      title: '컬렉션 선택',
+    };
+    const renderer = render(<CategoryPickerModal {...props} selectedIds={new Set()} />);
+
+    expect(byTestId(renderer, 'category-picker-sort-newest').props.accessibilityState).toEqual({ checked: true });
+    act(() => byTestId(renderer, 'category-picker-sort-title').props.onPress());
+    expect(onSort).toHaveBeenCalledWith('title');
+
+    const included = byTestId(renderer, 'category-picker-option-1');
+    expect(included.props.disabled).toBe(true);
+    expect(included.props.accessibilityState).toEqual({ selected: false, disabled: true });
+    expect(included.props.accessibilityHint).toBeTruthy();
+    expect(byTestId(renderer, 'category-picker-submit').props.disabled).toBe(true);
+
+    act(() => renderer.update(<CategoryPickerModal {...props} selectedIds={new Set([2])} />));
+    const submit = byTestId(renderer, 'category-picker-submit');
+    expect(submit.props.disabled).toBe(false);
+    act(() => submit.props.onPress());
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    // 360dp: [취소] and [복제] share the row equally, and a long 복제 label may wrap to two lines.
+    expect(byTestId(renderer, 'category-picker-cancel').props.style).toEqual(expect.arrayContaining([expect.objectContaining({ flex: 1 })]));
+    expect(renderer.root.findAll(node => node.props.testID === 'category-picker-selected-count').length).toBeGreaterThan(0);
   });
 });

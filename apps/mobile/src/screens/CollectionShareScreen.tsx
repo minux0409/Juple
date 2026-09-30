@@ -11,9 +11,9 @@ import {
   ScrollView,
   type ScrollViewInstance,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
   type ViewInstance,
 } from 'react-native';
@@ -56,9 +56,11 @@ import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/Act
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { CloseIcon } from '../icons/CloseIcon';
+import { GlobeIcon } from '../icons/GlobeIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { PlusIcon } from '../icons/PlusIcon';
+import { UserIcon } from '../icons/UserIcon';
 import { shareItem } from '../items/shareItem';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useLiveRefresh } from '../push/useLiveRefresh';
@@ -94,15 +96,7 @@ interface InviteDraft {
 
 type BadgeKind = 'owner' | InvitationRole;
 
-type MainTab = 'public' | 'invite';
-
 const CONTENT_MAX_WIDTH = 640;
-
-/**
- * The width (at font scale 1) a person row needs to keep name + permission toggle + X on one line
- * with the name still readable; below it the row switches to its two-line layout.
- */
-export const INLINE_PERSON_ROW_MIN_WIDTH = 380;
 
 /** What the "⋯" menu of one row acts on: an accepted member, or a pending invitation. */
 type ManagedPerson =
@@ -207,22 +201,32 @@ interface RoleToggleProps {
   readonly disabled?: boolean;
   readonly label: string;
   readonly testID: string;
-  /** Takes the full width of its line (two equal halves) - the narrow-screen layout of a person row. */
+  /** Takes the full width of its line (two equal halves). */
   readonly stretch?: boolean;
+  /**
+   * The lowest permission allowed (a 링크 추가 public link makes it 링크 추가): anything below it is shown
+   * but greyed out and cannot be chosen - the choice itself explains the rule, no sentence needed.
+   */
+  readonly minimum?: InvitationRole | null;
 }
 
-/** 읽기 전용 | 링크 추가 가능 for one person about to be invited. The wire roles (viewer/contributor) are never shown. */
-function RoleToggle({ value, onChange, disabled = false, label, testID, stretch = false }: RoleToggleProps) {
+const ROLE_RANK: Record<InvitationRole, number> = { viewer: 0, contributor: 1 };
+
+/** 읽기 전용 | 링크 추가 for one person about to be invited. The wire roles (viewer/contributor) are never shown. */
+function RoleToggle({ value, onChange, disabled = false, label, testID, stretch = false, minimum = null }: RoleToggleProps) {
   const { t } = useTranslation();
   return (
     <View accessibilityLabel={t('shareSheet.permissionA11y', { name: label })} accessibilityRole="radiogroup" style={[styles.roleToggle, stretch && styles.roleToggleStretch]}>
       {(['viewer', 'contributor'] as const).map(role => {
         const isSelected = value === role;
+        const isBelowMinimum = minimum !== null && ROLE_RANK[role] < ROLE_RANK[minimum];
+        const isDisabled = disabled || isBelowMinimum;
         return (
           <Pressable
             accessibilityRole="radio"
-            accessibilityState={{ checked: isSelected, disabled }}
-            disabled={disabled}
+            accessibilityState={{ checked: isSelected, disabled: isDisabled }}
+            disabled={isDisabled}
+            hitSlop={3}
             key={role}
             onPress={() => {
               if (!isSelected) {
@@ -232,7 +236,10 @@ function RoleToggle({ value, onChange, disabled = false, label, testID, stretch 
             style={[styles.roleOption, stretch && styles.roleOptionStretch, isSelected && styles.roleOptionSelected, disabled && styles.disabled]}
             testID={`${testID}-${role}`}
           >
-            <Text numberOfLines={1} style={[styles.roleOptionLabel, isSelected && styles.roleOptionLabelSelected]}>
+            <Text
+              numberOfLines={1}
+              style={[styles.roleOptionLabel, isSelected && styles.roleOptionLabelSelected, isBelowMinimum && styles.roleOptionLabelUnavailable]}
+            >
               {role === 'viewer' ? t('shareSheet.permissionRead') : t('shareSheet.permissionWrite')}
             </Text>
           </Pressable>
@@ -242,37 +249,25 @@ function RoleToggle({ value, onChange, disabled = false, label, testID, stretch 
   );
 }
 
-/** Shown instead of RoleToggle while 모든 사용자 is 링크 추가 가능: nobody can be given less than that. */
-function FixedRoleBadge({ testID }: { readonly testID: string }) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.fixedRole} testID={testID}>
-      <Text style={styles.fixedRoleLabel}>{t('collaboration.blockedByPublicShare')}</Text>
-    </View>
-  );
-}
-
 interface SegmentOption<T extends string> {
   readonly key: T;
   readonly label: string;
-  /** A small "on" dot after the label - e.g. the 모든 사용자 link is active while another tab is shown. */
-  readonly isActive?: boolean;
 }
 
 /**
- * One row of equal segments - the screen's two main tabs (모든 사용자 공유 | 초대하기), the inner tab
- * bars (친구 | ID, 공유 중 | 초대 대기) and the 모든 사용자 읽기 전용 | 링크 추가 가능 selector share
- * this one look; "large" is the main tabs' taller, bolder variant.
+ * One row of equal segments - the tab bars inside a card (친구 | ID, 공유 중 | 초대 대기) and the public
+ * link's 읽기 전용 | 링크 추가 가능 permission selector share this one look. It only ever chooses
+ * within one card, never between the screen's independent ways of sharing.
  */
 function Segmented<T extends string>({
   options,
   value,
   onChange,
   kind,
-  size = 'regular',
   disabled = false,
   testID,
   onReselect,
+  accessibilityLabel,
 }: {
   readonly options: readonly SegmentOption<T>[];
   readonly value: T;
@@ -280,13 +275,13 @@ function Segmented<T extends string>({
   /** Tapping the segment that is already selected - by default nothing happens. */
   readonly onReselect?: (key: T) => void;
   readonly kind: 'tabs' | 'radio';
-  readonly size?: 'regular' | 'large';
   readonly disabled?: boolean;
   readonly testID: string;
+  /** What the choice is about (e.g. 권한), announced with the group. */
+  readonly accessibilityLabel?: string;
 }) {
-  const isLarge = size === 'large';
   return (
-    <View accessibilityRole={kind === 'tabs' ? 'tablist' : 'radiogroup'} style={[styles.segmented, isLarge && styles.segmentedLarge]} testID={testID}>
+    <View accessibilityLabel={accessibilityLabel} accessibilityRole={kind === 'tabs' ? 'tablist' : 'radiogroup'} style={styles.segmented} testID={testID}>
       {options.map(option => {
         const isSelected = value === option.key;
         return (
@@ -294,6 +289,7 @@ function Segmented<T extends string>({
             accessibilityRole={kind === 'tabs' ? 'tab' : 'radio'}
             accessibilityState={kind === 'tabs' ? { selected: isSelected, disabled } : { checked: isSelected, disabled }}
             disabled={disabled}
+            hitSlop={3}
             key={option.key}
             onPress={() => {
               if (!isSelected) {
@@ -302,16 +298,12 @@ function Segmented<T extends string>({
                 onReselect?.(option.key);
               }
             }}
-            style={[styles.segment, isLarge && styles.segmentLarge, isSelected && styles.segmentSelected, disabled && styles.disabled]}
+            style={[styles.segment, isSelected && styles.segmentSelected, disabled && styles.disabled]}
             testID={`${testID}-${option.key}`}
           >
-            <Text
-              numberOfLines={isLarge ? 2 : 1}
-              style={[styles.segmentLabel, isLarge && styles.segmentLabelLarge, isSelected && styles.segmentLabelSelected]}
-            >
+            <Text numberOfLines={2} style={[styles.segmentLabel, isSelected && styles.segmentLabelSelected]}>
               {option.label}
             </Text>
-            {option.isActive ? <View style={styles.segmentActiveDot} testID={`${testID}-${option.key}-active`} /> : null}
           </Pressable>
         );
       })}
@@ -323,12 +315,18 @@ function SectionCard({
   icon,
   title,
   count,
+  status,
+  trailing,
   children,
   testID,
 }: {
   readonly icon: ReactNode;
   readonly title: string;
   readonly count?: string;
+  /** A short "on" state next to the title (e.g. 공유 중), shown only while it is true. */
+  readonly status?: string;
+  /** A control at the end of the header - e.g. the public link's on/off switch. */
+  readonly trailing?: ReactNode;
   readonly children: ReactNode;
   readonly testID: string;
 }) {
@@ -338,6 +336,13 @@ function SectionCard({
         <View style={styles.cardIcon}>{icon}</View>
         <Text accessibilityRole="header" numberOfLines={2} style={styles.cardTitle}>{title}</Text>
         {count !== undefined ? <Text style={[styles.cardCount, ltrTextStyle]} testID={`${testID}-count`}>{count}</Text> : null}
+        {status !== undefined ? (
+          <View style={styles.statusPill} testID={`${testID}-status`}>
+            <View style={styles.statusDot} />
+            <Text numberOfLines={1} style={styles.statusPillLabel}>{status}</Text>
+          </View>
+        ) : null}
+        {trailing}
       </View>
       {children}
     </View>
@@ -345,15 +350,16 @@ function SectionCard({
 }
 
 /**
- * The one place for sharing a Collection (Owner only). Two main tabs over one panel, so it never
- * grows into a long column of cards, and the shared state below them:
- * - [모든 사용자 공유]: the public link, [읽기 전용] (anyone with the link views, signed in or not)
- *   or [링크 추가 가능] (additionally, holders SIGNED IN to Juple may add their own links - never
- *   anonymously). A dot on the tab tells the link is on while the other tab is shown.
- * - [초대하기]: [친구] | [ID] tabs feeding one batch of any size; each person gets 읽기 전용 (viewer)
+ * The one place for sharing a Collection (Owner only). The ways of sharing are independent and can
+ * be used together, so each is its own card, always shown (never tabs that look like a choice):
+ * - 공개 링크 공유: the public link and its 권한 - [읽기 전용] (anyone with the link views, signed in
+ *   or not) or [링크 추가 가능] (additionally, holders SIGNED IN to Juple may add their own links -
+ *   never anonymously). "공유 중" on the card while the link is on.
+ * - 친구 초대: [친구] | [ID] tabs feeding one batch of any size; each person gets 읽기 전용 (viewer)
  *   or 링크 추가 가능 (contributor); sent a few at a time, they must accept.
- * - 공유 상태 (always shown): [공유 중 N] | [초대 대기 N] tabs of one-line rows with a role badge;
- *   changing the permission, removing and cancelling live behind each row's "⋯" menu.
+ * - 접근 비밀번호: one setting for both ways above (SharePasswordCard).
+ * - 공유 상태: [공유 중 N] | [초대 대기 N] tabs of one-line rows with a role badge; changing the
+ *   permission, removing and cancelling live behind each row's "⋯" menu.
  * While 모든 사용자 is on, its permission is the minimum for every specific person (a server rule):
  * under 읽기 전용 each person still gets 읽기 전용 or 링크 추가 가능; under 링크 추가 가능 the per-person
  * choice is fixed to 링크 추가 가능, and turning the link on as (or raising it to) 링크 추가 가능 is
@@ -379,10 +385,6 @@ export function CollectionShareScreen({ route }: Props) {
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
   // 모든 사용자 읽기 전용/링크 추가 가능 chosen before the link exists; once it exists, the link's own permission rules.
   const [pendingPublicPermission, setPendingPublicPermission] = useState<PublicSharePermission>('read');
-  // The two main tabs. Chosen once on the first load (the 모든 사용자 tab when its link is already
-  // on, 초대하기 otherwise), then only by the user - a refresh never switches it. Switching never
-  // loses anything: the invite batch, the typed Juple ID and every choice live on this screen.
-  const [mainTab, setMainTab] = useState<MainTab | null>(null);
   const [inviteTab, setInviteTab] = useState<'friends' | 'id'>('friends');
   const [statusTab, setStatusTab] = useState<'members' | 'pending'>('members');
 
@@ -400,7 +402,6 @@ export function CollectionShareScreen({ route }: Props) {
   const statusCardRef = useRef<ViewInstance>(null);
   const participantsRequestRef = useRef(0);
   const [isSending, setIsSending] = useState(false);
-  const [inviteNotice, setInviteNotice] = useState<string | null>(null);
 
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [managed, setManaged] = useState<ManagedPerson | null>(null);
@@ -441,7 +442,6 @@ export function CollectionShareScreen({ route }: Props) {
       setCollection(loadedCollection);
       setShare(loadedShare);
       setParticipants(loadedParticipants);
-      setMainTab(previous => previous ?? (loadedShare ? 'public' : 'invite'));
     } catch (caughtError) {
       setLoadError(
         caughtError instanceof ApiError && (caughtError.kind === 'forbidden' || caughtError.kind === 'notFound')
@@ -463,14 +463,6 @@ export function CollectionShareScreen({ route }: Props) {
   // An invitee accepting/declining moves them between 초대 대기 and 공유 중 without leaving the screen.
   useLiveRefresh(refreshQuietly, ['collectionInvitationAnswered']);
 
-  // Narrow screens (small phones, industrial PDAs, split screen, large font): a person row puts the
-  // name and its X / + on one line and the permission choice full-width below it, instead of
-  // letting the buttons fall onto a line of their own. Measured from the window, so rotating or
-  // resizing re-decides it without a flash of the wrong layout.
-  const { width: windowWidth, fontScale } = useWindowDimensions();
-  const cardInnerWidth = Math.min(windowWidth, CONTENT_MAX_WIDTH) - 2 * (spacing.lg + spacing.lg);
-  const isCompactRows = cardInnerWidth < INLINE_PERSON_ROW_MIN_WIDTH * Math.max(1, fontScale);
-  const activeMainTab: MainTab = mainTab ?? 'invite';
 
   const isOwnerView = participants?.canManage === true;
   const members = [...(participants?.participants ?? [])].sort(
@@ -498,6 +490,8 @@ export function CollectionShareScreen({ route }: Props) {
   // recipient - neither a new link nor an invitation - until the Owner sets this Collection's own
   // share password or removes the protection in the card below. The server refuses it as well.
   const needsSharePasswordMigration = sharePasswordMode === 'legacyCommonLock';
+  // Off → on is held back while it would be refused; on → off (stopping) is always possible.
+  const isPublicToggleDisabled = isManagingShare || (!share && (isPublicBlocked || needsSharePasswordMigration));
 
   const showMembers = () => {
     Keyboard.dismiss();
@@ -613,7 +607,6 @@ export function CollectionShareScreen({ route }: Props) {
   /** Friends picked in 친구 선택 join the batch with 읽기 전용 (or 링크 추가 가능 when the link fixes it); each can be switched on its own. */
   const addFriends = (friends: readonly Friend[]) => {
     setIsFriendPickerVisible(false);
-    setInviteNotice(null);
     setDrafts(previous => {
       const added = friends
         .filter(friend => !previous.some(draft => draft.jupleId === friend.jupleId))
@@ -662,7 +655,6 @@ export function CollectionShareScreen({ route }: Props) {
       setIdLookup({ status: 'error', person: null, message: reason });
       return;
     }
-    setInviteNotice(null);
     setDrafts(previous => [
       ...previous,
       { jupleId: person.jupleId, displayName: person.displayName ?? null, role: lockedRole ?? idRole, status: 'ready', message: null },
@@ -696,7 +688,6 @@ export function CollectionShareScreen({ route }: Props) {
     }
     isSendingRef.current = true;
     setIsSending(true);
-    setInviteNotice(null);
     setDrafts(previous => previous.map(draft => ({ ...draft, status: 'sending', message: null })));
 
     const results = await runWithConcurrency(batch, INVITE_CONCURRENCY, draft =>
@@ -713,10 +704,8 @@ export function CollectionShareScreen({ route }: Props) {
         .filter(draft => failed.has(draft.jupleId) || !batch.some(sent => sent.jupleId === draft.jupleId))
         .map(draft => (failed.has(draft.jupleId) ? { ...draft, status: 'error', message: failed.get(draft.jupleId)! } : draft)),
     );
-    const sentCount = batch.length - failed.size;
-    if (sentCount > 0) {
-      setInviteNotice(t('shareSheet.invitationsSent', { count: sentCount }));
-    }
+    // No success sentence: the sent people leave the list and appear under 초대 대기 - that is the
+    // feedback. A failure stays on its own row with its reason (above).
     try {
       await loadParticipants();
     } catch {
@@ -836,28 +825,35 @@ export function CollectionShareScreen({ route }: Props) {
 
         {participants ? (
           <View ref={contentRef} testID="share-unified">
-            {/* The two ways to share, as two main tabs over one panel (never two stacked cards) -
-                together one bordered section, set apart from 공유 상태 below. */}
-            <View style={[styles.card, styles.shareWaysSection]} testID="share-ways-section">
-            <Segmented
-              kind="tabs"
-              onChange={tab => {
-                Keyboard.dismiss();
-                setMainTab(tab);
-              }}
-              options={[
-                { key: 'public', label: t('shareSheet.allUsersTitle'), isActive: share !== null },
-                { key: 'invite', label: t('shareSheet.inviteTitle') },
-              ]}
-              size="large"
-              testID="share-main-tabs"
-              value={activeMainTab}
-            />
-
-            {activeMainTab === 'public' ? (
-              // A. 모든 사용자 공유: the public link with its permission.
-              <View style={styles.panel} testID="share-all-users">
+            {/* A. 공개 링크 공유: the public link with its 권한. */}
+            <SectionCard
+              icon={<GlobeIcon color={colors.textSecondary} size={16} />}
+              status={share ? t('shareSheet.publicLinkActive') : undefined}
+              testID="share-all-users"
+              title={t('shareSheet.allUsersTitle')}
+              trailing={
+                // On creates the link (the server's own enable), off stops it after a confirmation -
+                // the same two calls the former 공유 시작 / 공유 중지 buttons made.
+                <Switch
+                  accessibilityLabel={t('shareSheet.allUsersTitle')}
+                  accessibilityState={{ checked: share !== null, busy: isManagingShare, disabled: isPublicToggleDisabled }}
+                  disabled={isPublicToggleDisabled}
+                  onValueChange={value => {
+                    if (value) {
+                      startPublicShare();
+                    } else {
+                      setIsUnshareConfirmVisible(true);
+                    }
+                  }}
+                  testID="share-public-toggle"
+                  value={share !== null}
+                />
+              }
+            >
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
                 <Segmented
+                  accessibilityLabel={t('shareSheet.permissionLabel')}
                   disabled={isManagingShare}
                   kind="radio"
                   onChange={changePublicPermission}
@@ -871,228 +867,207 @@ export function CollectionShareScreen({ route }: Props) {
                   testID="share-all-users-permission"
                   value={publicPermission}
                 />
-                <Text style={styles.help} testID="share-all-users-description">
-                  {publicPermission === 'write' ? t('shareSheet.allUsersWriteDescription') : t('shareSheet.allUsersDescription')}
-                </Text>
-                {share ? (
-                  <>
-                    <View style={styles.linkBox}>
-                      <Text numberOfLines={2} selectable style={[styles.link, ltrTextStyle]} testID="share-link">{share.shareUrl}</Text>
+              </View>
+              <Text style={styles.help} testID="share-all-users-description">
+                {publicPermission === 'write' ? t('shareSheet.allUsersWriteDescription') : t('shareSheet.allUsersDescription')}
+              </Text>
+              {share ? (
+                <>
+                  <View style={styles.linkBox}>
+                    <Text numberOfLines={2} selectable style={[styles.link, ltrTextStyle]} testID="share-link">{share.shareUrl}</Text>
+                  </View>
+                  <Pressable accessibilityRole="button" onPress={shareLink} style={styles.primaryButton} testID="share-link-action">
+                    <Text numberOfLines={2} style={styles.primaryLabel}>{t('shareSheet.shareLink')}</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  {needsSharePasswordMigration ? (
+                    <View style={styles.noticeBox} testID="share-public-migration-required">
+                      <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
                     </View>
-                    <View style={styles.buttonRow}>
-                      <Pressable accessibilityRole="button" onPress={shareLink} style={[styles.primaryButton, styles.flexButton]} testID="share-link-action">
-                        <Text numberOfLines={2} style={styles.primaryLabel}>{t('shareSheet.shareLink')}</Text>
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        disabled={isManagingShare}
-                        onPress={() => setIsUnshareConfirmVisible(true)}
-                        style={[styles.secondaryButton, styles.flexButton]}
-                        testID="share-stop"
-                      >
-                        <Text numberOfLines={2} style={styles.removeLabel}>{t('shareSheet.stopSharing')}</Text>
+                  ) : null}
+                  {isPublicBlocked ? (
+                    <View style={styles.noticeBox} testID="share-public-blocked">
+                      <Text style={styles.noticeText}>{t('shareSheet.permissionMismatch')}</Text>
+                      <Text style={styles.help}>{t('shareSheet.permissionMismatchHint')}</Text>
+                      <Pressable accessibilityRole="button" onPress={showMembers} style={styles.inlineAction} testID="share-public-blocked-review">
+                        <Text style={styles.inlineActionLabel}>{t('shareSheet.reviewMembers')}</Text>
                       </Pressable>
                     </View>
-                  </>
-                ) : (
-                  <>
-                    {needsSharePasswordMigration ? (
-                      <View style={styles.noticeBox} testID="share-public-migration-required">
-                        <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
-                      </View>
-                    ) : null}
-                    {isPublicBlocked ? (
-                      <View style={styles.noticeBox} testID="share-public-blocked">
-                        <Text style={styles.noticeText}>{t('shareSheet.permissionMismatch')}</Text>
-                        <Text style={styles.help}>{t('shareSheet.permissionMismatchHint')}</Text>
-                        <Pressable accessibilityRole="button" onPress={showMembers} style={styles.inlineAction} testID="share-public-blocked-review">
-                          <Text style={styles.inlineActionLabel}>{t('shareSheet.reviewMembers')}</Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
+                  ) : null}
+                </>
+              )}
+              {collection && isCollectionLocked(collection) ? (
+                <Text style={styles.help} testID="share-locked-note">{t('shareSheet.lockedLinkNote')}</Text>
+              ) : null}
+              {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
+            </SectionCard>
+
+            {/* B. 친구 초대: [친구] | [ID] feeding one batch of people, each with their own permission. */}
+            <SectionCard icon={<UserIcon color={colors.textSecondary} size={16} />} testID="share-invite" title={t('shareSheet.inviteTitle')}>
+              {needsSharePasswordMigration ? (
+                <View style={styles.noticeBox} testID="share-invite-migration-required">
+                  <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
+                </View>
+              ) : null}
+              <Segmented
+                kind="tabs"
+                onChange={setInviteTab}
+                options={[
+                  { key: 'friends', label: t('shareSheet.inviteTabFriends') },
+                  { key: 'id', label: t('shareSheet.inviteTabId') },
+                ]}
+                testID="share-invite-tabs"
+                value={inviteTab}
+              />
+              {inviteTab === 'friends' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: inviteDisabled }}
+                  disabled={inviteDisabled}
+                  hitSlop={2}
+                  onPress={() => setIsFriendPickerVisible(true)}
+                  style={[styles.outlineButton, inviteDisabled && styles.disabled]}
+                  testID="invite-choose-friends"
+                >
+                  <Text style={styles.outlineButtonLabel}>{t('shareSheet.chooseFriends')}</Text>
+                </Pressable>
+              ) : (
+                <View ref={idAreaRef} style={styles.idArea} testID="share-id-invite">
+                  <View style={styles.lookupRow}>
+                    <TextInput
+                      accessibilityLabel={t('collaboration.jupleIdLabel')}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      editable={!inviteDisabled}
+                      maxLength={16}
+                      onChangeText={value => {
+                        setIdInput(value);
+                        setIdLookup({ status: 'idle', person: null, message: null });
+                      }}
+                      onFocus={scrollToIdArea}
+                      onSubmitEditing={findById}
+                      placeholder={t('collaboration.jupleIdPlaceholder')}
+                      style={[styles.input, inviteDisabled && styles.disabled]}
+                      testID="id-invite-input"
+                      value={idInput}
+                    />
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityState={{ disabled: isManagingShare || isPublicBlocked || needsSharePasswordMigration, busy: isManagingShare }}
-                      disabled={isManagingShare || isPublicBlocked || needsSharePasswordMigration}
-                      onPress={startPublicShare}
-                      style={[styles.primaryButton, (isManagingShare || isPublicBlocked || needsSharePasswordMigration) && styles.disabled]}
-                      testID="share-create-link"
+                      accessibilityState={{ disabled: inviteDisabled || !idInput.trim() }}
+                      disabled={inviteDisabled || !idInput.trim() || idLookup.status === 'lookingUp'}
+                      onPress={findById}
+                      style={[styles.secondaryButton, (inviteDisabled || !idInput.trim()) && styles.disabled]}
+                      testID="id-invite-find"
                     >
-                      {isManagingShare ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.startSharing')}</Text>}
+                      {idLookup.status === 'lookingUp' ? <ActivityIndicator size="small" /> : <Text numberOfLines={1} style={styles.secondaryLabel}>{t('collaboration.find')}</Text>}
                     </Pressable>
-                  </>
-                )}
-                {collection && isCollectionLocked(collection) ? (
-                  <Text style={styles.help} testID="share-locked-note">{t('shareSheet.lockedLinkNote')}</Text>
-                ) : null}
-                {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
-              </View>
-            ) : (
-              // B. 초대하기: [친구] | [ID] feeding one batch of people, each with their own permission.
-              <View style={styles.panel} testID="share-invite">
-                {needsSharePasswordMigration ? (
-                  <View style={styles.noticeBox} testID="share-invite-migration-required">
-                    <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
                   </View>
-                ) : null}
-                <Segmented
-                  kind="tabs"
-                  onChange={setInviteTab}
-                  options={[
-                    { key: 'friends', label: t('shareSheet.inviteTabFriends') },
-                    { key: 'id', label: t('shareSheet.inviteTabId') },
-                  ]}
-                  testID="share-invite-tabs"
-                  value={inviteTab}
-                />
-                {lockedRole ? <FixedRoleBadge testID="share-invite-fixed-role" /> : null}
-                {inviteTab === 'friends' ? (
+                  {idLookup.status === 'found' && idLookup.person ? (
+                    // Who and "+" on one line, then 권한 over their permission - the same shape as a
+                    // person already in the list below.
+                    <View style={styles.personRow} testID="id-invite-person">
+                      <View style={styles.rowLine}>
+                        <View style={styles.personRowText}>{personText(idLookup.person)}</View>
+                        <Pressable
+                          accessibilityLabel={t('shareSheet.addPersonToInviteList', { name: personLabel(idLookup.person) })}
+                          accessibilityRole="button"
+                          onPress={addFoundPerson}
+                          style={styles.addButton}
+                          testID="id-invite-add"
+                        >
+                          <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
+                        </Pressable>
+                      </View>
+                      <View style={styles.field} testID="id-invite-permission">
+                        <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
+                        <RoleToggle
+                          label={personLabel(idLookup.person)}
+                          minimum={lockedRole}
+                          onChange={role => {
+                            setActionError(null);
+                            setIdRole(role);
+                          }}
+                          stretch
+                          testID="id-invite-role"
+                          value={lockedRole ?? idRole}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+                  {idLookup.message ? <Text style={styles.error} testID="id-invite-error">{idLookup.message}</Text> : null}
+                </View>
+              )}
+
+              {drafts.length > 0 ? (
+                <View style={styles.batch} testID="share-invite-list">
+                  <View style={styles.batchHeader}>
+                    <Text numberOfLines={1} style={styles.batchTitle}>{t('shareSheet.inviteListTitle')}</Text>
+                    <Text numberOfLines={1} style={styles.batchCount} testID="share-invite-list-count">{t('shareSheet.selectedCount', { count: drafts.length })}</Text>
+                  </View>
+                  {drafts.map((draft, index) => {
+                    const removeButton = (
+                      <Pressable
+                        accessibilityLabel={t('common.delete')}
+                        accessibilityRole="button"
+                        disabled={draft.status === 'sending'}
+                        hitSlop={8}
+                        onPress={() => removeDraft(draft.jupleId)}
+                        style={styles.iconButton}
+                        testID={`draft-remove-${draft.jupleId}`}
+                      >
+                        <CloseIcon color={colors.textSecondary} size={18} />
+                      </Pressable>
+                    );
+                    return (
+                      <View key={draft.jupleId} style={[styles.draftRow, index > 0 && styles.listRowDivider]} testID={`draft-${draft.jupleId}`}>
+                        {/* Who and their × on one line; then 권한 over that person's own choice, full
+                            width - the same stacked shape on every screen width. */}
+                        <View style={styles.rowLine}>
+                          {personText(draft)}
+                          {removeButton}
+                        </View>
+                        <View style={styles.field} testID={`draft-permission-${draft.jupleId}`}>
+                          <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
+                          <RoleToggle
+                            disabled={draft.status === 'sending'}
+                            label={personLabel(draft)}
+                            minimum={lockedRole}
+                            onChange={role => setDraftRole(draft.jupleId, role)}
+                            stretch
+                            testID={`draft-role-${draft.jupleId}`}
+                            value={lockedRole ?? draft.role}
+                          />
+                        </View>
+                        {draft.message ? <Text style={styles.error} testID={`draft-error-${draft.jupleId}`}>{draft.message}</Text> : null}
+                      </View>
+                    );
+                  })}
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityState={{ disabled: inviteDisabled }}
+                    accessibilityState={{ disabled: inviteDisabled, busy: isSending }}
                     disabled={inviteDisabled}
-                    onPress={() => setIsFriendPickerVisible(true)}
-                    style={[styles.outlineButton, inviteDisabled && styles.disabled]}
-                    testID="invite-choose-friends"
+                    onPress={sendInvitations}
+                    style={[styles.primaryButton, inviteDisabled && styles.disabled]}
+                    testID="invite-send"
                   >
-                    <Text style={styles.outlineButtonLabel}>{t('shareSheet.chooseFriends')}</Text>
+                    {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.sendInvitations')}</Text>}
                   </Pressable>
-                ) : (
-                  <View ref={idAreaRef} style={styles.idArea} testID="share-id-invite">
-                    <View style={styles.lookupRow}>
-                      <TextInput
-                        accessibilityLabel={t('collaboration.jupleIdLabel')}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
-                        editable={!inviteDisabled}
-                        maxLength={16}
-                        onChangeText={value => {
-                          setIdInput(value);
-                          setIdLookup({ status: 'idle', person: null, message: null });
-                        }}
-                        onFocus={scrollToIdArea}
-                        onSubmitEditing={findById}
-                        placeholder={t('collaboration.jupleIdPlaceholder')}
-                        style={[styles.input, inviteDisabled && styles.disabled]}
-                        testID="id-invite-input"
-                        value={idInput}
-                      />
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ disabled: inviteDisabled || !idInput.trim() }}
-                        disabled={inviteDisabled || !idInput.trim() || idLookup.status === 'lookingUp'}
-                        onPress={findById}
-                        style={[styles.secondaryButton, (inviteDisabled || !idInput.trim()) && styles.disabled]}
-                        testID="id-invite-find"
-                      >
-                        {idLookup.status === 'lookingUp' ? <ActivityIndicator size="small" /> : <Text numberOfLines={1} style={styles.secondaryLabel}>{t('collaboration.find')}</Text>}
-                      </Pressable>
-                    </View>
-                    {idLookup.status === 'found' && idLookup.person ? (
-                      // Who - their permission - "+". One line when there is room; otherwise who on
-                      // top, and the permission with "+" at its end below it.
-                      <View style={[styles.personRow, isCompactRows && styles.personRowCompact]} testID="id-invite-person">
-                        <View style={styles.personRowText}>{personText(idLookup.person)}</View>
-                        <View style={[styles.rowControls, isCompactRows && styles.rowControlsCompact]}>
-                          {lockedRole ? null : (
-                            <RoleToggle
-                              label={personLabel(idLookup.person)}
-                              onChange={role => {
-                                setActionError(null);
-                                setIdRole(role);
-                              }}
-                              stretch={isCompactRows}
-                              testID="id-invite-role"
-                              value={idRole}
-                            />
-                          )}
-                          <Pressable
-                            accessibilityLabel={t('shareSheet.addPersonToInviteList', { name: personLabel(idLookup.person) })}
-                            accessibilityRole="button"
-                            onPress={addFoundPerson}
-                            style={[styles.addButton, isCompactRows && lockedRole !== null && styles.addButtonEnd]}
-                            testID="id-invite-add"
-                          >
-                            <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
-                          </Pressable>
-                        </View>
-                      </View>
-                    ) : null}
-                    {idLookup.message ? <Text style={styles.error} testID="id-invite-error">{idLookup.message}</Text> : null}
-                  </View>
-                )}
-
-                {drafts.length > 0 ? (
-                  <View style={styles.batch} testID="share-invite-list">
-                    <View style={styles.batchHeader}>
-                      <Text numberOfLines={1} style={styles.batchTitle}>{t('shareSheet.inviteListTitle')}</Text>
-                      <Text numberOfLines={1} style={styles.cardCount} testID="share-invite-list-count">{t('shareSheet.selectedCount', { count: drafts.length })}</Text>
-                    </View>
-                    {drafts.map((draft, index) => {
-                      const removeButton = (
-                        <Pressable
-                          accessibilityLabel={t('common.delete')}
-                          accessibilityRole="button"
-                          disabled={draft.status === 'sending'}
-                          hitSlop={8}
-                          onPress={() => removeDraft(draft.jupleId)}
-                          style={styles.iconButton}
-                          testID={`draft-remove-${draft.jupleId}`}
-                        >
-                          <CloseIcon color={colors.textSecondary} size={18} />
-                        </Pressable>
-                      );
-                      const roleToggle = lockedRole ? null : (
-                        <RoleToggle
-                          disabled={draft.status === 'sending'}
-                          label={personLabel(draft)}
-                          onChange={role => setDraftRole(draft.jupleId, role)}
-                          stretch={isCompactRows}
-                          testID={`draft-role-${draft.jupleId}`}
-                          value={draft.role}
-                        />
-                      );
-                      return (
-                        <View key={draft.jupleId} style={[styles.listRow, index > 0 && styles.listRowDivider]} testID={`draft-${draft.jupleId}`}>
-                          {/* Name and its X always share one line; the permission joins them when
-                              there is room, and otherwise gets the full line below. */}
-                          <View style={styles.rowLine}>
-                            {personText(draft)}
-                            {isCompactRows ? null : roleToggle}
-                            {removeButton}
-                          </View>
-                          {isCompactRows ? roleToggle : null}
-                          {draft.message ? <Text style={styles.error} testID={`draft-error-${draft.jupleId}`}>{draft.message}</Text> : null}
-                        </View>
-                      );
-                    })}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: inviteDisabled, busy: isSending }}
-                      disabled={inviteDisabled}
-                      onPress={sendInvitations}
-                      style={[styles.primaryButton, inviteDisabled && styles.disabled]}
-                      testID="invite-send"
-                    >
-                      {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('shareSheet.sendInvitations')}</Text>}
-                    </Pressable>
-                  </View>
-                ) : null}
-                {inviteNotice ? <Text style={styles.notice} testID="invite-notice">{inviteNotice}</Text> : null}
-              </View>
-            )}
-            </View>
+                </View>
+              ) : null}
+            </SectionCard>
             {actionError ? <Text style={[styles.error, styles.actionError]} testID="share-action-error">{actionError}</Text> : null}
 
-            {/* B. 공유 비밀번호: one setting for every way of sharing above, separate from both - and
+            {/* C. 접근 비밀번호: one setting for both ways of sharing above, separate from both - and
                 from the Owner's own Collection lock. Owner only. */}
             {isOwnerView ? (
               <SharePasswordCard authenticatedRequest={authenticatedRequest} collectionId={collectionId} onModeChange={setSharePasswordMode} />
             ) : null}
 
-            {/* C. 공유 상태: [공유 중 N] | [초대 대기 N] - pending invitations are not always spread out. */}
+            {/* D. 공유 상태: [공유 중 N] | [초대 대기 N] - pending invitations are not always spread out. */}
             <View ref={statusCardRef}>
-            <SectionCard icon={<PeopleIcon color={colors.textSecondary} size={18} />} testID="share-status" title={t('shareSheet.statusTitle')}>
+            <SectionCard icon={<PeopleIcon color={colors.textSecondary} size={16} />} testID="share-status" title={t('shareSheet.statusTitle')}>
               <Segmented
                 kind="tabs"
                 onChange={setStatusTab}
@@ -1211,28 +1186,53 @@ const badgeLabelStyles = StyleSheet.create({
   viewer: { color: colors.textSecondary },
 });
 
+/** The selected segment of every selector here: raised white, subtle neutral outline - never brand blue. */
+const selectedSegment = {
+  backgroundColor: colors.surface,
+  borderColor: colors.inputBorder,
+  elevation: 1,
+  shadowColor: '#000000',
+  shadowOffset: { height: 1, width: 0 },
+  shadowOpacity: 0.06,
+  shadowRadius: 2,
+} as const;
+
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   content: { alignSelf: 'center', maxWidth: CONTENT_MAX_WIDTH, padding: spacing.lg, width: '100%' },
   // A section card: a light neutral 1px outline (the app's own soft card border) so each section
-  // reads as its own block on the screen background, without a heavy rule.
+  // reads as its own block on the screen background, without a heavy rule. Kept compact: the four
+  // cards share one screen, so none of them is a tall block of its own.
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
     borderRadius: radii.lg,
     borderWidth: 1,
     gap: spacing.sm,
-    marginBottom: spacing.md,
-    padding: spacing.lg,
+    marginBottom: spacing.sm + 2,
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.md,
   },
-  // The main tabs and the selected tab's panel, one section - a wider gap before 공유 상태.
-  shareWaysSection: { marginBottom: spacing.xl, padding: spacing.md },
-  // The selected main tab's panel, right under the tabs inside the same section.
-  panel: { gap: spacing.sm, marginTop: spacing.md, paddingHorizontal: spacing.xs },
-  actionError: { marginBottom: spacing.md },
+  // A small label right on top of its control (권한 over a permission choice).
+  field: { gap: spacing.xs },
+  fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  statusPill: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md,
+    flexDirection: 'row',
+    flexShrink: 1,
+    gap: spacing.xs,
+    maxWidth: '45%',
+    paddingHorizontal: spacing.sm - 2,
+    paddingVertical: 2,
+  },
+  statusDot: { backgroundColor: colors.success, borderRadius: 3, flexShrink: 0, height: 6, width: 6 },
+  statusPillLabel: { color: colors.success, flexShrink: 1, fontSize: 12, fontWeight: '700' },
+  actionError: { marginBottom: spacing.sm + 2 },
   cardHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 14, height: 28, justifyContent: 'center', width: 28 },
-  cardTitle: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 16, fontWeight: '700' },
+  cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
+  cardTitle: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 15, fontWeight: '600' },
   cardCount: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   // Never wider than about half a row, so the person's name always keeps its own share of the line.
   badge: { borderRadius: radii.md, flexShrink: 1, maxWidth: '45%', paddingHorizontal: spacing.sm, paddingVertical: 3 },
@@ -1243,47 +1243,49 @@ const styles = StyleSheet.create({
     gap: 2,
     padding: 2,
   },
-  segmentedLarge: { borderRadius: radii.md + 4, padding: 3 },
   segment: {
     alignItems: 'center',
+    borderColor: 'transparent',
     borderRadius: radii.md,
+    borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
     gap: spacing.xs + 2,
     justifyContent: 'center',
-    minHeight: minTouchTarget - 4,
+    minHeight: minTouchTarget - 6,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
   },
-  segmentLarge: { minHeight: minTouchTarget + 4, paddingVertical: spacing.xs },
-  segmentActiveDot: { backgroundColor: colors.success, borderRadius: 4, flexShrink: 0, height: 8, width: 8 },
-  segmentSelected: { backgroundColor: colors.surface, borderColor: colors.brand, borderWidth: 1 },
+  // Every choice on this screen (권한, 친구 | ID, a person's permission, 공유 중 | 초대 대기) is a
+  // neutral selection - a raised white segment with the strong text color, never the brand blue,
+  // so it never reads as a button to press. Only the actions (공유 시작, 초대 보내기, …) are blue.
+  segmentSelected: { ...selectedSegment },
   segmentLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  segmentLabelLarge: { fontSize: 15 },
-  segmentLabelSelected: { color: colors.brand, fontWeight: '700' },
+  segmentLabelSelected: { color: colors.textPrimary, fontWeight: '700' },
   idArea: { gap: spacing.sm },
   batch: { borderTopColor: colors.divider, borderTopWidth: 1, gap: spacing.xs, marginTop: spacing.xs, paddingTop: spacing.sm },
   batchHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  batchTitle: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '700' },
+  batchTitle: { color: colors.textPrimary, flexShrink: 1, fontSize: 13, fontWeight: '600' },
+  batchCount: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   badgeLabel: { fontSize: 12, fontWeight: '700' },
-  linkBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  link: { color: colors.textPrimary, fontSize: 14 },
+  linkBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs + 2 },
+  link: { color: colors.textPrimary, fontSize: 14, lineHeight: 19 },
   buttonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   flexButton: { flexBasis: 140, flexGrow: 1 },
   noticeBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, gap: spacing.xs, padding: spacing.md },
   noticeText: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
-  notice: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm },
+  // 40dp to look at; its hitSlop keeps 44dp to touch.
   outlineButton: {
     alignItems: 'center',
     borderColor: colors.brand,
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: minTouchTarget,
+    minHeight: minTouchTarget - 4,
     paddingHorizontal: spacing.md,
   },
-  outlineButtonLabel: { color: colors.brand, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  help: { color: colors.textSecondary, fontSize: 13 },
+  outlineButtonLabel: { color: colors.brand, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  help: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   lookupRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   input: {
     backgroundColor: colors.surface,
@@ -1300,33 +1302,27 @@ const styles = StyleSheet.create({
     writingDirection: 'ltr',
   },
   flex: { flex: 1 },
+  // The Juple ID search result: who and "+" on one line, then 권한 over their permission.
   personRow: {
-    alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: radii.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs + 2,
     padding: spacing.sm,
   },
   personRowText: { flex: 1, minWidth: 0 },
-  // Narrow: who on top, then the permission (full width) with its + at the end.
-  personRowCompact: { alignItems: 'stretch', flexDirection: 'column' },
-  rowControls: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: spacing.sm },
-  rowControlsCompact: { alignSelf: 'stretch', flexShrink: 1 },
-  addButtonEnd: { marginStart: 'auto' },
-  fixedRole: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  fixedRoleLabel: { color: colors.textPrimary, fontSize: 13, fontWeight: '600' },
   inlineAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
   inlineActionLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
-  listRow: { gap: spacing.xs, paddingVertical: spacing.sm },
+  listRow: { gap: spacing.xs, paddingVertical: spacing.xs + 2 },
+  // A person to invite: who, then 권한 with their choice - 8dp above and below, 6dp between.
+  draftRow: { gap: spacing.xs + 2, paddingVertical: spacing.sm },
   // One line, never wrapping: the name gives way (ellipsis) before a badge or button would drop.
   listRowMain: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   rowLine: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   listRowDivider: { borderTopColor: colors.divider, borderTopWidth: 1 },
   personText: { flex: 1, minWidth: 0 },
-  personName: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
-  jupleId: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', letterSpacing: 1 },
-  pendingStatus: { color: colors.textSecondary, fontSize: 13 },
+  personName: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
+  jupleId: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', letterSpacing: 1 },
+  pendingStatus: { color: colors.textSecondary, fontSize: 12 },
   iconButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
   addButton: {
     alignItems: 'center',
@@ -1345,19 +1341,24 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   roleToggleStretch: { alignSelf: 'stretch', flexGrow: 1, flexShrink: 1 },
+  // 38dp to look at; the hitSlop on each option (see RoleToggle) keeps the touch target at 44dp.
   roleOption: {
     alignItems: 'center',
+    borderColor: 'transparent',
     borderRadius: radii.md,
+    borderWidth: 1,
     flexShrink: 1,
     justifyContent: 'center',
-    minHeight: minTouchTarget,
+    minHeight: minTouchTarget - 6,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
   },
   roleOptionStretch: { flexBasis: 0, flexGrow: 1 },
-  roleOptionSelected: { backgroundColor: colors.brand },
+  roleOptionSelected: { ...selectedSegment },
   roleOptionLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  roleOptionLabelSelected: { color: colors.surface, fontWeight: '700' },
+  roleOptionLabelSelected: { color: colors.textPrimary, fontWeight: '700' },
+  // Below the public link's 링크 추가: visibly unavailable - faint, struck through.
+  roleOptionLabelUnavailable: { color: colors.border, textDecorationLine: 'line-through' },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,

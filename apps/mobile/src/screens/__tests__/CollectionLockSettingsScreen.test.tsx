@@ -83,6 +83,9 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     const renderer = await renderScreen();
 
     expect(texts(renderer).filter(text => text === i18n.t('settings.collectionLockDescription'))).toHaveLength(1);
+    // Just what to do here - the shared-password mechanics are no longer spelled out.
+    expect(i18n.t('settings.collectionLockDescription')).toBe('컬렉션의 비밀번호를 설정하세요.');
+    expect(JSON.stringify(texts(renderer))).not.toContain('모든 컬렉션을 보호');
     expect(texts(renderer)).toContain(i18n.t('settings.collectionLockNotConfigured'));
     expect(exists(renderer, 'lock-settings-setup')).toBe(true);
     expect(exists(renderer, 'lock-settings-change')).toBe(false);
@@ -123,7 +126,7 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
 
     expect(changeCollectionLockPassword).toHaveBeenCalledWith(expect.anything(), 'old-pass-1', 'new-pass-1', 'new-pass-1');
     expect(clearCollectionUnlockGrants).toHaveBeenCalled();
-    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('settings.collectionLockSaved'));
+    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('settings.collectionLockChanged'));
   });
 
   it('a wrong current password stays in the dialog', async () => {
@@ -151,12 +154,15 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
     await confirmSignIn(renderer);
     expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
     expect(passwordFields(renderer)).toEqual(['lock-password-new', 'lock-password-confirm']);
+    // Signing in again is not a change - nothing is announced until the server has saved one.
+    expect(renderer.root.findAll(node => node.props.testID === 'lock-settings-notice')).toHaveLength(0);
 
     await type(renderer, { 'lock-password-new': 'brand-new-1', 'lock-password-confirm': 'brand-new-1' });
     await press(renderer, 'lock-password-save');
 
     expect(resetCollectionLockPassword).toHaveBeenCalledWith(expect.anything(), 'brand-new-1', 'brand-new-1');
     expect(clearCollectionUnlockGrants).toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe('잠금 비밀번호가 변경되었어요.');
   });
 
   it('first setup also starts with signing in again', async () => {
@@ -169,13 +175,18 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
 
     expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
     expect(renderer.root.findByType(CollectionLockPasswordDialog).props).toEqual(expect.objectContaining({ visible: true, mode: 'new' }));
+
+    // A first password is saved, not changed.
+    await type(renderer, { 'lock-password-new': 'brand-new-1', 'lock-password-confirm': 'brand-new-1' });
+    await press(renderer, 'lock-password-save');
+    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('settings.collectionLockSaved'));
   });
 
   it.each([
-    ['a cancelled or failed sign-in', () => jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('cancelled')), 'settings.collectionLockSignInCancelled'],
-    ['a different account', () => jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('differentAccount'), 'settings.collectionLockDifferentAccount'],
-    ['an incomplete sign-in', () => jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('incomplete'), 'settings.collectionLockSignInCancelled'],
-  ])('%s: no password dialog, nothing reset', async (_label, arrange, message) => {
+    ['cancelled', () => jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('cancelled'))],
+    ['closed (browser dismissed)', () => jest.mocked(reauthenticateSameAccount).mockRejectedValueOnce(new Error('dismissed'))],
+    ['incomplete', () => jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('incomplete')],
+  ])('a %s sign-in: back to this screen quietly - no dialog, nothing reset, no message', async (_label, arrange) => {
     arrange();
     const renderer = await renderScreen();
 
@@ -184,7 +195,19 @@ describe('CollectionLockSettingsScreen (설정 > 컬렉션 잠금)', () => {
 
     expect(renderer.root.findByType(CollectionLockPasswordDialog).props.visible).toBe(false);
     expect(resetCollectionLockPassword).not.toHaveBeenCalled();
-    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t(message));
+    expect(renderer.root.findAll(node => node.props.testID === 'lock-settings-notice')).toHaveLength(0);
+    expect(JSON.stringify(texts(renderer))).not.toContain('로그인이 완료되지 않아');
+  });
+
+  it('a different account is not a cancellation: it says the current session was kept', async () => {
+    jest.mocked(reauthenticateSameAccount).mockResolvedValueOnce('differentAccount');
+    const renderer = await renderScreen();
+
+    await press(renderer, 'lock-settings-forgot');
+    await confirmSignIn(renderer);
+
+    expect(resetCollectionLockPassword).not.toHaveBeenCalled();
+    expect(renderer.root.findByProps({ testID: 'lock-settings-notice' }).props.children).toBe(i18n.t('settings.collectionLockDifferentAccount'));
   });
 
   it('when the server says the sign-in is no longer recent, it asks to sign in again', async () => {

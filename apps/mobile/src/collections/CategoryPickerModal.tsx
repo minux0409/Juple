@@ -13,7 +13,7 @@ import { CheckIcon } from '../icons/CheckIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { ViewModeToggle } from '../components/ViewModeToggle';
-import { useViewModePreference } from '../settings/viewModePreference';
+import { useViewModePreference, type ViewModePreferenceKey } from '../settings/viewModePreference';
 import type { Collection } from './api/collectionsApi';
 
 // See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
@@ -57,12 +57,29 @@ interface CategoryPickerModalProps {
   readonly unlockTarget?: Collection | null;
   readonly onUnlockGranted?: (unlockToken: string) => void;
   readonly onUnlockCancel?: () => void;
+  /** Defaults to 컬렉션 선택. */
+  readonly title?: string;
+  /** Where this picker's own List/Grid choice is kept (so another picker's choice is never overwritten). */
+  readonly viewModeKey?: ViewModePreferenceKey;
+  /** The leading "+ 새 컬렉션" tile - on by default. */
+  readonly showCreateTile?: boolean;
+  /** An order control (최신순 | 이름순) under the title; absent = none. */
+  readonly sort?: { readonly value: 'newest' | 'title'; readonly onChange: (next: 'newest' | 'title') => void };
+  /** Shown but not choosable, marked 이미 포함됨 (e.g. a Collection the link is already in). */
+  readonly disabledIds?: ReadonlySet<number>;
+  /**
+   * A confirming action instead of the plain 닫기: "N개 선택됨" and [취소] [label], the action only
+   * with something chosen. Absent = the sheet applies each tap itself and only offers 닫기.
+   */
+  readonly submit?: { readonly label: string; readonly onSubmit: () => void; readonly isSubmitting: boolean };
 }
 
 /**
- * The "카테고리 선택" bottom-sheet modal: existing categories as an icon grid (always leading with
- * a "+ 새 카테고리" tile) with a selected/unselected toggle per tile - shared verbatim by
- * ItemDetailsScreen and NewLinkReviewScreen. Selection itself (`selectedIds`/`onToggle`) stays
+ * The "카테고리 선택" bottom-sheet modal: existing categories as an icon grid (leading with a
+ * "+ 새 카테고리" tile unless showCreateTile is off) with a selected/unselected toggle per tile -
+ * shared verbatim by ItemDetailsScreen and NewLinkReviewScreen, and by CollectionDetailsScreen's
+ * 다른 컬렉션에 복제 (with its own title, order control, already-included Collections and a 복제
+ * action - see the optional props; without them it behaves exactly as before). Selection itself (`selectedIds`/`onToggle`) stays
  * screen-owned - see useCategoryPickerModal.ts's own remarks on why. Creating a category no longer
  * has its own inline name field at the bottom of this sheet (see the removed
  * CategoryNameAndIconField) - the "+" tile instead opens the shared CategoryEditorDialog on top of
@@ -89,9 +106,15 @@ export function CategoryPickerModal({
   unlockTarget = null,
   onUnlockGranted = () => undefined,
   onUnlockCancel = () => undefined,
+  title,
+  viewModeKey = 'categoryPickerViewMode',
+  showCreateTile = true,
+  sort,
+  disabledIds,
+  submit,
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
-  const { viewMode, changeViewMode } = useViewModePreference('categoryPickerViewMode', 'grid');
+  const { viewMode, changeViewMode } = useViewModePreference(viewModeKey, 'grid');
   const sheetTranslateY = useRef(new Animated.Value(SHEET_ENTER_OFFSET)).current;
 
   useEffect(() => {
@@ -107,13 +130,35 @@ export function CategoryPickerModal({
     }).start();
   }, [visible, sheetTranslateY]);
 
-  const gridData: readonly GridItem[] = [CREATE_TILE, ...collectionPool];
+  const gridData: readonly GridItem[] = showCreateTile ? [CREATE_TILE, ...collectionPool] : collectionPool;
 
   return (
     <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: sheetTranslateY }] }]}>
-          <View style={styles.titleRow}><Text style={styles.title}>{t('collections.selectTitle')}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
+          <View style={styles.titleRow}><Text numberOfLines={2} style={styles.title}>{title ?? t('collections.selectTitle')}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
+          {sort ? (
+            <View accessibilityRole="radiogroup" style={styles.sortRow} testID="category-picker-sort">
+              {(['newest', 'title'] as const).map(option => {
+                const isSelected = sort.value === option;
+                return (
+                  <Pressable
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: isSelected }}
+                    hitSlop={{ top: 8, bottom: 8 }}
+                    key={option}
+                    onPress={() => sort.onChange(option)}
+                    style={[styles.sortChip, isSelected && styles.sortChipSelected]}
+                    testID={`category-picker-sort-${option}`}
+                  >
+                    <Text numberOfLines={1} style={[styles.sortChipLabel, isSelected && styles.sortChipLabelSelected]}>
+                      {option === 'newest' ? t('collections.sortRecent') : t('collections.sortName')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
 
           {isLoadingOptions ? (
             <ActivityIndicator style={styles.loading} />
@@ -147,17 +192,19 @@ export function CategoryPickerModal({
 
                 const option = item;
                 const isSelected = selectedIds.has(option.id);
+                const isDisabled = disabledIds?.has(option.id) === true;
                 // Touching a locked Collection (to select or to deselect it) asks for its password
                 // first - the caller's onToggle decides (see useCategoryPickerModal.requestToggle).
                 const isLocked = contentGateOf(option) !== null;
                 return (
                   <Pressable
-                    accessibilityHint={isLocked ? t('collections.lockRequiredForAction') : undefined}
+                    accessibilityHint={isDisabled ? t('collections.alreadyIncluded') : isLocked ? t('collections.lockRequiredForAction') : undefined}
                     accessibilityLabel={option.name}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
+                    accessibilityState={isDisabled ? { selected: isSelected, disabled: true } : { selected: isSelected }}
+                    disabled={isDisabled || undefined}
                     onPress={() => onToggle(option)}
-                    style={viewMode === 'grid' ? styles.gridCell : styles.listCell}
+                    style={[viewMode === 'grid' ? styles.gridCell : styles.listCell, isDisabled && styles.disabledCell]}
                     testID={`category-picker-option-${option.id}`}
                   >
                     <View style={styles.tileIconSlot}>
@@ -170,9 +217,16 @@ export function CategoryPickerModal({
                         </View>
                       ) : null}
                     </View>
-                    <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
-                      {option.name}
-                    </Text>
+                    <View style={viewMode === 'list' ? styles.listText : styles.gridText}>
+                      <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
+                        {option.name}
+                      </Text>
+                      {isDisabled ? (
+                        <Text numberOfLines={1} style={[styles.disabledLabel, viewMode === 'list' && styles.listLabel]} testID={`category-picker-included-${option.id}`}>
+                          {t('collections.alreadyIncluded')}
+                        </Text>
+                      ) : null}
+                    </View>
                   </Pressable>
                 );
               }}
@@ -187,11 +241,34 @@ export function CategoryPickerModal({
             />
           )}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error} testID="category-picker-error">{error}</Text> : null}
 
-          <Pressable accessibilityRole="button" disabled={isCreatingCollection} onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeLabel}>{t('common.close')}</Text>
-          </Pressable>
+          {submit ? (
+            <View style={styles.submitBar}>
+              <Text numberOfLines={1} style={styles.selectedCount} testID="category-picker-selected-count">
+                {t('collections.copySelectedCount', { count: selectedIds.size })}
+              </Text>
+              <View style={styles.submitButtons}>
+                <Pressable accessibilityRole="button" disabled={submit.isSubmitting} onPress={onClose} style={[styles.closeButton, styles.submitButton]} testID="category-picker-cancel">
+                  <Text numberOfLines={1} style={styles.closeLabel}>{t('common.cancel')}</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: selectedIds.size === 0 || submit.isSubmitting, busy: submit.isSubmitting }}
+                  disabled={selectedIds.size === 0 || submit.isSubmitting}
+                  onPress={submit.onSubmit}
+                  style={[styles.primaryButton, styles.submitButton, (selectedIds.size === 0 || submit.isSubmitting) && styles.primaryDisabled]}
+                  testID="category-picker-submit"
+                >
+                  {submit.isSubmitting ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{submit.label}</Text>}
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable accessibilityRole="button" disabled={isCreatingCollection} onPress={onClose} style={styles.closeButton}>
+              <Text style={styles.closeLabel}>{t('common.close')}</Text>
+            </Pressable>
+          )}
         </Animated.View>
       </View>
 
@@ -228,10 +305,24 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
+    flexShrink: 1,
     fontSize: 18,
     fontWeight: '700',
   },
-  titleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
+  // The same order chips as a Collection's own 일자순 | 이름순.
+  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  sortChip: {
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexShrink: 1,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
+  },
+  sortChipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
+  sortChipLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  sortChipLabelSelected: { color: colors.surface },
   loading: {
     marginVertical: 20,
   },
@@ -286,7 +377,25 @@ const styles = StyleSheet.create({
     maxWidth: 76,
     textAlign: 'center',
   },
-  listLabel: { flex: 1, maxWidth: undefined, textAlign: 'start' },
+  listLabel: { maxWidth: undefined, textAlign: 'start' },
+  gridText: { alignItems: 'center' },
+  listText: { flex: 1, minWidth: 0 },
+  disabledCell: { opacity: 0.45 },
+  disabledLabel: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: 76, textAlign: 'center' },
+  submitBar: { gap: spacing.sm, marginTop: spacing.md },
+  selectedCount: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  submitButtons: { flexDirection: 'row', gap: spacing.sm },
+  submitButton: { flex: 1, marginTop: 0 },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: colors.brand,
+    borderRadius: radii.md,
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+  },
+  primaryDisabled: { opacity: 0.45 },
+  primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   error: {
     color: colors.danger,
     fontSize: 14,

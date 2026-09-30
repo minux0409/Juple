@@ -7,6 +7,7 @@ export type ViewModePreferenceKey =
   | 'historyViewMode'
   | 'categoryViewMode'
   | 'categoryPickerViewMode'
+  | 'replicatePickerViewMode'
   | 'collectionDetailsViewMode';
 
 const storageKey = (key: ViewModePreferenceKey) => `juple.${key}`;

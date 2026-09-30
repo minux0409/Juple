@@ -45,6 +45,21 @@ export function sortCollectionItemsByName(
 }
 
 /**
+ * Collections by name - the same locale-aware compare as sortCollectionItemsByName. Like that one,
+ * only for a WHOLE list (every page loaded), never for some pages. Same name: newest first. Never
+ * mutates the input.
+ */
+export function sortCollectionsByName<T extends { readonly id: number; readonly name: string; readonly createdAtUtc: string }>(
+  collections: readonly T[],
+  locale: string | undefined = i18n.language,
+): readonly T[] {
+  const collator = createNameCollator(locale);
+  return [...collections].sort(
+    (a, b) => collator.compare(a.name, b.name) || b.createdAtUtc.localeCompare(a.createdAtUtc) || b.id - a.id,
+  );
+}
+
+/**
  * 일자순 as History's own date accordion (see groupByLocalDate - one grouping rule, never a second
  * copy): the links arrive already in the server's order for `sort` (the whole Collection by
  * AddedAtUtc), so 'dateDesc' reads 오늘 → 어제 → 이번 주 → newer months → older months and 'dateAsc'

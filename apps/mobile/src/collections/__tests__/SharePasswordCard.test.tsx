@@ -4,6 +4,8 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import i18n from '../../i18n';
 import { AppToastProvider } from '../../components/AppToast';
 import { NotificationToast } from '../../components/NotificationToast';
+import { EyeIcon } from '../../icons/EyeIcon';
+import { EyeOffIcon } from '../../icons/EyeOffIcon';
 import { KeyIcon } from '../../icons/KeyIcon';
 import { ApiError } from '../../api/ApiError';
 import { SharePasswordCard, validateSharePassword } from '../SharePasswordCard';
@@ -101,7 +103,20 @@ const allText = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   renderer.root.findAllByType(Text).map(node => String(node.props.children)).join('\n');
 const valueText = (renderer: ReactTestRenderer.ReactTestRenderer) =>
   renderer.root.findAll(node => node.props.testID === 'share-password-value' && node.type === Text)[0] ?? null;
-const shownPassword = (renderer: ReactTestRenderer.ReactTestRenderer) => valueText(renderer)?.props.children ?? null;
+const visibilityButton = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAll(node => node.props.testID === 'share-password-visibility' && typeof node.props.onPress === 'function')[0] ?? null;
+/** What the field shows right now - the mask (••••) until the eye is tapped. */
+const displayedValue = (renderer: ReactTestRenderer.ReactTestRenderer) => valueText(renderer)?.props.children ?? null;
+/** The password the card holds: taps the eye when it is still masked, then reads it. */
+const shownPassword = (renderer: ReactTestRenderer.ReactTestRenderer) => {
+  const eye = visibilityButton(renderer);
+  if (eye && eye.props.accessibilityLabel === i18n.t('collections.sharePasswordShow')) {
+    act(() => {
+      eye.props.onPress();
+    });
+  }
+  return displayedValue(renderer);
+};
 
 /** The enter-the-password dialog (not the removal confirmation), when open. */
 const passwordDialog = (renderer: ReactTestRenderer.ReactTestRenderer) =>
@@ -135,21 +150,53 @@ async function typeAndSubmit(renderer: ReactTestRenderer.ReactTestRenderer, pass
 }
 
 describe('SharePasswordCard - the Owner simply sees it', () => {
-  it('on: it is revealed right away (owner-only reveal, on entering) and shown in plain text - no 보기/숨기기, no mask', async () => {
+  it('on: fetched on entering (owner-only reveal) but shown masked - the eye shows it, and hides it again', async () => {
     jest.mocked(getSharePasswordStatus).mockResolvedValue(on);
     jest.mocked(revealSharePassword).mockResolvedValue('trip-2026');
     const renderer = await renderCard();
 
     expect(revealSharePassword).toHaveBeenCalledTimes(1);
     expect(revealSharePassword).toHaveBeenCalledWith(request, 7);
-    expect(shownPassword(renderer)).toBe('trip-2026');
+    // Masked on entry: one dot per character, never the password itself.
+    expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
+    expect(allText(renderer)).not.toContain('trip-2026');
+    expect(valueText(renderer)!.props.selectable).toBe(false);
+    expect(visibilityButton(renderer)!.props.accessibilityLabel).toBe('비밀번호 보기');
+    expect(visibilityButton(renderer)!.findAllByType(EyeOffIcon)).toHaveLength(1);
+
+    act(() => visibilityButton(renderer)!.props.onPress());
+    expect(displayedValue(renderer)).toBe('trip-2026');
+    expect(valueText(renderer)!.props.selectable).toBe(true);
+    expect(visibilityButton(renderer)!.props.accessibilityLabel).toBe('비밀번호 숨기기');
+    expect(visibilityButton(renderer)!.findAllByType(EyeIcon)).toHaveLength(1);
+
+    act(() => visibilityButton(renderer)!.props.onPress());
+    expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
+    expect(revealSharePassword).toHaveBeenCalledTimes(1); // showing/hiding never asks the server again
+
     expect(renderer.root.findByProps({ testID: 'share-password-toggle' }).props.value).toBe(true);
-    for (const gone of ['share-password-show', 'share-password-hide', 'share-password-masked', 'share-password-remove']) {
-      expect(has(renderer, gone)).toBe(false);
-    }
-    expect(allText(renderer)).not.toContain('••••');
+    expect(has(renderer, 'share-password-remove')).toBe(false);
     expect(has(renderer, 'share-password-copy')).toBe(true);
     expect(has(renderer, 'share-password-change')).toBe(true);
+    // No helper line under it any more.
+    expect(allText(renderer)).not.toContain('모든 공유 방식에 동일하게 적용돼요.');
+  });
+
+  it('leaving the screen forgets it, and the next visit starts masked again - even after it was shown', async () => {
+    jest.mocked(getSharePasswordStatus).mockResolvedValue(on);
+    jest.mocked(revealSharePassword).mockResolvedValue('trip-2026');
+    const first = await renderCard();
+    expect(shownPassword(first)).toBe('trip-2026');
+
+    await act(async () => {
+      mockBlurAll();
+    });
+    expect(displayedValue(first)).toBeNull();
+    await act(async () => first.unmount());
+
+    const next = await renderCard();
+    expect(displayedValue(next)).toBe('•'.repeat('trip-2026'.length));
+    expect(visibilityButton(next)!.props.accessibilityLabel).toBe('비밀번호 보기');
   });
 
   it('off: nothing is revealed - only the status is asked', async () => {
@@ -310,6 +357,8 @@ describe('SharePasswordCard - the app leaving the foreground', () => {
     await appState('active');
 
     expect(revealSharePassword).toHaveBeenCalledTimes(2);
+    // Back from the background: masked again, whatever it was before.
+    expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
     expect(shownPassword(renderer)).toBe('trip-2026');
     // Another 'active' while already in the foreground asks nothing more.
     await appState('active');
@@ -359,22 +408,25 @@ describe('SharePasswordCard - the app leaving the foreground', () => {
 });
 
 describe('SharePasswordCard - 복사', () => {
-  it('copies exactly the shown password and says so', async () => {
+  it('copies the real password while it is still masked - no need to show it first - with no toast of its own', async () => {
     jest.mocked(getSharePasswordStatus).mockResolvedValue(on);
     jest.mocked(revealSharePassword).mockResolvedValue('trip-2026');
     const renderer = await renderCard();
+    expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
 
     await press(renderer, 'share-password-copy');
+    expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length)); // still masked
 
     expect(Clipboard.setString).toHaveBeenCalledTimes(1);
     expect(jest.mocked(Clipboard.setString).mock.calls[0][0] === 'trip-2026').toBe(true);
     expect(revealSharePassword).toHaveBeenCalledTimes(1);
-    expect(toastMessages(renderer)).toEqual([i18n.t('collections.sharePasswordCopied')]);
-    expect(i18n.t('collections.sharePasswordCopied')).toBe('공유 비밀번호를 복사했어요.');
+    // The OS already says "copied" - a second, app-made message only doubled it (as with the Juple ID).
+    expect(toastMessages(renderer)).toEqual([]);
+    expect(allText(renderer)).not.toContain('복사했어요');
     expect(has(renderer, 'share-password-error')).toBe(false);
   });
 
-  it('a failed copy only says so - no crash, no toast, and the password stays selectable', async () => {
+  it('a failed copy only says so, briefly - no crash, no toast - and the password stays masked', async () => {
     jest.mocked(getSharePasswordStatus).mockResolvedValue(on);
     jest.mocked(revealSharePassword).mockResolvedValue('trip-2026');
     jest.mocked(Clipboard.setString).mockImplementationOnce(() => {
@@ -385,8 +437,18 @@ describe('SharePasswordCard - 복사', () => {
     await press(renderer, 'share-password-copy');
 
     expect(renderer.root.findByProps({ testID: 'share-password-error' }).props.children).toBe(i18n.t('collections.sharePasswordCopyFailed'));
+    expect(i18n.t('collections.sharePasswordCopyFailed')).toBe('복사하지 못했어요. 다시 시도해 주세요.');
     expect(toastMessages(renderer)).toEqual([]);
-    expect(valueText(renderer)!.props.selectable).toBe(true);
+    // Never shown without the eye: still one dot per character, not selectable, nothing in plain text.
+    expect(displayedValue(renderer)).toBe('•'.repeat('trip-2026'.length));
+    expect(valueText(renderer)!.props.selectable).toBe(false);
+    expect(allText(renderer)).not.toContain('trip-2026');
+    expect(visibilityButton(renderer)!.props.accessibilityLabel).toBe('비밀번호 보기');
+
+    // The eye still works, and a retry copies the real password.
+    await press(renderer, 'share-password-copy');
+    expect(jest.mocked(Clipboard.setString).mock.calls.at(-1)![0] === 'trip-2026').toBe(true);
+    expect(has(renderer, 'share-password-error')).toBe(false);
   });
 
   it('never writes the password to the log - revealing, copying, or failing to copy', async () => {
@@ -458,7 +520,7 @@ describe('SharePasswordCard - on, off and change', () => {
     const dialog = passwordDialog(renderer)!;
     expect(dialog.findAllByType(TextInput)).toHaveLength(1);
     expect(dialog.findAllByType(TextInput)[0].props.accessibilityLabel).toBe(i18n.t('collections.sharePasswordChangeLabel'));
-    expect(i18n.t('collections.sharePasswordChangeLabel')).toBe('새 공유 비밀번호');
+    expect(i18n.t('collections.sharePasswordChangeLabel')).toBe('새 접근 비밀번호');
     expect(allText(renderer)).toContain(i18n.t('collections.sharePasswordChangeTitle'));
 
     await typeAndSubmit(renderer, 'new-pass');
@@ -515,13 +577,17 @@ describe('SharePasswordCard - on, off and change', () => {
       expect(StyleSheet.flatten(button.props.style)).toEqual(expect.objectContaining({ flexBasis: 88, flexGrow: 1, minHeight: 44 }));
       expect(button.findByType(Text).props.numberOfLines).toBe(2);
     }
-    // A long password wraps inside its box rather than being cut off (no line limit).
-    expect(valueText(renderer)!.props.numberOfLines).toBeUndefined();
+    // One steady line, masked or shown - a long password ends in "…" rather than growing the field
+    // (복사 still copies all of it).
+    expect(valueText(renderer)!.props.numberOfLines).toBe(1);
+    const box = StyleSheet.flatten(pressable(renderer, 'share-password-visibility').parent!.props.style);
+    expect(box).toEqual(expect.objectContaining({ flexDirection: 'row', minHeight: 44 }));
+    expect(StyleSheet.flatten(pressable(renderer, 'share-password-visibility').props.style)).toEqual(expect.objectContaining({ height: 44, width: 44 }));
   });
 });
 
 describe('SharePasswordCard - legacy (the old lock password)', () => {
-  it('keeps the notice and 새 공유 비밀번호 설정, shows the switch on, and has no 보호 해제 button', async () => {
+  it('keeps the notice and 새 접근 비밀번호 설정, shows the switch on, and has no 보호 해제 button', async () => {
     jest.mocked(getSharePasswordStatus).mockResolvedValue(legacy);
     const onModeChange = jest.fn();
     const renderer = await renderCard(onModeChange);
@@ -534,7 +600,7 @@ describe('SharePasswordCard - legacy (the old lock password)', () => {
     expect(onModeChange).toHaveBeenLastCalledWith('legacyCommonLock');
   });
 
-  it('새 공유 비밀번호 설정 makes it the Collection\'s own (perCollection)', async () => {
+  it('새 접근 비밀번호 설정 makes it the Collection\'s own (perCollection)', async () => {
     jest.mocked(getSharePasswordStatus).mockResolvedValue(legacy);
     jest.mocked(setSharePassword).mockResolvedValue(on);
     const onModeChange = jest.fn();

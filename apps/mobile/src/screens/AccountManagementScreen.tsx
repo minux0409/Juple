@@ -7,7 +7,6 @@ import { getMyProfile, resolveSignInMethod, type SignInMethod, type UserProfile 
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
-import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -29,6 +28,10 @@ const METHOD_LABEL_KEYS: Record<SignInMethod, string> = {
  * Entra External ID), whose sign-in page offers a self-service reset - so the only honest action
  * here is "비밀번호 재설정" (open that page), never an in-app "change". A Google or Apple account has
  * no Juple password at all, and an unrecognized method gets no password action.
+ *
+ * 비밀번호 재설정 opens the sign-in page at once. Stopping there (cancel, back, closing it) returns
+ * here without any message. The sign-in result can't tell a finished reset from an ordinary sign-in
+ * (both are just a fresh sign-in), so this screen never claims that the password was changed.
  */
 export function AccountManagementScreen() {
   const { t } = useTranslation();
@@ -38,7 +41,6 @@ export function AccountManagementScreen() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isPasswordDialogVisible, setIsPasswordDialogVisible] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -66,18 +68,20 @@ export function AccountManagementScreen() {
   const method = resolveSignInMethod(profile);
 
   const openPasswordReset = async () => {
-    setIsPasswordDialogVisible(false);
+    if (isSigningIn) {
+      return;
+    }
     setNotice(null);
     setIsSigningIn(true);
     try {
+      // A finished sign-in (a reset or not) and an incomplete one both just return here, silently.
       const outcome = await reauthenticateSameAccount();
-      if (outcome === 'reauthenticated') {
-        setNotice(t('account.passwordResetReturned'));
-      } else {
-        setNotice(t(outcome === 'differentAccount' ? 'settings.collectionLockDifferentAccount' : 'settings.collectionLockSignInCancelled'));
+      if (outcome === 'differentAccount') {
+        // Not a cancellation: the current session was deliberately kept, and the person should know why.
+        setNotice(t('settings.collectionLockDifferentAccount'));
       }
     } catch {
-      setNotice(t('settings.collectionLockSignInCancelled'));
+      // Cancelled or abandoned sign-in - quietly back to this screen.
     } finally {
       setIsSigningIn(false);
     }
@@ -110,7 +114,7 @@ export function AccountManagementScreen() {
                 <Pressable
                   accessibilityRole="button"
                   disabled={isSigningIn}
-                  onPress={() => setIsPasswordDialogVisible(true)}
+                  onPress={openPasswordReset}
                   style={styles.row}
                   testID="account-password-reset"
                 >
@@ -136,16 +140,6 @@ export function AccountManagementScreen() {
           </Pressable>
         </View>
       </ScrollView>
-      <ConfirmDialog
-        cancelLabel={t('common.cancel')}
-        confirmLabel={t('account.passwordResetContinue')}
-        destructive={false}
-        message={t('account.passwordResetMessage')}
-        onCancel={() => setIsPasswordDialogVisible(false)}
-        onConfirm={openPasswordReset}
-        title={t('account.passwordReset')}
-        visible={isPasswordDialogVisible}
-      />
     </StackScreenSafeArea>
   );
 }

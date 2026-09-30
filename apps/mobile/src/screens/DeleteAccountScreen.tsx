@@ -136,7 +136,6 @@ export function DeleteAccountScreen() {
                 </View>
               ))}
             </View>
-            <Text style={styles.note}>{t('deleteAccount.signInNote')}</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -227,7 +226,6 @@ const styles = StyleSheet.create({
   listRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
   bullet: { color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
   listText: { color: colors.textPrimary, flex: 1, fontSize: 15, lineHeight: 22 },
-  note: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: spacing.md },
   jupleId: { color: colors.textPrimary, fontSize: 20, fontWeight: '700', letterSpacing: 2, marginTop: spacing.md },
   input: {
     backgroundColor: colors.surface,

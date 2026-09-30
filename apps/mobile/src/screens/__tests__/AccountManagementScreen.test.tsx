@@ -91,21 +91,53 @@ describe('AccountManagementScreen', () => {
     expect(has(renderer, 'account-password-reset')).toBe(false);
   });
 
-  it('password reset explains first, then opens the sign-in page for the same account', async () => {
-    jest.mocked(reauthenticateSameAccount).mockResolvedValue('reauthenticated');
-    const renderer = await renderWith('email');
-
+  const pressPasswordReset = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
     await act(async () => {
       renderer.root.findByProps({ testID: 'account-password-reset' }).props.onPress();
     });
-    expect(reauthenticateSameAccount).not.toHaveBeenCalled();
-    const dialog = renderer.root.findAll(node => node.type === Modal && node.props.visible === true)[0];
-    await act(async () => {
-      dialog.findAll(node => node.props.accessibilityLabel === i18n.t('account.passwordResetContinue'))[0].props.onPress();
-    });
+  };
+
+  it('password reset opens the sign-in page at once - no explanation dialog first', async () => {
+    jest.mocked(reauthenticateSameAccount).mockResolvedValue('reauthenticated');
+    const renderer = await renderWith('email');
+
+    await pressPasswordReset(renderer);
 
     expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
-    expect(renderer.root.findByProps({ testID: 'account-notice' }).props.children).toBe(i18n.t('account.passwordResetReturned'));
+    expect(renderer.root.findAll(node => node.type === Modal && node.props.visible === true)).toHaveLength(0);
+    expect(JSON.stringify(texts(renderer.root))).not.toContain('로그인 화면 열기');
+  });
+
+  // A finished sign-in can't tell a completed reset from a plain sign-in, so no outcome is announced -
+  // neither "changed" nor "signed in again" nor "not completed".
+  it.each([
+    ['cancelled', () => jest.mocked(reauthenticateSameAccount).mockRejectedValue(new Error('cancelled'))],
+    ['closed (browser dismissed)', () => jest.mocked(reauthenticateSameAccount).mockRejectedValue(new Error('dismissed'))],
+    ['incomplete', () => jest.mocked(reauthenticateSameAccount).mockResolvedValue('incomplete')],
+    ['finished (same account)', () => jest.mocked(reauthenticateSameAccount).mockResolvedValue('reauthenticated')],
+  ])('a %s sign-in returns here quietly - no message at all', async (_label, arrange) => {
+    arrange();
+    const renderer = await renderWith('email');
+
+    await pressPasswordReset(renderer);
+
+    expect(reauthenticateSameAccount).toHaveBeenCalledTimes(1);
+    expect(has(renderer, 'account-notice')).toBe(false);
+    const shown = JSON.stringify(texts(renderer.root));
+    for (const message of ['로그인이 완료되지 않아', '다시 로그인했어요', '비밀번호 변경이 완료']) {
+      expect(shown).not.toContain(message);
+    }
+    expect(renderer.root.findAll(node => node.type === Modal && node.props.visible === true)).toHaveLength(0);
+    expect(renderer.root.findByProps({ testID: 'account-password-reset' }).props.disabled).toBe(false);
+  });
+
+  it('a different account is not a cancellation: it says the current session was kept', async () => {
+    jest.mocked(reauthenticateSameAccount).mockResolvedValue('differentAccount');
+    const renderer = await renderWith('email');
+
+    await pressPasswordReset(renderer);
+
+    expect(renderer.root.findByProps({ testID: 'account-notice' }).props.children).toBe(i18n.t('settings.collectionLockDifferentAccount'));
   });
 
   it('keeps account deletion in its own danger section and only navigates - it never deletes here', async () => {

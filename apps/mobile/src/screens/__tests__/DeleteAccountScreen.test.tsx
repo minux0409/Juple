@@ -75,9 +75,13 @@ describe('DeleteAccountScreen', () => {
 
     const warning = byTestId(renderer, 'delete-account-warning');
     const shown = warning.findAllByType(Text).map(node => node.props.children);
-    for (const key of ['dataLinks', 'dataPhotos', 'dataCollections', 'dataSharing', 'dataFriends', 'dataNotifications', 'signInNote']) {
+    expect(shown).toContain(i18n.t('deleteAccount.warningTitle'));
+    for (const key of ['dataLinks', 'dataPhotos', 'dataCollections', 'dataSharing', 'dataFriends', 'dataNotifications']) {
       expect(shown).toContain(i18n.t(`deleteAccount.${key}`));
     }
+    // No note about the sign-in service keeping the login account - it only misled people.
+    expect(JSON.stringify(shown)).not.toContain('로그인 서비스');
+    expect(has(renderer, 'delete-account-continue')).toBe(true);
     expect(has(renderer, 'delete-account-final')).toBe(false);
     expect(reauthenticateSameAccount).not.toHaveBeenCalled();
     expect(deleteAccount).not.toHaveBeenCalled();

@@ -25,7 +25,9 @@ type SignInPurpose = 'setup' | 'forgot';
  *
  * Setting it without the current one (first setup and "forgot") always starts with a fresh
  * interactive sign-in of the same account; whether that sign-in is recent enough is decided by the
- * server from the new access token, never by the app.
+ * server from the new access token, never by the app. A sign-in that is cancelled, closed or left
+ * incomplete just returns here without a message; only a password the server actually saved is
+ * announced (a new one as 저장, a changed or reset one as 변경).
  */
 export function CollectionLockSettingsScreen() {
   const { t } = useTranslation();
@@ -36,6 +38,9 @@ export function CollectionLockSettingsScreen() {
   const [signInPurpose, setSignInPurpose] = useState<SignInPurpose | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [dialogMode, setDialogMode] = useState<CollectionLockPasswordDialogMode | null>(null);
+  // Whether the open password dialog replaces an existing password (change / forgot) or sets the
+  // first one - decides which success message follows a save.
+  const [isReplacingPassword, setIsReplacingPassword] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -53,28 +58,38 @@ export function CollectionLockSettingsScreen() {
   );
 
   const signInAgain = async () => {
+    const purpose = signInPurpose;
     setSignInPurpose(null);
     setNotice(null);
     setIsSigningIn(true);
     try {
       const outcome = await reauthenticateSameAccount();
       if (outcome === 'reauthenticated') {
+        setIsReplacingPassword(purpose === 'forgot');
         setDialogMode('new');
-      } else {
-        setNotice(t(outcome === 'differentAccount' ? 'settings.collectionLockDifferentAccount' : 'settings.collectionLockSignInCancelled'));
+      } else if (outcome === 'differentAccount') {
+        // Not a cancellation: the current session was deliberately kept, and the person should know why.
+        setNotice(t('settings.collectionLockDifferentAccount'));
       }
     } catch {
-      setNotice(t('settings.collectionLockSignInCancelled'));
+      // Cancelled, closed or abandoned sign-in - quietly back to this screen.
     } finally {
       setIsSigningIn(false);
     }
   };
 
+  const openChange = () => {
+    setNotice(null);
+    setIsReplacingPassword(true);
+    setDialogMode('change');
+  };
+
+  /** Only after the server has saved the password - a finished sign-in alone is never announced. */
   const onSaved = () => {
     setDialogMode(null);
     // Every unlock grant was just revoked server-side - drop this device's copies too.
     clearCollectionUnlockGrants();
-    setNotice(t('settings.collectionLockSaved'));
+    setNotice(t(isReplacingPassword ? 'settings.collectionLockChanged' : 'settings.collectionLockSaved'));
     load();
   };
 
@@ -97,7 +112,7 @@ export function CollectionLockSettingsScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={isSigningIn}
-              onPress={() => (isConfigured ? setDialogMode('change') : setSignInPurpose('setup'))}
+              onPress={() => (isConfigured ? openChange() : setSignInPurpose('setup'))}
               style={styles.primaryButton}
               testID={isConfigured ? 'lock-settings-change' : 'lock-settings-setup'}
             >
