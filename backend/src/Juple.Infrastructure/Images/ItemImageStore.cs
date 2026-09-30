@@ -1,3 +1,4 @@
+using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
@@ -295,6 +296,7 @@ public sealed class ItemImageStore(
                 "Refusing to create a read URL for a Blob outside the caller's own userId prefix.");
         }
 
+        var stage = ReadUrlStage.Sign;
         try
         {
             var blobClient = blobContainerClient.GetBlobClient(blobName);
@@ -321,21 +323,50 @@ public sealed class ItemImageStore(
             // this app at all) - sign with a cached User Delegation Key instead, and require
             // HTTPS, since a real Storage Account is always reachable over HTTPS.
             sasBuilder.Protocol = SasProtocol.Https;
+            stage = ReadUrlStage.DelegationKey;
             var userDelegationKey = await userDelegationKeyCache.GetOrRefreshAsync(cancellationToken);
+            stage = ReadUrlStage.Sign;
             var uriBuilder = new BlobUriBuilder(blobClient.Uri)
             {
                 Sas = sasBuilder.ToSasQueryParameters(userDelegationKey, blobServiceClient.AccountName),
             };
             return uriBuilder.ToUri();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller's own request was aborted (e.g. the app gave up waiting) - nothing failed,
+            // and nobody will read this response. Any shared key fetch carries on regardless.
+            logger.LogDebug("Read URL not created: the request was cancelled ({ImageKind}, stage {Stage}).", ImageKindOf(blobName), stage);
+            return null;
+        }
         catch (Exception exception)
         {
-            // Sanitized: only the Blob's own (non-secret) path is logged - never the generated
-            // URL/SAS query string, and never the storage account key or delegation key.
-            logger.LogWarning(exception, "Failed to create a read URL for Blob {BlobName}.", blobName);
+            // A real failure while the request is still alive (the key fetch failed or timed out,
+            // or signing failed). Structured and sanitized: no Blob path (it carries internal user
+            // and Collection ids), no URL/SAS query string, no key or token - only what failed.
+            var requestFailed = exception as RequestFailedException;
+            logger.LogWarning(
+                "Failed to create a read URL ({ImageKind}, stage {Stage}): {ExceptionType}, status {Status}, error code {ErrorCode}.",
+                ImageKindOf(blobName),
+                stage,
+                exception.GetType().Name,
+                requestFailed?.Status,
+                requestFailed?.ErrorCode);
             return null;
         }
     }
+
+    private enum ReadUrlStage
+    {
+        DelegationKey,
+        Sign,
+    }
+
+    /// <summary>Which kind of photo a Blob is - a log label that identifies no user or Collection.</summary>
+    private static string ImageKindOf(string blobName) =>
+        blobName.Contains("/collections/", StringComparison.Ordinal) ? "collectionIcon"
+        : blobName.Contains("/profile/", StringComparison.Ordinal) ? "profileImage"
+        : "itemImage";
 
     // ---------- Collection icon photos (same container/prefix/signing as Item images) ----------
 

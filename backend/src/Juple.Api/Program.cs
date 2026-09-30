@@ -89,6 +89,13 @@ var requiredScope = isOneShotJob
         ?? throw new InvalidOperationException("Authentication:EntraExternalId:RequiredScope must be configured.");
 
 builder.Services.AddInfrastructure(builder.Configuration);
+if (!isOneShotJob)
+{
+    // HTTP API only: fetch the Blob User Delegation Key in the background right after start, so the
+    // first image read URL does not wait for it (see UserDelegationKeyWarmupService). The one-shot
+    // Jobs never start the host anyway - this keeps them out of it explicitly.
+    builder.Services.AddHostedService<Juple.Api.Storage.UserDelegationKeyWarmupService>();
+}
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IExternalIdentityAccessor, HttpContextExternalIdentityAccessor>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
