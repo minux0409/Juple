@@ -491,21 +491,70 @@ stale해질 수 있다. 현재 revision은 Owner 즐겨찾기를 legacy 컬럼�
 규칙과 2026-09-07 배포 라운드의 임시 migration 규칙은 모두 제거되었다(2026-09-07). 현재 SQL
 Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있다.
 
-## Collection share password key - DEV 수동 설정, Bicep 미반영 (Production blocker)
+## Collection share password key (Round 20 기능, Round 24 IaC 반영)
 
-컬렉션 공유 비밀번호 암호문 키(`CollectionSharePassword:EncryptionKey`, 루트 `README.md`의
-"Collection share password key" 참고)는 **DEV에서 현재 Azure 수동 설정**이다:
-`ca-juple-api-dev`의 secret `collection-share-password-key` + env
-`CollectionSharePassword__EncryptionKey=secretref:collection-share-password-key` (API에만, Job에는
-없음 - one-shot Job은 이 키를 쓰지 않는다). `app/main.bicep`에는 아직 없으므로, 이대로 Bicep 배포를
-하면 새 revision이 키 없이 떠서 API startup이 실패한다. Production 전에 필요한 것:
+컬렉션 공유 비밀번호 암호문 키(`CollectionSharePassword:EncryptionKey`, Base64로 인코딩된 32바이트,
+루트 `README.md`의 "Collection share password key" 참고)는 이제 `app/main.bicep`에 들어 있다:
 
-1. `app/main.bicep`에 secure parameter, API secret, 그 secret을 참조하는 env 추가
-2. dev/prod 파라미터 전략(`dev.bicepparam`은 DEV의 기존 값을 그대로 전달 - 새로 생성하면 DEV의
-   기존 암호문을 owner가 볼 수 없게 된다)
-3. Production 전용 키를 별도로 생성(DEV 값 재사용 금지)
-4. Production migration 순서: `AddCollectionSharePasswords` 적용 → secret/env 준비 → 새 API image
-5. 현재 runtime은 단일 active key만 지원(keyring 없음) - 키를 바꾸면 기존 암호문은 읽을 수 없다
+- secure parameter `collectionSharePasswordEncryptionKey` (default 없음)
+- API Container App secret `collection-share-password-key` ← 위 parameter
+- API env `CollectionSharePassword__EncryptionKey` = `secretref:collection-share-password-key`
+- **API에만** 있다. Job 템플릿(`job/`, `blob-cleanup-job/`, `instagram-metadata-retry-job/`)에는 넣지
+  않는다 - one-shot Job 모드는 이 키를 검증하기 전에 분기하고 쓰지도 않는다.
+
+값은 다른 secure parameter와 똑같이 `dev.bicepparam`/`prod.bicepparam`의 `readEnvironmentVariable()`로
+배포하는 shell에서 주입한다(이 repo에는 CI 배포 workflow가 없고 Key Vault도 아직 없다):
+
+- DEV: `JUPLE_APP_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY`
+- Production: `JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY`
+
+변수가 없으면 `BCP427`로 배포 자체가 시작되지 않는다(빈 값/추측 값으로 배포되는 일은 없다).
+
+### 반드시 지킬 것
+
+- **"parameter를 안 주면 기존 값이 유지된다"는 없다.** Container App의 secrets 배열은 배포할 때마다
+  template 값으로 다시 쓰인다. 따라서 모든 재배포는 **지금 live인 값과 같은 값**을 넘겨야 한다.
+- **DEV 키는 새로 만들지 않는다.** DEV에는 이미 이 키로 봉인된 공유 비밀번호가 있다. 다른 값으로
+  배포하면 owner의 비밀번호 보기가 전부 409 `sharePasswordUnreadable`이 된다(받는 사람 확인은 별도 hash라
+  영향 없음). 이 섹션 작성 시점의 DEV 값은 Round 20에서 수동으로 넣은 `collection-share-password-key`
+  secret에만 있고, repo/문서 어디에도 없다. DEV를 Bicep으로 처음 배포하기 전에, 그 **기존 값을**
+  배포자가 쓰는 안전한 secret 저장소(예: 비밀번호 관리자)로 옮겨 두는 단계가 먼저 필요하다 - 값을
+  읽는 작업이므로 별도 승인 후에 한다(화면/로그/파일에 남기지 않는다).
+- **Production은 DEV 키를 재사용하지 않는다.** 처음 한 번 새로 생성해 Production 전용 secret 저장소에
+  두고, 이후 모든 Production 배포에 같은 값을 넘긴다.
+- **임의로 rotate하지 않는다.** 암호문에 key id는 들어 있지만 runtime은 단일 active key만 지원한다
+  (이전 키를 함께 읽는 keyring 없음). 키를 바꾸거나 잃으면 기존 공유 비밀번호를 owner가 다시 볼 수 없다
+  (owner가 새로 설정해야 함). 무중단 rotation은 keyring 도입(코드 + migration)이 먼저다.
+
+### Production 첫 rollout 순서
+
+> TODO(Production 전): `app/main.bicep`은 `ASPNETCORE_ENVIRONMENT`를 `AzureDevelopment`로 고정해 둔다 - Production 배포 전에 환경별 값으로 바꿀지 검토한다(이번에는 변경하지 않음).
+
+1. Production 키 생성 - 화면에 출력하지 않고 바로 Production secret 저장소로
+   (루트 `README.md`의 PowerShell 예시와 같은 방식: `RandomNumberGenerator` 32바이트 → Base64).
+2. DB migration: `AddCollectionSharePasswords`가 적용됐는지 확인하고, 아니면 먼저 적용한다(새 API는 이
+   table을 조회한다). migration은 CREATE TABLE + 잠겨 있고 공유 관계가 있는 컬렉션만 legacy로 INSERT할
+   뿐, 기존 데이터를 UPDATE/DELETE하지 않는다.
+3. 배포 shell에 `JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY`를 포함한 나머지
+   `JUPLE_APP_PROD_*` 변수를 설정한다(값을 명령줄 인자로 쓰지 않는다 - shell history에 남는다).
+4. `az deployment group create --resource-group <rg> --parameters infra/azure/app/prod.bicepparam` -
+   secret/env와 새 API image가 한 revision으로 같이 올라간다. 키가 없으면 새 API는 시작하지 않으므로,
+   키 없이 image만 먼저 올리는 순서는 금지.
+5. `/health` 200, 새 revision traffic 100% 확인.
+6. 스모크: owner 공유 비밀번호 설정 → 화면에 평문 표시(reveal) → 받는 사람 unlock → 공개 링크 unlock.
+7. 배포 shell의 환경변수를 지운다(`Remove-Item Env:JUPLE_APP_PROD_*`).
+
+### 문제가 생겼을 때
+
+- 새 API가 뜨지 않으면 이전 revision으로 traffic을 되돌린다. secret을 지우거나 키를 바꾸지 않는다.
+- migration rollback은 자동으로 하지 않는다. `AddCollectionSharePasswords`의 Down은 table을 삭제하므로
+  설정된 공유 비밀번호가 전부 사라진다 - 되돌리려면 별도 판단과 백업이 먼저다.
+
+### 알려진 DEV drift (Round 24 조사, 반영하지 않음)
+
+- live `ca-juple-api-dev`에는 template에 없는 secret `web-risk-api-key` + env `UrlSafety__WebRisk__ApiKey`가
+  있다. 현재 코드/infra 어디에서도 쓰지 않는 값이다. Container App secrets/env는 배포 때 통째로 바뀌므로,
+  DEV에 Bicep을 배포하면 이 둘은 사라진다 - 기능 영향은 없지만, 필요한 값인지 먼저 확인한 뒤 배포한다.
 
 ## Profile & Account (Round 21 - 아직 DEV 미배포)
 

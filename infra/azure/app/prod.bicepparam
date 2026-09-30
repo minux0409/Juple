@@ -76,3 +76,6 @@ param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
 param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_SQL_CONNECTION_STRING')
 param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
 param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')
+// Production's own share-password key - generated once for Production, never Dev's (see ../README.md
+// "Collection share password key"), and then passed unchanged on every later deployment.
+param collectionSharePasswordEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY')

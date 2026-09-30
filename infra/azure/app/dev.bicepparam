@@ -12,7 +12,7 @@
 // blob-cleanup-job examples (written before this file existed), a second `--parameters
 // key=value` cannot be layered on top of this file to fill in the rest. That includes the three
 // @secure() parameters below (sqlConnectionString, publicCollectionCursorEncryptionKey,
-// collectionUnlockGrantEncryptionKey) - there is
+// collectionUnlockGrantEncryptionKey, collectionSharePasswordEncryptionKey) - there is
 // no other slot left to supply them in once a .bicepparam file is used, so they use
 // readEnvironmentVariable() exactly like every other live/per-deployment value here. This does not
 // change how secret they are: the actual value still never appears in this committed file, only
@@ -49,6 +49,10 @@
 //   $env:JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY = '<the SAME Base64 32-byte key already
 //     live on ca-juple-api-dev (secret collection-unlock-grant-key) - its own value, never the
 //     cursor key; see main.bicep's own param description>'
+//   $env:JUPLE_APP_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY = '<the SAME Base64 32-byte key already
+//     live on ca-juple-api-dev (secret collection-share-password-key) - NEVER a freshly generated
+//     one: existing share passwords are sealed with it and a different key makes them unreadable to
+//     their Owners (see main.bicep's own param description and ../README.md)>'
 //   az deployment group create --resource-group <rg> --parameters infra/azure/app/dev.bicepparam
 using 'main.bicep'
 
@@ -107,3 +111,4 @@ param imageTag = readEnvironmentVariable('JUPLE_APP_IMAGE_TAG')
 param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_SQL_CONNECTION_STRING')
 param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
 param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')
+param collectionSharePasswordEncryptionKey = readEnvironmentVariable('JUPLE_APP_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY')

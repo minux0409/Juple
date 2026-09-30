@@ -43,6 +43,10 @@ param publicCollectionCursorEncryptionKey string
 @secure()
 param collectionUnlockGrantEncryptionKey string
 
+@description('Base64-encoded 32-byte key that seals Collection share passwords so their Owner can see them again (AES-256-GCM, see CollectionSharePasswordProtector) - the API fails startup outright if this is absent or does not decode to exactly 32 bytes; there is no fallback to any other key. Its own value, never any other key here, and never shared between environments (Production gets its own). Never put a real value in a checked-in parameter file. NOT freely rotatable: stored ciphertexts are sealed with it and only one active key is supported (no keyring) - a different value makes every existing share password unreadable to its Owner (409 sharePasswordUnreadable until they set a new one; recipients are unaffected, they are checked against a separate hash). Every redeploy must therefore pass the SAME value that is already live - there is no "omitted means keep the current one": the Container App secret is written from this parameter on every deployment. Not needed by the one-shot Jobs, which exit before it is validated - API only.')
+@secure()
+param collectionSharePasswordEncryptionKey string
+
 @description('Blob service endpoint URI - Foundation output "storageBlobServiceUri". No Storage key is ever used; the app authenticates via managedIdentityResourceId (see BlobServiceClientFactory.cs).')
 param storageBlobServiceUri string
 
@@ -148,6 +152,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'collection-unlock-grant-key'
           value: collectionUnlockGrantEncryptionKey
         }
+        {
+          name: 'collection-share-password-key'
+          value: collectionSharePasswordEncryptionKey
+        }
       ]
     }
     template: {
@@ -180,6 +188,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'CollectionUnlockGrant__EncryptionKey'
               secretRef: 'collection-unlock-grant-key'
+            }
+            {
+              name: 'CollectionSharePassword__EncryptionKey'
+              secretRef: 'collection-share-password-key'
             }
             {
               // Deliberately no ConnectionStrings__BlobStorage - its absence is what makes
