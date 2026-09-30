@@ -528,7 +528,7 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
 
 ### Production 첫 rollout 순서
 
-> TODO(Production 전): `app/main.bicep`은 `ASPNETCORE_ENVIRONMENT`를 `AzureDevelopment`로 고정해 둔다 - Production 배포 전에 환경별 값으로 바꿀지 검토한다(이번에는 변경하지 않음).
+> `ASPNETCORE_ENVIRONMENT`(API): `environmentName`에서 정해진다 - `prod`는 `Production`, 그 외(DEV)는 `AzureDevelopment`. Azure에서는 어디서도 `Development`를 쓰지 않는다(`/openapi`가 열린다). 지금은 두 값의 동작 차이가 없지만(환경 이름을 읽는 곳은 `IsDevelopment()`뿐, 환경별 appsettings 파일 없음), Production이 Dev처럼 보이는 이름으로 돌지 않게 분리했다. Job들은 설정하지 않는다(.NET 기본값 `Production`).
 
 1. Production 키 생성 - 화면에 출력하지 않고 바로 Production secret 저장소로
    (루트 `README.md`의 PowerShell 예시와 같은 방식: `RandomNumberGenerator` 32바이트 → Base64).
@@ -550,11 +550,13 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
 - migration rollback은 자동으로 하지 않는다. `AddCollectionSharePasswords`의 Down은 table을 삭제하므로
   설정된 공유 비밀번호가 전부 사라진다 - 되돌리려면 별도 판단과 백업이 먼저다.
 
-### 알려진 DEV drift (Round 24 조사, 반영하지 않음)
+### DEV drift 정리 (Round 25)
 
-- live `ca-juple-api-dev`에는 template에 없는 secret `web-risk-api-key` + env `UrlSafety__WebRisk__ApiKey`가
-  있다. 현재 코드/infra 어디에서도 쓰지 않는 값이다. Container App secrets/env는 배포 때 통째로 바뀌므로,
-  DEV에 Bicep을 배포하면 이 둘은 사라진다 - 기능 영향은 없지만, 필요한 값인지 먼저 확인한 뒤 배포한다.
+- template에 없던 legacy secret `web-risk-api-key` + env `UrlSafety__WebRisk__ApiKey`는 DEV에서 제거했다
+  (2026-09-30). Web Risk 기능은 `aea31d1`에서 코드째 삭제됐고, 그 이후 revision에서는 사용 흔적이 없었다.
+- DEV SQL의 `AccountDeletionE2E20260908` 방화벽 규칙(사무실 IP 하나)도 제거했다(2026-09-30). SQL에는 다시
+  Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있다 - 개발자 PC 접근은 위 "EF Core migration
+  적용"의 임시 규칙 절차를 쓴다.
 
 ## Profile & Account (Round 21 - 아직 DEV 미배포)
 

@@ -80,6 +80,14 @@ param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
 
 var containerAppName = 'ca-juple-api-${environmentName}'
+
+// ASPNETCORE_ENVIRONMENT, from environmentName (no separate parameter): "Production" for prod,
+// "AzureDevelopment" for every other Azure environment - and never "Development" anywhere in Azure
+// (Program.cs maps /openapi only for the literal "Development"). Today nothing else in the API
+// reads the name and there is no appsettings.{name}.json for either, so the two behave the same;
+// the split keeps Production from running under a Dev-looking name and leaves room for
+// Production-only configuration. The one-shot Jobs set none (.NET's own default, "Production").
+var aspNetCoreEnvironment = environmentName == 'prod' ? 'Production' : 'AzureDevelopment'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 
 // Both-or-neither: a custom domain binding is meaningless without the certificate that covers it,
@@ -169,13 +177,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           }
           env: [
             {
-              // Never "Development" - Program.cs only maps /openapi when
-              // Environment.IsDevelopment() is true, which checks for the literal string
-              // "Development". "AzureDevelopment" deliberately does not match that, so an
-              // internet-facing Azure Dev backend never exposes Development-only behavior. No
-              // C# change was needed to get this property, and none was made.
+              // Never "Development" - see aspNetCoreEnvironment above.
               name: 'ASPNETCORE_ENVIRONMENT'
-              value: 'AzureDevelopment'
+              value: aspNetCoreEnvironment
             }
             {
               name: 'ConnectionStrings__JupleDatabase'
