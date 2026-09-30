@@ -3,8 +3,9 @@ import { Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View, A
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryIconTile } from './CategoryIconTile';
+import { PlusIcon } from '../icons/PlusIcon';
 import type { Collection } from './api/collectionsApi';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 // Comfortably past this component's own maxHeight ('75%') on any real device, so the sheet always
 // starts fully off-screen below regardless of exact screen height - see the entrance animation
@@ -29,9 +30,13 @@ const SHEET_ENTER_DURATION_MS = 250;
  * then-close would need to delay onCancel/onRequestClose itself, real complexity for a currently
  * unreported problem.
  */
-export function CollectionTargetPickerDialog({ visible, collections, isLoading, isLoadingMore, onSelect, onCancel, onLoadMore }: {
+export function CollectionTargetPickerDialog({ visible, collections, isLoading, isLoadingMore, onSelect, onCancel, onLoadMore, title, onCreateNew }: {
   readonly visible: boolean; readonly collections: readonly Collection[]; readonly isLoading: boolean;
   readonly onSelect: (collection: Collection) => void; readonly onCancel: () => void; readonly onLoadMore: () => void; readonly isLoadingMore: boolean;
+  /** Defaults to 컬렉션 선택. */
+  readonly title?: string;
+  /** When given, a leading "+ 새 컬렉션 만들기" row (e.g. 내 컬렉션으로 복사's destination picker). */
+  readonly onCreateNew?: () => void;
 }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -51,7 +56,12 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
   }, [visible, sheetTranslateY]);
 
   return <Modal animationType="none" onRequestClose={onCancel} transparent visible={visible}>
-    <View style={styles.overlay}><Animated.View style={[styles.card, { paddingBottom: spacing.xl + insets.bottom, transform: [{ translateY: sheetTranslateY }] }]}><Text style={styles.title}>{t('collections.targetPickerTitle')}</Text>
+    <View style={styles.overlay}><Animated.View style={[styles.card, { paddingBottom: spacing.xl + insets.bottom, transform: [{ translateY: sheetTranslateY }] }]}><Text style={styles.title}>{title ?? t('collections.targetPickerTitle')}</Text>
+      {onCreateNew && !isLoading ? (
+        <Pressable accessibilityRole="button" onPress={onCreateNew} style={[styles.row, styles.createRow]} testID="collection-target-create">
+          <View style={styles.createIcon}><PlusIcon color={colors.brand} size={20} /></View><Text style={[styles.name, styles.createLabel]}>{t('collections.copyCreateNew')}</Text>
+        </Pressable>
+      ) : null}
       {isLoading ? <ActivityIndicator /> : <FlatList data={collections} keyExtractor={item => String(item.id)} onEndReached={onLoadMore} onEndReachedThreshold={0.5} renderItem={({ item }) =>
         <Pressable accessibilityLabel={item.name} accessibilityRole="button" onPress={() => onSelect(item)} style={styles.row}>
           <CategoryIconTile collectionId={item.id} color={item.color} icon={item.icon} imageUrl={item.iconImageUrl} imageVersion={item.iconImageVersion} size={32} /><Text style={styles.name}>{item.name}</Text>
@@ -60,4 +70,4 @@ export function CollectionTargetPickerDialog({ visible, collections, isLoading, 
     </Animated.View></View>
   </Modal>;
 }
-const styles = StyleSheet.create({ overlay: { backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'flex-end' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl }, title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: spacing.md }, row: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md }, name: { color: colors.textPrimary, flex: 1, fontSize: 16 }, cancel: { alignItems: 'center', paddingTop: spacing.lg } });
+const styles = StyleSheet.create({ overlay: { backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'flex-end' }, card: { backgroundColor: colors.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '75%', padding: spacing.xl }, title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: spacing.md }, row: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.md }, name: { color: colors.textPrimary, flex: 1, fontSize: 16 }, createRow: { borderTopWidth: 0, minHeight: minTouchTarget }, createIcon: { alignItems: 'center', height: 32, justifyContent: 'center', width: 32 }, createLabel: { color: colors.brand, fontWeight: '600' }, cancel: { alignItems: 'center', paddingTop: spacing.lg } });

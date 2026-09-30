@@ -1012,7 +1012,7 @@ public sealed class CollectionStore(
             .AnyAsync(membership => membership.CollectionId == share.CollectionId && membership.ItemId == itemId, cancellationToken);
         if (alreadyMember)
         {
-            return true;
+            return false;
         }
 
         var minSortOrder = await dbContext.CollectionItems
@@ -1032,12 +1032,13 @@ public sealed class CollectionStore(
             SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
         {
             // A concurrent add of the same Item already won - the desired end state exists.
+            return false;
         }
 
         return true;
     }
 
-    public async Task AddAsync(
+    public async Task<bool> AddAsync(
         long userId,
         long collectionId,
         long itemId,
@@ -1074,7 +1075,7 @@ public sealed class CollectionStore(
                 cancellationToken);
         if (alreadyMember)
         {
-            return;
+            return false;
         }
 
         // New Items prepend (sort before every existing row) so the default "most recently added
@@ -1096,7 +1097,10 @@ public sealed class CollectionStore(
         {
             // A concurrent Add for the same (collectionId, itemId) pair already won the race - the
             // desired end state (membership exists) was already reached.
+            return false;
         }
+
+        return true;
     }
 
     public async Task RemoveAsync(
@@ -1199,7 +1203,7 @@ public sealed class CollectionStore(
         return new TransferCollectionItemResult(TargetMembershipCreated: !targetMembershipExists);
     }
 
-    public async Task UndoTransferItemAsync(
+    public async Task<bool> UndoTransferItemAsync(
         long userId,
         long sourceCollectionId,
         long itemId,
@@ -1220,7 +1224,7 @@ public sealed class CollectionStore(
         if (sourceCollectionId == targetCollectionId)
         {
             await transaction.CommitAsync(cancellationToken);
-            return;
+            return false;
         }
 
         var sourceMembershipExists = await dbContext.CollectionItems.AsNoTracking().AnyAsync(
@@ -1247,6 +1251,7 @@ public sealed class CollectionStore(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        return !sourceMembershipExists;
     }
 
     public async Task<MergeCollectionsResult> MergeAsync(
@@ -1320,7 +1325,7 @@ public sealed class CollectionStore(
         }
 
         await transaction.CommitAsync(cancellationToken);
-        return new MergeCollectionsResult(operationToken);
+        return new MergeCollectionsResult(operationToken, createdMemberships.Count);
     }
 
     public async Task UndoMergeAsync(

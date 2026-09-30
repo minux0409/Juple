@@ -45,6 +45,20 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                             || dbContext.CollectionCollaborators.Any(
                                 collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)),
                     cancellationToken),
+            // Still the Owner / a member, and 새 링크 알림 not turned off since it was enqueued.
+            NotificationType.CollectionItemsAdded =>
+                await dbContext.Collections.AnyAsync(
+                    collection => collection.Id == notification.CollectionId
+                        && collection.DeletedAtUtc == null
+                        && (collection.UserId == userId
+                            || dbContext.CollectionCollaborators.Any(
+                                collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)),
+                    cancellationToken)
+                && !await dbContext.CollectionNotificationPreferences.AnyAsync(
+                    preference => preference.CollectionId == notification.CollectionId
+                        && preference.UserId == userId
+                        && !preference.NewItemNotificationsEnabled,
+                    cancellationToken),
             // Refresh signal about the recipient's own (now answered, possibly deleted) request:
             // there is nothing left to re-check - the payload carries no id, only the type.
             NotificationType.FriendRequestAnswered => true,

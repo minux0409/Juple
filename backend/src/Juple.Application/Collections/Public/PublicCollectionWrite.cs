@@ -40,7 +40,8 @@ public interface IPublicCollectionWriteStore
     /// Adds the caller's own Item through an active, writable public link - re-checked under the
     /// Collection row lock (a concurrent revoke or switch to read-only wins). Records the adder
     /// (AddedByUserId) and marks the membership AddedViaPublicShare. Idempotent for an Item already
-    /// in the Collection. Null when the link is unknown/revoked; PublicShareReadOnlyException when
+    /// in the Collection: true when this call added it, false when it was already there. Null when
+    /// the link is unknown/revoked; PublicShareReadOnlyException when
     /// it is not writable; ItemNotFoundException when the Item is not the caller's (or deleted).
     /// </summary>
     Task<bool?> AddItemAsync(
@@ -98,12 +99,22 @@ public sealed class PublicCollectionWriteService(
             throw new CollectionLockedException();
         }
 
-        var added = await writeStore.AddItemAsync(publicId, userId, itemId, nowUtc, cancellationToken) is not null;
-        if (added && notifications is not null)
+        var added = await writeStore.AddItemAsync(publicId, userId, itemId, nowUtc, cancellationToken);
+        if (added is null)
         {
-            await notifications.CollectionsChangedAsync(userId, [state.CollectionId], cancellationToken);
+            return false;
         }
 
-        return added;
+        if (notifications is not null)
+        {
+            await notifications.CollectionsChangedAsync(userId, [state.CollectionId], cancellationToken);
+            if (added.Value)
+            {
+                // Added through the public link: whoever added it is never named to the members.
+                await notifications.CollectionItemsAddedAsync(userId, state.CollectionId, 1, hideActor: true, cancellationToken);
+            }
+        }
+
+        return true;
     }
 }

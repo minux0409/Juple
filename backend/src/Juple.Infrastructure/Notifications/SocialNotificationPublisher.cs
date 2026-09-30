@@ -69,6 +69,54 @@ public sealed class SocialNotificationPublisher(
             await EnqueueContentChangesAsync(actorUserId, collectionIds, cancellationToken);
         });
 
+    public Task CollectionItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, CancellationToken cancellationToken = default) =>
+        SafelyAsync(NotificationType.CollectionItemsAdded, async () =>
+        {
+            if (itemCount <= 0)
+            {
+                return;
+            }
+
+            var ownerUserId = await dbContext.Collections.AsNoTracking()
+                .Where(collection => collection.Id == collectionId && collection.DeletedAtUtc == null)
+                .Select(collection => (long?)collection.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (ownerUserId is null)
+            {
+                return;
+            }
+
+            // Owner + accepted members (a pending invitation is not a member), minus the actor and
+            // anyone who turned this Collection's new-link notifications off - set queries, never one
+            // per recipient.
+            var memberUserIds = await dbContext.CollectionCollaborators.AsNoTracking()
+                .Where(collaborator => collaborator.CollectionId == collectionId)
+                .Select(collaborator => collaborator.UserId)
+                .ToListAsync(cancellationToken);
+            var recipients = memberUserIds.Append(ownerUserId.Value).Where(userId => userId != actorUserId).Distinct().ToList();
+            if (recipients.Count == 0)
+            {
+                return;
+            }
+
+            var optedOut = (await dbContext.CollectionNotificationPreferences.AsNoTracking()
+                    .Where(preference => preference.CollectionId == collectionId && !preference.NewItemNotificationsEnabled)
+                    .Select(preference => preference.UserId)
+                    .ToListAsync(cancellationToken))
+                .ToHashSet();
+
+            var nowUtc = timeProvider.GetUtcNow();
+            var operationId = Guid.NewGuid();
+            await EnqueueAsync(
+                recipients
+                    .Where(userId => !optedOut.Contains(userId))
+                    .Select(userId => Notification.Social(
+                        userId, NotificationType.CollectionItemsAdded, hideActor ? null : actorUserId, collectionId, null,
+                        SocialNotificationPolicy.ItemsAddedDedupKey(collectionId, userId, operationId), nowUtc, itemCount))
+                    .ToList(),
+                cancellationToken);
+        });
+
     private async Task EnqueueContentChangesAsync(long actorUserId, IReadOnlyCollection<long> collectionIds, CancellationToken cancellationToken)
     {
         if (collectionIds.Count == 0)

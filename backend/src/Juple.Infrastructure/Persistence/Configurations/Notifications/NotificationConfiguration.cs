@@ -15,7 +15,7 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         {
             // Same DB-level guard as RepeatPurchaseConfiguration's CK_RepeatPurchases_IntervalUnit_Valid
             // for its own byte enum - blocks any value outside the currently-defined Type range.
-            table.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5)");
+            table.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6)");
         });
 
         builder.HasKey(notification => notification.Id);
@@ -63,6 +63,9 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
 
         builder.Property(notification => notification.SubjectId)
             .HasColumnType("bigint");
+
+        builder.Property(notification => notification.ItemCount)
+            .HasColumnType("int");
 
         builder.Property(notification => notification.DedupKey)
             .HasColumnType("varchar(120)")

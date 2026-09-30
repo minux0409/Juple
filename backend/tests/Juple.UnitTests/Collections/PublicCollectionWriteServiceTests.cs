@@ -49,6 +49,14 @@ public sealed class PublicCollectionWriteServiceTests
         await new PublicCollectionWriteService(_shares, _writes, new FakeUnlockTokenProtector(), new MutableTimeProvider(Now), publisher)
             .AddItemAsync(Writer, PublicId, 55, null);
         Assert.Equal(new[] { (Writer, CollectionId) }, publisher.Changes);
+        // The members also get one new-link notification that never names who added through the link.
+        Assert.Equal(["items-added:7:10:1:hidden"], publisher.Events);
+
+        // Already in the Collection: nothing new was added, so no new-link notification.
+        _writes.Result = false;
+        await new PublicCollectionWriteService(_shares, _writes, new FakeUnlockTokenProtector(), new MutableTimeProvider(Now), publisher)
+            .AddItemAsync(Writer, PublicId, 55, null);
+        Assert.Single(publisher.Events);
     }
 
     [Fact]
@@ -123,10 +131,12 @@ public sealed class PublicCollectionWriteServiceTests
     {
         public (string PublicId, long UserId, long ItemId)? Last { get; private set; }
 
+        public bool? Result { get; set; } = true;
+
         public Task<bool?> AddItemAsync(string publicId, long userId, long itemId, DateTimeOffset addedAtUtc, CancellationToken cancellationToken = default)
         {
             Last = (publicId, userId, itemId);
-            return Task.FromResult<bool?>(true);
+            return Task.FromResult(Result);
         }
     }
 }

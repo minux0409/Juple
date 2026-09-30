@@ -1,3 +1,4 @@
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useNavigation } from '@react-navigation/native';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,33 +18,41 @@ import {
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { pickCollectionIconImage } from '../collections/collectionIconImage';
+import { useAppToast } from '../components/AppToast';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { UserAvatar } from '../components/UserAvatar';
+import { CloseIcon } from '../icons/CloseIcon';
 import { forgetProfileImage, rememberLocalProfileImage } from '../profile/profileImageCache';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
-/** What the editor will do with the photo on Save: leave it, upload a newly picked one, or remove it. */
+/** What 저장 will do with the photo: leave it, or upload a newly picked one (removal happens at once, see removePhoto). */
 type PhotoChange =
   | { readonly kind: 'keep' }
-  | { readonly kind: 'set'; readonly asset: ProfileImageAsset }
-  | { readonly kind: 'remove' };
+  | { readonly kind: 'set'; readonly asset: ProfileImageAsset };
 
 const KEEP: PhotoChange = { kind: 'keep' };
 
-/** An avatar is at most ~72dp - the picker already resizes to 512px and re-encodes (same as a Collection's photo). */
+/** An avatar is at most ~104dp - the picker already resizes to 512px and re-encodes (same as a Collection's photo). */
 const pickProfileImage = pickCollectionIconImage;
 
+const AVATAR_SIZE = 104;
+
 /**
- * 프로필 편집: the photo and the nickname - the only two things a person edits about themselves.
- * The Juple ID is shown read-only (it is the account's identifier and cannot be changed here).
- * Nothing is sent until 저장; the server is the only authority on whether a nickname is allowed and
- * answers with a stable code this screen maps to a message. A picked photo is previewed from the
- * device file and uploaded on 저장 (the app resizes it first; the circle crops it to the center).
+ * 프로필 편집: the photo and the nickname - the only two things a person edits about themselves -
+ * plus their Juple ID, read-only, with 복사.
+ *
+ * The photo is the control: tapping it picks a new one (previewed from the device file and uploaded
+ * on 저장 - the app resizes it first; the circle crops it to the center). Only when there is a photo,
+ * a small × on its corner removes it - after a confirmation, right away (the server photo is deleted
+ * then; a just-picked photo is simply dropped). The nickname is sent on 저장; the server is the only
+ * authority on whether it is allowed and answers with a stable code this screen maps to a message.
  */
 export function ProfileEditScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const authenticatedRequest = useAuthenticatedApi();
+  const { showNotificationToast } = useAppToast();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -51,6 +60,8 @@ export function ProfileEditScreen() {
   const [photoChange, setPhotoChange] = useState<PhotoChange>(KEEP);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
+  const [isRemovingPhoto, setIsRemovingPhoto] = useState(false);
   const isSavingRef = useRef(false);
 
   useEffect(() => {
@@ -82,8 +93,41 @@ export function ProfileEditScreen() {
     }
   };
 
-  const hasPhotoAfterChange =
-    photoChange.kind === 'set' || (photoChange.kind === 'keep' && !!profile?.profileImageUrl);
+  const hasPhoto = photoChange.kind === 'set' || !!profile?.profileImageUrl;
+  const isBusy = isSaving || isRemovingPhoto;
+
+  /** Confirmed ×: a just-picked photo is dropped; a saved photo is deleted on the server right away. */
+  const removePhoto = async () => {
+    setIsRemoveConfirmVisible(false);
+    if (!profile || isBusy) {
+      return;
+    }
+    setError(null);
+    setPhotoChange(KEEP);
+    if (!profile.profileImageUrl) {
+      return;
+    }
+    setIsRemovingPhoto(true);
+    try {
+      const updated = await removeMyProfileImage(authenticatedRequest);
+      forgetProfileImage(updated.jupleId);
+      setProfile(updated);
+    } catch {
+      setError(t('profile.photoSaveFallback'));
+    } finally {
+      setIsRemovingPhoto(false);
+    }
+  };
+
+  // The shareable form, exactly as shown (`@XXXX-XXXX`) - what is copied is what the user sees.
+  const displayedJupleId = profile ? `@${formatJupleId(profile.jupleId)}` : '';
+
+  const copyJupleId = () => {
+    if (profile) {
+      Clipboard.setString(displayedJupleId);
+      showNotificationToast(t('account.jupleIdCopied'));
+    }
+  };
 
   const save = async () => {
     if (!profile || isSavingRef.current) {
@@ -109,9 +153,6 @@ export function ProfileEditScreen() {
         if (photoChange.kind === 'set') {
           current = await setMyProfileImage(authenticatedRequest, photoChange.asset);
           rememberLocalProfileImage(current.jupleId, current.profileImageVersion, photoChange.asset.uri);
-        } else if (photoChange.kind === 'remove' && profile.profileImageUrl) {
-          current = await removeMyProfileImage(authenticatedRequest);
-          forgetProfileImage(current.jupleId);
         }
       } catch (caughtError) {
         setProfile(current);
@@ -140,39 +181,44 @@ export function ProfileEditScreen() {
     );
   }
 
-  const previewUrl = photoChange.kind === 'set' ? photoChange.asset.uri : photoChange.kind === 'remove' ? null : profile.profileImageUrl;
+  const previewUrl = photoChange.kind === 'set' ? photoChange.asset.uri : profile.profileImageUrl;
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.photoSection}>
-          <UserAvatar
-            displayName={nickname}
-            imageUrl={previewUrl}
-            // A just-picked local file has no server version yet - shown as-is.
-            imageVersion={photoChange.kind === 'keep' ? profile.profileImageVersion : null}
-            jupleId={profile.jupleId}
-            size={72}
-          />
-          <View style={styles.photoActions}>
+          {/* The avatar and its × are siblings (never nested), so tapping × can never also open the picker. */}
+          <View style={styles.photoFrame}>
             <Pressable
+              accessibilityLabel={t('profile.changePhoto')}
               accessibilityRole="button"
-              disabled={isSaving}
+              accessibilityState={{ disabled: isBusy }}
+              disabled={isBusy}
               onPress={pickPhoto}
-              style={styles.photoAction}
-              testID="profile-photo-change"
+              style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}
+              testID="profile-photo"
             >
-              <Text style={styles.photoActionLabel}>{t('profile.changePhoto')}</Text>
+              <UserAvatar
+                displayName={nickname}
+                imageUrl={previewUrl}
+                // A just-picked local file has no server version yet - shown as-is.
+                imageVersion={photoChange.kind === 'keep' ? profile.profileImageVersion : null}
+                jupleId={profile.jupleId}
+                size={AVATAR_SIZE}
+              />
             </Pressable>
-            {hasPhotoAfterChange ? (
+            {hasPhoto ? (
               <Pressable
+                accessibilityLabel={t('profile.removePhoto')}
                 accessibilityRole="button"
-                disabled={isSaving}
-                onPress={() => setPhotoChange(profile.profileImageUrl ? { kind: 'remove' } : KEEP)}
-                style={styles.photoAction}
+                accessibilityState={{ disabled: isBusy, busy: isRemovingPhoto }}
+                disabled={isBusy}
+                hitSlop={8}
+                onPress={() => setIsRemoveConfirmVisible(true)}
+                style={styles.removeBadge}
                 testID="profile-photo-remove"
               >
-                <Text style={styles.photoRemoveLabel}>{t('profile.removePhoto')}</Text>
+                {isRemovingPhoto ? <ActivityIndicator color={colors.surface} size="small" /> : <CloseIcon color={colors.surface} size={16} strokeWidth={2.5} />}
               </Pressable>
             ) : null}
           </View>
@@ -192,20 +238,30 @@ export function ProfileEditScreen() {
           testID="profile-nickname-input"
           value={nickname}
         />
-        <Text style={styles.hint}>{t('profile.nicknameHint')}</Text>
 
-        <Text style={styles.label}>{t('myPage.jupleId')}</Text>
-        <View style={styles.readOnlyField} testID="profile-juple-id">
-          <Text selectable style={[styles.readOnlyValue, ltrTextStyle]}>{`@${formatJupleId(profile.jupleId)}`}</Text>
+        <View style={styles.labelRow}>
+          <Text style={[styles.label, styles.labelInRow]}>{t('myPage.jupleId')}</Text>
+          <Pressable
+            accessibilityLabel={`${t('myPage.jupleId')} ${t('account.copy')}`}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={copyJupleId}
+            style={styles.copyButton}
+            testID="profile-juple-id-copy"
+          >
+            <Text style={styles.copyLabel}>{t('account.copy')}</Text>
+          </Pressable>
         </View>
-        <Text style={styles.hint}>{t('profile.jupleIdReadOnly')}</Text>
+        <View style={styles.readOnlyField} testID="profile-juple-id">
+          <Text selectable style={[styles.readOnlyValue, ltrTextStyle]}>{displayedJupleId}</Text>
+        </View>
 
         {error ? <Text style={styles.error} testID="profile-error">{error}</Text> : null}
 
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ busy: isSaving, disabled: isSaving }}
-          disabled={isSaving}
+          disabled={isBusy}
           onPress={save}
           style={[styles.saveButton, isSaving && styles.disabled]}
           testID="profile-save"
@@ -213,6 +269,15 @@ export function ProfileEditScreen() {
           {isSaving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.saveLabel}>{t('common.save')}</Text>}
         </Pressable>
       </ScrollView>
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.delete')}
+        message=""
+        onCancel={() => setIsRemoveConfirmVisible(false)}
+        onConfirm={removePhoto}
+        title={t('profile.removePhotoConfirmTitle')}
+        visible={isRemoveConfirmVisible}
+      />
     </StackScreenSafeArea>
   );
 }
@@ -221,12 +286,30 @@ const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
   centered: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
   content: { alignSelf: 'center', maxWidth: 560, padding: spacing.xl, width: '100%' },
-  photoSection: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
-  photoActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' },
-  photoAction: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  photoActionLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
-  photoRemoveLabel: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+  photoSection: { alignItems: 'center', marginBottom: spacing.sm },
+  photoFrame: { height: AVATAR_SIZE, width: AVATAR_SIZE },
+  avatarButton: { borderRadius: AVATAR_SIZE / 2 },
+  pressed: { opacity: 0.7 },
+  // A 30dp danger-colored × on the photo's lower-end corner, outlined in the surface color so it
+  // stays visible on any photo; hitSlop extends it to a full touch target.
+  removeBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.danger,
+    borderColor: colors.surface,
+    borderRadius: 15,
+    borderWidth: 2,
+    bottom: 0,
+    end: 0,
+    height: 30,
+    justifyContent: 'center',
+    position: 'absolute',
+    width: 30,
+  },
   label: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.xs, marginTop: spacing.lg },
+  labelRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs, marginTop: spacing.lg },
+  labelInRow: { flexShrink: 1, marginBottom: 0, marginTop: 0 },
+  copyButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget - 12, paddingHorizontal: spacing.sm },
+  copyLabel: { color: colors.brand, fontSize: 14, fontWeight: '600' },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
@@ -237,7 +320,6 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  hint: { color: colors.textSecondary, fontSize: 13, marginTop: spacing.xs },
   readOnlyField: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radii.md + 4,

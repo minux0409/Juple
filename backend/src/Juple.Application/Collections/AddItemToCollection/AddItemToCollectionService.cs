@@ -22,10 +22,14 @@ public sealed class AddItemToCollectionService(
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.AddItem, unlockToken, cancellationToken);
-        await collectionItemStore.AddAsync(userId, collectionId, itemId, timeProvider.GetUtcNow(), cancellationToken);
+        var added = await collectionItemStore.AddAsync(userId, collectionId, itemId, timeProvider.GetUtcNow(), cancellationToken);
         if (notifications is not null)
         {
             await notifications.CollectionsChangedAsync(userId, [collectionId], cancellationToken);
+            if (added)
+            {
+                await notifications.CollectionItemsAddedAsync(userId, collectionId, 1, hideActor: false, cancellationToken);
+            }
         }
     }
 }

@@ -30,6 +30,8 @@ export function usePushMessageHandling(): void {
         screen: 'Collections',
         params: { filter: 'shared', openShareRequests: true, refreshToken: Date.now() },
       });
+    } else if (target?.screen === 'CollectionDetails') {
+      navigationRef.navigate('CollectionDetails', { collectionId: target.collectionId, refreshToken: Date.now() });
     }
   }, []);
 

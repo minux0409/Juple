@@ -55,13 +55,15 @@ public sealed class Notification
         long? collectionId,
         long? subjectId,
         string dedupKey,
-        DateTimeOffset createdAtUtc) =>
+        DateTimeOffset createdAtUtc,
+        int? itemCount = null) =>
         new(userId, type, null, null, null, null, createdAtUtc)
         {
             ActorUserId = actorUserId,
             CollectionId = collectionId,
             SubjectId = subjectId,
             DedupKey = dedupKey,
+            ItemCount = itemCount,
         };
 
     public long Id { get; private set; }
@@ -89,6 +91,9 @@ public sealed class Notification
 
     /// <summary>The friend request (Friendship) or Collection invitation a social notification is about.</summary>
     public long? SubjectId { get; private set; }
+
+    /// <summary>How many links one CollectionItemsAdded operation added (only that Type sets it).</summary>
+    public int? ItemCount { get; private set; }
 
     public string? DedupKey { get; private set; }
 

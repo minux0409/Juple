@@ -150,6 +150,61 @@ public sealed class SocialPushDispatchTests
     }
 
     [Fact]
+    public void NewLinks_AreVisible_NameTheAdder_CountBulkAdds_AndHideAPublicLinkAdder()
+    {
+        Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.CollectionItemsAdded));
+        Assert.Equal("collectionItemsAdded", SocialNotificationPolicy.WireType(NotificationType.CollectionItemsAdded));
+        Assert.Equal(("새 링크", "피카츄님이 '여행'에 새 링크를 추가했어요."),
+            SocialPushText.For(NotificationType.CollectionItemsAdded, "ko", "피카츄", "여행"));
+        Assert.Equal("'여행'에 링크 5개가 추가됐어요.", SocialPushText.For(NotificationType.CollectionItemsAdded, "ko", "피카츄", "여행", 5).Body);
+        Assert.Equal("'여행' 컬렉션에 새 링크가 추가됐어요.", SocialPushText.For(NotificationType.CollectionItemsAdded, "ko", "", "여행").Body);
+        Assert.Equal("'여행'에 공개 링크를 통해 새 링크가 추가됐어요.",
+            SocialPushText.For(NotificationType.CollectionItemsAdded, "ko", "", "여행", viaPublicLink: true).Body);
+
+        var context = new PushDispatchContext(true, null, "여행", 0);
+        var viaLink = DispatchPendingPushNotificationsService.BuildPayload(
+            Notification.Social(9, NotificationType.CollectionItemsAdded, null, 42, null, "k", Now, 1), context, "en");
+        Assert.Equal("A new link was added to \"여행\" through its public link.", viaLink.Body);
+        Assert.Equal(["collectionId"], viaLink.Data.Keys);
+        var bulk = DispatchPendingPushNotificationsService.BuildPayload(
+            Notification.Social(9, NotificationType.CollectionItemsAdded, 5, 42, null, "k2", Now, 3), context with { ActorName = "Kim" }, "en");
+        Assert.Equal("3 links were added to \"여행\".", bulk.Body);
+    }
+
+    [Fact]
+    public void NewLinkText_CoversEveryAppLanguage_AndShortensLongCollectionNames()
+    {
+        foreach (var locale in new[] { "ko", "en", "ja", "zh-Hans", "zh-Hant", "es", "fr", "de", "it", "pt-BR", "vi", "th", "id", "ru", "tr", "ar", "hi" })
+        {
+            var by = SocialPushText.For(NotificationType.CollectionItemsAdded, locale, "SENDER", "COLL");
+            var many = SocialPushText.For(NotificationType.CollectionItemsAdded, locale, "SENDER", "COLL", 7);
+            var hidden = SocialPushText.For(NotificationType.CollectionItemsAdded, locale, "SENDER", "COLL", viaPublicLink: true);
+            Assert.Contains("SENDER", by.Body);
+            Assert.Contains("COLL", by.Body);
+            Assert.Contains("7", many.Body);
+            Assert.DoesNotContain("SENDER", hidden.Body);
+            Assert.Contains("COLL", hidden.Body);
+            Assert.NotEqual(SocialPushText.For(NotificationType.FriendRequestReceived, locale, "A", "B").Title, by.Title);
+        }
+
+        var longName = string.Concat(Enumerable.Repeat("가", 60)) + "👍";
+        var shortened = SocialPushText.Shorten(longName);
+        Assert.Equal(SocialPushText.CollectionNameMaxLength, new System.Globalization.StringInfo(shortened).LengthInTextElements);
+        Assert.EndsWith("…", shortened);
+        Assert.Equal("짧은 이름", SocialPushText.Shorten("짧은 이름"));
+        Assert.Equal("🇰🇷", SocialPushText.Shorten(string.Concat(Enumerable.Repeat("🇰🇷", 50)))[..4]); // never splits a flag/emoji
+    }
+
+    [Fact]
+    public void NewLinkNotifications_AreOnePerOperation()
+    {
+        var first = SocialNotificationPolicy.ItemsAddedDedupKey(42, 5, Guid.NewGuid());
+        Assert.NotEqual(first, SocialNotificationPolicy.ItemsAddedDedupKey(42, 5, Guid.NewGuid()));
+        Assert.True(first.Length <= 120); // UX_Notifications_DedupKey column
+        Assert.True(SocialNotificationPolicy.ItemsAddedDedupKey(long.MaxValue, long.MaxValue, Guid.NewGuid()).Length <= 120);
+    }
+
+    [Fact]
     public void ContentChanges_AreCoalescedPerRecipientCollectionAndMinute()
     {
         var first = SocialNotificationPolicy.ContentChangeDedupKey(42, 5, Now);

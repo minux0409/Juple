@@ -23,4 +23,10 @@ public enum NotificationType : byte
 
     /// <summary>A friend request the recipient sent was accepted or declined (SubjectId = the Friendship id). Data-only Push - refreshes the Friends screen.</summary>
     FriendRequestAnswered = 5,
+
+    /// <summary>
+    /// Visible: one or more links were added to a shared Collection the recipient owns or belongs
+    /// to (one notification per add operation - a bulk copy of N links is one, with ItemCount N).
+    /// </summary>
+    CollectionItemsAdded = 6,
 }

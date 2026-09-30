@@ -1,4 +1,3 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
@@ -8,10 +7,9 @@ import { getMyProfile, resolveSignInMethod, type SignInMethod, type UserProfile 
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
-import { formatJupleId } from '../collections/api/collaborationApi';
-import { useAppToast } from '../components/AppToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -23,8 +21,9 @@ const METHOD_LABEL_KEYS: Record<SignInMethod, string> = {
 };
 
 /**
- * 설정 > 계정 관리: the Juple ID, how this account signs in, password management where the sign-in
- * provider actually offers it, and - set apart at the bottom - account deletion.
+ * 설정 > 계정 관리: how this account signs in, password management where the sign-in provider
+ * actually offers it, and - set apart at the bottom - account deletion. (The Juple ID and its 복사
+ * live on 프로필 편집.)
  *
  * Juple keeps no password. An email account's password belongs to the sign-in service (Microsoft
  * Entra External ID), whose sign-in page offers a self-service reset - so the only honest action
@@ -36,7 +35,6 @@ export function AccountManagementScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const authenticatedRequest = useAuthenticatedApi();
   const { userEmail } = useAuth();
-  const { showNotificationToast } = useAppToast();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -67,13 +65,6 @@ export function AccountManagementScreen() {
 
   const method = resolveSignInMethod(profile);
 
-  const copyJupleId = () => {
-    if (profile) {
-      Clipboard.setString(profile.jupleId);
-      showNotificationToast(t('account.jupleIdCopied'));
-    }
-  };
-
   const openPasswordReset = async () => {
     setIsPasswordDialogVisible(false);
     setNotice(null);
@@ -99,16 +90,6 @@ export function AccountManagementScreen() {
         {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
         {profile ? (
           <View style={styles.card}>
-            <View style={styles.row} testID="account-juple-id">
-              <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>{t('myPage.jupleId')}</Text>
-                <Text selectable style={[styles.rowValue, styles.jupleId, ltrTextStyle]}>{`@${formatJupleId(profile.jupleId)}`}</Text>
-              </View>
-              <Pressable accessibilityRole="button" hitSlop={8} onPress={copyJupleId} style={styles.rowAction} testID="account-juple-id-copy">
-                <Text style={styles.rowActionLabel}>{t('account.copy')}</Text>
-              </Pressable>
-            </View>
-            <View style={styles.divider} />
             <View style={styles.row} testID="account-sign-in-method">
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>{t('account.signInMethod')}</Text>
@@ -133,11 +114,8 @@ export function AccountManagementScreen() {
                   style={styles.row}
                   testID="account-password-reset"
                 >
-                  <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{t('account.passwordReset')}</Text>
-                    <Text style={styles.rowDescription}>{t('account.passwordResetDescription')}</Text>
-                  </View>
-                  {isSigningIn ? <ActivityIndicator /> : null}
+                  <Text style={[styles.rowTitle, styles.rowText]}>{t('account.passwordReset')}</Text>
+                  {isSigningIn ? <ActivityIndicator /> : <ChevronIcon color={colors.textSecondary} direction="right" size={18} />}
                 </Pressable>
               </>
             ) : null}
@@ -183,9 +161,6 @@ const styles = StyleSheet.create({
   rowValue: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', marginTop: 2 },
   rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   rowDescription: { color: colors.textSecondary, fontSize: 13, marginTop: 3 },
-  jupleId: { letterSpacing: 1 },
-  rowAction: { alignItems: 'center', flexShrink: 0, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.xs },
-  rowActionLabel: { color: colors.brand, fontSize: 14, fontWeight: '600' },
   divider: { backgroundColor: colors.divider, height: StyleSheet.hairlineWidth },
   notice: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.md },
   error: { color: colors.danger, fontSize: 14 },

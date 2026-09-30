@@ -192,7 +192,7 @@ public sealed class GetCollectionItemsServiceTests
             return Task.FromResult((new CollectionItemPage(Items, NextCursor), RepresentativeImages, CoverImages));
         }
 
-        public Task AddAsync(
+        public Task<bool> AddAsync(
             long userId, long collectionId, long itemId, DateTimeOffset addedAtUtc,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetCollectionItemsService tests.");

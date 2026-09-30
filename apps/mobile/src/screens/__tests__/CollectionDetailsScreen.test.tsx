@@ -25,6 +25,8 @@ import {
   restoreCollection,
   setCollectionColor,
   setCollectionIcon,
+  getCollectionNotificationPreference,
+  setCollectionNotificationPreference,
   type Collection,
   type CollectionItemEntry,
 } from '../../collections/api/collectionsApi';
@@ -81,6 +83,10 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   setCollectionColor: jest.fn(),
   setCollectionFavorite: jest.fn(),
   setCollectionIcon: jest.fn(),
+  getCollectionNotificationPreference: jest.fn().mockResolvedValue({ newItemNotificationsEnabled: true }),
+  setCollectionNotificationPreference: jest.fn(),
+  copyCollectionItems: jest.fn(),
+  MAX_ITEMS_PER_COPY: 200,
 }));
 
 jest.mock('../../items/shareItem', () => ({
@@ -249,6 +255,23 @@ function getHeaderElement(renderer: ReactTestRenderer.ReactTestRenderer) {
     headerRenderer = ReactTestRenderer.create(flatList.props.ListHeaderComponent);
   });
   return headerRenderer;
+}
+
+/** Opens the header's ⋯ menu and returns the labels it offers, in order. */
+async function openCollectionMenu(renderer: ReactTestRenderer.ReactTestRenderer): Promise<string[]> {
+  const header = getHeaderElement(renderer);
+  const more = header.root.findAll(node => node.props.testID === 'collection-details-more' && typeof node.props.onPress === 'function')[0];
+  await act(async () => more.props.onPress());
+  const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+  return (menu?.props.actions ?? []).map((action: { label: string }) => action.label);
+}
+
+/** ⋯ → one of its actions (the last matching element - a later confirm dialog reuses some labels). */
+async function pressCollectionMenuAction(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  await openCollectionMenu(renderer);
+  const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+  const action = menu?.props.actions.find((candidate: { label: string }) => candidate.label === label);
+  await act(async () => action.onPress());
 }
 
 describe('CollectionDetailsScreen', () => {
@@ -435,38 +458,36 @@ describe('CollectionDetailsScreen', () => {
     });
   });
 
-  describe('header - compact icon-only 수정/삭제, no giant footer button', () => {
-    it('shows a compact 삭제 icon button next to 수정, and deletes only after confirming', async () => {
+  describe('header - [즐겨찾기] [공유] [⋯], everything else in the ⋯ menu', () => {
+    it('offers 수정 · 잠금 · 병합 · 삭제 in the menu (no separate edit/delete icons), and deletes only after confirming', async () => {
       jest.mocked(deleteCollection).mockResolvedValue(undefined);
       const renderer = await renderScreen();
       const header = getHeaderElement(renderer);
 
-      const editButtons = header.root.findAll(
-        node => node.props.accessibilityLabel === '수정' && typeof node.props.onPress === 'function',
-      );
-      expect(editButtons.length).toBeGreaterThan(0);
-      const deleteButtons = header.root.findAll(
-        node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
-      );
-      expect(deleteButtons.length).toBeGreaterThan(0);
+      // Only favorite, share and ⋯ are visible header actions now.
+      expect(header.root.findAll(node => node.props.accessibilityLabel === '수정' && typeof node.props.onPress === 'function')).toHaveLength(0);
+      expect(header.root.findAll(node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function')).toHaveLength(0);
+      expect(header.root.findAll(node => node.props.testID === 'collection-details-favorite').length).toBeGreaterThan(0);
+      expect(header.root.findAll(node => node.props.testID === 'collection-details-share').length).toBeGreaterThan(0);
 
-      await act(async () => {
-        deleteButtons[0].props.onPress();
-      });
+      // An unshared Collection: nobody else can add, so there is no 새 링크 알림 row.
+      expect(await openCollectionMenu(renderer)).toEqual([
+        i18n.t('common.edit'),
+        i18n.t('collections.lockSetTitle'),
+        i18n.t('collections.mergeWithOther'),
+        i18n.t('common.delete'),
+      ]);
+      const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+      expect(menu?.props.actions.at(-1).destructive).toBe(true);
+
+      await act(async () => menu?.props.actions.at(-1).onPress());
       expect(deleteCollection).not.toHaveBeenCalled();
 
       await act(async () => {
-        // The header's own delete button opened the confirm dialog (isDeleteConfirmVisible is set
-        // on the real screen, via the same closure the isolated `header` renderer shares - see
-        // getHeaderElement). The real FlatList genuinely mounts ListHeaderComponent into the main
-        // `renderer` tree, so there are now two elements with accessibilityLabel '삭제': the
-        // header's own compact delete button and the ConfirmDialog's confirm button - the second
-        // one is the actual confirm action.
         const confirmButtons = renderer.root.findAll(
           node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
         );
-        expect(confirmButtons).toHaveLength(2);
-        confirmButtons[1].props.onPress();
+        confirmButtons[confirmButtons.length - 1].props.onPress();
       });
 
       expect(deleteCollection).toHaveBeenCalledWith(expect.anything(), 1);
@@ -482,20 +503,46 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findByProps({ children: i18n.t('toast.collectionDeleteSuccess') })).toBeTruthy();
     });
 
+    it('a shared Collection of mine also offers my own 새 링크 알림, right after 수정 (no 병합 while shared)', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
+      jest.mocked(getCollectionNotificationPreference).mockResolvedValueOnce({ newItemNotificationsEnabled: false });
+      const renderer = await renderScreen();
+
+      expect(getCollectionNotificationPreference).toHaveBeenCalledWith(expect.anything(), 1);
+      expect(await openCollectionMenu(renderer)).toEqual([
+        i18n.t('common.edit'),
+        i18n.t('collections.newLinkNotificationsOff'),
+        i18n.t('collections.lockSetTitle'),
+        i18n.t('common.delete'),
+      ]);
+      expect(setCollectionNotificationPreference).not.toHaveBeenCalled();
+    });
+
+    it('an unshared Collection never loads a notification setting', async () => {
+      await renderScreen();
+      expect(getCollectionNotificationPreference).not.toHaveBeenCalled();
+    });
+
+    it('shows at most two lines of even a very long, space-free name, then an ellipsis', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ name: 'A'.repeat(300) }));
+      const renderer = await renderScreen();
+      const title = getHeaderElement(renderer).root.findAll(node => node.props.testID === 'collection-details-title')[0];
+
+      expect(title.props.numberOfLines).toBe(2);
+      expect(title.props.ellipsizeMode).toBe('tail');
+      expect(StyleSheet.flatten(title.props.style)).toMatchObject({ flexShrink: 1, minWidth: 0 });
+    });
+
     it('keeps the detail screen open and shows the existing one-button notice when delete fails', async () => {
       jest.mocked(deleteCollection).mockRejectedValue(new Error('no'));
       const renderer = await renderScreen();
-      const header = getHeaderElement(renderer);
-      const buttons = header.root.findAll(
-        node => node.props.accessibilityLabel === i18n.t('common.delete') && typeof node.props.onPress === 'function',
-      );
-      expect(buttons).toHaveLength(1);
 
-      await act(async () => buttons[0].props.onPress());
+      await pressCollectionMenuAction(renderer, i18n.t('common.delete'));
       await act(async () => {
-        renderer.root
-          .findAll(node => node.props.accessibilityLabel === i18n.t('common.delete') && typeof node.props.onPress === 'function')[1]
-          .props.onPress();
+        const confirmButtons = renderer.root.findAll(
+          node => node.props.accessibilityLabel === i18n.t('common.delete') && typeof node.props.onPress === 'function',
+        );
+        confirmButtons[confirmButtons.length - 1].props.onPress();
         await Promise.resolve();
       });
 
@@ -506,16 +553,12 @@ describe('CollectionDetailsScreen', () => {
 
   describe('collection delete undo', () => {
     async function deleteCollectionViaHeader(renderer: ReactTestRenderer.ReactTestRenderer) {
-      const header = getHeaderElement(renderer);
-      const deleteButton = header.root.findAll(
-        node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
-      )[0];
-      await act(async () => deleteButton.props.onPress());
+      await pressCollectionMenuAction(renderer, '삭제');
       await act(async () => {
         const confirmButtons = renderer.root.findAll(
           node => node.props.accessibilityLabel === '삭제' && typeof node.props.onPress === 'function',
         );
-        confirmButtons[1].props.onPress();
+        confirmButtons[confirmButtons.length - 1].props.onPress();
       });
     }
 
@@ -569,14 +612,8 @@ describe('CollectionDetailsScreen', () => {
   });
 
   describe('header - icon (create/edit)', () => {
-    function openEditMode(renderer: ReactTestRenderer.ReactTestRenderer) {
-      const header = getHeaderElement(renderer);
-      const editButton = header.root.findAll(
-        node => node.props.accessibilityLabel === '수정' && typeof node.props.onPress === 'function',
-      )[0];
-      act(() => {
-        editButton.props.onPress();
-      });
+    async function openEditMode(renderer: ReactTestRenderer.ReactTestRenderer) {
+      await pressCollectionMenuAction(renderer, '수정');
     }
 
     function findSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
@@ -599,7 +636,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ icon: 'Heart' }));
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       const heartCell = renderer.root.findByProps({ testID: 'collection-icon-option-Heart' });
       expect(heartCell.props.accessibilityState.selected).toBe(true);
     });
@@ -609,7 +646,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(setCollectionIcon).mockResolvedValue(makeCollection({ icon: 'Plane' }));
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       const planeCell = renderer.root.findByProps({ testID: 'collection-icon-option-Plane' });
       act(() => {
         planeCell.props.onPress();
@@ -629,7 +666,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(renameCollection).mockResolvedValue(undefined);
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       const nameInput = renderer.root.findByProps({ value: 'Old' });
       act(() => {
         nameInput.props.onChangeText('New');
@@ -656,7 +693,7 @@ describe('CollectionDetailsScreen', () => {
       });
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       const nameInput = renderer.root.findByProps({ value: 'Old' });
       act(() => {
         nameInput.props.onChangeText('New');
@@ -682,7 +719,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ id: 3, color: null }));
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       // id 3's deterministic fallback resolves to 'Mint' - see collectionColors.ts's own mapping.
       const mintSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Mint' });
       expect(mintSwatch.props.accessibilityState.selected).toBe(true);
@@ -692,7 +729,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ id: 3, color: 'Teal' }));
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       const tealSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Teal' });
       expect(tealSwatch.props.accessibilityState.selected).toBe(true);
     });
@@ -702,7 +739,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(setCollectionColor).mockResolvedValue(makeCollection({ id: 3, color: 'Mint' }));
       const renderer = await renderScreen();
 
-      openEditMode(renderer);
+      await openEditMode(renderer);
       const mintSwatch = renderer.root.findByProps({ testID: 'collection-color-option-Mint' });
       act(() => {
         mintSwatch.props.onPress();

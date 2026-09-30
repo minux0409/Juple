@@ -105,7 +105,9 @@ public sealed class DispatchPendingPushNotificationsService(
             return new PushNotificationPayload(null, null, type, notification.Id, data, BadgeCount: null);
         }
 
-        var (title, body) = SocialPushText.For(notification.Type, locale, context.ActorName ?? string.Empty, context.CollectionName ?? string.Empty);
+        var (title, body) = SocialPushText.For(
+            notification.Type, locale, context.ActorName ?? string.Empty, context.CollectionName ?? string.Empty,
+            notification.ItemCount ?? 1, viaPublicLink: notification.ActorUserId is null);
         return new PushNotificationPayload(title, body, type, notification.Id, data, context.BadgeCount);
     }
 }

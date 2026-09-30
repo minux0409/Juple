@@ -88,6 +88,12 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
                 .Where(favorite => favorite.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // This user's own per-Collection notification settings, including on other people's
+            // Collections (settings on their own Collections would also cascade below).
+            await dbContext.CollectionNotificationPreferences
+                .Where(preference => preference.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // Friend requests and friendships in either direction; both private notes on each go
             // with them (Cascade). The other people's accounts and Collections are untouched -
             // unlike removing one friend, this clears every friendship of the deleted user.

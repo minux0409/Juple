@@ -349,6 +349,38 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("CollectionMergeOperations", "collections");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionNotificationPreference", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("NewItemNotificationsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_CollectionNotificationPreferences_UserId");
+
+                    b.HasIndex("CollectionId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionNotificationPreferences_CollectionId_UserId");
+
+                    b.ToTable("CollectionNotificationPreferences", "collections");
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionShare", b =>
                 {
                     b.Property<long>("Id")
@@ -897,6 +929,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
 
+                    b.Property<int?>("ItemCount")
+                        .HasColumnType("int");
+
                     b.Property<long?>("ItemId")
                         .HasColumnType("bigint");
 
@@ -953,7 +988,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6)");
                         });
                 });
 
@@ -1375,6 +1410,21 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TargetCollectionId")
                         .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionNotificationPreference", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("Juple.Domain.Users.User", null)

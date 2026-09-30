@@ -1,3 +1,4 @@
+import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import ReactTestRenderer, { act } from 'react-test-renderer';
@@ -7,10 +8,14 @@ import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import {
+  copyCollectionItems,
   getCollection,
   getCollectionItems,
   getCollectionItemSections,
+  getCollectionNotificationPreference,
+  getCollections,
   getCollectionShare,
+  setCollectionNotificationPreference,
   setCollectionLock,
   unlockCollection,
   type Collection,
@@ -49,7 +54,16 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   unlockCollection: jest.fn(),
   setCollectionLock: jest.fn(),
   removeCollectionLock: jest.fn(),
+  getCollectionNotificationPreference: jest.fn(),
+  setCollectionNotificationPreference: jest.fn(),
+  copyCollectionItems: jest.fn(),
+  MAX_ITEMS_PER_COPY: 200,
 }));
+jest.mock('../../categories/categorySnapshotSync', () => ({ syncCategorySnapshotToNative: jest.fn().mockResolvedValue(undefined) }));
+
+beforeEach(() => {
+  jest.mocked(getCollectionNotificationPreference).mockResolvedValue({ newItemNotificationsEnabled: true });
+});
 
 jest.mock('../../items/shareItem', () => ({ shareItem: jest.fn() }));
 jest.mock('../../collections/api/collectionLockPasswordApi', () => ({
@@ -232,10 +246,14 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
       i18n.t('common.edit'),
       i18n.t('common.delete'),
       i18n.t('collections.shareAction'),
-      i18n.t('collections.manageAction'),
     ]) {
       expect(hasLabel(top, label)).toBe(false);
     }
+    // Their ⋯ holds only what is theirs: their own 새 링크 알림 and copying into their own Collection.
+    expect(await recipientMenuLabels(renderer)).toEqual([
+      i18n.t('collections.newLinkNotificationsOn'),
+      i18n.t('collections.copyToMine'),
+    ]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(getCollectionShare).not.toHaveBeenCalled();
     expect(findItemList(renderer).props.data).toEqual([ownersLink]);
@@ -256,6 +274,105 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
       pressable.props.onPress();
     });
     expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2 });
+  });
+});
+
+/** The ⋯ menu's labels, in order (opened through the header part's own button). */
+async function recipientMenuLabels(renderer: ReactTestRenderer.ReactTestRenderer): Promise<string[]> {
+  const top = header(renderer);
+  const more = top.root.findAll(node => node.props.testID === 'collection-details-more' && typeof node.props.onPress === 'function')[0];
+  await act(async () => more.props.onPress());
+  const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+  return (menu?.props.actions ?? []).map((action: { label: string }) => action.label);
+}
+
+async function pressMenu(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  await recipientMenuLabels(renderer);
+  const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+  await act(async () => menu?.props.actions.find((action: { label: string }) => action.label === label).onPress());
+}
+
+describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 컬렉션으로 복사', () => {
+  const myOwn = makeCollection({ id: 7, name: 'My Picks', accessRole: 'owner' });
+
+  beforeEach(() => {
+    jest.mocked(getCollection).mockResolvedValue(
+      makeCollection({
+        accessRole: 'contributor',
+        ownerJupleId: 'K7MP4Q8N',
+        otherParticipantCount: 1,
+      }),
+    );
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine, theirs], nextCursor: null });
+    jest.mocked(getCollections).mockResolvedValue({ items: [myOwn], nextCursor: null });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    clearCollectionUnlockGrants();
+  });
+
+  it('turns 새 링크 알림 off at once, and flips it back with a message when saving fails', async () => {
+    jest.mocked(setCollectionNotificationPreference).mockResolvedValueOnce({ newItemNotificationsEnabled: false });
+    const renderer = await renderScreen();
+    expect(getCollectionNotificationPreference).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID);
+
+    await pressMenu(renderer, i18n.t('collections.newLinkNotificationsOn'));
+    const switchOf = () => renderer.root.findAll(node => node.props.testID === 'collection-notification-switch' && typeof node.props.onValueChange === 'function')[0];
+    expect(switchOf().props.value).toBe(true);
+
+    await act(async () => switchOf().props.onValueChange(false));
+    expect(setCollectionNotificationPreference).toHaveBeenLastCalledWith(expect.anything(), COLLECTION_ID, false);
+    expect(switchOf().props.value).toBe(false);
+    expect(await recipientMenuLabels(renderer)).toContain(i18n.t('collections.newLinkNotificationsOff'));
+
+    jest.mocked(setCollectionNotificationPreference).mockRejectedValueOnce(new Error('offline'));
+    await pressMenu(renderer, i18n.t('collections.newLinkNotificationsOff'));
+    await act(async () => switchOf().props.onValueChange(true));
+    expect(switchOf().props.value).toBe(false); // rolled back
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.newLinkNotificationsError'))).toBe(true);
+  });
+
+  it('copies the picked links into a Collection of my own and reports the result', async () => {
+    jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 1, unavailableCount: 0 });
+    const renderer = await renderScreen();
+
+    await pressMenu(renderer, i18n.t('collections.copyToMine'));
+    // Selection mode: rows are checkboxes - a tap picks, never opens the link.
+    const pick = (item: CollectionItemEntry) => {
+      const part = row(renderer, item);
+      const checkbox = part.root.findAll(node => node.props.accessibilityRole === 'checkbox' && typeof node.props.onPress === 'function')[0];
+      act(() => checkbox.props.onPress());
+    };
+    pick(theirs);
+    pick(mine);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.copySelectedCount', { count: 2 }))).toBe(true);
+    // Picking again unpicks.
+    pick(mine);
+    pick(mine);
+
+    const confirm = renderer.root.findAll(node => node.props.testID === 'collection-copy-confirm' && typeof node.props.onPress === 'function')[0];
+    await act(async () => confirm.props.onPress());
+    // Only my own Collections are offered (owned scope - no scope parameter).
+    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), { limit: 50 });
+    const destination = renderer.root.findAll(node => node.props.accessibilityLabel === 'My Picks' && typeof node.props.onPress === 'function')[0];
+    await act(async () => destination.props.onPress());
+
+    expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [2, 1], 7, null);
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '2개 중 1개를 복사했어요. 1개는 이미 컬렉션에 있어요.')).toBe(true);
+    // Selection mode is over.
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
+  });
+
+  it('never offers copying while the content is still behind the share password', async () => {
+    jest.mocked(getCollection).mockResolvedValue(
+      makeCollection({ accessRole: 'viewer', isSharePasswordProtected: true, ownerJupleId: 'K7MP4Q8N' }),
+    );
+    jest.mocked(getCollectionItems).mockRejectedValue(new ApiError('forbidden', 403, 'sharePasswordRequired'));
+    const renderer = await renderScreen();
+
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.newLinkNotificationsOn')]);
   });
 });
 
@@ -357,10 +474,14 @@ describe('CollectionDetailsScreen - Contributor', () => {
       i18n.t('common.edit'),
       i18n.t('common.delete'),
       i18n.t('collections.shareAction'),
-      i18n.t('collections.manageAction'),
     ]) {
       expect(hasLabel(top, label)).toBe(false);
     }
+    // Their ⋯ holds only what is theirs: their own 새 링크 알림 and copying into their own Collection.
+    expect(await recipientMenuLabels(renderer)).toEqual([
+      i18n.t('collections.newLinkNotificationsOn'),
+      i18n.t('collections.copyToMine'),
+    ]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(top.root.findAllByType(Switch)).toHaveLength(0);
     // Share management is never even queried for a Contributor.

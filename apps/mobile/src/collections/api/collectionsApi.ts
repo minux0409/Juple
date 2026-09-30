@@ -1,6 +1,6 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
-import { COLLECTION_UNLOCK_HEADER_NAME, storedUnlockHeaders } from '../collectionUnlockGrants';
+import { COLLECTION_UNLOCK_HEADER_NAME, getCollectionUnlockToken, storedUnlockHeaders } from '../collectionUnlockGrants';
 
 /** A named 보관함 - an Item can belong to any number of Collections at once (unlike Category). */
 /** The caller's relationship to a Collection - always stated by the server, never inferred client-side. */
@@ -637,6 +637,82 @@ export async function moveCollectionItem(
     body: { afterItemId },
     headers: storedUnlockHeaders(collectionId),
   });
+}
+
+/**
+ * The most links one 내 컬렉션으로 복사 request may carry - mirrors the backend's
+ * CopyCollectionItemsService.MaxItemsPerCopy (a larger request is a 400, never a partial copy).
+ */
+export const MAX_ITEMS_PER_COPY = 200;
+
+/** copiedCount + skippedCount (already in the destination) + unavailableCount (gone from the source) = the distinct ids sent. */
+export interface CopyCollectionItemsResult {
+  readonly copiedCount: number;
+  readonly skippedCount: number;
+  readonly unavailableCount: number;
+}
+
+/**
+ * 내 컬렉션으로 복사: copies links of a Collection shared with the caller into one of their own (the
+ * server re-checks both, and copies only what is shared - never a memo, uploaded image or who added).
+ * The source's grant of this visit (its share password, if any) travels with the destination's own
+ * grant, if it needed one.
+ */
+export async function copyCollectionItems(
+  request: AuthenticatedApiRequest,
+  sourceCollectionId: number,
+  itemIds: readonly number[],
+  destinationCollectionId: number,
+  destinationUnlockToken: string | null = null,
+): Promise<CopyCollectionItemsResult> {
+  const grants = [getCollectionUnlockToken(sourceCollectionId), destinationUnlockToken].filter(
+    (token): token is string => token !== null,
+  );
+  const response = await request<CopyCollectionItemsResult>({
+    method: 'POST',
+    path: `/api/v1/collections/${sourceCollectionId}/items/copy`,
+    body: { destinationCollectionId, itemIds },
+    headers: grants.length > 0 ? { [COLLECTION_UNLOCK_HEADER_NAME]: grants.join(',') } : undefined,
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no collection copy body.');
+  }
+  return response.body;
+}
+
+/** The caller's own 새 링크 알림 setting for one Collection they own or belong to (ON by default). */
+export interface CollectionNotificationPreference {
+  readonly newItemNotificationsEnabled: boolean;
+}
+
+export async function getCollectionNotificationPreference(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<CollectionNotificationPreference> {
+  const response = await request<CollectionNotificationPreference>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/notification-preference`,
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no notification preference body.');
+  }
+  return response.body;
+}
+
+export async function setCollectionNotificationPreference(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  newItemNotificationsEnabled: boolean,
+): Promise<CollectionNotificationPreference> {
+  const response = await request<CollectionNotificationPreference>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/notification-preference`,
+    body: { newItemNotificationsEnabled },
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no notification preference body.');
+  }
+  return response.body;
 }
 
 export type TransferCollectionItemResult = { readonly targetMembershipCreated: boolean };

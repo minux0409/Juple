@@ -59,6 +59,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<CollectionMergeCreatedMembership> CollectionMergeCreatedMemberships => Set<CollectionMergeCreatedMembership>();
 
+    public DbSet<CollectionNotificationPreference> CollectionNotificationPreferences => Set<CollectionNotificationPreference>();
+
     public DbSet<Notification> Notifications => Set<Notification>();
 
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();

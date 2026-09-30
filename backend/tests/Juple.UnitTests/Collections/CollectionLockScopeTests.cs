@@ -129,6 +129,41 @@ public sealed class CollectionLockScopeTests
         await add.AddAsync(Contributor, Unlocked, 99);
         await remove.RemoveAsync(Owner, Unlocked, 99);
         Assert.Equal(new[] { (Contributor, Unlocked), (Owner, Unlocked) }, publisher.Changes);
+        // A real add is also one named new-link notification; a repeat add of a link already there is not.
+        Assert.Equal(["items-added:2:11:1:named"], publisher.Events);
+        _itemStore.AddResult = false;
+        await add.AddAsync(Contributor, Unlocked, 99);
+        Assert.Single(publisher.Events);
+    }
+
+    [Fact]
+    public async Task TransferMergeAndUndo_AnnounceOnlyLinksNewToTheirTarget_AsOneGroupedEvent()
+    {
+        var publisher = new RecordingSocialPublisher();
+        var transfer = new Juple.Application.Collections.TransferCollectionItem.TransferCollectionItemService(_access, _managementStore, publisher);
+        var undo = new Juple.Application.Collections.UndoTransferCollectionItem.UndoTransferCollectionItemService(_access, _managementStore, publisher);
+        var merge = new Juple.Application.Collections.MergeCollections.MergeCollectionsService(_access, _managementStore, publisher);
+
+        await transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked, Grant(OtherLocked, Owner, 1));
+        _managementStore.TargetMembershipCreated = false; // already in the target: nothing new
+        await transfer.TransferAsync(Owner, Unlocked, 99, OtherLocked, Grant(OtherLocked, Owner, 1));
+
+        _managementStore.MergeAdded = 17; // 17 new in the target (any duplicates are not counted)
+        await merge.MergeAsync(Owner, Unlocked, OtherLocked, Grant(OtherLocked, Owner, 1));
+        _managementStore.MergeAdded = 0; // duplicates only
+        await merge.MergeAsync(Owner, Unlocked, OtherLocked, Grant(OtherLocked, Owner, 1));
+
+        await undo.UndoAsync(Owner, Unlocked, 99, OtherLocked, true, Grant(OtherLocked, Owner, 1));
+        _managementStore.SourceMembershipRecreated = false;
+        await undo.UndoAsync(Owner, Unlocked, 99, OtherLocked, true, Grant(OtherLocked, Owner, 1));
+
+        Assert.Equal(
+            ["items-added:1:12:1:named", "items-added:1:12:17:named", "items-added:1:11:1:named"],
+            publisher.Events);
+
+        // A refused operation publishes nothing.
+        await Assert.ThrowsAsync<CollectionLockedException>(() => merge.MergeAsync(Owner, Unlocked, OtherLocked));
+        Assert.Equal(3, publisher.Events.Count);
     }
 
     [Fact]
@@ -154,10 +189,12 @@ public sealed class CollectionLockScopeTests
         public Task<SharedCollectionItemDto?> GetSharedItemAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task AddAsync(long userId, long collectionId, long itemId, DateTimeOffset addedAtUtc, CancellationToken cancellationToken = default)
+        public bool AddResult { get; set; } = true;
+
+        public Task<bool> AddAsync(long userId, long collectionId, long itemId, DateTimeOffset addedAtUtc, CancellationToken cancellationToken = default)
         {
             Adds++;
-            return Task.CompletedTask;
+            return Task.FromResult(AddResult);
         }
 
         public Task RemoveAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default)
@@ -180,19 +217,25 @@ public sealed class CollectionLockScopeTests
         public Task<TransferCollectionItemResult> TransferItemAsync(long userId, long sourceCollectionId, long itemId, long targetCollectionId, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult(new TransferCollectionItemResult(true));
+            return Task.FromResult(new TransferCollectionItemResult(TargetMembershipCreated));
         }
 
-        public Task UndoTransferItemAsync(long userId, long sourceCollectionId, long itemId, long targetCollectionId, bool targetMembershipCreated, CancellationToken cancellationToken = default)
+        public bool TargetMembershipCreated { get; set; } = true;
+
+        public int MergeAdded { get; set; }
+
+        public bool SourceMembershipRecreated { get; set; } = true;
+
+        public Task<bool> UndoTransferItemAsync(long userId, long sourceCollectionId, long itemId, long targetCollectionId, bool targetMembershipCreated, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.CompletedTask;
+            return Task.FromResult(SourceMembershipRecreated);
         }
 
         public Task<MergeCollectionsResult> MergeAsync(long userId, long sourceCollectionId, long targetCollectionId, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult(new MergeCollectionsResult(Guid.NewGuid()));
+            return Task.FromResult(new MergeCollectionsResult(Guid.NewGuid(), MergeAdded));
         }
 
         public Task UndoMergeAsync(long userId, Guid undoOperationId, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -237,6 +280,12 @@ public sealed class CollectionLockScopeTests
         public Task ItemCollectionsChangedAsync(long actorUserId, long itemId, CancellationToken cancellationToken = default)
         {
             Events.Add($"item:{actorUserId}:{itemId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"items-added:{actorUserId}:{collectionId}:{itemCount}:{(hideActor ? "hidden" : "named")}");
             return Task.CompletedTask;
         }
     }

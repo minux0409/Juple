@@ -78,8 +78,9 @@ public interface ICollectionItemStore
     /// <summary>
     /// Adds the caller's OWN Item to a Collection they own or collaborate on, recording them as
     /// AddedByUserId. Someone else's Item is ItemNotFoundException, whatever the caller's role.
+    /// True when this call added it; false when it was already in the Collection (a no-op).
     /// </summary>
-    Task AddAsync(
+    Task<bool> AddAsync(
         long userId,
         long collectionId,
         long itemId,

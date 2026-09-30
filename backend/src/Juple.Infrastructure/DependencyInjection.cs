@@ -78,6 +78,8 @@ public static class DependencyInjection
         services.AddScoped<ICollectionManagementStore, CollectionStore>();
         services.AddScoped<Juple.Application.Collections.Public.IPublicCollectionWriteStore, CollectionStore>();
         services.AddScoped<ICollectionShareStore, CollectionShareStore>();
+        services.AddScoped<Juple.Application.Collections.NotificationPreference.ICollectionNotificationPreferenceStore, CollectionNotificationPreferenceStore>();
+        services.AddScoped<Juple.Application.Collections.CopyItems.ICollectionItemCopyStore, CollectionItemCopyStore>();
         services.AddScoped<IPublicCollectionShareStore, PublicCollectionStore>();
         services.AddScoped<ICollectionAccessStore, CollectionAccessStore>();
         services.AddScoped<ICollectionLockStore, CollectionLockStore>();

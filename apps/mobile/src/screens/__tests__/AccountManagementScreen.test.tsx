@@ -50,14 +50,13 @@ const has = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID).length > 0;
 
 describe('AccountManagementScreen', () => {
-  it('shows the Juple ID and copies the canonical ID', async () => {
+  it('no longer shows the Juple ID (it lives on 프로필 편집, with its 복사)', async () => {
     const renderer = await renderWith('email');
 
-    expect(texts(renderer.root.findByProps({ testID: 'account-juple-id' }))).toContain('@K7MP-4Q8N');
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'account-juple-id-copy' }).props.onPress();
-    });
-    expect(Clipboard.setString).toHaveBeenCalledWith('K7MP4Q8N');
+    expect(has(renderer, 'account-juple-id')).toBe(false);
+    expect(has(renderer, 'account-juple-id-copy')).toBe(false);
+    expect(JSON.stringify(texts(renderer.root))).not.toContain('K7MP-4Q8N');
+    expect(Clipboard.setString).not.toHaveBeenCalled();
   });
 
   it('an email account shows 이메일 with its address, and offers 비밀번호 재설정 (never "변경")', async () => {
@@ -66,7 +65,8 @@ describe('AccountManagementScreen', () => {
     const method = texts(renderer.root.findByProps({ testID: 'account-sign-in-method' }));
     expect(method).toEqual(expect.arrayContaining([i18n.t('account.methodEmail'), 'me@example.com']));
     const reset = renderer.root.findByProps({ testID: 'account-password-reset' });
-    expect(texts(reset)).toContain('비밀번호 재설정');
+    // A plain "비밀번호 재설정 >" row - no description under it.
+    expect(texts(reset)).toEqual(['비밀번호 재설정']);
     expect(JSON.stringify(texts(renderer.root))).not.toContain('비밀번호 변경');
   });
 

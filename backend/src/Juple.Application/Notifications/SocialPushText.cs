@@ -4,15 +4,46 @@ using Juple.Domain.Notifications;
 namespace Juple.Application.Notifications;
 
 /// <summary>
-/// Title/body of the two visible social Push notifications, in the device registration's own locale
+/// Title/body of the visible social Push notifications, in the device registration's own locale
 /// (PushDeviceRegistration.Locale - the app language the user picked, see the Mobile registration
 /// sync). Covers every app language; an unknown locale falls back to its base language, then English.
-/// The only inserted values are the sender's display name (or Juple ID) and the Collection name -
-/// never a private friend note, link or anything else.
+/// The only inserted values are the sender's display name (or Juple ID), the Collection name
+/// (shortened to CollectionNameMaxLength) and a link count - never a private friend note, a link's
+/// URL/memo or anything else.
 /// </summary>
 public static class SocialPushText
 {
+    /// <summary>Longer Collection names end in "…" - the push body must stay readable on a lock screen.</summary>
+    public const int CollectionNameMaxLength = 40;
+
     private sealed record Texts(string FriendTitle, string FriendBody, string InviteTitle, string InviteBody);
+
+    /// <summary>
+    /// CollectionItemsAdded: {0} = who added (By only), {1} = Collection name, {2} = link count (Many only).
+    /// Public = added through the Collection's public link - who added it is never named.
+    /// </summary>
+    private sealed record ItemTexts(string Title, string By, string One, string Many, string Public);
+
+    private static readonly Dictionary<string, ItemTexts> ItemsByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new("새 링크", "{0}님이 '{1}'에 새 링크를 추가했어요.", "'{1}' 컬렉션에 새 링크가 추가됐어요.", "'{1}'에 링크 {2}개가 추가됐어요.", "'{1}'에 공개 링크를 통해 새 링크가 추가됐어요."),
+        ["en"] = new("New link", "{0} added a new link to \"{1}\".", "A new link was added to the collection \"{1}\".", "{2} links were added to \"{1}\".", "A new link was added to \"{1}\" through its public link."),
+        ["ja"] = new("新しいリンク", "{0}さんが「{1}」に新しいリンクを追加しました。", "コレクション「{1}」に新しいリンクが追加されました。", "「{1}」にリンクが{2}件追加されました。", "公開リンクから「{1}」に新しいリンクが追加されました。"),
+        ["zh-Hans"] = new("新链接", "{0} 向「{1}」添加了新链接。", "合集「{1}」中添加了新链接。", "「{1}」中添加了 {2} 个链接。", "有人通过公开链接向「{1}」添加了新链接。"),
+        ["zh-Hant"] = new("新連結", "{0} 在「{1}」新增了連結。", "合集「{1}」新增了連結。", "「{1}」新增了 {2} 個連結。", "有人透過公開連結在「{1}」新增了連結。"),
+        ["es"] = new("Nuevo enlace", "{0} añadió un nuevo enlace a «{1}».", "Se añadió un nuevo enlace a la colección «{1}».", "Se añadieron {2} enlaces a «{1}».", "Se añadió un nuevo enlace a «{1}» a través de su enlace público."),
+        ["fr"] = new("Nouveau lien", "{0} a ajouté un nouveau lien à « {1} ».", "Un nouveau lien a été ajouté à la collection « {1} ».", "{2} liens ont été ajoutés à « {1} ».", "Un nouveau lien a été ajouté à « {1} » via son lien public."),
+        ["de"] = new("Neuer Link", "{0} hat „{1}“ einen neuen Link hinzugefügt.", "Der Sammlung „{1}“ wurde ein neuer Link hinzugefügt.", "„{1}“ wurden {2} Links hinzugefügt.", "„{1}“ wurde über den öffentlichen Link ein neuer Link hinzugefügt."),
+        ["it"] = new("Nuovo link", "{0} ha aggiunto un nuovo link a «{1}».", "È stato aggiunto un nuovo link alla raccolta «{1}».", "Sono stati aggiunti {2} link a «{1}».", "È stato aggiunto un nuovo link a «{1}» tramite il link pubblico."),
+        ["pt-BR"] = new("Novo link", "{0} adicionou um novo link a \"{1}\".", "Um novo link foi adicionado à coleção \"{1}\".", "{2} links foram adicionados a \"{1}\".", "Um novo link foi adicionado a \"{1}\" pelo link público."),
+        ["vi"] = new("Liên kết mới", "{0} đã thêm một liên kết mới vào \"{1}\".", "Một liên kết mới đã được thêm vào bộ sưu tập \"{1}\".", "Đã thêm {2} liên kết vào \"{1}\".", "Một liên kết mới đã được thêm vào \"{1}\" qua liên kết công khai."),
+        ["th"] = new("ลิงก์ใหม่", "{0} เพิ่มลิงก์ใหม่ใน \"{1}\"", "มีการเพิ่มลิงก์ใหม่ในคอลเลกชัน \"{1}\"", "มีการเพิ่มลิงก์ {2} รายการใน \"{1}\"", "มีการเพิ่มลิงก์ใหม่ใน \"{1}\" ผ่านลิงก์สาธารณะ"),
+        ["id"] = new("Tautan baru", "{0} menambahkan tautan baru ke \"{1}\".", "Tautan baru ditambahkan ke koleksi \"{1}\".", "{2} tautan ditambahkan ke \"{1}\".", "Tautan baru ditambahkan ke \"{1}\" melalui tautan publik."),
+        ["ru"] = new("Новая ссылка", "{0} добавляет новую ссылку в «{1}».", "В коллекцию «{1}» добавлена новая ссылка.", "В «{1}» добавлено ссылок: {2}.", "В «{1}» добавлена новая ссылка через публичную ссылку."),
+        ["tr"] = new("Yeni bağlantı", "{0}, \"{1}\" koleksiyonuna yeni bir bağlantı ekledi.", "\"{1}\" koleksiyonuna yeni bir bağlantı eklendi.", "\"{1}\" koleksiyonuna {2} bağlantı eklendi.", "\"{1}\" koleksiyonuna herkese açık bağlantı üzerinden yeni bir bağlantı eklendi."),
+        ["ar"] = new("رابط جديد", "أضاف {0} رابطًا جديدًا إلى \"{1}\".", "تمت إضافة رابط جديد إلى المجموعة \"{1}\".", "عدد الروابط المضافة إلى \"{1}\": {2}.", "تمت إضافة رابط جديد إلى \"{1}\" عبر الرابط العام."),
+        ["hi"] = new("नया लिंक", "{0} ने \"{1}\" में नया लिंक जोड़ा है।", "\"{1}\" संग्रह में नया लिंक जोड़ा गया है।", "\"{1}\" में {2} लिंक जोड़े गए हैं।", "सार्वजनिक लिंक के ज़रिए \"{1}\" में नया लिंक जोड़ा गया है।"),
+    };
 
     private static readonly Dictionary<string, Texts> ByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -41,22 +72,44 @@ public static class SocialPushText
         ["pt"] = "pt-BR",
     };
 
-    public static (string Title, string Body) For(NotificationType type, string? locale, string actorName, string collectionName)
+    /// <param name="itemCount">CollectionItemsAdded only: how many links the one operation added.</param>
+    /// <param name="viaPublicLink">CollectionItemsAdded only: added through the public link - the adder is never named.</param>
+    public static (string Title, string Body) For(
+        NotificationType type, string? locale, string actorName, string collectionName, int itemCount = 1, bool viaPublicLink = false)
     {
-        var texts = Resolve(locale);
+        if (type == NotificationType.CollectionItemsAdded)
+        {
+            var items = Resolve(ItemsByLocale, locale);
+            var body = itemCount > 1 ? items.Many
+                : viaPublicLink ? items.Public
+                : string.IsNullOrEmpty(actorName) ? items.One
+                : items.By;
+            return (items.Title, string.Format(CultureInfo.InvariantCulture, body, actorName, Shorten(collectionName), itemCount));
+        }
+
+        var texts = Resolve(ByLocale, locale);
         return type == NotificationType.CollectionInvitationReceived
             ? (texts.InviteTitle, string.Format(CultureInfo.InvariantCulture, texts.InviteBody, actorName, collectionName))
             : (texts.FriendTitle, string.Format(CultureInfo.InvariantCulture, texts.FriendBody, actorName));
     }
 
-    private static Texts Resolve(string? locale)
+    /// <summary>Cut on whole user-perceived characters (never mid-emoji/surrogate pair), then "…".</summary>
+    public static string Shorten(string collectionName)
+    {
+        var info = new StringInfo(collectionName);
+        return info.LengthInTextElements <= CollectionNameMaxLength
+            ? collectionName
+            : info.SubstringByTextElements(0, CollectionNameMaxLength - 1).TrimEnd() + "…";
+    }
+
+    private static T Resolve<T>(Dictionary<string, T> byLocale, string? locale)
     {
         if (string.IsNullOrWhiteSpace(locale))
         {
-            return ByLocale["en"];
+            return byLocale["en"];
         }
 
-        if (ByLocale.TryGetValue(locale, out var exact))
+        if (byLocale.TryGetValue(locale, out var exact))
         {
             return exact;
         }
@@ -64,9 +117,9 @@ public static class SocialPushText
         var baseLanguage = locale.Split('-', '_')[0];
         if (BaseLanguageFallback.TryGetValue(baseLanguage, out var mapped))
         {
-            return ByLocale[mapped];
+            return byLocale[mapped];
         }
 
-        return ByLocale.TryGetValue(baseLanguage, out var byBase) ? byBase : ByLocale["en"];
+        return byLocale.TryGetValue(baseLanguage, out var byBase) ? byBase : byLocale["en"];
     }
 }

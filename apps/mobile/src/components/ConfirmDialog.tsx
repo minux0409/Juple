@@ -47,7 +47,8 @@ export function ConfirmDialog({
         />
         <View accessibilityViewIsModal style={styles.card}>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+          {/* An empty message means a title-only confirmation. */}
+          {message ? <Text style={styles.message}>{message}</Text> : null}
           <View style={styles.buttonRow}>
             {onCancel && cancelLabel ? (
               <Pressable
