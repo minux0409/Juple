@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Удалить из друзей?",
     "removeConfirmMessage": "Ваша заметка тоже удалится. Общие коллекции останутся без изменений.",
     "friendJupleIdPlaceholder": "Juple ID друга",
-    "incomingRequests": "Входящие запросы в друзья",
-    "outgoingRequests": "Отправленные запросы в друзья",
-    "saveNote": "Сохранить заметку"
+    "saveNote": "Сохранить заметку",
+    "tabIncoming": "Входящие",
+    "tabOutgoing": "Исходящие",
+    "emptyHint": "Добавьте друга по его Juple ID.",
+    "incomingEmpty": "Нет входящих заявок в друзья.",
+    "outgoingEmpty": "Нет исходящих заявок в друзья.",
+    "requestPending": "Заявка ожидает ответа",
+    "noteHelper": "Видно только вам",
+    "lookupHint": "Найдите друга по его Juple ID.",
+    "incomingFromThem": "Этот пользователь отправил вам заявку в друзья.",
+    "viewIncoming": "Открыть входящие заявки",
+    "acceptA11y": "Принять заявку в друзья от {{name}}",
+    "declineA11y": "Отклонить заявку в друзья от {{name}}",
+    "cancelA11y": "Отменить заявку в друзья для {{name}}"
   }
 }

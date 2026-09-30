@@ -573,8 +573,19 @@
     "removeConfirmTitle": "إزالة هذا الصديق؟",
     "removeConfirmMessage": "ستُحذف ملاحظتك أيضًا. تبقى المجموعات المشتركة كما هي.",
     "friendJupleIdPlaceholder": "معرّف Juple الخاص بصديقك",
-    "incomingRequests": "طلبات الصداقة المستلمة",
-    "outgoingRequests": "طلبات الصداقة المرسلة",
-    "saveNote": "حفظ الملاحظة"
+    "saveNote": "حفظ الملاحظة",
+    "tabIncoming": "المستلمة",
+    "tabOutgoing": "المرسلة",
+    "emptyHint": "أضف صديقًا باستخدام معرّف Juple الخاص به.",
+    "incomingEmpty": "لا توجد طلبات صداقة مستلمة.",
+    "outgoingEmpty": "لا توجد طلبات صداقة مرسلة.",
+    "requestPending": "الطلب قيد الانتظار",
+    "noteHelper": "مرئي لك فقط",
+    "lookupHint": "ابحث عن صديق باستخدام معرّف Juple.",
+    "incomingFromThem": "أرسل إليك هذا الشخص طلب صداقة.",
+    "viewIncoming": "عرض الطلبات المستلمة",
+    "acceptA11y": "قبول طلب الصداقة من {{name}}",
+    "declineA11y": "رفض طلب الصداقة من {{name}}",
+    "cancelA11y": "إلغاء طلب الصداقة المرسل إلى {{name}}"
   }
 }

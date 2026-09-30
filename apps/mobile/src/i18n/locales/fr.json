@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Retirer cet ami ?",
     "removeConfirmMessage": "Votre note sera aussi supprimée. Les collections partagées restent inchangées.",
     "friendJupleIdPlaceholder": "Identifiant Juple de l'ami",
-    "incomingRequests": "Demandes d'ami reçues",
-    "outgoingRequests": "Demandes d'ami envoyées",
-    "saveNote": "Enregistrer la note"
+    "saveNote": "Enregistrer la note",
+    "tabIncoming": "Reçues",
+    "tabOutgoing": "Envoyées",
+    "emptyHint": "Ajoutez un ami avec son identifiant Juple.",
+    "incomingEmpty": "Aucune demande d'ami reçue.",
+    "outgoingEmpty": "Aucune demande d'ami envoyée.",
+    "requestPending": "Demande en attente",
+    "noteHelper": "Visible par vous seul",
+    "lookupHint": "Trouvez un ami grâce à son identifiant Juple.",
+    "incomingFromThem": "Cette personne vous a envoyé une demande d'ami.",
+    "viewIncoming": "Voir les demandes reçues",
+    "acceptA11y": "Accepter la demande d'ami de {{name}}",
+    "declineA11y": "Refuser la demande d'ami de {{name}}",
+    "cancelA11y": "Annuler la demande d'ami envoyée à {{name}}"
   }
 }

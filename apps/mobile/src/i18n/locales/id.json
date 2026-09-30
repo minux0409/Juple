@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Hapus teman ini?",
     "removeConfirmMessage": "Catatan Anda juga dihapus. Koleksi bersama tetap seperti semula.",
     "friendJupleIdPlaceholder": "ID Juple teman",
-    "incomingRequests": "Permintaan pertemanan diterima",
-    "outgoingRequests": "Permintaan pertemanan terkirim",
-    "saveNote": "Simpan catatan"
+    "saveNote": "Simpan catatan",
+    "tabIncoming": "Diterima",
+    "tabOutgoing": "Terkirim",
+    "emptyHint": "Tambahkan teman dengan Juple ID mereka.",
+    "incomingEmpty": "Tidak ada permintaan pertemanan yang diterima.",
+    "outgoingEmpty": "Tidak ada permintaan pertemanan yang dikirim.",
+    "requestPending": "Permintaan tertunda",
+    "noteHelper": "Hanya Anda yang dapat melihat",
+    "lookupHint": "Temukan teman dengan Juple ID mereka.",
+    "incomingFromThem": "Orang ini telah mengirimi Anda permintaan pertemanan.",
+    "viewIncoming": "Lihat permintaan yang diterima",
+    "acceptA11y": "Terima permintaan pertemanan dari {{name}}",
+    "declineA11y": "Tolak permintaan pertemanan dari {{name}}",
+    "cancelA11y": "Batalkan permintaan pertemanan ke {{name}}"
   }
 }

@@ -573,8 +573,19 @@
     "removeConfirmTitle": "刪除此好友？",
     "removeConfirmMessage": "你的備註也會被刪除。共享的合集維持不變。",
     "friendJupleIdPlaceholder": "好友的 Juple ID",
-    "incomingRequests": "收到的好友邀請",
-    "outgoingRequests": "送出的好友邀請",
-    "saveNote": "儲存備註"
+    "saveNote": "儲存備註",
+    "tabIncoming": "收到的請求",
+    "tabOutgoing": "已傳送",
+    "emptyHint": "用 Juple ID 新增好友吧。",
+    "incomingEmpty": "沒有收到好友請求。",
+    "outgoingEmpty": "沒有已傳送的好友請求。",
+    "requestPending": "等待對方回應",
+    "noteHelper": "僅自己可見",
+    "lookupHint": "透過 Juple ID 尋找好友。",
+    "incomingFromThem": "此使用者已向你傳送好友請求。",
+    "viewIncoming": "查看收到的請求",
+    "acceptA11y": "接受 {{name}} 的好友請求",
+    "declineA11y": "拒絕 {{name}} 的好友請求",
+    "cancelA11y": "取消傳給 {{name}} 的好友請求"
   }
 }

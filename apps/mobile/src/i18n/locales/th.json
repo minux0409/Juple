@@ -573,8 +573,19 @@
     "removeConfirmTitle": "ลบเพื่อนคนนี้หรือไม่",
     "removeConfirmMessage": "บันทึกของคุณจะถูกลบด้วย คอลเลกชันที่ใช้ร่วมกันจะยังคงอยู่",
     "friendJupleIdPlaceholder": "Juple ID ของเพื่อน",
-    "incomingRequests": "คำขอเป็นเพื่อนที่ได้รับ",
-    "outgoingRequests": "คำขอเป็นเพื่อนที่ส่งแล้ว",
-    "saveNote": "บันทึกโน้ต"
+    "saveNote": "บันทึกโน้ต",
+    "tabIncoming": "ที่ได้รับ",
+    "tabOutgoing": "ที่ส่งแล้ว",
+    "emptyHint": "เพิ่มเพื่อนด้วย Juple ID",
+    "incomingEmpty": "ไม่มีคำขอเป็นเพื่อนที่ได้รับ",
+    "outgoingEmpty": "ไม่มีคำขอเป็นเพื่อนที่ส่งไป",
+    "requestPending": "รอการตอบรับ",
+    "noteHelper": "เห็นได้เฉพาะคุณ",
+    "lookupHint": "ค้นหาเพื่อนด้วย Juple ID",
+    "incomingFromThem": "ผู้ใช้นี้ส่งคำขอเป็นเพื่อนถึงคุณแล้ว",
+    "viewIncoming": "ดูคำขอที่ได้รับ",
+    "acceptA11y": "ยอมรับคำขอเป็นเพื่อนจาก {{name}}",
+    "declineA11y": "ปฏิเสธคำขอเป็นเพื่อนจาก {{name}}",
+    "cancelA11y": "ยกเลิกคำขอเป็นเพื่อนที่ส่งถึง {{name}}"
   }
 }

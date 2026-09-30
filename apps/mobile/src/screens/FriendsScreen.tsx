@@ -1,30 +1,27 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ApiError } from '../api/ApiError';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { formatJupleId, lookupJupleId, personLabel, type JupleIdLookupResult } from '../collections/api/collaborationApi';
-import { AppModal } from '../components/AppModal';
-import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
-import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { formatBadgeCount } from '../components/badgeCount';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
-import { TrashIcon } from '../icons/TrashIcon';
+import { UserAvatar } from '../components/UserAvatar';
+import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
+import { FriendDetailModal } from '../friends/FriendDetailModal';
+import { atJupleId, friendPrimaryLabel } from '../friends/friendIdentity';
 import {
   acceptFriendRequest,
   cancelFriendRequest,
   declineFriendRequest,
-  FRIEND_NOTE_MAX_STORAGE_LENGTH,
   getFriendRequests,
   getFriends,
-  removeFriend,
-  sendFriendRequest,
-  setFriendNote,
   type Friend,
   type FriendRequest,
 } from '../friends/api/friendsApi';
+import { ChevronIcon } from '../icons/ChevronIcon';
+import { PlusIcon } from '../icons/PlusIcon';
+import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
+import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
@@ -34,93 +31,72 @@ export const OUTGOING_POLL_INTERVAL_MS = 10_000;
 /** Per visit - after that, Push / focus / returning to the app refresh it. */
 export const OUTGOING_POLL_MAX_MS = 10 * 60_000;
 
-function getLookupErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'notFound') {
-      return t('collaboration.lookupNotFound');
-    }
-    if (error.kind === 'tooManyRequests') {
-      return t('collaboration.tooManyRequests');
-    }
-  }
-  return t('collaboration.lookupFallback');
-}
-
-function getRequestErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'conflict') {
-      switch (error.code) {
-        case 'alreadyFriends':
-          return t('friends.alreadyFriends');
-        case 'requestPending':
-          return t('friends.requestAlreadyPending');
-        case 'incomingRequestExists':
-          return t('friends.incomingRequestExists');
-      }
-    }
-    if (error.kind === 'badRequest') {
-      return t('friends.cannotAddSelf');
-    }
-    if (error.kind === 'notFound') {
-      return t('collaboration.lookupNotFound');
-    }
-    if (error.kind === 'tooManyRequests') {
-      return t('collaboration.tooManyRequests');
-    }
-  }
-  return t('friends.actionFallback');
-}
+export type FriendsTab = 'friends' | 'incoming' | 'outgoing';
 
 /**
  * 친구: an address book of Juple users added by exact Juple ID and mutual consent. Being friends
- * grants nothing - it only makes people easy to find again (e.g. when inviting to a Category). The
- * note on each friend is the signed-in user's own and is shown only here and in the invite picker.
+ * grants nothing - it only makes people easy to find again (e.g. when inviting to a Category).
+ *
+ * Three tabs over one screen - 친구 | 받은 요청 | 보낸 요청 - with 친구 추가 as the header's [+]. Each
+ * tab keeps what it already loaded: switching tabs never reloads or blanks anything. The data is
+ * refreshed on focus, pull-to-refresh, a friend Push, a sent request's short re-check, and after
+ * each action (only the part that action changed). An action busies only its own row.
  */
 export function FriendsScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const authenticatedRequest = useAuthenticatedApi();
+  const [tab, setTab] = useState<FriendsTab>('friends');
 
   const [friends, setFriends] = useState<readonly Friend[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedFriends, setHasLoadedFriends] = useState(false);
+  const [isLoadingFriends, setIsLoadingFriends] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [friendsError, setFriendsError] = useState(false);
   const [search, setSearch] = useState('');
   const loadIdRef = useRef(0);
 
   const [requests, setRequests] = useState<readonly FriendRequest[]>([]);
+  const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
+  const [requestsError, setRequestsError] = useState(false);
+  const [busyRequestIds, setBusyRequestIds] = useState<ReadonlySet<number>>(() => new Set());
+  const busyRequestIdsRef = useRef<Set<number>>(new Set());
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const [jupleIdInput, setJupleIdInput] = useState('');
-  const [lookupResult, setLookupResult] = useState<JupleIdLookupResult | null>(null);
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [addMessage, setAddMessage] = useState<string | null>(null);
-
-  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selected, setSelected] = useState<Friend | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const openAdd = useCallback(() => setIsAddOpen(true), []);
+  const renderHeaderRight = useCallback(() => <FriendsAddHeaderButton onPress={openAdd} />, [openAdd]);
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerRight: renderHeaderRight });
+  }, [navigation, renderHeaderRight]);
 
   const loadFriends = useCallback(
     async (query: string) => {
       const loadId = ++loadIdRef.current;
-      setIsLoading(true);
-      setError(null);
+      setIsLoadingFriends(true);
       try {
         const page = await getFriends(authenticatedRequest, { query: query.trim() || undefined, limit: PAGE_LIMIT });
         if (loadId === loadIdRef.current) {
           setFriends(page.items);
           setNextCursor(page.nextCursor);
+          setHasLoadedFriends(true);
+          setFriendsError(false);
         }
       } catch {
         if (loadId === loadIdRef.current) {
-          setError(t('friends.loadFallback'));
+          setFriendsError(true);
         }
       } finally {
         if (loadId === loadIdRef.current) {
-          setIsLoading(false);
+          setIsLoadingFriends(false);
         }
       }
     },
-    [authenticatedRequest, t],
+    [authenticatedRequest],
   );
 
   const searchRef = useRef(search);
@@ -133,6 +109,8 @@ export function FriendsScreen() {
     try {
       const loaded = await getFriendRequests(authenticatedRequest);
       setRequests(loaded);
+      setHasLoadedRequests(true);
+      setRequestsError(false);
       const outgoingIds = new Set(loaded.filter(request => request.direction === 'outgoing').map(request => request.requestId));
       const anAnswered = [...outgoingIdsRef.current].some(id => !outgoingIds.has(id));
       outgoingIdsRef.current = outgoingIds;
@@ -140,9 +118,9 @@ export function FriendsScreen() {
         loadFriends(searchRef.current);
       }
     } catch {
-      setError(t('friends.loadFallback'));
+      setRequestsError(true);
     }
-  }, [authenticatedRequest, loadFriends, t]);
+  }, [authenticatedRequest, loadFriends]);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,7 +131,7 @@ export function FriendsScreen() {
   );
 
   // A friend request arriving - or one I sent being accepted/declined - shows up at once while this
-  // screen is open (and on returning to the app): an answered request leaves 보낸 친구 신청, and an
+  // screen is open (and on returning to the app): an answered request leaves 보낸 요청, and an
   // accepted one appears in the friend list (loadRequests notices the answered one and reloads it).
   useLiveRefresh(event => {
     loadRequests();
@@ -185,7 +163,7 @@ export function FriendsScreen() {
   }, [loadFriends, search]);
 
   const loadMore = () => {
-    if (!nextCursor || isLoading || isLoadingMore) {
+    if (!nextCursor || isLoadingFriends || isLoadingMore) {
       return;
     }
     const loadId = loadIdRef.current;
@@ -197,214 +175,202 @@ export function FriendsScreen() {
           setNextCursor(page.nextCursor);
         }
       })
-      .catch(() => setError(t('friends.loadFallback')))
+      .catch(() => setActionError(t('friends.loadFallback')))
       .finally(() => setIsLoadingMore(false));
   };
 
-  const lookup = async () => {
-    const input = jupleIdInput.trim();
-    if (!input || isLookingUp) {
-      return;
-    }
-    setIsLookingUp(true);
-    setAddMessage(null);
-    setLookupResult(null);
+  const refresh = async () => {
+    setIsRefreshing(true);
     try {
-      const result = await lookupJupleId(authenticatedRequest, input);
-      if (result.isSelf) {
-        setAddMessage(t('friends.cannotAddSelf'));
-      } else {
-        setLookupResult(result);
-      }
-    } catch (caughtError) {
-      setAddMessage(getLookupErrorMessage(caughtError, t));
+      await Promise.all([loadFriends(searchRef.current), loadRequests()]);
     } finally {
-      setIsLookingUp(false);
+      setIsRefreshing(false);
     }
   };
 
-  const sendRequest = async () => {
-    if (!lookupResult || isSending) {
+  /** One request's action: that row alone is busy (a second tap on it is ignored); every other row stays usable. */
+  const runRequestAction = async (requestId: number, action: () => Promise<void>) => {
+    if (busyRequestIdsRef.current.has(requestId)) {
       return;
     }
-    setIsSending(true);
-    setAddMessage(null);
-    try {
-      await sendFriendRequest(authenticatedRequest, lookupResult.jupleId);
-      setLookupResult(null);
-      setJupleIdInput('');
-      setAddMessage(t('friends.requestSent'));
-      await loadRequests();
-    } catch (caughtError) {
-      setAddMessage(getRequestErrorMessage(caughtError, t));
-      // An existing request from them is answered below, never duplicated.
-      await loadRequests();
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const runAction = async (key: string, action: () => Promise<unknown>) => {
-    if (busyKey !== null) {
-      return;
-    }
-    setBusyKey(key);
-    setError(null);
+    busyRequestIdsRef.current.add(requestId);
+    setBusyRequestIds(new Set(busyRequestIdsRef.current));
+    setActionError(null);
     try {
       await action();
     } catch (caughtError) {
-      setError(getRequestErrorMessage(caughtError, t));
+      setActionError(getFriendRequestErrorMessage(caughtError, t));
+      // Whatever the server now knows (e.g. they cancelled it meanwhile) replaces the stale row.
+      loadRequests();
     } finally {
-      setBusyKey(null);
-      await Promise.all([loadRequests(), loadFriends(search)]);
+      busyRequestIdsRef.current.delete(requestId);
+      setBusyRequestIds(new Set(busyRequestIdsRef.current));
     }
   };
+
+  const dropRequest = (requestId: number) => {
+    setRequests(previous => previous.filter(request => request.requestId !== requestId));
+    if (outgoingIdsRef.current.has(requestId)) {
+      outgoingIdsRef.current = new Set([...outgoingIdsRef.current].filter(id => id !== requestId));
+    }
+  };
+
+  const accept = (request: FriendRequest) =>
+    runRequestAction(request.requestId, async () => {
+      const friend = await acceptFriendRequest(authenticatedRequest, request.requestId);
+      dropRequest(request.requestId);
+      // In 친구 at once (unless a search is narrowing the list - clearing it reloads anyway).
+      if (!searchRef.current.trim()) {
+        setFriends(previous => [friend, ...previous.filter(existing => existing.friendshipId !== friend.friendshipId)]);
+      }
+    });
+
+  const decline = (request: FriendRequest) =>
+    runRequestAction(request.requestId, async () => {
+      await declineFriendRequest(authenticatedRequest, request.requestId);
+      dropRequest(request.requestId);
+    });
+
+  const cancel = (request: FriendRequest) =>
+    runRequestAction(request.requestId, async () => {
+      await cancelFriendRequest(authenticatedRequest, request.requestId);
+      dropRequest(request.requestId);
+    });
 
   const incoming = requests.filter(request => request.direction === 'incoming');
   const outgoing = requests.filter(request => request.direction === 'outgoing');
 
-  const header = (
-    <View>
-      {/* 1. 받은 친구 신청 - first, and only while there is something to answer. */}
-      {incoming.length > 0 ? (
-        <View style={styles.sectionTitleRow}>
-          <Text style={[styles.sectionTitle, styles.sectionTitleText]}>{t('friends.incomingRequests')}</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText} testID="friends-incoming-count">{incoming.length}</Text>
-          </View>
-        </View>
-      ) : null}
-      {incoming.map(request => (
-        <View key={request.requestId} style={styles.card} testID={`friends-incoming-${request.requestId}`}>
-          <View style={styles.cardText}>
-            <Text numberOfLines={1} style={styles.name}>{personLabel(request)}</Text>
-            {request.displayName ? <Text style={[styles.meta, ltrTextStyle]}>{formatJupleId(request.jupleId)}</Text> : null}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busyKey !== null}
-            onPress={() => runAction(`decline-${request.requestId}`, () => declineFriendRequest(authenticatedRequest, request.requestId))}
-            style={[styles.secondaryButton, styles.cardButton]}
-            testID={`friends-decline-${request.requestId}`}
-          >
-            <Text numberOfLines={2} style={styles.secondaryLabel}>{t('collaboration.decline')}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busyKey !== null}
-            onPress={() => runAction(`accept-${request.requestId}`, () => acceptFriendRequest(authenticatedRequest, request.requestId))}
-            style={[styles.primaryButton, styles.cardButton]}
-            testID={`friends-accept-${request.requestId}`}
-          >
-            <Text numberOfLines={2} style={styles.primaryLabel}>{t('collaboration.accept')}</Text>
-          </Pressable>
-        </View>
-      ))}
+  const refreshControl = <RefreshControl onRefresh={refresh} refreshing={isRefreshing} />;
+  const banner = actionError ? <Text accessibilityLiveRegion="polite" style={styles.banner} testID="friends-action-error">{actionError}</Text> : null;
 
-      {/* Only the friend's ID goes here - the signed-in user's own ID lives on My Page. */}
-      <Text style={styles.sectionTitle}>{t('friends.add')}</Text>
-      <View style={styles.row}>
-        <TextInput
-          accessibilityLabel={t('friends.friendJupleIdPlaceholder')}
-          autoCapitalize="characters"
-          autoCorrect={false}
-          maxLength={16}
-          onChangeText={value => {
-            setJupleIdInput(value);
-            setLookupResult(null);
-          }}
-          onSubmitEditing={lookup}
-          placeholder={t('friends.friendJupleIdPlaceholder')}
-          style={[styles.input, ltrTextStyle]}
-          testID="friends-add-input"
-          value={jupleIdInput}
+  const retryBlock = (onRetry: () => void, testID: string) => (
+    <View style={styles.stateBlock} testID={testID}>
+      <Text style={styles.stateText}>{t('friends.loadFallback')}</Text>
+      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.secondaryButton} testID={`${testID}-retry`}>
+        <Text style={styles.secondaryLabel}>{t('history.retry')}</Text>
+      </Pressable>
+    </View>
+  );
+
+  const friendsList = (
+    <FlatList
+      contentContainerStyle={styles.listContent}
+      data={friends}
+      keyboardShouldPersistTaps="handled"
+      keyExtractor={friend => friend.friendshipId.toString()}
+      ListEmptyComponent={
+        !hasLoadedFriends ? (
+          friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-error') : <ActivityIndicator style={styles.loading} testID="friends-loading" />
+        ) : search.trim() ? (
+          <Text style={styles.stateText}>{t('friends.searchEmpty')}</Text>
+        ) : (
+          <View style={styles.stateBlock} testID="friends-empty">
+            <Text style={styles.stateTitle}>{t('friends.empty')}</Text>
+            <Text style={styles.stateText}>{t('friends.emptyHint')}</Text>
+            <Pressable accessibilityRole="button" onPress={() => setIsAddOpen(true)} style={styles.primaryButton} testID="friends-empty-add">
+              <Text style={styles.primaryLabel}>{t('friends.add')}</Text>
+            </Pressable>
+          </View>
+        )
+      }
+      ListFooterComponent={isLoadingMore ? <ActivityIndicator style={styles.loading} /> : undefined}
+      ListHeaderComponent={
+        <View>
+          <TextInput
+            accessibilityLabel={t('friends.search')}
+            autoCorrect={false}
+            onChangeText={setSearch}
+            placeholder={t('friends.search')}
+            style={styles.searchInput}
+            testID="friends-search"
+            value={search}
+          />
+          {banner}
+          {hasLoadedFriends && friendsError ? <Text style={styles.banner} testID="friends-stale">{t('friends.loadFallback')}</Text> : null}
+        </View>
+      }
+      onEndReached={loadMore}
+      onEndReachedThreshold={0.5}
+      refreshControl={refreshControl}
+      renderItem={({ item }) => <FriendRow friend={item} onPress={() => setSelected(item)} />}
+      testID="friends-list"
+    />
+  );
+
+  const requestList = (direction: 'incoming' | 'outgoing', data: readonly FriendRequest[]) => (
+    <FlatList
+      contentContainerStyle={styles.listContent}
+      data={data}
+      keyExtractor={request => request.requestId.toString()}
+      ListEmptyComponent={
+        !hasLoadedRequests ? (
+          requestsError ? retryBlock(loadRequests, `friends-${direction}-error`) : <ActivityIndicator style={styles.loading} testID={`friends-${direction}-loading`} />
+        ) : (
+          <View style={styles.stateBlock} testID={`friends-${direction}-empty`}>
+            <Text style={styles.stateTitle}>{t(direction === 'incoming' ? 'friends.incomingEmpty' : 'friends.outgoingEmpty')}</Text>
+          </View>
+        )
+      }
+      ListHeaderComponent={
+        <View>
+          {banner}
+          {hasLoadedRequests && requestsError ? <Text style={styles.banner} testID="friends-requests-stale">{t('friends.loadFallback')}</Text> : null}
+        </View>
+      }
+      refreshControl={refreshControl}
+      renderItem={({ item }) => (
+        <RequestRow
+          isBusy={busyRequestIds.has(item.requestId)}
+          onAccept={() => accept(item)}
+          onCancel={() => cancel(item)}
+          onDecline={() => decline(item)}
+          request={item}
         />
-        <Pressable
-          accessibilityRole="button"
-          disabled={isLookingUp || !jupleIdInput.trim()}
-          onPress={lookup}
-          style={[styles.secondaryButton, (isLookingUp || !jupleIdInput.trim()) && styles.disabled]}
-          testID="friends-add-lookup"
-        >
-          {isLookingUp ? <ActivityIndicator size="small" /> : <Text style={styles.secondaryLabel}>{t('collaboration.find')}</Text>}
-        </Pressable>
-      </View>
-      {lookupResult ? (
-        <View style={styles.card} testID="friends-add-result">
-          <View style={styles.cardText}>
-            {lookupResult.displayName ? <Text numberOfLines={1} style={styles.name}>{lookupResult.displayName}</Text> : null}
-            <Text style={[styles.meta, ltrTextStyle]}>{formatJupleId(lookupResult.jupleId)}</Text>
-          </View>
-          <Pressable accessibilityRole="button" disabled={isSending} onPress={sendRequest} style={[styles.primaryButton, styles.cardButton]} testID="friends-add-send">
-            {isSending ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{t('friends.sendRequest')}</Text>}
-          </Pressable>
-        </View>
-      ) : null}
-      {addMessage ? <Text style={styles.notice} testID="friends-add-message">{addMessage}</Text> : null}
-
-      <Text style={styles.sectionTitle}>{t('friends.title')}</Text>
-      <TextInput
-        accessibilityLabel={t('friends.search')}
-        autoCorrect={false}
-        onChangeText={setSearch}
-        placeholder={t('friends.search')}
-        style={[styles.input, styles.searchInput]}
-        testID="friends-search"
-        value={search}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
+      )}
+      testID={`friends-${direction}-list`}
+    />
   );
 
-  // 3. 보낸 친구 신청 - after the friend list.
-  const footer = (
-    <View>
-      {isLoadingMore ? <ActivityIndicator style={styles.loading} /> : null}
-      {outgoing.length > 0 ? <Text style={styles.sectionTitle} testID="friends-outgoing-title">{t('friends.outgoingRequests')}</Text> : null}
-      {outgoing.map(request => (
-        <View key={request.requestId} style={styles.card} testID={`friends-outgoing-${request.requestId}`}>
-          <View style={styles.cardText}>
-            <Text numberOfLines={1} style={styles.name}>{personLabel(request)}</Text>
-            <Text numberOfLines={1} style={styles.meta}>{t('shareSheet.pendingLabel')}</Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            disabled={busyKey !== null}
-            onPress={() => runAction(`cancel-${request.requestId}`, () => cancelFriendRequest(authenticatedRequest, request.requestId))}
-            style={[styles.secondaryButton, styles.cardButton]}
-            testID={`friends-cancel-${request.requestId}`}
-          >
-            <Text numberOfLines={2} style={styles.secondaryLabel}>{t('friends.cancelRequest')}</Text>
-          </Pressable>
-        </View>
-      ))}
-    </View>
-  );
+  const tabs: readonly { readonly key: FriendsTab; readonly label: string; readonly count?: number; readonly emphasized?: boolean }[] = [
+    { key: 'friends', label: t('friends.title') },
+    { key: 'incoming', label: t('friends.tabIncoming'), count: incoming.length, emphasized: true },
+    { key: 'outgoing', label: t('friends.tabOutgoing'), count: outgoing.length },
+  ];
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <FlatList
-        contentContainerStyle={styles.content}
-        data={friends}
-        keyboardShouldPersistTaps="handled"
-        keyExtractor={friend => friend.friendshipId.toString()}
-        ListEmptyComponent={
-          isLoading ? <ActivityIndicator style={styles.loading} /> : <Text style={styles.empty}>{search.trim() ? t('friends.searchEmpty') : t('friends.empty')}</Text>
-        }
-        ListFooterComponent={footer}
-        ListHeaderComponent={header}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={() => setSelected(item)} style={styles.card} testID={`friend-${item.friendshipId}`}>
-            <View style={styles.cardText}>
-              <Text numberOfLines={1} style={styles.name}>{personLabel(item)}</Text>
-              {item.displayName ? <Text style={[styles.meta, ltrTextStyle]}>{formatJupleId(item.jupleId)}</Text> : null}
-              {item.myNote ? <Text numberOfLines={1} style={styles.note}>{item.myNote}</Text> : null}
-            </View>
-          </Pressable>
-        )}
-      />
+      <View accessibilityRole="tablist" style={styles.tabBar} testID="friends-tabs">
+        {tabs.map(entry => {
+          const isSelected = tab === entry.key;
+          const count = entry.count ?? 0;
+          return (
+            <Pressable
+              accessibilityLabel={count > 0 ? `${entry.label} ${count}` : entry.label}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
+              key={entry.key}
+              onPress={() => setTab(entry.key)}
+              style={[styles.tab, isSelected && styles.tabSelected]}
+              testID={`friends-tab-${entry.key}`}
+            >
+              <Text numberOfLines={2} style={[styles.tabLabel, isSelected && styles.tabLabelSelected]}>{entry.label}</Text>
+              {count > 0 ? (
+                <View style={[styles.tabBadge, entry.emphasized ? styles.tabBadgeEmphasized : styles.tabBadgeMuted]}>
+                  <Text
+                    style={[styles.tabBadgeText, entry.emphasized ? styles.tabBadgeTextEmphasized : styles.tabBadgeTextMuted]}
+                    testID={`friends-tab-${entry.key}-count`}
+                  >
+                    {formatBadgeCount(count)}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {tab === 'friends' ? friendsList : tab === 'incoming' ? requestList('incoming', incoming) : requestList('outgoing', outgoing)}
+
       <FriendDetailModal
         friend={selected}
         onChanged={updated => {
@@ -417,189 +383,215 @@ export function FriendsScreen() {
           setSelected(null);
         }}
       />
+      <AddFriendModal
+        friends={friends}
+        onClose={() => setIsAddOpen(false)}
+        onRequestSent={request => {
+          setRequests(previous => [request, ...previous.filter(existing => existing.requestId !== request.requestId)]);
+          outgoingIdsRef.current = new Set([...outgoingIdsRef.current, request.requestId]);
+        }}
+        onShowIncoming={() => {
+          setIsAddOpen(false);
+          setTab('incoming');
+        }}
+        onStale={() => {
+          loadRequests();
+          loadFriends(searchRef.current);
+        }}
+        requests={requests}
+        visible={isAddOpen}
+      />
     </StackScreenSafeArea>
   );
 }
 
-interface FriendDetailModalProps {
-  readonly friend: Friend | null;
-  readonly onClose: () => void;
-  readonly onChanged: (friend: Friend) => void;
-  readonly onRemoved: (friendshipId: number) => void;
+/** 친구 추가 - the header's [+], labelled for assistive technology. */
+function FriendsAddHeaderButton({ onPress }: { readonly onPress: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      accessibilityLabel={t('friends.add')}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      style={styles.headerButton}
+      testID="friends-add-open"
+    >
+      <PlusIcon color={colors.textPrimary} size={22} />
+    </Pressable>
+  );
+}
+
+/** A friend: photo, nickname, @Juple ID, my note (quietest) - the whole row opens the friend. */
+function FriendRow({ friend, onPress }: { readonly friend: Friend; readonly onPress: () => void }) {
+  const hasNickname = !!friend.displayName?.trim();
+  return (
+    <Pressable
+      accessibilityLabel={friendPrimaryLabel(friend)}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      testID={`friend-${friend.friendshipId}`}
+    >
+      <UserAvatar displayName={friend.displayName} imageUrl={friend.profileImageUrl} imageVersion={friend.profileImageVersion} jupleId={friend.jupleId} size={44} />
+      <View style={styles.rowText}>
+        <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle]}>{friendPrimaryLabel(friend)}</Text>
+        {hasNickname ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle]}>{atJupleId(friend.jupleId)}</Text> : null}
+        {friend.myNote ? <Text numberOfLines={1} style={styles.note} testID={`friend-${friend.friendshipId}-note`}>{friend.myNote}</Text> : null}
+      </View>
+      <ChevronIcon color={colors.textSecondary} direction="right" size={18} />
+    </Pressable>
+  );
 }
 
 /**
- * One friend, in Juple's standard centered modal (never a bottom sheet): nickname, Juple ID, the
- * signed-in user's own private note (editable - the modal moves up with the keyboard) and remove.
- * While saving or while the remove confirmation is open, it cannot be dismissed by accident.
+ * A request: who, then its actions on their own line below - so on a narrow screen the buttons
+ * never squeeze the name. Received: [거절] [수락]; sent: 요청 대기 중 and [요청 취소].
  */
-function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: FriendDetailModalProps) {
+function RequestRow({ request, isBusy, onAccept, onDecline, onCancel }: {
+  readonly request: FriendRequest;
+  readonly isBusy: boolean;
+  readonly onAccept: () => void;
+  readonly onDecline: () => void;
+  readonly onCancel: () => void;
+}) {
   const { t } = useTranslation();
-  const authenticatedRequest = useAuthenticatedApi();
-  const [note, setNote] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
-
-  useEffect(() => {
-    setNote(friend?.myNote ?? '');
-    setError(null);
-  }, [friend]);
-
-  if (!friend) {
-    return null;
-  }
-
-  const save = async () => {
-    if (isSaving) {
-      return;
-    }
-    setIsSaving(true);
-    setError(null);
-    try {
-      onChanged(await setFriendNote(authenticatedRequest, friend.friendshipId, note));
-    } catch (caughtError) {
-      setError(caughtError instanceof ApiError && caughtError.kind === 'badRequest' ? t('friends.noteInvalid') : t('friends.actionFallback'));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const remove = async () => {
-    setIsRemoveConfirmVisible(false);
-    try {
-      await removeFriend(authenticatedRequest, friend.friendshipId);
-      onRemoved(friend.friendshipId);
-    } catch {
-      setError(t('friends.actionFallback'));
-    }
-  };
-
+  const hasNickname = !!request.displayName?.trim();
+  const name = friendPrimaryLabel(request);
+  const isIncoming = request.direction === 'incoming';
   return (
-    <>
-      <AppModal
-        dismissible={!isSaving && !isRemoveConfirmVisible}
-        onClose={onClose}
-        testID="friend-detail"
-        title={personLabel(friend)}
-        visible
-      >
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <Text style={[styles.meta, ltrTextStyle]}>{t('myPage.jupleId')} {formatJupleId(friend.jupleId)}</Text>
-          <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
-          <TextInput
-            accessibilityLabel={t('friends.note')}
-            maxLength={FRIEND_NOTE_MAX_STORAGE_LENGTH}
-            onChangeText={setNote}
-            style={styles.noteInput}
-            testID="friend-note-input"
-            value={note}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable accessibilityRole="button" disabled={isSaving} onPress={save} style={[styles.primaryButton, styles.fullWidth]} testID="friend-note-save">
-            {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('friends.saveNote')}</Text>}
+    <View style={styles.requestRow} testID={`friends-${request.direction}-${request.requestId}`}>
+      <View style={styles.requestIdentity}>
+        <UserAvatar displayName={request.displayName} imageUrl={request.profileImageUrl} imageVersion={request.profileImageVersion} jupleId={request.jupleId} size={44} />
+        <View style={styles.rowText}>
+          <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle]}>{name}</Text>
+          {hasNickname ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle]}>{atJupleId(request.jupleId)}</Text> : null}
+          {!isIncoming ? <Text numberOfLines={1} style={styles.pending}>{t('friends.requestPending')}</Text> : null}
+        </View>
+        {isBusy ? <ActivityIndicator size="small" testID={`friends-request-busy-${request.requestId}`} /> : null}
+      </View>
+      <View style={styles.requestActions}>
+        {isIncoming ? (
+          <>
+            <Pressable
+              accessibilityLabel={t('friends.declineA11y', { name })}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isBusy }}
+              disabled={isBusy}
+              onPress={onDecline}
+              style={[styles.secondaryButton, styles.actionButton, isBusy && styles.disabled]}
+              testID={`friends-decline-${request.requestId}`}
+            >
+              <Text numberOfLines={2} style={styles.secondaryLabel}>{t('collaboration.decline')}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={t('friends.acceptA11y', { name })}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isBusy }}
+              disabled={isBusy}
+              onPress={onAccept}
+              style={[styles.primaryButton, styles.actionButton, isBusy && styles.disabled]}
+              testID={`friends-accept-${request.requestId}`}
+            >
+              <Text numberOfLines={2} style={styles.primaryLabel}>{t('collaboration.accept')}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Pressable
+            accessibilityLabel={t('friends.cancelA11y', { name })}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isBusy }}
+            disabled={isBusy}
+            onPress={onCancel}
+            style={[styles.secondaryButton, styles.actionButton, isBusy && styles.disabled]}
+            testID={`friends-cancel-${request.requestId}`}
+          >
+            <Text numberOfLines={2} style={styles.secondaryLabel}>{t('friends.cancelRequest')}</Text>
           </Pressable>
-          {/* A destructive action in the app's secondary-destructive look (red outline, like 계정 삭제);
-              the confirmation that follows carries the filled red button. */}
-          <Pressable accessibilityRole="button" onPress={() => setIsRemoveConfirmVisible(true)} style={styles.removeButton} testID="friend-remove">
-            <TrashIcon color={colors.danger} size={16} />
-            <Text numberOfLines={2} style={styles.removeLabel}>{t('friends.remove')}</Text>
-          </Pressable>
-        </ScrollView>
-      </AppModal>
-      <ConfirmDialog
-        cancelLabel={t('common.cancel')}
-        confirmLabel={t('friends.remove')}
-        message={t('friends.removeConfirmMessage')}
-        onCancel={() => setIsRemoveConfirmVisible(false)}
-        onConfirm={remove}
-        title={t('friends.removeConfirmTitle')}
-        visible={isRemoveConfirmVisible}
-      />
-    </>
+        )}
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
-  content: { flexGrow: 1, padding: spacing.xl },
-  sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', marginBottom: spacing.xs, marginTop: spacing.lg },
-  sectionTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
-  sectionTitleText: { flexShrink: 1 },
-  countBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: 10,
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-    marginTop: spacing.lg,
-    minWidth: 20,
-    paddingHorizontal: 6,
-  },
-  countBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
-  input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md + 4,
-    borderWidth: 1,
-    color: colors.textPrimary,
-    flex: 1,
-    fontSize: 16,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-  },
-  searchInput: { flex: 0, marginTop: spacing.xs },
-  // Inside a modal's ScrollView: a plain full-width field (flex: 1 would collapse it in a column).
-  noteInput: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md + 4,
-    borderWidth: 1,
-    color: colors.textPrimary,
-    fontSize: 16,
-    marginTop: spacing.xs,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-  },
-  card: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+  headerButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
+  // The same segmented look as the Share screen's tabs.
+  tabBar: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radii.md + 2,
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    minHeight: minTouchTarget,
-    padding: spacing.md,
+    gap: 2,
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.md,
+    padding: 2,
   },
-  cardText: { flex: 1, minWidth: 0 },
-  name: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
+  tab: {
+    alignItems: 'center',
+    borderRadius: radii.md,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: minTouchTarget,
+    minWidth: 0,
+    paddingHorizontal: spacing.xs,
+  },
+  tabSelected: { backgroundColor: colors.surface, borderColor: colors.brand, borderWidth: 1 },
+  tabLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  tabLabelSelected: { color: colors.brand, fontWeight: '700' },
+  tabBadge: { alignItems: 'center', borderRadius: 10, flexShrink: 0, justifyContent: 'center', minWidth: 20, paddingHorizontal: 5 },
+  tabBadgeEmphasized: { backgroundColor: colors.brand },
+  tabBadgeMuted: { backgroundColor: colors.border },
+  tabBadgeText: { fontSize: 12, fontWeight: '700', lineHeight: 20 },
+  tabBadgeTextEmphasized: { color: colors.surface },
+  tabBadgeTextMuted: { color: colors.textSecondary },
+  listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md + 4,
+    borderWidth: 1,
+    color: colors.textPrimary,
+    fontSize: 16,
+    marginBottom: spacing.xs,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+  },
+  banner: { color: colors.danger, fontSize: 13, marginBottom: spacing.xs, marginTop: spacing.xs },
+  // Rows are set apart by a hairline, not boxed cards.
+  row: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: minTouchTarget + 20,
+    paddingVertical: spacing.sm,
+  },
+  rowPressed: { opacity: 0.6 },
+  rowText: { flex: 1, minWidth: 0 },
+  name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  note: { color: colors.textSecondary, fontSize: 13, fontStyle: 'italic', marginTop: 2 },
-  notice: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: spacing.sm },
+  note: { color: colors.textSecondary, fontSize: 12, marginTop: 2, opacity: 0.85 },
+  pending: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 },
+  requestRow: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  requestIdentity: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
+  requestActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
+  actionButton: { flexBasis: 0, flexGrow: 1, maxWidth: 200 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, minWidth: 64, paddingHorizontal: spacing.md },
+  secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  // A card's action buttons on a narrow screen (or with a long translation): they may shrink and
-  // wrap their label to two lines, but never squeeze the person's name out of the row.
-  cardButton: { flexShrink: 1, maxWidth: '45%', paddingHorizontal: spacing.sm },
   disabled: { opacity: 0.45 },
-  loading: { paddingVertical: spacing.lg },
-  empty: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.lg, textAlign: 'center' },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
-  fullWidth: { marginTop: spacing.md },
-  removeButton: {
-    alignItems: 'center',
-    borderColor: colors.danger,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.xs + 2,
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-  },
-  removeLabel: { color: colors.danger, flexShrink: 1, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  loading: { paddingVertical: spacing.xl },
+  stateBlock: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl * 2 },
+  stateTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  stateText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
 });

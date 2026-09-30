@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Xóa người bạn này?",
     "removeConfirmMessage": "Ghi chú của bạn cũng bị xóa. Bộ sưu tập dùng chung vẫn giữ nguyên.",
     "friendJupleIdPlaceholder": "Juple ID của bạn bè",
-    "incomingRequests": "Lời mời kết bạn đã nhận",
-    "outgoingRequests": "Lời mời kết bạn đã gửi",
-    "saveNote": "Lưu ghi chú"
+    "saveNote": "Lưu ghi chú",
+    "tabIncoming": "Đã nhận",
+    "tabOutgoing": "Đã gửi",
+    "emptyHint": "Hãy thêm bạn bằng Juple ID.",
+    "incomingEmpty": "Không có lời mời kết bạn nào.",
+    "outgoingEmpty": "Chưa gửi lời mời kết bạn nào.",
+    "requestPending": "Đang chờ phản hồi",
+    "noteHelper": "Chỉ mình bạn thấy",
+    "lookupHint": "Tìm bạn bằng Juple ID.",
+    "incomingFromThem": "Người này đã gửi lời mời kết bạn cho bạn.",
+    "viewIncoming": "Xem lời mời đã nhận",
+    "acceptA11y": "Chấp nhận lời mời kết bạn của {{name}}",
+    "declineA11y": "Từ chối lời mời kết bạn của {{name}}",
+    "cancelA11y": "Hủy lời mời kết bạn gửi {{name}}"
   }
 }

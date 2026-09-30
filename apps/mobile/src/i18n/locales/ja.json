@@ -573,8 +573,19 @@
     "removeConfirmTitle": "この友だちを削除しますか？",
     "removeConfirmMessage": "自分用メモも削除されます。一緒に使っているコレクションはそのままです。",
     "friendJupleIdPlaceholder": "友だちのJuple ID",
-    "incomingRequests": "受け取った友だちリクエスト",
-    "outgoingRequests": "送った友だちリクエスト",
-    "saveNote": "メモを保存"
+    "saveNote": "メモを保存",
+    "tabIncoming": "受信",
+    "tabOutgoing": "送信",
+    "emptyHint": "Juple IDで友だちを追加してみましょう。",
+    "incomingEmpty": "受信した友だちリクエストはありません。",
+    "outgoingEmpty": "送信した友だちリクエストはありません。",
+    "requestPending": "リクエスト承認待ち",
+    "noteHelper": "自分だけに表示されます",
+    "lookupHint": "Juple IDで友だちを探しましょう。",
+    "incomingFromThem": "この人から友だちリクエストが届いています。",
+    "viewIncoming": "受信したリクエストを見る",
+    "acceptA11y": "{{name}}さんの友だちリクエストを承認",
+    "declineA11y": "{{name}}さんの友だちリクエストを拒否",
+    "cancelA11y": "{{name}}さんへの友だちリクエストを取り消す"
   }
 }

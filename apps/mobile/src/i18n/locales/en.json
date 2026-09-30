@@ -578,7 +578,7 @@
     "cancelRequest": "Cancel request",
     "alreadyFriends": "You're already friends.",
     "requestAlreadyPending": "You've already sent a request.",
-    "incomingRequestExists": "This person has already sent you a request - you can accept it under Friend requests received.",
+    "incomingRequestExists": "This person has already sent you a request - you can accept it under Received.",
     "cannotAddSelf": "You can't add yourself.",
     "actionFallback": "Couldn't complete that action.",
     "loadFallback": "Couldn't load friends.",
@@ -590,8 +590,19 @@
     "removeConfirmTitle": "Remove this friend?",
     "removeConfirmMessage": "Your note is deleted too. Collections you share stay as they are.",
     "friendJupleIdPlaceholder": "Friend's Juple ID",
-    "incomingRequests": "Friend requests received",
-    "outgoingRequests": "Friend requests sent",
-    "saveNote": "Save note"
+    "saveNote": "Save note",
+    "tabIncoming": "Received",
+    "tabOutgoing": "Sent",
+    "emptyHint": "Add a friend with their Juple ID.",
+    "incomingEmpty": "No friend requests received.",
+    "outgoingEmpty": "No friend requests sent.",
+    "requestPending": "Request pending",
+    "noteHelper": "Only you can see this",
+    "lookupHint": "Find a friend by their Juple ID.",
+    "incomingFromThem": "This person has sent you a friend request.",
+    "viewIncoming": "View received requests",
+    "acceptA11y": "Accept friend request from {{name}}",
+    "declineA11y": "Decline friend request from {{name}}",
+    "cancelA11y": "Cancel friend request to {{name}}"
   }
 }

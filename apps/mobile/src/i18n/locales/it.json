@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Rimuovere questo amico?",
     "removeConfirmMessage": "Anche la tua nota verrà eliminata. Le raccolte condivise restano invariate.",
     "friendJupleIdPlaceholder": "ID Juple dell'amico",
-    "incomingRequests": "Richieste di amicizia ricevute",
-    "outgoingRequests": "Richieste di amicizia inviate",
-    "saveNote": "Salva nota"
+    "saveNote": "Salva nota",
+    "tabIncoming": "Ricevute",
+    "tabOutgoing": "Inviate",
+    "emptyHint": "Aggiungi un amico con il suo ID Juple.",
+    "incomingEmpty": "Nessuna richiesta di amicizia ricevuta.",
+    "outgoingEmpty": "Nessuna richiesta di amicizia inviata.",
+    "requestPending": "Richiesta in attesa",
+    "noteHelper": "Visibile solo a te",
+    "lookupHint": "Trova un amico con il suo ID Juple.",
+    "incomingFromThem": "Questa persona ti ha inviato una richiesta di amicizia.",
+    "viewIncoming": "Vedi richieste ricevute",
+    "acceptA11y": "Accetta la richiesta di amicizia di {{name}}",
+    "declineA11y": "Rifiuta la richiesta di amicizia di {{name}}",
+    "cancelA11y": "Annulla la richiesta di amicizia a {{name}}"
   }
 }

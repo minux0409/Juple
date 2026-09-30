@@ -573,8 +573,19 @@
     "removeConfirmTitle": "इस मित्र को हटाएँ?",
     "removeConfirmMessage": "आपका नोट भी हट जाएगा। साझा संग्रह वैसे ही रहेंगे।",
     "friendJupleIdPlaceholder": "मित्र की Juple ID",
-    "incomingRequests": "प्राप्त मित्र अनुरोध",
-    "outgoingRequests": "भेजे गए मित्र अनुरोध",
-    "saveNote": "नोट सहेजें"
+    "saveNote": "नोट सहेजें",
+    "tabIncoming": "प्राप्त",
+    "tabOutgoing": "भेजे गए",
+    "emptyHint": "Juple ID से दोस्त जोड़ें।",
+    "incomingEmpty": "कोई दोस्ती अनुरोध नहीं मिला।",
+    "outgoingEmpty": "कोई दोस्ती अनुरोध नहीं भेजा गया।",
+    "requestPending": "अनुरोध लंबित",
+    "noteHelper": "सिर्फ़ आपको दिखता है",
+    "lookupHint": "Juple ID से दोस्त खोजें।",
+    "incomingFromThem": "इस व्यक्ति ने आपको दोस्ती अनुरोध भेजा है।",
+    "viewIncoming": "प्राप्त अनुरोध देखें",
+    "acceptA11y": "{{name}} का दोस्ती अनुरोध स्वीकार करें",
+    "declineA11y": "{{name}} का दोस्ती अनुरोध अस्वीकार करें",
+    "cancelA11y": "{{name}} को भेजा दोस्ती अनुरोध रद्द करें"
   }
 }

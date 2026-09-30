@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Diesen Freund entfernen?",
     "removeConfirmMessage": "Deine Notiz wird ebenfalls gelöscht. Gemeinsame Sammlungen bleiben unverändert.",
     "friendJupleIdPlaceholder": "Juple-ID deines Freundes",
-    "incomingRequests": "Erhaltene Freundschaftsanfragen",
-    "outgoingRequests": "Gesendete Freundschaftsanfragen",
-    "saveNote": "Notiz speichern"
+    "saveNote": "Notiz speichern",
+    "tabIncoming": "Erhalten",
+    "tabOutgoing": "Gesendet",
+    "emptyHint": "Füge Freunde mit ihrer Juple-ID hinzu.",
+    "incomingEmpty": "Keine Freundschaftsanfragen erhalten.",
+    "outgoingEmpty": "Keine Freundschaftsanfragen gesendet.",
+    "requestPending": "Anfrage ausstehend",
+    "noteHelper": "Nur für dich sichtbar",
+    "lookupHint": "Finde Freunde über ihre Juple-ID.",
+    "incomingFromThem": "Diese Person hat dir eine Freundschaftsanfrage geschickt.",
+    "viewIncoming": "Erhaltene Anfragen ansehen",
+    "acceptA11y": "Freundschaftsanfrage von {{name}} annehmen",
+    "declineA11y": "Freundschaftsanfrage von {{name}} ablehnen",
+    "cancelA11y": "Freundschaftsanfrage an {{name}} zurückziehen"
   }
 }

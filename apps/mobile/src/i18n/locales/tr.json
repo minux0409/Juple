@@ -573,8 +573,19 @@
     "removeConfirmTitle": "Bu arkadaş kaldırılsın mı?",
     "removeConfirmMessage": "Notunuz da silinir. Paylaşılan koleksiyonlar olduğu gibi kalır.",
     "friendJupleIdPlaceholder": "Arkadaşının Juple ID'si",
-    "incomingRequests": "Alınan arkadaşlık istekleri",
-    "outgoingRequests": "Gönderilen arkadaşlık istekleri",
-    "saveNote": "Notu kaydet"
+    "saveNote": "Notu kaydet",
+    "tabIncoming": "Gelen",
+    "tabOutgoing": "Giden",
+    "emptyHint": "Juple kimliğiyle arkadaş ekleyin.",
+    "incomingEmpty": "Gelen arkadaşlık isteği yok.",
+    "outgoingEmpty": "Gönderilen arkadaşlık isteği yok.",
+    "requestPending": "İstek beklemede",
+    "noteHelper": "Yalnızca siz görebilirsiniz",
+    "lookupHint": "Juple kimliğiyle arkadaş bulun.",
+    "incomingFromThem": "Bu kişi size arkadaşlık isteği gönderdi.",
+    "viewIncoming": "Gelen istekleri görüntüle",
+    "acceptA11y": "{{name}} adlı kişinin arkadaşlık isteğini kabul et",
+    "declineA11y": "{{name}} adlı kişinin arkadaşlık isteğini reddet",
+    "cancelA11y": "{{name}} adlı kişiye gönderilen arkadaşlık isteğini iptal et"
   }
 }
