@@ -128,6 +128,16 @@ export async function requestApi<T>({
     return { status: response.status };
   }
 
+  if (response.status === 202) {
+    // Accepted, not applied yet (e.g. a link proposed to a 승인 후 추가 Collection): a success the
+    // caller tells apart by status. The body is informational only, so an unreadable one is no failure.
+    try {
+      return { status: response.status, body: (await response.json()) as T };
+    } catch {
+      return { status: response.status };
+    }
+  }
+
   if (response.status === 200 || response.status === 201) {
     try {
       return { status: response.status, body: (await response.json()) as T };

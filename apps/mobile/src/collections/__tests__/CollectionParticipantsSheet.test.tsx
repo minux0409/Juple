@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionParticipantsSheet } from '../CollectionParticipantsSheet';
 import { formatParticipantSummary } from '../participantSummary';
@@ -46,6 +46,14 @@ async function renderSheet(data: CollectionParticipants) {
 }
 
 describe('CollectionParticipantsSheet', () => {
+  it('appears at once - no slide-up animation dragging the dim backdrop up from the bottom', async () => {
+    const renderer = await renderSheet({ participants: [{ jupleId: 'WNER2345', displayName: '쥬플리', role: 'owner', isMe: true }], pendingInvitations: [], canManage: false });
+
+    const modal = renderer.root.findByType(Modal);
+    expect(modal.props.visible).toBe(true);
+    expect(modal.props.animationType).toBe('none');
+  });
+
   it('a Contributor sees everyone (name, else Juple ID) read-only - no pending invitations, no remove/cancel', async () => {
     const renderer = await renderSheet({
       participants: [...members, { jupleId: 'MEEE2345', displayName: '이상해씨', role: 'contributor', isMe: true }],

@@ -42,8 +42,49 @@ public sealed class EnableCollectionShareServiceTests
         Assert.Same(expected, result);
     }
 
+    [Fact]
+    public async Task EnableAsync_RaiseLowerRoles_IsForwardedToTheStore_AndIsOffByDefault()
+    {
+        var store = new FakeCollectionShareStore();
+        var service = new EnableCollectionShareService(store, new FixedTimeProvider());
+
+        await service.EnableAsync(17, 41);
+        Assert.False(store.LastRaiseLowerRoles);
+
+        await service.EnableAsync(17, 41, Juple.Domain.Collections.CollectionSharePermission.Write, raiseLowerRoles: true);
+        Assert.True(store.LastRaiseLowerRoles);
+    }
+
+    [Fact]
+    public async Task SetPermissionAsync_RaiseLowerRoles_IsForwardedToTheStore_AndIsOffByDefault()
+    {
+        var store = new FakeCollectionShareStore();
+        var service = new EnableCollectionShareService(store, new FixedTimeProvider());
+
+        await service.SetPermissionAsync(17, 41, Juple.Domain.Collections.CollectionSharePermission.Submit);
+        Assert.False(store.LastRaiseLowerRoles);
+        Assert.Equal(Juple.Domain.Collections.CollectionSharePermission.Submit, store.LastPermission);
+
+        await service.SetPermissionAsync(17, 41, Juple.Domain.Collections.CollectionSharePermission.Write, raiseLowerRoles: true);
+        Assert.True(store.LastRaiseLowerRoles);
+        Assert.Equal(Juple.Domain.Collections.CollectionSharePermission.Write, store.LastPermission);
+    }
+
+    [Fact]
+    public async Task SetPermissionAsync_RejectsAnUnknownPermission_EvenWhenRaising()
+    {
+        var service = new EnableCollectionShareService(new FakeCollectionShareStore(), new FixedTimeProvider());
+
+        await Assert.ThrowsAsync<InvalidCollectionException>(
+            () => service.SetPermissionAsync(17, 41, (Juple.Domain.Collections.CollectionSharePermission)99, raiseLowerRoles: true));
+    }
+
     private sealed class FakeCollectionShareStore : ICollectionShareStore
     {
+        public bool LastRaiseLowerRoles { get; private set; }
+
+        public Juple.Domain.Collections.CollectionSharePermission? LastPermission { get; private set; }
+
         public bool ThrowNotFound { get; init; }
 
         public CollectionShareDto? ResultToReturn { get; init; }
@@ -62,12 +103,15 @@ public sealed class EnableCollectionShareServiceTests
             string candidatePublicId,
             DateTimeOffset enabledAtUtc,
             Juple.Domain.Collections.CollectionSharePermission permission = Juple.Domain.Collections.CollectionSharePermission.Read,
+            bool raiseLowerRoles = false,
             CancellationToken cancellationToken = default)
         {
             LastUserId = userId;
             LastCollectionId = collectionId;
             LastCandidatePublicId = candidatePublicId;
             LastEnabledAtUtc = enabledAtUtc;
+            LastRaiseLowerRoles = raiseLowerRoles;
+            LastPermission = permission;
 
             if (ThrowNotFound)
             {
@@ -86,9 +130,13 @@ public sealed class EnableCollectionShareServiceTests
             throw new NotSupportedException("Not exercised by EnableCollectionShareService tests.");
 
         public Task<CollectionShareDto?> SetPermissionAsync(
-            long userId, long collectionId, Juple.Domain.Collections.CollectionSharePermission permission, DateTimeOffset updatedAtUtc,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            long userId, long collectionId, Juple.Domain.Collections.CollectionSharePermission permission, DateTimeOffset updatedAtUtc, bool raiseLowerRoles = false,
+            CancellationToken cancellationToken = default)
+        {
+            LastRaiseLowerRoles = raiseLowerRoles;
+            LastPermission = permission;
+            return Task.FromResult<CollectionShareDto?>(new CollectionShareDto(collectionId, "public-id", updatedAtUtc, permission));
+        }
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset? utcNow = null) : TimeProvider

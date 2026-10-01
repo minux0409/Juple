@@ -23,6 +23,7 @@ import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync
 import {
   deleteCollection,
   addItemToCollection,
+  addItemToCollections,
   copyCollectionItems,
   getCollectionShareLink,
   getCollection,
@@ -45,9 +46,8 @@ import {
   type Collection,
   type CollectionItemEntry,
 } from '../collections/api/collectionsApi';
-import { CopyDestinationPicker } from '../collections/CopyDestinationPicker';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
-import { formatReplicateResultMessage, useReplicateItemPicker } from '../collections/useReplicateItemPicker';
+import { formatReplicateResultMessage, useCollectionDestinationPicker, type PickedDestination } from '../collections/useCollectionDestinationPicker';
 import { formatCopyResultMessage } from '../collections/copyResultMessage';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { isCollaborative, isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
@@ -55,9 +55,9 @@ import { describeItemAdder, shouldShowItemAdders } from '../collections/itemAdde
 import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
 import { beginCollectionVisit, forgetCollectionUnlock, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
+import { getCollectionParticipants, type CollectionParticipants } from '../collections/api/collaborationApi';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
-import { formatParticipantSummary } from '../collections/participantSummary';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import {
@@ -72,6 +72,7 @@ import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
+import { ParticipantAvatarStack } from '../components/ParticipantAvatarStack';
 import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
@@ -91,6 +92,7 @@ import {
 import { BellIcon } from '../icons/BellIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { EditIcon } from '../icons/EditIcon';
 import { LockIcon } from '../icons/LockIcon';
@@ -98,7 +100,6 @@ import { MergeIcon } from '../icons/MergeIcon';
 import { MoveIcon } from '../icons/MoveIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
-import { PeopleIcon } from '../icons/PeopleIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { StarIcon } from '../icons/StarIcon';
 import { MoreIcon } from '../icons/MoreIcon';
@@ -111,7 +112,8 @@ import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useSortPreference } from '../settings/sortPreference';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { useLayoutDirection } from '../i18n/layoutDirection';
+import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -281,12 +283,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
+  // Everyone accepted into a shared Collection (the avatars under its title) - null while unknown or not shared.
+  const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
+  const [participantsFailed, setParticipantsFailed] = useState(false);
+  const layoutDirection = useLayoutDirection();
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
   const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
   const [isItemActionMenuVisible, setIsItemActionMenuVisible] = useState(false);
   const [isCollectionMenuVisible, setIsCollectionMenuVisible] = useState(false);
-  const [targetMode, setTargetMode] = useState<'move' | 'merge' | null>(null);
+  const [targetMode, setTargetMode] = useState<'merge' | null>(null);
   const [targetCollections, setTargetCollections] = useState<readonly Collection[]>([]);
   const [targetNextCursor, setTargetNextCursor] = useState<string | null>(null);
   const [isLoadingMoreTargets, setIsLoadingMoreTargets] = useState(false);
@@ -304,8 +310,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // last one selected - so 전체 해제 is offered exactly while that full selection is untouched.
   const [isSelectingAllForCopy, setIsSelectingAllForCopy] = useState(false);
   const [selectAllForCopyCount, setSelectAllForCopyCount] = useState<number | null>(null);
-  const [isCopyPickerVisible, setIsCopyPickerVisible] = useState(false);
-  // 내 컬렉션으로 복제 of one link (long press on another member's link) - the same copy and the same
+  // 내 컬렉션으로 복사 of one link (long press on another member's link) - the same copy and the same
   // destination picker as the multi-select copy, for just this link.
   const [singleCopyItemId, setSingleCopyItemId] = useState<number | null>(null);
   // A member's way to pass on the Owner's public link: its URL while it is on (checked on every
@@ -460,6 +465,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     try {
       const fetched = await getCollection(authenticatedRequest, collectionId);
       setCollection(fetched);
+      if (isCollaborative(fetched)) {
+        getCollectionParticipants(authenticatedRequest, collectionId)
+          .then(loaded => {
+            setParticipants(loaded);
+            setParticipantsFailed(false);
+          })
+          .catch(() => setParticipantsFailed(true));
+      } else {
+        setParticipants(null);
+      }
       if (isSharedWithMe(fetched)) {
         getCollectionShareLink(authenticatedRequest, collectionId)
           .then(setMemberShareUrl)
@@ -622,30 +637,48 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setSelectAllForCopyCount(null);
   };
 
-  const copySelectedTo = async (destination: Collection, destinationUnlockToken: string | null) => {
-    setIsCopyPickerVisible(false);
+  /**
+   * 내 컬렉션으로 복사 into every chosen destination - one request per destination (the server copies
+   * into one Collection at a time), one after the other. The shared-Collection copy never links another
+   * member's Item into my Collections: the server makes my own new Item of the link's URL, title and
+   * automatic preview only. Nothing copied anywhere (every destination failed) rejects, so the picker
+   * stays open for another try; if only some failed, what was copied is reported and the rest named.
+   */
+  const copyToDestinations = async (destinations: readonly PickedDestination[]) => {
     const singleItemId = singleCopyItemId;
-    setSingleCopyItemId(null);
     const itemIds = singleItemId !== null ? [singleItemId] : selectedItemIds ? [...selectedItemIds] : [];
     if (itemIds.length === 0 || isCopying) {
       return;
     }
     setIsCopying(true);
     try {
-      // The shared-Collection copy (never linking another member's Item into my Collections): the
-      // server makes my own new Item of the link's URL, title and automatic preview only.
-      const result = await copyCollectionItems(authenticatedRequest, collectionId, itemIds, destination.id, destinationUnlockToken);
+      const totals = { copiedCount: 0, skippedCount: 0, unavailableCount: 0 };
+      let firstFailure: unknown = null;
+      let failedCount = 0;
+      for (const destination of destinations) {
+        try {
+          const result = await copyCollectionItems(authenticatedRequest, collectionId, itemIds, destination.collection.id, destination.unlockToken);
+          totals.copiedCount += result.copiedCount;
+          totals.skippedCount += result.skippedCount;
+          totals.unavailableCount += result.unavailableCount;
+        } catch (caughtError) {
+          firstFailure ??= caughtError;
+          failedCount += 1;
+        }
+      }
+      if (failedCount === destinations.length) {
+        throw firstFailure;
+      }
       if (singleItemId === null) {
         setSelectedItemIds(null);
         setSelectAllForCopyCount(null);
       }
-      showNotificationToast(formatCopyResultMessage(result, t));
-    } catch (caughtError) {
-      setNotice(
-        caughtError instanceof ApiError && caughtError.kind === 'badRequest'
-          ? t('collections.copySelectionLimit', { max: MAX_ITEMS_PER_COPY })
-          : t(gateNoticeKey(caughtError) ?? 'collections.copyError'),
-      );
+      setSingleCopyItemId(null);
+      const isCleanMulti = destinations.length > 1 && failedCount === 0 && totals.skippedCount === 0 && totals.unavailableCount === 0;
+      const summary = isCleanMulti
+        ? t('collections.copyResultMulti', { links: itemIds.length, collections: destinations.length })
+        : formatCopyResultMessage(totals, t);
+      showNotificationToast(failedCount > 0 ? `${summary} ${t('collections.copyDestinationsFailed', { count: failedCount })}` : summary);
     } finally {
       setIsCopying(false);
     }
@@ -901,11 +934,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setPendingUnlinkItemId(previous => previous ?? itemId);
   };
 
-  const openTargetPicker = async (mode: 'move' | 'merge') => {
+  /** 병합: one target Collection from the plain list (unchanged - the destination picker below is for links). */
+  const openMergePicker = async () => {
     setIsItemActionMenuVisible(false);
-    if (mode === 'merge') setActionMenuItem(null);
+    setActionMenuItem(null);
     setIsCollectionMenuVisible(false);
-    setTargetMode(mode);
+    setTargetMode('merge');
     setIsLoadingTargets(true);
     try {
       let page = await getCollections(authenticatedRequest, { limit: 50 });
@@ -946,71 +980,161 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setPendingTarget(target);
   };
 
-  // 다른 컬렉션에 복제: this link into any number of my own Collections at once (a multi-choice picker
-  // of its own - 이동/병합 keep choosing exactly one target above).
-  const replicatePicker = useReplicateItemPicker(authenticatedRequest, t, result => {
+  /**
+   * 다른 컬렉션으로 이동 of one of MY links: into one other Collection of mine. Between two Collections
+   * nobody else is in it is the server's one atomic move (with its Undo). Anything shared - a shared
+   * Collection I am a member of, or my own that has members - composes the two permitted steps
+   * instead: add to the destination first, then remove from here. A failure between them leaves the
+   * link in both Collections, never in neither.
+   */
+  const moveItemTo = async (item: CollectionItemEntry, destination: PickedDestination) => {
+    const target = destination.collection;
+    const itemId = item.itemId;
+    const canTransferAtomically = isOwner && collection?.hasCollaborators !== true && target.hasCollaborators !== true;
+    let targetMembershipCreated: boolean | null = null;
+    if (canTransferAtomically) {
+      try {
+        const moved = await transferCollectionItem(authenticatedRequest, collectionId, itemId, target.id, destination.unlockToken);
+        targetMembershipCreated = moved.targetMembershipCreated;
+      } catch (caughtError) {
+        // Someone with a still-pending invitation also makes the server refuse the atomic move.
+        if (!(caughtError instanceof ApiError && caughtError.kind === 'conflict' && caughtError.code === 'collaborationActive')) {
+          throw caughtError;
+        }
+      }
+    }
+    if (targetMembershipCreated === null) {
+      await addItemToCollection(authenticatedRequest, target.id, itemId, { unlockToken: destination.unlockToken });
+      await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
+    }
+    removeLocally(itemId);
+    setCollection(previous => previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous);
+    if (targetMembershipCreated === null) {
+      showNotificationToast(t('toast.moveSuccess'));
+      return;
+    }
+    const created = targetMembershipCreated;
+    showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.moveSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoMoveError'), onUndo: async () => {
+      await undoTransferCollectionItem(authenticatedRequest, collectionId, itemId, target.id, created);
+      setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
+      await refresh();
+    } });
+  };
+
+  /** 다른 컬렉션에 복제: one of MY links into several of my Collections in one request (never a copy of the link). */
+  const replicateItemTo = async (item: CollectionItemEntry, destinations: readonly PickedDestination[]) => {
+    const unlockTokens: Record<number, string> = {};
+    destinations.forEach(destination => {
+      if (destination.unlockToken) {
+        unlockTokens[destination.collection.id] = destination.unlockToken;
+      }
+    });
+    const result = await addItemToCollections(authenticatedRequest, item.itemId, destinations.map(destination => destination.collection.id), unlockTokens);
     showNotificationToast(formatReplicateResultMessage(result, t));
+  };
+
+  // The one destination picker (list/grid, order, several or one destination, "+ 새 컬렉션 만들기")
+  // serves all three link actions: 복제 and 내 컬렉션으로 복사 take any number of destinations, 이동 one.
+  const [pickerMode, setPickerMode] = useState<'replicate' | 'copy' | 'move' | null>(null);
+  const pickerModeRef = useRef<'replicate' | 'copy' | 'move' | null>(null);
+  const pickerItemRef = useRef<CollectionItemEntry | null>(null);
+  const destinationPicker = useCollectionDestinationPicker(authenticatedRequest, t, {
+    selection: pickerMode === 'move' ? 'single' : 'multiple',
+    onSubmit: async destinations => {
+      const mode = pickerModeRef.current;
+      const item = pickerItemRef.current;
+      if (mode === 'copy') {
+        await copyToDestinations(destinations);
+      } else if (mode === 'move' && item) {
+        await moveItemTo(item, destinations[0]);
+      } else if (mode === 'replicate' && item) {
+        await replicateItemTo(item, destinations);
+      }
+    },
+    errorMessage: caughtError => {
+      if (caughtError instanceof ApiError) {
+        if (caughtError.kind === 'unauthorized') {
+          return t('errors.unauthorized');
+        }
+        if (caughtError.code === 'collectionLocked') {
+          // A grant expired between choosing and the action - choosing that Collection again asks for its password.
+          return t('collections.lockRequiredForAction');
+        }
+      }
+      if (pickerModeRef.current === 'copy') {
+        return caughtError instanceof ApiError && caughtError.kind === 'badRequest'
+          ? t('collections.copySelectionLimit', { max: MAX_ITEMS_PER_COPY })
+          : t(gateNoticeKey(caughtError) ?? 'collections.copyError');
+      }
+      return pickerModeRef.current === 'move' ? t(gateNoticeKey(caughtError) ?? 'collections.moveError') : t('collections.replicateError');
+    },
   });
-  /** Another member's link: 내 컬렉션으로 복제 - just this link, through the same picker as the selection copy. */
+  const openDestinationPicker = (mode: 'replicate' | 'copy' | 'move', item: CollectionItemEntry | null, options?: Parameters<typeof destinationPicker.open>[0]) => {
+    pickerModeRef.current = mode;
+    pickerItemRef.current = item;
+    setPickerMode(mode);
+    destinationPicker.open(options);
+  };
+  const closeDestinationPicker = () => {
+    destinationPicker.close();
+    setSingleCopyItemId(null);
+  };
+
+  /** Another member's link: 내 컬렉션으로 복사 - just this link, through the same picker as the selection copy. */
   const openSingleCopyPicker = () => {
     setIsItemActionMenuVisible(false);
     if (actionMenuItem) {
       setSingleCopyItemId(actionMenuItem.itemId);
-      setIsCopyPickerVisible(true);
+      openDestinationPicker('copy', null);
     }
     setActionMenuItem(null);
   };
 
+  /** My own link (here or in someone else's Collection): 다른 컬렉션에 복제 / 이동. */
   const openReplicatePicker = () => {
     setIsItemActionMenuVisible(false);
     if (actionMenuItem) {
-      replicatePicker.open(actionMenuItem.itemId);
+      openDestinationPicker('replicate', actionMenuItem, { containedItemId: actionMenuItem.itemId });
     }
     setActionMenuItem(null);
   };
 
-  const confirmTargetAction = async () => {
+  const openMovePicker = () => {
+    setIsItemActionMenuVisible(false);
+    if (actionMenuItem) {
+      openDestinationPicker('move', actionMenuItem, { disabledIds: [collectionId] });
+    }
+    setActionMenuItem(null);
+  };
+
+  const confirmMergeAction = async () => {
     if (!pendingTarget || isMembershipMutation) return;
     setIsMembershipMutation(true);
     try {
-      if (targetMode === 'merge') {
-        const targetCollectionId = pendingTarget.id;
-        const merge = await mergeCollection(authenticatedRequest, collectionId, targetCollectionId);
-        // null only for the source-equals-target no-op (see MergeCollectionResult) - nothing was
-        // merged, so there is nothing to offer an Undo for.
-        if (merge.undoOperationId) {
-          const undoOperationId = merge.undoOperationId;
-          showUndoToast({
-            actionLabel: t('toast.undoAction'),
-            message: t('toast.collectionMergeSuccess'),
-            onUndo: async () => {
-              await undoCollectionMerge(authenticatedRequest, undoOperationId);
-              // Backend is the sole source of truth for the restored membership state - this only
-              // re-navigates to (and, via refreshToken, force-refreshes) the target Collection,
-              // never reconstructs a local membership snapshot.
-              navigation.navigate('CollectionDetails', { collectionId: targetCollectionId, refreshToken: Date.now() });
-            },
-            undoErrorMessage: t('toast.undoCollectionMergeError'),
-            noticeTitle: t('common.notice'),
-            confirmLabel: t('common.confirm'),
-          });
-        }
-        navigation.replace('CollectionDetails', { collectionId: targetCollectionId });
-      } else if (actionMenuItem) {
-        const move = await transferCollectionItem(authenticatedRequest, collectionId, actionMenuItem.itemId, pendingTarget.id);
-        removeLocally(actionMenuItem.itemId);
-        setCollection(previous => previous ? { ...previous, itemCount: Math.max(0, previous.itemCount - 1) } : previous);
-        const itemId = actionMenuItem.itemId;
-        const targetCollectionId = pendingTarget.id;
-        const targetMembershipCreated = move.targetMembershipCreated;
-        showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.moveSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoMoveError'), onUndo: async () => {
-          await undoTransferCollectionItem(authenticatedRequest, collectionId, itemId, targetCollectionId, targetMembershipCreated);
-          setCollection(previous => previous ? { ...previous, itemCount: previous.itemCount + 1 } : previous);
-          await refresh();
-        } });
+      const targetCollectionId = pendingTarget.id;
+      const merge = await mergeCollection(authenticatedRequest, collectionId, targetCollectionId);
+      // null only for the source-equals-target no-op (see MergeCollectionResult) - nothing was
+      // merged, so there is nothing to offer an Undo for.
+      if (merge.undoOperationId) {
+        const undoOperationId = merge.undoOperationId;
+        showUndoToast({
+          actionLabel: t('toast.undoAction'),
+          message: t('toast.collectionMergeSuccess'),
+          onUndo: async () => {
+            await undoCollectionMerge(authenticatedRequest, undoOperationId);
+            // Backend is the sole source of truth for the restored membership state - this only
+            // re-navigates to (and, via refreshToken, force-refreshes) the target Collection,
+            // never reconstructs a local membership snapshot.
+            navigation.navigate('CollectionDetails', { collectionId: targetCollectionId, refreshToken: Date.now() });
+          },
+          undoErrorMessage: t('toast.undoCollectionMergeError'),
+          noticeTitle: t('common.notice'),
+          confirmLabel: t('common.confirm'),
+        });
       }
+      navigation.replace('CollectionDetails', { collectionId: targetCollectionId });
     } catch (caughtError) {
-      setNotice(t(gateNoticeKey(caughtError) ?? (targetMode === 'merge' ? 'collections.mergeError' : 'collections.moveError')));
+      setNotice(t(gateNoticeKey(caughtError) ?? 'collections.mergeError'));
     }
     finally { setPendingTarget(null); setTargetMode(null); setActionMenuItem(null); setIsMembershipMutation(false); }
   };
@@ -1031,7 +1155,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     );
   }
 
-  const participantSummary = formatParticipantSummary(collection, t);
+  // The participant row exists from the first render whenever someone else is in the Collection (the
+  // Collection itself says how many) - placeholder circles until the full list arrives, then the real
+  // photos in the same place. Never a line of names. If the list cannot be loaded, the Collection's own
+  // preview of people stands in (initials), still as circles.
+  const otherParticipants = collection.otherParticipantCount ?? collection.participantPreview?.length ?? 0;
+  const showParticipantStack = otherParticipants > 0;
+  const stackParticipants = participants
+    ? participants.participants
+    : participantsFailed
+      ? collection.participantPreview ?? []
+      : null;
 
   /**
    * One link of this Collection as a swipeable List row or Grid tile - the same in the flat 이름순
@@ -1041,7 +1175,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
     // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
     const isMine = item.isMine !== false;
-    const canManageItem = isOwner && isMine;
+    // My own link - in my Collection or someone else's: 복제 / 이동 (the server checks each step).
+    const canManageItem = isMine && !isContentLocked;
     // Someone else's link - in a Collection shared with me, or in my own shared one (added by a
     // member): only ever 내 컬렉션으로 복사 (a copy that becomes my own Item) - never move/remove
     // from here, and only once the content is open to me.
@@ -1133,7 +1268,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           ? { label: t('collections.lockRemoveAction'), destructive: true, icon: UnlockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('remove')) }
           : { label: t('collections.lockSetTitle'), icon: LockIcon, onPress: closeCollectionMenuThen(() => setLockDialogMode('lock')) },
         // Merging moves this Category's links, so it is offered only once its content is unlocked.
-        ...(collection.hasCollaborators || isContentLocked ? [] : [{ label: t('collections.mergeWithOther'), icon: MergeIcon, onPress: () => void openTargetPicker('merge') }]),
+        ...(collection.hasCollaborators || isContentLocked ? [] : [{ label: t('collections.mergeWithOther'), icon: MergeIcon, onPress: () => void openMergePicker() }]),
         { label: t('common.delete'), destructive: true, icon: TrashIcon, onPress: closeCollectionMenuThen(() => runUnlocked(confirmDeleteCollection)) },
       ]
     : [
@@ -1161,39 +1296,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
               </View>
             ) : null}
           </View>
-          {participantSummary ? (
-            <Pressable
+          {showParticipantStack ? (
+            // Who is in it: small overlapping photos, the whole row opens the participant list. It is
+            // drawn from the very first render (placeholder circles until the list arrives) - never
+            // a line of names that is swapped for photos a moment later.
+            <ParticipantAvatarStack
               accessibilityHint={t('collections.participantsTitle')}
-              accessibilityRole="button"
+              accessibilityLabel={t('collections.participantsAvatarsA11y', { count: stackParticipants?.length ?? otherParticipants + 1 })}
               onPress={() => setIsParticipantsSheetVisible(true)}
-              style={styles.sharedByRow}
+              participants={stackParticipants}
+              placeholderCount={Math.min(otherParticipants + 1, 4)}
               testID="collection-details-participants"
-            >
-              <PeopleIcon color={colors.brand} size={14} />
-              <Text numberOfLines={1} style={styles.sharedByText}>{participantSummary}</Text>
-            </Pressable>
+            />
           ) : null}
           <View style={styles.headerMetaRow}>
             <View style={styles.countCluster}>
               <Text style={styles.itemCount}>
                 {t('collections.detailItemCount', { count: collection.itemCount })}
               </Text>
-              {/* The Owner's 승인 대기: proposed links (승인 후 추가) waiting for them - only while there
-                  are any, and never part of the link count. */}
-              {isOwner && (collection.pendingSubmissionCount ?? 0) > 0 ? (
-                <Pressable
-                  accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: collection.pendingSubmissionCount })}
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => runUnlocked(() => navigation.navigate('CollectionSubmissions', { collectionId }))}
-                  style={styles.pendingAction}
-                  testID="collection-details-pending"
-                >
-                  <Text numberOfLines={1} style={styles.pendingLabel}>
-                    {t('collections.pendingSubmissions', { count: collection.pendingSubmissionCount })}
-                  </Text>
-                </Pressable>
-              ) : null}
             </View>
             <View style={styles.headerActions}>
               {/* The caller's own favorite mark - a Contributor has one too; it changes
@@ -1262,6 +1382,23 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             </View>
           </View>
       </View>
+      {/* The Owner's 승인 대기: proposed links (승인 후 추가) waiting for them - a clear one-line row
+          (like the 공유 요청 row of the Collections tab), only while there are any. Never part of the link count. */}
+      {isOwner && (collection.pendingSubmissionCount ?? 0) > 0 ? (
+        <Pressable
+          accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: collection.pendingSubmissionCount })}
+          accessibilityRole="button"
+          onPress={() => runUnlocked(() => navigation.navigate('CollectionSubmissions', { collectionId }))}
+          style={styles.pendingRow}
+          testID="collection-details-pending"
+        >
+          <Text numberOfLines={2} style={styles.pendingRowLabel}>
+            {t('collections.pendingSubmissions', { count: collection.pendingSubmissionCount })}
+          </Text>
+          {/* Points toward the reading direction's end (mirrored under RTL). */}
+          <ChevronIcon color={colors.brand} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
+        </Pressable>
+      ) : null}
       {/* View mode (List/Grid) and sort are two independent, separately-persisted
           preferences (see useViewModePreference/useSortPreference) - switching one never
           resets the other, this round's explicit requirement. */}
@@ -1459,7 +1596,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             accessibilityRole="button"
             accessibilityState={{ disabled: selectedItemIds.size === 0 || isCopying, busy: isCopying }}
             disabled={selectedItemIds.size === 0 || isCopying}
-            onPress={() => setIsCopyPickerVisible(true)}
+            onPress={() => openDestinationPicker('copy', null)}
             style={[styles.selectionButton, styles.selectionPrimary, (selectedItemIds.size === 0 || isCopying) && styles.disabledButton]}
             testID="collection-copy-confirm"
           >
@@ -1467,22 +1604,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
       ) : null}
-      <CopyDestinationPicker
-        authenticatedRequest={authenticatedRequest}
-        onCancel={() => {
-          setIsCopyPickerVisible(false);
-          setSingleCopyItemId(null);
-        }}
-        onChosen={(destination, unlockToken) => {
-          copySelectedTo(destination, unlockToken).catch(() => undefined);
-        }}
-        onLoadError={() => {
-          setIsCopyPickerVisible(false);
-          setSingleCopyItemId(null);
-          setNotice(t('collections.errorTargetLoadFallback'));
-        }}
-        visible={isCopyPickerVisible}
-      />
       <CategoryEditorDialog
         error={editError}
         initialColor={resolveEffectiveCollectionColorValue(collection.color, collection.id)}
@@ -1527,7 +1648,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           ? [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker }]
           : [
             { label: t('collections.addToOther'), icon: CopyIcon, onPress: openReplicatePicker },
-            ...(collection.hasCollaborators ? [] : [{ label: t('collections.moveToOther'), icon: MoveIcon, onPress: () => void openTargetPicker('move') }]),
+            { label: t('collections.moveToOther'), icon: MoveIcon, onPress: openMovePicker },
           ]}
         cancelLabel={t('common.cancel')}
         onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }}
@@ -1578,34 +1699,44 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       </Modal>
       <CategoryPickerModal
         bottomInset={insets.bottom}
-        collectionPool={replicatePicker.collections}
-        disabledIds={replicatePicker.containedIds}
-        error={replicatePicker.error}
-        isCreatingCollection={false}
-        isLoadingMore={replicatePicker.isLoadingMore}
-        isLoadingOptions={replicatePicker.isLoading}
-        onClose={replicatePicker.close}
-        onLoadMore={replicatePicker.loadMore}
-        onToggle={replicatePicker.toggle}
-        onUnlockCancel={replicatePicker.cancelUnlock}
-        onUnlockGranted={replicatePicker.onUnlockGranted}
-        selectedIds={replicatePicker.selectedIds}
-        showCreateTile={false}
-        sort={{ value: replicatePicker.sort, onChange: replicatePicker.changeSort }}
+        collectionPool={destinationPicker.collections}
+        createError={destinationPicker.createError}
+        createAccessibilityLabel={t('collections.copyCreateNew')}
+        createLabel={t('collections.addTile')}
+        disabledIds={destinationPicker.disabledIds}
+        error={destinationPicker.error}
+        isCreateDialogVisible={destinationPicker.isCreateDialogVisible}
+        isCreatingCollection={destinationPicker.isCreating}
+        isLoadingMore={destinationPicker.isLoadingMore}
+        isLoadingOptions={destinationPicker.isLoading}
+        onClose={closeDestinationPicker}
+        onCloseCreateDialog={destinationPicker.closeCreateDialog}
+        onCreateCollection={destinationPicker.submitNewCollection}
+        onLoadMore={destinationPicker.loadMore}
+        onOpenCreateDialog={destinationPicker.openCreateDialog}
+        onToggle={destinationPicker.toggle}
+        onUnlockCancel={destinationPicker.cancelUnlock}
+        onUnlockGranted={destinationPicker.onUnlockGranted}
+        selectedIds={destinationPicker.selectedIds}
+        sort={{ value: destinationPicker.sort, onChange: destinationPicker.changeSort }}
         submit={{
-          label: replicatePicker.selectedIds.size > 0
-            ? t('collections.replicateSubmitCount', { count: replicatePicker.selectedIds.size })
-            : t('collections.replicateSubmit'),
-          onSubmit: replicatePicker.submit,
-          isSubmitting: replicatePicker.isSubmitting,
+          label: pickerMode === 'copy'
+            ? t('collections.copyAction')
+            : pickerMode === 'move'
+              ? t('collections.moveAction')
+              : destinationPicker.selectedIds.size > 0
+                ? t('collections.replicateSubmitCount', { count: destinationPicker.selectedIds.size })
+                : t('collections.replicateSubmit'),
+          onSubmit: destinationPicker.submit,
+          isSubmitting: destinationPicker.isSubmitting,
         }}
-        title={t('collections.targetPickerTitle')}
-        unlockTarget={replicatePicker.unlockTarget}
+        title={pickerMode === 'copy' ? t('collections.copyPickerTitle') : t('collections.targetPickerTitle')}
+        unlockTarget={destinationPicker.unlockTarget}
         viewModeKey="replicatePickerViewMode"
-        visible={replicatePicker.isVisible}
+        visible={destinationPicker.isVisible}
       />
       <CollectionTargetPickerDialog collections={targetCollections} isLoading={isLoadingTargets} isLoadingMore={isLoadingMoreTargets} onCancel={() => setTargetMode(null)} onLoadMore={loadMoreTargets} onSelect={selectTarget} visible={targetMode !== null && pendingTarget === null} />
-      <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={targetMode === 'merge' ? t('collections.mergeAction') : t('collections.moveAction')} destructive={targetMode === 'merge'} message={targetMode === 'merge' ? t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name }) : t('collections.moveConfirmMessage', { target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmTargetAction()} title={targetMode === 'merge' ? t('collections.mergeTitle') : t('collections.moveTitle')} visible={pendingTarget !== null} />
+      <ConfirmDialog cancelLabel={t('common.cancel')} confirmLabel={t('collections.mergeAction')} destructive message={t('collections.mergeConfirmMessage', { source: collection.name, target: pendingTarget?.name })} onCancel={() => { if (!isMembershipMutation) { setPendingTarget(null); setTargetMode(null); } }} onConfirm={() => void confirmMergeAction()} title={t('collections.mergeTitle')} visible={pendingTarget !== null} />
       <CollectionLinkShareSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
@@ -1728,9 +1859,23 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   countCluster: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap', minWidth: 0 },
-  // A compact text action (brand text, no box) - 44dp to touch through hitSlop + minHeight.
-  pendingAction: { justifyContent: 'center', minHeight: minTouchTarget - 12 },
-  pendingLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
+  // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.
+  pendingRow: {
+    alignItems: 'center',
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...cardShadow,
+  },
+  pendingRowLabel: { color: colors.brand, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
   itemCount: {
     color: colors.textSecondary,
     fontSize: 14,

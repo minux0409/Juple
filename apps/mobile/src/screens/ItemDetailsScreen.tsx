@@ -17,6 +17,7 @@ import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { linkProposalErrorMessage } from '../collections/linkProposals';
+import { formatSaveOutcomeMessage } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   addItemToCollection,
@@ -144,6 +145,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // rather than guessed - a Toast's bottomOffset needs this exact value to sit above the bar
   // instead of overlapping it.
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
+  // The result of a save that proposed the link to 승인 후 추가 Collections - a dialog, never a toast that can be missed.
+  const [submissionResultMessage, setSubmissionResultMessage] = useState<string | null>(null);
   useToastBottomAnchor(bottomBarHeight);
   const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
@@ -567,6 +570,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     // 승인 후 추가: those became proposals for their Owners - not memberships, so they leave the
     // selection again (the link is not in those Collections until approved).
     const proposedIds = new Set<number>();
+    let addedCount = 0;
     for (const option of categoriesToAdd) {
       try {
         // Each locked Collection travels with the grant this screen's picker obtained for it.
@@ -574,6 +578,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         if (outcome === 'submitted') {
           proposedIds.add(option.id);
         } else {
+          addedCount += 1;
           setOriginalCategoryIds(previous => new Set(previous).add(option.id));
         }
       } catch (caughtError) {
@@ -597,12 +602,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
 
     setIsSaving(false);
+    if (proposedIds.size > 0) {
+      setSubmissionResultMessage(formatSaveOutcomeMessage({ added: addedCount, submitted: proposedIds.size }, t));
+    }
     if (failureMessages.length > 0) {
       // De-duplicated - several failed operations of the same kind must not repeat the same
       // sentence over and over.
       setError([...new Set(failureMessages)].join('\n'));
     } else {
-      showNotificationToast(proposedIds.size > 0 ? t('collections.linkSubmitted') : t('item.saved'));
+      if (proposedIds.size === 0) {
+        showNotificationToast(t('item.saved'));
+      }
     }
   };
 
@@ -737,6 +747,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
 
+      <ConfirmDialog
+        confirmLabel={t('common.confirm')}
+        destructive={false}
+        message={submissionResultMessage ?? ''}
+        onConfirm={() => setSubmissionResultMessage(null)}
+        title={t('collections.saveOutcomeTitle')}
+        visible={submissionResultMessage !== null}
+      />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

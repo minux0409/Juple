@@ -17,6 +17,7 @@ import {
   getCollectionShare,
   getCollections,
   addItemToCollection,
+  createCollection,
   addItemToCollections,
   transferCollectionItem,
   undoTransferCollectionItem,
@@ -35,6 +36,7 @@ import {
 import { BellIcon } from '../../icons/BellIcon';
 import { BellOffIcon } from '../../icons/BellOffIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
+import { FolderPlusIcon } from '../../icons/FolderPlusIcon';
 import { EditIcon } from '../../icons/EditIcon';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { LockIcon } from '../../icons/LockIcon';
@@ -85,6 +87,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   getCollections: jest.fn(),
   addItemToCollection: jest.fn(),
   addItemToCollections: jest.fn(),
+  createCollection: jest.fn(),
   transferCollectionItem: jest.fn(),
   undoTransferCollectionItem: jest.fn(),
   mergeCollection: jest.fn(),
@@ -230,6 +233,12 @@ async function renderScreen() {
 async function longPressRow(row: ReactTestRenderer.ReactTestRenderer) {
   const target = row.root.findAll(node => typeof node.props.onLongPress === 'function')[0];
   await act(async () => target.props.onLongPress());
+}
+
+/** 이동 (one destination): chooses it in the list/grid picker, then presses the picker's 이동. */
+async function moveViaPicker(renderer: ReactTestRenderer.ReactTestRenderer, destinationId = 2) {
+  await act(async () => renderer.root.findAll(node => node.props.testID === `category-picker-option-${destinationId}` && typeof node.props.onPress === 'function')[0].props.onPress());
+  await act(async () => renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0].props.onPress());
 }
 
 function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
@@ -467,8 +476,7 @@ describe('CollectionDetailsScreen', () => {
       const movedRow = getRowElement(renderer, movedItem);
       await longPressRow(movedRow);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Target' }).props.onPress());
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await moveViaPicker(renderer);
       expect(renderer.root.findByProps({ children: i18n.t('toast.moveSuccess') })).toBeTruthy();
 
       // Then unlink another row - only the unlink toast should remain.
@@ -1380,20 +1388,23 @@ describe('CollectionDetailsScreen', () => {
       expect(itemMenu!.findAllByType(MoveIcon)).toHaveLength(1);
     });
 
-    it('moves only after confirmation', async () => {
+    it('moves only once a destination is chosen and 이동 is pressed - choosing alone changes nothing', async () => {
       jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
       const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+      await act(async () => renderer.root.findAll(node => node.props.testID === 'category-picker-option-2' && typeof node.props.onPress === 'function')[0].props.onPress());
       expect(transferCollectionItem).not.toHaveBeenCalled();
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
-      expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2);
+      const submit = renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0];
+      expect(submit.props.disabled).toBe(false);
+      await act(async () => submit.props.onPress());
+      expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, null);
+      expect(renderer.root.findByType(CategoryPickerModal).props.visible).toBe(false);
     });
     it('shows undo after a move and sends the server-created target flag back unchanged', async () => {
       jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
       jest.mocked(undoTransferCollectionItem).mockResolvedValue(undefined);
       const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       expect(renderer.root.findByProps({ children: i18n.t('toast.moveSuccess') })).toBeTruthy();
       // Stack screen with no bottom tab bar and no fixed bottom action bar - the toast floats
       // directly above the safe-area inset (mocked to 0 here - see useSafeAreaInsets mock above),
@@ -1406,8 +1417,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: false });
       jest.mocked(undoTransferCollectionItem).mockResolvedValue(undefined);
       const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress());
       expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, false);
     });
@@ -1417,8 +1427,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
       jest.mocked(undoTransferCollectionItem).mockResolvedValue(undefined);
       const renderer = await renderScreen(); await openItemMenu(renderer, item);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       expect(findItemList(renderer).props.data).toHaveLength(0);
       await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
       expect(undoTransferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, true);
@@ -1433,8 +1442,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
       jest.mocked(undoTransferCollectionItem).mockRejectedValue(new Error('no'));
       const renderer = await renderScreen(); await openItemMenu(renderer, item);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       await act(async () => { renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress(); await Promise.resolve(); });
       expect(findItemList(renderer).props.data).toHaveLength(0);
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
@@ -1445,8 +1453,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
       jest.mocked(undoTransferCollectionItem).mockImplementation(() => new Promise<void>(resolve => { resolveUndo = resolve; }));
       const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       const undo = renderer.root.findByProps({ accessibilityLabel: i18n.t('toast.undoAction') }).props.onPress;
       await act(async () => { undo(); undo(); });
       expect(undoTransferCollectionItem).toHaveBeenCalledTimes(1);
@@ -1455,8 +1462,7 @@ describe('CollectionDetailsScreen', () => {
     it('keeps the screen and shows an error when move fails', async () => {
       jest.mocked(transferCollectionItem).mockRejectedValue(new Error('no'));
       const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await chooseTarget(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
+      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress()); await moveViaPicker(renderer);
       expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.moveError')).length).toBeGreaterThan(0);
     });
     /** Drives the whole merge confirm flow (manage menu -> merge action -> pick target -> confirm) up to and including the mergeCollection call. */
@@ -1517,30 +1523,119 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('toast.undoCollectionMergeError') })).toBeTruthy();
     });
-    it('이동 (still one target): loads the next cursor page when the first page contains only the source, then offers that target', async () => {
-      jest.mocked(getCollections)
-        .mockResolvedValueOnce({ items: [makeCollection({ id: 1, name: 'Groceries' })], nextCursor: 'page2' })
-        .mockResolvedValueOnce({ items: [makeCollection({ id: 2, name: 'Later target' })], nextCursor: null });
-      const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
-      expect(getCollections).toHaveBeenNthCalledWith(1, expect.anything(), { limit: 50 });
-      expect(getCollections).toHaveBeenNthCalledWith(2, expect.anything(), { limit: 50, cursor: 'page2' });
-      expect(renderer.root.findAllByProps({ accessibilityLabel: 'Groceries' })).toHaveLength(0);
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.addModalEmpty'))).toHaveLength(0);
-      // A single-choice list: choosing is choosing (then the move is confirmed) - no checkboxes, no 복제.
-      expect(renderer.root.findAll(node => node.props.testID === 'category-picker-submit')).toHaveLength(0);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Later target' }).props.onPress());
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
-      expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2);
-    });
-    it('이동: shows the no-target notice only after the final cursor page has been checked', async () => {
-      jest.mocked(getCollections)
-        .mockResolvedValueOnce({ items: [makeCollection({ id: 1, name: 'Groceries' })], nextCursor: 'page2' })
-        .mockResolvedValueOnce({ items: [], nextCursor: null });
-      const renderer = await renderScreen(); await openItemMenu(renderer);
-      await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
-      expect(getCollections).toHaveBeenNthCalledWith(2, expect.anything(), { limit: 50, cursor: 'page2' });
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.addModalEmpty')).length).toBeGreaterThan(0);
+    describe('이동 uses the same destination picker as 복제 and 복사 - but with one destination', () => {
+      const SOURCE = makeCollection({ id: 1, name: 'Groceries' });
+      const TARGETS = [makeCollection({ id: 2, name: 'Target' }), makeCollection({ id: 3, name: 'Second' })];
+      const picker = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(CategoryPickerModal);
+      const optionOf = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
+        renderer.root.findAll(node => node.props.testID === `category-picker-option-${id}` && typeof node.props.onPress === 'function')[0];
+
+      beforeEach(() => {
+        jest.mocked(getCollections).mockReset();
+        jest.mocked(getCollections).mockResolvedValue({ items: [SOURCE, ...TARGETS], nextCursor: null });
+        jest.mocked(transferCollectionItem).mockResolvedValue({ targetMembershipCreated: true });
+      });
+
+      it('has the list/grid toggle, the order chips, a selected count, and "+ 새 컬렉션 만들기" with a folder-style icon', async () => {
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+
+        expect(picker(renderer).props.visible).toBe(true);
+        expect(picker(renderer).findAllByType(ViewModeToggle)).toHaveLength(1);
+        expect(picker(renderer).props.sort.value).toBe('newest');
+        expect(picker(renderer).props.viewModeKey).toBe('replicatePickerViewMode');
+        // The create entry leads the list, labelled 새 컬렉션 만들기 and drawn as a folder.
+        expect(picker(renderer).props.showCreateTile ?? true).toBe(true);
+        expect(picker(renderer).props.createLabel).toBe('추가');
+        expect(picker(renderer).props.createAccessibilityLabel).toBe('새 컬렉션 만들기');
+        const create = renderer.root.findAll(node => node.props.accessibilityLabel === '새 컬렉션 만들기' && typeof node.props.onPress === 'function')[0];
+        expect(create).toBeDefined();
+        // Short on screen (it was cramped), complete for a screen reader.
+        expect(create.findAllByType(Text).map(node => node.props.children)).toEqual(['추가']);
+        expect(create.findAllByType(FolderPlusIcon)).toHaveLength(1);
+        expect(renderer.root.findAllByType(Text).some(node => node.props.children === '0개 선택됨')).toBe(true);
+      });
+
+      it('the Collection the link is moved out of is shown but cannot be chosen', async () => {
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+
+        expect(optionOf(renderer, 1).props.accessibilityState).toEqual({ selected: false, disabled: true });
+        await act(async () => optionOf(renderer, 1).props.onPress());
+        expect(picker(renderer).props.selectedIds.size).toBe(0);
+        // Nothing is chosen yet, so 이동 is off.
+        expect(renderer.root.findAll(node => node.props.testID === 'category-picker-submit')[0].props.disabled).toBe(true);
+      });
+
+      it('one destination at a time: choosing another replaces the choice, and the count stays 1', async () => {
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+
+        await act(async () => optionOf(renderer, 2).props.onPress());
+        await act(async () => optionOf(renderer, 3).props.onPress());
+        expect([...picker(renderer).props.selectedIds]).toEqual([3]);
+        await act(async () => renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0].props.onPress());
+        expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 3, null);
+      });
+
+      it('"+ 새 컬렉션 만들기" creates the Collection, chooses it at once, and the move goes there', async () => {
+        const created = makeCollection({ id: 11, name: 'Fresh' });
+        jest.mocked(createCollection).mockResolvedValue(created);
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+
+        await act(async () => renderer.root.findAll(node => node.props.accessibilityLabel === '새 컬렉션 만들기' && typeof node.props.onPress === 'function')[0].props.onPress());
+        expect(picker(renderer).props.isCreateDialogVisible).toBe(true);
+        let accepted = false;
+        await act(async () => {
+          accepted = await picker(renderer).props.onCreateCollection('  Fresh  ', 'Folder', 'blue');
+        });
+
+        expect(accepted).toBe(true);
+        expect(createCollection).toHaveBeenCalledWith(expect.anything(), 'Fresh', 'Folder', 'blue');
+        expect(picker(renderer).props.isCreateDialogVisible).toBe(false);
+        expect(picker(renderer).props.collectionPool[0]).toEqual(created);
+        expect([...picker(renderer).props.selectedIds]).toEqual([11]);
+        await act(async () => renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0].props.onPress());
+        expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 11, null);
+      });
+
+      it('a locked destination asks for its password first and its grant travels with the move', async () => {
+        jest.mocked(getCollections).mockResolvedValue({ items: [SOURCE, makeCollection({ id: 2, name: 'Target', isLocked: true })], nextCursor: null });
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+
+        await act(async () => optionOf(renderer, 2).props.onPress());
+        expect(picker(renderer).props.unlockTarget).toEqual(expect.objectContaining({ id: 2 }));
+        await act(async () => picker(renderer).props.onUnlockGranted('grant-2'));
+        await act(async () => renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0].props.onPress());
+        expect(transferCollectionItem).toHaveBeenCalledWith(expect.anything(), 1, 9, 2, 'grant-2');
+      });
+
+      it('a collection with members moves a link of mine as add + remove (the atomic move refuses shared Collections)', async () => {
+        jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
+        jest.mocked(addItemToCollection).mockResolvedValue('added');
+        jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+        await moveViaPicker(renderer);
+
+        expect(transferCollectionItem).not.toHaveBeenCalled();
+        expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 2, 9, { unlockToken: null });
+        expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
+      });
+
+      it('if the server still refuses the atomic move (a pending invitation), it falls back to add + remove', async () => {
+        jest.mocked(transferCollectionItem).mockRejectedValue(new ApiError('conflict', 409, 'collaborationActive'));
+        jest.mocked(addItemToCollection).mockResolvedValue('added');
+        jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+        const renderer = await renderScreen(); await openItemMenu(renderer);
+        await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
+        await moveViaPicker(renderer);
+
+        expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 2, 9, { unlockToken: null });
+        expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 1, 9);
+      });
     });
   });
 
@@ -1598,12 +1693,32 @@ describe('CollectionDetailsScreen', () => {
       expect(texts(renderer)).toContain('이미 포함됨');
       expect(texts(renderer)).toContain('0개 선택됨');
       expect(submitButton(renderer).props.disabled).toBe(true);
-      expect(picker(renderer).props.showCreateTile).toBe(false);
+      // "+ 새 컬렉션 만들기" leads the list, with a folder-style icon.
+      expect(picker(renderer).props.createLabel).toBe('추가');
+        expect(picker(renderer).props.createAccessibilityLabel).toBe('새 컬렉션 만들기');
+      expect(renderer.root.findAll(node => node.props.accessibilityLabel === '새 컬렉션 만들기' && typeof node.props.onPress === 'function')[0].findAllByType(FolderPlusIcon)).toHaveLength(1);
       expect(picker(renderer).props.viewModeKey).toBe('replicatePickerViewMode');
 
       // Tapping an already-included one does nothing.
       await tap(renderer, 6);
       expect(picker(renderer).props.selectedIds.size).toBe(0);
+    });
+
+    it('"+ 새 컬렉션 만들기" in 복제: the new Collection is chosen at once and joins the others in the one request', async () => {
+      jest.mocked(createCollection).mockResolvedValue(makeCollection({ id: 12, name: 'Fresh' }));
+      const renderer = await renderScreen();
+      await openReplicate(renderer);
+      await tap(renderer, 2);
+
+      await act(async () => renderer.root.findAll(node => node.props.accessibilityLabel === '새 컬렉션 만들기' && typeof node.props.onPress === 'function')[0].props.onPress());
+      await act(async () => {
+        await picker(renderer).props.onCreateCollection('Fresh', 'Folder', 'blue');
+      });
+      expect([...picker(renderer).props.selectedIds]).toEqual([2, 12]);
+      expect(shownNames(renderer)[0]).toBe('Fresh');
+      await act(async () => submitButton(renderer).props.onPress());
+
+      expect(addItemToCollections).toHaveBeenCalledWith(expect.anything(), 9, [2, 12], {});
     });
 
     it('one Collection: 복제 puts the link there and says so', async () => {

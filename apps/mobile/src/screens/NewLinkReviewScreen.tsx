@@ -11,13 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 import { ApiError } from '../api/ApiError';
 import { linkProposalErrorMessage } from '../collections/linkProposals';
+import { formatSaveOutcomeMessage } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { addItemToCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
 import { CategoryField } from '../collections/CategoryField';
 import { needsUnlockForContent } from '../collections/collectionAccess';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
-import { useAppToast } from '../components/AppToast';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { EditIcon } from '../icons/EditIcon';
@@ -119,7 +119,6 @@ function getPhotoUploadErrorMessage(error: unknown, t: TFunction): string {
  */
 export function NewLinkReviewScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
-  const { showNotificationToast } = useAppToast();
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
 
@@ -150,6 +149,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The result of a save that proposed the link to 승인 후 추가 Collections - a dialog (never a toast that
+  // can be missed); whatever should follow the save (leaving the screen) waits for its 확인.
+  const [submissionResult, setSubmissionResult] = useState<{ readonly message: string; readonly onDone: () => void } | null>(null);
 
   // Compact source row (icon + site name) by default - raw URL text only appears while the user has
   // deliberately opened it for editing (e.g. fixing a malformed shared URL), never as a passive
@@ -508,9 +510,13 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       }
 
       if (proposed > 0) {
-        showNotificationToast(t('collections.linkSubmitted'));
+        setSubmissionResult({
+          message: formatSaveOutcomeMessage({ added: selectedCollections.length - proposed, submitted: proposed }, t),
+          onDone: onSuccess,
+        });
+      } else {
+        onSuccess();
       }
-      onSuccess();
     } catch (caughtError) {
       setError(getSaveErrorMessage(caughtError, t));
     } finally {
@@ -729,6 +735,18 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         accidental backdrop tap or hardware back press (ConfirmDialog's dismiss falls back to
         onCancel) can never discard data by mistake.
       */}
+      <ConfirmDialog
+        confirmLabel={t('common.confirm')}
+        destructive={false}
+        message={submissionResult?.message ?? ''}
+        onConfirm={() => {
+          const done = submissionResult?.onDone;
+          setSubmissionResult(null);
+          done?.();
+        }}
+        title={t('collections.saveOutcomeTitle')}
+        visible={submissionResult !== null}
+      />
       <ConfirmDialog
         cancelLabel={t('item.saveDraftAndContinue')}
         confirmLabel={t('item.discardDraftAndContinue')}

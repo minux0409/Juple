@@ -96,15 +96,17 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 const texts = (node: Renderer | ReactTestRenderer.ReactTestInstance) =>
   ('root' in node ? node.root : node).findAllByType(Text).map(text => String(text.props.children));
 const byId = (renderer: Renderer, testID: string) => renderer.root.findByProps({ testID });
-/** The public link's on/off switch (in its card header). */
-const publicToggle = (renderer: Renderer) =>
-  renderer.root.findAll(node => node.props.testID === 'share-public-toggle' && typeof node.props.onValueChange === 'function')[0];
+/** The public link's OFF | ON control (in its card header): one pill whose two sides are written inside it. */
+const publicSide = (renderer: Renderer, side: 'on' | 'off') => byId(renderer, `share-public-toggle-${side}`);
+const publicToggle = (renderer: Renderer) => publicSide(renderer, 'on');
+const isPublicOn = (renderer: Renderer) => publicSide(renderer, 'on').props.accessibilityState.checked === true;
 async function turnPublic(renderer: Renderer, value: boolean) {
-  const onValueChange = publicToggle(renderer).props.onValueChange;
   await act(async () => {
-    await onValueChange(value);
+    await publicSide(renderer, value ? 'on' : 'off').props.onPress();
   });
 }
+const raisePrompt = (renderer: Renderer) =>
+  renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('shareSheet.raiseRolesTitle'))[0];
 const exists = (renderer: Renderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID).length > 0;
 
 const collection: Collection = {
@@ -229,7 +231,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     expect(texts(renderer)).not.toContain('공개 링크 공유');
     expect(i18n.t('shareSheet.inviteTitle')).toBe('친구 초대');
     // No public link yet: the switch says OFF, and there is nothing to share.
-    expect(texts(byId(renderer, 'share-public-state'))).toEqual(['OFF']);
+    expect(texts(byId(renderer, 'share-public-toggle'))).toEqual(['OFF', 'ON']);
+    expect(isPublicOn(renderer)).toBe(false);
     expect(exists(renderer, 'share-link-action')).toBe(false);
     // Only the in-card tab bars remain; no 일반 공유 / 공동작업 split and none of the old wording.
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
@@ -250,51 +253,52 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
   });
 
   describe('모든 사용자 (the public link: 읽기 or 작성)', () => {
-    it('the switch turns it on as 읽기 전용 ([ON][switch] in the header, no URL shown, a compact 공유 action at the end of the card), and off only after confirming', async () => {
+    it('the OFF | ON control turns it on as 읽기 전용 ([공유] [OFF | ON] in the header, no outside ON/OFF text, no URL shown), and off only after confirming', async () => {
       jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       jest.mocked(revokeCollectionShare).mockResolvedValue(undefined);
       const renderer = await renderScreen();
       // Off at first: no link, no 공유 중, and no separate 공유 시작 / 공유 중지 buttons any more.
-      expect(publicToggle(renderer).props.value).toBe(false);
-      expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+      expect(isPublicOn(renderer)).toBe(false);
+      expect(publicSide(renderer, 'off').props.accessibilityState.checked).toBe(true);
+      expect(renderer.root.findAll(node => node.props.testID === 'share-public-toggle' && node.props.accessibilityRole === 'radiogroup')[0].props.accessibilityLabel).toBe('컬렉션 공개');
+      // The two states are written inside the control itself - never as separate text beside it.
+      expect(texts(byId(renderer, 'share-public-toggle'))).toEqual(['OFF', 'ON']);
+      expect(exists(renderer, 'share-public-state')).toBe(false);
       // Off: no share action either - there is nothing to share yet.
       for (const gone of ['share-create-link', 'share-stop', 'share-all-users-status', 'share-link', 'share-link-row', 'share-link-action']) {
         expect(exists(renderer, gone)).toBe(false);
       }
-      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['OFF']);
 
       expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
       expect(texts(byId(renderer, 'share-all-users-description'))).toEqual(['방문자는 컬렉션의 링크를 볼 수만 있습니다.']);
       await turnPublic(renderer, true);
       expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'read');
-      // On: the header is [컬렉션 공개] ... [ON] [switch] - no 공유 중 pill, and the URL is not shown anywhere.
-      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      // On: ON is the chosen side, and the URL is not shown anywhere.
+      expect(isPublicOn(renderer)).toBe(true);
       for (const gone of ['share-all-users-status', 'share-link', 'share-link-row']) {
         expect(exists(renderer, gone)).toBe(false);
       }
       expect(texts(renderer).some(text => text.includes('https://juple.test/c/p'))).toBe(false);
 
-      // The share action: compact (icon + 공유, no box), at least 44dp, alone at the end of the card -
-      // never in the header next to the switch, never inside the permission field.
+      // The share action: icon-only, a full 44dp target, in the header to the start side of the
+      // OFF | ON control with a wide gap between them (a tap meant for one never lands on the other).
       const shareAction = renderer.root.findAll(node => node.props.testID === 'share-link-action' && typeof node.props.onPress === 'function')[0];
       expect(shareAction.props.accessibilityLabel).toBe('컬렉션 링크 공유');
-      expect(texts(shareAction)).toEqual([i18n.t('common.share')]);
       const actionStyle = StyleSheet.flatten(shareAction.props.style);
       expect(actionStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }));
       expect(actionStyle.backgroundColor).toBeUndefined();
       expect(actionStyle.borderWidth).toBeUndefined();
       const header = renderer.root.findAll(node => node.type === Text && node.props.children === '컬렉션 공개' && node.props.accessibilityRole === 'header')[0].parent!;
-      expect(header.findAll(node => node.props.testID === 'share-link-action')).toHaveLength(0);
-      const headerOrder = header.findAll(node => typeof node.type === 'string' && ['share-public-state', 'share-public-toggle'].includes(node.props.testID))
+      const headerOrder = header.findAll(node => typeof node.type === 'string' && ['share-link-action', 'share-public-toggle'].includes(node.props.testID))
         .map(node => node.props.testID);
-      expect(headerOrder.filter((id, index) => headerOrder.indexOf(id) === index)).toEqual(['share-public-state', 'share-public-toggle']);
+      expect(headerOrder.filter((id, index) => headerOrder.indexOf(id) === index)).toEqual(['share-link-action', 'share-public-toggle']);
+      const trailing = header.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.flexDirection === 'row'
+        && node.findAll(inner => inner.props.testID === 'share-link-action').length > 0
+        && node.findAll(inner => inner.props.testID === 'share-public-toggle').length > 0);
+      expect(StyleSheet.flatten(trailing[trailing.length - 1].props.style).gap).toBeGreaterThanOrEqual(16);
+      // Not in the card body any more (neither in the permission field nor below the description).
       const permissionField = renderer.root.findAll(node => node.type === Text && node.props.children === '권한')[0].parent!;
       expect(permissionField.findAll(node => node.props.testID === 'share-link-action')).toHaveLength(0);
-      // After the description, last in the card.
-      const order = byId(renderer, 'share-all-users')
-        .findAll(node => typeof node.type === 'string' && ['share-all-users-description', 'share-link-action'].includes(node.props.testID))
-        .map(node => node.props.testID);
-      expect(order.filter((id, index) => order.indexOf(id) === index)).toEqual(['share-all-users-description', 'share-link-action']);
       await act(async () => {
         await shareAction.props.onPress();
       });
@@ -302,7 +306,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(shareItem).toHaveBeenCalledWith('https://juple.test/c/p', 'Trip');
       expect(exists(renderer, 'link-share-sheet')).toBe(false);
 
-      expect(publicToggle(renderer).props.value).toBe(true);
+      expect(isPublicOn(renderer)).toBe(true);
 
       await turnPublic(renderer, false);
       expect(revokeCollectionShare).not.toHaveBeenCalled(); // asks first
@@ -311,7 +315,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         confirm.findAll(node => node.props.accessibilityLabel === i18n.t('shareSheet.stopSharing') && typeof node.props.onPress === 'function')[0].props.onPress();
       });
       expect(revokeCollectionShare).toHaveBeenCalledWith(expect.anything(), 5);
-      expect(publicToggle(renderer).props.value).toBe(false);
+      expect(isPublicOn(renderer)).toBe(false);
       expect(exists(renderer, 'share-link')).toBe(false);
       expect(exists(renderer, 'share-link-action')).toBe(false);
     });
@@ -365,27 +369,52 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
     });
 
-    it('링크 추가 for everyone is blocked while someone is 읽기 전용 - with the reason and a way to review them; nobody is changed', async () => {
+    it('링크 추가 for everyone while someone is 읽기 전용: nothing is blocked or shown in red - turning it on asks first, and only a yes changes them', async () => {
       jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
       const renderer = await renderScreen();
       await press(renderer, 'share-all-users-permission-write');
 
-      expect(publicToggle(renderer).props.disabled).toBe(true);
-      expect(texts(byId(renderer, 'share-public-blocked'))).toEqual(expect.arrayContaining([
-        i18n.t('shareSheet.permissionMismatch'),
-        i18n.t('shareSheet.permissionMismatchHint'),
-      ]));
+      // No passive blocking notice and the control stays usable.
+      expect(publicToggle(renderer).props.disabled).toBe(false);
+      expect(exists(renderer, 'share-public-blocked')).toBe(false);
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+
       await turnPublic(renderer, true);
+      // The question, with who it affects (the reader and the pending reader) - nothing sent yet.
       expect(enableCollectionShare).not.toHaveBeenCalled();
+      expect(raisePrompt(renderer).props.message).toBe(i18n.t('shareSheet.raiseRolesMessage', { count: 2, permission: i18n.t('shareSheet.permissionWrite') }));
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
       expect(changeInvitationRole).not.toHaveBeenCalled();
 
-      // Everyone is 링크 추가 already: sharing with everyone as 링크 추가 is fine.
+      // No: nothing changes - still off, still asking for nothing.
+      await act(async () => {
+        raisePrompt(renderer).props.onCancel();
+      });
+      expect(raisePrompt(renderer)).toBeUndefined();
+      expect(enableCollectionShare).not.toHaveBeenCalled();
+      expect(isPublicOn(renderer)).toBe(false);
+
+      // Yes: the server turns it on and raises them in one request, then the lists are read again.
+      await turnPublic(renderer, true);
+      jest.mocked(getCollectionParticipants).mockClear();
+      await act(async () => {
+        raisePrompt(renderer).props.onConfirm();
+      });
+      expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'write', { raiseLowerRoles: true });
+      expect(isPublicOn(renderer)).toBe(true);
+      expect(getCollectionParticipants).toHaveBeenCalled();
+      // The people are raised by that one request - never by separate per-person calls.
+      expect(changeCollaboratorRole).not.toHaveBeenCalled();
+      expect(changeInvitationRole).not.toHaveBeenCalled();
+
+      // Everyone is 링크 추가 already: no question at all.
+      jest.mocked(enableCollectionShare).mockClear();
       jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]], pendingInvitations: [] });
       const writable = await renderScreen();
       await press(writable, 'share-all-users-permission-write');
-      expect(exists(writable, 'share-public-blocked')).toBe(false);
       await turnPublic(writable, true);
+      expect(raisePrompt(writable)).toBeUndefined();
       expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'write');
     });
 
@@ -427,31 +456,36 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(texts(renderer.root)).toContain(i18n.t('collections.errorShareManagementFallback'));
     });
 
-    it('a refused 링크 추가 attempt says so, and the reason goes away as soon as 읽기 전용 is chosen', async () => {
+    it('an active 읽기 전용 link switched to 링크 추가 while someone is below it: no red message - saying no leaves the selector exactly where it was', async () => {
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
-      jest.mocked(setCollectionSharePermission).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
 
       await press(renderer, 'share-all-users-permission-write');
-      expect(texts(renderer.root)).toContain(i18n.t('shareSheet.permissionMismatch'));
-      expect(i18n.t('shareSheet.permissionMismatch')).toBe('컬렉션 공개 권한보다 낮은 권한으로 공유 중인 사용자가 있어 이 권한을 적용할 수 없어요.');
+      expect(raisePrompt(renderer)).toBeDefined();
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+      // Asked, not yet applied: the selector still shows the link's own permission.
+      expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
 
       await act(async () => {
-        byId(renderer, 'share-all-users-permission-read').props.onPress();
+        raisePrompt(renderer).props.onCancel();
       });
+      expect(setCollectionSharePermission).not.toHaveBeenCalled();
+      expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
+      expect(byId(renderer, 'share-all-users-permission-write').props.accessibilityState.checked).toBe(false);
       expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
     });
 
-    it('before the link exists: choosing 링크 추가 shows the reason, going back to 읽기 전용 removes it and allows starting', async () => {
+    it('before the link exists: choosing 링크 추가 shows no reason and blocks nothing; the question comes when turning it on', async () => {
       jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
       const renderer = await renderScreen();
 
       await press(renderer, 'share-all-users-permission-write');
-      expect(exists(renderer, 'share-public-blocked')).toBe(true);
+      expect(exists(renderer, 'share-public-blocked')).toBe(false);
+      expect(raisePrompt(renderer)).toBeUndefined();
+      expect(publicToggle(renderer).props.disabled).toBe(false);
       await press(renderer, 'share-all-users-permission-read');
 
-      expect(exists(renderer, 'share-public-blocked')).toBe(false);
       expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
       expect(publicToggle(renderer).props.disabled).toBe(false);
     });
@@ -468,16 +502,172 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
     });
 
-    it('switching an active link to a permission some people do not have is refused - nobody is changed', async () => {
+    it('switching an active link to a permission some people do not have: a yes saves it and raises them in the same request', async () => {
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      jest.mocked(setCollectionSharePermission).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
       const renderer = await renderScreen();
 
       await press(renderer, 'share-all-users-permission-write');
-
       expect(setCollectionSharePermission).not.toHaveBeenCalled();
+      expect(raisePrompt(renderer).props.message).toBe(i18n.t('shareSheet.raiseRolesMessage', { count: 2, permission: i18n.t('shareSheet.permissionWrite') }));
+
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, { ...readersOnly.participants[1], role: 'contributor' }], pendingInvitations: [] });
+      await act(async () => {
+        raisePrompt(renderer).props.onConfirm();
+      });
+      expect(setCollectionSharePermission).toHaveBeenCalledWith(expect.anything(), 5, 'write', { raiseLowerRoles: true });
+      expect(byId(renderer, 'share-all-users-permission-write').props.accessibilityState.checked).toBe(true);
       expect(changeCollaboratorRole).not.toHaveBeenCalled();
-      expect(texts(renderer.root)).toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(changeInvitationRole).not.toHaveBeenCalled();
+    });
+
+    describe('"함께 변경" really changes the roles, and the screen shows it', () => {
+      const activeRead = { publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' as const };
+      const confirm = async (renderer: Renderer) => {
+        await act(async () => {
+          raisePrompt(renderer).props.onConfirm();
+        });
+      };
+      const chipLabels = (renderer: Renderer) => texts(byId(renderer, 'share-status'));
+
+      it.each([
+        ['읽기 전용 -> 승인 후 추가', 'submit', 'submitter', 2],
+        ['읽기 전용 -> 링크 추가', 'write', 'contributor', 2],
+      ] as const)('%s: the member and the pending invitation below it are raised by the server in one request, then the lists are read again', async (_label, permission, role, count) => {
+        jest.mocked(getCollectionShare).mockResolvedValue(activeRead);
+        jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+        jest.mocked(setCollectionSharePermission).mockResolvedValue({ ...activeRead, permission });
+        const renderer = await renderScreen();
+
+        await press(renderer, `share-all-users-permission-${permission}`);
+        expect(raisePrompt(renderer).props.message).toBe(i18n.t('shareSheet.raiseRolesMessage', { count, permission: i18n.t(permission === 'write' ? 'shareSheet.permissionWrite' : 'shareSheet.permissionSubmit') }));
+        expect(chipLabels(renderer)).toContain(i18n.t('shareSheet.permissionRead'));
+
+        // The server now holds the raised roles.
+        const raised = { ...readersOnly, participants: [owner, { ...readersOnly.participants[1], role }], pendingInvitations: [{ ...readersOnly.pendingInvitations[0], role: role === 'submitter' ? 'Submitter' : 'Contributor' }] };
+        jest.mocked(getCollectionParticipants).mockResolvedValue(raised as never);
+        jest.mocked(getCollectionParticipants).mockClear();
+        await confirm(renderer);
+        // The list reload finished before the screen settled - the chips below are the server's.
+        expect(getCollectionParticipants).toHaveBeenCalledTimes(1);
+        expect(changeCollaboratorRole).not.toHaveBeenCalled();
+        expect(changeInvitationRole).not.toHaveBeenCalled();
+
+        expect(setCollectionSharePermission).toHaveBeenCalledTimes(1);
+        expect(setCollectionSharePermission).toHaveBeenCalledWith(expect.anything(), 5, permission, { raiseLowerRoles: true });
+        // The new permission, the new roles on screen, and no conflict text anywhere.
+        expect(byId(renderer, `share-all-users-permission-${permission}`).props.accessibilityState.checked).toBe(true);
+        expect(chipLabels(renderer)).not.toContain(i18n.t('shareSheet.permissionRead'));
+        expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+        expect(texts(renderer.root)).not.toContain(i18n.t('collections.errorShareManagementFallback'));
+        expect(raisePrompt(renderer)).toBeUndefined();
+      });
+
+      it('승인 후 추가 -> 링크 추가: only those below 링크 추가 are raised - a member who is already 링크 추가 is untouched', async () => {
+        jest.mocked(getCollectionShare).mockResolvedValue({ ...activeRead, permission: 'submit' });
+        jest.mocked(getCollectionParticipants).mockResolvedValue({
+          participants: [owner, { jupleId: 'SUBM2345', displayName: '꼬부기', role: 'submitter' }, { jupleId: 'WRTR2345', displayName: '파이리', role: 'contributor' }],
+          pendingInvitations: [], canManage: true,
+        });
+        jest.mocked(setCollectionSharePermission).mockResolvedValue({ ...activeRead, permission: 'write' });
+        const renderer = await renderScreen();
+
+        await press(renderer, 'share-all-users-permission-write');
+        // One person is below it - the one already at 링크 추가 is not counted.
+        expect(raisePrompt(renderer).props.message).toBe(i18n.t('shareSheet.raiseRolesMessage', { count: 1, permission: i18n.t('shareSheet.permissionWrite') }));
+        await confirm(renderer);
+
+        expect(setCollectionSharePermission).toHaveBeenCalledWith(expect.anything(), 5, 'write', { raiseLowerRoles: true });
+        expect(changeCollaboratorRole).not.toHaveBeenCalled();
+      });
+
+      it('409 on the confirmed request (someone lower is still there): the lists are re-read, the conflict re-evaluated, and the question comes again - nobody is changed one by one', async () => {
+        jest.mocked(getCollectionShare).mockResolvedValue(activeRead);
+        jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+        jest.mocked(setCollectionSharePermission).mockRejectedValue(new ApiError('conflict', 409, 'publicSharePermissionMismatch'));
+        const renderer = await renderScreen();
+
+        await press(renderer, 'share-all-users-permission-write');
+        jest.mocked(getCollectionParticipants).mockClear();
+        await confirm(renderer);
+
+        expect(setCollectionSharePermission).toHaveBeenCalledTimes(1);
+        expect(setCollectionSharePermission).toHaveBeenCalledWith(expect.anything(), 5, 'write', { raiseLowerRoles: true });
+        // Re-read, then asked again from the fresh state - never the red message, never per-person calls.
+        expect(getCollectionParticipants).toHaveBeenCalled();
+        expect(raisePrompt(renderer)).toBeDefined();
+        expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+        expect(changeCollaboratorRole).not.toHaveBeenCalled();
+        expect(changeInvitationRole).not.toHaveBeenCalled();
+      });
+
+      it('409, but the re-read shows nobody below it any more: the plain change goes through, still with no per-person calls', async () => {
+        jest.mocked(getCollectionShare).mockResolvedValue(activeRead);
+        jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+        jest.mocked(setCollectionSharePermission)
+          .mockRejectedValueOnce(new ApiError('conflict', 409, 'publicSharePermissionMismatch'))
+          .mockResolvedValueOnce({ ...activeRead, permission: 'write' });
+        const renderer = await renderScreen();
+
+        await press(renderer, 'share-all-users-permission-write');
+        // The invitee answered / was raised elsewhere meanwhile: nothing is below 링크 추가 now.
+        jest.mocked(getCollectionParticipants).mockResolvedValue({ participants: [owner], pendingInvitations: [], canManage: true });
+        await confirm(renderer);
+
+        expect(setCollectionSharePermission).toHaveBeenNthCalledWith(1, expect.anything(), 5, 'write', { raiseLowerRoles: true });
+        expect(setCollectionSharePermission).toHaveBeenNthCalledWith(2, expect.anything(), 5, 'write');
+        expect(byId(renderer, 'share-all-users-permission-write').props.accessibilityState.checked).toBe(true);
+        expect(raisePrompt(renderer)).toBeUndefined();
+        expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+        expect(changeCollaboratorRole).not.toHaveBeenCalled();
+        expect(changeInvitationRole).not.toHaveBeenCalled();
+      });
+
+      it('an unrelated failure of the confirmed request shows the common error - no prompt, no per-person calls', async () => {
+        jest.mocked(getCollectionShare).mockResolvedValue(activeRead);
+        jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+        jest.mocked(setCollectionSharePermission).mockRejectedValue(new ApiError('unavailable', 503));
+        const renderer = await renderScreen();
+
+        await press(renderer, 'share-all-users-permission-write');
+        await confirm(renderer);
+
+        expect(raisePrompt(renderer)).toBeUndefined();
+        expect(texts(renderer.root)).toContain(i18n.t('collections.errorShareManagementFallback'));
+        expect(changeCollaboratorRole).not.toHaveBeenCalled();
+        expect(changeInvitationRole).not.toHaveBeenCalled();
+      });
+
+      it('no changes anywhere when the Owner says no', async () => {
+        jest.mocked(getCollectionShare).mockResolvedValue(activeRead);
+        jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+        const renderer = await renderScreen();
+
+        await press(renderer, 'share-all-users-permission-submit');
+        await act(async () => {
+          raisePrompt(renderer).props.onCancel();
+        });
+
+        expect(setCollectionSharePermission).not.toHaveBeenCalled();
+        expect(changeCollaboratorRole).not.toHaveBeenCalled();
+        expect(changeInvitationRole).not.toHaveBeenCalled();
+        expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
+      });
+    });
+
+    it('someone lower appeared since the lists were read (the server refuses): the lists are re-read and the same question is asked - never a red message', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue({ ...withWriter, participants: [owner, withWriter.participants[2]], pendingInvitations: [] });
+      jest.mocked(setCollectionSharePermission).mockRejectedValueOnce(new ApiError('conflict', 409, 'publicSharePermissionMismatch'));
+      const renderer = await renderScreen();
+
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      await press(renderer, 'share-all-users-permission-write');
+
+      expect(raisePrompt(renderer)).toBeDefined();
+      expect(texts(renderer.root)).not.toContain(i18n.t('shareSheet.permissionMismatch'));
+      expect(texts(renderer.root)).not.toContain(i18n.t('collections.errorShareManagementFallback'));
     });
   });
 
@@ -821,7 +1011,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
       const renderer = await renderScreen();
 
-      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      expect(isPublicOn(renderer)).toBe(true);
       expect(exists(renderer, 'share-link-action')).toBe(true);
       expect(exists(renderer, 'invite-choose-friends')).toBe(true);
       expect(texts(byId(renderer, 'share-status-tabs-members'))).toEqual([i18n.t('shareSheet.statusTabMembers', { count: 3 })]);
@@ -842,7 +1032,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await act(async () => {
         emitSocialPushEvent({ type: 'collectionInvitationAnswered', collectionId: 5 });
       });
-      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      expect(isPublicOn(renderer)).toBe(true);
 
       expect(exists(renderer, 'draft-AAAA2345')).toBe(true);
       expect(byId(renderer, 'id-invite-input').props.value).toBe('BBBB-2345');
@@ -1126,7 +1316,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
 
-      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      expect(isPublicOn(renderer)).toBe(true);
       expect(exists(renderer, 'share-link-action')).toBe(true);
       expect(exists(renderer, 'share-public-migration-required')).toBe(false);
     });

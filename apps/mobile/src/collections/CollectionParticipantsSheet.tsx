@@ -96,7 +96,8 @@ export function CollectionParticipantsSheet({
   const canManage = data?.canManage === true;
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
+    // No slide-up: the list appears at once (a window-wide slide would drag the dim backdrop up with it).
+    <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <Pressable
           accessibilityElementsHidden

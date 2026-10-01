@@ -187,8 +187,10 @@ export function CollectionLinkShareSheet({
 
   return (
     <>
+      {/* No slide-up: the chooser appears at once (a window-wide slide would drag the dim backdrop up
+          with it, drawing the eye to motion that shouldn't be there). */}
       <Modal
-        animationType="slide"
+        animationType="none"
         onRequestClose={onClose}
         transparent
         // Steps aside while the friend picker is up (one modal at a time on iOS), and comes back with
@@ -204,7 +206,6 @@ export function CollectionLinkShareSheet({
                 <CloseIcon color={colors.textSecondary} size={20} />
               </Pressable>
             </View>
-            <Text style={styles.description}>{t('linkShare.description')}</Text>
 
             {/* [친구] [ID] choose who gets it inside Juple; [외부 공유] hands the link to the OS share sheet. */}
             <View accessibilityRole="tablist" style={styles.modes}>
@@ -350,7 +351,6 @@ const styles = StyleSheet.create({
   },
   headerRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
-  description: { color: colors.textSecondary, fontSize: 13 },
   iconButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
   modes: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 2, flexDirection: 'row', gap: 2, padding: 2 },
   mode: {

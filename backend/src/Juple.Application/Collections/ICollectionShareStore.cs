@@ -21,17 +21,22 @@ public interface ICollectionShareStore
         string candidatePublicId,
         DateTimeOffset enabledAtUtc,
         Juple.Domain.Collections.CollectionSharePermission permission = Juple.Domain.Collections.CollectionSharePermission.Read,
+        bool raiseLowerRoles = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Changes what the active public link allows (Read / Write). Null when the Collection is owned
     /// but has no active share. CollectionNotFoundException for a missing or other-user's Collection.
+    /// raiseLowerRoles: instead of refusing while a member or pending invitation is below the new
+    /// permission's minimum role (publicSharePermissionMismatch), raise exactly those roles to the
+    /// minimum in the same transaction as the permission change - all or nothing.
     /// </summary>
     Task<CollectionShareDto?> SetPermissionAsync(
         long userId,
         long collectionId,
         Juple.Domain.Collections.CollectionSharePermission permission,
         DateTimeOffset updatedAtUtc,
+        bool raiseLowerRoles = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

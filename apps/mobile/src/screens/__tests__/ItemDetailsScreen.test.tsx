@@ -601,7 +601,11 @@ describe('ItemDetailsScreen', () => {
       });
 
       expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 1, expect.anything());
-      expect(renderer.root.findAllByType(Text).some(node => node.props.children === '승인 요청을 보냈어요.')).toBe(true);
+      // A dialog, not a toast: the link itself is saved, and the request was sent.
+      const dialog = renderer.root.findAll(
+        node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('collections.saveOutcomeTitle'),
+      )[0];
+      expect(dialog.props.message).toBe(i18n.t('collections.saveOutcomeSubmitted', { count: 1 }));
       expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('item.saved'))).toBe(false);
       // Not a membership: nothing left unsaved, and Save is off again.
       expect(latestPreventRemoveIsDirty()).toBe(false);

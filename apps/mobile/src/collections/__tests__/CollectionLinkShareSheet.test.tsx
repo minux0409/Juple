@@ -61,7 +61,8 @@ describe('CollectionLinkShareSheet', () => {
     expect(shown).toContain('친구');
     expect(shown).toContain('ID');
     expect(shown).toContain('외부 공유');
-    expect(shown).toContain(i18n.t('linkShare.description'));
+    // No explanatory paragraph under the title - just the title, the tabs and the actions.
+    expect(shown).not.toContain(i18n.t('linkShare.description'));
     expect(shown).not.toMatch(/초대/);
 
     await act(async () => byId(renderer, 'link-share-external').props.onPress());
@@ -93,6 +94,15 @@ describe('CollectionLinkShareSheet', () => {
     expect(textOf(renderer, 'link-share-id-error')).toBe(i18n.t('collaboration.lookupNotFound'));
     expect(renderer.root.findAll(node => typeof node.props.testID === 'string' && node.props.testID.startsWith('link-share-recipient-') && !node.props.testID.includes('error'))
       .map(node => node.props.testID).filter((id, index, all) => all.indexOf(id) === index)).toEqual(['link-share-recipient-AAAA2345']);
+  });
+
+  it('opens at once - no slide-up animation dragging the dim backdrop up from the bottom', async () => {
+    const { renderer } = await renderSheet();
+    const { Modal } = require('react-native');
+    const sheetModal = renderer.root.findAllByType(Modal).find(modal => modal.findAll(node => node.props.testID === 'link-share-sheet').length > 0)!;
+
+    expect(sheetModal.props.visible).toBe(true);
+    expect(sheetModal.props.animationType).toBe('none');
   });
 
   it('friends: the picker takes the sheet\'s place while open, and the picked friends join the list', async () => {

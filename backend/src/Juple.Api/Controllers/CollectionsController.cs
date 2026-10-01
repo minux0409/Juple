@@ -510,12 +510,19 @@ public sealed class CollectionsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var share = await enableCollectionShareService.EnableAsync(currentUser.UserId, id, permission, cancellationToken);
+            var share = await enableCollectionShareService.EnableAsync(
+                currentUser.UserId, id, permission, request?.RaiseLowerRoles == true, cancellationToken);
             return Ok(ToShareResponse(share));
         }
         catch (CollectionCollaborationConflictException exception)
         {
             return CollectionProblems.Conflict(exception.Code);
+        }
+        catch (CollectionConcurrencyException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "The Collection was modified concurrently.");
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -618,7 +625,7 @@ public sealed class CollectionsController(
         }
 
         return ExecuteAsync(
-            userId => enableCollectionShareService.SetPermissionAsync(userId, id, permission, cancellationToken),
+            userId => enableCollectionShareService.SetPermissionAsync(userId, id, permission, request.RaiseLowerRoles == true, cancellationToken),
             share => share is null
                 ? CollectionProblems.Create(StatusCodes.Status409Conflict, "There is no active public link.", CollectionProblems.PublicShareNotActive)
                 : Ok(ToShareResponse(share)),
@@ -1421,8 +1428,12 @@ public sealed class CollectionsController(
 
     public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc, string Permission);
 
-    /// <summary>"read" or "write".</summary>
-    public sealed record SetSharePermissionRequest(string? Permission);
+    /// <summary>
+    /// "read", "submit" or "write". RaiseLowerRoles (absent = false): the Owner confirmed raising every
+    /// member / pending invitation below the permission's minimum role to it, atomically, instead of
+    /// the 409 publicSharePermissionMismatch refusal.
+    /// </summary>
+    public sealed record SetSharePermissionRequest(string? Permission, bool? RaiseLowerRoles = null);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
 

@@ -5,13 +5,11 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  Keyboard,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
   type ScrollViewInstance,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -100,6 +98,11 @@ const ROLES: readonly InvitationRole[] = ['viewer', 'submitter', 'contributor'];
 /** 읽기 전용 / 승인 후 추가 / 링크 추가 - the same three words for the public link and for each person. */
 function roleLabelKey(role: InvitationRole): string {
   return role === 'viewer' ? 'shareSheet.permissionRead' : role === 'submitter' ? 'shareSheet.permissionSubmit' : 'shareSheet.permissionWrite';
+}
+
+/** The public link's permission in the words used for people too (읽기 전용 / 승인 후 추가 / 링크 추가). */
+function publicPermissionLabelKey(permission: PublicSharePermission): string {
+  return permission === 'write' ? 'shareSheet.permissionWrite' : permission === 'submit' ? 'shareSheet.permissionSubmit' : 'shareSheet.permissionRead';
 }
 
 /** A person waiting in the invitation batch - picked from friends or found by Juple ID - with their own 읽기 전용/링크 추가 가능. */
@@ -334,6 +337,57 @@ function Segmented<T extends string>({
   );
 }
 
+/**
+ * OFF | ON: one pill with its two states written inside it - no outside text and no sliding thumb.
+ * The current state is filled (ON in the success color, OFF neutral); tapping the other one asks to
+ * change it. Each half is a full touch target tall and at least a thumb wide, so it reads clearly and
+ * stays tappable at 360dp.
+ */
+function OnOffSwitch({
+  value,
+  onChange,
+  disabled = false,
+  label,
+  testID,
+}: {
+  readonly value: boolean;
+  readonly onChange: (next: boolean) => void;
+  readonly disabled?: boolean;
+  /** What is switched (e.g. 컬렉션 공개), announced with the group. */
+  readonly label: string;
+  readonly testID: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View accessibilityLabel={label} accessibilityRole="radiogroup" style={styles.onOff} testID={testID}>
+      {([false, true] as const).map(isOn => {
+        const isSelected = value === isOn;
+        return (
+          <Pressable
+            accessibilityLabel={isOn ? t('shareSheet.publicOn') : t('shareSheet.publicOff')}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isSelected, disabled }}
+            disabled={disabled}
+            hitSlop={{ bottom: 2, top: 2 }}
+            key={isOn ? 'on' : 'off'}
+            onPress={() => {
+              if (!isSelected) {
+                onChange(isOn);
+              }
+            }}
+            style={[styles.onOffSegment, isSelected && (isOn ? styles.onOffSegmentOn : styles.onOffSegmentOff), disabled && styles.disabled]}
+            testID={`${testID}-${isOn ? 'on' : 'off'}`}
+          >
+            <Text numberOfLines={1} style={[styles.onOffLabel, isSelected && (isOn ? styles.onOffLabelOn : styles.onOffLabelOff)]}>
+              {isOn ? t('shareSheet.publicOn') : t('shareSheet.publicOff')}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function SectionCard({
   icon,
   title,
@@ -400,6 +454,9 @@ export function CollectionShareScreen({ route }: Props) {
   // Reported by the 공유 비밀번호 card below (Owner only).
   const [sharePasswordMode, setSharePasswordMode] = useState<SharePasswordMode | null>(null);
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
+  // A public permission that someone below it stands in the way of: the Owner is asked whether to raise
+  // them too (nothing changes until they say yes; no is "never mind" - the selector stays as it was).
+  const [raiseRolesPrompt, setRaiseRolesPrompt] = useState<{ readonly permission: PublicSharePermission; readonly isStart: boolean } | null>(null);
   // 모든 사용자 읽기 전용/링크 추가 가능 chosen before the link exists; once it exists, the link's own permission rules.
   const [pendingPublicPermission, setPendingPublicPermission] = useState<PublicSharePermission>('read');
   const [inviteTab, setInviteTab] = useState<'friends' | 'id'>('friends');
@@ -432,6 +489,7 @@ export function CollectionShareScreen({ route }: Props) {
     if (requestId === participantsRequestRef.current) {
       setParticipants(loaded);
     }
+    return loaded;
   }, [authenticatedRequest, collectionId]);
 
   /** Quiet refresh (no spinner): the link state and both lists, e.g. after someone answered. */
@@ -486,41 +544,32 @@ export function CollectionShareScreen({ route }: Props) {
     (left, right) => ROLE_ORDER[memberRoleOf(left.role)] - ROLE_ORDER[memberRoleOf(right.role)],
   );
   const pendingInvitations = participants?.pendingInvitations ?? [];
-  /** Someone (member or still-pending invitation) below this permission's minimum. */
-  const hasRoleMismatch = (permission: PublicSharePermission): boolean => {
+  /** How many people (members and still-pending invitations) of these lists are below this permission's minimum. */
+  const countBelowIn = (lists: CollectionParticipants | null, permission: PublicSharePermission): number => {
     const minimum = minimumRoleForPublicPermission(permission);
-    if (minimum === null) {
-      return false;
+    if (minimum === null || lists === null) {
+      return 0;
     }
     const isBelow = (role: InvitationRole) => INVITATION_ROLE_RANK[role] < INVITATION_ROLE_RANK[minimum];
     return (
-      members.some(member => member.role !== 'owner' && isBelow(invitationRoleOf(member.role)))
-      || pendingInvitations.some(invitation => isBelow(invitationRoleOf(invitation.role)))
+      lists.participants.filter(member => member.role !== 'owner' && isBelow(invitationRoleOf(member.role))).length
+      + lists.pendingInvitations.filter(invitation => isBelow(invitationRoleOf(invitation.role))).length
     );
   };
+  const countBelowMinimum = (permission: PublicSharePermission): number => countBelowIn(participants, permission);
+  const hasRoleMismatch = (permission: PublicSharePermission): boolean => countBelowMinimum(permission) > 0;
 
   // ---------- 모든 사용자 (public link: 읽기 or 작성) ----------
 
   const publicPermission: PublicSharePermission = share ? share.permission ?? 'read' : pendingPublicPermission;
   // While the link is on, nobody may be below its level (승인 후 추가 or 링크 추가); under 읽기 전용 each keeps their own choice.
   const minimumRole: InvitationRole | null = share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
-  const isPublicBlocked = !share && hasRoleMismatch(pendingPublicPermission);
   // Still protected by the Owner's lock password for the recipients it already had (legacy): no new
   // recipient - neither a new link nor an invitation - until the Owner sets this Collection's own
   // share password or removes the protection in the card below. The server refuses it as well.
   const needsSharePasswordMigration = sharePasswordMode === 'legacyCommonLock';
   // Off → on is held back while it would be refused; on → off (stopping) is always possible.
-  const isPublicToggleDisabled = isManagingShare || (!share && (isPublicBlocked || needsSharePasswordMigration));
-
-  const showMembers = () => {
-    Keyboard.dismiss();
-    setStatusTab('members');
-    setTimeout(() => {
-      if (statusCardRef.current && contentRef.current) {
-        statusCardRef.current.measureLayout(contentRef.current, (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.lg), animated: true }));
-      }
-    }, 50);
-  };
+  const isPublicToggleDisabled = isManagingShare || (!share && needsSharePasswordMigration);
 
   /** Keeps the Juple ID field and its result above the keyboard (edge-to-edge Android no longer resizes). */
   const scrollToIdArea = () => {
@@ -531,24 +580,75 @@ export function CollectionShareScreen({ route }: Props) {
     }, 250);
   };
 
+  /**
+   * Turns the public link on (isStart) or changes its permission. raiseLowerRoles is the Owner's yes to
+   * "also raise the people below it": the server then does both in one transaction. Without it, the
+   * server's refusal (someone was added or lowered since the lists were read) is not an error shown
+   * to the Owner - the lists are refreshed and the same question is asked.
+   */
+  const applyPublicShare = async (permission: PublicSharePermission, isStart: boolean, raiseLowerRoles: boolean) => {
+    setIsManagingShare(true);
+    setShareError(null);
+    // The plain call is exactly what it always was; only a confirmed raise adds the option.
+    const callServer = async (raise: boolean) =>
+      setShare(
+        isStart
+          ? raise
+            ? await enableCollectionShare(authenticatedRequest, collectionId, permission, { raiseLowerRoles: true })
+            : await enableCollectionShare(authenticatedRequest, collectionId, permission)
+          : raise
+            ? await setCollectionSharePermission(authenticatedRequest, collectionId, permission, { raiseLowerRoles: true })
+            : await setCollectionSharePermission(authenticatedRequest, collectionId, permission),
+      );
+    const isMismatch = (error: unknown) =>
+      permission !== 'read' && error instanceof ApiError && error.kind === 'conflict' && error.code === 'publicSharePermissionMismatch';
+    // The lists show what the server has now - never the roles from before the change.
+    const refreshLists = () => loadParticipants().catch(() => null);
+    try {
+      await callServer(raiseLowerRoles);
+      if (raiseLowerRoles) {
+        await refreshLists();
+      }
+    } catch (caughtError) {
+      if (!isMismatch(caughtError)) {
+        setShareError(getShareManagementErrorMessage(caughtError, t, permission));
+      } else {
+        // Someone lower stands in the way (added or lowered since the lists were read). Decide from the
+        // server's own state, and never by changing people one by one from here: the raise is the
+        // server's single transaction or it does not happen.
+        const fresh = await refreshLists();
+        if (fresh === null) {
+          setShareError(t('collections.errorShareManagementFallback'));
+        } else if (countBelowIn(fresh, permission) > 0) {
+          setRaiseRolesPrompt({ permission, isStart });
+        } else {
+          // Nobody is in the way any more: the plain change is exactly right.
+          try {
+            await callServer(false);
+          } catch (retryError) {
+            if (isMismatch(retryError)) {
+              setRaiseRolesPrompt({ permission, isStart });
+            } else {
+              setShareError(getShareManagementErrorMessage(retryError, t, permission));
+            }
+          }
+        }
+      }
+    } finally {
+      setIsManagingShare(false);
+    }
+  };
+
   /** 공유 시작: only this explicit action creates (or, idempotently, returns) the public link. */
   const startPublicShare = async () => {
     if (isManagingShare) {
       return;
     }
     if (hasRoleMismatch(pendingPublicPermission)) {
-      setShareError(t('shareSheet.permissionMismatch'));
+      setRaiseRolesPrompt({ permission: pendingPublicPermission, isStart: true });
       return;
     }
-    setIsManagingShare(true);
-    setShareError(null);
-    try {
-      setShare(await enableCollectionShare(authenticatedRequest, collectionId, pendingPublicPermission));
-    } catch (caughtError) {
-      setShareError(getShareManagementErrorMessage(caughtError, t, pendingPublicPermission));
-    } finally {
-      setIsManagingShare(false);
-    }
+    await applyPublicShare(pendingPublicPermission, true, false);
   };
 
   const stopPublicShare = async () => {
@@ -579,18 +679,12 @@ export function CollectionShareScreen({ route }: Props) {
       return;
     }
     if (hasRoleMismatch(permission)) {
-      setShareError(t('shareSheet.permissionMismatch'));
+      // Someone below it: ask first. The selector shows the link's own permission, so it only moves
+      // once the Owner agrees - saying no leaves it exactly where it was.
+      setRaiseRolesPrompt({ permission, isStart: false });
       return;
     }
-    setIsManagingShare(true);
-    setShareError(null);
-    try {
-      setShare(await setCollectionSharePermission(authenticatedRequest, collectionId, permission));
-    } catch (caughtError) {
-      setShareError(getShareManagementErrorMessage(caughtError, t, permission));
-    } finally {
-      setIsManagingShare(false);
-    }
+    await applyPublicShare(permission, false, false);
   };
 
   const shareLink = async () => {
@@ -851,33 +945,33 @@ export function CollectionShareScreen({ route }: Props) {
               title={t('shareSheet.allUsersTitle')}
               trailing={
                 <View style={styles.headerTrailing}>
-                {/* The state in words next to the switch - decorative for assistive technology, which
-                    already hears the switch's own checked state. */}
-                <Text
-                  accessibilityElementsHidden
-                  importantForAccessibility="no"
-                  numberOfLines={1}
-                  style={[styles.switchState, share !== null && styles.switchStateOn]}
-                  testID="share-public-state"
-                >
-                  {share !== null ? t('shareSheet.publicOn') : t('shareSheet.publicOff')}
-                </Text>
-                {/* On creates the link (the server's own enable), off stops it after a confirmation -
-                    the same two calls the former 공유 시작 / 공유 중지 buttons made. */}
-                <Switch
-                  accessibilityLabel={t('shareSheet.allUsersTitle')}
-                  accessibilityState={{ checked: share !== null, busy: isManagingShare, disabled: isPublicToggleDisabled }}
-                  disabled={isPublicToggleDisabled}
-                  onValueChange={value => {
-                    if (value) {
-                      startPublicShare();
-                    } else {
-                      setIsUnshareConfirmVisible(true);
-                    }
-                  }}
-                  testID="share-public-toggle"
-                  value={share !== null}
-                />
+                  {/* Passing the link on, only while it is on: to the start side of the switch with a
+                      wide gap, so a tap meant for one never lands on the other. */}
+                  {share ? (
+                    <Pressable
+                      accessibilityLabel={t('shareSheet.shareLink')}
+                      accessibilityRole="button"
+                      onPress={shareLink}
+                      style={styles.headerShare}
+                      testID="share-link-action"
+                    >
+                      <ShareIcon color={colors.textPrimary} size={20} />
+                    </Pressable>
+                  ) : null}
+                  {/* On creates the link (the server's own enable), off stops it after a confirmation. */}
+                  <OnOffSwitch
+                    disabled={isPublicToggleDisabled}
+                    label={t('shareSheet.allUsersTitle')}
+                    onChange={isOn => {
+                      if (isOn) {
+                        startPublicShare();
+                      } else {
+                        setIsUnshareConfirmVisible(true);
+                      }
+                    }}
+                    testID="share-public-toggle"
+                    value={share !== null}
+                  />
                 </View>
               }
             >
@@ -907,39 +1001,15 @@ export function CollectionShareScreen({ route }: Props) {
                     ? t('shareSheet.allUsersSubmitDescription')
                     : t('shareSheet.allUsersDescription')}
               </Text>
-              {share ? (
-                // The link's native share sheet: a compact, borderless action at the card's bottom end.
-                <View style={styles.shareActionRow}>
-                  <Pressable
-                    accessibilityLabel={t('shareSheet.shareLink')}
-                    accessibilityRole="button"
-                    hitSlop={4}
-                    onPress={shareLink}
-                    style={styles.shareAction}
-                    testID="share-link-action"
-                  >
-                    <ShareIcon color={colors.textPrimary} size={18} />
-                    <Text numberOfLines={1} style={styles.shareActionLabel}>{t('common.share')}</Text>
-                  </Pressable>
-                </View>
-              ) : (
+              {!share ? (
                 <>
                   {needsSharePasswordMigration ? (
                     <View style={styles.noticeBox} testID="share-public-migration-required">
                       <Text style={styles.noticeText}>{t('collections.sharePasswordLegacyNotice')}</Text>
                     </View>
                   ) : null}
-                  {isPublicBlocked ? (
-                    <View style={styles.noticeBox} testID="share-public-blocked">
-                      <Text style={styles.noticeText}>{t('shareSheet.permissionMismatch')}</Text>
-                      <Text style={styles.help}>{t('shareSheet.permissionMismatchHint')}</Text>
-                      <Pressable accessibilityRole="button" onPress={showMembers} style={styles.inlineAction} testID="share-public-blocked-review">
-                        <Text style={styles.inlineActionLabel}>{t('shareSheet.reviewMembers')}</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
                 </>
-              )}
+              ) : null}
               {collection && isCollectionLocked(collection) ? (
                 <Text style={styles.help} testID="share-locked-note">{t('shareSheet.lockedLinkNote')}</Text>
               ) : null}
@@ -1186,6 +1256,24 @@ export function CollectionShareScreen({ route }: Props) {
       />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
+        confirmLabel={t('shareSheet.raiseRolesConfirm')}
+        destructive={false}
+        message={raiseRolesPrompt
+          ? t('shareSheet.raiseRolesMessage', { count: countBelowMinimum(raiseRolesPrompt.permission), permission: t(publicPermissionLabelKey(raiseRolesPrompt.permission)) })
+          : ''}
+        onCancel={() => setRaiseRolesPrompt(null)}
+        onConfirm={() => {
+          const prompt = raiseRolesPrompt;
+          setRaiseRolesPrompt(null);
+          if (prompt) {
+            applyPublicShare(prompt.permission, prompt.isStart, true).catch(() => undefined);
+          }
+        }}
+        title={t('shareSheet.raiseRolesTitle')}
+        visible={raiseRolesPrompt !== null}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
         confirmLabel={t('shareSheet.stopSharing')}
         destructive
         message={t('collections.unshareConfirmMessage')}
@@ -1265,9 +1353,16 @@ const styles = StyleSheet.create({
   fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   // [ON/OFF] [switch] at the end of a card header: a tight pair, so the title keeps its one line
   // even at 360dp. A long translation of the state shortens itself rather than push the switch out.
-  headerTrailing: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.xs },
-  switchState: { color: colors.textSecondary, flexShrink: 1, fontSize: 12, fontWeight: '700' },
-  switchStateOn: { color: colors.success },
+  // [share] [OFF | ON]: never shrinks (the title wraps instead) and keeps a wide gap between its two controls.
+  headerTrailing: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: spacing.lg },
+  headerShare: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
+  onOff: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 2, flexDirection: 'row', padding: 2 },
+  onOffSegment: { alignItems: 'center', borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget - 8, minWidth: 48, paddingHorizontal: spacing.sm },
+  onOffSegmentOn: { backgroundColor: colors.success },
+  onOffSegmentOff: { ...selectedSegment },
+  onOffLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  onOffLabelOn: { color: colors.surface },
+  onOffLabelOff: { color: colors.textPrimary },
   actionError: { marginBottom: spacing.sm + 2 },
   cardHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },

@@ -19,6 +19,7 @@ using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Users;
 using Juple.Infrastructure.Users.DeleteAccount;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -93,8 +94,8 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         await _db.DisposeAsync();
     }
 
-    private JupleDbContext NewContext() =>
-        new(new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(_connectionString).Options);
+    private JupleDbContext NewContext(params IInterceptor[] interceptors) =>
+        new(new DbContextOptionsBuilder<JupleDbContext>().UseSqlServer(_connectionString).AddInterceptors(interceptors).Options);
 
     private AddItemToCollectionService Add(JupleDbContext? db = null)
     {
@@ -394,6 +395,166 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
 
         Assert.True(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == item));
         Assert.False(await LinkedAsync(item));
+    }
+
+    // ---------- the Owner-confirmed raise ----------
+
+    [Fact]
+    public async Task EnablingTheLinkWithRaiseLowerRoles_RaisesEveryoneBelow_AndNobodyAbove_InOneStep()
+    {
+        // Fixture: Viewer, Submitter and Contributor members, plus a pending Viewer invitation.
+        var share = await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true);
+
+        Assert.Equal(CollectionSharePermission.Write, share.Permission);
+        _db.ChangeTracker.Clear();
+        var members = await _db.CollectionCollaborators.Where(entry => entry.CollectionId == _sharedId).ToListAsync();
+        Assert.Equal(3, members.Count);
+        Assert.All(members, member => Assert.Equal(CollectionCollaboratorRole.Contributor, member.Role));
+        var invitation = await _db.CollectionInvitations.SingleAsync(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending);
+        Assert.Equal(CollectionCollaboratorRole.Contributor, invitation.Role);
+        Assert.Equal(CollectionInvitationStatus.Pending, invitation.Status);
+    }
+
+    [Fact]
+    public async Task ChangingTheLinkWithRaiseLowerRoles_RaisesOnlyThoseBelowTheNewMinimum_NeverLowersAnyone()
+    {
+        await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Read);
+
+        var changed = await _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Submit, raiseLowerRoles: true);
+
+        Assert.Equal(CollectionSharePermission.Submit, changed!.Permission);
+        _db.ChangeTracker.Clear();
+        var roles = await _db.CollectionCollaborators.Where(entry => entry.CollectionId == _sharedId).Select(entry => entry.Role).ToListAsync();
+        // The Viewer became a Submitter; the Submitter and the Contributor are exactly as they were.
+        Assert.Equal(1, roles.Count(role => role == CollectionCollaboratorRole.Contributor));
+        Assert.Equal(2, roles.Count(role => role == CollectionCollaboratorRole.Submitter));
+        Assert.DoesNotContain(CollectionCollaboratorRole.Viewer, roles);
+        var invitation = await _db.CollectionInvitations.SingleAsync(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending);
+        Assert.Equal(CollectionCollaboratorRole.Submitter, invitation.Role);
+    }
+
+    [Fact]
+    public async Task WithoutRaiseLowerRoles_ThePermissionStillIsRefused_AndNobodyIsChanged()
+    {
+        await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Read);
+
+        var refused = await Assert.ThrowsAsync<CollectionCollaborationConflictException>(
+            () => _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write));
+
+        Assert.Equal(CollectionCollaborationConflictException.PublicSharePermissionMismatch, refused.Code);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(CollectionSharePermission.Read, (await _shares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Read))!.Permission);
+        Assert.Equal(1, await _db.CollectionCollaborators.CountAsync(entry => entry.CollectionId == _sharedId && entry.Role == CollectionCollaboratorRole.Viewer));
+    }
+
+    [Fact]
+    public async Task RaiseLowerRoles_IsOwnerOnly_AndATrulyLowerPermissionChangesNobody()
+    {
+        // Someone else's attempt to raise is refused like any other share management by a non-owner.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => _shares.EnableAsync(_outsider, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(
+            () => _shares.EnableAsync(_contributor, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
+
+        // Read is the floor: nothing is below it, so asking to raise changes nobody.
+        await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Read, raiseLowerRoles: true);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(1, await _db.CollectionCollaborators.CountAsync(entry => entry.CollectionId == _sharedId && entry.Role == CollectionCollaboratorRole.Viewer));
+    }
+
+    [Fact]
+    public async Task AFailureWhileRaisingAndChangingTheLink_RollsEverythingBack()
+    {
+        await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Read);
+        await using var failing = NewContext(new BeforeSaveInterceptor(_ => throw new InvalidOperationException("boom")));
+        var failingShares = new EnableCollectionShareService(new CollectionShareStore(failing), TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => failingShares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
+
+        await AssertNothingChangedAsync(CollectionSharePermission.Read);
+    }
+
+    [Fact]
+    public async Task AFailureWhileRaisingAndEnablingTheLink_LeavesNoLinkAndNoChangedRole()
+    {
+        await using var failing = NewContext(new BeforeSaveInterceptor(_ => throw new InvalidOperationException("boom")));
+        var failingShares = new EnableCollectionShareService(new CollectionShareStore(failing), TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => failingShares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
+
+        await AssertNothingChangedAsync(expectedLink: null);
+    }
+
+    [Fact]
+    public async Task AnInvitationAnsweredWhileRaising_IsAConcurrencyConflict_NotAFailure_AndNothingIsChanged()
+    {
+        await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Read);
+        // Between the store reading the pending invitation and writing it, the invitee answers.
+        await using var racing = NewContext(new BeforeSaveInterceptor(async cancellationToken =>
+        {
+            await using var invitee = NewContext();
+            await invitee.CollectionInvitations
+                .Where(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Status, CollectionInvitationStatus.Declined), cancellationToken);
+        }));
+        var racingShares = new EnableCollectionShareService(new CollectionShareStore(racing), TimeProvider.System);
+
+        await Assert.ThrowsAsync<CollectionConcurrencyException>(
+            () => racingShares.SetPermissionAsync(_owner, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(CollectionSharePermission.Read, (await _db.CollectionShares.SingleAsync(entry => entry.CollectionId == _sharedId && entry.IsActive)).Permission);
+        // Members were rolled back with it; only the invitee's own answer stands.
+        Assert.Equal(1, await _db.CollectionCollaborators.CountAsync(entry => entry.CollectionId == _sharedId && entry.Role == CollectionCollaboratorRole.Viewer));
+        Assert.Equal(CollectionInvitationStatus.Declined,
+            (await _db.CollectionInvitations.SingleAsync(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending)).Status);
+    }
+
+    [Fact]
+    public async Task AnInvitationAnsweredWhileRaisingForANewLink_IsAlsoAConcurrencyConflict()
+    {
+        await using var racing = NewContext(new BeforeSaveInterceptor(async cancellationToken =>
+        {
+            await using var invitee = NewContext();
+            await invitee.CollectionInvitations
+                .Where(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Status, CollectionInvitationStatus.Declined), cancellationToken);
+        }));
+        var racingShares = new EnableCollectionShareService(new CollectionShareStore(racing), TimeProvider.System);
+
+        await Assert.ThrowsAsync<CollectionConcurrencyException>(
+            () => racingShares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Write, raiseLowerRoles: true));
+
+        _db.ChangeTracker.Clear();
+        Assert.False(await _db.CollectionShares.AnyAsync(entry => entry.CollectionId == _sharedId && entry.IsActive));
+        Assert.Equal(1, await _db.CollectionCollaborators.CountAsync(entry => entry.CollectionId == _sharedId && entry.Role == CollectionCollaboratorRole.Viewer));
+    }
+
+    /// <summary>The fixture's roles exactly as set up (Viewer, Submitter, Contributor, pending Viewer) and the link as expected.</summary>
+    private async Task AssertNothingChangedAsync(CollectionSharePermission? expectedLink)
+    {
+        _db.ChangeTracker.Clear();
+        var link = await _db.CollectionShares.SingleOrDefaultAsync(entry => entry.CollectionId == _sharedId && entry.IsActive);
+        Assert.Equal(expectedLink, link?.Permission);
+        var roles = await _db.CollectionCollaborators.Where(entry => entry.CollectionId == _sharedId).Select(entry => entry.Role).ToListAsync();
+        Assert.Equal(1, roles.Count(role => role == CollectionCollaboratorRole.Viewer));
+        Assert.Equal(1, roles.Count(role => role == CollectionCollaboratorRole.Submitter));
+        Assert.Equal(1, roles.Count(role => role == CollectionCollaboratorRole.Contributor));
+        var invitation = await _db.CollectionInvitations.SingleAsync(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending);
+        Assert.Equal(CollectionCollaboratorRole.Viewer, invitation.Role);
+        Assert.Equal(CollectionInvitationStatus.Pending, invitation.Status);
+    }
+
+    private sealed class BeforeSaveInterceptor(Func<CancellationToken, Task> action) : SaveChangesInterceptor
+    {
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            await action(cancellationToken);
+            return result;
+        }
     }
 
     // ---------- the three-level minimum ----------

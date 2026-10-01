@@ -10,7 +10,7 @@ import { CollectionStatusBadges } from './CollectionStatusBadges';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from './collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from './collectionIcons';
 import { CheckIcon } from '../icons/CheckIcon';
-import { PlusIcon } from '../icons/PlusIcon';
+import { FolderPlusIcon } from '../icons/FolderPlusIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewModePreferenceKey } from '../settings/viewModePreference';
@@ -63,6 +63,10 @@ interface CategoryPickerModalProps {
   readonly viewModeKey?: ViewModePreferenceKey;
   /** The leading "+ 새 컬렉션" tile - on by default. */
   readonly showCreateTile?: boolean;
+  /** The create tile's label - defaults to "+ 새로 만들기" (the Category pickers); the destination pickers say 새 컬렉션 만들기. */
+  readonly createLabel?: string;
+  /** What a screen reader says for the create tile when its visible label is short ("추가"). */
+  readonly createAccessibilityLabel?: string;
   /** An order control (최신순 | 이름순) under the title; absent = none. */
   readonly sort?: { readonly value: 'newest' | 'title'; readonly onChange: (next: 'newest' | 'title') => void };
   /** Shown but not choosable, marked 이미 포함됨 (e.g. a Collection the link is already in). */
@@ -109,6 +113,8 @@ export function CategoryPickerModal({
   title,
   viewModeKey = 'categoryPickerViewMode',
   showCreateTile = true,
+  createLabel,
+  createAccessibilityLabel,
   sort,
   disabledIds,
   submit,
@@ -175,16 +181,16 @@ export function CategoryPickerModal({
                 if ('kind' in item) {
                   return (
                     <Pressable
-                      accessibilityLabel={t('collections.addNew')}
+                      accessibilityLabel={createAccessibilityLabel ?? createLabel ?? t('collections.addNew')}
                       accessibilityRole="button"
                       onPress={onOpenCreateDialog}
                       style={viewMode === 'grid' ? styles.gridCell : styles.listCell}
                     >
                       <View style={styles.createTile}>
-                        <PlusIcon color={colors.brand} size={22} strokeWidth={2.25} />
+                        <FolderPlusIcon color={colors.brand} size={24} strokeWidth={2} />
                       </View>
                       <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
-                        {t('collections.addNew')}
+                        {createLabel ?? t('collections.addNew')}
                       </Text>
                     </Pressable>
                   );

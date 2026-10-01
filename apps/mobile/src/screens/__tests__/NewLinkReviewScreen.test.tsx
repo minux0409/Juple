@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ScrollView, Text, TextInput } from 'react-native';
+import { ScrollView, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -307,7 +307,68 @@ describe('NewLinkReviewScreen', () => {
     });
 
     expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 4, 57, { unlockToken: null });
-    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '승인 요청을 보냈어요.')).toBe(true);
+    // The result is a dialog (never a toast that can be missed): the link itself was saved, and the
+    // request was sent - and the screen only closes once it has been read.
+    const dialog = findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'));
+    expect(dialog.props.message).toBe(i18n.t('collections.saveOutcomeSubmitted', { count: 1 }));
+    expect(dialog.props.message).toContain('링크는 저장되었어요');
+    expect(props.navigation.goBack).not.toHaveBeenCalled();
+    await act(async () => {
+      dialog.props.onConfirm();
+    });
+    expect(findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'))).toBeUndefined();
+    expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('a direct collection and a 승인 후 추가 one together: the link is saved, and ONE dialog says both outcomes', async () => {
+    const { AppToastProvider } = require('../../components/AppToast');
+    jest.mocked(getCollections).mockResolvedValue({
+      items: [
+        { id: 4, name: '팀 아이디어', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' },
+        { id: 5, name: '내 컬렉션', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'owner' },
+      ],
+      nextCursor: null,
+    });
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 58, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => (collectionId === 4 ? 'submitted' : 'added'));
+    const props = makeProps();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<AppToastProvider><NewLinkReviewScreen {...props} /></AppToastProvider>);
+    });
+    await openCategoryPicker(renderer);
+    await act(async () => {
+      findByAccessibilityLabel(renderer, '팀 아이디어').props.onPress();
+    });
+    await act(async () => {
+      findByAccessibilityLabel(renderer, '내 컬렉션').props.onPress();
+    });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    const dialogs = renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('collections.saveOutcomeTitle'));
+    expect(dialogs).toHaveLength(1);
+    expect(dialogs[0].props.message).toBe(i18n.t('collections.saveOutcomeMixed', { added: 1, submitted: 1 }));
+    expect(props.navigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('saving into direct collections only shows no dialog - it closes as before', async () => {
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 59, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(addItemToCollection).mockResolvedValue('added');
+    const props = makeProps();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<NewLinkReviewScreen {...props} />);
+    });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    expect(findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'))).toBeUndefined();
     expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
   });
 

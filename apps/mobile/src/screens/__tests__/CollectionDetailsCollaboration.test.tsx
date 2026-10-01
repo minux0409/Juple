@@ -3,14 +3,15 @@ import { BellIcon } from '../../icons/BellIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
+import { ParticipantAvatarStack } from '../../components/ParticipantAvatarStack';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Switch, Text } from 'react-native';
+import { FlatList, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { shareItem } from '../../items/shareItem';
-import { CopyDestinationPicker } from '../../collections/CopyDestinationPicker';
+import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { UserAvatar } from '../../components/UserAvatar';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
@@ -18,7 +19,9 @@ import { CrownIcon } from '../../icons/CrownIcon';
 import { CollectionLinkShareSheet } from '../../collections/CollectionLinkShareSheet';
 import {
   addItemToCollection,
+  addItemToCollections,
   copyCollectionItems,
+  transferCollectionItem,
   getCollection,
   getCollectionShareLink,
   removeItemFromCollection,
@@ -44,6 +47,20 @@ import {
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
 });
+
+/** The destination picker's own controls - the one list/grid picker behind 복제, 내 컬렉션으로 복사 and 이동. */
+const destinationOption = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
+  renderer.root.findAll(node => node.props.testID === `category-picker-option-${id}` && typeof node.props.onPress === 'function')[0];
+const destinationSubmit = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAll(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function')[0];
+const destinationPicker = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(CategoryPickerModal);
+/** Chooses these destinations, then presses the picker's action. */
+async function chooseDestinations(renderer: ReactTestRenderer.ReactTestRenderer, ...ids: number[]) {
+  for (const id of ids) {
+    await act(async () => destinationOption(renderer, id).props.onPress());
+  }
+  await act(async () => destinationSubmit(renderer).props.onPress());
+}
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
@@ -72,6 +89,9 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   getCollectionShareLink: jest.fn().mockResolvedValue(null),
   removeItemFromCollection: jest.fn(),
   addItemToCollection: jest.fn(),
+  addItemToCollections: jest.fn(),
+  createCollection: jest.fn(),
+  transferCollectionItem: jest.fn(),
   sendCollectionShareLink: jest.fn(),
   MAX_ITEMS_PER_COPY: 200,
   MAX_LINK_SHARE_RECIPIENTS: 20,
@@ -264,7 +284,8 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     const renderer = await renderScreen();
     const top = header(renderer);
 
-    expect(top.root.findAllByType(Text).some(node => node.props.children === '피카츄')).toBe(true);
+    expect(top.root.findAllByType(ParticipantAvatarStack)).toHaveLength(1);
+    expect(top.root.findAllByType(ParticipantAvatarStack)[0].props.participants.map((person: { jupleId: string }) => person.jupleId)).toEqual(['K7MP4Q8N', 'CNTRB234']);
     for (const label of [
       i18n.t('common.edit'),
       i18n.t('common.delete'),
@@ -382,13 +403,105 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     await act(async () => confirm.props.onPress());
     // Only my own Collections are offered (owned scope - no scope parameter).
     expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), { limit: 50 });
-    const destination = renderer.root.findAll(node => node.props.accessibilityLabel === 'My Picks' && typeof node.props.onPress === 'function')[0];
-    await act(async () => destination.props.onPress());
+    // The same picker as 복제: nothing is copied by choosing alone - 복사 does it.
+    await act(async () => destinationOption(renderer, 7).props.onPress());
+    expect(copyCollectionItems).not.toHaveBeenCalled();
+    await act(async () => destinationSubmit(renderer).props.onPress());
 
     expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [2, 1], 7, null);
     expect(renderer.root.findAllByType(Text).some(node => node.props.children === '2개 중 1개를 복사했어요. 1개는 이미 컬렉션에 있어요.')).toBe(true);
     // Selection mode is over.
     expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
+  });
+
+  describe('내 컬렉션으로 복사 into several of my Collections at once (the same picker as 복제)', () => {
+    const other = makeCollection({ id: 8, name: 'More Picks', accessRole: 'owner' });
+    const third = makeCollection({ id: 9, name: 'Third Picks', accessRole: 'owner' });
+
+    async function openCopyPicker() {
+      jest.mocked(getCollections).mockResolvedValue({ items: [myOwn, other, third], nextCursor: null });
+      const renderer = await renderScreen();
+      await pressMenu(renderer, i18n.t('collections.copyToMine'));
+      const checkbox = row(renderer, theirs).root.findAll(node => node.props.accessibilityRole === 'checkbox' && typeof node.props.onPress === 'function')[0];
+      act(() => checkbox.props.onPress());
+      const confirm = renderer.root.findAll(node => node.props.testID === 'collection-copy-confirm' && typeof node.props.onPress === 'function')[0];
+      await act(async () => confirm.props.onPress());
+      return renderer;
+    }
+    const hasToast = (renderer: ReactTestRenderer.ReactTestRenderer, text: string) =>
+      renderer.root.findAllByType(Text).some(node => node.props.children === text);
+
+    it('has the list/grid toggle, order chips, a selected count, and "+ 새 컬렉션 만들기" - and nothing is selected at first', async () => {
+      const renderer = await openCopyPicker();
+      const modal = destinationPicker(renderer);
+
+      expect(modal.props.visible).toBe(true);
+      expect(modal.findAllByType(ViewModeToggle)).toHaveLength(1);
+      expect(modal.props.sort.value).toBe('newest');
+      expect(modal.props.createLabel).toBe('추가');
+      expect(modal.props.createAccessibilityLabel).toBe('새 컬렉션 만들기');
+      expect(modal.props.title).toBe(i18n.t('collections.copyPickerTitle'));
+      expect(renderer.root.findAllByType(Text).some(node => node.props.children === '0개 선택됨')).toBe(true);
+      expect(destinationSubmit(renderer).props.disabled).toBe(true);
+      expect(destinationSubmit(renderer).findAllByType(Text)[0].props.children).toBe(i18n.t('collections.copyAction'));
+    });
+
+    it('several destinations: the same links are copied into each, one request per destination, and the result says so once', async () => {
+      jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
+      const renderer = await openCopyPicker();
+
+      await chooseDestinations(renderer, 7, 8);
+
+      expect(copyCollectionItems).toHaveBeenCalledTimes(2);
+      expect(copyCollectionItems).toHaveBeenNthCalledWith(1, expect.anything(), COLLECTION_ID, [theirs.itemId], 7, null);
+      expect(copyCollectionItems).toHaveBeenNthCalledWith(2, expect.anything(), COLLECTION_ID, [theirs.itemId], 8, null);
+      expect(destinationPicker(renderer).props.visible).toBe(false);
+      expect(hasToast(renderer, i18n.t('collections.copyResultMulti', { links: 1, collections: 2 }))).toBe(true);
+      expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
+    });
+
+    it('one destination failing does not hide what the others did: it is reported, naming how many failed', async () => {
+      jest.mocked(copyCollectionItems)
+        .mockResolvedValueOnce({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 })
+        .mockRejectedValueOnce(new ApiError('unavailable', 503));
+      const renderer = await openCopyPicker();
+
+      await chooseDestinations(renderer, 7, 8);
+
+      expect(copyCollectionItems).toHaveBeenCalledTimes(2);
+      expect(destinationPicker(renderer).props.visible).toBe(false);
+      expect(hasToast(renderer, `${i18n.t('collections.copyResultAll', { count: 1 })} ${i18n.t('collections.copyDestinationsFailed', { count: 1 })}`)).toBe(true);
+    });
+
+    it('every destination failing keeps the picker, the choice and the selection for another try', async () => {
+      jest.mocked(copyCollectionItems).mockRejectedValue(new ApiError('unavailable', 503));
+      const renderer = await openCopyPicker();
+
+      await chooseDestinations(renderer, 7, 8);
+
+      const modal = destinationPicker(renderer);
+      expect(modal.props.visible).toBe(true);
+      expect(modal.props.error).toBe(i18n.t('collections.copyError'));
+      expect([...modal.props.selectedIds]).toEqual([7, 8]);
+      expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar').length).toBeGreaterThan(0);
+    });
+
+    it('"+ 새 컬렉션 만들기" is chosen at once next to the others', async () => {
+      const { createCollection } = jest.requireMock('../../collections/api/collectionsApi');
+      createCollection.mockResolvedValue(makeCollection({ id: 21, name: 'Fresh', accessRole: 'owner' }));
+      jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
+      const renderer = await openCopyPicker();
+
+      await act(async () => renderer.root.findAll(node => node.props.accessibilityLabel === '새 컬렉션 만들기' && typeof node.props.onPress === 'function')[0].props.onPress());
+      await act(async () => {
+        await destinationPicker(renderer).props.onCreateCollection('Fresh', 'Folder', 'blue');
+      });
+      await act(async () => destinationOption(renderer, 7).props.onPress());
+      await act(async () => destinationSubmit(renderer).props.onPress());
+
+      expect(copyCollectionItems).toHaveBeenNthCalledWith(1, expect.anything(), COLLECTION_ID, [theirs.itemId], 21, null);
+      expect(copyCollectionItems).toHaveBeenNthCalledWith(2, expect.anything(), COLLECTION_ID, [theirs.itemId], 7, null);
+    });
   });
 
   it('never offers copying while the content is still behind the share password', async () => {
@@ -475,8 +588,7 @@ describe('CollectionDetailsScreen - 전체 선택 for 내 컬렉션으로 복사
     // Selected again and copied: exactly the server's 130 ids go to the copy.
     await pressSelectAll(renderer);
     await act(async () => copyButton(renderer).props.onPress());
-    const destination = renderer.root.findAll(node => node.props.accessibilityLabel === 'My Picks' && typeof node.props.onPress === 'function')[0];
-    await act(async () => destination.props.onPress());
+    await chooseDestinations(renderer, 7);
     expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, items.map(item => item.itemId), 7, null);
   });
 
@@ -634,6 +746,109 @@ describe('CollectionDetailsScreen - an unlock lasts for one visit', () => {
   });
 });
 
+describe('CollectionDetailsScreen - the participants under the title', () => {
+  const owner = { jupleId: 'K7MP4Q8N', displayName: '피카츄', role: 'owner', profileImageUrl: 'https://blob.example/owner.jpg', profileImageVersion: 'v1' };
+  const people = (count: number) => [
+    owner,
+    ...Array.from({ length: count - 1 }, (_, index) => ({ jupleId: `MBR${index}2345`, displayName: `멤버${index}`, role: 'contributor', isMe: index === 0 })),
+  ];
+  const stackOf = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(ParticipantAvatarStack);
+  const withParticipants = (count: number) => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', otherParticipantCount: count - 1 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    jest.mocked(getCollectionParticipants).mockResolvedValueOnce({ participants: people(count), pendingInvitations: [], canManage: false });
+  };
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    clearCollectionUnlockGrants();
+  });
+
+  it('shows the accepted participants as one row of small overlapping photos - the whole row opens the participant sheet', async () => {
+    withParticipants(3);
+    const renderer = await renderScreen();
+
+    expect(stackOf(renderer)).toHaveLength(1);
+    const stack = stackOf(renderer)[0];
+    expect(stack.props.participants).toHaveLength(3);
+    expect(stack.props.accessibilityLabel).toBe(i18n.t('collections.participantsAvatarsA11y', { count: 3 }));
+    // One small circle per person (photo from the participant list), the first one at the row's start.
+    expect(stack.findAllByType(UserAvatar)).toHaveLength(3);
+    expect(stack.findAllByType(UserAvatar)[0].props).toEqual(expect.objectContaining({ jupleId: 'K7MP4Q8N', imageUrl: 'https://blob.example/owner.jpg', size: 28 }));
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-details-participants-more')).toHaveLength(0);
+    // The old text summary is gone.
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '피카츄')).toBe(false);
+
+    await act(async () => stack.props.onPress());
+    expect(renderer.root.findByType(CollectionParticipantsSheet).props.visible).toBe(true);
+  });
+
+  it('while the list is still loading: placeholder circles from the first render - never the names - and the photos replace them in place', async () => {
+    let resolveList!: (value: Awaited<ReturnType<typeof getCollectionParticipants>>) => void;
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({
+      accessRole: 'contributor',
+      ownerJupleId: 'K7MP4Q8N',
+      participantPreview: [{ jupleId: 'K7MP4Q8N', displayName: '피카츄', role: 'owner' }],
+      otherParticipantCount: 1,
+    }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    jest.mocked(getCollectionParticipants).mockImplementationOnce(() => new Promise(resolve => { resolveList = resolve; }));
+    const renderer = await renderScreen();
+
+    const placeholders = () => renderer.root.findAll(node => typeof node.type === 'string' && String(node.props.testID).startsWith('collection-details-participants-placeholder-'));
+    expect(stackOf(renderer)).toHaveLength(1);
+    expect(stackOf(renderer)[0].props.participants).toBeNull();
+    expect(placeholders()).toHaveLength(2);
+    // Not once, not for a moment: no participant name text anywhere.
+    expect(renderer.root.findAllByType(Text).some(node => [node.props.children].flat().join('').includes('피카츄'))).toBe(false);
+    expect(renderer.root.findAllByType(UserAvatar)).toHaveLength(0);
+
+    await act(async () => {
+      resolveList({ participants: people(2), pendingInvitations: [], canManage: false });
+    });
+
+    expect(placeholders()).toHaveLength(0);
+    expect(stackOf(renderer)).toHaveLength(1);
+    expect(stackOf(renderer)[0].findAllByType(UserAvatar)).toHaveLength(2);
+    expect(renderer.root.findAllByType(Text).some(node => [node.props.children].flat().join('').includes('피카츄'))).toBe(false);
+  });
+
+  it('a list that cannot be loaded keeps circles (initials from the preview the Collection carries) - never a line of names', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({
+      accessRole: 'contributor',
+      ownerJupleId: 'K7MP4Q8N',
+      participantPreview: [{ jupleId: 'K7MP4Q8N', displayName: '피카츄', role: 'owner' }],
+      otherParticipantCount: 1,
+    }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    jest.mocked(getCollectionParticipants).mockRejectedValueOnce(new Error('offline'));
+    const renderer = await renderScreen();
+
+    expect(stackOf(renderer)).toHaveLength(1);
+    expect(stackOf(renderer)[0].findAllByType(UserAvatar)).toHaveLength(1);
+    expect(renderer.root.findAllByType(Text).some(node => [node.props.children].flat().join('') === '피카츄')).toBe(false);
+  });
+
+  it('with more than four people: three circles and one "+N" circle for everyone else', async () => {
+    withParticipants(7);
+    const renderer = await renderScreen();
+
+    const stack = stackOf(renderer)[0];
+    expect(stack.findAllByType(UserAvatar)).toHaveLength(3);
+    const more = renderer.root.findAll(node => node.props.testID === 'collection-details-participants-more' && node.type === Text)[0];
+    expect(more.props.children).toEqual(['+', 4]);
+  });
+
+  it('an Owner with nobody else in it (only a public link) shows no avatars at all', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: false, isPublicShareActive: true }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    jest.mocked(getCollectionParticipants).mockResolvedValueOnce({ participants: [{ ...owner, isMe: true }], pendingInvitations: [], canManage: true });
+    const renderer = await renderScreen();
+
+    expect(stackOf(renderer)).toHaveLength(0);
+  });
+});
+
 describe('CollectionDetailsScreen - Contributor', () => {
   beforeEach(() => {
     jest.mocked(getCollection).mockResolvedValue(
@@ -656,7 +871,8 @@ describe('CollectionDetailsScreen - Contributor', () => {
     const renderer = await renderScreen();
     const top = header(renderer);
 
-    expect(top.root.findAllByType(Text).some(node => node.props.children === '피카츄')).toBe(true);
+    expect(top.root.findAllByType(ParticipantAvatarStack)).toHaveLength(1);
+    expect(top.root.findAllByType(ParticipantAvatarStack)[0].props.participants.map((person: { jupleId: string }) => person.jupleId)).toEqual(['K7MP4Q8N', 'CNTRB234']);
     for (const label of [
       i18n.t('common.edit'),
       i18n.t('common.delete'),
@@ -736,21 +952,22 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
 
   it('copies a member\'s link into one of my own Collections through the shared copy API - never a link of their Item', async () => {
     jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
+    jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 9, name: 'Other of mine', accessRole: 'owner' })], nextCursor: null });
     const renderer = await renderScreen();
 
     const onTheirLongPress = row(renderer, theirs).root.findByType(SwipeableItemRow).props.onLongPress;
     await act(async () => onTheirLongPress());
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     await act(async () => menu.props.actions[0].onPress());
-    await act(async () => renderer.root.findByType(CopyDestinationPicker).props.onChosen(makeCollection({ id: 9, name: 'Other of mine', accessRole: 'owner' }), null));
+    await chooseDestinations(renderer, 9);
 
     expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [theirs.itemId], 9, null);
 
-    // My own link here keeps 복제 (no 이동 while the Collection has members) - not the copy.
+    // My own link here has 복제 and 이동 (never the copy) - 이동 works here too, as add + remove.
     const onMyLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
     await act(async () => onMyLongPress());
     expect((renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
-      .map((action: { label: string }) => action.label)).toEqual([i18n.t('collections.addToOther')]);
+      .map((action: { label: string }) => action.label)).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
   });
 });
 
@@ -873,6 +1090,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
     jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
+    jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, othersLink)).toBe(true);
@@ -881,9 +1099,8 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
 
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     await act(async () => menu.props.actions[0].onPress());
-    const picker = renderer.root.findByType(CopyDestinationPicker);
-    expect(picker.props.visible).toBe(true);
-    await act(async () => picker.props.onChosen(myCollection, null));
+    expect(destinationPicker(renderer).props.visible).toBe(true);
+    await chooseDestinations(renderer, 7);
 
     // Round 26's shared copy: source = this Collection, just this link - never a link of their Item.
     expect(copyCollectionItems).toHaveBeenCalledTimes(1);
@@ -893,12 +1110,76 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     expect(renderer.root.findAll(node => node.props.testID === 'collection-copy-bar')).toHaveLength(0);
   });
 
-  it('my own link in a Collection shared with me keeps what it had - no long-press actions are added', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
+  it.each(['contributor', 'viewer'] as const)('as a %s: my own link in someone else\'s Collection now has a long press too - 복제 and 이동, never the copy - and keeps its swipe remove', async role => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
     const renderer = await renderScreen();
 
-    expect(await longPress(renderer, myLinkHere)).toBe(false);
+    expect(await longPress(renderer, myLinkHere)).toBe(true);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+    expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.copyToMine'));
+    // The swipe remove stays (the server lets a member remove only their own links).
+    expect(row(renderer, myLinkHere).root.findByType(SwipeableItemRow).props.onDelete).toEqual(expect.any(Function));
+  });
+
+  it('복제 of my own link in someone else\'s Collection puts the same link into my other Collections (never a copy of it)', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere], nextCursor: null });
+    jest.mocked(getCollections).mockImplementation(async (_request, options = {}) =>
+      options.itemId !== undefined
+        ? { items: [], nextCursor: null }
+        : { items: [myCollection, makeCollection({ id: 8, name: 'More', accessRole: 'owner' })], nextCursor: null });
+    jest.mocked(addItemToCollections).mockResolvedValue({ addedCount: 2, skippedCount: 0 });
+    const renderer = await renderScreen();
+
+    await longPress(renderer, myLinkHere);
+    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
+    await act(async () => menu.props.actions[0].onPress());
+    await chooseDestinations(renderer, 7, 8);
+
+    expect(addItemToCollections).toHaveBeenCalledWith(expect.anything(), 1, [7, 8], {});
+    expect(copyCollectionItems).not.toHaveBeenCalled();
+  });
+
+  it('이동 of my own link out of someone else\'s Collection: added to the destination first, then removed from here - never the Owner-only atomic move', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', itemCount: 2 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
+    jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
+    jest.mocked(addItemToCollection).mockResolvedValue('added');
+    jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+    const order: string[] = [];
+    jest.mocked(addItemToCollection).mockImplementation(async () => { order.push('add'); return 'added'; });
+    jest.mocked(removeItemFromCollection).mockImplementation(async () => { order.push('remove'); });
+    const renderer = await renderScreen();
+
+    await longPress(renderer, myLinkHere);
+    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
+    await act(async () => menu.props.actions[1].onPress());
+    await chooseDestinations(renderer, 7);
+
+    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 7, 1, { unlockToken: null });
+    expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 1);
+    expect(order).toEqual(['add', 'remove']);
+    expect(transferCollectionItem).not.toHaveBeenCalled();
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('toast.moveSuccess'))).toBe(true);
+  });
+
+  it('a failed removal after the add leaves the link in both - an error is shown, never a silent loss', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N' }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere], nextCursor: null });
+    jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });
+    jest.mocked(addItemToCollection).mockResolvedValue('added');
+    jest.mocked(removeItemFromCollection).mockRejectedValue(new ApiError('unavailable', 503));
+    const renderer = await renderScreen();
+
+    await longPress(renderer, myLinkHere);
+    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
+    await act(async () => menu.props.actions[1].onPress());
+    await chooseDestinations(renderer, 7);
+
+    // The picker stays open with the reason; the link was only added, never lost.
+    expect(destinationPicker(renderer).props.visible).toBe(true);
+    expect(destinationPicker(renderer).props.error).toBe(i18n.t('collections.moveError'));
   });
 
   it('the Owner\'s own link keeps 복제 / 이동 - unchanged', async () => {
@@ -918,9 +1199,9 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     await longPress(renderer, othersLink);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     await act(async () => menu.props.actions[0].onPress());
-    await act(async () => renderer.root.findByType(CopyDestinationPicker).props.onCancel());
+    await act(async () => destinationPicker(renderer).props.onClose());
 
-    expect(renderer.root.findByType(CopyDestinationPicker).props.visible).toBe(false);
+    expect(destinationPicker(renderer).props.visible).toBe(false);
     expect(copyCollectionItems).not.toHaveBeenCalled();
   });
 });
@@ -1003,6 +1284,22 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(true);
     await act(async () => entry.props.onPress());
     expect(mockNavigate).toHaveBeenCalledWith('CollectionSubmissions', { collectionId: COLLECTION_ID });
+  });
+
+  it('it is a clear one-line row of its own - below the title/header actions and above the sort chips, a full touch target, not small inline text', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18, pendingSubmissionCount: 1 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    const entry = pendingEntry(renderer);
+    expect(entry.findByType(Text).props.children).toBe('승인 대기 1');
+    expect(StyleSheet.flatten(entry.props.style)).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
+    // Order inside the list header: title, header actions, this row, then the sort chips.
+    const order = header(renderer).root
+      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date'].includes(node.props.testID))
+      .map(node => node.props.testID)
+      .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
+    expect(order).toEqual(['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date']);
   });
 
   it('nothing waiting: no entry at all', async () => {

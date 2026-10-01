@@ -817,8 +817,10 @@ export async function setCollectionNotificationPreference(
 
 export type TransferCollectionItemResult = { readonly targetMembershipCreated: boolean };
 
-export async function transferCollectionItem(request: AuthenticatedApiRequest, sourceCollectionId: number, itemId: number, targetCollectionId: number): Promise<TransferCollectionItemResult> {
-  const response = await request<TransferCollectionItemResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move`, body: { targetCollectionId }, headers: storedUnlockHeaders(sourceCollectionId, targetCollectionId) });
+export async function transferCollectionItem(request: AuthenticatedApiRequest, sourceCollectionId: number, itemId: number, targetCollectionId: number, targetUnlockToken: string | null = null): Promise<TransferCollectionItemResult> {
+  // The grants this visit already holds, plus the destination's own when it was unlocked in the picker.
+  const grants = [storedUnlockHeaders(sourceCollectionId, targetCollectionId)?.[COLLECTION_UNLOCK_HEADER_NAME], targetUnlockToken].filter((token): token is string => !!token);
+  const response = await request<TransferCollectionItemResult>({ method: 'POST', path: `/api/v1/collections/${sourceCollectionId}/items/${itemId}/move`, body: { targetCollectionId }, headers: grants.length > 0 ? { [COLLECTION_UNLOCK_HEADER_NAME]: grants.join(',') } : undefined });
   if (!response.body) {
     throw new Error('Juple API returned no collection move body.');
   }
@@ -864,6 +866,19 @@ interface CollectionShareStatus {
   readonly share: CollectionShare | null;
 }
 
+export interface SharePermissionOptions {
+  /**
+   * The Owner confirmed it: instead of the 409 publicSharePermissionMismatch refusal, the server
+   * raises every member and pending invitation below the new permission's minimum role to that
+   * minimum, in the same transaction as the permission change (all or nothing).
+   */
+  readonly raiseLowerRoles?: boolean;
+}
+
+function sharePermissionBody(permission: PublicSharePermission, options: SharePermissionOptions) {
+  return options.raiseLowerRoles ? { permission, raiseLowerRoles: true } : { permission };
+}
+
 /**
  * Activates this Collection's public share with the given permission; idempotent - resolves with
  * the existing active share (and its permission, unchanged) if one is already enabled.
@@ -872,11 +887,12 @@ export async function enableCollectionShare(
   request: AuthenticatedApiRequest,
   collectionId: number,
   permission: PublicSharePermission = 'read',
+  options: SharePermissionOptions = {},
 ): Promise<CollectionShare> {
   const response = await request<CollectionShare>({
     method: 'POST',
     path: `/api/v1/collections/${collectionId}/share`,
-    body: { permission },
+    body: sharePermissionBody(permission, options),
     headers: storedUnlockHeaders(collectionId),
   });
 
@@ -892,11 +908,12 @@ export async function setCollectionSharePermission(
   request: AuthenticatedApiRequest,
   collectionId: number,
   permission: PublicSharePermission,
+  options: SharePermissionOptions = {},
 ): Promise<CollectionShare> {
   const response = await request<CollectionShare>({
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/share/permission`,
-    body: { permission },
+    body: sharePermissionBody(permission, options),
     headers: storedUnlockHeaders(collectionId),
   });
 

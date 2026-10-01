@@ -5,6 +5,26 @@ jest.mock('../apiConfig', () => ({
   apiConfig: { baseUrl: 'https://api.test' },
 }));
 
+describe('requestApi 202 Accepted (a link proposed to a 승인 후 추가 Collection)', () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('is a success, not an error: the status tells it apart and the body comes along', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({ status: 202, json: async () => ({ submitted: true }) } as Response) as unknown as typeof fetch;
+
+    await expect(requestApi({ method: 'PUT', path: '/x' })).resolves.toEqual({ status: 202, body: { submitted: true } });
+  });
+
+  it('an empty or unreadable 202 body is still a success', async () => {
+    globalThis.fetch = jest.fn().mockResolvedValue({ status: 202, json: async () => { throw new Error('no body'); } } as unknown as Response) as unknown as typeof fetch;
+
+    await expect(requestApi({ method: 'PUT', path: '/x' })).resolves.toEqual({ status: 202 });
+  });
+});
+
 describe('requestApi transport retry (GET only, transport failures only)', () => {
   const originalFetch = globalThis.fetch;
 

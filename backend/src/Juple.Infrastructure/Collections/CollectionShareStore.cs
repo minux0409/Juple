@@ -24,6 +24,7 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         string candidatePublicId,
         DateTimeOffset enabledAtUtc,
         CollectionSharePermission permission = CollectionSharePermission.Read,
+        bool raiseLowerRoles = false,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -56,7 +57,14 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
             throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.SharePasswordMigrationRequired);
         }
 
-        await RequireEveryoneMatchesAsync(collectionId, permission, enabledAtUtc, cancellationToken);
+        if (raiseLowerRoles)
+        {
+            await RaiseEveryoneToMinimumAsync(collectionId, permission, enabledAtUtc, cancellationToken);
+        }
+        else
+        {
+            await RequireEveryoneMatchesAsync(collectionId, permission, enabledAtUtc, cancellationToken);
+        }
 
         var share = new CollectionShare(collectionId, candidatePublicId, enabledAtUtc);
         share.SetPermission(permission, enabledAtUtc);
@@ -66,6 +74,11 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         {
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            // A pending invitation answered between our read and write (only possible while raising roles).
+            throw new CollectionConcurrencyException(exception);
         }
         catch (DbUpdateException exception) when (
             SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
@@ -147,6 +160,7 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         long collectionId,
         CollectionSharePermission permission,
         DateTimeOffset updatedAtUtc,
+        bool raiseLowerRoles = false,
         CancellationToken cancellationToken = default)
     {
         // Same row lock as enabling and as every invite/role change, so the check below cannot race one.
@@ -165,7 +179,14 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
 
         if (share.Permission != permission)
         {
-            await RequireEveryoneMatchesAsync(collectionId, permission, updatedAtUtc, cancellationToken);
+            if (raiseLowerRoles)
+            {
+                await RaiseEveryoneToMinimumAsync(collectionId, permission, updatedAtUtc, cancellationToken);
+            }
+            else
+            {
+                await RequireEveryoneMatchesAsync(collectionId, permission, updatedAtUtc, cancellationToken);
+            }
         }
 
         share.SetPermission(permission, updatedAtUtc);
@@ -210,6 +231,46 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         if (mismatch)
         {
             throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicSharePermissionMismatch);
+        }
+    }
+
+    /// <summary>
+    /// The Owner-confirmed alternative to RequireEveryoneMatchesAsync: every member and every
+    /// still-pending invitation below this permission's minimum role is raised to that minimum (never
+    /// lowered, never touching anyone already at or above it). Runs under the Collection row lock and
+    /// is saved in the caller's transaction together with the permission change, so either both
+    /// happen or neither does.
+    /// </summary>
+    private async Task RaiseEveryoneToMinimumAsync(
+        long collectionId,
+        CollectionSharePermission permission,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        var belowBaseline = PublicShareRoles.RolesBelow(permission);
+        if (belowBaseline.Count == 0)
+        {
+            return;
+        }
+
+        var minimum = PublicShareRoles.MinimumFor(permission);
+        var collaborators = await dbContext.CollectionCollaborators
+            .Where(collaborator => collaborator.CollectionId == collectionId && belowBaseline.Contains(collaborator.Role))
+            .ToListAsync(cancellationToken);
+        foreach (var collaborator in collaborators)
+        {
+            collaborator.ChangeRole(minimum);
+        }
+
+        var invitations = await dbContext.CollectionInvitations
+            .Where(invitation => invitation.CollectionId == collectionId
+                && belowBaseline.Contains(invitation.Role)
+                && invitation.Status == CollectionInvitationStatus.Pending
+                && invitation.ExpiresAtUtc > nowUtc)
+            .ToListAsync(cancellationToken);
+        foreach (var invitation in invitations)
+        {
+            invitation.ChangeRole(minimum, nowUtc);
         }
     }
 
