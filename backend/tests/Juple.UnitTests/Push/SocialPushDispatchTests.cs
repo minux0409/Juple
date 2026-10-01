@@ -121,6 +121,22 @@ public sealed class SocialPushDispatchTests
         Assert.Equal(SocialNotificationPolicy.DataOnlyMaxAge, SocialNotificationPolicy.MaxAge(NotificationType.FriendRequestAnswered));
     }
 
+    [Fact]
+    public void ALinkPassedOn_IsVisible_AndCarriesOnlyThePublicLinkId_NeverTheInternalCollectionId()
+    {
+        var context = new PushDispatchContext(true, "피카츄", "여행", 0, PublicShareId: "pub123");
+
+        var payload = DispatchPendingPushNotificationsService.BuildPayload(Pending(1, NotificationType.CollectionLinkShared, Now), context, "ko");
+
+        Assert.Equal("collectionLinkShared", payload.Type);
+        Assert.Equal(("컬렉션 링크", "피카츄님이 '여행' 컬렉션 링크를 보냈어요."), (payload.Title, payload.Body));
+        Assert.Equal("pub123", payload.Data["publicId"]);
+        Assert.False(payload.Data.ContainsKey("collectionId"));
+        Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.CollectionLinkShared));
+        Assert.Equal(("Collection link", "피카츄 sent you a link to the collection \"여행\"."),
+            SocialPushText.For(NotificationType.CollectionLinkShared, "en", "피카츄", "여행"));
+    }
+
     [Theory]
     [InlineData("ko", "친구 신청")]
     [InlineData("en", "Friend request")]

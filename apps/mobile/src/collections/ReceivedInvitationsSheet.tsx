@@ -13,9 +13,17 @@ import {
   declineCollectionInvitation,
   invitationRoleOf,
   personLabel,
+  type InvitationRole,
   type ReceivedCollectionInvitation,
 } from './api/collaborationApi';
 import { CategoryIconTile } from './CategoryIconTile';
+
+/** What accepting an invitation with this role gives, in the invited person's words. */
+const RECEIVED_ROLE_LABEL_KEYS: Readonly<Record<InvitationRole, string>> = {
+  viewer: 'collaboration.roleViewer',
+  submitter: 'collaboration.roleSubmitter',
+  contributor: 'collaboration.roleContributor',
+};
 
 function getResponseErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
@@ -118,9 +126,9 @@ export function ReceivedInvitationsSheet({
                           })}
                         </Text>
                       </View>
-                      {/* What accepting gives: 읽기 전용, or 읽기·쓰기 (view + add own links). */}
+                      {/* What accepting gives: 읽기 전용, 승인 후 추가 (proposes links the Owner approves) or 링크 추가. */}
                       <Text numberOfLines={2} style={styles.meta} testID={`share-request-role-${invitation.invitationId}`}>
-                        {invitationRoleOf(invitation.role) === 'viewer' ? t('collaboration.roleViewer') : t('collaboration.roleContributor')}
+                        {t(RECEIVED_ROLE_LABEL_KEYS[invitationRoleOf(invitation.role)])}
                       </Text>
                     </View>
                   </View>

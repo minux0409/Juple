@@ -20,17 +20,6 @@ public sealed class ItemImageStore(
     UserDelegationKeyCache userDelegationKeyCache,
     ILogger<ItemImageStore> logger) : IItemImageStore, IItemImageStorage, ICollectionIconImageStorage, IUserProfileImageStorage
 {
-    /// <summary>
-    /// Total effective images (the auto-extracted PreviewImageUrl, if any, plus the user's own
-    /// uploaded ItemImages) an Item may show at once - see resolveEffectiveThumbnailUrl/the mobile
-    /// unified photo section this enforces the server side of. When PreviewImageUrl is set it
-    /// already occupies one of the two slots, so only one more upload is allowed; with no
-    /// PreviewImageUrl, both slots are available to uploads. This only ever gates NEW uploads - an
-    /// Item that already has more images than this (from before this cap existed, or because
-    /// PreviewImageUrl arrived after uploads had already filled both slots) keeps every existing
-    /// image untouched; nothing is ever deleted to enforce this retroactively.
-    /// </summary>
-    private const int MaxEffectiveImagesPerItem = 2;
     private static readonly TimeSpan ReadUrlTtl = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan ClockSkewBuffer = TimeSpan.FromMinutes(5);
 
@@ -63,6 +52,15 @@ public sealed class ItemImageStore(
         return results;
     }
 
+    /// <summary>
+    /// An Item has at most ONE photo of its own - its representative photo (대표 사진). An upload is
+    /// therefore always "set the photo": the new Blob is stored first, then ONE short transaction
+    /// adds its row, removes every previous row of the Item (including any extra rows saved back
+    /// when two photos were allowed) and makes it the cover (CoverImageId), so it - not the
+    /// automatic PreviewImageUrl - is what Home/Collections show. Only after that commits are the
+    /// replaced Blobs deleted (best-effort): a failure anywhere before the commit leaves the Item
+    /// with its previous photo exactly as it was, never with none.
+    /// </summary>
     public async Task<ItemImageDto> UploadAsync(
         long userId,
         long itemId,
@@ -90,18 +88,25 @@ public sealed class ItemImageStore(
         }
 
         ItemImageDto image;
+        IReadOnlyList<string> replacedBlobNames;
         try
         {
-            image = await InsertRowForLockedItemAsync(
+            (image, replacedBlobNames) = await ReplaceRowsForLockedItemAsync(
                 itemId, blobName, contentType, content.LongLength, createdAtUtc, cancellationToken);
         }
         catch
         {
-            // The Blob already landed in Storage but the DB row never committed (cap exceeded,
-            // or any other DB failure) - best-effort remove it rather than leaking an orphan. The
-            // original failure is what must propagate to the caller regardless of cleanup outcome.
+            // The Blob already landed in Storage but the DB row never committed (any DB failure) -
+            // best-effort remove it rather than leaking an orphan. The previous photo is untouched.
+            // The original failure is what must propagate to the caller regardless of cleanup outcome.
             await DeleteBlobBestEffortAsync(blobName);
             throw;
+        }
+
+        // The new photo is committed - only now may the photo(s) it replaced lose their Blobs.
+        foreach (var replacedBlobName in replacedBlobNames)
+        {
+            await DeleteBlobBestEffortAsync(replacedBlobName);
         }
 
         // Deliberately outside the try/catch above: the DB row is already committed by this
@@ -113,13 +118,14 @@ public sealed class ItemImageStore(
     }
 
     /// <summary>
-    /// Re-checks the per-Item image cap and computes SortOrder inside a short transaction that
-    /// holds a row lock on the owning Item (via UPDLOCK+HOLDLOCK, not a new index/constraint) for
-    /// its duration - this serializes concurrent uploads for the SAME Item so two requests can
-    /// never both observe "9 of 10" and both insert, and never both compute the same SortOrder.
-    /// The lock is acquired only after the Blob upload above, keeping the critical section short.
+    /// Swaps the Item's photo inside a short transaction that holds a row lock on the owning Item
+    /// (via UPDLOCK+HOLDLOCK, not a new index/constraint) for its duration - this serializes
+    /// concurrent uploads for the SAME Item, so of two racing uploads the later one simply replaces
+    /// the earlier one and the Item still ends with exactly one photo. The lock is acquired only
+    /// after the Blob upload above, keeping the critical section short. Returns the BlobNames of the
+    /// rows it removed, for the caller to delete once this has committed.
     /// </summary>
-    private async Task<ItemImageDto> InsertRowForLockedItemAsync(
+    private async Task<(ItemImageDto Image, IReadOnlyList<string> ReplacedBlobNames)> ReplaceRowsForLockedItemAsync(
         long itemId,
         string blobName,
         string contentType,
@@ -129,47 +135,39 @@ public sealed class ItemImageStore(
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        // Locking (not just reading) the Item row here matters for more than serializing the count
-        // check below: it's also what PreviewImageUrl is read from, and a concurrent
-        // SetItemPreviewImageService write to that same row is exactly the race this transaction
-        // must serialize against too - two requests must never both see the pre-enrichment
-        // PreviewImageUrl and both admit an upload that together exceed the cap.
-        //
         // FirstOrDefaultAsync (not FirstAsync): the Item can legitimately have been deleted in the
         // window between UploadAsync's own ownership check and this locked read (the Blob upload in
         // between takes real time) - that must surface as the same ItemNotFoundException a caller
         // would get from a delete that had simply already happened, never an unhandled
-        // "sequence contains no elements" from FirstAsync.
+        // "sequence contains no elements" from FirstAsync. Tracked: its CoverImageId changes below.
         var lockedItem = await dbContext.Items
             .FromSqlInterpolated($"SELECT * FROM items.Items WITH (UPDLOCK, HOLDLOCK) WHERE Id = {itemId}")
-            .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new ItemNotFoundException();
 
-        var existingCount = await dbContext.ItemImages
+        // Every previous photo row of this Item - normally at most one, more only for an Item saved
+        // when two were allowed. All of them go: the Item ends with exactly the new photo.
+        var replaced = await dbContext.ItemImages
             .Where(image => image.ItemId == itemId)
-            .CountAsync(cancellationToken);
-        var previewImageOccupiesASlot = lockedItem.PreviewImageUrl is not null ? 1 : 0;
-        if (existingCount + previewImageOccupiesASlot >= MaxEffectiveImagesPerItem)
-        {
-            throw new ItemImageLimitExceededException();
-        }
+            .ToListAsync(cancellationToken);
 
-        var maxSortOrder = await dbContext.ItemImages
-            .Where(image => image.ItemId == itemId)
-            .Select(image => (int?)image.SortOrder)
-            .MaxAsync(cancellationToken);
-        var sortOrder = (maxSortOrder ?? -1) + 1;
-
-        var image = new ItemImage(itemId, blobName, contentType, byteLength, sortOrder, createdAtUtc);
+        var image = new ItemImage(itemId, blobName, contentType, byteLength, sortOrder: 0, createdAtUtc);
         dbContext.ItemImages.Add(image);
+        dbContext.ItemImages.RemoveRange(replaced);
+        // Assigns the new row's Id - needed for CoverImageId just below (no navigation to fix up).
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // The Item's own photo is its representative photo, ahead of the automatic preview.
+        lockedItem.SetCoverImageId(image.Id);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
 
         // ReadUrl is filled in by the caller (UploadAsync) after this method returns - by design,
         // never inside the try/catch that treats a failure here as an insert failure.
-        return new ItemImageDto(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc, ReadUrl: null);
+        return (
+            new ItemImageDto(image.Id, image.ContentType, image.ByteLength, image.SortOrder, image.CreatedAtUtc, ReadUrl: null),
+            replaced.Select(row => row.BlobName).ToList());
     }
 
     public async Task DeleteAsync(
@@ -190,28 +188,37 @@ public sealed class ItemImageStore(
             .FirstOrDefaultAsync(image => image.Id == imageId && image.ItemId == itemId, cancellationToken);
         if (image is null)
         {
+            // Already gone (e.g. a retried delete) - nothing else is touched, so a photo set since
+            // then is never removed by a stale request.
             return;
         }
 
-        var blobName = image.BlobName;
-        dbContext.ItemImages.Remove(image);
+        // Deleting the Item's photo leaves it with none: an Item saved when two photos were allowed
+        // loses its other row too, so no hidden photo comes back on the next load.
+        var removed = await dbContext.ItemImages
+            .Where(row => row.ItemId == itemId)
+            .ToListAsync(cancellationToken);
+        dbContext.ItemImages.RemoveRange(removed);
 
         // CoverImageId is deliberately not a DB-level FK (see Item.CoverImageId's own remarks), so
         // this is the one place that must keep it from going stale: clear it in the same
-        // SaveChanges as the image row removal when it pointed at the image being deleted, so the
-        // effective representative image falls back to PreviewImageUrl/the next image automatically.
+        // SaveChanges as the image row removal, so the representative image falls back to the
+        // automatic PreviewImageUrl (or none).
         var owningItem = await dbContext.Items
             .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken);
-        if (owningItem?.CoverImageId == imageId)
+        if (owningItem?.CoverImageId is { } coverImageId && removed.Any(row => row.Id == coverImageId))
         {
             owningItem.SetCoverImageId(null);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // The DB row (source of truth) is already gone - a failure here just leaves an orphaned
+        // The DB rows (source of truth) are already gone - a failure here just leaves an orphaned
         // Blob rather than blocking the delete the caller already observed as successful.
-        await DeleteBlobBestEffortAsync(blobName);
+        foreach (var row in removed)
+        {
+            await DeleteBlobBestEffortAsync(row.BlobName);
+        }
     }
 
     public async Task DeleteItemBlobsAsync(

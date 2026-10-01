@@ -40,7 +40,10 @@ public sealed record CollectionDto(
     // for it before its content opens; the Owner never is. Reported to everyone who can see the
     // card - never the password or anything about it. Separate from IsLocked, which for a recipient
     // only ever means a legacy Collection still opening with its Owner's lock password.
-    bool IsSharePasswordProtected = false);
+    bool IsSharePasswordProtected = false,
+    // Owner view only: how many proposed links (승인 후 추가) wait for the Owner's approval. Always 0
+    // for anyone else - proposals are never visible to members or the public.
+    int PendingSubmissionCount = 0);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the
@@ -66,8 +69,13 @@ public static class CollectionDtoAccessRoles
     public const string Owner = "owner";
     public const string Contributor = "contributor";
     public const string Viewer = "viewer";
+    public const string Submitter = "submitter";
 
     /// <summary>The wire role of a non-owner member.</summary>
-    public static string ForCollaborator(Juple.Domain.Collections.CollectionCollaboratorRole role) =>
-        role == Juple.Domain.Collections.CollectionCollaboratorRole.Viewer ? Viewer : Contributor;
+    public static string ForCollaborator(Juple.Domain.Collections.CollectionCollaboratorRole role) => role switch
+    {
+        Juple.Domain.Collections.CollectionCollaboratorRole.Viewer => Viewer,
+        Juple.Domain.Collections.CollectionCollaboratorRole.Submitter => Submitter,
+        _ => Contributor,
+    };
 }

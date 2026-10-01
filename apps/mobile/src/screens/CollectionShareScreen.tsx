@@ -25,6 +25,7 @@ import {
   formatJupleId,
   getCollectionParticipants,
   inviteCollaborator,
+  INVITATION_ROLE_RANK,
   invitationRoleOf,
   lookupJupleId,
   personLabel,
@@ -53,6 +54,7 @@ import { runWithConcurrency } from '../collections/runWithConcurrency';
 import { FriendPickerModal, type FriendUnavailableReason } from '../friends/FriendPickerModal';
 import type { Friend } from '../friends/api/friendsApi';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
+import { useAppToast } from '../components/AppToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { CloseIcon } from '../icons/CloseIcon';
@@ -60,6 +62,7 @@ import { GlobeIcon } from '../icons/GlobeIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { PlusIcon } from '../icons/PlusIcon';
+import { ShareIcon } from '../icons/ShareIcon';
 import { UserIcon } from '../icons/UserIcon';
 import { shareItem } from '../items/shareItem';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
@@ -78,11 +81,25 @@ export const INVITE_CONCURRENCY = 3;
 
 /**
  * While 모든 사용자 is on, its permission is the minimum every specific person has (a server rule
- * too): under 읽기 전용 each person keeps their own choice (null - any role), under 링크 추가 가능
- * everyone is 링크 추가 가능, since a lower role would misstate what the link already lets them do.
+ * too), across three levels - 읽기 전용 < 승인 후 추가 < 링크 추가: under 읽기 전용 each person keeps
+ * their own choice (null - any role); under 승인 후 추가 nobody may be 읽기 전용; under 링크 추가
+ * everyone is 링크 추가 - a lower role would misstate what the link already lets them do.
  */
 export function minimumRoleForPublicPermission(permission: PublicSharePermission): InvitationRole | null {
-  return permission === 'write' ? 'contributor' : null;
+  return permission === 'write' ? 'contributor' : permission === 'submit' ? 'submitter' : null;
+}
+
+/** The role itself, or the minimum when it is below it. */
+export function raiseToMinimum(role: InvitationRole, minimum: InvitationRole | null): InvitationRole {
+  return minimum !== null && INVITATION_ROLE_RANK[role] < INVITATION_ROLE_RANK[minimum] ? minimum : role;
+}
+
+/** The three roles in rank order, as the Owner chooses them. */
+const ROLES: readonly InvitationRole[] = ['viewer', 'submitter', 'contributor'];
+
+/** 읽기 전용 / 승인 후 추가 / 링크 추가 - the same three words for the public link and for each person. */
+function roleLabelKey(role: InvitationRole): string {
+  return role === 'viewer' ? 'shareSheet.permissionRead' : role === 'submitter' ? 'shareSheet.permissionSubmit' : 'shareSheet.permissionWrite';
 }
 
 /** A person waiting in the invitation batch - picked from friends or found by Juple ID - with their own 읽기 전용/링크 추가 가능. */
@@ -109,11 +126,11 @@ function normalizeJupleIdInput(value: string): string {
 }
 
 function memberRoleOf(role: string): BadgeKind {
-  return role === 'owner' ? 'owner' : role === 'contributor' ? 'contributor' : 'viewer';
+  return role === 'owner' ? 'owner' : role === 'contributor' ? 'contributor' : role === 'submitter' ? 'submitter' : 'viewer';
 }
 
-/** Owner first, then 링크 추가 가능, then 읽기 전용 - so who can add to the Collection is visible at a glance. */
-const ROLE_ORDER: Record<BadgeKind, number> = { owner: 0, contributor: 1, viewer: 2 };
+/** Owner first, then 링크 추가, 승인 후 추가, 읽기 전용 - so who can add to the Collection is visible at a glance. */
+const ROLE_ORDER: Record<BadgeKind, number> = { owner: 0, contributor: 1, submitter: 2, viewer: 3 };
 
 function getLookupErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
@@ -140,7 +157,7 @@ function getActionErrorMessage(error: unknown, t: TFunction): string {
         case 'invitationPending':
           return t('collaboration.invitationAlreadyPending');
         case 'publicShareActive':
-          return t('collaboration.blockedByPublicShare');
+          return t('shareSheet.belowPublicPermission');
         case 'invitationNotPending':
           return t('collaboration.invitationNoLongerValid');
         case 'sharePasswordMigrationRequired':
@@ -187,7 +204,7 @@ function getShareManagementErrorMessage(error: unknown, t: TFunction, attemptedP
 
 function RoleBadge({ kind, testID }: { readonly kind: BadgeKind; readonly testID?: string }) {
   const { t } = useTranslation();
-  const label = kind === 'owner' ? t('collections.roleOwner') : kind === 'contributor' ? t('shareSheet.permissionWrite') : t('shareSheet.permissionRead');
+  const label = kind === 'owner' ? t('collections.roleOwner') : t(roleLabelKey(kind));
   return (
     <View style={[styles.badge, badgeStyles[kind]]} testID={testID}>
       <Text numberOfLines={1} style={[styles.badgeLabel, badgeLabelStyles[kind]]}>{label}</Text>
@@ -204,32 +221,38 @@ interface RoleToggleProps {
   /** Takes the full width of its line (two equal halves). */
   readonly stretch?: boolean;
   /**
-   * The lowest permission allowed (a 링크 추가 public link makes it 링크 추가): anything below it is shown
-   * but greyed out and cannot be chosen - the choice itself explains the rule, no sentence needed.
+   * The lowest permission allowed (the public link's own level): anything below it is shown greyed
+   * out and cannot be chosen.
    */
   readonly minimum?: InvitationRole | null;
+  /**
+   * Tapping an option below the minimum: it looks disabled but still hears the tap (never a native
+   * disabled press), so the screen can say briefly why - the value itself never changes.
+   */
+  readonly onUnavailablePress?: () => void;
 }
 
-const ROLE_RANK: Record<InvitationRole, number> = { viewer: 0, contributor: 1 };
-
-/** 읽기 전용 | 링크 추가 for one person about to be invited. The wire roles (viewer/contributor) are never shown. */
-function RoleToggle({ value, onChange, disabled = false, label, testID, stretch = false, minimum = null }: RoleToggleProps) {
+/** 읽기 전용 | 승인 후 추가 | 링크 추가 for one person about to be invited. The wire roles are never shown. */
+function RoleToggle({ value, onChange, disabled = false, label, testID, stretch = false, minimum = null, onUnavailablePress }: RoleToggleProps) {
   const { t } = useTranslation();
   return (
     <View accessibilityLabel={t('shareSheet.permissionA11y', { name: label })} accessibilityRole="radiogroup" style={[styles.roleToggle, stretch && styles.roleToggleStretch]}>
-      {(['viewer', 'contributor'] as const).map(role => {
+      {ROLES.map(role => {
         const isSelected = value === role;
-        const isBelowMinimum = minimum !== null && ROLE_RANK[role] < ROLE_RANK[minimum];
+        const isBelowMinimum = minimum !== null && INVITATION_ROLE_RANK[role] < INVITATION_ROLE_RANK[minimum];
         const isDisabled = disabled || isBelowMinimum;
         return (
           <Pressable
             accessibilityRole="radio"
             accessibilityState={{ checked: isSelected, disabled: isDisabled }}
-            disabled={isDisabled}
+            // Below the minimum stays pressable on purpose: the tap only explains (see onUnavailablePress).
+            disabled={disabled}
             hitSlop={3}
             key={role}
             onPress={() => {
-              if (!isSelected) {
+              if (isBelowMinimum) {
+                onUnavailablePress?.();
+              } else if (!isSelected) {
                 onChange(role);
               }
             }}
@@ -240,7 +263,7 @@ function RoleToggle({ value, onChange, disabled = false, label, testID, stretch 
               numberOfLines={1}
               style={[styles.roleOptionLabel, isSelected && styles.roleOptionLabelSelected, isBelowMinimum && styles.roleOptionLabelUnavailable]}
             >
-              {role === 'viewer' ? t('shareSheet.permissionRead') : t('shareSheet.permissionWrite')}
+              {t(roleLabelKey(role))}
             </Text>
           </Pressable>
         );
@@ -315,7 +338,6 @@ function SectionCard({
   icon,
   title,
   count,
-  status,
   trailing,
   children,
   testID,
@@ -323,8 +345,6 @@ function SectionCard({
   readonly icon: ReactNode;
   readonly title: string;
   readonly count?: string;
-  /** A short "on" state next to the title (e.g. 공유 중), shown only while it is true. */
-  readonly status?: string;
   /** A control at the end of the header - e.g. the public link's on/off switch. */
   readonly trailing?: ReactNode;
   readonly children: ReactNode;
@@ -336,12 +356,6 @@ function SectionCard({
         <View style={styles.cardIcon}>{icon}</View>
         <Text accessibilityRole="header" numberOfLines={2} style={styles.cardTitle}>{title}</Text>
         {count !== undefined ? <Text style={[styles.cardCount, ltrTextStyle]} testID={`${testID}-count`}>{count}</Text> : null}
-        {status !== undefined ? (
-          <View style={styles.statusPill} testID={`${testID}-status`}>
-            <View style={styles.statusDot} />
-            <Text numberOfLines={1} style={styles.statusPillLabel}>{status}</Text>
-          </View>
-        ) : null}
         {trailing}
       </View>
       {children}
@@ -352,7 +366,7 @@ function SectionCard({
 /**
  * The one place for sharing a Collection (Owner only). The ways of sharing are independent and can
  * be used together, so each is its own card, always shown (never tabs that look like a choice):
- * - 공개 링크 공유: the public link and its 권한 - [읽기 전용] (anyone with the link views, signed in
+ * - 컬렉션 공개: the public link and its 권한 - [읽기 전용] (anyone with the link views, signed in
  *   or not) or [링크 추가 가능] (additionally, holders SIGNED IN to Juple may add their own links -
  *   never anonymously). "공유 중" on the card while the link is on.
  * - 친구 초대: [친구] | [ID] tabs feeding one batch of any size; each person gets 읽기 전용 (viewer)
@@ -371,6 +385,9 @@ export function CollectionShareScreen({ route }: Props) {
   const { collectionId } = route.params;
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
+  const { showNotificationToast } = useAppToast();
+  /** 읽기 전용 tapped while the public link is 링크 추가: why it can't be given (nothing changes, nothing is sent). */
+  const explainBelowPublicPermission = () => showNotificationToast(t('shareSheet.belowPublicPermission'));
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [share, setShare] = useState<CollectionShare | null>(null);
@@ -469,22 +486,24 @@ export function CollectionShareScreen({ route }: Props) {
     (left, right) => ROLE_ORDER[memberRoleOf(left.role)] - ROLE_ORDER[memberRoleOf(right.role)],
   );
   const pendingInvitations = participants?.pendingInvitations ?? [];
-  /** Someone (member or still-pending invitation) below this permission's minimum - i.e. 읽기 전용 under 링크 추가 가능. */
+  /** Someone (member or still-pending invitation) below this permission's minimum. */
   const hasRoleMismatch = (permission: PublicSharePermission): boolean => {
-    if (minimumRoleForPublicPermission(permission) !== 'contributor') {
+    const minimum = minimumRoleForPublicPermission(permission);
+    if (minimum === null) {
       return false;
     }
+    const isBelow = (role: InvitationRole) => INVITATION_ROLE_RANK[role] < INVITATION_ROLE_RANK[minimum];
     return (
-      members.some(member => member.role !== 'owner' && memberRoleOf(member.role) === 'viewer')
-      || pendingInvitations.some(invitation => invitationRoleOf(invitation.role) === 'viewer')
+      members.some(member => member.role !== 'owner' && isBelow(invitationRoleOf(member.role)))
+      || pendingInvitations.some(invitation => isBelow(invitationRoleOf(invitation.role)))
     );
   };
 
   // ---------- 모든 사용자 (public link: 읽기 or 작성) ----------
 
   const publicPermission: PublicSharePermission = share ? share.permission ?? 'read' : pendingPublicPermission;
-  // While the link is on as 링크 추가 가능, every specific person is 링크 추가 가능 too; under 읽기 전용 each keeps their own choice.
-  const lockedRole: InvitationRole | null = share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
+  // While the link is on, nobody may be below its level (승인 후 추가 or 링크 추가); under 읽기 전용 each keeps their own choice.
+  const minimumRole: InvitationRole | null = share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
   const isPublicBlocked = !share && hasRoleMismatch(pendingPublicPermission);
   // Still protected by the Owner's lock password for the recipients it already had (legacy): no new
   // recipient - neither a new link nor an invitation - until the Owner sets this Collection's own
@@ -614,7 +633,7 @@ export function CollectionShareScreen({ route }: Props) {
         .map<InviteDraft>(friend => ({
           jupleId: friend.jupleId,
           displayName: friend.displayName,
-          role: lockedRole ?? 'viewer',
+          role: minimumRole ?? 'viewer',
           status: 'ready',
           message: null,
         }));
@@ -657,7 +676,7 @@ export function CollectionShareScreen({ route }: Props) {
     }
     setDrafts(previous => [
       ...previous,
-      { jupleId: person.jupleId, displayName: person.displayName ?? null, role: lockedRole ?? idRole, status: 'ready', message: null },
+      { jupleId: person.jupleId, displayName: person.displayName ?? null, role: raiseToMinimum(idRole, minimumRole), status: 'ready', message: null },
     ]);
     setIdInput('');
     setIdRole('viewer');
@@ -665,7 +684,7 @@ export function CollectionShareScreen({ route }: Props) {
   };
 
   const setDraftRole = (jupleId: string, role: InvitationRole) => {
-    if (lockedRole) {
+    if (raiseToMinimum(role, minimumRole) !== role) {
       return;
     }
     setActionError(null);
@@ -677,7 +696,7 @@ export function CollectionShareScreen({ route }: Props) {
   /**
    * Sends the whole batch - friends and Juple IDs alike - one invitation per person, at most
    * INVITE_CONCURRENCY at a time (the server has no batch endpoint and rate-limits per identity).
-   * While 모든 사용자 is 링크 추가 가능, the role sent is always that - never whatever a row showed. Sent
+   * Never below the public link's level - a row showing less is raised to it, never sent as is. Sent
    * ones leave the batch (they appear under 초대 대기), failed ones stay with their own reason. A
    * synchronous ref guards against a double tap sending twice.
    */
@@ -691,7 +710,7 @@ export function CollectionShareScreen({ route }: Props) {
     setDrafts(previous => previous.map(draft => ({ ...draft, status: 'sending', message: null })));
 
     const results = await runWithConcurrency(batch, INVITE_CONCURRENCY, draft =>
-      inviteCollaborator(authenticatedRequest, collectionId, draft.jupleId, lockedRole ?? draft.role),
+      inviteCollaborator(authenticatedRequest, collectionId, draft.jupleId, raiseToMinimum(draft.role, minimumRole)),
     );
     const failed = new Map<string, string>();
     results.forEach((result, index) => {
@@ -738,8 +757,8 @@ export function CollectionShareScreen({ route }: Props) {
   };
 
   const changeRole = (person: ManagedPerson, role: InvitationRole) => {
-    if (lockedRole) {
-      setActionError(t('collaboration.blockedByPublicShare'));
+    if (raiseToMinimum(role, minimumRole) !== role) {
+      setActionError(t('shareSheet.belowPublicPermission'));
       return;
     }
     if (person.kind === 'member') {
@@ -749,21 +768,19 @@ export function CollectionShareScreen({ route }: Props) {
     }
   };
 
-  /** The "⋯" menu of one row: switch to the other permission (not while 모든 사용자 링크 추가 가능 fixes it), then remove / cancel. */
+  /** The "⋯" menu of one row: switch to each other permission at or above the public link's level, then remove / cancel. */
   const menuActions: readonly ActionMenuDialogAction[] = managed
     ? [
-        ...(lockedRole
-          ? []
-          : [
-              {
-                label: managed.role === 'viewer' ? t('shareSheet.changeToWrite') : t('shareSheet.changeToRead'),
-                onPress: () => {
-                  const person = managed;
-                  setManaged(null);
-                  changeRole(person, person.role === 'viewer' ? 'contributor' : 'viewer');
-                },
-              },
-            ]),
+        ...ROLES
+          .filter(role => role !== managed.role && raiseToMinimum(role, minimumRole) === role)
+          .map(role => ({
+            label: t(role === 'viewer' ? 'shareSheet.changeToRead' : role === 'submitter' ? 'shareSheet.changeToSubmit' : 'shareSheet.changeToWrite'),
+            onPress: () => {
+              const person = managed;
+              setManaged(null);
+              changeRole(person, role);
+            },
+          })),
         managed.kind === 'member'
           ? {
               label: t('shareSheet.removeMember'),
@@ -825,15 +842,28 @@ export function CollectionShareScreen({ route }: Props) {
 
         {participants ? (
           <View ref={contentRef} testID="share-unified">
-            {/* A. 공개 링크 공유: the public link with its 권한. */}
+            {/* A. 컬렉션 공개: [ON/OFF switch] at the end of the header - the setting only. Passing the
+                link on is its own compact action at the card's bottom end, well away from the switch
+                (a tap meant for the switch must never share). The URL itself is not shown. */}
             <SectionCard
               icon={<GlobeIcon color={colors.textSecondary} size={16} />}
-              status={share ? t('shareSheet.publicLinkActive') : undefined}
               testID="share-all-users"
               title={t('shareSheet.allUsersTitle')}
               trailing={
-                // On creates the link (the server's own enable), off stops it after a confirmation -
-                // the same two calls the former 공유 시작 / 공유 중지 buttons made.
+                <View style={styles.headerTrailing}>
+                {/* The state in words next to the switch - decorative for assistive technology, which
+                    already hears the switch's own checked state. */}
+                <Text
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
+                  numberOfLines={1}
+                  style={[styles.switchState, share !== null && styles.switchStateOn]}
+                  testID="share-public-state"
+                >
+                  {share !== null ? t('shareSheet.publicOn') : t('shareSheet.publicOff')}
+                </Text>
+                {/* On creates the link (the server's own enable), off stops it after a confirmation -
+                    the same two calls the former 공유 시작 / 공유 중지 buttons made. */}
                 <Switch
                   accessibilityLabel={t('shareSheet.allUsersTitle')}
                   accessibilityState={{ checked: share !== null, busy: isManagingShare, disabled: isPublicToggleDisabled }}
@@ -848,6 +878,7 @@ export function CollectionShareScreen({ route }: Props) {
                   testID="share-public-toggle"
                   value={share !== null}
                 />
+                </View>
               }
             >
               <View style={styles.field}>
@@ -862,6 +893,7 @@ export function CollectionShareScreen({ route }: Props) {
                   onReselect={() => setShareError(null)}
                   options={[
                     { key: 'read', label: t('shareSheet.permissionRead') },
+                    { key: 'submit', label: t('shareSheet.permissionSubmit') },
                     { key: 'write', label: t('shareSheet.permissionWrite') },
                   ]}
                   testID="share-all-users-permission"
@@ -869,17 +901,27 @@ export function CollectionShareScreen({ route }: Props) {
                 />
               </View>
               <Text style={styles.help} testID="share-all-users-description">
-                {publicPermission === 'write' ? t('shareSheet.allUsersWriteDescription') : t('shareSheet.allUsersDescription')}
+                {publicPermission === 'write'
+                  ? t('shareSheet.allUsersWriteDescription')
+                  : publicPermission === 'submit'
+                    ? t('shareSheet.allUsersSubmitDescription')
+                    : t('shareSheet.allUsersDescription')}
               </Text>
               {share ? (
-                <>
-                  <View style={styles.linkBox}>
-                    <Text numberOfLines={2} selectable style={[styles.link, ltrTextStyle]} testID="share-link">{share.shareUrl}</Text>
-                  </View>
-                  <Pressable accessibilityRole="button" onPress={shareLink} style={styles.primaryButton} testID="share-link-action">
-                    <Text numberOfLines={2} style={styles.primaryLabel}>{t('shareSheet.shareLink')}</Text>
+                // The link's native share sheet: a compact, borderless action at the card's bottom end.
+                <View style={styles.shareActionRow}>
+                  <Pressable
+                    accessibilityLabel={t('shareSheet.shareLink')}
+                    accessibilityRole="button"
+                    hitSlop={4}
+                    onPress={shareLink}
+                    style={styles.shareAction}
+                    testID="share-link-action"
+                  >
+                    <ShareIcon color={colors.textPrimary} size={18} />
+                    <Text numberOfLines={1} style={styles.shareActionLabel}>{t('common.share')}</Text>
                   </Pressable>
-                </>
+                </View>
               ) : (
                 <>
                   {needsSharePasswordMigration ? (
@@ -984,14 +1026,15 @@ export function CollectionShareScreen({ route }: Props) {
                         <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
                         <RoleToggle
                           label={personLabel(idLookup.person)}
-                          minimum={lockedRole}
+                          minimum={minimumRole}
                           onChange={role => {
                             setActionError(null);
                             setIdRole(role);
                           }}
+                          onUnavailablePress={explainBelowPublicPermission}
                           stretch
                           testID="id-invite-role"
-                          value={lockedRole ?? idRole}
+                          value={raiseToMinimum(idRole, minimumRole)}
                         />
                       </View>
                     </View>
@@ -1033,11 +1076,12 @@ export function CollectionShareScreen({ route }: Props) {
                           <RoleToggle
                             disabled={draft.status === 'sending'}
                             label={personLabel(draft)}
-                            minimum={lockedRole}
+                            minimum={minimumRole}
                             onChange={role => setDraftRole(draft.jupleId, role)}
+                            onUnavailablePress={explainBelowPublicPermission}
                             stretch
                             testID={`draft-role-${draft.jupleId}`}
-                            value={lockedRole ?? draft.role}
+                            value={raiseToMinimum(draft.role, minimumRole)}
                           />
                         </View>
                         {draft.message ? <Text style={styles.error} testID={`draft-error-${draft.jupleId}`}>{draft.message}</Text> : null}
@@ -1173,16 +1217,19 @@ export function CollectionShareScreen({ route }: Props) {
   );
 }
 
-// Role badges: 소유자 in the soft amber tile pair, 쓰기 in the brand tint, 읽기 neutral - existing tokens only.
+// Role badges: 소유자 in the soft amber tile pair, 링크 추가 in the brand tint, 승인 후 추가 brand text
+// on the neutral tile, 읽기 전용 neutral - existing tokens only.
 const badgeStyles = StyleSheet.create({
   owner: { backgroundColor: categoryTilePalette[2].background },
   contributor: { backgroundColor: colors.brandSoft },
+  submitter: { backgroundColor: colors.surfaceMuted },
   viewer: { backgroundColor: colors.surfaceMuted },
 });
 
 const badgeLabelStyles = StyleSheet.create({
   owner: { color: categoryTilePalette[2].icon },
   contributor: { color: colors.brand },
+  submitter: { color: colors.brand },
   viewer: { color: colors.textSecondary },
 });
 
@@ -1216,19 +1263,11 @@ const styles = StyleSheet.create({
   // A small label right on top of its control (권한 over a permission choice).
   field: { gap: spacing.xs },
   fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  statusPill: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.md,
-    flexDirection: 'row',
-    flexShrink: 1,
-    gap: spacing.xs,
-    maxWidth: '45%',
-    paddingHorizontal: spacing.sm - 2,
-    paddingVertical: 2,
-  },
-  statusDot: { backgroundColor: colors.success, borderRadius: 3, flexShrink: 0, height: 6, width: 6 },
-  statusPillLabel: { color: colors.success, flexShrink: 1, fontSize: 12, fontWeight: '700' },
+  // [ON/OFF] [switch] at the end of a card header: a tight pair, so the title keeps its one line
+  // even at 360dp. A long translation of the state shortens itself rather than push the switch out.
+  headerTrailing: { alignItems: 'center', flexDirection: 'row', flexShrink: 1, gap: spacing.xs },
+  switchState: { color: colors.textSecondary, flexShrink: 1, fontSize: 12, fontWeight: '700' },
+  switchStateOn: { color: colors.success },
   actionError: { marginBottom: spacing.sm + 2 },
   cardHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
@@ -1268,8 +1307,10 @@ const styles = StyleSheet.create({
   batchTitle: { color: colors.textPrimary, flexShrink: 1, fontSize: 13, fontWeight: '600' },
   batchCount: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   badgeLabel: { fontSize: 12, fontWeight: '700' },
-  linkBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs + 2 },
-  link: { color: colors.textPrimary, fontSize: 14, lineHeight: 19 },
+  // The link's share action, alone at the card's bottom end (a 44dp target, no box).
+  shareActionRow: { alignItems: 'flex-end' },
+  shareAction: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, minHeight: minTouchTarget, minWidth: minTouchTarget, paddingHorizontal: spacing.sm },
+  shareActionLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
   buttonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   flexButton: { flexBasis: 140, flexGrow: 1 },
   noticeBox: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, gap: spacing.xs, padding: spacing.md },

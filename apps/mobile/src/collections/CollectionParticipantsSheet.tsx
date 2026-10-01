@@ -6,8 +6,9 @@ import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { UserAvatar } from '../components/UserAvatar';
 import { CrownIcon } from '../icons/CrownIcon';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import {
+  formatJupleId,
   getCollectionParticipants,
   invitationRoleOf,
   participantRoleLabelKey,
@@ -124,6 +125,9 @@ export function CollectionParticipantsSheet({
                     </Text>
                   </View>
                   <Text style={styles.role}>{t(participantRoleLabelKey(participant.role))}</Text>
+                  <Text numberOfLines={1} style={[styles.jupleId, ltrTextStyle]} testID={`participants-sheet-id-${participant.jupleId}`}>
+                    {formatJupleId(participant.jupleId)}
+                  </Text>
                 </View>
                 {canManage && participant.role !== 'owner' ? (
                   <Pressable
@@ -231,6 +235,7 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   role: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  jupleId: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: spacing.md },
   action: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget, paddingHorizontal: spacing.sm },
   actionLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },

@@ -120,12 +120,20 @@ describe('SavedLinkRow', () => {
       expect(image.props.source).toEqual({ uri: 'https://blob.example/cover.jpg' });
     });
 
-    it('when preferEffectiveThumbnail is true and there is no coverImage, falls back to previewImageUrl', async () => {
+    it('when preferEffectiveThumbnail is true and there is no coverImage, the own photo still wins over previewImageUrl', async () => {
       const item = makeItem({
         representativeImage: { id: 1, readUrl: 'https://blob.example/uploaded.jpg' },
         previewImageUrl: 'https://cdn.example/preview.jpg',
         coverImage: null,
       });
+      const renderer = await render(item, false, true);
+
+      const image = renderer.root.findByType(Image);
+      expect(image.props.source).toEqual({ uri: 'https://blob.example/uploaded.jpg' });
+    });
+
+    it('when preferEffectiveThumbnail is true and the Item has no photo of its own, falls back to previewImageUrl', async () => {
+      const item = makeItem({ representativeImage: null, previewImageUrl: 'https://cdn.example/preview.jpg', coverImage: null });
       const renderer = await render(item, false, true);
 
       const image = renderer.root.findByType(Image);

@@ -282,6 +282,64 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("CollectionItems", "collections");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionLinkSubmission", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PreviewImageUrl")
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("SubmittedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("UrlHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<bool>("ViaPublicShare")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("IX_CollectionLinkSubmissions_ItemId");
+
+                    b.HasIndex("SubmittedByUserId")
+                        .HasDatabaseName("IX_CollectionLinkSubmissions_SubmittedByUserId");
+
+                    b.HasIndex("CollectionId", "Id")
+                        .HasDatabaseName("IX_CollectionLinkSubmissions_CollectionId_Id");
+
+                    b.HasIndex("CollectionId", "UrlHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionLinkSubmissions_CollectionId_UrlHash");
+
+                    b.ToTable("CollectionLinkSubmissions", "collections");
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionMergeCreatedMembership", b =>
                 {
                     b.Property<long>("Id")
@@ -988,7 +1046,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7)");
                         });
                 });
 
@@ -1380,6 +1438,27 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionLinkSubmission", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Items.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("SubmittedByUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 

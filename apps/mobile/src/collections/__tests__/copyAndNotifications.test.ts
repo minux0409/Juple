@@ -69,7 +69,7 @@ describe('copy result message', () => {
 
 describe('새 링크 Push', () => {
   it('is a known event, and a tap opens that Collection', () => {
-    expect(parseSocialPushEvent({ type: 'collectionItemsAdded', collectionId: '42' })).toEqual({ type: 'collectionItemsAdded', collectionId: 42 });
+    expect(parseSocialPushEvent({ type: 'collectionItemsAdded', collectionId: '42' })).toEqual({ type: 'collectionItemsAdded', collectionId: 42, publicId: null });
     expect(resolvePushTapNavigation({ type: 'collectionItemsAdded', collectionId: '42' })).toEqual({ screen: 'CollectionDetails', collectionId: 42 });
     // Without a usable Collection id there is nowhere to go.
     expect(resolvePushTapNavigation({ type: 'collectionItemsAdded', collectionId: 'x' })).toBeNull();

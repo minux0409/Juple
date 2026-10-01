@@ -1,4 +1,5 @@
 using Juple.Application.Collections.Locking;
+using Juple.Application.Collections.Submissions;
 using Juple.Application.Notifications;
 using Juple.Domain.Collections;
 
@@ -9,9 +10,14 @@ public static class PublicSharePermissions
 {
     public const string Read = "read";
     public const string Write = "write";
+    public const string Submit = "submit";
 
-    public static string ToWire(CollectionSharePermission permission) =>
-        permission == CollectionSharePermission.Write ? Write : Read;
+    public static string ToWire(CollectionSharePermission permission) => permission switch
+    {
+        CollectionSharePermission.Write => Write,
+        CollectionSharePermission.Submit => Submit,
+        _ => Read,
+    };
 
     public static bool TryParse(string? value, out CollectionSharePermission permission)
     {
@@ -22,6 +28,9 @@ public static class PublicSharePermissions
                 return true;
             case Write:
                 permission = CollectionSharePermission.Write;
+                return true;
+            case Submit:
+                permission = CollectionSharePermission.Submit;
                 return true;
             default:
                 return false;
@@ -60,7 +69,8 @@ public interface IPublicCollectionWriteService
     /// no membership, no editing/removing, no management. A locked Collection additionally needs the
     /// public link's unlock grant, exactly like reading it. Returns false for an unknown/revoked link.
     /// </summary>
-    Task<bool> AddItemAsync(
+    /// <summary>Null for an unknown/revoked link; Submitted when the link takes proposals (승인 후 추가) - waiting for the Owner.</summary>
+    Task<CollectionLinkAddOutcome?> AddItemAsync(
         long userId,
         string publicId,
         long itemId,
@@ -73,9 +83,10 @@ public sealed class PublicCollectionWriteService(
     IPublicCollectionWriteStore writeStore,
     ICollectionUnlockTokenProtector unlockTokenProtector,
     TimeProvider timeProvider,
-    ISocialNotificationPublisher? notifications = null) : IPublicCollectionWriteService
+    ISocialNotificationPublisher? notifications = null,
+    ICollectionLinkSubmissionStore? submissions = null) : IPublicCollectionWriteService
 {
-    public async Task<bool> AddItemAsync(
+    public async Task<CollectionLinkAddOutcome?> AddItemAsync(
         long userId,
         string publicId,
         long itemId,
@@ -85,10 +96,11 @@ public sealed class PublicCollectionWriteService(
         var state = await shareStore.GetStateAsync(publicId, cancellationToken);
         if (state is null)
         {
-            return false;
+            return null;
         }
 
-        if (state.Permission != CollectionSharePermission.Write)
+        var takesProposals = state.Permission == CollectionSharePermission.Submit && submissions is not null;
+        if (state.Permission != CollectionSharePermission.Write && !takesProposals)
         {
             throw new PublicShareReadOnlyException();
         }
@@ -99,10 +111,25 @@ public sealed class PublicCollectionWriteService(
             throw new CollectionLockedException();
         }
 
+        if (takesProposals)
+        {
+            // 승인 후 추가: a proposal for the Owner (the store re-checks the link under the lock). Not
+            // part of the Collection yet, so nobody is notified - except that the Owner's own link
+            // goes straight in.
+            var outcome = await submissions!.SubmitAsync(userId, state.CollectionId, itemId, publicId, nowUtc, cancellationToken);
+            if (outcome == CollectionLinkAddOutcome.Added && notifications is not null)
+            {
+                await notifications.CollectionsChangedAsync(userId, [state.CollectionId], cancellationToken);
+                await notifications.CollectionItemsAddedAsync(userId, state.CollectionId, 1, hideActor: false, cancellationToken);
+            }
+
+            return outcome;
+        }
+
         var added = await writeStore.AddItemAsync(publicId, userId, itemId, nowUtc, cancellationToken);
         if (added is null)
         {
-            return false;
+            return null;
         }
 
         if (notifications is not null)
@@ -115,6 +142,6 @@ public sealed class PublicCollectionWriteService(
             }
         }
 
-        return true;
+        return CollectionLinkAddOutcome.Added;
     }
 }

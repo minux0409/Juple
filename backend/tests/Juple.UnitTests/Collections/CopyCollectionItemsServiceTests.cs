@@ -7,7 +7,8 @@ using Juple.Domain.Collections;
 namespace Juple.UnitTests.Collections;
 
 /// <summary>
-/// 내 컬렉션으로 복사: only out of a Collection shared WITH the caller, only into one of their OWN, each
+/// 내 컬렉션으로 복사: out of a shared Collection the caller can view (shared with them, or their own -
+/// then only others' links, enforced by the store), only into one of their OWN, each
 /// side behind its own content gate (the source's share password, the destination's own lock) - and
 /// one grouped new-link notification only when something was actually copied.
 /// </summary>
@@ -61,10 +62,29 @@ public sealed class CopyCollectionItemsServiceTests
     }
 
     [Fact]
-    public async Task OnlyFromSharedToMe_IntoMyOwn()
+    public async Task TheSourcesOwner_MayCopyOthersLinks_IntoTheirOwn_WithTheirOwnLinksRefusedByTheStore()
     {
-        // The Owner of the source does not "copy" out of their own Collection.
-        await Assert.ThrowsAsync<CollectionForbiddenException>(() => Service().CopyAsync(Owner, Shared, [5], RecipientOwn, null));
+        _accessStore.Add(30, Owner);
+
+        await Service().CopyAsync(Owner, Shared, [5], 30, null);
+
+        Assert.Equal([5L], _copyStore.LastIds);
+        Assert.True(_copyStore.LastRejectCallerOwned);
+    }
+
+    [Fact]
+    public async Task AParticipant_KeepsTheirOwnLinksReusable()
+    {
+        await Service().CopyAsync(Recipient, Shared, [5], RecipientOwn, null);
+
+        Assert.False(_copyStore.LastRejectCallerOwned);
+    }
+
+    [Fact]
+    public async Task OnlyIntoMyOwn_AndOnlyFromWhatICanSee()
+    {
+        // The source's Owner still copies only into a Collection of their own.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => Service().CopyAsync(Owner, Shared, [5], RecipientOwn, null));
         // A destination the caller only participates in (or cannot see) is not theirs.
         await Assert.ThrowsAsync<CollectionForbiddenException>(() => Service().CopyAsync(Recipient, Shared, [5], ProtectedShared, "share:11:u2:4"));
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => Service().CopyAsync(3, Shared, [5], RecipientOwn, null));
@@ -104,13 +124,16 @@ public sealed class CopyCollectionItemsServiceTests
     {
         public IReadOnlyList<long>? LastIds { get; private set; }
 
+        public bool LastRejectCallerOwned { get; private set; }
+
         public CopyCollectionItemsResult Result { get; set; } = new(1, 0, 0);
 
         public Task<CopyCollectionItemsResult> CopyAsync(
             long userId, long sourceCollectionId, IReadOnlyList<long> itemIds, long destinationCollectionId, DateTimeOffset nowUtc,
-            CancellationToken cancellationToken = default)
+            bool rejectCallerOwnedItems = false, CancellationToken cancellationToken = default)
         {
             LastIds = itemIds;
+            LastRejectCallerOwned = rejectCallerOwnedItems;
             return Task.FromResult(Result);
         }
     }

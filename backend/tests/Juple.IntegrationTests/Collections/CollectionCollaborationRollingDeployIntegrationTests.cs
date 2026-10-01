@@ -162,8 +162,9 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
 
         // The new revision is played by today's model, which also maps Collections.IconImageBlobName
         // (a later, purely additive nullable column - AddCollectionIconImage) and reads the later
-        // CollectionSharePasswords table (AddCollectionSharePasswords): both are added here the way
-        // those migrations add them and given back before the real migrations run in step 10.
+        // CollectionSharePasswords (AddCollectionSharePasswords) and CollectionLinkSubmissions
+        // (AddCollectionLinkSubmissions - the Owner's 승인 대기 count) tables: all are added here the
+        // way those migrations add them and given back before the real migrations run in step 10.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] ADD [IconImageBlobName] nvarchar(400) NULL");
         await ExecuteAsync(
             """
@@ -171,6 +172,14 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
                 [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [CollectionId] bigint NOT NULL, [Mode] varchar(20) NOT NULL,
                 [PasswordHash] nvarchar(512) NULL, [EncryptedPassword] varchar(512) NULL, [PasswordVersion] int NOT NULL,
                 [CreatedAtUtc] datetimeoffset NOT NULL, [UpdatedAtUtc] datetimeoffset NOT NULL)
+            """);
+        await ExecuteAsync(
+            """
+            CREATE TABLE [collections].[CollectionLinkSubmissions] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [CollectionId] bigint NOT NULL, [ItemId] bigint NOT NULL,
+                [SubmittedByUserId] bigint NOT NULL, [ViaPublicShare] bit NOT NULL, [Url] nvarchar(max) NOT NULL,
+                [UrlHash] binary(32) NOT NULL, [Title] nvarchar(500) NULL, [PreviewImageUrl] nvarchar(max) NULL,
+                [CreatedAtUtc] datetimeoffset NOT NULL)
             """);
 
         // 3-4. The previous revision stars a Collection (legacy column only) - the new revision
@@ -212,6 +221,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // legacy-only star gets its row) and leaves the Contributor's row alone.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] DROP COLUMN [IconImageBlobName]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionSharePasswords]");
+        await ExecuteAsync("DROP TABLE [collections].[CollectionLinkSubmissions]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));
         Assert.True(await HasFavoriteRowAsync(owner, starredLater));

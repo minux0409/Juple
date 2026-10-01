@@ -225,17 +225,23 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
         var ownerJupleId = await JupleIdOfAsync(_owner);
         var contributorJupleId = await JupleIdOfAsync(_contributor);
 
+        // Each person with their own public identity (and the Owner flagged - for the crown); no
+        // profile photos here (none set, and no photo storage in this fixture).
         var ownerView = (await _items.GetAsync(_owner, _sharedId, null, 50)).Items;
-        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.Me), ownerView.Single(item => item.ItemId == _ownerItemInShared).AddedBy);
+        Assert.Equal(
+            new CollectionItemAdderDto(CollectionItemAdderKinds.Me, ownerJupleId, null, IsCollectionOwner: true),
+            ownerView.Single(item => item.ItemId == _ownerItemInShared).AddedBy);
         Assert.Equal(
             new CollectionItemAdderDto(CollectionItemAdderKinds.Member, contributorJupleId, null),
             ownerView.Single(item => item.ItemId == _contributorItem).AddedBy);
 
         var contributorView = (await _items.GetAsync(_contributor, _sharedId, null, 50)).Items;
         Assert.Equal(
-            new CollectionItemAdderDto(CollectionItemAdderKinds.Owner, ownerJupleId, null),
+            new CollectionItemAdderDto(CollectionItemAdderKinds.Owner, ownerJupleId, null, IsCollectionOwner: true),
             contributorView.Single(item => item.ItemId == _ownerItemInShared).AddedBy);
-        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.Me), contributorView.Single(item => item.ItemId == _contributorItem).AddedBy);
+        Assert.Equal(
+            new CollectionItemAdderDto(CollectionItemAdderKinds.Me, contributorJupleId, null),
+            contributorView.Single(item => item.ItemId == _contributorItem).AddedBy);
 
         // The read-only single-link view carries the same answer.
         Assert.Equal(CollectionItemAdderKinds.Owner, (await _items.GetItemAsync(_contributor, _sharedId, _ownerItemInShared))!.AddedBy!.Kind);

@@ -55,14 +55,19 @@ export interface JupleIdLookupResult {
 }
 
 /**
- * What an Owner gives a specific person: 읽기 ('viewer' - only looks) or 쓰기 ('contributor' - also
- * adds their own links). The wire values are the server's role names; they are never shown to users.
+ * What an Owner gives a specific person: 읽기 전용 ('viewer' - only looks), 승인 후 추가 ('submitter' -
+ * proposes links the Owner approves) or 링크 추가 ('contributor' - adds their own links). The wire
+ * values are the server's role names; they are never shown to users.
  */
-export type InvitationRole = 'contributor' | 'viewer';
+export type InvitationRole = 'contributor' | 'viewer' | 'submitter';
 
-/** A pending/received invitation's wire role ("Contributor"/"Viewer") as an InvitationRole. */
+/** The three levels in order - the public link's permission is the minimum anyone may have. */
+export const INVITATION_ROLE_RANK: Readonly<Record<InvitationRole, number>> = { viewer: 0, submitter: 1, contributor: 2 };
+
+/** A pending/received invitation's wire role ("Contributor"/"Viewer"/"Submitter") as an InvitationRole. */
 export function invitationRoleOf(role: string): InvitationRole {
-  return role.toLowerCase() === 'viewer' ? 'viewer' : 'contributor';
+  const normalized = role.toLowerCase();
+  return normalized === 'viewer' ? 'viewer' : normalized === 'submitter' ? 'submitter' : 'contributor';
 }
 
 /** The label key for a member's role ("owner" → 소유자, "viewer" → 읽기, "contributor" → 쓰기). */
@@ -72,6 +77,8 @@ export function participantRoleLabelKey(role: string): string {
       return 'collections.roleOwner';
     case 'viewer':
       return 'collections.roleViewer';
+    case 'submitter':
+      return 'collections.roleSubmitter';
     default:
       return 'collections.roleContributor';
   }

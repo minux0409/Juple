@@ -4,7 +4,7 @@ import { COLLECTION_UNLOCK_HEADER_NAME, getCollectionUnlockToken, storedUnlockHe
 
 /** A named 보관함 - an Item can belong to any number of Collections at once (unlike Category). */
 /** The caller's relationship to a Collection - always stated by the server, never inferred client-side. */
-export type CollectionAccessRole = 'owner' | 'contributor' | 'viewer';
+export type CollectionAccessRole = 'owner' | 'contributor' | 'viewer' | 'submitter';
 
 export interface Collection {
   readonly id: number;
@@ -14,7 +14,8 @@ export interface Collection {
    * an owned, unlocked, unshared Collection - see isSharedWithMe/isCollectionLocked below).
    * "contributor": shared with the caller by ownerJupleId; the caller may view and add their own
    * links only. "viewer": shared view-only - the caller may only look (and keep their own favorite
-   * mark). isFavorite is always the caller's own mark, never the Owner's.
+   * mark). "submitter" (승인 후 추가): like a viewer, and the caller's links are proposals that join
+   * only once the Owner approves them. isFavorite is always the caller's own mark, never the Owner's.
    */
   readonly accessRole?: CollectionAccessRole;
   readonly isLocked?: boolean;
@@ -40,6 +41,8 @@ export interface Collection {
    * with its Owner's lock password.
    */
   readonly isSharePasswordProtected?: boolean;
+  /** Owner view only: how many proposed links (승인 후 추가) wait for the Owner's approval. */
+  readonly pendingSubmissionCount?: number;
   /** Contributor view only: the Owner's public Juple ID. */
   readonly ownerJupleId?: string | null;
   /** Contributor view only: the Owner's chosen display name (null when they have not set one). */
@@ -119,13 +122,18 @@ export interface CollectionItemEntry {
 
 /**
  * Who added a link to a Collection, as the server lets the caller see them: "me"; the "owner" or a
- * current "member" by public identity (the same the participant list shows); or "publicLink" - added
- * through the 모든 사용자 link by someone who is not a participant, never identified.
+ * current "member" by public identity and profile photo (the same the participant list shows); or
+ * "publicLink" - added through the 모든 사용자 link by someone who is not a participant, never
+ * identified. isCollectionOwner: the adder is this Collection's Owner (also when that is "me").
+ * Only in signed-in member views - the public link page never receives an adder.
  */
 export interface CollectionItemAdder {
   readonly kind: 'me' | 'owner' | 'member' | 'publicLink';
   readonly jupleId?: string | null;
   readonly displayName?: string | null;
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
+  readonly isCollectionOwner?: boolean;
 }
 
 export interface CollectionItemsPage {
@@ -591,17 +599,80 @@ function membershipUnlockHeaders(
   return options.unlockToken ? { [COLLECTION_UNLOCK_HEADER_NAME]: options.unlockToken } : undefined;
 }
 
-/** PUTs the Item into the Collection; resolves on 204 (idempotent - already-a-member succeeds too). */
+/**
+ * What adding a link did: 'added' - it is a link of the Collection (204, idempotent); 'submitted' -
+ * the caller may only propose links there (승인 후 추가, 202): it waits for the Owner and is not a
+ * link of the Collection yet.
+ */
+export type CollectionLinkAddOutcome = 'added' | 'submitted';
+
+/**
+ * PUTs the Item into the Collection. Rejects with ApiError conflict 'linkAlreadyInCollection' /
+ * 'linkAlreadyPending' when a proposal's link is already there or already waiting.
+ */
 export async function addItemToCollection(
   request: AuthenticatedApiRequest,
   collectionId: number,
   itemId: number,
   options?: MembershipUnlockOptions,
-): Promise<void> {
-  await request<void>({
+): Promise<CollectionLinkAddOutcome> {
+  const response = await request<{ readonly submitted?: boolean }>({
     method: 'PUT',
     path: `/api/v1/collections/${collectionId}/items/${itemId}`,
     headers: membershipUnlockHeaders(collectionId, options),
+  });
+  return response?.status === 202 ? 'submitted' : 'added';
+}
+
+/** One link waiting for the Owner's approval (승인 후 추가) - see GET /collections/{id}/submissions. */
+export interface CollectionLinkSubmission {
+  readonly submissionId: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly previewImageUrl: string | null;
+  readonly submittedAtUtc: string;
+  /** Proposed through the public link by someone who is not a member - never named (proposer null). */
+  readonly viaPublicShare: boolean;
+  readonly proposer: CollectionItemAdder | null;
+}
+
+export interface CollectionLinkSubmissionPage {
+  readonly items: readonly CollectionLinkSubmission[];
+  readonly nextCursor: number | null;
+}
+
+/** The Owner's 승인 대기 list, oldest first. */
+export async function getCollectionSubmissions(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  cursor?: number | null,
+): Promise<CollectionLinkSubmissionPage> {
+  const response = await request<CollectionLinkSubmissionPage>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/submissions${cursor ? `?cursor=${cursor}` : ''}`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no submissions body.');
+  }
+  return response.body;
+}
+
+/** The proposal becomes a link of the Collection. 404 when it is no longer waiting; 409 when it can no longer be added. */
+export async function approveCollectionSubmission(request: AuthenticatedApiRequest, collectionId: number, submissionId: number): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/submissions/${submissionId}/approve`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+}
+
+/** Rejects (deletes) the proposal - nothing is added. Idempotent. */
+export async function rejectCollectionSubmission(request: AuthenticatedApiRequest, collectionId: number, submissionId: number): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}/submissions/${submissionId}`,
+    headers: storedUnlockHeaders(collectionId),
   });
 }
 
@@ -786,7 +857,7 @@ export interface CollectionShare {
   readonly permission?: PublicSharePermission;
 }
 
-export type PublicSharePermission = 'read' | 'write';
+export type PublicSharePermission = 'read' | 'submit' | 'write';
 
 interface CollectionShareStatus {
   readonly isShared: boolean;
@@ -831,6 +902,56 @@ export async function setCollectionSharePermission(
 
   if (!response.body) {
     throw new Error('Juple API returned no Collection share body.');
+  }
+
+  return response.body;
+}
+
+/**
+ * The active 모든 사용자 link's URL for anyone who may view the Collection (an accepted member too),
+ * to pass on with the native share sheet - null while the link is off. Read-only: never the link's
+ * settings or its password (those stay in the Owner's getCollectionShare).
+ */
+export async function getCollectionShareLink(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<string | null> {
+  const response = await request<{ readonly isShared: boolean; readonly shareUrl: string | null }>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/share/link`,
+  });
+
+  return response.body?.isShared && response.body.shareUrl ? response.body.shareUrl : null;
+}
+
+/** At most this many people per send - the server's own limit (ShareCollectionLinkService.MaxRecipientsPerShare). */
+export const MAX_LINK_SHARE_RECIPIENTS = 20;
+
+export interface CollectionLinkShareResult {
+  /** Juple IDs the link was sent to. */
+  readonly sent: readonly string[];
+  /** Juple IDs that belong to nobody (or are malformed) - nothing was sent to them. */
+  readonly notFound: readonly string[];
+}
+
+/**
+ * 친구에게 / ID로 공유: passes the Collection's public link on to these Juple users as a Juple
+ * notification - never an invitation or a membership. The server sends only while the public link
+ * is still on: otherwise it rejects with ApiError conflict 'publicLinkInactive' and sends nothing.
+ */
+export async function sendCollectionShareLink(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  jupleIds: readonly string[],
+): Promise<CollectionLinkShareResult> {
+  const response = await request<CollectionLinkShareResult>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/share/link/send`,
+    body: { jupleIds },
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no link share body.');
   }
 
   return response.body;

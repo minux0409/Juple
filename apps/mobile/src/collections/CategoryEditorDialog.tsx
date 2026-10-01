@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CategoryIconTile } from './CategoryIconTile';
 import { CollectionColorPicker } from './CollectionColorPicker';
@@ -8,6 +8,7 @@ import { CollectionIconPicker } from './CollectionIconPicker';
 import { resolveCollectionColorTile, type CollectionColorValue } from './collectionColors';
 import { KEEP_ICON_IMAGE, pickCollectionIconImage, type CollectionIconImageChange } from './collectionIconImage';
 import { type CollectionIconKey } from './collectionIcons';
+import { DialogActions } from '../components/DialogActions';
 import { ImageIcon } from '../icons/ImageIcon';
 import { colors, radii, spacing } from '../theme/tokens';
 
@@ -178,31 +179,18 @@ export function CategoryEditorDialog({
           </ScrollView>
 
           <View style={styles.buttonRow}>
-            <Pressable
-              accessibilityLabel={t('common.cancel')}
-              accessibilityRole="button"
-              disabled={isSubmitting}
-              onPress={onCancel}
-              style={styles.cancelButton}
-            >
-              <Text style={styles.cancelButtonLabel}>{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityLabel={mode === 'create' ? t('collections.createAction') : t('common.save')}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isSubmitDisabled, busy: isSubmitting }}
-              disabled={isSubmitDisabled}
-              onPress={handleSubmit}
-              style={[styles.confirmButton, isSubmitDisabled && styles.confirmButtonDisabled]}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={colors.surface} size="small" />
-              ) : (
-                <Text style={styles.confirmButtonLabel}>
-                  {mode === 'create' ? t('collections.createAction') : t('common.save')}
-                </Text>
-              )}
-            </Pressable>
+            <DialogActions
+              actions={[
+                { label: t('common.cancel'), onPress: onCancel, tone: 'secondary', disabled: isSubmitting },
+                {
+                  label: mode === 'create' ? t('collections.createAction') : t('common.save'),
+                  onPress: handleSubmit,
+                  tone: 'brand',
+                  disabled: isSubmitDisabled,
+                  busy: isSubmitting,
+                },
+              ]}
+            />
           </View>
         </View>
       </View>
@@ -303,38 +291,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   buttonRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
     marginTop: spacing.lg,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm + 4,
-  },
-  cancelButtonLabel: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: radii.md,
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm + 4,
   },
   confirmButtonDisabled: {
     opacity: 0.5,
-  },
-  confirmButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

@@ -82,6 +82,12 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
                 .Where(membership => membership.AddedByUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // Links this user proposed to anyone's Collection and still waiting (SubmittedByUserId is
+            // NoAction); proposals to their own Collections would also cascade below.
+            await dbContext.CollectionLinkSubmissions
+                .Where(submission => submission.SubmittedByUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // This user's personal favorite marks, including on other people's Collections (marks on
             // their own Collections would also cascade with the Collections delete below).
             await dbContext.CollectionFavorites

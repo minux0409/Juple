@@ -270,6 +270,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   confirmButton: {
     alignItems: 'center',

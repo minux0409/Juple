@@ -5,7 +5,9 @@ using Juple.Application.Collections.Public;
 using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Images;
+using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Items;
+using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -16,7 +18,8 @@ namespace Juple.Infrastructure.Collections;
 
 public sealed class CollectionStore(
     JupleDbContext dbContext,
-    ICollectionIconImageStorage? iconImageStorage = null) : ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
+    ICollectionIconImageStorage? iconImageStorage = null,
+    IUserProfileImageStorage? profileImageStorage = null) : ICollectionContributedLinkStore, ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
 {
     /// <summary>
     /// Spacing between adjacent CollectionItem.SortOrder values - wide enough that a manual move or
@@ -204,6 +207,10 @@ public sealed class CollectionStore(
                 collaborator => collaborator.CollectionId == collection.Id),
             IsPublicShareActive = dbContext.CollectionShares.Any(
                 share => share.CollectionId == collection.Id && share.IsActive),
+            // The Owner's 승인 대기 count only (indexed by CollectionId) - never counted for anyone else.
+            PendingSubmissionCount = collection.UserId == userId
+                ? dbContext.CollectionLinkSubmissions.Count(submission => submission.CollectionId == collection.Id)
+                : 0,
             IconImageBlobName = collection.IconImageBlobName,
             // The caller's own membership role when the Collection is shared with them (null for
             // their own Collections).
@@ -311,7 +318,8 @@ public sealed class CollectionStore(
                 IsPublicShareActive: isOwner && row.IsPublicShareActive,
                 IconImageUrl: iconImageUrls.GetValueOrDefault(row.Id),
                 IconImageVersion: iconImageUrls.ContainsKey(row.Id) ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null,
-                IsSharePasswordProtected: row.SharePasswordMode == CollectionSharePasswordMode.PerCollection);
+                IsSharePasswordProtected: row.SharePasswordMode == CollectionSharePasswordMode.PerCollection,
+                PendingSubmissionCount: isOwner ? row.PendingSubmissionCount : 0);
         }).ToList();
     }
 
@@ -342,6 +350,8 @@ public sealed class CollectionStore(
         public bool HasCollaborators { get; init; }
 
         public bool IsPublicShareActive { get; init; }
+
+        public int PendingSubmissionCount { get; init; }
 
         public string? IconImageBlobName { get; init; }
 
@@ -880,7 +890,8 @@ public sealed class CollectionStore(
     /// Describes each link's adder to a caller who may view this Collection (checked by the caller
     /// of this method): themselves, the Owner or a current member by their public identity, or -
     /// for anyone else who added through the 모든 사용자 link - only that fact. Two small queries
-    /// for a whole page (members among the adders, then their public identity), never one per row.
+    /// for a whole page (members among the adders, then their public identity), never one per row;
+    /// each visible person's profile photo is signed once per page (local signing, no query).
     /// AddedByUserId 0 is a pre-collaboration row, which was always the Owner's own add.
     /// </summary>
     private async Task<Func<long, bool, CollectionItemAdderDto?>> ResolveAddersAsync(
@@ -904,28 +915,45 @@ public sealed class CollectionStore(
                 .ToListAsync(cancellationToken))
                 .ToHashSet();
         var visibleIds = others.Where(id => id == ownerId || memberIds.Contains(id)).ToList();
+        // The caller too, when they added any of these links - their own avatar on their own links -
+        // but only where adders are shown at all (someone else added here, or the Collection has
+        // members or a public link): a private Collection's page stays the one query it always was.
+        if (addedByUserIds.Select(Normalize).Contains(userId)
+            && (others.Count > 0
+                || await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(collaborator => collaborator.CollectionId == collectionId, cancellationToken)
+                || await dbContext.CollectionShares.AsNoTracking().AnyAsync(share => share.CollectionId == collectionId && share.IsActive, cancellationToken)))
+        {
+            visibleIds.Add(userId);
+        }
+
         var people = visibleIds.Count == 0
-            ? new Dictionary<long, PersonRow>()
-            : (await dbContext.Users.AsNoTracking()
+            ? []
+            : await dbContext.Users.AsNoTracking()
                 .Where(user => visibleIds.Contains(user.Id))
-                .Select(user => new PersonRow(user.Id, user.PublicCode, user.DisplayName, null))
-                .ToListAsync(cancellationToken))
-                .ToDictionary(person => person.UserId);
+                .Select(user => new { user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName })
+                .ToListAsync(cancellationToken);
+        var adderOf = new Dictionary<long, (string Kind, CollectionItemAdderDto Adder)>();
+        foreach (var person in people)
+        {
+            var image = await profileImageStorage.ResolveProfileImageAsync(person.Id, person.ProfileImageBlobName, cancellationToken);
+            var kind = person.Id == userId
+                ? CollectionItemAdderKinds.Me
+                : person.Id == ownerId ? CollectionItemAdderKinds.Owner : CollectionItemAdderKinds.Member;
+            adderOf[person.Id] = (kind, new CollectionItemAdderDto(
+                kind, person.PublicCode, person.DisplayName, image.Url, image.Version, IsCollectionOwner: person.Id == ownerId));
+        }
 
         return (addedByUserId, addedViaPublicShare) =>
         {
             var adderId = Normalize(addedByUserId);
-            if (adderId == userId)
+            if (adderOf.TryGetValue(adderId, out var known))
             {
-                return new CollectionItemAdderDto(CollectionItemAdderKinds.Me);
+                return known.Adder;
             }
 
-            if (people.TryGetValue(adderId, out var person))
+            if (adderId == userId)
             {
-                return new CollectionItemAdderDto(
-                    adderId == ownerId ? CollectionItemAdderKinds.Owner : CollectionItemAdderKinds.Member,
-                    person.PublicCode,
-                    person.DisplayName);
+                return new CollectionItemAdderDto(CollectionItemAdderKinds.Me, IsCollectionOwner: adderId == ownerId);
             }
 
             return addedViaPublicShare ? new CollectionItemAdderDto(CollectionItemAdderKinds.PublicLink) : null;
@@ -1143,6 +1171,41 @@ public sealed class CollectionStore(
             // already removed this membership row - the desired end state (absent) was already
             // reached.
         }
+    }
+
+    public async Task<ContributedLinkRemoval> RemoveOwnLinkAsync(
+        long userId,
+        long collectionId,
+        long itemId,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await (
+                from membership in dbContext.CollectionItems
+                where membership.CollectionId == collectionId && membership.ItemId == itemId
+                join item in dbContext.Items on membership.ItemId equals item.Id
+                select new { Membership = membership, ItemOwnerId = item.UserId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (row is null)
+        {
+            return ContributedLinkRemoval.Absent;
+        }
+
+        if (row.ItemOwnerId != userId)
+        {
+            return ContributedLinkRemoval.NotOwnLink;
+        }
+
+        dbContext.CollectionItems.Remove(row.Membership);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Removed concurrently (by the Owner, or the Item's own deletion) - already absent.
+        }
+
+        return ContributedLinkRemoval.Removed;
     }
 
     public async Task RestoreAsync(long userId, long collectionId, CancellationToken cancellationToken = default)

@@ -89,7 +89,16 @@ public sealed class DispatchPendingPushNotificationsService(
     public static PushNotificationPayload BuildPayload(Notification notification, PushDispatchContext context, string locale)
     {
         var data = new Dictionary<string, string>();
-        if (notification.CollectionId is { } collectionId)
+        if (notification.Type == NotificationType.CollectionLinkShared)
+        {
+            // The recipient is not a member: only the public link's own id (what the public page
+            // opens with) - never the internal Collection id.
+            if (context.PublicShareId is { } publicId)
+            {
+                data["publicId"] = publicId;
+            }
+        }
+        else if (notification.CollectionId is { } collectionId)
         {
             data["collectionId"] = collectionId.ToString(CultureInfo.InvariantCulture);
         }

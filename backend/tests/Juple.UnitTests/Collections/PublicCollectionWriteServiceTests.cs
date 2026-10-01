@@ -31,7 +31,7 @@ public sealed class PublicCollectionWriteServiceTests
     {
         _shares.State = new PublicShareState(ShareId, CollectionId, "Trip", false, 0, CollectionSharePermission.Write);
 
-        Assert.True(await Service().AddItemAsync(Writer, PublicId, 55, null));
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await Service().AddItemAsync(Writer, PublicId, 55, null));
         Assert.Equal((PublicId, Writer, 55L), _writes.Last);
     }
 
@@ -73,7 +73,7 @@ public sealed class PublicCollectionWriteServiceTests
     {
         _shares.State = null;
 
-        Assert.False(await Service().AddItemAsync(Writer, PublicId, 55, null));
+        Assert.Null(await Service().AddItemAsync(Writer, PublicId, 55, null));
         Assert.Null(_writes.Last);
     }
 
@@ -88,7 +88,7 @@ public sealed class PublicCollectionWriteServiceTests
         await Assert.ThrowsAsync<CollectionLockedException>(() => Service().AddItemAsync(Writer, PublicId, 55, userGrant));
 
         var linkGrant = FakeUnlockTokenProtector.Token(CollectionId, CollectionUnlockSubject.ForPublicShare(ShareId), 4);
-        Assert.True(await Service().AddItemAsync(Writer, PublicId, 55, linkGrant));
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await Service().AddItemAsync(Writer, PublicId, 55, linkGrant));
     }
 
     [Theory]

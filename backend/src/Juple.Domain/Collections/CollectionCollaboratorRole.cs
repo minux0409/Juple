@@ -12,4 +12,12 @@ public enum CollectionCollaboratorRole
 
     /// <summary>Views the Collection and its links only (보기 전용 공유) - never adds or changes anything.</summary>
     Viewer,
+
+    /// <summary>
+    /// 승인 후 추가: views like a Viewer, and proposes their own links - each becomes a link of the
+    /// Collection only once the Owner approves it (see CollectionLinkSubmission). Between Viewer and
+    /// Contributor in rank (see PublicShareRoles.Rank). Stored by name, so appending it here changes
+    /// no existing row.
+    /// </summary>
+    Submitter,
 }

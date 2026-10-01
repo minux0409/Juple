@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   empty: { color: colors.textSecondary, fontSize: 14, paddingVertical: spacing.lg, textAlign: 'center' },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
   secondary: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
-  secondaryLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  secondaryLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   primary: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.sm },
   primaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
 });

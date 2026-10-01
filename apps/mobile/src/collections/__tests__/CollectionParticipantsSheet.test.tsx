@@ -6,6 +6,7 @@ import { formatParticipantSummary } from '../participantSummary';
 import { CrownIcon } from '../../icons/CrownIcon';
 import {
   getCollectionParticipants,
+  participantRoleLabelKey,
   removeCollaborator,
   revokeCollectionInvitation,
   type CollectionParticipants,
@@ -59,6 +60,29 @@ describe('CollectionParticipantsSheet', () => {
     const ownerRow = renderer.root.findByProps({ testID: 'participants-sheet-WNER2345' });
     expect(ownerRow.findAllByType(CrownIcon)).toHaveLength(1);
     expect(renderer.root.findAllByType(CrownIcon)).toHaveLength(1);
+    expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-remove-'))).toHaveLength(0);
+    expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-revoke-'))).toHaveLength(0);
+  });
+
+  it('a Viewer sees the same read-only list: avatar, name, formatted Juple ID and role per person, the crown only for the Owner', async () => {
+    const { UserAvatar } = require('../../components/UserAvatar');
+    const renderer = await renderSheet({
+      participants: [
+        { jupleId: 'WNER2345', displayName: '피카츄', role: 'owner', profileImageUrl: 'https://blob.example/owner.jpg', profileImageVersion: 'v1' },
+        { jupleId: 'VIEW2345', displayName: '꼬부기', role: 'viewer', isMe: true },
+      ],
+      pendingInvitations: [],
+      canManage: false,
+    });
+
+    const ownerRow = renderer.root.findByProps({ testID: 'participants-sheet-WNER2345' });
+    expect(ownerRow.findByType(UserAvatar).props).toEqual(expect.objectContaining({ imageUrl: 'https://blob.example/owner.jpg', imageVersion: 'v1' }));
+    expect(renderer.root.findByProps({ testID: 'participants-sheet-id-WNER2345' }).props.children).toBe('WNER-2345');
+    expect(renderer.root.findByProps({ testID: 'participants-sheet-id-VIEW2345' }).props.children).toBe('VIEW-2345');
+    const texts = renderer.root.findAllByType(Text).map(node => node.props.children);
+    expect(texts).toEqual(expect.arrayContaining([i18n.t('collections.roleOwner'), i18n.t(participantRoleLabelKey('viewer'))]));
+    expect(renderer.root.findAllByType(CrownIcon)).toHaveLength(1);
+    // Nothing to manage for a member.
     expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-remove-'))).toHaveLength(0);
     expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-revoke-'))).toHaveLength(0);
   });

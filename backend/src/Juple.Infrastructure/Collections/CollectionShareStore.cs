@@ -1,4 +1,5 @@
 using Juple.Application.Collections;
+using Juple.Application.Collections.GetCollectionShare;
 using Juple.Domain.Collections;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -6,8 +7,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Collections;
 
-public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollectionShareStore
+public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollectionShareStore, ICollectionShareLinkReader
 {
+    public Task<string?> GetActivePublicIdAsync(long collectionId, CancellationToken cancellationToken = default) =>
+        dbContext.CollectionShares
+            .AsNoTracking()
+            .Where(share => share.CollectionId == collectionId
+                && share.IsActive
+                && dbContext.Collections.Any(collection => collection.Id == collectionId && collection.DeletedAtUtc == null))
+            .Select(share => share.PublicId)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<CollectionShareDto> EnableAsync(
         long userId,
         long collectionId,
@@ -174,9 +184,9 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
 
     /// <summary>
     /// The public link may be on only while every member and every still-pending invitation has at
-    /// least its permission's role (see PublicShareRoles) - so 보기만 never conflicts, and 링크 추가 is
-    /// refused while anyone is still 보기만. Never fixed up by changing anyone's role automatically;
-    /// the Owner raises them first.
+    /// least its permission's role (see PublicShareRoles) - so 읽기 전용 never conflicts, 승인 후 추가
+    /// is refused while anyone is still 읽기 전용, and 링크 추가 while anyone is below it. Never fixed
+    /// up by changing anyone's role automatically; the Owner raises them first.
     /// </summary>
     private async Task RequireEveryoneMatchesAsync(
         long collectionId,
@@ -184,17 +194,17 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
-        if (permission != CollectionSharePermission.Write)
+        var belowBaseline = PublicShareRoles.RolesBelow(permission);
+        if (belowBaseline.Count == 0)
         {
             return;
         }
 
-        var belowBaseline = CollectionCollaboratorRole.Viewer;
         var mismatch = await dbContext.CollectionCollaborators
-                .AnyAsync(collaborator => collaborator.CollectionId == collectionId && collaborator.Role == belowBaseline, cancellationToken)
+                .AnyAsync(collaborator => collaborator.CollectionId == collectionId && belowBaseline.Contains(collaborator.Role), cancellationToken)
             || await dbContext.CollectionInvitations
                 .AnyAsync(invitation => invitation.CollectionId == collectionId
-                    && invitation.Role == belowBaseline
+                    && belowBaseline.Contains(invitation.Role)
                     && invitation.Status == CollectionInvitationStatus.Pending
                     && invitation.ExpiresAtUtc > nowUtc, cancellationToken);
         if (mismatch)

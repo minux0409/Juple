@@ -19,6 +19,7 @@ public sealed class CollectionItemCopyStore(JupleDbContext dbContext) : ICollect
         IReadOnlyList<long> itemIds,
         long destinationCollectionId,
         DateTimeOffset nowUtc,
+        bool rejectCallerOwnedItems = false,
         CancellationToken cancellationToken = default)
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -39,6 +40,10 @@ public sealed class CollectionItemCopyStore(JupleDbContext dbContext) : ICollect
                 select new { item.Id, item.UserId, item.Url, item.Title, item.PreviewImageUrl })
             .ToListAsync(cancellationToken);
         var unavailable = itemIds.Count - sources.Count;
+        if (rejectCallerOwnedItems && sources.Any(source => source.UserId == userId))
+        {
+            throw new InvalidCollectionException("itemIds", "Your own links are replicated or moved, not copied.");
+        }
 
         // "Already in the destination" = an active link there with the same URL (saving itself never
         // de-duplicates, so the URL is what two copies of one link reliably share).

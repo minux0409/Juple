@@ -14,9 +14,11 @@ public interface ICollectionItemCopyStore
     /// Copies the given links of sourceCollectionId into destinationCollectionId (which the caller
     /// owns), as the caller's own new, independent Items with only the fields every participant
     /// already sees (URL, title, automatic preview image) - never the memo, uploaded images, the
-    /// adder or any id. A link the caller already owns is added as itself instead of duplicated.
-    /// One transaction under the destination row lock. CollectionNotFoundException when the
-    /// destination is gone.
+    /// adder or any id. A link the caller already owns is added as itself instead of duplicated -
+    /// except with rejectCallerOwnedItems (the caller owns the source Collection): then any of the
+    /// caller's own links among them is refused (InvalidCollectionException, nothing written),
+    /// since those go through 복제/이동 instead. One transaction under the destination row lock.
+    /// CollectionNotFoundException when the destination is gone.
     /// </summary>
     Task<CopyCollectionItemsResult> CopyAsync(
         long userId,
@@ -24,6 +26,7 @@ public interface ICollectionItemCopyStore
         IReadOnlyList<long> itemIds,
         long destinationCollectionId,
         DateTimeOffset nowUtc,
+        bool rejectCallerOwnedItems = false,
         CancellationToken cancellationToken = default);
 }
 
@@ -39,9 +42,10 @@ public interface ICopyCollectionItemsService
 }
 
 /// <summary>
-/// 내 컬렉션으로 복사: a participant of a Collection shared WITH them (Contributor or Viewer - reading is
-/// enough, since the copy only holds what they can already see) copies selected links into a
-/// Collection of their OWN. Both sides pass the same content gates as reading/adding: the source's
+/// 내 컬렉션으로 복사: someone who can view a shared Collection - a participant (Contributor or Viewer -
+/// reading is enough, since the copy only holds what they can already see), or its Owner for links
+/// other participants added - copies selected links into a Collection of their OWN. The Owner's
+/// own links never take this path (they use 복제/이동, which keep the Item itself). Both sides pass the same content gates as reading/adding: the source's
 /// share password (or legacy lock) grant, the destination's own lock grant. The source is never
 /// changed and its people are never told; the destination's other members get one grouped
 /// new-link notification. At most MaxItemsPerCopy links per call - one bounded transaction.
@@ -79,11 +83,6 @@ public sealed class CopyCollectionItemsService(
         }
 
         var source = await accessService.RequireUnlockedAsync(userId, sourceCollectionId, CollectionPermission.View, unlockToken, cancellationToken);
-        if (source.IsOwner)
-        {
-            // Only for Collections shared with the caller - their own links move with transfer/merge.
-            throw new CollectionForbiddenException();
-        }
 
         var destination = await accessService.RequireUnlockedAsync(userId, destinationCollectionId, CollectionPermission.AddItem, unlockToken, cancellationToken);
         if (!destination.IsOwner)
@@ -91,7 +90,10 @@ public sealed class CopyCollectionItemsService(
             throw new CollectionForbiddenException();
         }
 
-        var result = await copyStore.CopyAsync(userId, sourceCollectionId, ids, destinationCollectionId, timeProvider.GetUtcNow(), cancellationToken);
+        // In their own Collection the Owner copies only what others added - their own links there
+        // are replicated or moved, never turned into a second Item.
+        var result = await copyStore.CopyAsync(
+            userId, sourceCollectionId, ids, destinationCollectionId, timeProvider.GetUtcNow(), rejectCallerOwnedItems: source.IsOwner, cancellationToken);
         if (result.Copied > 0 && notifications is not null)
         {
             await notifications.CollectionsChangedAsync(userId, [destinationCollectionId], cancellationToken);

@@ -7,6 +7,7 @@ import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
+import { CollectionSubmissionsScreen } from '../screens/CollectionSubmissionsScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
@@ -51,6 +52,8 @@ export type RootStackParamList = {
    * invitations. Opening it never enables anything by itself.
    */
   CollectionShare: { collectionId: number };
+  /** The Owner's 승인 대기 list of links proposed for this Collection (승인 후 추가). */
+  CollectionSubmissions: { collectionId: number };
   /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
   Friends: undefined;
   /**
@@ -142,6 +145,11 @@ export function RootStack() {
               component={CollectionShareScreen}
               name="CollectionShare"
               options={{ presentation: 'modal', title: t('nav.collectionShare') }}
+            />
+            <Stack.Screen
+              component={CollectionSubmissionsScreen}
+              name="CollectionSubmissions"
+              options={{ title: t('nav.collectionSubmissions') }}
             />
             <Stack.Screen
               component={FriendsScreen}

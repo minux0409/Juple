@@ -5,10 +5,10 @@ import { formatBadgeCount } from '../../components/badgeCount';
 
 describe('social Push payloads', () => {
   it('parses only the known types, with an optional positive collection id', () => {
-    expect(parseSocialPushEvent({ type: 'collectionContentChanged', collectionId: '42' })).toEqual({ type: 'collectionContentChanged', collectionId: 42 });
-    expect(parseSocialPushEvent({ type: 'friendRequest' })).toEqual({ type: 'friendRequest', collectionId: null });
-    expect(parseSocialPushEvent({ type: 'friendRequestAnswered' })).toEqual({ type: 'friendRequestAnswered', collectionId: null });
-    expect(parseSocialPushEvent({ type: 'collectionInvitation', collectionId: 'abc' })).toEqual({ type: 'collectionInvitation', collectionId: null });
+    expect(parseSocialPushEvent({ type: 'collectionContentChanged', collectionId: '42' })).toEqual({ type: 'collectionContentChanged', collectionId: 42, publicId: null });
+    expect(parseSocialPushEvent({ type: 'friendRequest' })).toEqual({ type: 'friendRequest', collectionId: null, publicId: null });
+    expect(parseSocialPushEvent({ type: 'friendRequestAnswered' })).toEqual({ type: 'friendRequestAnswered', collectionId: null, publicId: null });
+    expect(parseSocialPushEvent({ type: 'collectionInvitation', collectionId: 'abc' })).toEqual({ type: 'collectionInvitation', collectionId: null, publicId: null });
     expect(parseSocialPushEvent({ type: 'repeatPurchaseDue' })).toBeNull();
     expect(parseSocialPushEvent({})).toBeNull();
     expect(parseSocialPushEvent(null)).toBeNull();
@@ -22,12 +22,22 @@ describe('social Push payloads', () => {
     expect(resolvePushTapNavigation(undefined)).toBeNull();
   });
 
+  it('a passed-on public link opens the public link page by its id - never the Collection itself, never a malformed id', () => {
+    const publicId = 'AbCdEfGh_-0123456789abcdefghijkl';
+    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId })).toEqual({ screen: 'SharedCollection', publicId });
+    // Even if a collectionId were present, it is not where this goes.
+    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId, collectionId: '7' })).toEqual({ screen: 'SharedCollection', publicId });
+    expect(resolvePushTapNavigation({ type: 'collectionLinkShared' })).toBeNull();
+    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId: '../evil' })).toBeNull();
+    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId: 'short' })).toBeNull();
+  });
+
   it('delivers foreground events to every subscriber until it unsubscribes', () => {
     const received: string[] = [];
     const unsubscribe = subscribeSocialPushEvents(event => received.push(event.type));
-    emitSocialPushEvent({ type: 'friendRequest', collectionId: null });
+    emitSocialPushEvent({ type: 'friendRequest', collectionId: null, publicId: null });
     unsubscribe();
-    emitSocialPushEvent({ type: 'collectionInvitation', collectionId: null });
+    emitSocialPushEvent({ type: 'collectionInvitation', collectionId: null, publicId: null });
     expect(received).toEqual(['friendRequest']);
   });
 });

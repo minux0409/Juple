@@ -422,7 +422,7 @@ public sealed class CollectionSharePasswordIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<CollectionLockedException>(() => write.AddItemAsync(_stranger, publicId, strangerItem, null));
         var grant = await Public().UnlockAsync(publicId, SharePassword, "browser-attempt-000000000002");
-        Assert.True(await write.AddItemAsync(_stranger, publicId, strangerItem, grant!.Token));
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await write.AddItemAsync(_stranger, publicId, strangerItem, grant!.Token));
         // Adding through the link made nobody a member.
         Assert.False(await _db.CollectionCollaborators.AnyAsync(collaborator => collaborator.UserId == _stranger));
     }

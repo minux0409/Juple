@@ -94,6 +94,40 @@ describe('SharedCollectionScreen - 모든 사용자: 작성', () => {
     expect(exists(renderer, 'shared-collection-add')).toBe(false);
   });
 
+  it('승인 후 추가: a signed-in viewer proposes the link - it waits for the Owner, so the list does not change', async () => {
+    jest.mocked(getPublicCollection).mockResolvedValue({ name: '모두의 여행지', isLocked: false, permission: 'submit' });
+    mockRequest.mockResolvedValue({ status: 202, body: { submitted: true } });
+    const renderer = await renderScreen();
+    expect(byId(renderer, 'shared-collection-add').findAllByType(Text).map(node => String(node.props.children)))
+      .toContain(i18n.t('sharedCollection.addSubmitNote'));
+
+    await act(async () => {
+      byId(renderer, 'shared-collection-add-url').props.onChangeText('https://example.test/a');
+    });
+    await act(async () => {
+      await byId(renderer, 'shared-collection-add-submit').props.onPress();
+    });
+
+    expect(mockRequest).toHaveBeenCalledWith({ method: 'PUT', path: '/api/v1/public-shares/pub-1/items/42' });
+    expect(byId(renderer, 'shared-collection-add-message').props.children).toBe('승인 요청을 보냈어요.');
+    // Nothing new to show: not reloaded.
+    expect(getPublicCollectionItems).toHaveBeenCalledTimes(1);
+  });
+
+  it('승인 후 추가: a link already there, or already waiting, says so', async () => {
+    jest.mocked(getPublicCollection).mockResolvedValue({ name: '모두의 여행지', isLocked: false, permission: 'submit' });
+    mockRequest.mockRejectedValue(new ApiError('conflict', 409, 'linkAlreadyInCollection'));
+    const renderer = await renderScreen();
+    await act(async () => {
+      byId(renderer, 'shared-collection-add-url').props.onChangeText('https://example.test/a');
+    });
+    await act(async () => {
+      await byId(renderer, 'shared-collection-add-submit').props.onPress();
+    });
+
+    expect(byId(renderer, 'shared-collection-add-message').props.children).toBe('이미 컬렉션에 있는 링크예요.');
+  });
+
   it('a link switched to read-only in the meantime explains it cannot add right now', async () => {
     mockRequest.mockRejectedValue(new ApiError('forbidden', 403, 'publicShareReadOnly'));
     const renderer = await renderScreen();

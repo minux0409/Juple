@@ -70,6 +70,12 @@ public sealed class SocialNotificationPublisher(
         });
 
     public Task CollectionItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, CancellationToken cancellationToken = default) =>
+        EnqueueItemsAddedAsync(actorUserId, collectionId, itemCount, hideActor, alsoSkipUserId: null, cancellationToken);
+
+    public Task CollectionLinkApprovedAsync(long ownerUserId, long submitterUserId, long collectionId, bool hideActor, CancellationToken cancellationToken = default) =>
+        EnqueueItemsAddedAsync(submitterUserId, collectionId, 1, hideActor, alsoSkipUserId: ownerUserId, cancellationToken);
+
+    private Task EnqueueItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, long? alsoSkipUserId, CancellationToken cancellationToken) =>
         SafelyAsync(NotificationType.CollectionItemsAdded, async () =>
         {
             if (itemCount <= 0)
@@ -93,7 +99,10 @@ public sealed class SocialNotificationPublisher(
                 .Where(collaborator => collaborator.CollectionId == collectionId)
                 .Select(collaborator => collaborator.UserId)
                 .ToListAsync(cancellationToken);
-            var recipients = memberUserIds.Append(ownerUserId.Value).Where(userId => userId != actorUserId).Distinct().ToList();
+            var recipients = memberUserIds.Append(ownerUserId.Value)
+                .Where(userId => userId != actorUserId && userId != alsoSkipUserId)
+                .Distinct()
+                .ToList();
             if (recipients.Count == 0)
             {
                 return;

@@ -89,12 +89,6 @@ public sealed class ItemImagesController(
         {
             return NotFound();
         }
-        catch (ItemImageLimitExceededException)
-        {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "This Item already has the maximum number of images.");
-        }
     }
 
     [HttpDelete("{imageId:long}")]

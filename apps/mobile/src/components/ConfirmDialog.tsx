@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../theme/tokens';
+import { DialogActions } from './DialogActions';
 
 interface ConfirmDialogProps {
   readonly visible: boolean;
@@ -22,7 +23,8 @@ interface ConfirmDialogProps {
  * browser, auth system UI) is out of scope and must stay native.
  *
  * Two shapes: a two-button confirm (cancelLabel + onCancel both provided) or a single-button,
- * alert-only variant (both omitted) for a notice with no cancel action.
+ * alert-only variant (both omitted) for a notice with no cancel action. The buttons are the shared
+ * DialogActions - centered labels that wrap, stacking only when a long translation needs it.
  */
 export function ConfirmDialog({
   visible,
@@ -49,25 +51,13 @@ export function ConfirmDialog({
           <Text style={styles.title}>{title}</Text>
           {/* An empty message means a title-only confirmation. */}
           {message ? <Text style={styles.message}>{message}</Text> : null}
-          <View style={styles.buttonRow}>
-            {onCancel && cancelLabel ? (
-              <Pressable
-                accessibilityLabel={cancelLabel}
-                accessibilityRole="button"
-                onPress={onCancel}
-                style={styles.cancelButton}
-              >
-                <Text style={styles.cancelButtonLabel}>{cancelLabel}</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              accessibilityLabel={confirmLabel}
-              accessibilityRole="button"
-              onPress={onConfirm}
-              style={[styles.confirmButton, destructive ? styles.confirmButtonDestructive : styles.confirmButtonNeutral]}
-            >
-              <Text style={styles.confirmButtonLabel}>{confirmLabel}</Text>
-            </Pressable>
+          <View style={styles.actions}>
+            <DialogActions
+              actions={[
+                ...(onCancel && cancelLabel ? [{ label: cancelLabel, onPress: onCancel, tone: 'secondary' as const }] : []),
+                { label: confirmLabel, onPress: onConfirm, tone: destructive ? ('destructive' as const) : ('neutral' as const) },
+              ]}
+            />
           </View>
         </View>
       </View>
@@ -103,41 +93,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: spacing.sm,
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+  actions: {
     marginTop: spacing.xl,
-  },
-  cancelButton: {
-    alignItems: 'center',
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm + 4,
-  },
-  cancelButtonLabel: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    alignItems: 'center',
-    borderRadius: radii.md,
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.sm + 4,
-  },
-  confirmButtonDestructive: {
-    backgroundColor: colors.danger,
-  },
-  confirmButtonNeutral: {
-    backgroundColor: colors.textPrimary,
-  },
-  confirmButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

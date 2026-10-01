@@ -105,8 +105,8 @@ public sealed class PublicShareWriteIntegrationTests : IAsyncLifetime
         Assert.Equal(CollectionSharePermission.Write, (await _shareService.SetPermissionAsync(_owner, _collectionId, CollectionSharePermission.Write))!.Permission);
         Assert.Equal("write", (await _public.GetCollectionAsync(share.PublicId))!.Permission);
 
-        Assert.True(await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null));
-        Assert.True(await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null)); // idempotent
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null));
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null)); // idempotent
 
         var membership = await _db.CollectionItems.AsNoTracking().SingleAsync(entry => entry.CollectionId == _collectionId && entry.ItemId == _writerItem);
         Assert.Equal(_writer, membership.AddedByUserId);
@@ -143,8 +143,11 @@ public sealed class PublicShareWriteIntegrationTests : IAsyncLifetime
         await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null);
 
         var ownerView = (await _items.GetAsync(_owner, _collectionId, null, 50)).Items;
+        // Never who: no identity, no photo, not even a "not the owner" flag beyond the kind.
         Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.PublicLink), ownerView.Single(item => item.ItemId == _writerItem).AddedBy);
-        Assert.Equal(new CollectionItemAdderDto(CollectionItemAdderKinds.Me), ownerView.Single(item => item.ItemId == _ownerItem).AddedBy);
+        var ownLink = ownerView.Single(item => item.ItemId == _ownerItem).AddedBy!;
+        Assert.Equal(CollectionItemAdderKinds.Me, ownLink.Kind);
+        Assert.True(ownLink.IsCollectionOwner);
     }
 
     [Fact]
@@ -170,7 +173,7 @@ public sealed class PublicShareWriteIntegrationTests : IAsyncLifetime
         Assert.True(await _db.Items.AnyAsync(item => item.Id == _writerItem && item.UserId == _writer && item.DeletedAtUtc == null));
 
         await new CollectionShareStore(_db).RevokeAsync(_owner, _collectionId, DateTimeOffset.UtcNow);
-        Assert.False(await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerOtherItem, null));
+        Assert.Null(await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerOtherItem, null));
         Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == _collectionId && entry.ItemId == _writerOtherItem));
     }
 
@@ -191,7 +194,7 @@ public sealed class PublicShareWriteIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<CollectionLockedException>(() => _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, null));
         var grant = await _public.UnlockAsync(share.PublicId, "board-pass");
-        Assert.True(await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, grant!.Token));
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await _publicWrite.AddItemAsync(_writer, share.PublicId, _writerItem, grant!.Token));
     }
 
     [Fact]

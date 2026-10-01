@@ -10,11 +10,14 @@ export type SocialPushEventType =
   | 'collectionInvitationAnswered'
   | 'collectionContentChanged'
   | 'friendRequestAnswered'
-  | 'collectionItemsAdded';
+  | 'collectionItemsAdded'
+  | 'collectionLinkShared';
 
 export interface SocialPushEvent {
   readonly type: SocialPushEventType;
   readonly collectionId: number | null;
+  /** collectionLinkShared only: the public link's id (the recipient is not a member - no collectionId). */
+  readonly publicId?: string | null;
 }
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
@@ -24,7 +27,11 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
   'collectionContentChanged',
   'friendRequestAnswered',
   'collectionItemsAdded',
+  'collectionLinkShared',
 ]);
+
+/** A public link id as the server mints it - anything else is ignored rather than navigated to. */
+const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 type Listener = (event: SocialPushEvent) => void;
 
@@ -37,9 +44,11 @@ export function parseSocialPushEvent(data: Readonly<Record<string, unknown>> | n
     return null;
   }
   const collectionId = Number(data?.collectionId);
+  const publicId = data?.publicId;
   return {
     type: type as SocialPushEventType,
     collectionId: Number.isInteger(collectionId) && collectionId > 0 ? collectionId : null,
+    publicId: typeof publicId === 'string' && PUBLIC_ID_PATTERN.test(publicId) ? publicId : null,
   };
 }
 

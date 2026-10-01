@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { MoreIcon } from '../icons/MoreIcon';
+import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
 
 interface SavedLinkRowProps {
@@ -23,7 +24,7 @@ interface SavedLinkRowProps {
   readonly preferEffectiveThumbnail?: boolean;
   readonly trailingAction?: { readonly accessibilityLabel: string; readonly onPress: () => void };
   /** Who added the link inside a shared Collection (see SavedLinkMetaRow) - omitted everywhere else. */
-  readonly addedByLabel?: string | null;
+  readonly addedBy?: ItemAdderDisplay | null;
 }
 
 /**
@@ -42,7 +43,7 @@ export function SavedLinkRow({
   dateDisplayMode = 'time',
   preferEffectiveThumbnail = false,
   trailingAction,
-  addedByLabel,
+  addedBy,
 }: SavedLinkRowProps) {
   const { t } = useTranslation();
   const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -76,7 +77,7 @@ export function SavedLinkRow({
             {item.memo}
           </Text>
         ) : null}
-        <SavedLinkMetaRow addedByLabel={addedByLabel} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
+        <SavedLinkMetaRow addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
       </View>
       {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>

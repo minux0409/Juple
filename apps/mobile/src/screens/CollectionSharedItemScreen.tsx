@@ -6,10 +6,11 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, Vi
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getSharedCollectionItem, type SharedCollectionItem } from '../collections/api/collectionsApi';
-import { formatItemAdder } from '../collections/itemAdder';
+import { describeItemAdder } from '../collections/itemAdder';
 import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { contentGateOfError } from '../collections/useCollectionItems';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
+import { ItemAdderBadge } from '../components/ItemAdderBadge';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
@@ -19,6 +20,9 @@ import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionSharedItem'>;
 
 const noop = () => undefined;
+
+/** A little larger than on the cards: here it is the line's subject, not a footnote. */
+const ADDER_AVATAR_SIZE = 24;
 
 /**
  * Another member's link inside a shared Category - read-only. Fetched through the Collection
@@ -99,7 +103,7 @@ export function CollectionSharedItemScreen({ route }: Props) {
   }
 
   const hostname = getHostnameFromUrl(item.url) ?? item.url;
-  const addedBy = formatItemAdder(item.addedBy, t);
+  const addedBy = describeItemAdder(item.addedBy, t);
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
@@ -116,10 +120,11 @@ export function CollectionSharedItemScreen({ route }: Props) {
           </Text>
         </ContentPreviewCard>
         {addedBy ? (
-          // Who put this link here - the same label the Collection's list shows.
+          // Who put this link here - drawn exactly as the Collection's List/Grid cards draw it
+          // (avatar, crown for the Owner; the words only for assistive technology).
           <View style={styles.adderRow} testID="shared-item-added-by">
             <Text style={styles.adderLabel}>{t('collections.addedByLabel')}</Text>
-            <Text numberOfLines={2} style={styles.adderValue}>{addedBy}</Text>
+            <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} testID="shared-item-adder" />
           </View>
         ) : null}
         <Text style={styles.readOnlyNote}>{t('collections.sharedItemReadOnly')}</Text>
@@ -143,9 +148,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     writingDirection: 'ltr',
   },
-  adderRow: { alignItems: 'baseline', columnGap: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.md },
+  adderRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.md },
   adderLabel: { color: colors.textSecondary, fontSize: 13 },
-  adderValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600' },
   readOnlyNote: {
     color: colors.textSecondary,
     fontSize: 13,

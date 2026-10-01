@@ -59,6 +59,12 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                         && preference.UserId == userId
                         && !preference.NewItemNotificationsEnabled,
                     cancellationToken),
+            // A passed-on public link: only while that link is still on (and the Collection exists).
+            NotificationType.CollectionLinkShared => await dbContext.CollectionShares.AnyAsync(
+                share => share.CollectionId == notification.CollectionId
+                    && share.IsActive
+                    && dbContext.Collections.Any(collection => collection.Id == share.CollectionId && collection.DeletedAtUtc == null),
+                cancellationToken),
             // Refresh signal about the recipient's own (now answered, possibly deleted) request:
             // there is nothing left to re-check - the payload carries no id, only the type.
             NotificationType.FriendRequestAnswered => true,
@@ -93,11 +99,19 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 && invitation.ExpiresAtUtc > nowUtc,
             cancellationToken);
 
+        var publicShareId = notification.Type == NotificationType.CollectionLinkShared
+            ? await dbContext.CollectionShares.AsNoTracking()
+                .Where(share => share.CollectionId == notification.CollectionId && share.IsActive)
+                .Select(share => share.PublicId)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
         return new PushDispatchContext(
             true,
             actor is null ? null : string.IsNullOrWhiteSpace(actor.DisplayName) ? FormatJupleId(actor.PublicCode) : actor.DisplayName,
             collectionName,
-            pendingFriendRequests + pendingInvitations);
+            pendingFriendRequests + pendingInvitations,
+            publicShareId);
     }
 
     public async Task MarkDispatchedAsync(long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>

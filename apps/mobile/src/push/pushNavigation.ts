@@ -6,7 +6,8 @@ export type PushTapPayload = Readonly<Record<string, unknown>>;
 export type PushTapNavigationTarget =
   | { readonly screen: 'Friends' }
   | { readonly screen: 'CollectionShareRequests' }
-  | { readonly screen: 'CollectionDetails'; readonly collectionId: number };
+  | { readonly screen: 'CollectionDetails'; readonly collectionId: number }
+  | { readonly screen: 'SharedCollection'; readonly publicId: string };
 
 /**
  * Where a tapped notification leads - cold start, background and foreground taps all resolve here.
@@ -24,6 +25,11 @@ export function resolvePushTapNavigation(payload: PushTapPayload | null | undefi
   }
   if (event?.type === 'collectionItemsAdded' && event.collectionId !== null) {
     return { screen: 'CollectionDetails', collectionId: event.collectionId };
+  }
+  // A Collection's public link someone passed on: the public link page (its own password gate) -
+  // never membership, never the Collection's own screen.
+  if (event?.type === 'collectionLinkShared' && event.publicId) {
+    return { screen: 'SharedCollection', publicId: event.publicId };
   }
   return null;
 }

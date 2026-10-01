@@ -32,12 +32,20 @@ public sealed record CollectionItemEntryDto(
 /// <summary>
 /// Who added a link to a Collection, within what the caller may already see of the Collection's
 /// people: Kind "me" (the caller); "owner" / "member" (the Owner or a current member - their public
-/// Juple ID and display name, the same identity the participant list already shows); "publicLink"
-/// (added through the 모든 사용자 link by someone who is not a participant - never identified,
-/// since holding the link does not make them visible to the Collection's people). Null when the
-/// adder is none of these any more.
+/// Juple ID, display name and profile photo, the same identity the participant list already shows);
+/// "publicLink" (added through the 모든 사용자 link by someone who is not a participant - never
+/// identified, since holding the link does not make them visible to the Collection's people). Null
+/// when the adder is none of these any more. IsCollectionOwner: the adder is this Collection's Owner
+/// (also when that is the caller). Only ever in the signed-in member views - the public link's DTOs
+/// never carry an adder at all.
 /// </summary>
-public sealed record CollectionItemAdderDto(string Kind, string? JupleId = null, string? DisplayName = null);
+public sealed record CollectionItemAdderDto(
+    string Kind,
+    string? JupleId = null,
+    string? DisplayName = null,
+    string? ProfileImageUrl = null,
+    string? ProfileImageVersion = null,
+    bool IsCollectionOwner = false);
 
 public static class CollectionItemAdderKinds
 {

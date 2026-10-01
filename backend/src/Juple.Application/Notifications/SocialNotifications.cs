@@ -41,13 +41,24 @@ public interface ISocialNotificationPublisher
     /// public link) never names who added. Nothing about the links themselves is recorded.
     /// </summary>
     Task CollectionItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The Owner approved a proposed link (승인 후 추가): exactly a new link by its proposer (the actor,
+    /// unnamed when hideActor), except that the approving Owner - who just did it - is not told either.
+    /// </summary>
+    Task CollectionLinkApprovedAsync(long ownerUserId, long submitterUserId, long collectionId, bool hideActor, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 }
 
 /// <summary>What the dispatcher needs to decide on and word one pending social notification.</summary>
 /// <param name="IsRelevant">False once the subject is gone or answered (request accepted/declined/cancelled, invitation expired/revoked, membership removed) - then nothing is sent.</param>
 /// <param name="BadgeCount">The recipient's unanswered friend requests + Collection invitations right now (launcher badge).</param>
-/// <remarks>For CollectionItemsAdded, IsRelevant is also false once the recipient turned 새 링크 알림 off.</remarks>
-public sealed record PushDispatchContext(bool IsRelevant, string? ActorName, string? CollectionName, int BadgeCount);
+/// <param name="PublicShareId">CollectionLinkShared only: the Collection's public link as it is right now (the push opens it).</param>
+/// <remarks>
+/// For CollectionItemsAdded, IsRelevant is also false once the recipient turned 새 링크 알림 off; for
+/// CollectionLinkShared, once the public link was turned off (or the Collection deleted).
+/// </remarks>
+public sealed record PushDispatchContext(bool IsRelevant, string? ActorName, string? CollectionName, int BadgeCount, string? PublicShareId = null);
 
 public interface IPushDispatchStore
 {
@@ -114,6 +125,7 @@ public static class SocialNotificationPolicy
         NotificationType.CollectionContentChanged => "collectionContentChanged",
         NotificationType.FriendRequestAnswered => "friendRequestAnswered",
         NotificationType.CollectionItemsAdded => "collectionItemsAdded",
+        NotificationType.CollectionLinkShared => "collectionLinkShared",
         _ => "unknown",
     };
 

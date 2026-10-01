@@ -3,6 +3,7 @@ using Juple.Api.Collections;
 using Juple.Api.Configuration;
 using Juple.Application.Collections;
 using Juple.Application.Collections.Public;
+using Juple.Application.Collections.Submissions;
 using Juple.Application.Identity;
 using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
@@ -29,7 +30,9 @@ public sealed class PublicShareWriteController(
     IPublicCollectionWriteService writeService) : ControllerBase
 {
     /// <summary>
-    /// 204 added (idempotent). 404 unknown/revoked link or an Item that is not the caller's.
+    /// 204 added (idempotent). 202 { submitted: true } when the link takes proposals (승인 후 추가) - it
+    /// waits for the Owner; 409 linkAlreadyInCollection / linkAlreadyPending for a link already there
+    /// or already waiting. 404 unknown/revoked link or an Item that is not the caller's.
     /// 403 publicShareReadOnly for a read-only link; 403 collectionLocked for a locked Collection
     /// without the link's unlock grant (X-Juple-Collection-Unlock).
     /// </summary>
@@ -45,9 +48,12 @@ public sealed class PublicShareWriteController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            return await writeService.AddItemAsync(currentUser.UserId, publicId, itemId, unlockToken, cancellationToken)
-                ? NoContent()
-                : NotFound();
+            return await writeService.AddItemAsync(currentUser.UserId, publicId, itemId, unlockToken, cancellationToken) switch
+            {
+                null => NotFound(),
+                CollectionLinkAddOutcome.Submitted => Accepted(new CollectionsController.LinkSubmittedResponse(true)),
+                _ => NoContent(),
+            };
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -67,6 +73,10 @@ public sealed class PublicShareWriteController(
         catch (CollectionLockedException)
         {
             return CollectionProblems.CollectionLocked();
+        }
+        catch (CollectionCollaborationConflictException exception)
+        {
+            return CollectionProblems.Conflict(exception.Code);
         }
     }
 }

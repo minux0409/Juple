@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import type { CollectionLinkAddOutcome } from './collectionsApi';
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 
 /**
@@ -13,10 +14,12 @@ export async function addLinkToPublicCollection(
   request: AuthenticatedApiRequest,
   publicId: string,
   url: string,
-): Promise<void> {
+): Promise<CollectionLinkAddOutcome> {
   const saved = await saveInboxEntry(request, url);
-  await request<void>({
+  // 202: the link takes proposals (승인 후 추가) - it waits for the Owner.
+  const response = await request<{ readonly submitted?: boolean }>({
     method: 'PUT',
     path: `/api/v1/public-shares/${encodeURIComponent(publicId)}/items/${saved.id}`,
   });
+  return response?.status === 202 ? 'submitted' : 'added';
 }

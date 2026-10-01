@@ -10,22 +10,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // back to a non-cryptographic Math.random() on Hermes.
 import { v4 as uuidv4 } from 'uuid';
 import { ApiError } from '../api/ApiError';
+import { linkProposalErrorMessage } from '../collections/linkProposals';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { addItemToCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
 import { CategoryField } from '../collections/CategoryField';
 import { needsUnlockForContent } from '../collections/collectionAccess';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
+import { useAppToast } from '../components/AppToast';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { uploadItemImage, type ItemImage } from '../images/api/imagesApi';
-import { PhotoListEditor } from '../images/PhotoListEditor';
-import { MAX_EFFECTIVE_IMAGES, reorderList, type EffectiveImage } from '../items/effectiveImages';
-import { setItemCoverImage, setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
+import { uploadItemImage, type ItemImageAsset } from '../images/api/imagesApi';
+import { RepresentativePhotoField } from '../images/RepresentativePhotoField';
+import { setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { registerActiveNewLinkReviewDraft, clearActiveNewLinkReviewDraft } from '../share/activeNewLinkReviewDraft';
@@ -62,14 +63,13 @@ function isKnownYouTubePlaceholderTitle(url: string, title: string): boolean {
   const normalized = title.trim().toLowerCase();
   return normalized === 'youtube' || normalized === '- youtube';
 }
-// Staged photo removal is instant/local (no server round-trip - see removeStagedPhoto), so
-// PhotoListEditor's deletingKeys is always empty here; a stable constant avoids allocating a new
-// Set on every render.
-const EMPTY_DELETING_KEYS: ReadonlySet<string> = new Set();
-
 type Props = NativeStackScreenProps<RootStackParamList, 'NewLinkReview'>;
 
 function getSaveErrorMessage(error: unknown, t: TFunction): string {
+  const proposalMessage = linkProposalErrorMessage(error, t);
+  if (proposalMessage) {
+    return proposalMessage;
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');
@@ -119,6 +119,7 @@ function getPhotoUploadErrorMessage(error: unknown, t: TFunction): string {
  */
 export function NewLinkReviewScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
+  const { showNotificationToast } = useAppToast();
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
 
@@ -174,23 +175,19 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // state at Save time (see save()). Never blocks Save itself; a still-pending/failed resolve just
   // means no auto image is shown/applied.
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-  // The single unified, user-reorderable "사진" list for this not-yet-created Item - 'auto' (the
-  // resolved previewImageUrl above) and/or 'staged' (a locally-picked asset, not yet uploaded -
-  // see stagedAssetsRef). Never 'uploaded' here; that only exists once the Item is real.
-  const [photoOrder, setPhotoOrder] = useState<readonly EffectiveImage[]>([]);
-  // Live mirror of photoOrder for the metadata-resolution effect below (a plain mount-time effect,
-  // not re-run on every photoOrder change) to read the *current* staged state at the moment
-  // metadata actually arrives, not whatever it was when the effect was set up.
-  const photoOrderRef = useRef(photoOrder);
+  // The new Item's one photo (대표 사진), picked here and uploaded only at Save - never before, as
+  // there is no Item yet. Shown ahead of the automatic preview above; null = none picked.
+  const [stagedPhoto, setStagedPhoto] = useState<ItemImageAsset | null>(null);
+  // Live mirrors for the metadata-resolution effect below (a plain mount-time effect, not re-run on
+  // every change) to read the *current* photo state at the moment metadata actually arrives.
+  const stagedPhotoRef = useRef(stagedPhoto);
   useEffect(() => {
-    photoOrderRef.current = photoOrder;
-  }, [photoOrder]);
-  // Upload-time metadata (MIME type/filename) for each staged photo, keyed by its stagedId - kept
-  // out of photoOrder/EffectiveImage itself since that type is shared with ItemDetailsScreen and
-  // has no reason to know about picker-specific fields.
-  const stagedAssetsRef = useRef<Map<string, { readonly uri: string; readonly type?: string; readonly fileName?: string }>>(
-    new Map(),
-  );
+    stagedPhotoRef.current = stagedPhoto;
+  }, [stagedPhoto]);
+  const previewImageUrlRef = useRef(previewImageUrl);
+  useEffect(() => {
+    previewImageUrlRef.current = previewImageUrl;
+  }, [previewImageUrl]);
   const [isPickingPhoto, setIsPickingPhoto] = useState(false);
   const [photosError, setPhotosError] = useState<string | null>(null);
   // Stable across retries of the SAME url (so a retried Save after a partial failure replays the
@@ -312,12 +309,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       if (
         preview.previewImageUrl
         && !backendMetadata.hasImage
-        && !photoOrderRef.current.some(entry => entry.kind === 'staged' || entry.kind === 'auto')
+        && !stagedPhotoRef.current
+        && !previewImageUrlRef.current
       ) {
-        const deviceImageUrl = preview.previewImageUrl;
         isPreviewImageFromInstagramDeviceRef.current = true;
-        setPreviewImageUrl(deviceImageUrl);
-        setPhotoOrder(previous => [{ kind: 'auto', url: deviceImageUrl }, ...previous]);
+        setPreviewImageUrl(preview.previewImageUrl);
       }
     });
   };
@@ -345,22 +341,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           { hasTitle: hasBackendTitle, hasImage: Boolean(metadata.previewImageUrl) },
           () => isMounted,
         );
-        // Skipped entirely once the user has already staged their own photo - picking one from
-        // the OS library realistically takes longer than this network round-trip, so a late-
-        // arriving auto image prepending itself ahead of (or alongside) the user's own choice is
-        // a real race, not a hypothetical one. previewImageUrl and photoOrder are always updated
-        // together here so ContentPreviewCard's top image and the photo list below it never
-        // disagree about whether an auto image exists.
-        if (metadata.previewImageUrl && !photoOrderRef.current.some(entry => entry.kind === 'staged')) {
-          const resolvedImageUrl = metadata.previewImageUrl;
-          setPreviewImageUrl(resolvedImageUrl);
-          // Defaults to first (matching every other screen's "auto is first unless the user moves
-          // it" rule).
-          setPhotoOrder(previous =>
-            previous.some(entry => entry.kind === 'auto')
-              ? previous
-              : [{ kind: 'auto', url: resolvedImageUrl }, ...previous],
-          );
+        // Skipped entirely once the user has already picked their own photo - picking one from the
+        // OS library realistically takes longer than this network round-trip, so a late-arriving
+        // automatic image is a real race, not a hypothetical one.
+        if (metadata.previewImageUrl && !stagedPhotoRef.current) {
+          setPreviewImageUrl(metadata.previewImageUrl);
         }
         // A known YouTube placeholder (see isKnownYouTubePlaceholderTitle) is treated exactly like
         // "no title" here - title simply stays whatever it already was (the share-provided
@@ -410,8 +395,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     }
   };
 
+  /** 사진 추가 / 사진 변경: the picked photo replaces any picked before (an Item has one photo). */
   const pickAndStagePhoto = async () => {
-    if (isPickingPhoto || photoOrder.length >= MAX_EFFECTIVE_IMAGES) {
+    if (isPickingPhoto) {
       return;
     }
 
@@ -434,29 +420,11 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         return;
       }
 
-      const stagedId = uuidv4();
-      stagedAssetsRef.current.set(stagedId, { uri: asset.uri, type: asset.type, fileName: asset.fileName });
       setPhotosError(null);
-      setPhotoOrder(previous => [...previous, { kind: 'staged', stagedId, localUri: asset.uri! }]);
+      setStagedPhoto({ uri: asset.uri, type: asset.type, fileName: asset.fileName });
     } finally {
       setIsPickingPhoto(false);
     }
-  };
-
-  const removeStagedPhoto = (image: EffectiveImage) => {
-    if (image.kind !== 'staged') {
-      return;
-    }
-    stagedAssetsRef.current.delete(image.stagedId);
-    setPhotoOrder(previous => previous.filter(entry => !(entry.kind === 'staged' && entry.stagedId === image.stagedId)));
-  };
-
-  /** The user confirmed making the photo at `index` the new representative/cover photo (see
-   * PhotoListEditor's own tap+confirm UX) - purely local, nothing to persist yet (there is no
-   * Item until Save), so unlike ItemDetailsScreen's own version this never calls an API and never
-   * fails. */
-  const setPhotoAsRepresentative = (index: number) => {
-    setPhotoOrder(previous => reorderList(previous, index, 0));
   };
 
   // onSuccess defaults to the plain "go back to whatever opened this screen" behavior the Save
@@ -494,29 +462,26 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         });
       }
 
+      // 승인 후 추가 Collections take it as a proposal for their Owner - said once the save is done.
+      let proposed = 0;
       for (const collection of selectedCollections) {
         // A locked Collection goes with the grant this screen's picker obtained for it.
-        await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id, {
+        const outcome = await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id, {
           unlockToken: categoryPicker.unlockTokenFor(collection.id),
         });
+        if (outcome === 'submitted') {
+          proposed += 1;
+        }
       }
 
-      // Staged photo(s) upload only now that the Item is real - never before. A failure here
-      // leaves the already-created Item exactly as-is (title/memo/category already persisted
-      // above) and is surfaced clearly rather than silently dropped; a retried Save replays the
-      // same Item via clientRequestId rather than creating a second one, then retries the upload.
-      const uploadedByStagedId = new Map<string, ItemImage>();
-      for (const stagedEntry of photoOrder) {
-        if (stagedEntry.kind !== 'staged') {
-          continue;
-        }
-        const asset = stagedAssetsRef.current.get(stagedEntry.stagedId);
-        if (!asset) {
-          continue;
-        }
+      // The picked photo uploads only now that the Item is real - never before. The server makes it
+      // the Item's cover (its 대표 사진) in the same step, so nothing else needs to follow. A failure
+      // here leaves the already-created Item exactly as-is (title/memo/category already persisted
+      // above) and is surfaced clearly rather than silently dropped; a retried Save replays the same
+      // Item via clientRequestId rather than creating a second one, then retries the upload.
+      if (stagedPhoto) {
         try {
-          const uploaded = await uploadItemImage(authenticatedRequest, savedEntry.id, asset);
-          uploadedByStagedId.set(stagedEntry.stagedId, uploaded);
+          await uploadItemImage(authenticatedRequest, savedEntry.id, stagedPhoto);
         } catch (caughtError) {
           setError(getPhotoUploadErrorMessage(caughtError, t));
           setIsSaving(false);
@@ -524,25 +489,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         }
       }
 
-      // If the user dragged a staged (now-uploaded) photo ahead of the auto preview, persist that
-      // as the cover - mirrors ItemDetailsScreen's own reorder-to-cover mapping. Best-effort in the
-      // sense that a failure here never fails the whole Save (the Item and its photo are already
-      // safely persisted) - but still AWAITED before navigating back. Firing this without awaiting
-      // it used to let navigation.goBack() run immediately, which hands control straight back to
-      // Home's own useFocusEffect refetch - a real race that intermittently showed a just-saved
-      // Item with no thumbnail until a later, unrelated refresh caught up. Awaiting here (even
-      // though the outcome is only ever best-effort) guarantees Home's refetch, once it does run,
-      // always sees this write already committed.
-      const front = photoOrder[0];
-      if (front?.kind === 'staged') {
-        const uploadedFront = uploadedByStagedId.get(front.stagedId);
-        if (uploadedFront) {
-          await setItemCoverImage(authenticatedRequest, savedEntry.id, uploadedFront.id).catch(() => undefined);
-        }
-      }
-
       // Best-effort, from the same mount-time metadata fetch the title above already used - never
-      // blocks/fails Save itself, but still awaited for the same reason as setItemCoverImage above.
+      // blocks/fails Save itself, but still AWAITED before navigating back, so Home's refetch on
+      // focus always sees it already committed (firing it unawaited once showed a just-saved Item
+      // with no thumbnail until a later refresh).
       // A device-fallback image is left to the Instagram candidate step just below instead.
       if (previewImageUrl && !isPreviewImageFromInstagramDeviceRef.current) {
         await setItemPreviewImage(authenticatedRequest, savedEntry.id, previewImageUrl).catch(() => undefined);
@@ -557,6 +507,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         await applyInstagramDeviceFallback(authenticatedRequest, savedEntry.id, trimmedUrl, pendingInstagramFetch);
       }
 
+      if (proposed > 0) {
+        showNotificationToast(t('collections.linkSubmitted'));
+      }
       onSuccess();
     } catch (caughtError) {
       setError(getSaveErrorMessage(caughtError, t));
@@ -568,7 +521,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // Hands the now-resolved conflict share off to a brand-new NewLinkReview instance -
   // navigation.replace (not navigate) is deliberate: unlike navigate, it always creates a fresh
   // route with a new key, which is what actually remounts this screen and gives every piece of
-  // local state (title/memo/categories/photos/hasUserEditedTitleRef/photoOrderRef/metadata loading
+  // local state (title/memo/categories/photo/hasUserEditedTitleRef/stagedPhotoRef/metadata loading
   // state) a clean start - see this codebase's existing CollectionDetailsScreen merge-navigation
   // for the same replace-for-a-fresh-instance convention. acknowledgePendingShare only happens
   // here, once the hand-off is actually committed - never earlier, so a save failure (see
@@ -630,7 +583,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           round's explicit requirement to unify the two screens' information structure. Category is
           laid out before the photo section on purpose (same as ItemDetails): its position/height
           must never depend on whether an async preview image has arrived yet, and putting it ahead
-          of PhotoListEditor in document order means it already has its final layout before that
+          of the 대표 사진 field in document order means it already has its final layout before that
           async state change can ever touch it.
 
           Title + source are visually grouped into one "content preview" card (this round's visual
@@ -642,7 +595,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         */}
         <ContentPreviewCard
           onChangeTitle={handleTitleChange}
-          previewImageUrl={previewImageUrl}
+          previewImageUrl={stagedPhoto?.uri ?? previewImageUrl}
           titleAccessibilityLabel={t('item.titleLabel')}
           titleEditable={!isSaving}
           titleHint={
@@ -711,13 +664,15 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           value={memo}
         />
 
-        <PhotoListEditor
-          deletingKeys={EMPTY_DELETING_KEYS}
-          images={photoOrder}
-          isAdding={isPickingPhoto}
-          onAddPhoto={pickAndStagePhoto}
-          onDeleteImage={removeStagedPhoto}
-          onSetRepresentative={setPhotoAsRepresentative}
+        {/* 대표 사진: the photo picked here, else the link's automatic preview (which can only be
+            replaced, not removed). */}
+        <RepresentativePhotoField
+          disabled={isSaving}
+          isBusy={isPickingPhoto}
+          isRemovable={stagedPhoto !== null}
+          onChoose={pickAndStagePhoto}
+          onRemove={() => setStagedPhoto(null)}
+          photoUrl={stagedPhoto?.uri ?? previewImageUrl}
         />
         {photosError ? <Text style={styles.error}>{photosError}</Text> : null}
       </ScrollView>

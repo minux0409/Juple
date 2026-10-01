@@ -107,15 +107,22 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UploadAsync_SecondImage_IncrementsSortOrder()
+    public async Task UploadAsync_IsTheItemsOnePhoto_ItReplacesThePreviousOne_AndBecomesTheCover()
     {
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
 
         var first = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var firstBlob = await _dbContext.ItemImages.AsNoTracking().Where(row => row.Id == first.Id).Select(row => row.BlobName).SingleAsync();
         var second = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
 
-        Assert.Equal(0, first.SortOrder);
-        Assert.Equal(1, second.SortOrder);
+        // Exactly one photo: the new one, as the cover (ahead of any automatic preview).
+        var rows = await _dbContext.ItemImages.AsNoTracking().Where(row => row.ItemId == _itemId).ToListAsync();
+        Assert.Equal([second.Id], rows.Select(row => row.Id));
+        Assert.Equal(0, second.SortOrder);
+        Assert.Equal(second.Id, await _dbContext.Items.AsNoTracking().Where(item => item.Id == _itemId).Select(item => item.CoverImageId).SingleAsync());
+        // The replaced photo's Blob is cleaned up after the switch; the new one is there.
+        Assert.False(await _blobContainerClient.GetBlobClient(firstBlob).ExistsAsync());
+        Assert.True(await _blobContainerClient.GetBlobClient(rows[0].BlobName).ExistsAsync());
     }
 
     [Fact]
@@ -128,61 +135,66 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UploadAsync_WhenItemAlreadyHasTwoImagesAndNoPreview_ThrowsItemImageLimitExceeded()
+    public async Task UploadAsync_OnAnItemWithAnAutomaticPreview_TheUploadedPhotoBecomesItsRepresentative()
     {
-        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        for (var i = 0; i < 2; i++)
-        {
-            await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        }
-
-        await Assert.ThrowsAsync<ItemImageLimitExceededException>(
-            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
-
-        var count = await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId);
-        Assert.Equal(2, count);
-    }
-
-    [Fact]
-    public async Task UploadAsync_WhenItemHasAPreviewImageUrlAndOneUploadedImage_ThrowsItemImageLimitExceeded()
-    {
-        // PreviewImageUrl already occupies one of the two effective-image slots - see
-        // MaxEffectiveImagesPerItem's own remarks - so only a single upload is admitted, not two.
         var item = await _dbContext.Items.SingleAsync(i => i.Id == _itemId);
         item.SetPreviewImageUrl("https://cdn.example/preview.jpg");
         await _dbContext.SaveChangesAsync();
         _dbContext.ChangeTracker.Clear();
 
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var uploaded = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
 
-        await Assert.ThrowsAsync<ItemImageLimitExceededException>(
-            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
-
-        var count = await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId);
-        Assert.Equal(1, count);
+        var saved = await _dbContext.Items.AsNoTracking().SingleAsync(i => i.Id == _itemId);
+        Assert.Equal(uploaded.Id, saved.CoverImageId); // the cover wins over the preview everywhere it is shown
+        Assert.Equal("https://cdn.example/preview.jpg", saved.PreviewImageUrl); // the preview itself is kept, untouched
+        Assert.Equal(1, await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId));
     }
 
     [Fact]
-    public async Task UploadAsync_WhenAnItemAlreadyHasMoreThanTwoLegacyImages_KeepsThemAll_ButRejectsFurtherUploads()
+    public async Task UploadAsync_OnALegacyItemWithSeveralPhotos_LeavesExactlyTheNewOne()
     {
-        // Simulates data saved back when the cap was 10 (or before any cap existed) by seeding rows
-        // directly via EF, bypassing UploadAsync's own enforcement - nothing about a lower new cap
-        // may ever delete/hide pre-existing images; it only blocks additional ones going forward.
-        for (var i = 0; i < 4; i++)
+        // Rows saved back when an Item could have more than one photo, seeded directly (UploadAsync
+        // itself can no longer create them). Changing the photo normalizes the Item to one.
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var legacyBlobs = new List<string>();
+        for (var i = 0; i < 3; i++)
         {
-            _dbContext.ItemImages.Add(new ItemImage(
-                _itemId, $"items/{_userId}/{_itemId}/legacy-{i}.jpg", "image/jpeg", JpegBytes.Length, i, DateTimeOffset.UtcNow));
+            var blobName = $"items/{_userId}/{_itemId}/legacy-{i}.jpg";
+            await _blobContainerClient.GetBlobClient(blobName).UploadAsync(new BinaryData(JpegBytes), overwrite: true);
+            legacyBlobs.Add(blobName);
+            _dbContext.ItemImages.Add(new ItemImage(_itemId, blobName, "image/jpeg", JpegBytes.Length, i, DateTimeOffset.UtcNow));
         }
         await _dbContext.SaveChangesAsync();
         _dbContext.ChangeTracker.Clear();
 
-        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        await Assert.ThrowsAsync<ItemImageLimitExceededException>(
-            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow));
+        var uploaded = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
 
-        var count = await _dbContext.ItemImages.CountAsync(image => image.ItemId == _itemId);
-        Assert.Equal(4, count);
+        Assert.Equal([uploaded.Id], await _dbContext.ItemImages.AsNoTracking().Where(row => row.ItemId == _itemId).Select(row => row.Id).ToListAsync());
+        foreach (var blobName in legacyBlobs)
+        {
+            Assert.False(await _blobContainerClient.GetBlobClient(blobName).ExistsAsync());
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_WhenTheSwitchFails_TheItemKeepsItsPreviousPhoto()
+    {
+        var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var previous = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var previousBlob = await _dbContext.ItemImages.AsNoTracking().Where(row => row.Id == previous.Id).Select(row => row.BlobName).SingleAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        // Empty content passes the store (no Application validation here) but fails the DB check
+        // constraint inside the switch transaction - after the new Blob already landed.
+        await Assert.ThrowsAsync<DbUpdateException>(
+            () => store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, [], DateTimeOffset.UtcNow));
+        _dbContext.ChangeTracker.Clear();
+
+        // Never left with no photo: the previous one, its Blob and the cover are all still there.
+        Assert.Equal([previous.Id], await _dbContext.ItemImages.AsNoTracking().Where(row => row.ItemId == _itemId).Select(row => row.Id).ToListAsync());
+        Assert.True(await _blobContainerClient.GetBlobClient(previousBlob).ExistsAsync());
+        Assert.Equal(previous.Id, await _dbContext.Items.AsNoTracking().Where(item => item.Id == _itemId).Select(item => item.CoverImageId).SingleAsync());
     }
 
     [Fact]
@@ -213,9 +225,14 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task ListAsync_ReturnsImagesOrderedBySortOrderThenId()
     {
+        // Several rows exist only for Items saved when two photos were allowed - seeded directly;
+        // the list still returns all of them (the app shows the cover/first one).
         var store = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
-        var first = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var second = await store.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var first = new ItemImage(_itemId, $"items/{_userId}/{_itemId}/legacy-a.jpg", "image/jpeg", JpegBytes.Length, 0, DateTimeOffset.UtcNow);
+        var second = new ItemImage(_itemId, $"items/{_userId}/{_itemId}/legacy-b.jpg", "image/jpeg", JpegBytes.Length, 1, DateTimeOffset.UtcNow);
+        _dbContext.ItemImages.AddRange(first, second);
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
 
         var images = await store.ListAsync(_userId, _itemId);
 
@@ -274,9 +291,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
         var itemStore = new ItemStore(_dbContext);
         var deleteItemService = new DeleteItemService(itemStore, imageStore, TimeProvider.System);
 
-        var firstImage = await imageStore.UploadAsync(
-            _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var secondImage = await imageStore.UploadAsync(
+        var image = await imageStore.UploadAsync(
             _userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
         var blobNames = await _dbContext.ItemImages
             .AsNoTracking()
@@ -287,8 +302,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
 
         await deleteItemService.DeleteAsync(_userId, _itemId);
 
-        Assert.Equal(2, await _dbContext.ItemImages.CountAsync(
-            row => row.Id == firstImage.Id || row.Id == secondImage.Id));
+        Assert.Equal(1, await _dbContext.ItemImages.CountAsync(row => row.Id == image.Id));
         foreach (var blobName in blobNames)
         {
             Assert.True(await _blobContainerClient.GetBlobClient(blobName).ExistsAsync());
@@ -472,7 +486,7 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task UploadAsync_TwoConcurrentUploadsAtCap_AllowsExactlyTwoAndCompensatesTheRejectedBlob()
+    public async Task UploadAsync_TwoConcurrentUploads_LeaveExactlyOnePhoto_AndNoOrphanBlob()
     {
         var seedStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         await seedStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
@@ -493,17 +507,15 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             uploadA.ContinueWith(t => t.Exception?.InnerException),
             uploadB.ContinueWith(t => t.Exception?.InnerException));
 
-        // Exactly one of the two truly-concurrent uploads must be rejected by the cap - never
-        // both accepted (3 rows) and never both rejected (1 row stuck).
-        var rejections = results.Count(exception => exception is ItemImageLimitExceededException);
-        Assert.Equal(1, rejections);
+        // Both succeed (the item lock serializes them) - the later one simply replaces the earlier one.
+        Assert.All(results, exception => Assert.Null(exception));
 
         var finalRows = await _dbContext.ItemImages
             .AsNoTracking()
             .Where(row => row.ItemId == _itemId)
             .ToListAsync();
-        Assert.Equal(2, finalRows.Count);
-        Assert.Equal(2, finalRows.Select(row => row.SortOrder).Distinct().Count());
+        Assert.Single(finalRows);
+        Assert.Equal(finalRows[0].Id, await _dbContext.Items.AsNoTracking().Where(item => item.Id == _itemId).Select(item => item.CoverImageId).SingleAsync());
 
         var remainingBlobs = new List<string>();
         await foreach (var blobItem in _blobContainerClient.GetBlobsAsync(
@@ -515,9 +527,8 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
             remainingBlobs.Add(blobItem.Name);
         }
 
-        // The rejected request's just-uploaded Blob must have been compensation-deleted - exactly
-        // the 2 Blobs backing the 2 persisted rows, no orphan from the losing request.
-        Assert.Equal(2, remainingBlobs.Count);
+        // Every replaced Blob was cleaned up - only the Blob backing the one persisted row remains.
+        Assert.Single(remainingBlobs);
         Assert.Equal(
             finalRows.Select(row => row.BlobName).OrderBy(name => name),
             remainingBlobs.OrderBy(name => name));
@@ -582,23 +593,47 @@ public sealed class ItemImageStoreIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenDeletingADifferentImage_LeavesCoverImageIdUntouched()
+    public async Task DeleteAsync_OnALegacyItemWithSeveralPhotos_LeavesNone_SoNoHiddenPhotoComesBack()
     {
         var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
         var itemStore = new ItemStore(_dbContext);
-        var cover = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var other = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        await itemStore.SetCoverImageIdAsync(_userId, _itemId, cover.Id);
+        var legacy = new List<ItemImage>();
+        for (var i = 0; i < 2; i++)
+        {
+            var blobName = $"items/{_userId}/{_itemId}/legacy-{i}.jpg";
+            await _blobContainerClient.GetBlobClient(blobName).UploadAsync(new BinaryData(JpegBytes), overwrite: true);
+            var row = new ItemImage(_itemId, blobName, "image/jpeg", JpegBytes.Length, i, DateTimeOffset.UtcNow);
+            _dbContext.ItemImages.Add(row);
+            legacy.Add(row);
+        }
+        await _dbContext.SaveChangesAsync();
+        await itemStore.SetCoverImageIdAsync(_userId, _itemId, legacy[0].Id);
         _dbContext.ChangeTracker.Clear();
 
-        await imageStore.DeleteAsync(_userId, _itemId, other.Id);
+        // The app deletes the photo it shows (the cover); the other legacy row goes with it.
+        await imageStore.DeleteAsync(_userId, _itemId, legacy[0].Id);
 
-        var coverImageId = await _dbContext.Items
-            .AsNoTracking()
-            .Where(item => item.Id == _itemId)
-            .Select(item => item.CoverImageId)
-            .SingleAsync();
-        Assert.Equal(cover.Id, coverImageId);
+        Assert.Equal(0, await _dbContext.ItemImages.CountAsync(row => row.ItemId == _itemId));
+        Assert.Null(await _dbContext.Items.AsNoTracking().Where(item => item.Id == _itemId).Select(item => item.CoverImageId).SingleAsync());
+        foreach (var row in legacy)
+        {
+            Assert.False(await _blobContainerClient.GetBlobClient(row.BlobName).ExistsAsync());
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ForAPhotoAlreadyReplaced_NeverRemovesTheCurrentOne()
+    {
+        // A stale delete (e.g. retried after the photo was changed) must not wipe the new photo.
+        var imageStore = new ItemImageStore(_dbContext, TestBlobContainerClientFactory.Service, _blobContainerClient, TestBlobContainerClientFactory.CreateUserDelegationKeyCache(), NullLogger<ItemImageStore>.Instance);
+        var old = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        var current = await imageStore.UploadAsync(_userId, _itemId, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
+        _dbContext.ChangeTracker.Clear();
+
+        await imageStore.DeleteAsync(_userId, _itemId, old.Id);
+
+        Assert.Equal([current.Id], await _dbContext.ItemImages.AsNoTracking().Where(row => row.ItemId == _itemId).Select(row => row.Id).ToListAsync());
+        Assert.Equal(current.Id, await _dbContext.Items.AsNoTracking().Where(item => item.Id == _itemId).Select(item => item.CoverImageId).SingleAsync());
     }
 
     [Fact]

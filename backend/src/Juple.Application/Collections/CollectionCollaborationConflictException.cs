@@ -19,5 +19,17 @@ public sealed class CollectionCollaborationConflictException(string code) : Exce
     public const string InvitationNotPending = "invitationNotPending";
     public const string SharePasswordMigrationRequired = "sharePasswordMigrationRequired";
 
+    /// <summary>The Collection's public link is off (turned off since the app last saw it) - nothing was shared.</summary>
+    public const string PublicLinkInactive = "publicLinkInactive";
+
+    /// <summary>A proposed link (승인 후 추가) is already a link of the Collection.</summary>
+    public const string LinkAlreadyInCollection = "linkAlreadyInCollection";
+
+    /// <summary>The same link is already waiting for the Owner's approval.</summary>
+    public const string LinkAlreadyPending = "linkAlreadyPending";
+
+    /// <summary>The proposal can no longer be approved - its link was deleted by the person who proposed it.</summary>
+    public const string SubmissionUnavailable = "submissionUnavailable";
+
     public string Code { get; } = code;
 }

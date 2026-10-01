@@ -6,14 +6,22 @@ import { getCollectionUnlockToken } from './collectionUnlockGrants';
  * out of collectionsApi.ts so screens and tests that mock the API module still get the real logic.
  */
 
-/** Shared with the caller by someone else - as a Contributor (공동작업) or a Viewer (보기 전용). */
+/** Shared with the caller by someone else - as a Contributor (링크 추가), a Submitter (승인 후 추가) or a Viewer (읽기 전용). */
 export function isSharedWithMe(collection: Pick<Collection, 'accessRole'>): boolean {
-  return collection.accessRole === 'contributor' || collection.accessRole === 'viewer';
+  return collection.accessRole === 'contributor' || collection.accessRole === 'viewer' || collection.accessRole === 'submitter';
 }
 
-/** Whether the caller may put their own links into it: the Owner and Contributors, never a Viewer. */
+/**
+ * Whether the caller may put their own links into it: the Owner and Contributors directly, a
+ * Submitter as proposals for the Owner (see proposesLinksTo) - never a Viewer.
+ */
 export function canAddItemsTo(collection: Pick<Collection, 'accessRole'>): boolean {
   return collection.accessRole !== 'viewer';
+}
+
+/** 승인 후 추가: the caller's links here are proposals that join only once the Owner approves them. */
+export function proposesLinksTo(collection: Pick<Collection, 'accessRole'>): boolean {
+  return collection.accessRole === 'submitter';
 }
 
 export function isCollectionLocked(collection: Pick<Collection, 'isLocked'>): boolean {

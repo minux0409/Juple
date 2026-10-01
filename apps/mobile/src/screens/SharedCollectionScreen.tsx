@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
+import { linkProposalErrorMessage } from '../collections/linkProposals';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -53,6 +54,10 @@ export function SharedCollectionScreen({ route }: Props) {
   const [addMessage, setAddMessage] = useState<{ kind: 'error' | 'done'; text: string } | null>(null);
 
   const addErrorMessage = (error: unknown): string => {
+    const proposalMessage = linkProposalErrorMessage(error, t);
+    if (proposalMessage) {
+      return proposalMessage;
+    }
     if (error instanceof ApiError) {
       if (error.kind === 'badRequest') {
         return t('sharedCollection.addInvalidUrl');
@@ -77,10 +82,15 @@ export function SharedCollectionScreen({ route }: Props) {
     setIsAdding(true);
     setAddMessage(null);
     try {
-      await addLinkToPublicCollection(authenticatedRequest, publicId, url);
+      const outcome = await addLinkToPublicCollection(authenticatedRequest, publicId, url);
       setNewUrl('');
-      setAddMessage({ kind: 'done', text: t('sharedCollection.addDone') });
-      await reload();
+      if (outcome === 'submitted') {
+        // 승인 후 추가: it waits for the Owner - nothing new in the list yet.
+        setAddMessage({ kind: 'done', text: t('collections.linkSubmitted') });
+      } else {
+        setAddMessage({ kind: 'done', text: t('sharedCollection.addDone') });
+        await reload();
+      }
     } catch (caughtError) {
       setAddMessage({ kind: 'error', text: addErrorMessage(caughtError) });
     } finally {
@@ -154,7 +164,7 @@ export function SharedCollectionScreen({ route }: Props) {
         ListHeaderComponent={
           <View>
             <Text style={styles.title}>{collection.name}</Text>
-            {collection.permission === 'write' && !collection.isLocked ? (
+            {(collection.permission === 'write' || collection.permission === 'submit') && !collection.isLocked ? (
               <View style={styles.addCard} testID="shared-collection-add">
                 {isAuthenticated ? (
                   <>
@@ -183,7 +193,9 @@ export function SharedCollectionScreen({ route }: Props) {
                         {isAdding ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.addButtonLabel}>{t('sharedCollection.addAction')}</Text>}
                       </Pressable>
                     </View>
-                    <Text style={styles.addHelp}>{t('sharedCollection.addVisibilityNote')}</Text>
+                    <Text style={styles.addHelp}>
+                      {collection.permission === 'submit' ? t('sharedCollection.addSubmitNote') : t('sharedCollection.addVisibilityNote')}
+                    </Text>
                   </>
                 ) : (
                   <Text style={styles.addHelp} testID="shared-collection-add-sign-in">{t('sharedCollection.addSignInRequired')}</Text>

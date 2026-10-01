@@ -29,4 +29,11 @@ public enum NotificationType : byte
     /// to (one notification per add operation - a bulk copy of N links is one, with ItemCount N).
     /// </summary>
     CollectionItemsAdded = 6,
+
+    /// <summary>
+    /// Visible: someone passed on a Collection's public link to the recipient (CollectionId = the
+    /// Collection, ActorUserId = the sender). Never a membership or an invitation - opening it is the
+    /// public link page, with its own password gate. Sent only while that public link is still on.
+    /// </summary>
+    CollectionLinkShared = 7,
 }

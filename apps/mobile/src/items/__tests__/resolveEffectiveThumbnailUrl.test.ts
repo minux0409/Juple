@@ -11,24 +11,24 @@ describe('resolveEffectiveThumbnailUrl', () => {
     expect(url).toBe('https://blob.example/cover.jpg');
   });
 
-  it('falls back to previewImageUrl when coverImage is absent', () => {
+  it('uses the Item\'s own photo ahead of the automatic preview even without a cover (an Item saved before photos set it)', () => {
     const url = resolveEffectiveThumbnailUrl({
       coverImage: null,
       previewImageUrl: 'https://cdn.example/preview.jpg',
       representativeImage: { id: 2, readUrl: 'https://blob.example/uploaded.jpg' },
     });
 
-    expect(url).toBe('https://cdn.example/preview.jpg');
+    expect(url).toBe('https://blob.example/uploaded.jpg');
   });
 
-  it('falls back to representativeImage when both coverImage and previewImageUrl are absent', () => {
+  it('falls back to previewImageUrl when the Item has no photo of its own', () => {
     const url = resolveEffectiveThumbnailUrl({
       coverImage: null,
-      previewImageUrl: null,
-      representativeImage: { id: 2, readUrl: 'https://blob.example/uploaded.jpg' },
+      previewImageUrl: 'https://cdn.example/preview.jpg',
+      representativeImage: null,
     });
 
-    expect(url).toBe('https://blob.example/uploaded.jpg');
+    expect(url).toBe('https://cdn.example/preview.jpg');
   });
 
   it('returns null when none of the three sources are present', () => {

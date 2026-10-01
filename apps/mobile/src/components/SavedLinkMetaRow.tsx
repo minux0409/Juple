@@ -1,7 +1,8 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import type { ItemAdderDisplay } from '../collections/itemAdder';
 import i18n from '../i18n';
 import { SiteIcon } from '../icons/SiteIcon';
-import { UserIcon } from '../icons/UserIcon';
+import { ItemAdderBadge } from './ItemAdderBadge';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors, spacing } from '../theme/tokens';
 
@@ -38,10 +39,12 @@ interface SavedLinkMetaRowProps {
   /** Outer spacing only (each container decides its own gap above this row) - never the row's own content rules. */
   readonly style?: StyleProp<ViewStyle>;
   /**
-   * Who added the link, inside a shared Collection (see collections/itemAdder.ts) - shown as its own
-   * muted second line with a small person glyph, so the time line above never loses room to it.
+   * Who added the link, inside a shared Collection (see collections/itemAdder.ts's describeItemAdder)
+   * - its own second line, so the time line above never loses room to it: the adder's small avatar
+   * (a crown beside it when they own the Collection), or the anonymous public-link text. The words
+   * (who, and whether they are the Owner) are in its accessibility label.
    */
-  readonly addedByLabel?: string | null;
+  readonly addedBy?: ItemAdderDisplay | null;
 }
 
 /**
@@ -50,9 +53,12 @@ interface SavedLinkMetaRowProps {
  * formatting and icon (dedicated site icon, generic globe otherwise) - never a hostname/site name.
  * Single line: the time text shrinks with an ellipsis before the icon is ever pushed out.
  */
-export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedByLabel }: SavedLinkMetaRowProps) {
+/** The adder avatar's diameter - the height of the 12pt text line it replaces, so cards keep their height. */
+const ADDER_AVATAR_SIZE = 16;
+
+export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy }: SavedLinkMetaRowProps) {
   const timeRow = (
-    <View style={[styles.metaRow, addedByLabel ? null : style]}>
+    <View style={[styles.metaRow, addedBy ? null : style]}>
       <Text numberOfLines={1} style={styles.time}>
         {formatSavedLinkTimestamp(savedAtUtc, dateDisplayMode)}
       </Text>
@@ -61,23 +67,13 @@ export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, adde
       </View>
     </View>
   );
-  if (!addedByLabel) {
+  if (!addedBy) {
     return timeRow;
   }
   return (
     <View style={style}>
       {timeRow}
-      <View
-        accessibilityLabel={i18n.t('collections.addedByA11y', { name: addedByLabel })}
-        accessible
-        style={[styles.metaRow, styles.adderRow]}
-        testID="saved-link-added-by"
-      >
-        <UserIcon color={colors.textSecondary} size={12} strokeWidth={2} />
-        <Text numberOfLines={1} style={styles.adder}>
-          {addedByLabel}
-        </Text>
-      </View>
+      <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} style={styles.adderRow} />
     </View>
   );
 }
@@ -99,11 +95,5 @@ const styles = StyleSheet.create({
   },
   adderRow: {
     marginTop: 2,
-  },
-  adder: {
-    color: colors.textSecondary,
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '600',
   },
 });

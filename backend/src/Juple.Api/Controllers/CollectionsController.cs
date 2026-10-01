@@ -26,6 +26,7 @@ using Juple.Application.Collections.SetCollectionFavorite;
 using Juple.Application.Collections.SetCollectionIcon;
 using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Collections.SharePassword;
+using Juple.Application.Collections.Submissions;
 using Juple.Application.Images;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Collections.UndoMergeCollections;
@@ -554,6 +555,43 @@ public sealed class CollectionsController(
     }
 
     /// <summary>
+    /// The active 모든 사용자 link, for anyone who may view the Collection - an accepted Contributor or
+    /// Viewer passes on the link the Owner already made public. Read-only and minimal: whether the
+    /// link is on, and its canonical URL. Never its permission, the share password or any other
+    /// share setting (those stay behind ManageShare above); a pending invitee or anyone else gets
+    /// 404 like every other read. Metadata like the card, so no unlock grant: anyone opening the
+    /// URL still meets the Collection's own password gate.
+    /// </summary>
+    [HttpGet("{id:long}/share/link")]
+    public Task<IActionResult> GetShareLinkAsync(
+        long id,
+        [FromServices] IGetCollectionShareLinkService shareLinkService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => shareLinkService.GetActivePublicIdAsync(userId, id, cancellationToken),
+            publicId => Ok(new CollectionShareLinkResponse(publicId is not null, publicId is null ? null : ShareUrlFor(publicId))),
+            cancellationToken);
+
+    /// <summary>
+    /// 친구에게 / ID로 공유: passes the Collection's public link on to these Juple users (at most
+    /// ShareCollectionLinkService.MaxRecipientsPerShare) as a Juple notification - never an
+    /// invitation or a membership. Anyone who may view the Collection; the public link must still be
+    /// on right now (409 publicLinkInactive otherwise, and nobody is sent anything). Unknown or
+    /// malformed IDs come back in notFound; one's own ID is skipped.
+    /// </summary>
+    [HttpPost("{id:long}/share/link/send")]
+    [EnableRateLimiting(RateLimitPolicies.CollectionInvite)]
+    public Task<IActionResult> SendShareLinkAsync(
+        long id,
+        SendShareLinkRequest request,
+        [FromServices] Juple.Application.Collections.ShareLink.IShareCollectionLinkService shareLinkService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => shareLinkService.ShareAsync(userId, id, request.JupleIds, cancellationToken),
+            result => Ok(new SendShareLinkResponse(result.Sent, result.NotFound)),
+            cancellationToken);
+
+    /// <summary>
     /// Idempotent - revoking an already-unshared Collection resolves on 204 too. The revoked
     /// PublicId is never reactivated by a later EnableShareAsync call (see
     /// CollectionShareStore.EnableAsync, which always mints a fresh one when no active row exists).
@@ -598,7 +636,9 @@ public sealed class CollectionsController(
     /// assembles this itself or needs to know the Public Web's base URL.
     /// </summary>
     private CollectionShareResponse ToShareResponse(CollectionShareDto share) =>
-        new(share.PublicId, $"{publicWebOptions.Value.BaseUrl.TrimEnd('/')}/c/{share.PublicId}", share.CreatedAtUtc, PublicSharePermissions.ToWire(share.Permission));
+        new(share.PublicId, ShareUrlFor(share.PublicId), share.CreatedAtUtc, PublicSharePermissions.ToWire(share.Permission));
+
+    private string ShareUrlFor(string publicId) => $"{publicWebOptions.Value.BaseUrl.TrimEnd('/')}/c/{publicId}";
 
     /// <summary>
     /// A day's/Collection's worth of Items is unbounded, so this is always cursor-paginated - the
@@ -971,7 +1011,7 @@ public sealed class CollectionsController(
             cancellationToken);
     }
 
-    /// <summary>Absent → Contributor (the pre-Viewer contract); otherwise exactly "contributor" or "viewer", any case.</summary>
+    /// <summary>Absent → Contributor (the pre-Viewer contract); otherwise exactly "contributor", "submitter" or "viewer", any case.</summary>
     private static bool TryParseInviteRole(string? value, out CollectionCollaboratorRole role)
     {
         role = CollectionCollaboratorRole.Contributor;
@@ -986,6 +1026,9 @@ public sealed class CollectionsController(
                 return true;
             case CollectionDtoAccessRoles.Viewer:
                 role = CollectionCollaboratorRole.Viewer;
+                return true;
+            case CollectionDtoAccessRoles.Submitter:
+                role = CollectionCollaboratorRole.Submitter;
                 return true;
             default:
                 return false;
@@ -1079,16 +1122,69 @@ public sealed class CollectionsController(
             userId => collaborationService.RemoveCollaboratorAsync(userId, id, jupleId, cancellationToken),
             cancellationToken);
 
-    /// <summary>Idempotent - adding an Item already in the Collection resolves on 204 too (see AddItemToCollectionService).</summary>
+    /// <summary>
+    /// 204: added - idempotent, an Item already in the Collection resolves on 204 too (see
+    /// AddItemToCollectionService). 202 { submitted: true }: the caller may only propose links here
+    /// (승인 후 추가) - it waits for the Owner and is not a link of the Collection yet. 409
+    /// linkAlreadyInCollection / linkAlreadyPending for a proposal of a link that is already there or
+    /// already waiting.
+    /// </summary>
     [HttpPut("{id:long}/items/{itemId:long}")]
     public Task<IActionResult> AddItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
             userId => addItemToCollectionService.AddAsync(userId, id, itemId, unlockToken, cancellationToken),
+            outcome => outcome == CollectionLinkAddOutcome.Submitted ? Accepted(new LinkSubmittedResponse(true)) : NoContent(),
             cancellationToken);
 
-    /// <summary>Idempotent - resolves on 204 whether or not the Item was actually in the Collection.</summary>
+    /// <summary>The Owner's 승인 대기 list, oldest first (cursor = the last row's submissionId). Owner only.</summary>
+    [HttpGet("{id:long}/submissions")]
+    public Task<IActionResult> ListSubmissionsAsync(
+        long id,
+        [FromQuery] long? cursor,
+        [FromQuery] int? limit,
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => submissionService.ListAsync(userId, id, cursor, limit ?? CollectionLinkSubmissionService.MaxPageSize, unlockToken, cancellationToken),
+            page => Ok(page),
+            cancellationToken);
+
+    /// <summary>
+    /// Owner only: the proposal becomes a link of the Collection (the proposer's own Item). 404 when it
+    /// is no longer waiting (so a second approve adds nothing); 409 linkAlreadyInCollection /
+    /// submissionUnavailable when it cannot be added any more - it is cleared then.
+    /// </summary>
+    [HttpPost("{id:long}/submissions/{submissionId:long}/approve")]
+    public Task<IActionResult> ApproveSubmissionAsync(
+        long id,
+        long submissionId,
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => submissionService.ApproveAsync(userId, id, submissionId, unlockToken, cancellationToken),
+            cancellationToken);
+
+    /// <summary>Owner only: rejects (deletes) the proposal - nothing is added. Idempotent: 204 also when it was no longer waiting.</summary>
+    [HttpDelete("{id:long}/submissions/{submissionId:long}")]
+    public Task<IActionResult> RejectSubmissionAsync(
+        long id,
+        long submissionId,
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => submissionService.RejectAsync(userId, id, submissionId, unlockToken, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// 컬렉션에서 제거 (the link only, never the Item). The Owner: any link; a member: only links whose
+    /// Item is their own (403 otherwise) - see RemoveItemFromCollectionService. Idempotent - resolves
+    /// on 204 whether or not the link was actually in the Collection.
+    /// </summary>
     [HttpDelete("{id:long}/items/{itemId:long}")]
-    [CollectionPermission(CollectionPermission.RemoveItem)]
+    [CollectionPermission(CollectionPermission.View)]
     public Task<IActionResult> RemoveItemAsync(long id, long itemId, CancellationToken cancellationToken, [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
             userId => removeItemFromCollectionService.RemoveAsync(userId, id, itemId, unlockToken, cancellationToken),
@@ -1265,6 +1361,10 @@ public sealed class CollectionsController(
         {
             return NotFound();
         }
+        catch (CollectionLinkSubmissionNotFoundException)
+        {
+            return NotFound();
+        }
         catch (CollectionCollaboratorNotFoundException)
         {
             return NotFound();
@@ -1325,4 +1425,14 @@ public sealed class CollectionsController(
     public sealed record SetSharePermissionRequest(string? Permission);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
+
+    /// <summary>A member's view of the public link: on/off and its URL - nothing else (see GetShareLinkAsync).</summary>
+    public sealed record CollectionShareLinkResponse(bool IsShared, string? ShareUrl);
+
+    /// <summary>202 body of an add that became a proposal (승인 후 추가).</summary>
+    public sealed record LinkSubmittedResponse(bool Submitted);
+
+    public sealed record SendShareLinkRequest(IReadOnlyList<string>? JupleIds);
+
+    public sealed record SendShareLinkResponse(IReadOnlyList<string> Sent, IReadOnlyList<string> NotFound);
 }

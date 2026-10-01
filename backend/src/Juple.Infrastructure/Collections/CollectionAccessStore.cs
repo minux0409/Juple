@@ -44,6 +44,7 @@ public sealed class CollectionAccessStore(JupleDbContext dbContext) : ICollectio
             {
                 CollectionCollaboratorRole.Contributor => CollectionAccessRole.Contributor,
                 CollectionCollaboratorRole.Viewer => CollectionAccessRole.Viewer,
+                CollectionCollaboratorRole.Submitter => CollectionAccessRole.Submitter,
                 _ => (CollectionAccessRole?)null,
             };
 

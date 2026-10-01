@@ -99,6 +99,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   getCollectionNotificationPreference: jest.fn().mockResolvedValue({ newItemNotificationsEnabled: true }),
   setCollectionNotificationPreference: jest.fn(),
   copyCollectionItems: jest.fn(),
+  getCollectionShareLink: jest.fn().mockResolvedValue(null),
   MAX_ITEMS_PER_COPY: 200,
 }));
 
@@ -225,6 +226,12 @@ async function renderScreen() {
  * the swipe action props can be invoked directly without simulating a gesture. Goes through the
  * FlatList's own `renderItem` prop directly rather than its internal virtualization.
  */
+/** Long-presses one rendered link row/tile - the only way into its 복제/이동 menu, in List and Grid alike. */
+async function longPressRow(row: ReactTestRenderer.ReactTestRenderer) {
+  const target = row.root.findAll(node => typeof node.props.onLongPress === 'function')[0];
+  await act(async () => target.props.onLongPress());
+}
+
 function getRowElement(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
   const flatList = findItemList(renderer);
   const element = flatList.props.renderItem({ item, index: 0 });
@@ -388,7 +395,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: 1 }));
       jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
-      jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+      jest.mocked(addItemToCollection).mockResolvedValue('added');
       const renderer = await renderScreen();
 
       await unlinkViaSwipe(renderer, item);
@@ -436,7 +443,7 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
       jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
       let resolveUndo!: () => void;
-      jest.mocked(addItemToCollection).mockImplementation(() => new Promise<void>(resolve => { resolveUndo = resolve; }));
+      jest.mocked(addItemToCollection).mockImplementation(() => new Promise(resolve => { resolveUndo = () => resolve('added'); }));
       const renderer = await renderScreen();
 
       await unlinkViaSwipe(renderer, item);
@@ -458,7 +465,7 @@ describe('CollectionDetailsScreen', () => {
 
       // Move first - its own undo toast appears.
       const movedRow = getRowElement(renderer, movedItem);
-      await act(async () => movedRow.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+      await longPressRow(movedRow);
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveToOther') }).props.onPress());
       await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Target' }).props.onPress());
       await act(async () => renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.moveAction') }).props.onPress());
@@ -1316,21 +1323,42 @@ describe('CollectionDetailsScreen', () => {
 
   describe('category management actions', () => {
     async function openItemMenu(renderer: ReactTestRenderer.ReactTestRenderer, item = makeItemEntry({ itemId: 9 })) {
-      const row = getRowElement(renderer, item);
-      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+      await longPressRow(getRowElement(renderer, item));
     }
     async function chooseTarget(renderer: ReactTestRenderer.ReactTestRenderer) {
       await act(async () => renderer.root.findByProps({ accessibilityLabel: 'Target' }).props.onPress());
     }
-    it('opens the More action menu without navigating the row', async () => {
+    it('a List row has no trailing "..." - a long press opens the link menu, without navigating', async () => {
       const item = makeItemEntry({ itemId: 9 });
       const renderer = await renderScreen();
       const row = getRowElement(renderer, item);
-      const stopPropagation = jest.fn();
-      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress({ stopPropagation }));
-      expect(stopPropagation).toHaveBeenCalledTimes(1);
+      expect(row.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.itemManageAction'))).toHaveLength(0);
+      expect(row.root.findAllByType(SavedLinkRow)[0].props.trailingAction).toBeUndefined();
+
+      await longPressRow(row);
       expect((navigation as { navigate: jest.Mock }).navigate).not.toHaveBeenCalled();
       expect(renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addToOther') })).toBeTruthy();
+    });
+
+    it('in Grid too, a long press opens the same link menu; a short tap still opens the link', async () => {
+      const item = makeItemEntry({ itemId: 9 });
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [item], nextCursor: null });
+      const renderer = await renderScreen();
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+      });
+      expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeGreaterThan(0);
+      const tile = renderer.root.findAll(node => typeof node.props.onLongPress === 'function' && typeof node.props.onShare === 'function')[0];
+
+      await act(async () => tile.props.onLongPress());
+      const itemMenu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible
+        && dialog.props.actions.some((action: { label: string }) => action.label === i18n.t('collections.addToOther')));
+      expect(itemMenu).toBeTruthy();
+      expect((navigation as { navigate: jest.Mock }).navigate).not.toHaveBeenCalled();
+      await act(async () => itemMenu!.props.onCancel());
+
+      await act(async () => tile.props.onPress());
+      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 9, collectionContext: { collectionId: 1, canRemove: true } });
     });
     // Full item delete used to live in this same menu (see the removed "CollectionDetailsScreen
     // item delete undo" test block) - product policy now restricts general item delete to
@@ -1338,8 +1366,7 @@ describe('CollectionDetailsScreen', () => {
     it('offers only Add/Move in the link More menu - no Delete option', async () => {
       const item = makeItemEntry({ itemId: 9 });
       const renderer = await renderScreen();
-      const row = getRowElement(renderer, item);
-      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+      await longPressRow(getRowElement(renderer, item));
 
       const itemMenu = renderer.root.findAllByType(ActionMenuDialog).find(
         node => node.props.actions.some((action: { label: string }) => action.label === i18n.t('collections.addToOther')),
@@ -1552,8 +1579,7 @@ describe('CollectionDetailsScreen', () => {
     const shownNames = (renderer: ReactTestRenderer.ReactTestRenderer) => picker(renderer).props.collectionPool.map((collection: Collection) => collection.name);
 
     async function openReplicate(renderer: ReactTestRenderer.ReactTestRenderer) {
-      const row = getRowElement(renderer, makeItemEntry({ itemId: 9 }));
-      await act(async () => row.root.findByProps({ accessibilityLabel: i18n.t('collections.itemManageAction') }).props.onPress());
+      await longPressRow(getRowElement(renderer, makeItemEntry({ itemId: 9 })));
       await act(async () => renderer.root.findByProps({ accessibilityLabel: '다른 컬렉션에 복제' }).props.onPress());
     }
 

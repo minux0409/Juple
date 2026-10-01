@@ -5,6 +5,7 @@ using Azure.Storage.Blobs.Specialized;
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Items.GetItemHistory;
+using Juple.Domain.Images;
 using Juple.Domain.Users;
 using Juple.Infrastructure.Images;
 using Juple.Infrastructure.Items;
@@ -130,10 +131,10 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task GetHistoryAsync_RepresentativeImage_IsSortOrderAscIdAscFirst()
     {
+        // Two rows can only exist from when an Item could have two photos - seeded directly.
         var item = await SaveItemAsync();
-        var first = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        var second = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
+        var first = await SeedLegacyImageAsync(item, sortOrder: 0);
+        var second = await SeedLegacyImageAsync(item, sortOrder: 1);
 
         var (page, representativeImages, _) = await _itemStore.GetHistoryAsync(
             _userId, cursor: null, limit: 50);
@@ -174,9 +175,8 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     public async Task GetDetailsAsync_RepresentativeImage_MatchesFirstUploadedImage()
     {
         var item = await SaveItemAsync();
-        var first = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
+        var first = await SeedLegacyImageAsync(item, sortOrder: 0);
+        await SeedLegacyImageAsync(item, sortOrder: 1);
 
         var (_, representativeImage, _) = await _itemStore.GetDetailsAsync(_userId, item);
 
@@ -198,9 +198,8 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
     public async Task GetHistoryAsync_RepresentativeImage_MatchesFirstUploadedImage()
     {
         var item = await SaveItemAsync();
-        var first = await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        await _imageStore.UploadAsync(_userId, item, ImageFormat.Jpeg, JpegBytes, DateTimeOffset.UtcNow);
-        _dbContext.ChangeTracker.Clear();
+        var first = await SeedLegacyImageAsync(item, sortOrder: 0);
+        await SeedLegacyImageAsync(item, sortOrder: 1);
 
         var (_, representativeImages, _) = await _itemStore.GetHistoryAsync(
             _userId, cursor: null, limit: 50);
@@ -245,6 +244,17 @@ public sealed class RepresentativeImageIntegrationTests : IAsyncLifetime
         Assert.Equal(3, page.Items.Count);
         Assert.Equal(2, representativeImages.Count);
         GC.KeepAlive(countedImageStore);
+    }
+
+    /// <summary>A photo row the way an Item saved when two photos were allowed could have one (UploadAsync now keeps only one).</summary>
+    private async Task<ItemImage> SeedLegacyImageAsync(long itemId, int sortOrder)
+    {
+        var blobName = $"items/{_userId}/{itemId}/legacy-{Guid.NewGuid():N}.jpg";
+        var row = new ItemImage(itemId, blobName, "image/jpeg", JpegBytes.Length, sortOrder, DateTimeOffset.UtcNow);
+        _dbContext.ItemImages.Add(row);
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+        return row;
     }
 
     private async Task<long> SaveItemAsync()

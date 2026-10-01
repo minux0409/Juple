@@ -35,10 +35,11 @@ describe('sharing terminology: 공유 with 읽기 / 쓰기, never 일반 공유 
   });
 });
 
-describe('sharing terminology: 공개 링크 공유 / 접근 비밀번호 (the internal "sharePassword" keys stay)', () => {
+describe('sharing terminology: 컬렉션 공개 / 접근 비밀번호 (the internal "sharePassword" keys stay)', () => {
   it('Korean says 접근 비밀번호 and 공개 링크, never 공유 비밀번호 or 모든 사용자 공유', () => {
     expect(valuesOf('ko').filter(value => /공유 비밀번호|모든 사용자/.test(value))).toEqual([]);
-    expect(valuesOf('ko')).toEqual(expect.arrayContaining(['접근 비밀번호', '공개 링크 공유']));
+    expect(valuesOf('ko')).toEqual(expect.arrayContaining(['접근 비밀번호', '컬렉션 공개']));
+    expect(valuesOf('ko')).not.toContain('공개 링크 공유');
   });
 
   it('English says access password, never share password', () => {

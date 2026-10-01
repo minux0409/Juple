@@ -101,20 +101,8 @@ public sealed class UploadItemImageServiceTests
         Assert.Equal(fixedTime, store.LastCreatedAtUtc);
     }
 
-    [Fact]
-    public async Task UploadAsync_WhenItemLimitExceeded_PropagatesException()
-    {
-        var store = new FakeItemImageStore { ThrowLimitExceeded = true };
-        var service = new UploadItemImageService(store, new FixedTimeProvider());
-
-        await Assert.ThrowsAsync<ItemImageLimitExceededException>(
-            () => service.UploadAsync(17, 41, JpegBytes));
-    }
-
     private sealed class FakeItemImageStore : IItemImageStore
     {
-        public bool ThrowLimitExceeded { get; init; }
-
         public bool WasUploadCalled { get; private set; }
 
         public long? LastUserId { get; private set; }
@@ -145,11 +133,6 @@ public sealed class UploadItemImageServiceTests
             LastFormat = format;
             LastContent = content;
             LastCreatedAtUtc = createdAtUtc;
-
-            if (ThrowLimitExceeded)
-            {
-                throw new ItemImageLimitExceededException();
-            }
 
             return Task.FromResult(new ItemImageDto(1, "image/jpeg", content.LongLength, 0, createdAtUtc, ReadUrl: null));
         }

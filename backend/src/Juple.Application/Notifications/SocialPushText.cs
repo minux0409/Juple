@@ -45,6 +45,30 @@ public static class SocialPushText
         ["hi"] = new("नया लिंक", "{0} ने \"{1}\" में नया लिंक जोड़ा है।", "\"{1}\" संग्रह में नया लिंक जोड़ा गया है।", "\"{1}\" में {2} लिंक जोड़े गए हैं।", "सार्वजनिक लिंक के ज़रिए \"{1}\" में नया लिंक जोड़ा गया है।"),
     };
 
+    /// <summary>CollectionLinkShared: {0} = who passed the link on, {1} = Collection name.</summary>
+    private sealed record LinkTexts(string Title, string Body);
+
+    private static readonly Dictionary<string, LinkTexts> LinkByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new("컬렉션 링크", "{0}님이 '{1}' 컬렉션 링크를 보냈어요."),
+        ["en"] = new("Collection link", "{0} sent you a link to the collection \"{1}\"."),
+        ["ja"] = new("コレクションのリンク", "{0}さんからコレクション「{1}」のリンクが届きました。"),
+        ["zh-Hans"] = new("合集链接", "{0} 向你发送了合集「{1}」的链接。"),
+        ["zh-Hant"] = new("合集連結", "{0} 傳送了合集「{1}」的連結給你。"),
+        ["es"] = new("Enlace de colección", "{0} te envió el enlace de la colección «{1}»."),
+        ["fr"] = new("Lien de collection", "{0} vous a envoyé le lien de la collection « {1} »."),
+        ["de"] = new("Link zur Sammlung", "{0} hat dir den Link zur Sammlung „{1}“ gesendet."),
+        ["it"] = new("Link della raccolta", "{0} ti ha inviato il link della raccolta «{1}»."),
+        ["pt-BR"] = new("Link da coleção", "{0} enviou para você o link da coleção \"{1}\"."),
+        ["vi"] = new("Liên kết bộ sưu tập", "{0} đã gửi cho bạn liên kết bộ sưu tập \"{1}\"."),
+        ["th"] = new("ลิงก์คอลเลกชัน", "{0} ส่งลิงก์คอลเลกชัน \"{1}\" ให้คุณ"),
+        ["id"] = new("Tautan koleksi", "{0} mengirimi Anda tautan koleksi \"{1}\"."),
+        ["ru"] = new("Ссылка на коллекцию", "{0} отправляет вам ссылку на коллекцию «{1}»."),
+        ["tr"] = new("Koleksiyon bağlantısı", "{0} size \"{1}\" koleksiyonunun bağlantısını gönderdi."),
+        ["ar"] = new("رابط مجموعة", "أرسل إليك {0} رابط المجموعة \"{1}\"."),
+        ["hi"] = new("संग्रह का लिंक", "{0} ने आपको \"{1}\" संग्रह का लिंक भेजा है।"),
+    };
+
     private static readonly Dictionary<string, Texts> ByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ko"] = new("친구 신청", "{0}님이 친구 신청을 보냈어요.", "컬렉션 공유", "{0}님이 '{1}' 컬렉션을 공유했어요."),
@@ -85,6 +109,12 @@ public static class SocialPushText
                 : string.IsNullOrEmpty(actorName) ? items.One
                 : items.By;
             return (items.Title, string.Format(CultureInfo.InvariantCulture, body, actorName, Shorten(collectionName), itemCount));
+        }
+
+        if (type == NotificationType.CollectionLinkShared)
+        {
+            var link = Resolve(LinkByLocale, locale);
+            return (link.Title, string.Format(CultureInfo.InvariantCulture, link.Body, actorName, Shorten(collectionName)));
         }
 
         var texts = Resolve(ByLocale, locale);

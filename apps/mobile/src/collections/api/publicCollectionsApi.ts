@@ -15,7 +15,8 @@ import { requestApi } from '../../api/apiClient';
 export interface PublicCollection {
   readonly name: string | null;
   readonly isLocked?: boolean;
-  readonly permission?: 'read' | 'write' | null;
+  /** 'submit' (승인 후 추가): signed-in holders propose links that join once the Owner approves them. */
+  readonly permission?: 'read' | 'submit' | 'write' | null;
 }
 
 /** Mirrors the Backend's PublicCollectionItemDto - Title and the original Url only. */

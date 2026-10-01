@@ -247,6 +247,43 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task TheOwner_CopiesALinkAMemberAdded_AsTheirOwnIndependentItem_WithNothingPrivate()
+    {
+        await _db.CollectionCollaborators.Where(entry => entry.UserId == _member)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Role, CollectionCollaboratorRole.Contributor));
+        var itemStore = new ItemStore(_db);
+        var membersItem = await NewItemAsync(_member, "https://example.test/members");
+        await itemStore.UpdateDetailsAsync(_member, membersItem, "Member's title", "member's private memo");
+        await _db.Items.Where(entry => entry.Id == membersItem).ExecuteUpdateAsync(setters => setters
+            .SetProperty(entry => entry.PreviewImageUrl, "https://img.example.test/members.png")
+            .SetProperty(entry => entry.CoverImageId, 777L));
+        await _addItem.AddAsync(_member, _sharedId, membersItem);
+        var ownerOther = (await _collections.CreateAsync(_owner, "Other", "OTHER", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+
+        var result = await _copy.CopyAsync(_owner, _sharedId, [membersItem], ownerOther, null);
+
+        Assert.Equal(new CopyCollectionItemsResult(1, 0, 0), result);
+        var copy = await (
+                from membership in _db.CollectionItems.AsNoTracking()
+                where membership.CollectionId == ownerOther
+                join copied in _db.Items.AsNoTracking() on membership.ItemId equals copied.Id
+                select new { copied.Id, copied.UserId, copied.Url, copied.Title, copied.Memo, copied.PreviewImageUrl, copied.CoverImageId, membership.AddedByUserId })
+            .SingleAsync();
+        Assert.NotEqual(membersItem, copy.Id); // a new Item - never a link to the member's own
+        Assert.Equal(_owner, copy.UserId);
+        Assert.Equal("https://example.test/members", copy.Url);
+        Assert.Equal("Member's title", copy.Title);
+        Assert.Equal("https://img.example.test/members.png", copy.PreviewImageUrl);
+        Assert.Null(copy.Memo);
+        Assert.Null(copy.CoverImageId);
+        Assert.Equal(_owner, copy.AddedByUserId);
+        // The member's Item and the source Collection are untouched.
+        Assert.Equal(_member, await _db.Items.AsNoTracking().Where(entry => entry.Id == membersItem).Select(entry => entry.UserId).SingleAsync());
+        Assert.True(await _db.CollectionItems.AsNoTracking().AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == membersItem));
+    }
+
+    [Fact]
     public async Task CopyToMyCollection_OnlyFromSharedToMe_IntoMyOwn_RespectingLocks()
     {
         var item = await NewItemAsync(_owner, "https://example.test/x");
@@ -255,8 +292,11 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
         var mine = (await _collections.CreateAsync(_member, "Mine", "MINE", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
         _db.ChangeTracker.Clear();
 
-        // The Owner copies nothing out of their own Collection this way.
-        await Assert.ThrowsAsync<CollectionForbiddenException>(() => _copy.CopyAsync(_owner, _sharedId, [item], ownerOther, null));
+        // The Owner's own links never take the copy path (they are replicated/moved) - nothing written.
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => _copy.CopyAsync(_owner, _sharedId, [item], ownerOther, null));
+        Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == ownerOther));
+        // A pending invitee sees no source either.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _copy.CopyAsync(_pendingInvitee, _sharedId, [item], ownerOther, null));
         // Someone else's Collection as the destination: no access at all.
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => _copy.CopyAsync(_member, _sharedId, [item], ownerOther, null));
         // A Collection the caller only participates in is not theirs to copy into.
@@ -294,8 +334,8 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
         var outsider = await NewUserAsync();
         var item = await NewItemAsync(outsider, "https://example.test/public");
 
-        Assert.True(await publicWrite.AddItemAsync(outsider, share.PublicId, item, null));
-        Assert.True(await publicWrite.AddItemAsync(outsider, share.PublicId, item, null)); // already there
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await publicWrite.AddItemAsync(outsider, share.PublicId, item, null));
+        Assert.Equal(Juple.Application.Collections.Submissions.CollectionLinkAddOutcome.Added, await publicWrite.AddItemAsync(outsider, share.PublicId, item, null)); // already there
 
         var events = await ItemsAddedEvents(_sharedId);
         Assert.Equal(2, events.Count); // owner + accepted member, once each

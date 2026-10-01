@@ -40,7 +40,6 @@ public sealed class CollectionCollaborationEndpointTests
     [InlineData("EnableShareAsync", CollectionPermission.ManageShare)]
     [InlineData("GetShareAsync", CollectionPermission.ManageShare)]
     [InlineData("RevokeShareAsync", CollectionPermission.ManageShare)]
-    [InlineData("RemoveItemAsync", CollectionPermission.RemoveItem)]
     [InlineData("MoveItemAsync", CollectionPermission.Reorganize)]
     [InlineData("TransferItemAsync", CollectionPermission.Reorganize)]
     [InlineData("UndoTransferItemAsync", CollectionPermission.Reorganize)]
@@ -48,6 +47,16 @@ public sealed class CollectionCollaborationEndpointTests
     public void OwnerOnlyEndpoints_DeclareTheirPermission(string actionName, CollectionPermission expected)
     {
         Assert.Equal(expected, DeclaredPermission(Action(typeof(CollectionsController), actionName)));
+    }
+
+    /// <summary>
+    /// 컬렉션에서 제거 is open to every member at the endpoint (View); the service decides - the Owner
+    /// any link, a member only their own (see RemoveItemFromCollectionService).
+    /// </summary>
+    [Fact]
+    public void RemovingALink_IsCheckedPerLinkByTheService()
+    {
+        Assert.Equal(CollectionPermission.View, DeclaredPermission(Action(typeof(CollectionsController), "RemoveItemAsync")));
     }
 
     /// <summary>

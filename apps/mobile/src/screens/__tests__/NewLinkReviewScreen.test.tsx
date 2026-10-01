@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ScrollView, TextInput } from 'react-native';
+import { ScrollView, Text, TextInput } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import i18n from '../../i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -149,22 +149,38 @@ async function openCategoryPicker(renderer: ReactTestRenderer.ReactTestRenderer)
   });
 }
 
-/** Taps the 2nd (non-representative) photo thumbnail - see PhotoListEditor.tsx's tap+confirm UX.
- * With MAX_EFFECTIVE_IMAGES capped at 2, this is the only possible photo tap in a 2-photo list,
- * always index 1 -> index 0. Does not by itself change anything - see confirmSetRepresentative. */
-function tapSecondPhoto(renderer: ReactTestRenderer.ReactTestRenderer) {
-  findByAccessibilityLabel(renderer, i18n.t('item.setAsFirstPhotoA11y'))?.props.onPress();
-}
-
 function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer, title: string) {
   return renderer.root.findAll(
     node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === title,
   )[0];
 }
 
-/** Confirms the currently-visible "set as representative" ConfirmDialog. */
-function confirmSetRepresentative(renderer: ReactTestRenderer.ReactTestRenderer) {
-  findVisibleConfirmDialog(renderer, i18n.t('item.setRepresentativeConfirmTitle'))?.props.onConfirm();
+/** The 대표 사진 field's photo, or null when it shows 사진 추가. */
+function shownRepresentativePhoto(renderer: ReactTestRenderer.ReactTestRenderer): string | null {
+  return renderer.root.findAll(node => node.props.testID === 'representative-photo-image' && node.props.source)[0]?.props.source.uri ?? null;
+}
+
+/** 사진 추가 (no photo yet) - opens the picker and stages what was picked. */
+async function pressAddPhoto(renderer: ReactTestRenderer.ReactTestRenderer) {
+  await act(async () => {
+    await renderer.root.findAll(node => node.props.testID === 'representative-photo-add' && typeof node.props.onPress === 'function')[0].props.onPress();
+  });
+}
+
+/** Thumbnail → 사진 변경 / 사진 삭제 (the test platform is iOS: the action runs on the menu's onDismiss). */
+async function runRepresentativePhotoMenu(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
+  const { ActionMenuDialog } = require('../../components/ActionMenuDialog');
+  await act(async () => {
+    renderer.root.findAll(node => node.props.testID === 'representative-photo-edit' && typeof node.props.onPress === 'function')[0].props.onPress();
+  });
+  const menu = renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!;
+  await act(async () => {
+    menu.props.actions.find((action: { label: string }) => action.label === label).onPress();
+  });
+  await act(async () => {
+    menu.props.onDismiss?.();
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+  });
 }
 
 /** The Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to
@@ -244,7 +260,7 @@ describe('NewLinkReviewScreen', () => {
       savedAtUtc: '2026-01-01T00:00:00Z',
     });
     jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-    jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+    jest.mocked(addItemToCollection).mockResolvedValue('added');
 
     const { renderer, navigation } = await renderScreen();
     await openCategoryPicker(renderer);
@@ -265,6 +281,34 @@ describe('NewLinkReviewScreen', () => {
     expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 55, { title: 'Shared title', memo: '' });
     expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 3, 55, { unlockToken: null });
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 승인 후 추가 Collection takes the link as a proposal - the save still completes, and it says the request was sent', async () => {
+    const { AppToastProvider } = require('../../components/AppToast');
+    jest.mocked(getCollections).mockResolvedValue({
+      items: [{ id: 4, name: '팀 아이디어', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' }],
+      nextCursor: null,
+    });
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 57, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    jest.mocked(addItemToCollection).mockResolvedValue('submitted');
+    const props = makeProps();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<AppToastProvider><NewLinkReviewScreen {...props} /></AppToastProvider>);
+    });
+    await openCategoryPicker(renderer);
+    await act(async () => {
+      findByAccessibilityLabel(renderer, '팀 아이디어').props.onPress();
+    });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 4, 57, { unlockToken: null });
+    expect(renderer.root.findAllByType(Text).some(node => node.props.children === '승인 요청을 보냈어요.')).toBe(true);
+    expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
   it('skips updateItemDetails and addItemToCollection when title/memo are empty and no category is selected', async () => {
@@ -715,15 +759,13 @@ describe('NewLinkReviewScreen', () => {
 
         const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
         await settle();
-        await act(async () => {
-          await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
-        });
+        await pressAddPhoto(renderer);
         await act(async () => {
           fetch.resolve({ outcome: 'candidate', candidate });
         });
         await settle();
 
-        expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+        expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
         expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
       });
 
@@ -948,45 +990,81 @@ describe('NewLinkReviewScreen', () => {
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  describe('preview image shown before Save (Quick Save OFF)', () => {
-    it('shows the auto-resolved preview image in the photo list before Save is even pressed', async () => {
+  describe('대표 사진 before Save (Quick Save OFF) - one photo, staged until 저장', () => {
+    const stagedPick = {
+      didCancel: false,
+      assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
+    } as never;
+    const flush = async () => {
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    it('shows the auto-resolved preview as the 대표 사진 before Save - changeable, not deletable', async () => {
       jest.mocked(resolveUrlMetadata).mockResolvedValue({
         title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
       });
 
       const { renderer } = await renderScreen({ initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
+      await flush();
 
-      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
-      const previewImages = renderer.root
-        .findAllByType(require('react-native').Image)
-        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(previewImages).toHaveLength(2);
+      expect(shownRepresentativePhoto(renderer)).toBe('https://cdn.example.com/preview.jpg');
+      expect(renderer.root.findAll(node => node.props.testID === 'representative-photo-add')).toHaveLength(0);
+      const { ActionMenuDialog } = require('../../components/ActionMenuDialog');
+      await act(async () => {
+        renderer.root.findAll(node => node.props.testID === 'representative-photo-edit' && typeof node.props.onPress === 'function')[0].props.onPress();
+      });
+      const menu = renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!;
+      expect(menu.props.actions.map((action: { label: string }) => action.label)).toEqual(['사진 변경']);
     });
 
-    it('staging a new photo appends it alongside the auto preview, up to the 2-image cap', async () => {
+    it('a picked photo replaces the preview as the one 대표 사진 - never a second photo', async () => {
       jest.mocked(resolveUrlMetadata).mockResolvedValue({
         title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
       });
-      jest.mocked(launchImageLibrary).mockResolvedValue({
-        didCancel: false,
-        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-      } as never);
+      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
 
       const { renderer } = await renderScreen({ initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
+      await flush();
+      await runRepresentativePhotoMenu(renderer, '사진 변경');
 
-      await act(async () => {
-        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
-      });
+      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
+      expect(renderer.root.findAll(node => node.type === require('react-native').Image && node.props.testID === 'representative-photo-image')).toHaveLength(1);
+      expect(renderer.root.findAll(node => node.props.testID === 'representative-photo-add')).toHaveLength(0);
+    });
 
-      expect(renderer.root.findByProps({ children: '사진 (2/2)' })).toBeTruthy();
-      const addButton = findByAccessibilityLabel(renderer, '사진 추가');
-      expect(addButton?.props.accessibilityState.disabled).toBe(true);
+    it('picking again replaces the staged photo; 사진 삭제 brings back the preview', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({
+        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
+      });
+      jest.mocked(launchImageLibrary)
+        .mockResolvedValueOnce(stagedPick)
+        .mockResolvedValueOnce({ didCancel: false, assets: [{ uri: 'file://second.jpg', type: 'image/jpeg', fileName: 'second.jpg' }] } as never);
+
+      const { renderer } = await renderScreen({ initialTitle: null });
+      await flush();
+      await runRepresentativePhotoMenu(renderer, '사진 변경');
+      await runRepresentativePhotoMenu(renderer, '사진 변경');
+      expect(shownRepresentativePhoto(renderer)).toBe('file://second.jpg');
+
+      await runRepresentativePhotoMenu(renderer, '사진 삭제');
+      await act(async () => {
+        findVisibleConfirmDialog(renderer, i18n.t('item.deletePhotoConfirmTitle'))?.props.onConfirm();
+      });
+      expect(shownRepresentativePhoto(renderer)).toBe('https://cdn.example.com/preview.jpg');
+    });
+
+    it('a cancelled pick keeps what was there', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+      jest.mocked(launchImageLibrary).mockResolvedValue({ didCancel: true } as never);
+
+      const { renderer } = await renderScreen({ initialTitle: null });
+      await flush();
+      await pressAddPhoto(renderer);
+
+      expect(shownRepresentativePhoto(renderer)).toBeNull();
+      expect(renderer.root.findAll(node => node.props.testID === 'representative-photo-add').length).toBeGreaterThan(0);
     });
 
     it('does not let a late-arriving metadata image displace a photo the user already staged', async () => {
@@ -1000,120 +1078,83 @@ describe('NewLinkReviewScreen', () => {
           resolveMetadata = resolve;
         }),
       );
-      jest.mocked(launchImageLibrary).mockResolvedValue({
-        didCancel: false,
-        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-      } as never);
+      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
 
       const { renderer } = await renderScreen({ initialTitle: null });
 
       // User stages their own photo while metadata is still resolving.
-      await act(async () => {
-        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
-      });
-      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+      await pressAddPhoto(renderer);
+      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
 
-      // Metadata now resolves with an image - it must not sneak in as a second, auto-added photo.
       await act(async () => {
         resolveMetadata({ title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg' });
         await Promise.resolve();
         await Promise.resolve();
       });
 
-      expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
       const autoImages = renderer.root
         .findAllByType(require('react-native').Image)
         .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
       expect(autoImages).toHaveLength(0);
     });
 
-    it('save: uploads the staged photo only after the Item exists, in natural (auto-first) order with no cover override', async () => {
+    it('save: uploads the staged photo only after the Item exists - the server makes it the 대표 사진, no separate cover call', async () => {
       jest.mocked(resolveUrlMetadata).mockResolvedValue({
         title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
       });
-      jest.mocked(launchImageLibrary).mockResolvedValue({
-        didCancel: false,
-        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-      } as never);
+      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
       jest.mocked(saveInboxEntry).mockResolvedValue({
         id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
       });
       jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
 
       const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      await act(async () => {
-        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
-      });
+      await flush();
+      await runRepresentativePhotoMenu(renderer, '사진 변경');
+      expect(uploadItemImage).not.toHaveBeenCalled();
 
       await act(async () => {
         await pressSaveButton(renderer);
       });
 
+      expect(uploadItemImage).toHaveBeenCalledTimes(1);
       expect(uploadItemImage).toHaveBeenCalledWith(
         expect.anything(), 88, expect.objectContaining({ uri: 'file://staged.jpg' }),
       );
       expect(setItemCoverImage).not.toHaveBeenCalled();
+      // The link's own preview is still recorded as the Item's automatic preview (the fallback).
       expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 88, 'https://cdn.example.com/preview.jpg');
       expect(navigation.goBack).toHaveBeenCalledTimes(1);
     });
 
-    it('save: dragging the staged photo ahead of the auto preview persists it as the cover', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-      });
-      jest.mocked(launchImageLibrary).mockResolvedValue({
-        didCancel: false,
-        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-      } as never);
+    it('save with no photo of my own uploads nothing', async () => {
+      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
       jest.mocked(saveInboxEntry).mockResolvedValue({
         id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
       });
-      jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
 
       const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      await act(async () => {
-        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
-      });
-      // [auto, staged] -> confirming makes index 1 the representative.
-      await act(async () => {
-        tapSecondPhoto(renderer);
-      });
-      await act(async () => {
-        confirmSetRepresentative(renderer);
-      });
-
+      await flush();
       await act(async () => {
         await pressSaveButton(renderer);
       });
 
-      expect(setItemCoverImage).toHaveBeenCalledWith(expect.anything(), 88, 9);
+      expect(uploadItemImage).not.toHaveBeenCalled();
       expect(navigation.goBack).toHaveBeenCalledTimes(1);
     });
 
     it('a staged-photo upload failure surfaces an error but never creates a duplicate Item on retry', async () => {
       jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-      jest.mocked(launchImageLibrary).mockResolvedValue({
-        didCancel: false,
-        assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-      } as never);
+      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
       jest.mocked(saveInboxEntry).mockResolvedValue({
         id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
       });
       jest.mocked(uploadItemImage).mockRejectedValue(new Error('network error'));
 
       const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      await act(async () => {
-        await findByAccessibilityLabel(renderer, '사진 추가')?.props.onPress();
-      });
+      await flush();
+      await pressAddPhoto(renderer);
 
       await act(async () => {
         await pressSaveButton(renderer);
@@ -1195,20 +1236,20 @@ describe('NewLinkReviewScreen', () => {
       await Promise.resolve();
     });
 
-    // Before the preview image resolves (0 photos yet).
+    // Before the preview image resolves (no photo yet).
     expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
-    expect(renderer.root.findByProps({ children: '사진 (0/2)' })).toBeTruthy();
+    expect(shownRepresentativePhoto(renderer)).toBeNull();
 
     await act(async () => {
       resolveMetadata({ title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg' });
       await Promise.resolve();
     });
 
-    // After the preview image has arrived (now 1 photo, PhotoListEditor renders it below) - the
-    // category row is still there, completely unaffected (the originally-reported bug: the photo
-    // appearing made the category section disappear/get pushed off-screen).
+    // After the preview image has arrived (now the 대표 사진) - the category row is still there,
+    // completely unaffected (the originally-reported bug: the photo appearing made the category
+    // section disappear/get pushed off-screen).
     expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
-    expect(renderer.root.findByProps({ children: '사진 (1/2)' })).toBeTruthy();
+    expect(shownRepresentativePhoto(renderer)).toBe('https://cdn.example.com/preview.jpg');
   });
 
   it('creating a new category adds it to the list and auto-selects it', async () => {
@@ -1227,7 +1268,7 @@ describe('NewLinkReviewScreen', () => {
       url: 'https://example.com/shared',
       savedAtUtc: '2026-01-01T00:00:00Z',
     });
-    jest.mocked(addItemToCollection).mockResolvedValue(undefined);
+    jest.mocked(addItemToCollection).mockResolvedValue('added');
 
     const { renderer } = await renderScreen();
     await openCategoryPicker(renderer);

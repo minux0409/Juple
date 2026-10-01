@@ -15,4 +15,10 @@ public enum CollectionPermission
 
     /// <summary>Merge / cross-Collection item transfer / reorder.</summary>
     Reorganize,
+
+    /// <summary>승인 후 추가: propose one's own link, which joins only once the Owner approves it.</summary>
+    SubmitLink,
+
+    /// <summary>See, approve and reject the links waiting for approval - the Owner's alone.</summary>
+    ReviewSubmissions,
 }

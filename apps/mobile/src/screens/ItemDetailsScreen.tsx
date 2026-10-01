@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
+import { linkProposalErrorMessage } from '../collections/linkProposals';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   addItemToCollection,
@@ -39,20 +40,11 @@ import {
   uploadItemImage,
   type ItemImage,
 } from '../images/api/imagesApi';
-import { PhotoListEditor } from '../images/PhotoListEditor';
-import {
-  buildEffectiveImages,
-  coverImageIdForFront,
-  effectiveImageKey,
-  effectiveImageUrl,
-  MAX_EFFECTIVE_IMAGES,
-  reorderList,
-  type EffectiveImage,
-} from '../items/effectiveImages';
+import { RepresentativePhotoField } from '../images/RepresentativePhotoField';
+import { representativePhotoUrl, resolveRepresentativePhoto } from '../items/representativePhoto';
 import {
   deleteItem,
   getItemDetails,
-  setItemCoverImage,
   updateItemDetails,
   type ItemDetails,
 } from '../items/api/itemsApi';
@@ -93,7 +85,7 @@ function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): stri
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
-  return t('collections.errorMembershipFallback');
+  return linkProposalErrorMessage(error, t) ?? t('collections.errorMembershipFallback');
 }
 
 function getImageListErrorMessage(error: unknown, t: TFunction): string {
@@ -108,9 +100,6 @@ function getImageUploadErrorMessage(error: unknown, t: TFunction): string {
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('item.errorImageUploadInvalid');
-    }
-    if (error.kind === 'conflict') {
-      return t('item.photoLimitError', { max: MAX_EFFECTIVE_IMAGES });
     }
     if (error.kind === 'unauthorized') {
       return t('errors.unauthorized');
@@ -127,14 +116,6 @@ function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
     return t('errors.unauthorized');
   }
   return t('item.errorImageDeleteFallback');
-}
-
-/** Covers a confirmed "set as representative photo" action (see PhotoListEditor's tap+confirm UX) - persists via setItemCoverImage. */
-function getPhotoReorderErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('item.errorPhotoReorderFallback');
 }
 
 function getItemDeleteErrorMessage(error: unknown, t: TFunction): string {
@@ -175,22 +156,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Images (and their order/cover) are an immediate server mutation, deliberately never staged -
-  // unlike title/memo/categories, there is no locally-staged image state for Save to ever commit
-  // (see this file's isDirty below, and the "Save semantics" round that settled this).
+  // The photo (대표 사진) is an immediate server mutation, deliberately never staged - unlike
+  // title/memo/categories, there is no locally-staged photo state for Save to ever commit (see this
+  // file's isDirty below). A photo change updates only this photo state from the server's answer:
+  // it never reloads the Item, so a memo or Collection choice not yet saved is never lost.
   const [images, setImages] = useState<readonly ItemImage[]>([]);
   const [isLoadingImages, setIsLoadingImages] = useState(true);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [deletingImageIds, setDeletingImageIds] = useState<ReadonlySet<number>>(new Set());
+  // One photo change (add/change/remove) at a time; it busies only the photo field.
+  const [isPhotoBusy, setIsPhotoBusy] = useState(false);
+  const isPhotoBusyRef = useRef(false);
   const [imagesError, setImagesError] = useState<string | null>(null);
-  // Setting a new representative photo persists via the same setItemCoverImage call the old
-  // cover picker used - see setPhotoAsRepresentative.
-  const [isReorderingPhotos, setIsReorderingPhotos] = useState(false);
-  const [photoReorderError, setPhotoReorderError] = useState<string | null>(null);
-  const isReorderingPhotosRef = useRef(false);
-
-  const isUploadingImageRef = useRef(false);
-  const deletingImageIdsRef = useRef<Set<number>>(new Set());
 
   // The Item's currently-staged Collection membership (selectedCategories) vs. the last known
   // persisted membership (originalCategoryIds) - the diff between the two is exactly what Save
@@ -218,7 +193,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // effect's own remarks for why the navigation call itself must live there and not inline in
   // deleteItemAction.
   const [isDeleted, setIsDeleted] = useState(false);
-  const [pendingDeleteImageId, setPendingDeleteImageId] = useState<number | null>(null);
   const [isUnsavedChangesDialogVisible, setIsUnsavedChangesDialogVisible] = useState(false);
   // Stashes a closure over usePreventRemove's imperative `data.action`, rather than the action
   // value itself, so this ref never needs to describe that action's shape.
@@ -240,11 +214,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   const selectedCategoryIds = new Set(selectedCategories.map(option => option.id));
 
-  // The single unified "사진" list - see effectiveImages.ts. CoverImageId only ever controls which
-  // position is first; it never removes/hides any image, auto or uploaded.
-  const effectivePhotoImages = buildEffectiveImages(
-    item?.previewImageUrl ?? null, images, item?.coverImage?.id ?? null,
-  );
+  // The one 대표 사진: the user's own photo, else the link's automatic preview (see representativePhoto.ts).
+  const representativePhoto = resolveRepresentativePhoto(item?.previewImageUrl ?? null, images, item?.coverImage?.id ?? null);
 
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
@@ -339,8 +310,29 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }, [loadItemCollections]),
   );
 
+  /** Starts a photo change; false when another one is still running. Always paired with endPhotoChange. */
+  const beginPhotoChange = () => {
+    if (isPhotoBusyRef.current) {
+      return false;
+    }
+    isPhotoBusyRef.current = true;
+    setIsPhotoBusy(true);
+    setImagesError(null);
+    return true;
+  };
+
+  const endPhotoChange = () => {
+    isPhotoBusyRef.current = false;
+    setIsPhotoBusy(false);
+  };
+
+  /**
+   * 사진 추가 / 사진 변경: the picked photo becomes the Item's one photo - the server stores it,
+   * replaces any previous one and makes it the cover, all at once (a failure leaves the previous
+   * one). Only the photo state is updated from the answer: no reload of the Item.
+   */
   const pickAndUploadImage = async () => {
-    if (isUploadingImageRef.current || effectivePhotoImages.length >= MAX_EFFECTIVE_IMAGES) {
+    if (isPhotoBusyRef.current) {
       return;
     }
 
@@ -353,6 +345,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       assetRepresentationMode: 'compatible',
     });
 
+    // A cancelled pick changes nothing and is not an error.
     if (result.didCancel) {
       return;
     }
@@ -363,9 +356,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    isUploadingImageRef.current = true;
-    setIsUploadingImage(true);
-    setImagesError(null);
+    if (!beginPhotoChange()) {
+      return;
+    }
     try {
       // asset.type is whatever the picker actually reports post-conversion - never assumed or
       // overridden to 'image/jpeg' here. The server independently verifies the real format via
@@ -375,96 +368,39 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         type: asset.type,
         fileName: asset.fileName,
       });
-      // A fresh upload always receives SortOrder = current max + 1 (server-assigned), so
-      // appending preserves the SortOrder ASC, Id ASC order without needing to re-sort. It simply
-      // joins the end of the unified list - the user can drag it to the front afterward if they
-      // want it to become the Home thumbnail; uploading never auto-promotes it.
-      setImages(previous => [...previous, uploaded]);
-    } catch (caughtError) {
-      // Failure never leaves the UI looking like the upload succeeded - the photo simply never
-      // appears, alongside a clear error below the list.
-      setImagesError(getImageUploadErrorMessage(caughtError, t));
-    } finally {
-      isUploadingImageRef.current = false;
-      setIsUploadingImage(false);
-    }
-  };
-
-  const deleteImageAction = async (imageId: number) => {
-    if (deletingImageIdsRef.current.has(imageId)) {
-      return;
-    }
-
-    deletingImageIdsRef.current.add(imageId);
-    setDeletingImageIds(new Set(deletingImageIdsRef.current));
-    setImagesError(null);
-    try {
-      await deleteItemImage(authenticatedRequest, itemId, imageId);
-      setImages(previous => previous.filter(image => image.id !== imageId));
-      // Mirrors the server (see ItemImageStore.DeleteAsync): deleting the currently-selected cover
-      // image clears it immediately, falling back to the next natural first image, rather than
-      // leaving a stale reference until the next full reload.
+      // The server answer is the whole truth about the photo now: this one, as the cover. Its
+      // read URL is new (a new Blob per upload), so no cached image of the old one can show.
+      setImages([uploaded]);
       setItem(previous =>
-        previous && previous.coverImage?.id === imageId ? { ...previous, coverImage: null } : previous,
+        previous
+          ? { ...previous, coverImage: uploaded.readUrl !== null ? { id: uploaded.id, readUrl: uploaded.readUrl } : null }
+          : previous,
       );
     } catch (caughtError) {
-      // Failure leaves the existing UI (the image stays in the list) unchanged - never removed
-      // client-side unless the server actually confirmed the delete.
-      setImagesError(getImageDeleteErrorMessage(caughtError, t));
+      // The previous photo (or none) stays exactly as it was, with a short reason under it.
+      setImagesError(getImageUploadErrorMessage(caughtError, t));
     } finally {
-      deletingImageIdsRef.current.delete(imageId);
-      setDeletingImageIds(new Set(deletingImageIdsRef.current));
+      endPhotoChange();
     }
-  };
-
-  const confirmDeleteImage = (image: EffectiveImage) => {
-    if (image.kind !== 'uploaded' || deletingImageIdsRef.current.has(image.image.id)) {
-      return;
-    }
-
-    setPendingDeleteImageId(image.image.id);
   };
 
   /**
-   * The user confirmed making the photo at `index` (always the non-representative one - see
-   * PhotoListEditor's own tap+confirm UX) the new representative/cover photo - optimistically
-   * reflects the new order immediately (matching CollectionDetailsScreen's own reorder
-   * precedent), persists via the exact same setItemCoverImage endpoint the old cover-picker modal
-   * used, and rolls back to the prior cover on failure. Never touches SortOrder - only which
-   * image is first is ever affected (see effectiveImages.ts). Still expressed as a from/to
-   * reorder internally (reorderList(images, index, 0)) - unchanged from the prior drag-based UX -
-   * since that's still exactly what "make this one the representative" means for this list.
+   * 사진 삭제 (already confirmed in the field): the Item is left with no photo of its own - the
+   * server removes it (and any extra one from when two were allowed) and clears the cover. Only the
+   * photo state changes; on failure the photo stays.
    */
-  const setPhotoAsRepresentative = async (index: number) => {
-    if (isReorderingPhotosRef.current || index === 0) {
+  const removePhoto = async () => {
+    if (representativePhoto?.kind !== 'uploaded' || !beginPhotoChange()) {
       return;
     }
-
-    const reordered = reorderList(effectivePhotoImages, index, 0);
-    const front = reordered[0];
-    const newCoverImageId = coverImageIdForFront(reordered);
-    if (newCoverImageId === (item?.coverImage?.id ?? null)) {
-      return;
-    }
-    const newCoverImage =
-      front?.kind === 'uploaded' && front.image.readUrl !== null
-        ? { id: front.image.id, readUrl: front.image.readUrl }
-        : null;
-
-    const previousCoverImage = item?.coverImage ?? null;
-    setPhotoReorderError(null);
-    setItem(previous => (previous ? { ...previous, coverImage: newCoverImage } : previous));
-
-    isReorderingPhotosRef.current = true;
-    setIsReorderingPhotos(true);
     try {
-      await setItemCoverImage(authenticatedRequest, itemId, newCoverImageId);
+      await deleteItemImage(authenticatedRequest, itemId, representativePhoto.image.id);
+      setImages([]);
+      setItem(previous => (previous ? { ...previous, coverImage: null } : previous));
     } catch (caughtError) {
-      setItem(previous => (previous ? { ...previous, coverImage: previousCoverImage } : previous));
-      setPhotoReorderError(getPhotoReorderErrorMessage(caughtError, t));
+      setImagesError(getImageDeleteErrorMessage(caughtError, t));
     } finally {
-      isReorderingPhotosRef.current = false;
-      setIsReorderingPhotos(false);
+      endPhotoChange();
     }
   };
 
@@ -628,14 +564,24 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     const categoriesToAdd = selectedCategories.filter(option => !originalCategoryIds.has(option.id));
     const categoryIdsToRemove = [...originalCategoryIds].filter(id => !currentSelectedIds.has(id));
 
+    // 승인 후 추가: those became proposals for their Owners - not memberships, so they leave the
+    // selection again (the link is not in those Collections until approved).
+    const proposedIds = new Set<number>();
     for (const option of categoriesToAdd) {
       try {
         // Each locked Collection travels with the grant this screen's picker obtained for it.
-        await addItemToCollection(authenticatedRequest, option.id, itemId, { unlockToken: categoryPicker.unlockTokenFor(option.id) });
-        setOriginalCategoryIds(previous => new Set(previous).add(option.id));
+        const outcome = await addItemToCollection(authenticatedRequest, option.id, itemId, { unlockToken: categoryPicker.unlockTokenFor(option.id) });
+        if (outcome === 'submitted') {
+          proposedIds.add(option.id);
+        } else {
+          setOriginalCategoryIds(previous => new Set(previous).add(option.id));
+        }
       } catch (caughtError) {
         failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
       }
+    }
+    if (proposedIds.size > 0) {
+      setSelectedCategories(previous => previous.filter(option => !proposedIds.has(option.id)));
     }
     for (const collectionId of categoryIdsToRemove) {
       try {
@@ -656,7 +602,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       // sentence over and over.
       setError([...new Set(failureMessages)].join('\n'));
     } else {
-      showNotificationToast(t('item.saved'));
+      showNotificationToast(proposedIds.size > 0 ? t('collections.linkSubmitted') : t('item.saved'));
     }
   };
 
@@ -705,7 +651,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           onChangeTitle={text => {
             setTitle(text);
           }}
-          previewImageUrl={effectivePhotoImages[0] ? effectiveImageUrl(effectivePhotoImages[0]) : null}
+          previewImageUrl={representativePhotoUrl(representativePhoto)}
           titleAccessibilityLabel={t('item.titleLabel')}
           titlePlaceholder={t('item.titlePlaceholder')}
           titleValue={title}
@@ -748,22 +694,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         {isLoadingImages ? (
           <ActivityIndicator style={styles.imagesLoading} />
         ) : (
-          <PhotoListEditor
-            deletingKeys={
-              new Set(
-                effectivePhotoImages
-                  .filter(image => image.kind === 'uploaded' && deletingImageIds.has(image.image.id))
-                  .map(effectiveImageKey),
-              )
-            }
-            images={effectivePhotoImages}
-            isAdding={isUploadingImage || isReorderingPhotos}
-            onAddPhoto={pickAndUploadImage}
-            onDeleteImage={confirmDeleteImage}
-            onSetRepresentative={setPhotoAsRepresentative}
+          <RepresentativePhotoField
+            isBusy={isPhotoBusy}
+            isRemovable={representativePhoto?.kind === 'uploaded'}
+            onChoose={pickAndUploadImage}
+            onRemove={removePhoto}
+            photoUrl={representativePhotoUrl(representativePhoto)}
           />
         )}
-        {photoReorderError ? <Text style={styles.error}>{photoReorderError}</Text> : null}
 
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
         {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
@@ -824,22 +762,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         visible={isRemoveFromCollectionConfirmVisible}
       />
 
-
-      <ConfirmDialog
-        cancelLabel={t('common.cancel')}
-        confirmLabel={t('common.delete')}
-        message={t('item.deletePhotoConfirmMessage')}
-        onCancel={() => setPendingDeleteImageId(null)}
-        onConfirm={() => {
-          const imageId = pendingDeleteImageId;
-          setPendingDeleteImageId(null);
-          if (imageId !== null) {
-            deleteImageAction(imageId);
-          }
-        }}
-        title={t('item.deletePhotoConfirmTitle')}
-        visible={pendingDeleteImageId !== null}
-      />
 
       <ConfirmDialog
         cancelLabel={t('item.continueEditing')}

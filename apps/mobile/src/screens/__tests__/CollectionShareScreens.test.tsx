@@ -17,6 +17,7 @@ import {
 } from '../../collections/api/collaborationApi';
 import { CrownIcon } from '../../icons/CrownIcon';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { AppToastProvider } from '../../components/AppToast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { colors, radii } from '../../theme/tokens';
 import { shareItem } from '../../items/shareItem';
@@ -148,7 +149,11 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
   async function renderScreen() {
     let renderer!: Renderer;
     await act(async () => {
-      renderer = ReactTestRenderer.create(<CollectionShareScreen navigation={{} as never} route={route} />);
+      renderer = ReactTestRenderer.create(
+        <AppToastProvider>
+          <CollectionShareScreen navigation={{} as never} route={route} />
+        </AppToastProvider>,
+      );
     });
     return renderer;
   }
@@ -207,7 +212,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     mockWindow.current = { width: 360, height: 800, scale: 2, fontScale: 1 };
   });
 
-  it('is independent cards - 공개 링크 공유, 친구 초대, 접근 비밀번호, 공유 상태 - never tabs to choose between, and opening it creates nothing', async () => {
+  it('is independent cards - 컬렉션 공개, 친구 초대, 접근 비밀번호, 공유 상태 - never tabs to choose between, and opening it creates nothing', async () => {
     jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
     const renderer = await renderScreen();
 
@@ -219,11 +224,13 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     expect(exists(renderer, 'share-main-tabs')).toBe(false);
     expect(exists(renderer, 'share-ways-section')).toBe(false);
     const headers = renderer.root.findAll(node => node.type === Text && node.props.accessibilityRole === 'header').map(node => node.props.children);
-    expect(headers).toEqual(['공개 링크 공유', '친구 초대', '접근 비밀번호', '공유 상태']);
-    expect(i18n.t('shareSheet.allUsersTitle')).toBe('공개 링크 공유');
+    expect(headers).toEqual(['컬렉션 공개', '친구 초대', '접근 비밀번호', '공유 상태']);
+    expect(i18n.t('shareSheet.allUsersTitle')).toBe('컬렉션 공개');
+    expect(texts(renderer)).not.toContain('공개 링크 공유');
     expect(i18n.t('shareSheet.inviteTitle')).toBe('친구 초대');
-    // No public link yet: no 공유 중 on its card.
-    expect(exists(renderer, 'share-all-users-status')).toBe(false);
+    // No public link yet: the switch says OFF, and there is nothing to share.
+    expect(texts(byId(renderer, 'share-public-state'))).toEqual(['OFF']);
+    expect(exists(renderer, 'share-link-action')).toBe(false);
     // Only the in-card tab bars remain; no 일반 공유 / 공동작업 split and none of the old wording.
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
     expect(tabs.map(tab => tab.props.testID)).toEqual([
@@ -243,28 +250,59 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
   });
 
   describe('모든 사용자 (the public link: 읽기 or 작성)', () => {
-    it('the switch turns it on as 읽기 전용 (a read link, 링크 공유, 공유 중), and off only after confirming', async () => {
+    it('the switch turns it on as 읽기 전용 ([ON][switch] in the header, no URL shown, a compact 공유 action at the end of the card), and off only after confirming', async () => {
       jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       jest.mocked(revokeCollectionShare).mockResolvedValue(undefined);
       const renderer = await renderScreen();
       // Off at first: no link, no 공유 중, and no separate 공유 시작 / 공유 중지 buttons any more.
       expect(publicToggle(renderer).props.value).toBe(false);
-      expect(publicToggle(renderer).props.accessibilityLabel).toBe('공개 링크 공유');
-      for (const gone of ['share-create-link', 'share-stop', 'share-all-users-status', 'share-link']) {
+      expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+      // Off: no share action either - there is nothing to share yet.
+      for (const gone of ['share-create-link', 'share-stop', 'share-all-users-status', 'share-link', 'share-link-row', 'share-link-action']) {
         expect(exists(renderer, gone)).toBe(false);
       }
+      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['OFF']);
 
       expect(byId(renderer, 'share-all-users-permission-read').props.accessibilityState.checked).toBe(true);
       expect(texts(byId(renderer, 'share-all-users-description'))).toEqual(['방문자는 컬렉션의 링크를 볼 수만 있습니다.']);
       await turnPublic(renderer, true);
       expect(enableCollectionShare).toHaveBeenCalledWith(expect.anything(), 5, 'read');
-      expect(byId(renderer, 'share-link').props.children).toBe('https://juple.test/c/p');
+      // On: the header is [컬렉션 공개] ... [ON] [switch] - no 공유 중 pill, and the URL is not shown anywhere.
+      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      for (const gone of ['share-all-users-status', 'share-link', 'share-link-row']) {
+        expect(exists(renderer, gone)).toBe(false);
+      }
+      expect(texts(renderer).some(text => text.includes('https://juple.test/c/p'))).toBe(false);
 
-      await press(renderer, 'share-link-action');
+      // The share action: compact (icon + 공유, no box), at least 44dp, alone at the end of the card -
+      // never in the header next to the switch, never inside the permission field.
+      const shareAction = renderer.root.findAll(node => node.props.testID === 'share-link-action' && typeof node.props.onPress === 'function')[0];
+      expect(shareAction.props.accessibilityLabel).toBe('컬렉션 링크 공유');
+      expect(texts(shareAction)).toEqual([i18n.t('common.share')]);
+      const actionStyle = StyleSheet.flatten(shareAction.props.style);
+      expect(actionStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }));
+      expect(actionStyle.backgroundColor).toBeUndefined();
+      expect(actionStyle.borderWidth).toBeUndefined();
+      const header = renderer.root.findAll(node => node.type === Text && node.props.children === '컬렉션 공개' && node.props.accessibilityRole === 'header')[0].parent!;
+      expect(header.findAll(node => node.props.testID === 'share-link-action')).toHaveLength(0);
+      const headerOrder = header.findAll(node => typeof node.type === 'string' && ['share-public-state', 'share-public-toggle'].includes(node.props.testID))
+        .map(node => node.props.testID);
+      expect(headerOrder.filter((id, index) => headerOrder.indexOf(id) === index)).toEqual(['share-public-state', 'share-public-toggle']);
+      const permissionField = renderer.root.findAll(node => node.type === Text && node.props.children === '권한')[0].parent!;
+      expect(permissionField.findAll(node => node.props.testID === 'share-link-action')).toHaveLength(0);
+      // After the description, last in the card.
+      const order = byId(renderer, 'share-all-users')
+        .findAll(node => typeof node.type === 'string' && ['share-all-users-description', 'share-link-action'].includes(node.props.testID))
+        .map(node => node.props.testID);
+      expect(order.filter((id, index) => order.indexOf(id) === index)).toEqual(['share-all-users-description', 'share-link-action']);
+      await act(async () => {
+        await shareAction.props.onPress();
+      });
+      // The Owner's action is the OS share sheet with the URL - never the member's 친구 / ID sheet.
       expect(shareItem).toHaveBeenCalledWith('https://juple.test/c/p', 'Trip');
+      expect(exists(renderer, 'link-share-sheet')).toBe(false);
 
       expect(publicToggle(renderer).props.value).toBe(true);
-      expect(texts(byId(renderer, 'share-all-users-status'))).toEqual(['공유 중']);
 
       await turnPublic(renderer, false);
       expect(revokeCollectionShare).not.toHaveBeenCalled(); // asks first
@@ -275,6 +313,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(revokeCollectionShare).toHaveBeenCalledWith(expect.anything(), 5);
       expect(publicToggle(renderer).props.value).toBe(false);
       expect(exists(renderer, 'share-link')).toBe(false);
+      expect(exists(renderer, 'share-link-action')).toBe(false);
     });
 
     it('작성 chosen before starting changes the description and creates a writable link', async () => {
@@ -396,7 +435,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
 
       await press(renderer, 'share-all-users-permission-write');
       expect(texts(renderer.root)).toContain(i18n.t('shareSheet.permissionMismatch'));
-      expect(i18n.t('shareSheet.permissionMismatch')).toBe('읽기 전용으로 공유 중인 사용자가 있어 공개 링크에 링크 추가 권한을 적용할 수 없어요.');
+      expect(i18n.t('shareSheet.permissionMismatch')).toBe('컬렉션 공개 권한보다 낮은 권한으로 공유 중인 사용자가 있어 이 권한을 적용할 수 없어요.');
 
       await act(async () => {
         byId(renderer, 'share-all-users-permission-read').props.onPress();
@@ -622,28 +661,108 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'EEEE2345', 'viewer');
     });
 
-    it('while the link is 링크 추가, 읽기 전용 is shown greyed out and cannot be chosen - no sentence - and 링크 추가 is what is sent', async () => {
+    it('while the link is 링크 추가, 읽기 전용 and 승인 후 추가 are greyed out; a tap on them only says why - nothing changes - and 링크 추가 is what is sent', async () => {
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
+      jest.mocked(getFriends).mockResolvedValue({ items: [friend('FRND2345', '피카츄')], nextCursor: null });
       const renderer = await renderScreen();
+      const reason = '컬렉션 공개 권한보다 낮은 권한은 부여할 수 없습니다.';
+      expect(i18n.t('shareSheet.belowPublicPermission')).toBe(reason);
 
       expect(exists(renderer, 'share-invite-fixed-role')).toBe(false);
-      expect(JSON.stringify(texts(renderer))).not.toContain(i18n.t('collaboration.blockedByPublicShare'));
-      const unavailable = (testID: string) => {
-        const option = renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
-        expect(option.props.disabled).toBe(true);
-        expect(option.props.accessibilityState).toEqual({ checked: false, disabled: true });
-        expect(StyleSheet.flatten(option.findByType(Text).props.style)).toEqual(expect.objectContaining({ textDecorationLine: 'line-through', color: colors.border }));
+      const option = (testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
+      /** Looks disabled, but still hears a tap (never a native disabled press) - and the tap only explains. */
+      const tapUnavailable = async (unavailableId: string, selectedId: string) => {
+        const unavailable = option(unavailableId);
+        expect(unavailable.props.disabled).toBe(false);
+        expect(unavailable.props.accessibilityState).toEqual({ checked: false, disabled: true });
+        expect(StyleSheet.flatten(unavailable.findByType(Text).props.style)).toEqual(expect.objectContaining({ textDecorationLine: 'line-through', color: colors.border }));
+        jest.mocked(inviteCollaborator).mockClear();
+        await act(async () => {
+          unavailable.props.onPress();
+        });
+        expect(texts(renderer)).toContain(reason); // the app's own transient toast (iOS and Android alike)
+        expect(option(unavailableId).props.accessibilityState.checked).toBe(false);
+        expect(option(selectedId).props.accessibilityState.checked).toBe(true);
+        expect(inviteCollaborator).not.toHaveBeenCalled();
       };
 
+      // B. the Juple ID search result
       await findById(renderer, 'DDDD2345');
-      unavailable('id-invite-role-viewer');
-      expect(byId(renderer, 'id-invite-role-contributor').props.accessibilityState.checked).toBe(true);
+      await tapUnavailable('id-invite-role-viewer', 'id-invite-role-contributor');
+      await tapUnavailable('id-invite-role-submitter', 'id-invite-role-contributor');
       expect(texts(byId(renderer, 'id-invite-permission'))[0]).toBe('권한');
+      // C. the person in the batch, before sending
       await press(renderer, 'id-invite-add');
-      unavailable('draft-role-DDDD2345-viewer');
-      expect(byId(renderer, 'draft-role-DDDD2345-contributor').props.accessibilityState.checked).toBe(true);
+      await tapUnavailable('draft-role-DDDD2345-viewer', 'draft-role-DDDD2345-contributor');
+      await tapUnavailable('draft-role-DDDD2345-submitter', 'draft-role-DDDD2345-contributor');
+      // A. a friend chosen from the list
+      await press(renderer, 'share-invite-tabs-friends');
+      await pickFriends(renderer, ['FRND2345']);
+      await tapUnavailable('draft-role-FRND2345-viewer', 'draft-role-FRND2345-contributor');
+
       await press(renderer, 'invite-send');
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'DDDD2345', 'contributor');
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'FRND2345', 'contributor');
+    });
+
+    it('while the link is 승인 후 추가, only 읽기 전용 is greyed out: 승인 후 추가 is the starting choice, 링크 추가 can still be chosen', async () => {
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'submit' });
+      jest.mocked(getFriends).mockResolvedValue({ items: [friend('FRND2345', '피카츄'), friend('GGGG2345', '파이리')], nextCursor: null });
+      const renderer = await renderScreen();
+      const option = (testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
+
+      await press(renderer, 'share-invite-tabs-friends');
+      await pickFriends(renderer, ['FRND2345', 'GGGG2345']);
+      expect(option('draft-role-FRND2345-viewer').props.accessibilityState).toEqual({ checked: false, disabled: true });
+      expect(option('draft-role-FRND2345-submitter').props.accessibilityState).toEqual({ checked: true, disabled: false });
+      expect(option('draft-role-FRND2345-contributor').props.accessibilityState).toEqual({ checked: false, disabled: false });
+
+      await act(async () => {
+        option('draft-role-FRND2345-viewer').props.onPress();
+      });
+      expect(texts(renderer)).toContain('컬렉션 공개 권한보다 낮은 권한은 부여할 수 없습니다.');
+      await press(renderer, 'draft-role-GGGG2345-contributor');
+      expect(option('draft-role-GGGG2345-contributor').props.accessibilityState.checked).toBe(true);
+
+      await press(renderer, 'invite-send');
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'FRND2345', 'submitter');
+      expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'GGGG2345', 'contributor');
+    });
+
+    it('the public link offers three levels with their own descriptions - 읽기 전용 | 승인 후 추가 | 링크 추가', async () => {
+      const renderer = await renderScreen();
+
+      const options = renderer.root.findAll(node => typeof node.props.testID === 'string' && /^share-all-users-permission-(read|submit|write)$/.test(node.props.testID) && typeof node.props.onPress === 'function');
+      expect(options.map(node => node.props.testID)).toEqual(['share-all-users-permission-read', 'share-all-users-permission-submit', 'share-all-users-permission-write']);
+      expect(options.map(node => texts(node)[0])).toEqual(['읽기 전용', '승인 후 추가', '링크 추가']);
+      await press(renderer, 'share-all-users-permission-submit');
+      expect(texts(byId(renderer, 'share-all-users-description'))).toEqual(['링크를 제안할 수 있으며, 컬렉션 소유자가 승인한 링크만 추가됩니다.']);
+      await press(renderer, 'share-all-users-permission-write');
+      expect(texts(byId(renderer, 'share-all-users-description'))).toEqual(['방문자는 컬렉션에 링크를 추가할 수 있습니다.']);
+      await press(renderer, 'share-all-users-permission-read');
+      expect(texts(byId(renderer, 'share-all-users-description'))).toEqual(['방문자는 컬렉션의 링크를 볼 수만 있습니다.']);
+      // Neutral selection, never a blue call to action; each option keeps a 44dp touch target.
+      for (const node of options) {
+        expect(StyleSheet.flatten(node.props.style).backgroundColor).not.toBe(colors.brand);
+        expect(StyleSheet.flatten(node.props.style).minHeight + 2 * (node.props.hitSlop ?? 0)).toBeGreaterThanOrEqual(44);
+      }
+    });
+
+    it.each([
+      ['off', null],
+      ['읽기 전용', { publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' as const }],
+    ])('while the public link is %s, 읽기 전용 is a normal choice again (no reason shown)', async (_state, share) => {
+      jest.mocked(getCollectionShare).mockResolvedValue(share);
+      const renderer = await renderScreen();
+
+      await findById(renderer, 'DDDD2345');
+      const viewer = renderer.root.findAll(node => node.props.testID === 'id-invite-role-viewer' && typeof node.props.onPress === 'function')[0];
+      expect(viewer.props.accessibilityState.disabled).toBe(false);
+      await press(renderer, 'id-invite-role-contributor');
+      expect(byId(renderer, 'id-invite-role-contributor').props.accessibilityState.checked).toBe(true);
+      await press(renderer, 'id-invite-role-viewer');
+      expect(byId(renderer, 'id-invite-role-viewer').props.accessibilityState.checked).toBe(true);
+      expect(texts(renderer)).not.toContain(i18n.t('shareSheet.belowPublicPermission'));
     });
 
     it('while the link is 읽기 전용, a member can still be switched to 링크 추가 가능 (and back)', async () => {
@@ -660,6 +779,38 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       });
       expect(changeCollaboratorRole).toHaveBeenCalledWith(expect.anything(), 5, 'RDER2345', 'contributor');
     });
+
+    it('a member can be moved to each other level - and under a 승인 후 추가 link never below it', async () => {
+      jest.mocked(changeCollaboratorRole).mockResolvedValue(undefined);
+      const menuLabels = (renderer: Renderer) =>
+        renderer.root.findByType(ActionMenuDialog).props.actions.map((action: { label: string }) => action.label);
+
+      // No public link: a 읽기 전용 member may become 승인 후 추가 or 링크 추가.
+      jest.mocked(getCollectionParticipants).mockResolvedValue(readersOnly);
+      const offRenderer = await renderScreen();
+      await press(offRenderer, 'member-actions-RDER2345');
+      expect(menuLabels(offRenderer)).toEqual(expect.arrayContaining([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite')]));
+      expect(menuLabels(offRenderer)).not.toContain(i18n.t('shareSheet.changeToRead'));
+      const toSubmit = offRenderer.root.findByType(ActionMenuDialog).props.actions
+        .find((action: { label: string }) => action.label === i18n.t('shareSheet.changeToSubmit'));
+      await act(async () => {
+        toSubmit.onPress();
+      });
+      expect(changeCollaboratorRole).toHaveBeenCalledWith(expect.anything(), 5, 'RDER2345', 'submitter');
+
+      // A 승인 후 추가 link: a 승인 후 추가 member may only go up to 링크 추가 - never down to 읽기 전용.
+      jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'submit' });
+      jest.mocked(getCollectionParticipants).mockResolvedValue({
+        ...readersOnly,
+        participants: [owner, { jupleId: 'SBMT2345', displayName: '꼬부기', role: 'submitter' }],
+      });
+      const submitRenderer = await renderScreen();
+      expect(texts(byId(submitRenderer, 'participant-role-SBMT2345')).join('')).toBe('승인 후 추가');
+      await press(submitRenderer, 'member-actions-SBMT2345');
+      expect(menuLabels(submitRenderer)).toContain(i18n.t('shareSheet.changeToWrite'));
+      expect(menuLabels(submitRenderer)).not.toContain(i18n.t('shareSheet.changeToRead'));
+      expect(menuLabels(submitRenderer)).not.toContain(i18n.t('shareSheet.changeToSubmit'));
+    });
   });
 
   describe('independent cards, and person rows that never break awkwardly on a narrow screen', () => {
@@ -670,9 +821,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
       const renderer = await renderScreen();
 
-      expect(texts(byId(renderer, 'share-all-users-status'))).toEqual(['공유 중']);
-      expect(i18n.t('shareSheet.publicLinkActive')).toBe('공유 중');
-      expect(exists(renderer, 'share-link')).toBe(true);
+      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      expect(exists(renderer, 'share-link-action')).toBe(true);
       expect(exists(renderer, 'invite-choose-friends')).toBe(true);
       expect(texts(byId(renderer, 'share-status-tabs-members'))).toEqual([i18n.t('shareSheet.statusTabMembers', { count: 3 })]);
       expect(texts(byId(renderer, 'share-status-tabs-pending'))).toEqual([i18n.t('shareSheet.statusTabPending', { count: 1 })]);
@@ -692,7 +842,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await act(async () => {
         emitSocialPushEvent({ type: 'collectionInvitationAnswered', collectionId: 5 });
       });
-      expect(exists(renderer, 'share-all-users-status')).toBe(true);
+      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
 
       expect(exists(renderer, 'draft-AAAA2345')).toBe(true);
       expect(byId(renderer, 'id-invite-input').props.value).toBe('BBBB-2345');
@@ -721,8 +871,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(idsIn(firstLine)).toContain('draft-remove-AAAA2345');
       expect(idsIn(firstLine).some(id => id.startsWith('draft-role-'))).toBe(false);
       expect(secondLine.props.testID).toBe('draft-permission-AAAA2345');
-      expect(texts(secondLine)).toEqual(['권한', i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionWrite')]);
-      expect(idsIn(secondLine)).toEqual(expect.arrayContaining(['draft-role-AAAA2345-viewer', 'draft-role-AAAA2345-contributor']));
+      expect(texts(secondLine)).toEqual(['권한', i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionSubmit'), i18n.t('shareSheet.permissionWrite')]);
+      expect(idsIn(secondLine)).toEqual(expect.arrayContaining(['draft-role-AAAA2345-viewer', 'draft-role-AAAA2345-submitter', 'draft-role-AAAA2345-contributor']));
       // Full width: both options share the line equally.
       const option = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === 'draft-role-AAAA2345-viewer');
       expect(StyleSheet.flatten(option.props.style)).toEqual(expect.objectContaining({ flexBasis: 0, flexGrow: 1 }));
@@ -918,7 +1068,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const renderer = await renderScreen();
 
       await chooseFromMenu(renderer, 'member-actions-RDER2345', i18n.t('shareSheet.changeToWrite'));
-      expect(texts(byId(renderer, 'share-action-error'))).toContain(i18n.t('collaboration.blockedByPublicShare'));
+      expect(texts(byId(renderer, 'share-action-error'))).toContain(i18n.t('shareSheet.belowPublicPermission'));
     });
 
     it('removes a member only after confirming', async () => {
@@ -976,7 +1126,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       const renderer = await renderScreen();
 
-      expect(byId(renderer, 'share-link').props.children).toBe('https://juple.test/c/p');
+      expect(texts(byId(renderer, 'share-public-state'))).toEqual(['ON']);
+      expect(exists(renderer, 'share-link-action')).toBe(true);
       expect(exists(renderer, 'share-public-migration-required')).toBe(false);
     });
 
