@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Undangan tertunda",
     "roleViewer": "Hanya baca"
   },
+  "reactions": {
+    "pickerTitle": "Tambah reaksi",
+    "recent": "Terbaru",
+    "all": "Semua",
+    "add": "Tambah reaksi",
+    "addMoreA11y": "Pilih reaksi lain",
+    "error": "Reaksi tidak dapat disimpan.",
+    "reactionA11y": "Reaksi {{emoji}}",
+    "mineA11y": "Reaksimu {{emoji}}",
+    "chipA11y": "Reaksi {{emoji}}: {{count}}",
+    "moreKindsA11y": "{{count}} jenis reaksi lainnya"
+  },
   "shareSheet": {
     "sendInvitations": "Kirim undangan",
     "duplicateInvitee": "ID Juple ini sudah ada di daftar.",

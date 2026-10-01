@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ItemRepresentativeThumbnail } from '../images/ItemRepresentativeThumbnail';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
@@ -25,6 +26,8 @@ interface SavedLinkRowProps {
   readonly trailingAction?: { readonly accessibilityLabel: string; readonly onPress: () => void };
   /** Who added the link inside a shared Collection (see SavedLinkMetaRow) - omitted everywhere else. */
   readonly addedBy?: ItemAdderDisplay | null;
+  /** Under the time line - e.g. a shared link's reaction chips; omitted (nothing drawn) otherwise. */
+  readonly footer?: ReactNode;
 }
 
 /**
@@ -44,6 +47,7 @@ export function SavedLinkRow({
   preferEffectiveThumbnail = false,
   trailingAction,
   addedBy,
+  footer,
 }: SavedLinkRowProps) {
   const { t } = useTranslation();
   const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -78,6 +82,7 @@ export function SavedLinkRow({
           </Text>
         ) : null}
         <SavedLinkMetaRow addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
+        {footer}
       </View>
       {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>

@@ -1,3 +1,4 @@
+using Juple.Application.Collections.Reactions;
 using Juple.Application.Images;
 
 namespace Juple.Application.Collections;
@@ -27,7 +28,11 @@ public sealed record CollectionItemEntryDto(
     // only Url/Title/automatic PreviewImageUrl/AddedAtUtc are shared.
     bool IsMine = true,
     // Who put this link into this Collection, as the caller may see them (see CollectionItemAdderDto).
-    CollectionItemAdderDto? AddedBy = null);
+    CollectionItemAdderDto? AddedBy = null,
+    // Emoji reactions: the counts per reaction (null when there are none) and the caller's own - never
+    // who reacted. Only in the signed-in member views, never in the public link's DTOs.
+    IReadOnlyList<ReactionCountDto>? Reactions = null,
+    string? MyReaction = null);
 
 /// <summary>
 /// Who added a link to a Collection, within what the caller may already see of the Collection's
@@ -66,4 +71,6 @@ public sealed record SharedCollectionItemDto(
     string? PreviewImageUrl,
     DateTimeOffset AddedAtUtc,
     bool IsMine,
-    CollectionItemAdderDto? AddedBy = null);
+    CollectionItemAdderDto? AddedBy = null,
+    IReadOnlyList<ReactionCountDto>? Reactions = null,
+    string? MyReaction = null);

@@ -73,6 +73,11 @@ import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { ParticipantAvatarStack } from '../components/ParticipantAvatarStack';
+import { QuickReactionBar } from '../reactions/QuickReactionBar';
+import { ReactionChips } from '../reactions/ReactionChips';
+import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
+import { useRecentReactions } from '../reactions/recentReactions';
+import { useItemReactions } from '../reactions/useItemReactions';
 import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
@@ -283,6 +288,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
+  // Emoji reactions to the Collection's links (shared Collections only): the optimistic per-link state,
+  // this device's recent picks, and the full picker (opened from the menu's "+", one modal at a time).
+  const itemReactions = useItemReactions(
+    authenticatedRequest,
+    collectionId,
+    () => getCollectionUnlockToken(collectionId),
+    () => showNotificationToast(t('reactions.error')),
+  );
+  const { recent: recentReactions, recordRecent: recordRecentReaction } = useRecentReactions();
+  const [reactionPickerItem, setReactionPickerItem] = useState<CollectionItemEntry | null>(null);
+  const pendingReactionPickerRef = useRef<CollectionItemEntry | null>(null);
   // Everyone accepted into a shared Collection (the avatars under its title) - null while unknown or not shared.
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [participantsFailed, setParticipantsFailed] = useState(false);
@@ -1155,6 +1171,27 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     );
   }
 
+  const reactionsEnabled = !isContentLocked && (isSharedWithMe(collection) || collection.hasCollaborators === true);
+  /** A reaction chosen for a link (quick row, picker or a chip): remembered as recent, then sent. */
+  const reactToItem = (item: CollectionItemEntry, key: string) => {
+    recordRecentReaction(key);
+    itemReactions.react(item.itemId, item, key).catch(() => undefined);
+  };
+  /** The menu's "+": the picker takes the menu's place - on iOS only once the menu has finished closing. */
+  const openReactionPicker = () => {
+    const item = actionMenuItem;
+    setIsItemActionMenuVisible(false);
+    setActionMenuItem(null);
+    if (!item) {
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      pendingReactionPickerRef.current = item;
+    } else {
+      setReactionPickerItem(item);
+    }
+  };
+
   // The participant row exists from the first render whenever someone else is in the Collection (the
   // Collection itself says how many) - placeholder circles until the full list arrives, then the real
   // photos in the same place. Never a line of names. If the list cannot be loaded, the Collection's own
@@ -1182,6 +1219,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     // from here, and only once the content is open to me.
     const canCopyToMine = !isMine && !isContentLocked;
     const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
+    // Reactions: only in a Collection other people are in (shared with me, or mine with members), once its
+    // content is open - never in a private one, and never in the public link's views.
+    const reactionState = reactionsEnabled ? itemReactions.reactionsOf(item.itemId, item) : null;
+    const reactionFooter = reactionState ? (
+      <ReactionChips
+        onAdd={() => setReactionPickerItem(item)}
+        onToggle={key => reactToItem(item, key)}
+        reactions={reactionState}
+        testID={`reaction-chips-${item.itemId}`}
+      />
+    ) : undefined;
     const addedBy = showItemAdders ? describeItemAdder(item.addedBy, t) : null;
     if (selectedItemIds) {
       // 내 컬렉션으로 복사 selection: a tap only picks/unpicks - no swipe actions, menus or navigation.
@@ -1220,7 +1268,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         deleteLabel={t('collections.removeFromCollection')}
         // Long-press opens the 복제/이동 menu in both List and Grid - the one way in (a List row no
         // longer has its own trailing "..." for it).
-        onLongPress={canManageItem || canCopyToMine ? openItemMenu : undefined}
+        onLongPress={canManageItem || canCopyToMine || reactionsEnabled ? openItemMenu : undefined}
         onPress={() => {
           if (isMine) {
             // Opened from this Collection: its delete action removes the link from here only.
@@ -1238,11 +1286,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             a History section does - matches this row's own prior "always show the full date"
             behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
         {viewMode === 'grid' ? (
-          <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+          <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" footer={reactionFooter} isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
         ) : (
           <SavedLinkRow
             addedBy={addedBy}
             dateDisplayMode="dateTime"
+            footer={reactionFooter}
             isActionInFlight={itemActionInFlightId === item.itemId}
             item={toSavedLinkRowItem(item)}
             preferEffectiveThumbnail
@@ -1644,6 +1693,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         visible={pendingUnlinkItemId !== null}
       />
       <ActionMenuDialog
+        header={actionMenuItem && reactionsEnabled ? (
+          <QuickReactionBar
+            myReaction={itemReactions.reactionsOf(actionMenuItem.itemId, actionMenuItem).myReaction}
+            onMore={openReactionPicker}
+            onSelect={key => {
+              const item = actionMenuItem;
+              setIsItemActionMenuVisible(false);
+              setActionMenuItem(null);
+              reactToItem(item, key);
+            }}
+          />
+        ) : undefined}
+        onDismiss={() => {
+          if (pendingReactionPickerRef.current) {
+            setReactionPickerItem(pendingReactionPickerRef.current);
+            pendingReactionPickerRef.current = null;
+          }
+        }}
         actions={actionMenuItem?.isMine === false
           ? [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker }]
           : [
@@ -1697,6 +1764,19 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
       </Modal>
+      <ReactionPickerDialog
+        myReaction={reactionPickerItem ? itemReactions.reactionsOf(reactionPickerItem.itemId, reactionPickerItem).myReaction : null}
+        onClose={() => setReactionPickerItem(null)}
+        onSelect={key => {
+          const item = reactionPickerItem;
+          setReactionPickerItem(null);
+          if (item) {
+            reactToItem(item, key);
+          }
+        }}
+        recent={recentReactions}
+        visible={reactionPickerItem !== null}
+      />
       <CategoryPickerModal
         bottomInset={insets.bottom}
         collectionPool={destinationPicker.collections}

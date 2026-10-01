@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "लंबित आमंत्रण",
     "roleViewer": "केवल पढ़ने के लिए"
   },
+  "reactions": {
+    "pickerTitle": "प्रतिक्रिया जोड़ें",
+    "recent": "हाल में उपयोग किए गए",
+    "all": "सभी",
+    "add": "प्रतिक्रिया जोड़ें",
+    "addMoreA11y": "दूसरी प्रतिक्रिया चुनें",
+    "error": "प्रतिक्रिया सेव नहीं हो सकी।",
+    "reactionA11y": "{{emoji}} प्रतिक्रिया",
+    "mineA11y": "आपकी {{emoji}} प्रतिक्रिया",
+    "chipA11y": "{{emoji}} प्रतिक्रिया: {{count}}",
+    "moreKindsA11y": "{{count}} और तरह की प्रतिक्रियाएँ"
+  },
   "shareSheet": {
     "sendInvitations": "आमंत्रण भेजें",
     "duplicateInvitee": "यह Juple ID पहले से सूची में है।",

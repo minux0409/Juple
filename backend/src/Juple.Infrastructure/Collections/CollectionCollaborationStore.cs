@@ -290,6 +290,11 @@ public sealed class CollectionCollaborationStore(
             .Where(membership => membership.CollectionId == collectionId && membership.AddedByUserId == collaboratorUserId)
             .ExecuteDeleteAsync(cancellationToken);
 
+        // Their emoji reactions on this Collection's links - they can no longer see it.
+        await dbContext.CollectionItemReactions
+            .Where(reaction => reaction.CollectionId == collectionId && reaction.UserId == collaboratorUserId)
+            .ExecuteDeleteAsync(cancellationToken);
+
         // Their personal favorite mark on a Collection they can no longer access.
         await dbContext.CollectionFavorites
             .Where(favorite => favorite.CollectionId == collectionId && favorite.UserId == collaboratorUserId)

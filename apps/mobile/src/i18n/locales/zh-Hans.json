@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "待接受的邀请",
     "roleViewer": "只读"
   },
+  "reactions": {
+    "pickerTitle": "添加表情回应",
+    "recent": "最近使用",
+    "all": "全部",
+    "add": "添加表情回应",
+    "addMoreA11y": "选择其他表情回应",
+    "error": "无法保存表情回应。",
+    "reactionA11y": "{{emoji}} 回应",
+    "mineA11y": "你的 {{emoji}} 回应",
+    "chipA11y": "{{emoji}} 回应 {{count}} 个",
+    "moreKindsA11y": "另有 {{count}} 种回应"
+  },
   "shareSheet": {
     "sendInvitations": "发送邀请",
     "duplicateInvitee": "该 Juple ID 已在列表中。",

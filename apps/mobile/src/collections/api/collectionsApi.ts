@@ -1,5 +1,6 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
+import type { ReactionCount } from '../../reactions/reactionCatalog';
 import { COLLECTION_UNLOCK_HEADER_NAME, getCollectionUnlockToken, storedUnlockHeaders } from '../collectionUnlockGrants';
 
 /** A named 보관함 - an Item can belong to any number of Collections at once (unlike Category). */
@@ -118,6 +119,9 @@ export interface CollectionItemEntry {
   readonly isMine?: boolean;
   /** Who put this link into this Collection (see CollectionItemAdder); null/undefined when unknown. */
   readonly addedBy?: CollectionItemAdder | null;
+  /** Emoji reactions to this link: counts per reaction (absent = none) and the caller's own - never who. Signed-in member views only. */
+  readonly reactions?: readonly ReactionCount[] | null;
+  readonly myReaction?: string | null;
 }
 
 /**
@@ -505,6 +509,8 @@ export interface SharedCollectionItem {
   readonly addedAtUtc: string;
   readonly isMine: boolean;
   readonly addedBy?: CollectionItemAdder | null;
+  readonly reactions?: readonly ReactionCount[] | null;
+  readonly myReaction?: string | null;
 }
 
 export async function getSharedCollectionItem(
@@ -622,6 +628,55 @@ export async function addItemToCollection(
     headers: membershipUnlockHeaders(collectionId, options),
   });
   return response?.status === 202 ? 'submitted' : 'added';
+}
+
+/** A link's reactions as the server answers a change: counts per reaction and the caller's own. */
+export interface ItemReactionsAnswer {
+  readonly reactions: readonly ReactionCount[];
+  readonly myReaction: string | null;
+}
+
+/**
+ * Makes reactionKey (a catalog key) the caller's one reaction to the link - none yet: added; another:
+ * changed in place; the same: unchanged (never a toggle - removeItemReaction takes it back). Owner and
+ * accepted members only (404 for anyone else); a locked Collection needs its grant like every content
+ * call.
+ */
+export async function setItemReaction(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+  reactionKey: string,
+  unlockToken?: string | null,
+): Promise<ItemReactionsAnswer> {
+  const response = await request<ItemReactionsAnswer>({
+    method: 'PUT',
+    path: `/api/v1/collections/${collectionId}/items/${itemId}/reaction`,
+    body: { reactionKey },
+    headers: unlockToken ? { [COLLECTION_UNLOCK_HEADER_NAME]: unlockToken } : storedUnlockHeaders(collectionId),
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no reaction body.');
+  }
+  return response.body;
+}
+
+/** Takes the caller's reaction to the link back; having none is a success too. */
+export async function removeItemReaction(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+  unlockToken?: string | null,
+): Promise<ItemReactionsAnswer> {
+  const response = await request<ItemReactionsAnswer>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}/items/${itemId}/reaction`,
+    headers: unlockToken ? { [COLLECTION_UNLOCK_HEADER_NAME]: unlockToken } : storedUnlockHeaders(collectionId),
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no reaction body.');
+  }
+  return response.body;
 }
 
 /** One link waiting for the Owner's approval (승인 후 추가) - see GET /collections/{id}/submissions. */

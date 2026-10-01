@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "承認待ちの招待",
     "roleViewer": "読み取り専用"
   },
+  "reactions": {
+    "pickerTitle": "リアクションを追加",
+    "recent": "最近使った",
+    "all": "すべて",
+    "add": "リアクションを追加",
+    "addMoreA11y": "別のリアクションを選ぶ",
+    "error": "リアクションを保存できませんでした。",
+    "reactionA11y": "{{emoji}}のリアクション",
+    "mineA11y": "あなたの{{emoji}}リアクション",
+    "chipA11y": "{{emoji}}のリアクション {{count}}件",
+    "moreKindsA11y": "ほかに{{count}}種類のリアクション"
+  },
   "shareSheet": {
     "sendInvitations": "招待を送る",
     "duplicateInvitee": "このJuple IDはすでにリストにあります。",

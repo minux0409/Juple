@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Convites pendentes",
     "roleViewer": "Somente leitura"
   },
+  "reactions": {
+    "pickerTitle": "Adicionar reação",
+    "recent": "Recentes",
+    "all": "Todas",
+    "add": "Adicionar reação",
+    "addMoreA11y": "Escolher outra reação",
+    "error": "Não foi possível salvar a reação.",
+    "reactionA11y": "Reação {{emoji}}",
+    "mineA11y": "Sua reação {{emoji}}",
+    "chipA11y": "Reação {{emoji}}: {{count}}",
+    "moreKindsA11y": "Mais {{count}} tipos de reações"
+  },
   "shareSheet": {
     "sendInvitations": "Enviar convites",
     "duplicateInvitee": "Este ID Juple já está na lista.",

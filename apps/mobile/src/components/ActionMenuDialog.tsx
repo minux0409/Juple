@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -19,9 +19,11 @@ export interface ActionMenuDialogAction {
  * A small centered menu of actions with 취소 at the bottom. A menu whose rows have icons lists them
  * start-aligned behind one icon column; a menu without icons keeps its centered labels.
  */
-export function ActionMenuDialog({ visible, title, actions, cancelLabel, onCancel, onDismiss }: {
+export function ActionMenuDialog({ visible, title, header, actions, cancelLabel, onCancel, onDismiss }: {
   readonly visible: boolean;
   readonly title?: string;
+  /** Optional content above the actions, set off from them by a divider (e.g. a link's quick reactions). */
+  readonly header?: ReactNode;
   readonly actions: readonly ActionMenuDialogAction[];
   readonly cancelLabel: string;
   readonly onCancel: () => void;
@@ -32,6 +34,7 @@ export function ActionMenuDialog({ visible, title, actions, cancelLabel, onCance
   return <Modal animationType="fade" onDismiss={onDismiss} onRequestClose={onCancel} transparent visible={visible}>
     <View style={styles.overlay}><Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onCancel} style={StyleSheet.absoluteFill} /><View accessibilityViewIsModal style={styles.card}>
       {title ? <Text style={styles.title}>{title}</Text> : null}
+      {header ? <View style={actions.length > 0 ? styles.header : undefined}>{header}</View> : null}
       {actions.map(action => {
         const color = action.destructive ? colors.danger : colors.textPrimary;
         const Icon = action.icon;
@@ -61,6 +64,7 @@ const styles = StyleSheet.create({
   title: { color: colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: spacing.sm },
   action: { borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md },
   actionWithIcon: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget },
+  header: { borderBottomColor: colors.divider, borderBottomWidth: 1, marginBottom: spacing.xs, paddingBottom: spacing.xs },
   pressed: { backgroundColor: colors.surfaceMuted },
   icon: { alignItems: 'center', flexShrink: 0, height: ICON_SIZE + 2, justifyContent: 'center', width: ICON_SIZE + 2 },
   cancel: { borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.md },

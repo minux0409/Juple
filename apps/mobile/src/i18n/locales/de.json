@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Ausstehende Einladungen",
     "roleViewer": "Nur lesen"
   },
+  "reactions": {
+    "pickerTitle": "Reaktion hinzufügen",
+    "recent": "Zuletzt verwendet",
+    "all": "Alle",
+    "add": "Reaktion hinzufügen",
+    "addMoreA11y": "Andere Reaktion wählen",
+    "error": "Die Reaktion konnte nicht gespeichert werden.",
+    "reactionA11y": "Reaktion {{emoji}}",
+    "mineA11y": "Deine Reaktion {{emoji}}",
+    "chipA11y": "Reaktion {{emoji}}: {{count}}",
+    "moreKindsA11y": "{{count}} weitere Reaktionsarten"
+  },
   "shareSheet": {
     "sendInvitations": "Einladungen senden",
     "duplicateInvitee": "Diese Juple-ID ist bereits in der Liste.",

@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Lời mời đang chờ",
     "roleViewer": "Chỉ đọc"
   },
+  "reactions": {
+    "pickerTitle": "Thêm cảm xúc",
+    "recent": "Dùng gần đây",
+    "all": "Tất cả",
+    "add": "Thêm cảm xúc",
+    "addMoreA11y": "Chọn cảm xúc khác",
+    "error": "Không thể lưu cảm xúc.",
+    "reactionA11y": "Cảm xúc {{emoji}}",
+    "mineA11y": "Cảm xúc {{emoji}} của bạn",
+    "chipA11y": "Cảm xúc {{emoji}}: {{count}}",
+    "moreKindsA11y": "{{count}} loại cảm xúc khác"
+  },
   "shareSheet": {
     "sendInvitations": "Gửi lời mời",
     "duplicateInvitee": "Juple ID này đã có trong danh sách.",

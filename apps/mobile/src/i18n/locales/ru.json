@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Ожидающие приглашения",
     "roleViewer": "Только чтение"
   },
+  "reactions": {
+    "pickerTitle": "Добавить реакцию",
+    "recent": "Недавние",
+    "all": "Все",
+    "add": "Добавить реакцию",
+    "addMoreA11y": "Выбрать другую реакцию",
+    "error": "Не удалось сохранить реакцию.",
+    "reactionA11y": "Реакция {{emoji}}",
+    "mineA11y": "Ваша реакция {{emoji}}",
+    "chipA11y": "Реакция {{emoji}}: {{count}}",
+    "moreKindsA11y": "Ещё видов реакций: {{count}}"
+  },
   "shareSheet": {
     "sendInvitations": "Отправить приглашения",
     "duplicateInvitee": "Этот Juple ID уже есть в списке.",

@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Invitations en attente",
     "roleViewer": "Lecture seule"
   },
+  "reactions": {
+    "pickerTitle": "Ajouter une réaction",
+    "recent": "Récentes",
+    "all": "Toutes",
+    "add": "Ajouter une réaction",
+    "addMoreA11y": "Choisir une autre réaction",
+    "error": "Impossible d’enregistrer la réaction.",
+    "reactionA11y": "Réaction {{emoji}}",
+    "mineA11y": "Votre réaction {{emoji}}",
+    "chipA11y": "Réaction {{emoji}} : {{count}}",
+    "moreKindsA11y": "{{count}} autres types de réactions"
+  },
   "shareSheet": {
     "sendInvitations": "Envoyer les invitations",
     "duplicateInvitee": "Cet identifiant Juple est déjà dans la liste.",

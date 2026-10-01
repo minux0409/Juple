@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "Bekleyen davetler",
     "roleViewer": "Salt okunur"
   },
+  "reactions": {
+    "pickerTitle": "Tepki ekle",
+    "recent": "Son kullanılanlar",
+    "all": "Tümü",
+    "add": "Tepki ekle",
+    "addMoreA11y": "Başka bir tepki seç",
+    "error": "Tepki kaydedilemedi.",
+    "reactionA11y": "{{emoji}} tepkisi",
+    "mineA11y": "{{emoji}} tepkin",
+    "chipA11y": "{{emoji}} tepkisi: {{count}}",
+    "moreKindsA11y": "{{count}} tepki türü daha"
+  },
   "shareSheet": {
     "sendInvitations": "Davetleri gönder",
     "duplicateInvitee": "Bu Juple ID zaten listede.",

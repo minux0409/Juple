@@ -543,6 +543,18 @@
     "pendingCollaborationTitle": "초대 대기",
     "roleViewer": "읽기 전용"
   },
+  "reactions": {
+    "pickerTitle": "리액션 추가",
+    "recent": "최근 사용",
+    "all": "기본",
+    "add": "리액션 추가",
+    "addMoreA11y": "다른 리액션 선택",
+    "error": "리액션을 저장하지 못했어요.",
+    "reactionA11y": "{{emoji}} 반응",
+    "mineA11y": "내가 선택한 {{emoji}} 반응",
+    "chipA11y": "{{emoji}} 반응 {{count}}개",
+    "moreKindsA11y": "다른 반응 {{count}}종류"
+  },
   "shareSheet": {
     "sendInvitations": "초대 보내기",
     "duplicateInvitee": "이미 목록에 있는 Juple ID예요.",

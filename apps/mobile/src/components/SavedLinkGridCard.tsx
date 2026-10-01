@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SiteIcon } from '../icons/SiteIcon';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
@@ -26,6 +27,8 @@ interface SavedLinkGridCardProps {
    * every tile of a list or for none (see shouldShowItemAdders), so tiles keep one height.
    */
   readonly addedBy?: ItemAdderDisplay | null;
+  /** Under the time line - e.g. a shared link's reaction chips; omitted (nothing drawn) otherwise. */
+  readonly footer?: ReactNode;
 }
 
 /**
@@ -35,7 +38,7 @@ interface SavedLinkGridCardProps {
  * scales lineHeight with it too), so a one-line title card is exactly as tall as a two-line one and a
  * 2-column grid never turns ragged/masonry-like.
  */
-export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy }: SavedLinkGridCardProps) {
+export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, footer }: SavedLinkGridCardProps) {
   const { fontScale } = useWindowDimensions();
   const { t } = useTranslation();
   const displayTitle = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -48,6 +51,7 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
     </View>
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>
     <SavedLinkMetaRow addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={[styles.meta, { minHeight: META_LINE_HEIGHT * (addedBy ? 2 : 1) * fontScale }]} url={item.url} />
+    {footer}
   </View>;
 }
 

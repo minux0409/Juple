@@ -149,6 +149,7 @@ builder.Services.AddScoped<IGetCollectionShareService, GetCollectionShareService
 builder.Services.AddScoped<IGetCollectionShareLinkService, GetCollectionShareLinkService>();
 builder.Services.AddScoped<Juple.Application.Collections.ShareLink.IShareCollectionLinkService, Juple.Application.Collections.ShareLink.ShareCollectionLinkService>();
 builder.Services.AddScoped<Juple.Application.Collections.Submissions.ICollectionLinkSubmissionService, Juple.Application.Collections.Submissions.CollectionLinkSubmissionService>();
+builder.Services.AddScoped<Juple.Application.Collections.Reactions.ICollectionItemReactionService, Juple.Application.Collections.Reactions.CollectionItemReactionService>();
 builder.Services.AddScoped<IRevokeCollectionShareService, RevokeCollectionShareService>();
 builder.Services.AddScoped<IPublicCollectionService, PublicCollectionService>();
 builder.Services.AddScoped<IPublicCollectionWriteService, PublicCollectionWriteService>();

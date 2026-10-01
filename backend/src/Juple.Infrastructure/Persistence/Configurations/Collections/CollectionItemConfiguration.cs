@@ -62,9 +62,10 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
 
         // The same Item must never appear twice in the same Collection - enforced by the database,
         // not just by AddItemToCollectionService's own pre-check (see CollectionStore.AddAsync).
-        builder.HasIndex(collectionItem => new { collectionItem.CollectionId, collectionItem.ItemId })
-            .IsUnique()
-            .HasDatabaseName("UX_CollectionItems_CollectionId_ItemId");
+        // An alternate key (a unique constraint, same name as the index it replaces) so that
+        // CollectionItemReactions can reference the pair and go with the link - see its configuration.
+        builder.HasAlternateKey(collectionItem => new { collectionItem.CollectionId, collectionItem.ItemId })
+            .HasName("UX_CollectionItems_CollectionId_ItemId");
 
         // A membership row is meaningless without its Collection - deleting the Collection must
         // remove only these join rows, never the Items themselves (see CollectionStore.DeleteAsync,

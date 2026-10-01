@@ -3,7 +3,9 @@ import { Linking, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { CollectionSharedItemScreen } from '../CollectionSharedItemScreen';
-import { getSharedCollectionItem } from '../../collections/api/collectionsApi';
+import { getSharedCollectionItem, removeItemReaction, setItemReaction } from '../../collections/api/collectionsApi';
+import { ReactionChips } from '../../reactions/ReactionChips';
+import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import { clearCollectionUnlockGrants, rememberCollectionUnlock } from '../../collections/collectionUnlockGrants';
 import { UserAvatar } from '../../components/UserAvatar';
 import { CrownIcon } from '../../icons/CrownIcon';
@@ -20,6 +22,8 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 jest.mock('../../collections/api/collectionsApi', () => ({
   getSharedCollectionItem: jest.fn(),
+  setItemReaction: jest.fn(),
+  removeItemReaction: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -119,5 +123,72 @@ describe('CollectionSharedItemScreen', () => {
 
     expect(getSharedCollectionItem).toHaveBeenCalledWith(expect.anything(), 5, 7, 'grant-5');
     expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.lockedMessage'))).toBe(true);
+  });
+});
+
+describe('CollectionSharedItemScreen - reactions', () => {
+  const shared = (overrides = {}) => ({
+    itemId: 7, url: 'https://example.com/a', title: 'Shared title', previewImageUrl: null, addedAtUtc: '2026-01-01T00:00:00Z', isMine: false, ...overrides,
+  });
+  const press = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
+
+  it('shows the same reaction chips as the cards, and always the smiley-plus to add one', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(shared({ reactions: [{ key: 'heart', count: 3 }, { key: 'laugh', count: 1 }], myReaction: 'laugh' }));
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByType(ReactionChips)).toHaveLength(1);
+    expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityLabel).toBe('❤️ 반응 3개');
+    expect(press(renderer, 'shared-item-reactions-laugh').props.accessibilityState).toEqual({ selected: true });
+    expect(press(renderer, 'shared-item-reactions-add')).toBeDefined();
+  });
+
+  it('with no reactions yet it still offers adding one (the card would stay clean, this screen invites)', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(shared());
+    const renderer = await renderScreen();
+
+    expect(press(renderer, 'shared-item-reactions-add')).toBeDefined();
+    expect(renderer.root.findAll(node => String(node.props.testID).startsWith('shared-item-reactions-heart'))).toHaveLength(0);
+  });
+
+  it('tapping a chip sets or takes back my reaction on this link', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(shared({ reactions: [{ key: 'heart', count: 3 }], myReaction: null }));
+    jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 4 }], myReaction: 'heart' });
+    jest.mocked(removeItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 3 }], myReaction: null });
+    const renderer = await renderScreen();
+
+    await act(async () => press(renderer, 'shared-item-reactions-heart').props.onPress());
+    expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), 5, 7, 'heart', null);
+    expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityLabel).toBe('❤️ 반응 4개');
+
+    await act(async () => press(renderer, 'shared-item-reactions-heart').props.onPress());
+    expect(removeItemReaction).toHaveBeenCalledWith(expect.anything(), 5, 7, null);
+    expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityLabel).toBe('❤️ 반응 3개');
+  });
+
+  it('the smiley-plus opens the picker; choosing there sets the reaction and closes it', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(shared());
+    jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'fire', count: 1 }], myReaction: 'fire' });
+    const renderer = await renderScreen();
+    expect(renderer.root.findByType(ReactionPickerDialog).props.visible).toBe(false);
+
+    await act(async () => press(renderer, 'shared-item-reactions-add').props.onPress());
+    expect(renderer.root.findByType(ReactionPickerDialog).props.visible).toBe(true);
+    await act(async () => press(renderer, 'reaction-option-fire').props.onPress());
+
+    expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), 5, 7, 'fire', null);
+    expect(renderer.root.findByType(ReactionPickerDialog).props.visible).toBe(false);
+    expect(press(renderer, 'shared-item-reactions-fire')).toBeDefined();
+  });
+
+  it('a failure puts the chip back as it was', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(shared({ reactions: [{ key: 'heart', count: 3 }], myReaction: null }));
+    jest.mocked(setItemReaction).mockRejectedValue(new ApiError('unavailable', 503));
+    const renderer = await renderScreen();
+
+    await act(async () => press(renderer, 'shared-item-reactions-heart').props.onPress());
+
+    expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityLabel).toBe('❤️ 반응 3개');
+    expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityState).toEqual({ selected: false });
   });
 });

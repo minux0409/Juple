@@ -1143,6 +1143,38 @@ public sealed class CollectionsController(
             outcome => outcome == CollectionLinkAddOutcome.Submitted ? Accepted(new LinkSubmittedResponse(true)) : NoContent(),
             cancellationToken);
 
+    /// <summary>
+    /// The caller's one emoji reaction to this link (Owner and accepted members, any role; 404 for
+    /// everyone else): none yet - added; another - changed in place; the same - unchanged (never a
+    /// toggle: the app calls DELETE to take it back). reactionKey must be one of the catalog keys (400
+    /// otherwise). Answers the link's reactions as they are now.
+    /// </summary>
+    [HttpPut("{id:long}/items/{itemId:long}/reaction")]
+    public Task<IActionResult> SetReactionAsync(
+        long id,
+        long itemId,
+        SetReactionRequest request,
+        [FromServices] Juple.Application.Collections.Reactions.ICollectionItemReactionService reactionService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => reactionService.SetAsync(userId, id, itemId, request?.ReactionKey, unlockToken, cancellationToken),
+            reactions => Ok(reactions),
+            cancellationToken);
+
+    /// <summary>Takes the caller's reaction to this link back; having none is a success too. Answers the link's reactions as they are now.</summary>
+    [HttpDelete("{id:long}/items/{itemId:long}/reaction")]
+    public Task<IActionResult> RemoveReactionAsync(
+        long id,
+        long itemId,
+        [FromServices] Juple.Application.Collections.Reactions.ICollectionItemReactionService reactionService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => reactionService.DeleteAsync(userId, id, itemId, unlockToken, cancellationToken),
+            reactions => Ok(reactions),
+            cancellationToken);
+
     /// <summary>The Owner's 승인 대기 list, oldest first (cursor = the last row's submissionId). Owner only.</summary>
     [HttpGet("{id:long}/submissions")]
     public Task<IActionResult> ListSubmissionsAsync(
@@ -1434,6 +1466,8 @@ public sealed class CollectionsController(
     /// the 409 publicSharePermissionMismatch refusal.
     /// </summary>
     public sealed record SetSharePermissionRequest(string? Permission, bool? RaiseLowerRoles = null);
+
+    public sealed record SetReactionRequest(string? ReactionKey);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
 

@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "คำเชิญที่รอการตอบรับ",
     "roleViewer": "อ่านอย่างเดียว"
   },
+  "reactions": {
+    "pickerTitle": "เพิ่มรีแอคชัน",
+    "recent": "ใช้ล่าสุด",
+    "all": "ทั้งหมด",
+    "add": "เพิ่มรีแอคชัน",
+    "addMoreA11y": "เลือกรีแอคชันอื่น",
+    "error": "บันทึกรีแอคชันไม่ได้",
+    "reactionA11y": "รีแอคชัน {{emoji}}",
+    "mineA11y": "รีแอคชัน {{emoji}} ของคุณ",
+    "chipA11y": "รีแอคชัน {{emoji}} {{count}} รายการ",
+    "moreKindsA11y": "รีแอคชันอื่นอีก {{count}} แบบ"
+  },
   "shareSheet": {
     "sendInvitations": "ส่งคำเชิญ",
     "duplicateInvitee": "Juple ID นี้อยู่ในรายการแล้ว",

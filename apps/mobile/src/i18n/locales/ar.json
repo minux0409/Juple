@@ -542,6 +542,18 @@
     "pendingCollaborationTitle": "دعوات قيد الانتظار",
     "roleViewer": "للقراءة فقط"
   },
+  "reactions": {
+    "pickerTitle": "إضافة تفاعل",
+    "recent": "المستخدمة مؤخرًا",
+    "all": "الكل",
+    "add": "إضافة تفاعل",
+    "addMoreA11y": "اختيار تفاعل آخر",
+    "error": "تعذّر حفظ التفاعل.",
+    "reactionA11y": "تفاعل {{emoji}}",
+    "mineA11y": "تفاعلك {{emoji}}",
+    "chipA11y": "تفاعل {{emoji}}: {{count}}",
+    "moreKindsA11y": "{{count}} أنواع أخرى من التفاعلات"
+  },
   "shareSheet": {
     "sendInvitations": "إرسال الدعوات",
     "duplicateInvitee": "معرّف Juple هذا موجود بالفعل في القائمة.",

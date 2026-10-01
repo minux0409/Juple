@@ -557,6 +557,18 @@
     "pendingCollaborationTitle": "Pending invitations",
     "roleViewer": "Read-only"
   },
+  "reactions": {
+    "pickerTitle": "Add reaction",
+    "recent": "Recent",
+    "all": "All",
+    "add": "Add reaction",
+    "addMoreA11y": "Choose another reaction",
+    "error": "Couldn’t save the reaction.",
+    "reactionA11y": "{{emoji}} reaction",
+    "mineA11y": "Your {{emoji}} reaction",
+    "chipA11y": "{{emoji}} reaction, {{count}}",
+    "moreKindsA11y": "{{count}} more kinds of reactions"
+  },
   "shareSheet": {
     "sendInvitations": "Send invitations",
     "duplicateInvitee": "This Juple ID is already in the list.",

@@ -39,6 +39,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<CollectionLinkSubmission> CollectionLinkSubmissions => Set<CollectionLinkSubmission>();
 
+    public DbSet<CollectionItemReaction> CollectionItemReactions => Set<CollectionItemReaction>();
+
     public DbSet<CollectionShare> CollectionShares => Set<CollectionShare>();
 
     public DbSet<CollectionCollaborator> CollectionCollaborators => Set<CollectionCollaborator>();

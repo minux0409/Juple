@@ -4,6 +4,9 @@ import { CopyIcon } from '../../icons/CopyIcon';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import { ParticipantAvatarStack } from '../../components/ParticipantAvatarStack';
+import { QuickReactionBar } from '../../reactions/QuickReactionBar';
+import { ReactionChips } from '../../reactions/ReactionChips';
+import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
@@ -13,6 +16,7 @@ import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { shareItem } from '../../items/shareItem';
 import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { SwipeableItemRow } from '../../components/SwipeableItemRow';
+import { SavedLinkGridCard as GridCardComponent } from '../../components/SavedLinkGridCard';
 import { UserAvatar } from '../../components/UserAvatar';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { CrownIcon } from '../../icons/CrownIcon';
@@ -20,6 +24,8 @@ import { CollectionLinkShareSheet } from '../../collections/CollectionLinkShareS
 import {
   addItemToCollection,
   addItemToCollections,
+  setItemReaction,
+  removeItemReaction,
   copyCollectionItems,
   transferCollectionItem,
   getCollection,
@@ -90,6 +96,8 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   removeItemFromCollection: jest.fn(),
   addItemToCollection: jest.fn(),
   addItemToCollections: jest.fn(),
+  setItemReaction: jest.fn(),
+  removeItemReaction: jest.fn(),
   createCollection: jest.fn(),
   transferCollectionItem: jest.fn(),
   sendCollectionShareLink: jest.fn(),
@@ -743,6 +751,285 @@ describe('CollectionDetailsScreen - an unlock lasts for one visit', () => {
 
     expect(getCollectionUnlockToken(COLLECTION_ID)).toBe('visit-grant');
     expect(findItemList(renderer).props.data).toEqual([mine]);
+  });
+});
+
+describe('CollectionDetailsScreen - emoji reactions to the links of a shared Collection', () => {
+  const sharedWithMe = () =>
+    makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', otherParticipantCount: 1 });
+  const link = (itemId: number, overrides: Partial<CollectionItemEntry> = {}) =>
+    makeItem({ itemId, title: `Link ${itemId}`, isMine: false, ...overrides });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+    clearCollectionUnlockGrants();
+  });
+
+  async function openMenu(renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) {
+    const onLongPress = row(renderer, item).root.findByType(SwipeableItemRow).props.onLongPress;
+    await act(async () => onLongPress());
+  }
+  const bar = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(QuickReactionBar);
+  const visibleMenu = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+  const quick = (renderer: ReactTestRenderer.ReactTestRenderer, key: string) =>
+    renderer.root.findAll(node => node.props.testID === `quick-reaction-${key}` && typeof node.props.onPress === 'function')[0];
+  /** The chip row as drawn (the component itself is always mounted; it draws nothing without reactions). */
+  const chips = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
+    row(renderer, item).root.findAll(node => typeof node.type === 'string' && node.props.testID === `reaction-chips-${item.itemId}`);
+  /** iOS shows the picker once the menu has finished closing - which the OS reports through onDismiss. */
+  const finishMenuDismiss = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => typeof dialog.props.onDismiss === 'function');
+    await act(async () => menu?.props.onDismiss());
+  };
+  const chipText = (renderer: ReactTestRenderer.ReactTestRenderer, item: CollectionItemEntry) =>
+    row(renderer, item).root.findAllByType(Text).map(node => [node.props.children].flat().join(''));
+
+  describe('the long-press menu', () => {
+    it('opens with the quick reactions on top and the existing actions below, unchanged - for someone else\'s link', async () => {
+      const other = link(2);
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+
+      await openMenu(renderer, other);
+
+      expect(bar(renderer)).toHaveLength(1);
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('collections.copyToMine')]);
+    });
+
+    it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      const renderer = await renderScreen();
+
+      await openMenu(renderer, mine);
+
+      expect(bar(renderer)).toHaveLength(1);
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label))
+        .toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+    });
+
+    it('every accepted role gets it - Viewer, Submitter, Contributor - and so does the Owner of a Collection with members', async () => {
+      for (const accessRole of ['viewer', 'submitter', 'contributor'] as const) {
+        jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole, ownerJupleId: 'K7MP4Q8N', otherParticipantCount: 1 }));
+        jest.mocked(getCollectionItems).mockResolvedValue({ items: [link(2)], nextCursor: null });
+        const renderer = await renderScreen();
+        await openMenu(renderer, link(2));
+        expect(bar(renderer)).toHaveLength(1);
+      }
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      const ownerRenderer = await renderScreen();
+      await openMenu(ownerRenderer, mine);
+      expect(bar(ownerRenderer)).toHaveLength(1);
+    });
+
+    it('a private Collection (nobody else in it, even with a public link) gets no reaction UI at all', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: false, isPublicShareActive: true }));
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [{ ...mine, reactions: [{ key: 'heart', count: 1 }] }], nextCursor: null });
+      const renderer = await renderScreen();
+
+      await openMenu(renderer, mine);
+
+      expect(bar(renderer)).toHaveLength(0);
+      expect(chips(renderer, mine)).toHaveLength(0);
+      expect(visibleMenu(renderer)!.props.header).toBeUndefined();
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label))
+        .toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+    });
+
+    it('marks my current reaction in the quick row', async () => {
+      const other = link(2, { reactions: [{ key: 'laugh', count: 2 }], myReaction: 'laugh' });
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+
+      await openMenu(renderer, other);
+
+      expect(bar(renderer)[0].props.myReaction).toBe('laugh');
+      expect(quick(renderer, 'laugh').props.accessibilityState).toEqual({ selected: true });
+      expect(quick(renderer, 'heart').props.accessibilityState).toEqual({ selected: false });
+    });
+  });
+
+  describe('choosing a reaction', () => {
+    const setup = async (other: CollectionItemEntry) => {
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+      await openMenu(renderer, other);
+      return renderer;
+    };
+
+    it('add: one PUT, the menu closes, and the card shows the chip at once', async () => {
+      const other = link(2);
+      jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 1 }], myReaction: 'heart' });
+      const renderer = await setup(other);
+
+      await act(async () => quick(renderer, 'heart').props.onPress());
+
+      expect(setItemReaction).toHaveBeenCalledTimes(1);
+      expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, 'heart', null);
+      expect(removeItemReaction).not.toHaveBeenCalled();
+      expect(visibleMenu(renderer)).toBeUndefined();
+      expect(chips(renderer, other)).toHaveLength(1);
+      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['❤️', '1']));
+    });
+
+    it('the same reaction again takes it back with DELETE', async () => {
+      const other = link(2, { reactions: [{ key: 'heart', count: 2 }], myReaction: 'heart' });
+      jest.mocked(removeItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 1 }], myReaction: null });
+      const renderer = await setup(other);
+
+      await act(async () => quick(renderer, 'heart').props.onPress());
+
+      expect(removeItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, null);
+      expect(setItemReaction).not.toHaveBeenCalled();
+      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['❤️', '1']));
+    });
+
+    it('another reaction changes it - one PUT, the old chip loses one and the new one appears', async () => {
+      const other = link(2, { reactions: [{ key: 'heart', count: 1 }], myReaction: 'heart' });
+      jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'fire', count: 1 }], myReaction: 'fire' });
+      const renderer = await setup(other);
+      expect(bar(renderer)).toHaveLength(1);
+
+      // 🔥 is not in the quick row: through the picker.
+      await act(async () => quick(renderer, 'more').props.onPress());
+      await finishMenuDismiss(renderer);
+      await act(async () => renderer.root.findAll(node => node.props.testID === 'reaction-option-fire' && typeof node.props.onPress === 'function')[0].props.onPress());
+
+      expect(setItemReaction).toHaveBeenCalledTimes(1);
+      expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, 'fire', null);
+      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['🔥', '1']));
+      expect(chipText(renderer, other)).not.toContain('❤️');
+    });
+
+    it('"+" closes the menu and opens the picker - never two modals at once', async () => {
+      const other = link(2);
+      const renderer = await setup(other);
+
+      await act(async () => quick(renderer, 'more').props.onPress());
+      expect(visibleMenu(renderer)).toBeUndefined();
+      await finishMenuDismiss(renderer);
+
+      const pickers = renderer.root.findAllByType(ReactionPickerDialog);
+      expect(pickers).toHaveLength(1);
+      expect(pickers[0].props.visible).toBe(true);
+      expect(pickers[0].props.myReaction).toBeNull();
+      expect(setItemReaction).not.toHaveBeenCalled();
+    });
+
+    it('closing the picker without choosing sends nothing', async () => {
+      const other = link(2);
+      const renderer = await setup(other);
+      await act(async () => quick(renderer, 'more').props.onPress());
+      await finishMenuDismiss(renderer);
+
+      await act(async () => renderer.root.findByType(ReactionPickerDialog).props.onClose());
+
+      expect(renderer.root.findByType(ReactionPickerDialog).props.visible).toBe(false);
+      expect(setItemReaction).not.toHaveBeenCalled();
+    });
+
+    it('a failure puts the card back as it was and says so', async () => {
+      const other = link(2);
+      jest.mocked(setItemReaction).mockRejectedValue(new ApiError('unavailable', 503));
+      const renderer = await setup(other);
+
+      await act(async () => quick(renderer, 'heart').props.onPress());
+
+      expect(chips(renderer, other)).toHaveLength(0);
+      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('reactions.error'))).toBe(true);
+    });
+  });
+
+  describe('the reaction chips on a card', () => {
+    it('a link nobody reacted to has no chip row at all - a clean card', async () => {
+      const other = link(2);
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+
+      expect(chips(renderer, other)).toHaveLength(0);
+    });
+
+    it('shows the counts - most used first - with my own marked, in List and in Grid alike', async () => {
+      const other = link(2, { reactions: [{ key: 'laugh', count: 2 }, { key: 'heart', count: 3 }], myReaction: 'laugh' });
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+
+      expect(chipText(renderer, other).filter(text => ['❤️', '😂', '3', '2'].includes(text))).toEqual(['❤️', '3', '😂', '2']);
+      const mineChip = row(renderer, other).root.findAll(node => node.props.testID === 'reaction-chips-2-laugh' && typeof node.props.onPress === 'function')[0];
+      expect(mineChip.props.accessibilityState).toEqual({ selected: true });
+
+      await act(async () => {
+        renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
+      });
+      expect(row(renderer, other).root.findAllByType(GridCardComponent)).toHaveLength(1);
+      expect(chips(renderer, other)).toHaveLength(1);
+    });
+
+    it('tapping a chip applies that reaction: ❤️ 3 becomes mine as ❤️ 4, and my 😂 drops by one', async () => {
+      const other = link(2, { reactions: [{ key: 'laugh', count: 2 }, { key: 'heart', count: 3 }], myReaction: 'laugh' });
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 4 }, { key: 'laugh', count: 1 }], myReaction: 'heart' });
+      const renderer = await renderScreen();
+
+      const heartChip = row(renderer, other).root.findAll(node => node.props.testID === 'reaction-chips-2-heart' && typeof node.props.onPress === 'function')[0];
+      await act(async () => heartChip.props.onPress());
+
+      expect(setItemReaction).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 2, 'heart', null);
+      expect(chipText(renderer, other).filter(text => ['❤️', '😂', '4', '1'].includes(text))).toEqual(['❤️', '4', '😂', '1']);
+    });
+
+    it('tapping my own chip takes my reaction back (DELETE)', async () => {
+      const other = link(2, { reactions: [{ key: 'heart', count: 3 }], myReaction: 'heart' });
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      jest.mocked(removeItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 2 }], myReaction: null });
+      const renderer = await renderScreen();
+
+      const heartChip = row(renderer, other).root.findAll(node => node.props.testID === 'reaction-chips-2-heart' && typeof node.props.onPress === 'function')[0];
+      await act(async () => heartChip.props.onPress());
+
+      expect(removeItemReaction).toHaveBeenCalledTimes(1);
+      expect(chipText(renderer, other)).toEqual(expect.arrayContaining(['❤️', '2']));
+    });
+
+    it('the smiley-plus beside the chips opens the picker for that link', async () => {
+      const other = link(2, { reactions: [{ key: 'heart', count: 1 }], myReaction: null });
+      jest.mocked(getCollection).mockResolvedValue(sharedWithMe());
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [other], nextCursor: null });
+      const renderer = await renderScreen();
+
+      const add = row(renderer, other).root.findAll(node => node.props.testID === 'reaction-chips-2-add' && typeof node.props.onPress === 'function')[0];
+      await act(async () => add.props.onPress());
+
+      expect(renderer.root.findByType(ReactionPickerDialog).props.visible).toBe(true);
+    });
+
+    it('behind a lock nothing is drawn and nothing can be sent', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', ownerJupleId: 'K7MP4Q8N', otherParticipantCount: 1, isLocked: true }));
+      jest.mocked(getCollectionItems).mockRejectedValue(lockedError);
+      const renderer = await renderScreen();
+
+      expect(renderer.root.findAllByType(ReactionChips)).toHaveLength(0);
+      expect(bar(renderer)).toHaveLength(0);
+      expect(setItemReaction).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('the public link\'s own surface carries no reactions at all', () => {
+  it('neither the public Collection screen nor its API types mention reactions', () => {
+    const read = (relative: string) => require('fs').readFileSync(require('path').resolve(__dirname, relative), 'utf8') as string;
+
+    expect(read('../SharedCollectionScreen.tsx')).not.toMatch(/reaction/i);
+    expect(read('../../collections/api/publicCollectionsApi.ts')).not.toMatch(/reaction/i);
+    expect(read('../../collections/usePublicCollectionItems.ts')).not.toMatch(/reaction/i);
   });
 });
 
