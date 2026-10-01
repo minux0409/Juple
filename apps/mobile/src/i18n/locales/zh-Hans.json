@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "待接受的邀请",
     "roleViewer": "只读"
   },
+  "comments": {
+    "title": "评论 {{count}}",
+    "empty": "还没有评论。",
+    "placeholder": "输入评论",
+    "send": "发送",
+    "delete": "删除评论",
+    "deleteConfirm": "要删除这条评论吗？",
+    "loadPrevious": "查看更早的评论",
+    "loadError": "无法加载评论。",
+    "retry": "重试",
+    "sendError": "无法发送评论。",
+    "deleteError": "无法删除评论。",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "moreA11y": "评论选项",
+    "ownerA11y": "{{name}}（所有者）"
+  },
   "reactions": {
     "pickerTitle": "添加表情回应",
     "recent": "最近使用",

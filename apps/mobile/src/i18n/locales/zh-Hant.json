@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "待接受的邀請",
     "roleViewer": "唯讀"
   },
+  "comments": {
+    "title": "留言 {{count}}",
+    "empty": "還沒有留言。",
+    "placeholder": "輸入留言",
+    "send": "傳送",
+    "delete": "刪除留言",
+    "deleteConfirm": "要刪除這則留言嗎？",
+    "loadPrevious": "查看更早的留言",
+    "loadError": "無法載入留言。",
+    "retry": "重試",
+    "sendError": "無法傳送留言。",
+    "deleteError": "無法刪除留言。",
+    "justNow": "剛剛",
+    "minutesAgo": "{{count}} 分鐘前",
+    "hoursAgo": "{{count}} 小時前",
+    "moreA11y": "留言選項",
+    "ownerA11y": "{{name}}（擁有者）"
+  },
   "reactions": {
     "pickerTitle": "新增表情回應",
     "recent": "最近使用",

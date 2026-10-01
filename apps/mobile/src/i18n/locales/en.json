@@ -557,6 +557,24 @@
     "pendingCollaborationTitle": "Pending invitations",
     "roleViewer": "Read-only"
   },
+  "comments": {
+    "title": "Comments {{count}}",
+    "empty": "No comments yet.",
+    "placeholder": "Write a comment",
+    "send": "Send",
+    "delete": "Delete comment",
+    "deleteConfirm": "Delete this comment?",
+    "loadPrevious": "View earlier comments",
+    "loadError": "Couldn’t load the comments.",
+    "retry": "Try again",
+    "sendError": "Couldn’t send the comment.",
+    "deleteError": "Couldn’t delete the comment.",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "moreA11y": "Comment options",
+    "ownerA11y": "{{name}} (owner)"
+  },
   "reactions": {
     "pickerTitle": "Add reaction",
     "recent": "Recent",

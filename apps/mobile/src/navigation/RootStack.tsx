@@ -34,10 +34,16 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   /**
    * collectionContext: set only when opened from inside a Collection (CollectionDetailsScreen). The
-   * delete action then means "remove from this Collection" - the saved link itself stays - and
-   * canRemove says whether the caller may (only the Collection's Owner can, a server rule too).
+   * delete action then means "remove from this Collection" - the saved link itself stays.
+   * canRemove: whether THIS link may be removed from the Collection - the Owner any link, a member the
+   * links they added themselves (a server rule too). It says nothing about owning the Collection.
+   * isCollectionOwner: whether the caller owns the Collection - the only thing that grants deleting other
+   * people's comments there. Never derived from canRemove or from owning the link.
+   * isCollaborative: the Collection it was opened from has other people in it (and its
+   * content is open) - only then does the link show that Collection's reactions and comments. They belong
+   * to (Collection, link), so a link opened from Home, History or a private Collection shows none.
    */
-  ItemDetails: { itemId: number; collectionContext?: { readonly collectionId: number; readonly canRemove: boolean } };
+  ItemDetails: { itemId: number; collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean } };
   /**
    * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
    * refreshToken is optional and only ever meaningful when this exact screen might already be the
@@ -60,7 +66,8 @@ export type RootStackParamList = {
    * Read-only view of another member's link inside a Collection (never the owner-only
    * ItemDetails) - fetched through that Collection, so it carries no memo or uploaded photos.
    */
-  CollectionSharedItem: { collectionId: number; itemId: number };
+  /** isCollectionOwner: the caller owns the Collection (may delete any comment) - the server decides the same. */
+  CollectionSharedItem: { collectionId: number; itemId: number; isCollectionOwner?: boolean };
   /**
    * Reached only via IncomingShareRouter's explicit navigate call, never a prefilled tab - see that
    * file. preselectedCollectionId/initialTitle are just the starting values for editable fields, not

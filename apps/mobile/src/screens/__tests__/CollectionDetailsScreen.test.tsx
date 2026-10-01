@@ -1325,7 +1325,7 @@ describe('CollectionDetailsScreen', () => {
         openPressable.props.onPress();
       });
 
-      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 42, collectionContext: { collectionId: 1, canRemove: true } });
+      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 42, collectionContext: { collectionId: 1, canRemove: true, isCollectionOwner: true, isCollaborative: false } });
     });
   });
 
@@ -1366,7 +1366,7 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => itemMenu!.props.onCancel());
 
       await act(async () => tile.props.onPress());
-      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 9, collectionContext: { collectionId: 1, canRemove: true } });
+      expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 9, collectionContext: { collectionId: 1, canRemove: true, isCollectionOwner: true, isCollaborative: false } });
     });
     // Full item delete used to live in this same menu (see the removed "CollectionDetailsScreen
     // item delete undo" test block) - product policy now restricts general item delete to

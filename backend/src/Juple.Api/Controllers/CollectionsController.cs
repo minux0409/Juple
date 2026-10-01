@@ -1175,6 +1175,53 @@ public sealed class CollectionsController(
             reactions => Ok(reactions),
             cancellationToken);
 
+    /// <summary>
+    /// A link's comments (Owner and accepted members, any role; 404 for everyone else), oldest first:
+    /// the newest `limit` (default 30, at most 100) or, with `before` (the previousCursor of the last
+    /// page), the page before it. Plain text only; never in the public link's views. The same content
+    /// gate as reading the links - a lock or share password needs its grant first.
+    /// </summary>
+    [HttpGet("{id:long}/items/{itemId:long}/comments")]
+    public Task<IActionResult> ListCommentsAsync(
+        long id,
+        long itemId,
+        [FromQuery] long? before,
+        [FromQuery] int? limit,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.ListAsync(userId, id, itemId, before, limit, unlockToken, cancellationToken),
+            page => Ok(page),
+            cancellationToken);
+
+    /// <summary>Adds the caller's comment (trimmed, 1..1000 characters, 400 otherwise); answers it as stored.</summary>
+    [HttpPost("{id:long}/items/{itemId:long}/comments")]
+    public Task<IActionResult> AddCommentAsync(
+        long id,
+        long itemId,
+        PostCommentRequest request,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.CreateAsync(userId, id, itemId, request?.Body, unlockToken, cancellationToken),
+            comment => StatusCode(StatusCodes.Status201Created, comment),
+            cancellationToken);
+
+    /// <summary>Deletes a comment: its author, or the Collection's Owner for any. 403 for another member; one that is gone already is a success (204).</summary>
+    [HttpDelete("{id:long}/items/{itemId:long}/comments/{commentId:long}")]
+    public Task<IActionResult> DeleteCommentAsync(
+        long id,
+        long itemId,
+        long commentId,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.DeleteAsync(userId, id, itemId, commentId, unlockToken, cancellationToken),
+            cancellationToken);
+
     /// <summary>The Owner's 승인 대기 list, oldest first (cursor = the last row's submissionId). Owner only.</summary>
     [HttpGet("{id:long}/submissions")]
     public Task<IActionResult> ListSubmissionsAsync(
@@ -1468,6 +1515,8 @@ public sealed class CollectionsController(
     public sealed record SetSharePermissionRequest(string? Permission, bool? RaiseLowerRoles = null);
 
     public sealed record SetReactionRequest(string? ReactionKey);
+
+    public sealed record PostCommentRequest(string? Body);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
 

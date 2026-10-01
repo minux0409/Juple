@@ -88,6 +88,13 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
                 .Where(submission => submission.SubmittedByUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // This user's comments on anyone's links (UserId is NoAction); comments on their own
+            // Collections' links would also cascade below. Leaving a Collection does NOT remove a
+            // comment - only deleting the account does.
+            await dbContext.CollectionItemComments
+                .Where(comment => comment.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // This user's emoji reactions on anyone's links (UserId is NoAction); reactions on their own
             // Collections' links would also cascade below.
             await dbContext.CollectionItemReactions

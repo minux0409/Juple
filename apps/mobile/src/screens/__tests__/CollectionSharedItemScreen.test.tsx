@@ -5,9 +5,13 @@ import { ApiError } from '../../api/ApiError';
 import { CollectionSharedItemScreen } from '../CollectionSharedItemScreen';
 import { getSharedCollectionItem, removeItemReaction, setItemReaction } from '../../collections/api/collectionsApi';
 import { ReactionChips } from '../../reactions/ReactionChips';
+import { CommentComposer } from '../../comments/CommentComposer';
+import { addItemComment, deleteItemComment, getItemComments, type ItemComment } from '../../comments/commentsApi';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import { clearCollectionUnlockGrants, rememberCollectionUnlock } from '../../collections/collectionUnlockGrants';
 import { UserAvatar } from '../../components/UserAvatar';
+import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CrownIcon } from '../../icons/CrownIcon';
 
 jest.mock('@react-navigation/native', () => ({
@@ -25,6 +29,17 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   setItemReaction: jest.fn(),
   removeItemReaction: jest.fn(),
 }));
+
+jest.mock('../../comments/commentsApi', () => ({
+  ...jest.requireActual('../../comments/commentsApi'),
+  getItemComments: jest.fn(),
+  addItemComment: jest.fn(),
+  deleteItemComment: jest.fn(),
+}));
+
+beforeEach(() => {
+  jest.mocked(getItemComments).mockResolvedValue({ items: [], previousCursor: null, totalCount: 0 });
+});
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -190,5 +205,187 @@ describe('CollectionSharedItemScreen - reactions', () => {
 
     expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityLabel).toBe('❤️ 반응 3개');
     expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityState).toEqual({ selected: false });
+  });
+});
+
+describe('CollectionSharedItemScreen - comments', () => {
+  const author = (overrides = {}) => ({ jupleId: 'ABCD2345', displayName: '민욱', profileImageUrl: null, profileImageVersion: null, isCollectionOwner: false, isMe: false, ...overrides });
+  const comment = (id: number, authorOverrides = {}, body = `comment ${id}`): ItemComment => ({ id, body, createdAtUtc: new Date().toISOString(), author: author(authorOverrides) });
+  const link = { itemId: 7, url: 'https://example.com/a', title: 'Shared title', previewImageUrl: null, addedAtUtc: '2026-01-01T00:00:00Z', isMine: false };
+  const press = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
+  const shown = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(node => [node.props.children].flat().join(''));
+  async function renderWith(params: { isCollectionOwner?: boolean } = {}) {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    const withParams = { key: 'CollectionSharedItem', name: 'CollectionSharedItem', params: { collectionId: 5, itemId: 7, ...params } } as never;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<CollectionSharedItemScreen navigation={{} as never} route={withParams} />);
+    });
+    return renderer;
+  }
+  const type = async (renderer: ReactTestRenderer.ReactTestRenderer, value: string) =>
+    act(async () => composerInput(renderer).props.onChangeText(value));
+  const composerInput = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'comment-input' && node.type === TextInput)[0];
+
+  it('shows the conversation under the link: 댓글 N, the comments oldest first, and the composer', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2)], previousCursor: null, totalCount: 2 });
+    const renderer = await renderWith();
+
+    expect(getItemComments).toHaveBeenCalledWith(expect.anything(), 5, 7, { unlockToken: null });
+    expect(shown(renderer)).toContain('댓글 2');
+    const order = renderer.root.findAll(node => typeof node.type === 'string' && /^comment-\d+$/.test(String(node.props.testID))).map(node => node.props.testID);
+    expect(order).toEqual(['comment-1', 'comment-2']);
+    expect(renderer.root.findAllByType(CommentComposer)).toHaveLength(1);
+  });
+
+  it('the reaction chips stay above the comments (and the comments are below the link\'s own content)', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    const renderer = await renderWith();
+
+    const ids = renderer.root
+      .findAll(node => typeof node.type === 'string' && ['shared-item-url', 'shared-item-reactions', 'comments-section', 'comment-composer'].includes(node.props.testID))
+      .map(node => node.props.testID);
+    expect(ids).toEqual(['shared-item-url', 'shared-item-reactions', 'comments-section', 'comment-composer']);
+  });
+
+  it('an empty conversation: the small message, and the composer is still there', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    const renderer = await renderWith();
+
+    expect(shown(renderer)).toContain('아직 댓글이 없습니다.');
+    expect(shown(renderer)).toContain('댓글 0');
+    expect(composerInput(renderer)).toBeDefined();
+  });
+
+  it('while the comments load only that section shows a spinner - the link is already on screen', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(getItemComments).mockReturnValue(new Promise(() => undefined));
+    const renderer = await renderWith();
+
+    expect(renderer.root.findAll(node => node.props.testID === 'comments-loading').length).toBeGreaterThan(0);
+    expect(renderer.root.findByProps({ testID: 'shared-item-url' }).props.children).toBe('https://example.com/a');
+  });
+
+  it('sending: the server\'s comment is appended, the count goes up, the field clears - and the link is not loaded again', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(addItemComment).mockResolvedValue(comment(9, { isMe: true }, '이거 괜찮아 보이네'));
+    const renderer = await renderWith();
+    await type(renderer, '  이거 괜찮아 보이네  ');
+
+    await act(async () => press(renderer, 'comment-send').props.onPress());
+
+    expect(addItemComment).toHaveBeenCalledWith(expect.anything(), 5, 7, '이거 괜찮아 보이네', null);
+    expect(shown(renderer)).toContain('이거 괜찮아 보이네');
+    expect(shown(renderer)).toContain('댓글 1');
+    expect(composerInput(renderer).props.value).toBe('');
+    expect(getSharedCollectionItem).toHaveBeenCalledTimes(1);
+    expect(getItemComments).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed send keeps the text and can be sent again', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(addItemComment).mockRejectedValueOnce(new ApiError('unavailable', 503)).mockResolvedValueOnce(comment(9, { isMe: true }, 'try'));
+    const renderer = await renderWith();
+    await type(renderer, 'try');
+
+    await act(async () => press(renderer, 'comment-send').props.onPress());
+    expect(composerInput(renderer).props.value).toBe('try');
+    expect(shown(renderer)).toContain('댓글 0');
+
+    await act(async () => press(renderer, 'comment-send').props.onPress());
+    expect(shown(renderer)).toContain('댓글 1');
+    expect(composerInput(renderer).props.value).toBe('');
+  });
+
+  it('whitespace-only text cannot be sent', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    const renderer = await renderWith();
+    await type(renderer, '    ');
+
+    expect(press(renderer, 'comment-send').props.disabled).toBe(true);
+    expect(addItemComment).not.toHaveBeenCalled();
+  });
+
+  it('deleting my own comment: ... → 댓글 삭제 → confirm; the row leaves and the count drops', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2, { isMe: true })], previousCursor: null, totalCount: 2 });
+    jest.mocked(deleteItemComment).mockResolvedValue(undefined);
+    const renderer = await renderWith();
+    expect(press(renderer, 'comment-more-1')).toBeUndefined();
+
+    await act(async () => press(renderer, 'comment-more-2').props.onPress());
+    await act(async () => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!.props.actions[0].onPress());
+    const dialog = renderer.root.findAllByType(ConfirmDialog).find(node => node.props.visible && node.props.title === '댓글을 삭제할까요?')!;
+    await act(async () => dialog.props.onConfirm());
+
+    expect(deleteItemComment).toHaveBeenCalledWith(expect.anything(), 5, 7, 2, null);
+    expect(renderer.root.findAll(node => node.props.testID === 'comment-2' && typeof node.type === 'string')).toHaveLength(0);
+    expect(shown(renderer)).toContain('댓글 1');
+    expect(getSharedCollectionItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('the Collection\'s Owner may delete someone else\'s comment; a member may not', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2)], previousCursor: null, totalCount: 2 });
+
+    const asMember = await renderWith();
+    expect(press(asMember, 'comment-more-1')).toBeUndefined();
+    expect(press(asMember, 'comment-more-2')).toBeUndefined();
+
+    const asOwner = await renderWith({ isCollectionOwner: true });
+    expect(press(asOwner, 'comment-more-1')).toBeDefined();
+    expect(press(asOwner, 'comment-more-2')).toBeDefined();
+  });
+
+  it('older comments: the newest page first, then "이전 댓글 보기" prepends the earlier page without duplicates', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
+    jest.mocked(getItemComments)
+      .mockResolvedValueOnce({ items: [comment(8), comment(9)], previousCursor: 8, totalCount: 9 })
+      .mockResolvedValueOnce({ items: [comment(6), comment(7), comment(8)], previousCursor: null, totalCount: 9 });
+    const renderer = await renderWith();
+    expect(shown(renderer)).toContain('이전 댓글 보기');
+
+    await act(async () => press(renderer, 'comments-load-previous').props.onPress());
+
+    expect(getItemComments).toHaveBeenLastCalledWith(expect.anything(), 5, 7, { before: 8, unlockToken: null });
+    const order = renderer.root.findAll(node => typeof node.type === 'string' && /^comment-\d+$/.test(String(node.props.testID))).map(node => node.props.testID);
+    expect(order).toEqual(['comment-6', 'comment-7', 'comment-8', 'comment-9']);
+    expect(shown(renderer)).not.toContain('이전 댓글 보기');
+  });
+
+  it('a reaction does not reload the comments or the link; a comment does not reload the reactions', async () => {
+    jest.mocked(getSharedCollectionItem).mockResolvedValue({ ...link, reactions: [{ key: 'heart', count: 1 }], myReaction: null });
+    jest.mocked(setItemReaction).mockResolvedValue({ reactions: [{ key: 'heart', count: 2 }], myReaction: 'heart' });
+    jest.mocked(addItemComment).mockResolvedValue(comment(1, { isMe: true }, 'hi'));
+    const renderer = await renderWith();
+
+    await act(async () => press(renderer, 'shared-item-reactions-heart').props.onPress());
+    expect(setItemReaction).toHaveBeenCalledTimes(1);
+    expect(getItemComments).toHaveBeenCalledTimes(1);
+    expect(getSharedCollectionItem).toHaveBeenCalledTimes(1);
+
+    await type(renderer, 'hi');
+    await act(async () => press(renderer, 'comment-send').props.onPress());
+    expect(setItemReaction).toHaveBeenCalledTimes(1);
+    expect(press(renderer, 'shared-item-reactions-heart').props.accessibilityLabel).toBe('❤️ 반응 2개');
+    expect(getSharedCollectionItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('a lock or an access failure shows the screen\'s own message and no comments UI', async () => {
+    jest.mocked(getSharedCollectionItem).mockRejectedValue(new ApiError('forbidden', 403, 'collectionLocked'));
+    const renderer = await renderWith();
+
+    expect(renderer.root.findAll(node => node.props.testID === 'comments-section')).toHaveLength(0);
+    expect(renderer.root.findAllByType(CommentComposer)).toHaveLength(0);
+  });
+
+  it('comments exist only on this member screen: the public Collection screen and its API carry none', () => {
+    const read = (relative: string) => require('fs').readFileSync(require('path').resolve(__dirname, relative), 'utf8') as string;
+
+    expect(read('../SharedCollectionScreen.tsx')).not.toMatch(/comment/i);
+    expect(read('../../collections/api/publicCollectionsApi.ts')).not.toMatch(/comment/i);
+    expect(read('../../collections/usePublicCollectionItems.ts')).not.toMatch(/comment/i);
   });
 });

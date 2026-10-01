@@ -543,6 +543,24 @@
     "pendingCollaborationTitle": "초대 대기",
     "roleViewer": "읽기 전용"
   },
+  "comments": {
+    "title": "댓글 {{count}}",
+    "empty": "아직 댓글이 없습니다.",
+    "placeholder": "댓글을 입력하세요",
+    "send": "전송",
+    "delete": "댓글 삭제",
+    "deleteConfirm": "댓글을 삭제할까요?",
+    "loadPrevious": "이전 댓글 보기",
+    "loadError": "댓글을 불러오지 못했어요.",
+    "retry": "다시 시도",
+    "sendError": "댓글을 보내지 못했어요.",
+    "deleteError": "댓글을 삭제하지 못했어요.",
+    "justNow": "방금 전",
+    "minutesAgo": "{{count}}분 전",
+    "hoursAgo": "{{count}}시간 전",
+    "moreA11y": "댓글 더보기",
+    "ownerA11y": "{{name}}(소유자)"
+  },
   "reactions": {
     "pickerTitle": "리액션 추가",
     "recent": "최근 사용",

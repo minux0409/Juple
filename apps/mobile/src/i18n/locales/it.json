@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Inviti in attesa",
     "roleViewer": "Sola lettura"
   },
+  "comments": {
+    "title": "Commenti {{count}}",
+    "empty": "Ancora nessun commento.",
+    "placeholder": "Scrivi un commento",
+    "send": "Invia",
+    "delete": "Elimina commento",
+    "deleteConfirm": "Eliminare questo commento?",
+    "loadPrevious": "Mostra commenti precedenti",
+    "loadError": "Impossibile caricare i commenti.",
+    "retry": "Riprova",
+    "sendError": "Impossibile inviare il commento.",
+    "deleteError": "Impossibile eliminare il commento.",
+    "justNow": "Adesso",
+    "minutesAgo": "{{count}} min fa",
+    "hoursAgo": "{{count}} h fa",
+    "moreA11y": "Opzioni del commento",
+    "ownerA11y": "{{name}} (proprietario)"
+  },
   "reactions": {
     "pickerTitle": "Aggiungi reazione",
     "recent": "Recenti",

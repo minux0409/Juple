@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Convites pendentes",
     "roleViewer": "Somente leitura"
   },
+  "comments": {
+    "title": "Comentários {{count}}",
+    "empty": "Ainda não há comentários.",
+    "placeholder": "Escreva um comentário",
+    "send": "Enviar",
+    "delete": "Excluir comentário",
+    "deleteConfirm": "Excluir este comentário?",
+    "loadPrevious": "Ver comentários anteriores",
+    "loadError": "Não foi possível carregar os comentários.",
+    "retry": "Tentar novamente",
+    "sendError": "Não foi possível enviar o comentário.",
+    "deleteError": "Não foi possível excluir o comentário.",
+    "justNow": "Agora mesmo",
+    "minutesAgo": "há {{count}} min",
+    "hoursAgo": "há {{count}} h",
+    "moreA11y": "Opções do comentário",
+    "ownerA11y": "{{name}} (proprietário)"
+  },
   "reactions": {
     "pickerTitle": "Adicionar reação",
     "recent": "Recentes",

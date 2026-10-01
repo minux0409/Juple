@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "دعوات قيد الانتظار",
     "roleViewer": "للقراءة فقط"
   },
+  "comments": {
+    "title": "التعليقات {{count}}",
+    "empty": "لا توجد تعليقات بعد.",
+    "placeholder": "اكتب تعليقًا",
+    "send": "إرسال",
+    "delete": "حذف التعليق",
+    "deleteConfirm": "هل تريد حذف هذا التعليق؟",
+    "loadPrevious": "عرض التعليقات السابقة",
+    "loadError": "تعذّر تحميل التعليقات.",
+    "retry": "إعادة المحاولة",
+    "sendError": "تعذّر إرسال التعليق.",
+    "deleteError": "تعذّر حذف التعليق.",
+    "justNow": "الآن",
+    "minutesAgo": "منذ {{count}} د",
+    "hoursAgo": "منذ {{count}} س",
+    "moreA11y": "خيارات التعليق",
+    "ownerA11y": "{{name}} (المالك)"
+  },
   "reactions": {
     "pickerTitle": "إضافة تفاعل",
     "recent": "المستخدمة مؤخرًا",

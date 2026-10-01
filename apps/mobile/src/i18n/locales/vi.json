@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Lời mời đang chờ",
     "roleViewer": "Chỉ đọc"
   },
+  "comments": {
+    "title": "Bình luận {{count}}",
+    "empty": "Chưa có bình luận nào.",
+    "placeholder": "Viết bình luận",
+    "send": "Gửi",
+    "delete": "Xóa bình luận",
+    "deleteConfirm": "Xóa bình luận này?",
+    "loadPrevious": "Xem bình luận trước đó",
+    "loadError": "Không thể tải bình luận.",
+    "retry": "Thử lại",
+    "sendError": "Không thể gửi bình luận.",
+    "deleteError": "Không thể xóa bình luận.",
+    "justNow": "Vừa xong",
+    "minutesAgo": "{{count}} phút trước",
+    "hoursAgo": "{{count}} giờ trước",
+    "moreA11y": "Tùy chọn bình luận",
+    "ownerA11y": "{{name}} (chủ sở hữu)"
+  },
   "reactions": {
     "pickerTitle": "Thêm cảm xúc",
     "recent": "Dùng gần đây",

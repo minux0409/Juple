@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Bekleyen davetler",
     "roleViewer": "Salt okunur"
   },
+  "comments": {
+    "title": "Yorumlar {{count}}",
+    "empty": "Henüz yorum yok.",
+    "placeholder": "Yorum yaz",
+    "send": "Gönder",
+    "delete": "Yorumu sil",
+    "deleteConfirm": "Bu yorum silinsin mi?",
+    "loadPrevious": "Önceki yorumları göster",
+    "loadError": "Yorumlar yüklenemedi.",
+    "retry": "Tekrar dene",
+    "sendError": "Yorum gönderilemedi.",
+    "deleteError": "Yorum silinemedi.",
+    "justNow": "Az önce",
+    "minutesAgo": "{{count}} dk önce",
+    "hoursAgo": "{{count}} sa önce",
+    "moreA11y": "Yorum seçenekleri",
+    "ownerA11y": "{{name}} (sahip)"
+  },
   "reactions": {
     "pickerTitle": "Tepki ekle",
     "recent": "Son kullanılanlar",

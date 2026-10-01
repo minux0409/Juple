@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "承認待ちの招待",
     "roleViewer": "読み取り専用"
   },
+  "comments": {
+    "title": "コメント {{count}}",
+    "empty": "まだコメントはありません。",
+    "placeholder": "コメントを入力",
+    "send": "送信",
+    "delete": "コメントを削除",
+    "deleteConfirm": "このコメントを削除しますか?",
+    "loadPrevious": "以前のコメントを見る",
+    "loadError": "コメントを読み込めませんでした。",
+    "retry": "再試行",
+    "sendError": "コメントを送信できませんでした。",
+    "deleteError": "コメントを削除できませんでした。",
+    "justNow": "たった今",
+    "minutesAgo": "{{count}}分前",
+    "hoursAgo": "{{count}}時間前",
+    "moreA11y": "コメントのオプション",
+    "ownerA11y": "{{name}}(オーナー)"
+  },
   "reactions": {
     "pickerTitle": "リアクションを追加",
     "recent": "最近使った",

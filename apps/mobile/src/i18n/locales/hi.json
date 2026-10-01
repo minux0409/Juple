@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "लंबित आमंत्रण",
     "roleViewer": "केवल पढ़ने के लिए"
   },
+  "comments": {
+    "title": "टिप्पणियाँ {{count}}",
+    "empty": "अभी कोई टिप्पणी नहीं है।",
+    "placeholder": "टिप्पणी लिखें",
+    "send": "भेजें",
+    "delete": "टिप्पणी हटाएँ",
+    "deleteConfirm": "क्या यह टिप्पणी हटानी है?",
+    "loadPrevious": "पिछली टिप्पणियाँ देखें",
+    "loadError": "टिप्पणियाँ लोड नहीं हो सकीं।",
+    "retry": "फिर कोशिश करें",
+    "sendError": "टिप्पणी भेजी नहीं जा सकी।",
+    "deleteError": "टिप्पणी हटाई नहीं जा सकी।",
+    "justNow": "अभी",
+    "minutesAgo": "{{count}} मिनट पहले",
+    "hoursAgo": "{{count}} घंटे पहले",
+    "moreA11y": "टिप्पणी विकल्प",
+    "ownerA11y": "{{name}} (स्वामी)"
+  },
   "reactions": {
     "pickerTitle": "प्रतिक्रिया जोड़ें",
     "recent": "हाल में उपयोग किए गए",

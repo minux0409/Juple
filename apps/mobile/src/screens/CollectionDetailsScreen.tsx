@@ -1272,9 +1272,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         onPress={() => {
           if (isMine) {
             // Opened from this Collection: its delete action removes the link from here only.
-            navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: isOwner } });
+            navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: isOwner || isMine, isCollectionOwner: isOwner, isCollaborative: reactionsEnabled } });
           } else {
-            navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId });
+            navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId, isCollectionOwner: isOwner });
           }
         }}
         onShare={() => shareItemAction(item)}

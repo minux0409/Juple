@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "คำเชิญที่รอการตอบรับ",
     "roleViewer": "อ่านอย่างเดียว"
   },
+  "comments": {
+    "title": "ความคิดเห็น {{count}}",
+    "empty": "ยังไม่มีความคิดเห็น",
+    "placeholder": "เขียนความคิดเห็น",
+    "send": "ส่ง",
+    "delete": "ลบความคิดเห็น",
+    "deleteConfirm": "ลบความคิดเห็นนี้ไหม",
+    "loadPrevious": "ดูความคิดเห็นก่อนหน้า",
+    "loadError": "โหลดความคิดเห็นไม่ได้",
+    "retry": "ลองอีกครั้ง",
+    "sendError": "ส่งความคิดเห็นไม่ได้",
+    "deleteError": "ลบความคิดเห็นไม่ได้",
+    "justNow": "เมื่อสักครู่",
+    "minutesAgo": "{{count}} นาทีที่แล้ว",
+    "hoursAgo": "{{count}} ชั่วโมงที่แล้ว",
+    "moreA11y": "ตัวเลือกความคิดเห็น",
+    "ownerA11y": "{{name}} (เจ้าของ)"
+  },
   "reactions": {
     "pickerTitle": "เพิ่มรีแอคชัน",
     "recent": "ใช้ล่าสุด",

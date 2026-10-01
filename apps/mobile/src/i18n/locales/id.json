@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Undangan tertunda",
     "roleViewer": "Hanya baca"
   },
+  "comments": {
+    "title": "Komentar {{count}}",
+    "empty": "Belum ada komentar.",
+    "placeholder": "Tulis komentar",
+    "send": "Kirim",
+    "delete": "Hapus komentar",
+    "deleteConfirm": "Hapus komentar ini?",
+    "loadPrevious": "Lihat komentar sebelumnya",
+    "loadError": "Komentar tidak dapat dimuat.",
+    "retry": "Coba lagi",
+    "sendError": "Komentar tidak dapat dikirim.",
+    "deleteError": "Komentar tidak dapat dihapus.",
+    "justNow": "Baru saja",
+    "minutesAgo": "{{count}} mnt lalu",
+    "hoursAgo": "{{count}} jam lalu",
+    "moreA11y": "Opsi komentar",
+    "ownerA11y": "{{name}} (pemilik)"
+  },
   "reactions": {
     "pickerTitle": "Tambah reaksi",
     "recent": "Terbaru",

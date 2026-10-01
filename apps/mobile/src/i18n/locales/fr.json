@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Invitations en attente",
     "roleViewer": "Lecture seule"
   },
+  "comments": {
+    "title": "Commentaires {{count}}",
+    "empty": "Aucun commentaire pour l’instant.",
+    "placeholder": "Écrire un commentaire",
+    "send": "Envoyer",
+    "delete": "Supprimer le commentaire",
+    "deleteConfirm": "Supprimer ce commentaire ?",
+    "loadPrevious": "Voir les commentaires précédents",
+    "loadError": "Impossible de charger les commentaires.",
+    "retry": "Réessayer",
+    "sendError": "Impossible d’envoyer le commentaire.",
+    "deleteError": "Impossible de supprimer le commentaire.",
+    "justNow": "À l’instant",
+    "minutesAgo": "il y a {{count}} min",
+    "hoursAgo": "il y a {{count}} h",
+    "moreA11y": "Options du commentaire",
+    "ownerA11y": "{{name}} (propriétaire)"
+  },
   "reactions": {
     "pickerTitle": "Ajouter une réaction",
     "recent": "Récentes",

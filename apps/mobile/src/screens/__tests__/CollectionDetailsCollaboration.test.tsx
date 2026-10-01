@@ -326,7 +326,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     act(() => {
       pressable.props.onPress();
     });
-    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2 });
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2, isCollectionOwner: false });
   });
 });
 
@@ -1188,11 +1188,11 @@ describe('CollectionDetailsScreen - Contributor', () => {
     };
 
     pressRow(theirs);
-    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2 });
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2, isCollectionOwner: false });
 
     pressRow(mine);
     // Opened from the Collection, but a Contributor may not take links out of it.
-    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 1, collectionContext: { collectionId: COLLECTION_ID, canRemove: false } });
+    expect(mockNavigate).toHaveBeenLastCalledWith('ItemDetails', { itemId: 1, collectionContext: { collectionId: COLLECTION_ID, canRemove: true, isCollectionOwner: false, isCollaborative: true } });
   });
 
   it('offers 컬렉션에서 제거 only for their own link - never for another member link - and never the Add/Move menu', async () => {
@@ -1206,6 +1206,21 @@ describe('CollectionDetailsScreen - Contributor', () => {
     for (const item of [mine, theirs]) {
       expect(hasLabel(row(renderer, item), i18n.t('collections.itemManageAction'))).toBe(false);
     }
+  });
+});
+
+describe('CollectionDetailsScreen - opening a link for its comments', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  it('tells the shared-item screen whether the caller owns the Collection (so the Owner may delete any comment there)', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [theirs], nextCursor: null });
+    const renderer = await renderScreen();
+
+    const swipe = row(renderer, theirs).root.findByType(SwipeableItemRow);
+    act(() => swipe.props.onPress());
+
+    expect(mockNavigate).toHaveBeenLastCalledWith('CollectionSharedItem', { collectionId: COLLECTION_ID, itemId: 2, isCollectionOwner: true });
   });
 });
 

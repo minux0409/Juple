@@ -542,6 +542,24 @@
     "pendingCollaborationTitle": "Ausstehende Einladungen",
     "roleViewer": "Nur lesen"
   },
+  "comments": {
+    "title": "Kommentare {{count}}",
+    "empty": "Noch keine Kommentare.",
+    "placeholder": "Kommentar schreiben",
+    "send": "Senden",
+    "delete": "Kommentar löschen",
+    "deleteConfirm": "Diesen Kommentar löschen?",
+    "loadPrevious": "Frühere Kommentare anzeigen",
+    "loadError": "Die Kommentare konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "sendError": "Der Kommentar konnte nicht gesendet werden.",
+    "deleteError": "Der Kommentar konnte nicht gelöscht werden.",
+    "justNow": "Gerade eben",
+    "minutesAgo": "vor {{count}} Min.",
+    "hoursAgo": "vor {{count}} Std.",
+    "moreA11y": "Kommentaroptionen",
+    "ownerA11y": "{{name}} (Eigentümer)"
+  },
   "reactions": {
     "pickerTitle": "Reaktion hinzufügen",
     "recent": "Zuletzt verwendet",

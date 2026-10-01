@@ -1,16 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getSharedCollectionItem, type SharedCollectionItem } from '../collections/api/collectionsApi';
-import { useAppToast } from '../components/AppToast';
-import { ReactionChips } from '../reactions/ReactionChips';
-import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
-import { useRecentReactions } from '../reactions/recentReactions';
-import { useItemReactions } from '../reactions/useItemReactions';
+import { useItemCollaboration } from '../collaboration/useItemCollaboration';
 import { describeItemAdder } from '../collections/itemAdder';
 import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { contentGateOfError } from '../collections/useCollectionItems';
@@ -36,33 +32,16 @@ const ADDER_AVATAR_SIZE = 24;
  * edit and no delete here: the Item belongs to someone else.
  */
 export function CollectionSharedItemScreen({ route }: Props) {
-  const { collectionId, itemId } = route.params;
+  const { collectionId, itemId, isCollectionOwner = false } = route.params;
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [item, setItem] = useState<SharedCollectionItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
-  // The same reactions as the Collection's cards (same component, same rules): this link's chips and the
-  // picker. A link opened here is always one of a Collection the caller belongs to.
-  const { showNotificationToast } = useAppToast();
-  const reactions = useItemReactions(
-    authenticatedRequest,
-    collectionId,
-    () => getCollectionUnlockToken(collectionId),
-    () => showNotificationToast(t('reactions.error')),
-  );
-  const { recent: recentReactions, recordRecent: recordRecentReaction } = useRecentReactions();
-  const [isPickerVisible, setIsPickerVisible] = useState(false);
-  const itemRef = useRef<SharedCollectionItem | null>(null);
-  itemRef.current = item;
-  const react = (key: string) => {
-    const current = itemRef.current;
-    if (current) {
-      recordRecentReaction(key);
-      reactions.react(current.itemId, current, key).catch(() => undefined);
-    }
-  };
+  // Reactions and comments of this link IN this Collection - the one shared implementation (the owner's
+  // ItemDetails uses the same). A link opened here is always one of a Collection the caller belongs to.
+  const collaboration = useItemCollaboration({ collectionId, itemId, isCollectionOwner, row: item, enabled: true });
 
   useFocusEffect(
     useCallback(() => {
@@ -129,11 +108,12 @@ export function CollectionSharedItemScreen({ route }: Props) {
 
   const hostname = getHostnameFromUrl(item.url) ?? item.url;
   const addedBy = describeItemAdder(item.addedBy, t);
-  const itemReactionState = reactions.reactionsOf(item.itemId, item);
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* Keeps the comment field above the keyboard (edge-to-edge Android does not resize the window by itself). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ContentPreviewCard
           onChangeTitle={noop}
           previewImageUrl={item.previewImageUrl}
@@ -153,31 +133,24 @@ export function CollectionSharedItemScreen({ route }: Props) {
             <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} testID="shared-item-adder" />
           </View>
         ) : null}
-        {/* Reactions: above where comments will come - the chips (with the add affordance always here), and the picker. */}
-        <ReactionChips alwaysShowAdd onAdd={() => setIsPickerVisible(true)} onToggle={react} reactions={itemReactionState} testID="shared-item-reactions" />
+        {collaboration.reactions}
         <Text style={styles.readOnlyNote}>{t('collections.sharedItemReadOnly')}</Text>
         <Pressable accessibilityRole="button" onPress={openLink} style={styles.openButton} testID="shared-item-open">
           <ExternalLinkIcon color={colors.surface} size={18} />
           <Text style={styles.openLabel}>{t('collections.sharedItemOpen')}</Text>
         </Pressable>
         {openError ? <Text style={styles.error}>{openError}</Text> : null}
+        {collaboration.comments}
       </ScrollView>
-      <ReactionPickerDialog
-        myReaction={itemReactionState.myReaction}
-        onClose={() => setIsPickerVisible(false)}
-        onSelect={key => {
-          setIsPickerVisible(false);
-          react(key);
-        }}
-        recent={recentReactions}
-        visible={isPickerVisible}
-      />
+      {collaboration.composer}
+      </KeyboardAvoidingView>
     </StackScreenSafeArea>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { backgroundColor: colors.background, flex: 1 },
+  flex: { flex: 1 },
   center: { alignItems: 'center', backgroundColor: colors.background, flex: 1, justifyContent: 'center', padding: spacing.xl },
   content: { padding: spacing.xl },
   url: {

@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Linking,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,11 @@ import {
   getCollections,
   removeItemFromCollection,
   type Collection,
+  getSharedCollectionItem,
+  type SharedCollectionItem,
 } from '../collections/api/collectionsApi';
+import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
+import { useItemCollaboration } from '../collaboration/useItemCollaboration';
 import { CategoryField } from '../collections/CategoryField';
 import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
@@ -145,6 +150,37 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // rather than guessed - a Toast's bottomOffset needs this exact value to sit above the bar
   // instead of overlapping it.
   const [bottomBarHeight, setBottomBarHeight] = useState(0);
+  // The Collection's reactions and comments on this link - only when it was opened from a Collection that
+  // has other people in it, and only IN that Collection. The server's view of the link in that Collection
+  // (its counts and my reaction) is read once; the collaboration is its own state from then on, so reacting
+  // or commenting never reloads this screen or touches a draft.
+  const collaborationCollectionId = collectionContext?.collectionId ?? null;
+  const isCollaborative = collectionContext?.isCollaborative === true && collaborationCollectionId !== null;
+  const [collaborationRow, setCollaborationRow] = useState<SharedCollectionItem | null>(null);
+  useEffect(() => {
+    if (!isCollaborative || collaborationCollectionId === null) {
+      return undefined;
+    }
+    let isActive = true;
+    getSharedCollectionItem(authenticatedRequest, collaborationCollectionId, itemId, getCollectionUnlockToken(collaborationCollectionId))
+      .then(row => {
+        if (isActive) {
+          setCollaborationRow(row);
+        }
+      })
+      // Locked, no longer there, or offline: no collaboration section (the item itself is unaffected).
+      .catch(() => undefined);
+    return () => {
+      isActive = false;
+    };
+  }, [authenticatedRequest, collaborationCollectionId, isCollaborative, itemId]);
+  const collaboration = useItemCollaboration({
+    collectionId: collaborationCollectionId ?? 0,
+    itemId,
+    isCollectionOwner: collectionContext?.isCollectionOwner === true,
+    row: collaborationRow,
+    enabled: isCollaborative && collaborationRow !== null,
+  });
   // The result of a save that proposed the link to 승인 후 추가 Collections - a dialog, never a toast that can be missed.
   const [submissionResultMessage, setSubmissionResultMessage] = useState<string | null>(null);
   useToastBottomAnchor(bottomBarHeight);
@@ -656,6 +692,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
+      {/* Keeps the comment field above the keyboard - only where there is one (edge-to-edge Android does not resize the window itself). */}
+      <KeyboardAvoidingView behavior="padding" enabled={isCollaborative} style={styles.keyboardAvoider}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ContentPreviewCard
           onChangeTitle={text => {
@@ -716,6 +754,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
         {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {collaboration.reactions}
+        {collaboration.comments}
+        {collaboration.composer}
       </ScrollView>
 
       <View
@@ -746,6 +787,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </Text>
         </Pressable>
       </View>
+      </KeyboardAvoidingView>
 
       <ConfirmDialog
         confirmLabel={t('common.confirm')}
@@ -835,6 +877,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  keyboardAvoider: { flex: 1 },
   screen: {
     backgroundColor: colors.background,
     flex: 1,
