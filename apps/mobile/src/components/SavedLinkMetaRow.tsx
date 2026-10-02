@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import i18n from '../i18n';
@@ -45,6 +46,12 @@ interface SavedLinkMetaRowProps {
    * (who, and whether they are the Owner) are in its accessibility label.
    */
   readonly addedBy?: ItemAdderDisplay | null;
+  /**
+   * Shown on the adder's line, at its end side (a shared link's reaction chips): the same row as
+   * the avatar, never a row of its own. Only drawn together with `addedBy` - a caller without an
+   * adder places such content itself.
+   */
+  readonly adderTrailing?: ReactNode;
 }
 
 /**
@@ -56,7 +63,7 @@ interface SavedLinkMetaRowProps {
 /** The adder avatar's diameter - the height of the 12pt text line it replaces, so cards keep their height. */
 const ADDER_AVATAR_SIZE = 16;
 
-export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy }: SavedLinkMetaRowProps) {
+export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy, adderTrailing }: SavedLinkMetaRowProps) {
   const timeRow = (
     <View style={[styles.metaRow, addedBy ? null : style]}>
       <Text numberOfLines={1} style={styles.time}>
@@ -73,7 +80,10 @@ export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, adde
   return (
     <View style={style}>
       {timeRow}
-      <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} style={styles.adderRow} />
+      <View style={styles.adderLine}>
+        <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} style={styles.adderBadge} />
+        {adderTrailing ? <View style={styles.adderTrailing}>{adderTrailing}</View> : null}
+      </View>
     </View>
   );
 }
@@ -93,7 +103,24 @@ const styles = StyleSheet.create({
   icon: {
     flexShrink: 0,
   },
-  adderRow: {
+  // [adder avatar] .......... [trailing]: one row, never two; the trailing part takes what is left and
+  // is itself non-wrapping (see ReactionChips' inline mode), so it never adds height.
+  adderLine: {
+    alignItems: 'flex-start',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
     marginTop: 2,
+  },
+  adderBadge: {
+    // The avatar keeps its size; a long anonymous-link text shrinks and ellipsizes instead.
+    flexShrink: 1,
+    minWidth: 0,
+    // Keeps the avatar centered on the first line of chips (chip height 24 vs the 16 avatar).
+    marginTop: 4,
+  },
+  adderTrailing: {
+    alignItems: 'flex-end',
+    flex: 1,
+    minWidth: 0,
   },
 });

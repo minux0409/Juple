@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "Trang chủ",
-    "history": "Lịch sử",
+    "history": "Kho lưu trữ",
     "collections": "Bộ sưu tập",
     "myPage": "Trang của tôi"
   },
@@ -55,6 +55,7 @@
     "trash": "Đã xóa gần đây",
     "collectionSharedItem": "Liên kết được chia sẻ",
     "collectionSubmissions": "Liên kết chờ phê duyệt",
+    "myCollectionSubmissions": "Liên kết của tôi chờ duyệt",
     "collectionShare": "Chia sẻ",
     "collectionLockSettings": "Khóa bộ sưu tập"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "Không thể xóa mục này."
   },
   "history": {
-    "title": "Lịch sử",
+    "title": "Kho lưu trữ",
+    "searchPlaceholder": "Tìm liên kết",
+    "searchClear": "Xóa tìm kiếm",
+    "searchEmpty": "Không có kết quả.",
+    "searchError": "Không thể tìm kiếm.",
     "empty": "Bạn chưa lưu liên kết nào.",
     "errorLoadFallback": "Không thể tải lịch sử của bạn.",
     "today": "Hôm nay",
@@ -97,11 +102,11 @@
     "namePlaceholder": "Tên bộ sưu tập",
     "editTitle": "Chỉnh sửa bộ sưu tập",
     "createAction": "Tạo",
-    "sortDate": "Ngày",
+    "sortDate": "Thời gian",
     "sortName": "Tên",
     "sortRecent": "Mới nhất",
-    "sortDateNewestA11y": "Ngày, mới nhất trước",
-    "sortDateOldestA11y": "Ngày, cũ nhất trước",
+    "sortDateNewestA11y": "Thời gian, mới nhất trước",
+    "sortDateOldestA11y": "Thời gian, cũ nhất trước",
     "sortNameTooLarge": "Bộ sưu tập có hơn {{max}} liên kết chưa thể sắp xếp theo tên.",
     "itemCount": "Đã lưu {{count}}",
     "newLinkNotificationsError": "Không thể thay đổi cài đặt thông báo. Vui lòng thử lại.",
@@ -131,7 +136,10 @@
     "copyClearAll": "Bỏ chọn tất cả",
     "copyClearAllA11y": "Bỏ chọn toàn bộ",
     "copySelectUpTo": "Chọn tối đa {{max}}",
-    "detailItemCount": "Liên kết trong bộ sưu tập: {{count}}",
+    "detailItemCount": "Tổng {{count}}",
+    "myPendingSubmissions": "Chờ duyệt của tôi {{count}}",
+    "myPendingSubmissionsA11y": "Xem {{count}} liên kết của tôi đang chờ duyệt",
+    "myPendingA11y": "Liên kết của tôi chờ duyệt: {{count}}",
     "favoritesTitle": "Yêu thích",
     "allCollectionsTitle": "Tất cả bộ sưu tập",
     "addFavorite": "Thêm vào yêu thích",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "Quản lý tài khoản",
-    "signInMethod": "Phương thức đăng nhập",
     "methodEmail": "Email",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "Dọn sạch",
+    "deleting": "Đang xóa...",
     "empty": "Không có liên kết đã xóa gần đây.",
     "loadError": "Không thể tải lịch sử xóa.",
     "restoreA11y": "Khôi phục",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "Không có liên kết nào đang chờ phê duyệt.",
+    "myEmpty": "Không có liên kết nào của tôi đang chờ duyệt.",
+    "myLoadError": "Không thể tải các liên kết đang chờ duyệt của tôi.",
+    "myStatus": "Đang chờ duyệt",
     "loadError": "Không tải được danh sách chờ phê duyệt.",
     "approve": "Phê duyệt",
     "reject": "Từ chối",

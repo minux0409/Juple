@@ -183,6 +183,7 @@ public sealed class GetItemHistoryByDateServiceTests
             long userId,
             ItemHistoryPageCursor? cursor,
             int limit,
+            string? searchPattern = null,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetItemHistoryByDateService tests.");
 

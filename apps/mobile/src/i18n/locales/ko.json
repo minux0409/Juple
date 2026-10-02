@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "홈",
-    "history": "기록",
+    "history": "보관함",
     "collections": "컬렉션",
     "myPage": "내 페이지"
   },
@@ -55,6 +55,7 @@
     "trash": "삭제 이력",
     "collectionSharedItem": "공유된 링크",
     "collectionSubmissions": "링크 승인 대기",
+    "myCollectionSubmissions": "내 승인 대기",
     "collectionShare": "공유",
     "collectionLockSettings": "컬렉션 잠금"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "항목을 삭제할 수 없습니다."
   },
   "history": {
-    "title": "기록",
+    "title": "보관함",
+    "searchPlaceholder": "링크 검색",
+    "searchClear": "검색어 지우기",
+    "searchEmpty": "검색 결과가 없어요.",
+    "searchError": "검색하지 못했어요.",
     "empty": "저장한 링크가 아직 없습니다.",
     "errorLoadFallback": "기록을 불러올 수 없습니다.",
     "today": "오늘",
@@ -97,11 +102,11 @@
     "namePlaceholder": "컬렉션 이름",
     "editTitle": "컬렉션 수정",
     "createAction": "만들기",
-    "sortDate": "일자순",
+    "sortDate": "시간순",
     "sortName": "이름순",
     "sortRecent": "최신순",
-    "sortDateNewestA11y": "일자순, 최신 날짜가 위",
-    "sortDateOldestA11y": "일자순, 오래된 날짜가 위",
+    "sortDateNewestA11y": "시간순, 최신 링크가 위",
+    "sortDateOldestA11y": "시간순, 오래된 링크가 위",
     "sortNameTooLarge": "링크가 {{max}}개를 넘는 컬렉션은 아직 이름순으로 정렬할 수 없어요.",
     "itemCount": "{{count}}개",
     "newLinkNotificationsError": "알림 설정을 바꾸지 못했어요. 다시 시도해 주세요.",
@@ -131,7 +136,10 @@
     "copyClearAll": "전체 해제",
     "copyClearAllA11y": "전체 선택 해제",
     "copySelectUpTo": "{{max}}개까지 선택",
-    "detailItemCount": "컬렉션 링크: {{count}}개",
+    "detailItemCount": "총 {{count}}개",
+    "myPendingSubmissions": "내 승인 대기 {{count}}",
+    "myPendingSubmissionsA11y": "내가 보낸 승인 대기 링크 {{count}}개 보기",
+    "myPendingA11y": "내 승인 대기 {{count}}개",
     "favoritesTitle": "즐겨찾기",
     "allCollectionsTitle": "전체 컬렉션",
     "addFavorite": "즐겨찾기 추가",
@@ -339,7 +347,6 @@
   },
   "account": {
     "title": "계정 관리",
-    "signInMethod": "로그인 방식",
     "methodEmail": "이메일",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -497,6 +504,7 @@
   },
   "trash": {
     "emptyAction": "비우기",
+    "deleting": "삭제 중...",
     "empty": "삭제 이력이 없습니다.",
     "loadError": "삭제 이력을 불러오지 못했습니다.",
     "restoreA11y": "복구",
@@ -641,6 +649,9 @@
   },
   "submissions": {
     "empty": "승인 대기 중인 링크가 없어요.",
+    "myEmpty": "승인을 기다리는 내 링크가 없어요.",
+    "myLoadError": "내 승인 대기 목록을 불러오지 못했어요.",
+    "myStatus": "승인 대기 중",
     "loadError": "승인 대기 목록을 불러오지 못했어요.",
     "approve": "승인",
     "reject": "거절",

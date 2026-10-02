@@ -141,7 +141,7 @@ function makeItemEntry(overrides: Partial<CollectionItemEntry> = {}): Collection
 
 
 /**
- * 일자순 as the server now serves it, standing in for GET collections/{id}/items/sections: every
+ * 시간순 as the server now serves it, standing in for GET collections/{id}/items/sections: every
  * link the test's own getCollectionItems mock returns (paged through with the same unlock grant -
  * so a locked Collection is locked here too) as one 오늘 section with its exact count. Each section
  * page request then gets the same links from that mock (it ignores the window), so the one section
@@ -167,7 +167,7 @@ beforeEach(() => {
 type ListRow = { readonly kind: string; readonly item?: CollectionItemEntry; readonly items?: readonly CollectionItemEntry[] };
 
 /**
- * The link list, whichever one the current sort renders: 일자순 (the default) is one flat list of
+ * The link list, whichever one the current sort renders: 시간순 (the default) is one flat list of
  * date-section rows (headers, links, skeletons), 이름순 a flat FlatList of links. Exposed with
  * FlatList-like props - `data` is every loaded link in display order, `renderItem` renders one
  * link's row - so tests about rows and data do not depend on which of the two is on screen.
@@ -178,7 +178,7 @@ function findItemList(
   const root = 'root' in renderer ? renderer.root : renderer;
   const list = root.findByType(FlatList);
   const data: readonly unknown[] = list.props.data;
-  // The 일자순 list is the one without columns (이름순 always sets numColumns).
+  // The 시간순 list is the one without columns (이름순 always sets numColumns).
   if (list.props.numColumns !== undefined) {
     return list;
   }
@@ -217,7 +217,7 @@ async function renderScreen() {
       </AppToastProvider>,
     );
   });
-  // 일자순 loads the section summary, then the open section's first page - let both land.
+  // 시간순 loads the section summary, then the open section's first page - let both land.
   await act(async () => {
     await new Promise<void>(resolve => setImmediate(() => resolve()));
   });
@@ -394,7 +394,7 @@ describe('CollectionDetailsScreen', () => {
       expect(deleteItem).not.toHaveBeenCalled();
       expect(findItemList(renderer).props.data).toHaveLength(0);
       expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 0 }) })).toBeTruthy();
-      expect(i18n.t('collections.detailItemCount', { count: 0 })).toBe('컬렉션 링크: 0개');
+      expect(i18n.t('collections.detailItemCount', { count: 0 })).toBe('총 0개');
       expect(renderer.root.findByProps({ children: i18n.t('toast.unlinkSuccess') })).toBeTruthy();
       expect(renderer.root.findAllByProps({ children: i18n.t('toast.deleteSuccess') })).toHaveLength(0);
     });
@@ -420,8 +420,8 @@ describe('CollectionDetailsScreen', () => {
       expect(restoreItem).not.toHaveBeenCalled();
       expect(findItemList(renderer).props.data).toHaveLength(1);
       expect(renderer.root.findByProps({ children: i18n.t('collections.detailItemCount', { count: 1 }) })).toBeTruthy();
-      expect(i18n.t('collections.detailItemCount', { count: 1 })).toBe('컬렉션 링크: 1개');
-      expect(i18n.t('collections.detailItemCount', { count: 12 })).toBe('컬렉션 링크: 12개');
+      expect(i18n.t('collections.detailItemCount', { count: 1 })).toBe('총 1개');
+      expect(i18n.t('collections.detailItemCount', { count: 12 })).toBe('총 12개');
       expect(renderer.root.findAllByProps({ accessibilityLabel: i18n.t('toast.undoAction') })).toHaveLength(0);
       expect(renderer.root.findAllByProps({ children: i18n.t('collections.addSuccess') })).toHaveLength(0);
     });
@@ -1004,10 +1004,13 @@ describe('CollectionDetailsScreen', () => {
       }));
     }
 
-    it('offers just 일자순 and 이름순 - 일자순 ↓ (newest first) by default', async () => {
+    it('offers just 시간순 and 이름순 - 시간순 ↓ (newest first) by default', async () => {
       const renderer = await renderScreen();
 
       expect(sortChipLabel(renderer, 'date')).toBe(`${i18n.t('collections.sortDate')} ↓`);
+      // The visible wording is 시간순 (the sort itself is unchanged).
+      expect(i18n.t('collections.sortDate')).toBe('시간순');
+      expect(renderer.root.findAllByType(Text).map(node => String(node.props.children))).not.toContain('일자순');
       expect(sortChipLabel(renderer, 'name')).toBe(i18n.t('collections.sortName'));
       expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
       expect(sortChip(renderer, 'date').props.accessibilityLabel).toBe(i18n.t('collections.sortDateNewestA11y'));
@@ -1230,7 +1233,7 @@ describe('CollectionDetailsScreen', () => {
       expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
       expect(renderer.root.findByType(FlatList).props.data).toHaveLength(120);
 
-      // Back to 일자순: the date summary again, then the open section's first page (no cursor).
+      // Back to 시간순: the date summary again, then the open section's first page (no cursor).
       jest.mocked(getCollectionItemSections).mockClear();
       await act(async () => {
         sortChip(renderer, 'date').props.onPress();
@@ -1241,7 +1244,7 @@ describe('CollectionDetailsScreen', () => {
       expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 25, cursor: undefined, fromUtc: expect.any(String) }));
     });
 
-    it('이름순 of a Collection with more links than can be name-ordered as a whole is refused with the reason - it stays on 일자순', async () => {
+    it('이름순 of a Collection with more links than can be name-ordered as a whole is refused with the reason - it stays on 시간순', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: NAME_ORDER_MAX_LINKS + 1 }));
       serveCollection(manyLinks(60));
       const renderer = await renderScreen();
@@ -1256,7 +1259,7 @@ describe('CollectionDetailsScreen', () => {
       expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
     });
 
-    it('if the Collection turns out larger than that while loading for 이름순, nothing partial is shown and it goes back to 일자순', async () => {
+    it('if the Collection turns out larger than that while loading for 이름순, nothing partial is shown and it goes back to 시간순', async () => {
       serveCollection(manyLinks(NAME_ORDER_MAX_LINKS + 20));
       const renderer = await renderScreen();
 
@@ -1294,7 +1297,7 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => {
         renderer.root.findByProps({ accessibilityLabel: 'Grid view' }).props.onPress();
       });
-      // 일자순 Grid: tiles inside the open date section's card.
+      // 시간순 Grid: tiles inside the open date section's card.
       expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeGreaterThan(0);
       await expectListInsideStackSafeArea(renderer);
     });

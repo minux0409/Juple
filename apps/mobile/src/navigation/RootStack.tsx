@@ -8,6 +8,7 @@ import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
 import { CollectionSubmissionsScreen } from '../screens/CollectionSubmissionsScreen';
+import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
@@ -75,6 +76,8 @@ export type RootStackParamList = {
   CollectionShare: { collectionId: number };
   /** The Owner's 승인 대기 list of links proposed for this Collection (승인 후 추가). */
   CollectionSubmissions: { collectionId: number };
+  /** A member passes the Collection id; a signed-in public-link submitter (not a member) passes the link's publicId. */
+  MyCollectionSubmissions: { collectionId: number } | { publicId: string };
   /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
   Friends: undefined;
   /** 알림: the signed-in user's Notification Inbox, newest first. */
@@ -174,6 +177,11 @@ export function RootStack() {
               component={CollectionSubmissionsScreen}
               name="CollectionSubmissions"
               options={{ title: t('nav.collectionSubmissions') }}
+            />
+            <Stack.Screen
+              component={MyCollectionSubmissionsScreen}
+              name="MyCollectionSubmissions"
+              options={{ title: t('nav.myCollectionSubmissions') }}
             />
             <Stack.Screen
               component={FriendsScreen}

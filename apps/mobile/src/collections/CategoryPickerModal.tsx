@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
-  // The same order chips as a Collection's own 일자순 | 이름순.
+  // The same order chips as a Collection's own 시간순 | 이름순.
   sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   sortChip: {
     borderColor: colors.inputBorder,

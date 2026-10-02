@@ -26,8 +26,11 @@ interface SavedLinkRowProps {
   readonly trailingAction?: { readonly accessibilityLabel: string; readonly onPress: () => void };
   /** Who added the link inside a shared Collection (see SavedLinkMetaRow) - omitted everywhere else. */
   readonly addedBy?: ItemAdderDisplay | null;
-  /** Under the time line - e.g. a shared link's reaction chips; omitted (nothing drawn) otherwise. */
-  readonly footer?: ReactNode;
+  /**
+   * A shared link's reaction chips: on the same row as the adder's avatar, at its end; with no adder
+   * to sit beside they go under the time line. Omitted (nothing drawn) otherwise.
+   */
+  readonly reactions?: ReactNode;
 }
 
 /**
@@ -47,7 +50,7 @@ export function SavedLinkRow({
   preferEffectiveThumbnail = false,
   trailingAction,
   addedBy,
-  footer,
+  reactions,
 }: SavedLinkRowProps) {
   const { t } = useTranslation();
   const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -81,8 +84,8 @@ export function SavedLinkRow({
             {item.memo}
           </Text>
         ) : null}
-        <SavedLinkMetaRow addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
-        {footer}
+        <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={styles.metaRow} url={item.url} />
+        {addedBy ? null : reactions}
       </View>
       {trailingAction ? <Pressable accessibilityLabel={trailingAction.accessibilityLabel} accessibilityRole="button" hitSlop={8} onPress={event => { event?.stopPropagation(); trailingAction.onPress(); }} style={styles.trailingAction}><MoreIcon color={colors.textSecondary} size={20} /></Pressable> : null}
     </View>

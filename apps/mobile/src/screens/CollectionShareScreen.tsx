@@ -10,6 +10,7 @@ import {
   ScrollView,
   type ScrollViewInstance,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -34,6 +35,10 @@ import {
   type JupleIdLookupResult,
 } from '../collections/api/collaborationApi';
 import { OwnerCrown } from '../collections/CollectionParticipantsSheet';
+import { UserAvatar } from '../components/UserAvatar';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { ParticipantGrid } from '../collections/ParticipantGrid';
+import { useViewModePreference } from '../settings/viewModePreference';
 import {
   enableCollectionShare,
   getCollection,
@@ -69,6 +74,9 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionShare'>;
+
+/** Avatar of a person in the 공유 상태 lists - the same size the participant sheet uses. */
+const STATUS_AVATAR_SIZE = 32;
 
 /**
  * Invitations in flight at once. There is no batch size limit - the API takes one invitation per
@@ -338,12 +346,14 @@ function Segmented<T extends string>({
 }
 
 /**
- * OFF | ON: one pill with its two states written inside it - no outside text and no sliding thumb.
- * The current state is filled (ON in the success color, OFF neutral); tapping the other one asks to
- * change it. Each half is a full touch target tall and at least a thumb wide, so it reads clearly and
- * stays tappable at 360dp.
+ * The 컬렉션 공개 on/off: the same switch look as the 접근 비밀번호 card's - no OFF / ON words - but
+ * driven by a Pressable around a purely visual, touch-less Switch. A native Switch flips itself on
+ * touch BEFORE any JS runs, so with a confirmation in between (ON -> stop sharing?) it showed
+ * ON -> OFF -> ON again. Here the Switch only ever shows the `value` it is given: a tap just reports
+ * the wish (`onChange(!value)`), and the visual state moves only when the caller changes `value` -
+ * after the confirmation and the request. Exposed as one switch (role, checked, label) with a 44dp target.
  */
-function OnOffSwitch({
+function PublicToggle({
   value,
   onChange,
   disabled = false,
@@ -353,38 +363,25 @@ function OnOffSwitch({
   readonly value: boolean;
   readonly onChange: (next: boolean) => void;
   readonly disabled?: boolean;
-  /** What is switched (e.g. 컬렉션 공개), announced with the group. */
+  /** What is switched (e.g. 컬렉션 공개), announced with the switch. */
   readonly label: string;
   readonly testID: string;
 }) {
-  const { t } = useTranslation();
   return (
-    <View accessibilityLabel={label} accessibilityRole="radiogroup" style={styles.onOff} testID={testID}>
-      {([false, true] as const).map(isOn => {
-        const isSelected = value === isOn;
-        return (
-          <Pressable
-            accessibilityLabel={isOn ? t('shareSheet.publicOn') : t('shareSheet.publicOff')}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: isSelected, disabled }}
-            disabled={disabled}
-            hitSlop={{ bottom: 2, top: 2 }}
-            key={isOn ? 'on' : 'off'}
-            onPress={() => {
-              if (!isSelected) {
-                onChange(isOn);
-              }
-            }}
-            style={[styles.onOffSegment, isSelected && (isOn ? styles.onOffSegmentOn : styles.onOffSegmentOff), disabled && styles.disabled]}
-            testID={`${testID}-${isOn ? 'on' : 'off'}`}
-          >
-            <Text numberOfLines={1} style={[styles.onOffLabel, isSelected && (isOn ? styles.onOffLabelOn : styles.onOffLabelOff)]}>
-              {isOn ? t('shareSheet.publicOn') : t('shareSheet.publicOff')}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      hitSlop={{ bottom: 4, top: 4 }}
+      onPress={() => onChange(!value)}
+      style={styles.publicToggle}
+      testID={testID}
+    >
+      <View importantForAccessibility="no-hide-descendants" pointerEvents="none">
+        <Switch disabled={disabled} value={value} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -454,6 +451,9 @@ export function CollectionShareScreen({ route }: Props) {
   // Reported by the 공유 비밀번호 card below (Owner only).
   const [sharePasswordMode, setSharePasswordMode] = useState<SharePasswordMode | null>(null);
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
+  // Shared with the participants popup: the same people, so the same List/Grid choice.
+  const { viewMode: participantViewMode, changeViewMode: changeParticipantViewMode } = useViewModePreference('participantViewMode');
+  const publicToggleBusyRef = useRef(false);
   // A public permission that someone below it stands in the way of: the Owner is asked whether to raise
   // them too (nothing changes until they say yes; no is "never mind" - the selector stays as it was).
   const [raiseRolesPrompt, setRaiseRolesPrompt] = useState<{ readonly permission: PublicSharePermission; readonly isStart: boolean } | null>(null);
@@ -641,20 +641,27 @@ export function CollectionShareScreen({ route }: Props) {
 
   /** 공유 시작: only this explicit action creates (or, idempotently, returns) the public link. */
   const startPublicShare = async () => {
-    if (isManagingShare) {
+    if (isManagingShare || publicToggleBusyRef.current) {
       return;
     }
     if (hasRoleMismatch(pendingPublicPermission)) {
       setRaiseRolesPrompt({ permission: pendingPublicPermission, isStart: true });
       return;
     }
-    await applyPublicShare(pendingPublicPermission, true, false);
+    // Rapid taps in one frame must not send two enable requests (state would still read "idle").
+    publicToggleBusyRef.current = true;
+    try {
+      await applyPublicShare(pendingPublicPermission, true, false);
+    } finally {
+      publicToggleBusyRef.current = false;
+    }
   };
 
   const stopPublicShare = async () => {
-    if (isManagingShare) {
+    if (isManagingShare || publicToggleBusyRef.current) {
       return;
     }
+    publicToggleBusyRef.current = true;
     setIsManagingShare(true);
     setShareError(null);
     try {
@@ -663,6 +670,7 @@ export function CollectionShareScreen({ route }: Props) {
     } catch (caughtError) {
       setShareError(getShareManagementErrorMessage(caughtError, t, null));
     } finally {
+      publicToggleBusyRef.current = false;
       setIsManagingShare(false);
     }
   };
@@ -945,21 +953,8 @@ export function CollectionShareScreen({ route }: Props) {
               title={t('shareSheet.allUsersTitle')}
               trailing={
                 <View style={styles.headerTrailing}>
-                  {/* Passing the link on, only while it is on: to the start side of the switch with a
-                      wide gap, so a tap meant for one never lands on the other. */}
-                  {share ? (
-                    <Pressable
-                      accessibilityLabel={t('shareSheet.shareLink')}
-                      accessibilityRole="button"
-                      onPress={shareLink}
-                      style={styles.headerShare}
-                      testID="share-link-action"
-                    >
-                      <ShareIcon color={colors.textPrimary} size={20} />
-                    </Pressable>
-                  ) : null}
                   {/* On creates the link (the server's own enable), off stops it after a confirmation. */}
-                  <OnOffSwitch
+                  <PublicToggle
                     disabled={isPublicToggleDisabled}
                     label={t('shareSheet.allUsersTitle')}
                     onChange={isOn => {
@@ -972,6 +967,20 @@ export function CollectionShareScreen({ route }: Props) {
                     testID="share-public-toggle"
                     value={share !== null}
                   />
+                  {/* Passing the link on, only while it is on: right next to the switch (its end side). While
+                      it is off nothing is reserved for it, so the switch sits at the card's end edge and moves
+                      toward the start as the share icon appears. */}
+                  {share ? (
+                    <Pressable
+                      accessibilityLabel={t('shareSheet.shareLink')}
+                      accessibilityRole="button"
+                      onPress={shareLink}
+                      style={styles.headerShare}
+                      testID="share-link-action"
+                    >
+                      <ShareIcon color={colors.textPrimary} size={20} />
+                    </Pressable>
+                  ) : null}
                 </View>
               }
             >
@@ -1181,7 +1190,13 @@ export function CollectionShareScreen({ route }: Props) {
 
             {/* D. 공유 상태: [공유 중 N] | [초대 대기 N] - pending invitations are not always spread out. */}
             <View ref={statusCardRef}>
-            <SectionCard icon={<PeopleIcon color={colors.textSecondary} size={16} />} testID="share-status" title={t('shareSheet.statusTitle')}>
+            <SectionCard
+              icon={<PeopleIcon color={colors.textSecondary} size={16} />}
+              testID="share-status"
+              title={t('shareSheet.statusTitle')}
+              // 공유 상태 ........ [List/Grid] on the title's own line, the switch at the far end.
+              trailing={<ViewModeToggle onChange={changeParticipantViewMode} value={participantViewMode} />}
+            >
               <Segmented
                 kind="tabs"
                 onChange={setStatusTab}
@@ -1192,13 +1207,62 @@ export function CollectionShareScreen({ route }: Props) {
                 testID="share-status-tabs"
                 value={statusTab}
               />
-              {statusTab === 'members' ? (
+              {statusTab === 'members' && participantViewMode === 'grid' ? (
+                <ParticipantGrid
+                  testID="share-members-grid"
+                  tiles={members.map(member => {
+                    const kind = memberRoleOf(member.role);
+                    const label = member.isMe ? t('collections.participantMe', { name: personLabel(member) }) : personLabel(member);
+                    const roleText = kind === 'owner' ? t('collections.roleOwner') : t(roleLabelKey(kind));
+                    return {
+                      key: member.jupleId,
+                      jupleId: member.jupleId,
+                      displayName: member.displayName,
+                      imageUrl: member.profileImageUrl,
+                      imageVersion: member.profileImageVersion,
+                      isOwner: kind === 'owner',
+                      name: label,
+                      detail: roleText,
+                      // The same action as the List row's "⋯": change role / remove.
+                      onPress: kind !== 'owner' && isOwnerView && busyKey === null
+                        ? () => setManaged({ kind: 'member', jupleId: member.jupleId, label: personLabel(member), role: kind })
+                        : undefined,
+                      accessibilityLabel: kind !== 'owner' && isOwnerView
+                        ? t('shareSheet.memberActionsA11y', { name: personLabel(member) })
+                        : `${label}, ${roleText}`,
+                      testID: `participant-${member.jupleId}`,
+                    };
+                  })}
+                />
+              ) : statusTab === 'pending' && participantViewMode === 'grid' && pendingInvitations.length > 0 ? (
+                <ParticipantGrid
+                  testID="share-pending-grid"
+                  tiles={pendingInvitations.map(invitation => {
+                    const role = invitationRoleOf(invitation.role);
+                    return {
+                      key: `invitation-${invitation.invitationId}`,
+                      jupleId: invitation.jupleId,
+                      displayName: invitation.displayName,
+                      imageUrl: invitation.profileImageUrl,
+                      imageVersion: invitation.profileImageVersion,
+                      name: personLabel(invitation),
+                      detail: `${t(roleLabelKey(role))} · ${t('shareSheet.pendingStatus')}`,
+                      onPress: busyKey === null
+                        ? () => setManaged({ kind: 'pending', invitationId: invitation.invitationId, label: personLabel(invitation), role })
+                        : undefined,
+                      accessibilityLabel: t('shareSheet.memberActionsA11y', { name: personLabel(invitation) }),
+                      testID: `pending-${invitation.invitationId}`,
+                    };
+                  })}
+                />
+              ) : statusTab === 'members' ? (
                 <View testID="share-members">
                   {members.map((member, index) => {
                     const kind = memberRoleOf(member.role);
                     const label = member.isMe ? t('collections.participantMe', { name: personLabel(member) }) : personLabel(member);
                     return (
                       <View key={member.jupleId} style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]} testID={`participant-${member.jupleId}`}>
+                        <UserAvatar displayName={member.displayName} imageUrl={member.profileImageUrl} imageVersion={member.profileImageVersion} jupleId={member.jupleId} size={STATUS_AVATAR_SIZE} />
                         {kind === 'owner' ? <OwnerCrown /> : null}
                         {personText(member, label)}
                         <RoleBadge kind={kind} testID={`participant-role-${member.jupleId}`} />
@@ -1219,6 +1283,7 @@ export function CollectionShareScreen({ route }: Props) {
                       const role = invitationRoleOf(invitation.role);
                       return (
                         <View key={invitation.invitationId} style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]} testID={`pending-${invitation.invitationId}`}>
+                          <UserAvatar displayName={invitation.displayName} imageUrl={invitation.profileImageUrl} imageVersion={invitation.profileImageVersion} jupleId={invitation.jupleId} size={STATUS_AVATAR_SIZE} />
                           <View style={styles.personText}>
                             <Text numberOfLines={1} style={styles.personName}>{personLabel(invitation)}</Text>
                             <Text numberOfLines={1} style={styles.pendingStatus}>
@@ -1354,15 +1419,9 @@ const styles = StyleSheet.create({
   // [ON/OFF] [switch] at the end of a card header: a tight pair, so the title keeps its one line
   // even at 360dp. A long translation of the state shortens itself rather than push the switch out.
   // [share] [OFF | ON]: never shrinks (the title wraps instead) and keeps a wide gap between its two controls.
-  headerTrailing: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: spacing.lg },
+  headerTrailing: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: spacing.xs },
   headerShare: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
-  onOff: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 2, flexDirection: 'row', padding: 2 },
-  onOffSegment: { alignItems: 'center', borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget - 8, minWidth: 48, paddingHorizontal: spacing.sm },
-  onOffSegmentOn: { backgroundColor: colors.success },
-  onOffSegmentOff: { ...selectedSegment },
-  onOffLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  onOffLabelOn: { color: colors.surface },
-  onOffLabelOff: { color: colors.textPrimary },
+  publicToggle: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget },
   actionError: { marginBottom: spacing.sm + 2 },
   cardHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },

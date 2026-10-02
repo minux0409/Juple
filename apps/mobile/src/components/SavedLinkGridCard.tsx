@@ -8,6 +8,7 @@ import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
+import { GRID_CARD_PADDING_H, GRID_CELL_PADDING_H } from './savedLinkLayout';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
 import { SwipeableItemRow } from './SwipeableItemRow';
 
@@ -27,8 +28,8 @@ interface SavedLinkGridCardProps {
    * every tile of a list or for none (see shouldShowItemAdders), so tiles keep one height.
    */
   readonly addedBy?: ItemAdderDisplay | null;
-  /** Under the time line - e.g. a shared link's reaction chips; omitted (nothing drawn) otherwise. */
-  readonly footer?: ReactNode;
+  /** A shared link's reaction chips - see SavedLinkRow's `reactions`; omitted (nothing drawn) otherwise. */
+  readonly reactions?: ReactNode;
 }
 
 /**
@@ -38,7 +39,7 @@ interface SavedLinkGridCardProps {
  * scales lineHeight with it too), so a one-line title card is exactly as tall as a two-line one and a
  * 2-column grid never turns ragged/masonry-like.
  */
-export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, footer }: SavedLinkGridCardProps) {
+export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, reactions }: SavedLinkGridCardProps) {
   const { fontScale } = useWindowDimensions();
   const { t } = useTranslation();
   const displayTitle = resolveSavedLinkDisplayTitle(item.title, item.url, t);
@@ -50,8 +51,8 @@ export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumb
       {isActionInFlight ? <View style={styles.overlay}><ActivityIndicator color={colors.surface} size="small" /></View> : null}
     </View>
     <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }, displayTitle.isTechnicalIdentifier && ltrTextStyle]}>{displayTitle.text}</Text>
-    <SavedLinkMetaRow addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={[styles.meta, { minHeight: META_LINE_HEIGHT * (addedBy ? 2 : 1) * fontScale }]} url={item.url} />
-    {footer}
+    <SavedLinkMetaRow adderTrailing={reactions} addedBy={addedBy} dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} style={[styles.meta, { minHeight: META_LINE_HEIGHT * (addedBy ? 2 : 1) * fontScale }]} url={item.url} />
+    {addedBy ? null : reactions}
   </View>;
 }
 
@@ -77,12 +78,12 @@ export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, ...car
 }
 
 export const savedLinkGridLayout = StyleSheet.create({
-  cell: { flexBasis: '50%', marginBottom: spacing.sm, maxWidth: '50%', paddingHorizontal: 2 },
+  cell: { flexBasis: '50%', marginBottom: spacing.sm, maxWidth: '50%', paddingHorizontal: GRID_CELL_PADDING_H },
   swipeContainer: { backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, flexGrow: 1 },
 });
 
 const styles = StyleSheet.create({
-  card: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+  card: { paddingHorizontal: GRID_CARD_PADDING_H, paddingVertical: spacing.sm },
   image: { aspectRatio: 1, borderRadius: radii.md + 4, overflow: 'hidden', position: 'relative' },
   thumbnail: { height: '100%', width: '100%' },
   fallback: { alignItems: 'center', backgroundColor: colors.surfaceMuted, flex: 1, justifyContent: 'center' },

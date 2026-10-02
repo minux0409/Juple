@@ -21,14 +21,14 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   getCollection: jest.fn(),
   getCollectionItems: jest.fn().mockResolvedValue({ items: [], nextCursor: null }),
   getCollectionItemSections: jest.fn().mockResolvedValue([]),
-  getCollectionParticipants: jest.fn().mockResolvedValue([]),
+  getCollectionParticipants: jest.fn().mockResolvedValue({ participants: [], pendingInvitations: [], canManage: false }),
   getCollectionNotificationPreference: jest.fn().mockResolvedValue({ newItemNotificationsEnabled: true }),
   getCollectionShareLink: jest.fn().mockResolvedValue(null),
   MAX_ITEMS_PER_COPY: 200,
 }));
 jest.mock('../../collections/api/collaborationApi', () => ({
   ...jest.requireActual('../../collections/api/collaborationApi'),
-  getCollectionParticipants: jest.fn().mockResolvedValue([]),
+  getCollectionParticipants: jest.fn().mockResolvedValue({ participants: [], pendingInvitations: [], canManage: false }),
 }));
 jest.mock('../../notifications/notificationsApi', () => ({
   ...jest.requireActual('../../notifications/notificationsApi'),

@@ -12,6 +12,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ListViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
@@ -23,6 +24,10 @@ import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { SearchField } from '../components/SearchField';
+import { savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { savedLinkLayout } from '../components/savedLinkLayout';
+import { useArchiveSearch } from '../items/useArchiveSearch';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
@@ -58,6 +63,14 @@ function getHistoryShareErrorMessage(t: TFunction): string {
 
 /** One row of the single History list (see DateSectionRow). */
 export type HistoryRow = DateSectionRow<ItemHistoryEntry>;
+
+/** What the same list shows while a search is active: a flat result list (or a line of two tiles), or a status line. */
+export type SearchRow =
+  | { readonly kind: 'searchItem'; readonly key: string; readonly item: ItemHistoryEntry }
+  | { readonly kind: 'searchGridRow'; readonly key: string; readonly items: readonly ItemHistoryEntry[] }
+  | { readonly kind: 'searchStatus'; readonly key: string; readonly status: 'loading' | 'empty' | 'error' };
+
+type ScreenRow = HistoryRow | SearchRow;
 
 /** The flat rows for the current sections, expansion and loaded pages (pure - see buildDateSectionRows). */
 export function buildHistoryRows(
@@ -99,6 +112,10 @@ export function DateHistoryScreen() {
   const isExpanded = useCallback((key: string) => expandedRef.current.has(key), []);
 
   const { sections, pages, isLoading, isRefreshing, error, refresh, ensureLoaded, loadMore, removeItem } = useHistorySections(isExpanded);
+
+  // 보관함 search: the whole archive on the server (see useArchiveSearch). Empty/short text = the normal accordion.
+  const [searchText, setSearchText] = useState('');
+  const search = useArchiveSearch(searchText);
 
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -143,7 +160,8 @@ export function DateHistoryScreen() {
     try {
       await deleteItem(authenticatedRequest, itemId);
       removeItem(itemId);
-      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => { await restoreItem(authenticatedRequest, itemId); refresh(); } });
+      search.removeItem(itemId);
+      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => { await restoreItem(authenticatedRequest, itemId); refresh(); search.refresh(); } });
     } catch (caughtError) {
       setActionError(getHistoryDeleteErrorMessage(caughtError, t));
     } finally {
@@ -177,9 +195,85 @@ export function DateHistoryScreen() {
   );
 
   // A section's next page is asked for once its loaded end comes on screen (see useDateSectionViewability).
-  const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(pages, loadMore);
+  // The list also holds search rows (no section) - those are never reported to it.
+  const { onViewableItemsChanged: reportSectionRows, viewabilityConfig } = useDateSectionViewability(pages, loadMore);
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: readonly ListViewToken[] }) => {
+    reportSectionRows({ viewableItems: viewableItems.filter(token => !!token.item && 'section' in (token.item as object)) });
+  }).current;
 
-  const renderRow = ({ item: row }: { item: HistoryRow }) => {
+  // Search mode: newest-first results, flat (no date accordion while searching), List or Grid like the Archive.
+  const searchRows = useMemo<readonly SearchRow[]>(() => {
+    if (!search.isSearching) {
+      return [];
+    }
+    const rowsOut: SearchRow[] = [];
+    if (viewMode === 'grid') {
+      for (let index = 0; index < search.items.length; index += 2) {
+        const pair = search.items.slice(index, index + 2);
+        rowsOut.push({ kind: 'searchGridRow', key: `sg:${pair[0].id}`, items: pair });
+      }
+    } else {
+      search.items.forEach(item => rowsOut.push({ kind: 'searchItem', key: `si:${item.id}`, item }));
+    }
+    // Under the results (or alone) only a status: loading the first page, nothing found, or a failed search.
+    if (search.error) {
+      rowsOut.push({ kind: 'searchStatus', key: 'ss:error', status: 'error' });
+    } else if (search.isLoading && search.items.length === 0) {
+      rowsOut.push({ kind: 'searchStatus', key: 'ss:loading', status: 'loading' });
+    } else if (search.items.length === 0 && search.settledTerm !== null) {
+      rowsOut.push({ kind: 'searchStatus', key: 'ss:empty', status: 'empty' });
+    }
+    return rowsOut;
+  }, [search.error, search.isLoading, search.isSearching, search.items, search.settledTerm, viewMode]);
+
+  const renderSearchRow = (row: SearchRow) => {
+    switch (row.kind) {
+      case 'searchItem':
+        return (
+          <SwipeableItemRow
+            containerStyle={savedLinkLayout.card}
+            disabled={actionInFlightItemId !== null}
+            onDelete={() => confirmDelete(row.item.id)}
+            onPress={() => navigation.navigate('ItemDetails', { itemId: row.item.id })}
+            onShare={() => runShare(row.item)}
+          >
+            <SavedLinkRow dateDisplayMode="dateTime" isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} preferEffectiveThumbnail />
+          </SwipeableItemRow>
+        );
+      case 'searchGridRow':
+        return (
+          <View style={styles.searchGridRow} testID={`history-search-grid-row-${row.key}`}>
+            {row.items.map(item => (
+              <SavedLinkGridCell
+                dateDisplayMode="dateTime"
+                disabled={actionInFlightItemId !== null}
+                isActionInFlight={actionInFlightItemId === item.id}
+                item={item}
+                key={item.id}
+                onDelete={() => confirmDelete(item.id)}
+                onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
+                onShare={() => runShare(item)}
+                preferEffectiveThumbnail
+              />
+            ))}
+            {row.items.length === 1 ? <View style={savedLinkGridLayout.cell} /> : null}
+          </View>
+        );
+      case 'searchStatus':
+        return row.status === 'loading' ? (
+          <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
+        ) : (
+          <Text style={[styles.searchStatusText, row.status === 'error' && styles.error]} testID={`history-search-${row.status}`}>
+            {row.status === 'error' ? t('history.searchError') : t('history.searchEmpty')}
+          </Text>
+        );
+    }
+  };
+
+  const renderRow = ({ item: row }: { item: ScreenRow }) => {
+    if (row.kind === 'searchItem' || row.kind === 'searchGridRow' || row.kind === 'searchStatus') {
+      return renderSearchRow(row);
+    }
     switch (row.kind) {
       case 'header':
         return (
@@ -253,7 +347,7 @@ export function DateHistoryScreen() {
     }
   };
 
-  if (isLoading && sections.length === 0 && !error) {
+  if (isLoading && sections.length === 0 && !error && !search.isSearching) {
     return (
       <SafeAreaView edges={['top']} style={styles.loadingContainer}>
         <ActivityIndicator />
@@ -265,24 +359,36 @@ export function DateHistoryScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
         contentContainerStyle={styles.content}
-        data={rows}
+        data={search.isSearching ? searchRows : rows}
         initialNumToRender={12}
+        keyboardShouldPersistTaps="handled"
         keyExtractor={row => row.key}
-        ListEmptyComponent={!error ? <CenteredEmptyState message={t('history.empty')} /> : undefined}
+        ListEmptyComponent={!error && !search.isSearching ? <CenteredEmptyState message={t('history.empty')} /> : undefined}
         ListHeaderComponent={
           <View>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{t('history.title')}</Text>
               <ViewModeToggle onChange={changeViewMode} value={viewMode} />
             </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <View style={styles.searchBox}>
+              <SearchField
+                clearLabel={t('history.searchClear')}
+                onChangeText={setSearchText}
+                placeholder={t('history.searchPlaceholder')}
+                testID="history-search"
+                value={searchText}
+              />
+            </View>
+            {error && !search.isSearching ? <Text style={styles.error}>{error}</Text> : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
           </View>
         }
         maxToRenderPerBatch={10}
         onScrollBeginDrag={closeOpenRow}
+        onEndReached={() => search.loadMore()}
+        onEndReachedThreshold={0.5}
         onViewableItemsChanged={onViewableItemsChanged}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => (search.isSearching ? search.refresh() : refresh())} />}
         // Android: rows scrolled far away drop their native views (and images) entirely.
         removeClippedSubviews={Platform.OS === 'android'}
         renderItem={renderRow}
@@ -324,17 +430,25 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: spacing.xl,
   },
+  // [보관함 ........ List/Grid] on one row, vertically centered; the gap to the list is this row's own
+  // bottom margin (a margin on the title alone made the toggle sit lower than the title).
   titleRow: {
     alignItems: 'center',
+    columnGap: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
   title: {
     color: colors.textPrimary,
+    flexShrink: 1,
     fontSize: 24,
     fontWeight: '800',
-    marginBottom: spacing.md,
   },
+  searchBox: { marginBottom: spacing.md },
+  searchGridRow: { flexDirection: 'row' },
+  searchStatus: { marginTop: spacing.xl },
+  searchStatusText: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   error: {
     color: colors.danger,
     fontSize: 14,

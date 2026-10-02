@@ -7,6 +7,7 @@ import { getPublicCollection, getPublicCollectionItems } from '../../collections
 import { saveInboxEntry } from '../../inbox/api/inboxApi';
 
 const mockRequest = jest.fn();
+const mockNavigate = jest.fn();
 let mockIsAuthenticated = true;
 
 jest.mock('@react-navigation/native', () => ({
@@ -49,7 +50,7 @@ afterEach(() => jest.clearAllMocks());
 async function renderScreen() {
   let renderer!: Renderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(<SharedCollectionScreen navigation={{} as never} route={route} />);
+    renderer = ReactTestRenderer.create(<SharedCollectionScreen navigation={{ navigate: mockNavigate } as never} route={route} />);
   });
   return renderer;
 }
@@ -139,5 +140,79 @@ describe('SharedCollectionScreen - 모든 사용자: 작성', () => {
     });
 
     expect(byId(renderer, 'shared-collection-add-message').props.children).toBe(i18n.t('sharedCollection.addNotAllowed'));
+  });
+});
+
+describe('SharedCollectionScreen - 내 승인 대기 (a signed-in non-member who proposed through the link)', () => {
+  const mineApi = (response: unknown) =>
+    mockRequest.mockImplementation(async (options: { path: string }) => {
+      if (options.path.endsWith('/submissions/mine')) {
+        if (response instanceof Error) {
+          throw response;
+        }
+        return { status: 200, body: response };
+      }
+      return { status: 204 };
+    });
+  const row = (renderer: Renderer) => renderer.root.findAll(node => node.props.testID === 'shared-collection-my-pending' && typeof node.props.onPress === 'function')[0];
+
+  beforeEach(() => mockNavigate.mockClear());
+
+  it('shows 내 승인 대기 N from the link-keyed own-submissions call, and opens the own list by the link id', async () => {
+    mineApi({ items: [{ submissionId: 1, url: 'https://example.test/a', title: null, previewImageUrl: null, submittedAtUtc: '' }], nextCursor: null, totalCount: 3 });
+    const renderer = await renderScreen();
+
+    expect(mockRequest).toHaveBeenCalledWith({ method: 'GET', path: '/api/v1/public-shares/pub-1/submissions/mine' });
+    expect(row(renderer).findByType(Text).props.children).toBe('내 승인 대기 3');
+    expect(row(renderer).props.accessibilityLabel).toBe('내가 보낸 승인 대기 링크 3개 보기');
+    await act(async () => row(renderer).props.onPress());
+    expect(mockNavigate).toHaveBeenCalledWith('MyCollectionSubmissions', { publicId: 'pub-1' });
+    // Nothing of the Owner's approval UI is here - only the viewer's own status row.
+    expect(renderer.root.findAll(node => String(node.props.testID ?? '').includes('pending') && node.props.testID !== 'shared-collection-my-pending')).toHaveLength(0);
+    expect(renderer.root.findAllByType(Text).map(node => String(node.props.children))).not.toContain(expect.stringMatching(/^승인 대기 \d/));
+  });
+
+  it('nothing waiting, signed out, a locked link, or a link that is off: no row, and no error shown', async () => {
+    mineApi({ items: [], nextCursor: null, totalCount: 0 });
+    expect(row(await renderScreen())).toBeUndefined();
+
+    mineApi(new ApiError('notFound', 404, 'gone'));
+    const off = await renderScreen();
+    expect(row(off)).toBeUndefined();
+    expect(exists(off, 'shared-collection-add')).toBe(true); // the page itself is unaffected
+
+    mockRequest.mockClear();
+    mockIsAuthenticated = false;
+    expect(row(await renderScreen())).toBeUndefined();
+    expect(mockRequest).not.toHaveBeenCalled();
+
+    mockIsAuthenticated = true;
+    jest.mocked(getPublicCollection).mockResolvedValue({ name: null, isLocked: true, permission: null });
+    mockRequest.mockClear();
+    expect(row(await renderScreen())).toBeUndefined();
+    expect(mockRequest).not.toHaveBeenCalled();
+  });
+
+  it('a proposal made from this screen raises the count at once (and it reads as the viewer own number)', async () => {
+    jest.mocked(getPublicCollection).mockResolvedValue({ name: '모두의 여행지', isLocked: false, permission: 'submit' });
+    let total = 0;
+    mockRequest.mockImplementation(async (options: { path: string }) => {
+      if (options.path.endsWith('/submissions/mine')) {
+        return { status: 200, body: { items: [], nextCursor: null, totalCount: total } };
+      }
+      total += 1;
+      return { status: 202, body: { submitted: true } };
+    });
+    const renderer = await renderScreen();
+    expect(row(renderer)).toBeUndefined();
+
+    await act(async () => {
+      byId(renderer, 'shared-collection-add-url').props.onChangeText('https://example.test/a');
+    });
+    await act(async () => {
+      await byId(renderer, 'shared-collection-add-submit').props.onPress();
+    });
+
+    expect(row(renderer).findByType(Text).props.children).toBe('내 승인 대기 1');
   });
 });

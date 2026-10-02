@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -80,10 +80,12 @@ import { ReactionChips } from '../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
 import { useItemReactions } from '../reactions/useItemReactions';
-import { SavedLinkGridCard } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
@@ -118,6 +120,8 @@ import { useDateSectionPages, type DateSectionPagesSource } from '../items/useDa
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useSortPreference } from '../settings/sortPreference';
+import { useLiveRefresh } from '../push/useLiveRefresh';
+import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -250,6 +254,15 @@ function toSavedLinkRowItem(item: CollectionItemEntry): ItemHistoryEntry {
  * membership row - the Item itself, and its membership in any other Collection, is untouched (see
  * removeItemAction below and CollectionItem's Cascade design in the backend).
  */
+const LIVE_REFRESH_EVENTS: readonly SocialPushEventType[] = [
+  'collectionContentChanged',
+  'collectionItemsAdded',
+  'collectionLinkSubmission',
+  'collectionLinkSubmissionApproved',
+  'collectionLinkSubmissionRejected',
+  'collectionInvitationAnswered',
+];
+
 /** 전체 선택 reads the Collection with the item API's largest page (its maximum is 100). */
 const COPY_SELECT_ALL_PAGE_SIZE = 100;
 
@@ -349,11 +362,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
   const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
   // 이름순 needs the whole Collection (see NAME_ORDER_MAX_LINKS): a larger one - known up front
-  // from its link count, or found while loading - stays on 일자순 instead of a partial name order.
+  // from its link count, or found while loading - stays on 시간순 instead of a partial name order.
   const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
   const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
   const effectiveSort = sortOption === 'title' && isNameOrderUnavailable ? 'newest' : sortOption;
-  // 일자순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
+  // 시간순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
   // expanded section's links from the server a page at a time (see useDateSectionPages). 이름순
   // loads the whole Collection first and sorts it here (see NAME_ORDER_MAX_LINKS).
   const dateSortDirection = effectiveSort === 'title' ? null : effectiveSort;
@@ -464,7 +477,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       return next;
     });
   };
-  /** 일자순: first press picks it (newest first); pressed again it flips ↓ newest ↔ ↑ oldest. */
+  /** 시간순: first press picks it (newest first); pressed again it flips ↓ newest ↔ ↑ oldest. */
   const pressDateSort = () => setSortOption(effectiveSort === 'newest' ? 'oldest' : 'newest');
   /** 이름순, unless this Collection is too large to be name-ordered as a whole - then it says so. */
   const pressNameSort = () => {
@@ -477,19 +490,32 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Who added each link - only where more than one person can add (see shouldShowItemAdders).
   const showItemAdders = shouldShowItemAdders(collection, items);
 
+  // A newer load supersedes an older one still in flight: only the latest response is applied, so a
+  // slow earlier request can never overwrite fresher state (e.g. the pending-approval count).
+  const collectionLoadIdRef = useRef(0);
   const loadCollection = useCallback(async () => {
+    const loadId = ++collectionLoadIdRef.current;
     setIsLoadingCollection(true);
     setCollectionError(null);
     try {
       const fetched = await getCollection(authenticatedRequest, collectionId);
+      if (loadId !== collectionLoadIdRef.current) {
+        return;
+      }
       setCollection(fetched);
       if (isCollaborative(fetched)) {
         getCollectionParticipants(authenticatedRequest, collectionId)
           .then(loaded => {
-            setParticipants(loaded);
-            setParticipantsFailed(false);
+            if (loadId === collectionLoadIdRef.current) {
+              setParticipants(loaded);
+              setParticipantsFailed(false);
+            }
           })
-          .catch(() => setParticipantsFailed(true));
+          .catch(() => {
+            if (loadId === collectionLoadIdRef.current) {
+              setParticipantsFailed(true);
+            }
+          });
       } else {
         setParticipants(null);
       }
@@ -501,11 +527,40 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         setMemberShareUrl(null);
       }
     } catch (caughtError) {
-      setCollectionError(getCollectionLoadErrorMessage(caughtError, t));
+      if (loadId === collectionLoadIdRef.current) {
+        setCollectionError(getCollectionLoadErrorMessage(caughtError, t));
+      }
     } finally {
-      setIsLoadingCollection(false);
+      if (loadId === collectionLoadIdRef.current) {
+        setIsLoadingCollection(false);
+      }
     }
   }, [authenticatedRequest, collectionId, t]);
+
+  // Pull-to-refresh reloads everything server-derived on this screen - the Collection itself (its
+  // 승인 대기 count, link count, participants, share state) AND its links - not just the link list.
+  // Works on its own even if a Push was missed. A second pull while one is running joins it instead
+  // of starting duplicate requests.
+  const refreshInFlightRef = useRef<Promise<unknown> | null>(null);
+  const refreshAll = useCallback(() => {
+    if (refreshInFlightRef.current) {
+      return;
+    }
+    refresh();
+    refreshInFlightRef.current = loadCollection().finally(() => {
+      refreshInFlightRef.current = null;
+    });
+  }, [loadCollection, refresh]);
+
+  // A Push about this open Collection (a proposal, a decision, new links...) refreshes the same state.
+  useLiveRefresh(
+    event => {
+      if (event === null || event.collectionId === collectionId) {
+        refreshAll();
+      }
+    },
+    LIVE_REFRESH_EVENTS,
+  );
 
   // Refetches the Collection's own metadata (Name/ItemCount/participants) on every focus - entirely
   // independent of useCollectionItems' own focus-driven Item list load, mirroring ItemDetailsScreen's
@@ -1252,7 +1307,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   /**
    * One link of this Collection as a swipeable List row or Grid tile - the same in the flat 이름순
-   * list and inside a 일자순 date section (which passes its accordion card's own row style).
+   * list and inside a 시간순 date section (which passes its accordion card's own row style).
    */
   const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>) => {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
@@ -1267,27 +1322,34 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const openItemMenu = () => { setActionMenuItem(item); setIsItemActionMenuVisible(true); };
     // Reactions: only in a Collection other people are in (shared with me, or mine with members), once its
     // content is open - never in a private one, and never in the public link's views.
+    const addedBy = showItemAdders ? describeItemAdder(item.addedBy, t) : null;
     const reactionState = reactionsEnabled ? itemReactions.reactionsOf(item.itemId, item) : null;
     const reactionFooter = reactionState ? (
       <ReactionChips
+        inline={addedBy !== null}
         onAdd={() => setReactionPickerItem(item)}
         onToggle={key => reactToItem(item, key)}
         reactions={reactionState}
         testID={`reaction-chips-${item.itemId}`}
       />
     ) : undefined;
-    const addedBy = showItemAdders ? describeItemAdder(item.addedBy, t) : null;
+    // The frame is the same one Home/History use (see savedLinkLayout.ts): a List card, or a Grid tile
+    // inside its 50% cell. A caller that places the item itself (a date section) passes its own frame.
+    const isGrid = viewMode === 'grid';
+    const wrapInGridCell = isGrid && containerStyle === undefined;
+    const frameStyle = containerStyle ?? (isGrid ? savedLinkGridLayout.swipeContainer : savedLinkLayout.card);
+    const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={savedLinkGridLayout.cell}>{node}</View> : node);
     if (selectedItemIds) {
       // 내 컬렉션으로 복사 selection: a tap only picks/unpicks - no swipe actions, menus or navigation.
       const isSelected = selectedItemIds.has(item.itemId);
-      return (
+      return inCell(
         <Pressable
           accessibilityLabel={item.title ?? item.url}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: isSelected, disabled: isCopying }}
           disabled={isCopying}
           onPress={() => toggleCopySelection(item.itemId)}
-          style={containerStyle ?? [styles.row, viewMode === 'grid' && styles.gridCard]}
+          style={frameStyle}
           testID={`collection-copy-select-${item.itemId}`}
         >
           <View>
@@ -1304,9 +1366,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         </Pressable>
       );
     }
-    return (
+    return inCell(
       <SwipeableItemRow
-        containerStyle={containerStyle ?? [styles.row, viewMode === 'grid' && styles.gridCard]}
+        containerStyle={frameStyle}
         disabled={itemActionInFlightId !== null || isRefreshing}
         // 컬렉션에서 제거 (never deletes anyone's Item): the Owner any link; a member only the links
         // they added themselves (their own Items) - the server enforces the same.
@@ -1332,12 +1394,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             a History section does - matches this row's own prior "always show the full date"
             behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
         {viewMode === 'grid' ? (
-          <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" footer={reactionFooter} isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
+          <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" reactions={reactionFooter} isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
         ) : (
           <SavedLinkRow
             addedBy={addedBy}
             dateDisplayMode="dateTime"
-            footer={reactionFooter}
+            reactions={reactionFooter}
             isActionInFlight={itemActionInFlightId === item.itemId}
             item={toSavedLinkRowItem(item)}
             preferEffectiveThumbnail
@@ -1498,36 +1560,37 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           preferences (see useViewModePreference/useSortPreference) - switching one never
           resets the other, this round's explicit requirement. */}
       <View style={styles.sortRow}>
-        <Pressable
-          accessibilityLabel={
-            effectiveSort === 'oldest' ? t('collections.sortDateOldestA11y') : t('collections.sortDateNewestA11y')
-          }
-          accessibilityRole="button"
-          accessibilityState={{ selected: dateSortDirection !== null }}
-          onPress={pressDateSort}
-          style={[styles.sortChip, dateSortDirection !== null && styles.sortChipSelected]}
-          testID="collection-sort-date"
-        >
-          <Text style={[styles.sortChipLabel, dateSortDirection !== null && styles.sortChipLabelSelected]}>
-            {dateSortDirection === null
-              ? t('collections.sortDate')
-              : `${t('collections.sortDate')} ${dateSortDirection === 'oldest' ? '↑' : '↓'}`}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ selected: effectiveSort === 'title' }}
-          onPress={pressNameSort}
-          style={[styles.sortChip, effectiveSort === 'title' && styles.sortChipSelected]}
-          testID="collection-sort-name"
-        >
-          <Text style={[styles.sortChipLabel, effectiveSort === 'title' && styles.sortChipLabelSelected]}>
-            {t('collections.sortName')}
-          </Text>
-        </Pressable>
+        <LinkSortChips
+          dateLabel={t('collections.sortDate')}
+          dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
+          dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
+          nameLabel={t('collections.sortName')}
+          onPressDate={pressDateSort}
+          onPressName={pressNameSort}
+          sort={effectiveSort}
+          testIDPrefix="collection-sort"
+        />
         <View style={styles.sortRowSpacer} />
         <ViewModeToggle onChange={changeViewMode} value={viewMode} />
       </View>
+      {/* A submitter's 내 승인 대기: MY OWN proposed links that the Owner has not answered yet - a long
+          action row of the same family as the Owner's 승인 대기 (same size, shape and shadow, neutral
+          color), directly under the sort / List-Grid controls and right before the first link. Separate
+          from the Owner's row: a different number for a different person, never merged. */}
+      {(collection.myPendingSubmissionCount ?? 0) > 0 ? (
+        <Pressable
+          accessibilityLabel={t('collections.myPendingSubmissionsA11y', { count: collection.myPendingSubmissionCount })}
+          accessibilityRole="button"
+          onPress={() => navigation.navigate('MyCollectionSubmissions', { collectionId })}
+          style={styles.myPendingRow}
+          testID="collection-details-my-pending"
+        >
+          <Text numberOfLines={2} style={styles.myPendingRowLabel}>
+            {t('collections.myPendingSubmissions', { count: collection.myPendingSubmissionCount })}
+          </Text>
+          <ChevronIcon color={colors.textSecondary} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
+        </Pressable>
+      ) : null}
       {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
 
       {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
@@ -1544,7 +1607,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   ) : isLoading ? (
     <View testID="collection-items-loading">
       {Array.from({ length: FIRST_PAGE_SKELETON_ROWS }, (_, index) => (
-        <View key={index} style={[styles.row, styles.skeletonRow]}>
+        <View key={index} style={[savedLinkLayout.card, styles.skeletonRow]}>
           <SavedLinkRowSkeleton testID="collection-items-skeleton" />
         </View>
       ))}
@@ -1569,8 +1632,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         return (
           <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} testID={`collection-date-grid-${row.section.key}-${row.position}`}>
             {row.items.map(item => (
-              <View key={item.itemId} style={styles.gridCard}>
-                {renderCollectionItem(item, styles.gridCardInner)}
+              <View key={item.itemId} style={savedLinkGridLayout.cell}>
+                {renderCollectionItem(item, savedLinkGridLayout.swipeContainer)}
               </View>
             ))}
           </DateSectionGridRow>
@@ -1612,7 +1675,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           removeClippedSubviews={Platform.OS === 'android'}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
@@ -1630,7 +1693,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           maxToRenderPerBatch={10}
           windowSize={7}
           removeClippedSubviews={Platform.OS === 'android'}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty}
           onScrollBeginDrag={closeOpenRow}
@@ -1884,6 +1947,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <CollectionParticipantsSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
+        initialData={participants}
         onChanged={loadCollection}
         onClose={() => setIsParticipantsSheetVisible(false)}
         runUnlocked={runUnlocked}
@@ -2001,6 +2065,23 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     ...cardShadow,
   },
+  // The Owner's pendingRow geometry (the same family), in neutral colors; the controls row above already
+  // carries the gap, this one the gap to the first link.
+  myPendingRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: LINK_CONTROLS_BOTTOM_GAP,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...cardShadow,
+  },
+  myPendingRowLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
   pendingRowLabel: { color: colors.brand, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
   itemCount: {
     color: colors.textSecondary,
@@ -2027,20 +2108,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
   },
-  // Exactly Home's own `card` (see DailyInboxScreen) - passed as SwipeableItemRow's containerStyle,
-  // the same way Home/History use it.
-  row: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginTop: spacing.sm + 2,
-  },
-  // Mirrors DailyInboxScreen's identical gridCard - 2 columns, no card border/background (the
-  // thumbnail itself is the visual focus, matching Category tile's "icon + name" density).
-  gridCard: { flexBasis: '50%', marginTop: spacing.sm, paddingHorizontal: 2 },
-  // A tile inside a date card's grid row: the row cell (gridCard) already spaces it.
-  gridCardInner: { flex: 1 },
   selectionMark: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -2081,27 +2148,8 @@ const styles = StyleSheet.create({
   selectionPrimary: { backgroundColor: colors.brand },
   selectionPrimaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   skeletonRow: { overflow: 'hidden' },
-  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
+  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
   sortRowSpacer: { flex: 1 },
-  sortChip: {
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 2,
-  },
-  sortChipSelected: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
-  },
-  sortChipLabel: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  sortChipLabelSelected: {
-    color: colors.surface,
-  },
   disabledButton: {
     opacity: 0.5,
   },

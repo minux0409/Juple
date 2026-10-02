@@ -105,6 +105,10 @@ public sealed class CollectionStore(
                     dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id)
                     || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive))
                 .Concat(sharedWithMe),
+            // Member Collections with a proposal of the caller's own still waiting: one EXISTS on the
+            // indexed CollectionLinkSubmissions (CollectionId / SubmittedByUserId), inside the same statement.
+            CollectionListScope.MyPending => sharedWithMe.Where(collection =>
+                dbContext.CollectionLinkSubmissions.Any(submission => submission.CollectionId == collection.Id && submission.SubmittedByUserId == userId)),
             _ => owned.Concat(sharedWithMe),
         };
 
@@ -213,6 +217,10 @@ public sealed class CollectionStore(
             PendingSubmissionCount = collection.UserId == userId
                 ? dbContext.CollectionLinkSubmissions.Count(submission => submission.CollectionId == collection.Id)
                 : 0,
+            // A submitter's own waiting proposals (indexed by CollectionId / SubmittedByUserId) - never the Owner's.
+            MyPendingSubmissionCount = collection.UserId == userId
+                ? 0
+                : dbContext.CollectionLinkSubmissions.Count(submission => submission.CollectionId == collection.Id && submission.SubmittedByUserId == userId),
             // The caller's own unread 새 링크 notifications about this Collection - a seek on the small
             // filtered IX_Notifications_Unread, inside this same statement (Types as literals so it matches).
             UnreadNewLinkCount = dbContext.Notifications.Count(notification =>
@@ -331,7 +339,8 @@ public sealed class CollectionStore(
                 IsSharePasswordProtected: row.SharePasswordMode == CollectionSharePasswordMode.PerCollection,
                 PendingSubmissionCount: isOwner ? row.PendingSubmissionCount : 0,
                 UnreadNewLinkCount: row.UnreadNewLinkCount,
-                AttentionCount: (isOwner ? row.PendingSubmissionCount : 0) + row.UnreadNewLinkCount);
+                AttentionCount: (isOwner ? row.PendingSubmissionCount : 0) + row.UnreadNewLinkCount,
+                MyPendingSubmissionCount: isOwner ? 0 : row.MyPendingSubmissionCount);
         }).ToList();
     }
 
@@ -364,6 +373,8 @@ public sealed class CollectionStore(
         public bool IsPublicShareActive { get; init; }
 
         public int PendingSubmissionCount { get; init; }
+
+        public int MyPendingSubmissionCount { get; init; }
 
         public int UnreadNewLinkCount { get; init; }
 

@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "الرئيسية",
-    "history": "السجل",
+    "history": "الأرشيف",
     "collections": "المجموعات",
     "myPage": "صفحتي"
   },
@@ -55,6 +55,7 @@
     "trash": "المحذوفة مؤخرًا",
     "collectionSharedItem": "رابط مُشارَك",
     "collectionSubmissions": "روابط بانتظار الموافقة",
+    "myCollectionSubmissions": "موافقاتي المعلّقة",
     "collectionShare": "مشاركة",
     "collectionLockSettings": "قفل المجموعات"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "تعذّر حذف العنصر."
   },
   "history": {
-    "title": "السجل",
+    "title": "الأرشيف",
+    "searchPlaceholder": "البحث في الروابط",
+    "searchClear": "مسح البحث",
+    "searchEmpty": "لا توجد نتائج.",
+    "searchError": "تعذّر البحث.",
     "empty": "لم تُحفظ أي روابط بعد.",
     "errorLoadFallback": "تعذّر تحميل سجلك.",
     "today": "اليوم",
@@ -97,11 +102,11 @@
     "namePlaceholder": "اسم المجموعة",
     "editTitle": "تعديل المجموعة",
     "createAction": "إنشاء",
-    "sortDate": "التاريخ",
+    "sortDate": "الوقت",
     "sortName": "الاسم",
     "sortRecent": "الأحدث",
-    "sortDateNewestA11y": "التاريخ، الأحدث أولاً",
-    "sortDateOldestA11y": "التاريخ، الأقدم أولاً",
+    "sortDateNewestA11y": "الوقت، الأحدث أولاً",
+    "sortDateOldestA11y": "الوقت، الأقدم أولاً",
     "sortNameTooLarge": "لا يمكن بعد ترتيب المجموعات التي تضم أكثر من {{max}} رابط حسب الاسم.",
     "itemCount": "تم حفظ {{count}}",
     "newLinkNotificationsError": "تعذّر تغيير إعداد الإشعارات. حاول مرة أخرى.",
@@ -131,7 +136,10 @@
     "copyClearAll": "إلغاء تحديد الكل",
     "copyClearAllA11y": "إلغاء كل التحديد",
     "copySelectUpTo": "تحديد حتى {{max}}",
-    "detailItemCount": "روابط المجموعة: {{count}}",
+    "detailItemCount": "الإجمالي: {{count}}",
+    "myPendingSubmissions": "طلباتي المعلّقة {{count}}",
+    "myPendingSubmissionsA11y": "عرض روابطي الـ {{count}} التي تنتظر الموافقة",
+    "myPendingA11y": "موافقاتي المعلّقة: {{count}}",
     "favoritesTitle": "المفضّلة",
     "allCollectionsTitle": "جميع المجموعات",
     "addFavorite": "إضافة إلى المفضّلة",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "إدارة الحساب",
-    "signInMethod": "طريقة تسجيل الدخول",
     "methodEmail": "البريد الإلكتروني",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "إفراغ",
+    "deleting": "جارٍ الحذف...",
     "empty": "لا توجد روابط محذوفة مؤخرًا.",
     "loadError": "تعذّر تحميل سجل الحذف.",
     "restoreA11y": "استعادة",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "لا توجد روابط بانتظار الموافقة.",
+    "myEmpty": "لا توجد روابط لي بانتظار الموافقة.",
+    "myLoadError": "تعذّر تحميل روابطي المعلّقة.",
+    "myStatus": "بانتظار الموافقة",
     "loadError": "تعذّر تحميل الروابط بانتظار الموافقة.",
     "approve": "موافقة",
     "reject": "رفض",

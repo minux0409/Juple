@@ -1,6 +1,7 @@
 import { KeyIcon } from '../../icons/KeyIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Image, StyleSheet, Text, TextInput } from 'react-native';
+import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
@@ -8,6 +9,7 @@ import { CollectionsScreen } from '../CollectionsScreen';
 import {
   createCollection,
   getCollections,
+  getMyPendingSubmissionTotal,
   setCollectionFavorite,
   type Collection,
   type GetCollectionsOptions,
@@ -94,6 +96,7 @@ const favoriteCollections = [ownedCollection];
 
 /** The server does the scoping - the screen only ever asks for one scope per filter. */
 function setUpGetCollectionsMock(): void {
+  jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(0);
   jest.mocked(getCollections).mockImplementation(
     async (_request, options: GetCollectionsOptions = {}) => {
       switch (options.scope) {
@@ -1114,5 +1117,149 @@ describe('CollectionsScreen attention badge (approvals waiting + unread new link
     expect(afterSubmission).toBeGreaterThan(before);
     await act(async () => emitSocialPushEvent({ type: 'collectionItemsAdded', collectionId: 1 }));
     expect(jest.mocked(getCollections).mock.calls.length).toBeGreaterThan(afterSubmission);
+  });
+});
+
+describe('CollectionsScreen - 내 승인 대기 filter (the Collections that hold my waiting links)', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  const normal = [makeCollection({ id: 1, name: 'Plain', accessRole: 'owner' }), makeCollection({ id: 2, name: 'Shared', accessRole: 'submitter' })];
+  const withMine = [
+    makeCollection({ id: 2, name: 'Shared', accessRole: 'submitter', myPendingSubmissionCount: 2 }),
+    makeCollection({ id: 3, name: 'Trip', accessRole: 'submitter', myPendingSubmissionCount: 1 }),
+  ];
+
+  /** The server does the filtering: myPending returns only `pending`, every other scope `normal`. */
+  async function renderIn(mode: 'grid' | 'list', total: number, pending: Collection[] = withMine) {
+    jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(total);
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => ({
+      items: options.scope === 'myPending' ? pending : normal,
+      nextCursor: null,
+    }));
+    const renderer = await renderScreen();
+    if (mode === 'list') {
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      await act(async () => {
+        listToggle.props.onPress();
+      });
+    }
+    return renderer;
+  }
+  const button = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'collections-filter-my-pending' && typeof node.props.onPress === 'function')[0];
+  const buttonText = (renderer: ReactTestRenderer.ReactTestRenderer) => button(renderer)?.findAllByType(Text).map(text => String(text.props.children));
+  const select = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    await act(async () => {
+      button(renderer).props.onPress();
+    });
+  };
+  const shownIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    (renderer.root.findByType(FlatList).props.data as Collection[]).map(collection => collection.id);
+  const filterCell = (renderer: ReactTestRenderer.ReactTestRenderer, option: string) =>
+    renderer.root.findAll(node => node.props.testID === `collections-filter-${option}` && typeof node.props.onPress === 'function')[0];
+
+  it('nothing is attached to the 공유 컬렉션 tab any more - it is the plain tab', async () => {
+    const renderer = await renderIn('grid', 5);
+
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-filter-shared-my-pending')).toHaveLength(0);
+    expect(filterCell(renderer, 'shared').props.accessibilityLabel).toBeUndefined();
+    expect(filterCell(renderer, 'shared').findAllByType(Text).map(text => String(text.props.children))).toEqual([i18n.t('collections.sharedCategoriesTab')]);
+  });
+
+  it('a full-width 내 승인 대기 N row sits right under the four filters (the same group), neutral, hidden at 0', async () => {
+    expect(button(await renderIn('grid', 0))).toBeUndefined();
+
+    const renderer = await renderIn('grid', 3);
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '3' })]);
+    expect(button(renderer).props.accessibilityLabel).toBe(i18n.t('collections.myPendingA11y', { count: 3 }));
+    const style = StyleSheet.flatten(button(renderer).props.style);
+    expect(style).toMatchObject({ alignSelf: 'stretch' });
+    expect(style.backgroundColor).not.toBe(colors.danger);
+    // Order inside the header: the four filters, then this row.
+    const order = renderer.root
+      .findAll(node => typeof node.type === 'string' && /^collections-filter-(favorites|all|owned|shared|my-pending)$/.test(String(node.props.testID)))
+      .map(node => node.props.testID);
+    expect(order).toEqual(['collections-filter-favorites', 'collections-filter-all', 'collections-filter-owned', 'collections-filter-shared', 'collections-filter-my-pending']);
+  });
+
+  it('caps the number at 99+ in the label, and says the real count to assistive technology', async () => {
+    const renderer = await renderIn('grid', 130);
+
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '99+' })]);
+    expect(button(renderer).props.accessibilityLabel).toBe(i18n.t('collections.myPendingA11y', { count: 130 }));
+  });
+
+  it.each(['grid', 'list'] as const)('%s: tapping it asks the server for the myPending scope and shows exactly those Collections - plain cards, no pill', async mode => {
+    const renderer = await renderIn(mode, 3);
+    expect(shownIds(renderer)).toEqual([1, 2]); // the default filter's list
+
+    await select(renderer);
+
+    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: 'myPending' }));
+    expect(shownIds(renderer)).toEqual([2, 3]);
+    expect(button(renderer).props.accessibilityState).toEqual({ selected: true });
+    for (const option of ['favorites', 'all', 'owned', 'shared']) {
+      expect(filterCell(renderer, option).props.accessibilityState).toEqual({ selected: false });
+    }
+    // The cards are the normal ones: nothing about my pending on them.
+    expect(renderer.root.findAll(node => /my-pending|status-slot/.test(String(node.props.testID ?? '')) && node.props.testID !== 'collections-filter-my-pending')).toHaveLength(0);
+    const labels = renderer.root.findAll(node => typeof node.props.accessibilityLabel === 'string' && node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function').map(node => node.props.accessibilityLabel as string);
+    expect(labels.some(label => label.includes(i18n.t('collections.myPendingA11y', { count: 2 })))).toBe(false);
+  });
+
+  it('picking any of the four again leaves the filter', async () => {
+    const renderer = await renderIn('grid', 3);
+    await select(renderer);
+    expect(shownIds(renderer)).toEqual([2, 3]);
+
+    await act(async () => {
+      filterCell(renderer, 'all').props.onPress();
+    });
+
+    expect(getCollections).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ scope: 'all' }));
+    expect(shownIds(renderer)).toEqual([1, 2]);
+    expect(button(renderer).props.accessibilityState).toEqual({ selected: false });
+    expect(filterCell(renderer, 'all').props.accessibilityState).toEqual({ selected: true });
+  });
+
+  it('a result Push refreshes both the number and the open list; at 0 the list is a stable empty state, the row stays while active', async () => {
+    const renderer = await renderIn('grid', 3);
+    await select(renderer);
+    expect(shownIds(renderer)).toEqual([2, 3]);
+
+    jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(0);
+    jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => ({
+      items: options.scope === 'myPending' ? [] : normal,
+      nextCursor: null,
+    }));
+    await act(async () => emitSocialPushEvent({ type: 'collectionLinkSubmissionApproved', collectionId: 2 }));
+
+    expect(shownIds(renderer)).toEqual([]);
+    expect(renderer.root.findAllByType(Text).map(text => String(text.props.children))).toContain(i18n.t('submissions.myEmpty'));
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '0' })]);
+    expect(button(renderer).props.accessibilityState).toEqual({ selected: true });
+    // Leaving it, the row goes away with the count.
+    await act(async () => {
+      filterCell(renderer, 'all').props.onPress();
+    });
+    expect(button(renderer)).toBeUndefined();
+  });
+
+  it('the total is one aggregate request alongside the list (focus / pull-to-refresh / Push), never per card and never polled', async () => {
+    const renderer = await renderIn('grid', 2);
+    const initial = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
+    expect(initial).toBeGreaterThanOrEqual(1);
+
+    jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(5);
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.refreshControl.props.onRefresh();
+    });
+    expect(buttonText(renderer)).toEqual([i18n.t('collections.myPendingSubmissions', { count: '5' })]);
+    const afterRefresh = jest.mocked(getMyPendingSubmissionTotal).mock.calls.length;
+    await act(async () => emitSocialPushEvent({ type: 'collectionItemReaction', collectionId: 1 }));
+    expect(jest.mocked(getMyPendingSubmissionTotal).mock.calls.length).toBe(afterRefresh);
   });
 });

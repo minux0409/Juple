@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "Главная",
-    "history": "История",
+    "history": "Архив",
     "collections": "Коллекции",
     "myPage": "Мой профиль"
   },
@@ -55,6 +55,7 @@
     "trash": "Недавно удалённые",
     "collectionSharedItem": "Общая ссылка",
     "collectionSubmissions": "Ссылки на одобрении",
+    "myCollectionSubmissions": "Мои ссылки на одобрении",
     "collectionShare": "Поделиться",
     "collectionLockSettings": "Блокировка коллекций"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "Не удалось удалить элемент."
   },
   "history": {
-    "title": "История",
+    "title": "Архив",
+    "searchPlaceholder": "Поиск ссылок",
+    "searchClear": "Очистить поиск",
+    "searchEmpty": "Ничего не найдено.",
+    "searchError": "Не удалось выполнить поиск.",
     "empty": "Вы ещё не сохранили ни одной ссылки.",
     "errorLoadFallback": "Не удалось загрузить историю.",
     "today": "Сегодня",
@@ -97,11 +102,11 @@
     "namePlaceholder": "Название коллекции",
     "editTitle": "Изменить коллекцию",
     "createAction": "Создать",
-    "sortDate": "По дате",
+    "sortDate": "По времени",
     "sortName": "По названию",
     "sortRecent": "Сначала новые",
-    "sortDateNewestA11y": "По дате, сначала новые",
-    "sortDateOldestA11y": "По дате, сначала старые",
+    "sortDateNewestA11y": "По времени, сначала новые",
+    "sortDateOldestA11y": "По времени, сначала старые",
     "sortNameTooLarge": "Коллекции, где больше {{max}} ссылок, пока нельзя сортировать по названию.",
     "itemCount": "Сохранено: {{count}}",
     "newLinkNotificationsError": "Не удалось изменить настройку уведомлений. Попробуйте ещё раз.",
@@ -131,7 +136,10 @@
     "copyClearAll": "Снять выбор",
     "copyClearAllA11y": "Снять весь выбор",
     "copySelectUpTo": "Выбрать до {{max}}",
-    "detailItemCount": "Ссылки в коллекции: {{count}}",
+    "detailItemCount": "Всего: {{count}}",
+    "myPendingSubmissions": "Мои на одобрении {{count}}",
+    "myPendingSubmissionsA11y": "Показать мои ссылки на одобрении: {{count}}",
+    "myPendingA11y": "Мои ссылки на одобрении: {{count}}",
     "favoritesTitle": "Избранное",
     "allCollectionsTitle": "Все коллекции",
     "addFavorite": "Добавить в избранное",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "Управление учётной записью",
-    "signInMethod": "Способ входа",
     "methodEmail": "Эл. почта",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "Очистить",
+    "deleting": "Удаление...",
     "empty": "Нет недавно удалённых ссылок.",
     "loadError": "Не удалось загрузить историю удалений.",
     "restoreA11y": "Восстановить",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "Нет ссылок, ожидающих одобрения.",
+    "myEmpty": "Ни одна из моих ссылок не ждёт одобрения.",
+    "myLoadError": "Не удалось загрузить мои ссылки на одобрении.",
+    "myStatus": "Ожидает одобрения",
     "loadError": "Не удалось загрузить ссылки на одобрении.",
     "approve": "Одобрить",
     "reject": "Отклонить",

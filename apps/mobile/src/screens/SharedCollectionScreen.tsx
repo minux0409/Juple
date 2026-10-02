@@ -13,7 +13,8 @@ import {
   type PublicCollection,
   type PublicCollectionItem,
 } from '../collections/api/publicCollectionsApi';
-import { addLinkToPublicCollection } from '../collections/api/publicShareWriteApi';
+import { addLinkToPublicCollection, getMyPublicSubmissions } from '../collections/api/publicShareWriteApi';
+import { ChevronIcon } from '../icons/ChevronIcon';
 import { usePublicCollectionItems } from '../collections/usePublicCollectionItems';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -34,7 +35,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
  * viewer is signed in, they may add a link of their own - that single call uses their session (see
  * publicShareWriteApi); reading still never does. Signed out, the add area only says to sign in.
  */
-export function SharedCollectionScreen({ route }: Props) {
+export function SharedCollectionScreen({ route, navigation }: Props) {
   const { publicId } = route.params;
   const { t } = useTranslation();
   // A stack screen, not a tab screen - see CollectionDetailsScreen's identical remark.
@@ -51,6 +52,9 @@ export function SharedCollectionScreen({ route }: Props) {
   const [newUrl, setNewUrl] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const isAddingRef = useRef(false);
+  // A signed-in viewer's OWN links waiting for the Owner through this link (승인 후 추가) - the one number
+  // this public view may show beyond the links: never the Owner's queue, never anyone else's.
+  const [myPendingCount, setMyPendingCount] = useState(0);
   const [addMessage, setAddMessage] = useState<{ kind: 'error' | 'done'; text: string } | null>(null);
 
   const addErrorMessage = (error: unknown): string => {
@@ -87,6 +91,7 @@ export function SharedCollectionScreen({ route }: Props) {
       if (outcome === 'submitted') {
         // 승인 후 추가: it waits for the Owner - nothing new in the list yet.
         setAddMessage({ kind: 'done', text: t('collections.linkSubmitted') });
+        loadMyPending().catch(() => undefined);
       } else {
         setAddMessage({ kind: 'done', text: t('sharedCollection.addDone') });
         await reload();
@@ -121,6 +126,27 @@ export function SharedCollectionScreen({ route }: Props) {
     useCallback(() => {
       loadCollection();
     }, [loadCollection]),
+  );
+
+  // Own pending count: only for a signed-in viewer of a link that is open to them (not password-locked
+  // here). Any failure - the link was switched off, no session - simply shows nothing (never an error).
+  const isOpenToViewer = isAuthenticated && collection !== null && !collection.isLocked;
+  const loadMyPending = useCallback(async () => {
+    if (!isOpenToViewer) {
+      setMyPendingCount(0);
+      return;
+    }
+    try {
+      const page = await getMyPublicSubmissions(authenticatedRequest, publicId);
+      setMyPendingCount(page.totalCount ?? page.items.length);
+    } catch {
+      setMyPendingCount(0);
+    }
+  }, [authenticatedRequest, isOpenToViewer, publicId]);
+  useFocusEffect(
+    useCallback(() => {
+      loadMyPending().catch(() => undefined);
+    }, [loadMyPending]),
   );
 
   const openItem = async (item: PublicCollectionItem) => {
@@ -164,6 +190,18 @@ export function SharedCollectionScreen({ route }: Props) {
         ListHeaderComponent={
           <View>
             <Text style={styles.title}>{collection.name}</Text>
+            {myPendingCount > 0 ? (
+              <Pressable
+                accessibilityLabel={t('collections.myPendingSubmissionsA11y', { count: myPendingCount })}
+                accessibilityRole="button"
+                onPress={() => navigation.navigate('MyCollectionSubmissions', { publicId })}
+                style={styles.myPendingRow}
+                testID="shared-collection-my-pending"
+              >
+                <Text numberOfLines={2} style={styles.myPendingLabel}>{t('collections.myPendingSubmissions', { count: myPendingCount })}</Text>
+                <ChevronIcon color={colors.textSecondary} direction="right" size={16} />
+              </Pressable>
+            ) : null}
             {(collection.permission === 'write' || collection.permission === 'submit') && !collection.isLocked ? (
               <View style={styles.addCard} testID="shared-collection-add">
                 {isAuthenticated ? (
@@ -281,6 +319,20 @@ const styles = StyleSheet.create({
   footerLoading: {
     paddingVertical: 20,
   },
+  myPendingRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+    minHeight: minTouchTarget,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  myPendingLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
   addCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

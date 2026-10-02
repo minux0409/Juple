@@ -25,6 +25,24 @@ public sealed record CollectionLinkSubmissionDto(
     bool ViaPublicShare,
     CollectionItemAdderDto? Proposer);
 
+/// <summary>
+/// One of the caller's OWN links still waiting for the Owner's approval (승인 후 추가), as its submitter
+/// sees it: the link they proposed and when - never an internal id of anyone, nor any other proposer.
+/// </summary>
+public sealed record MyCollectionLinkSubmissionDto(
+    long SubmissionId,
+    string Url,
+    string? Title,
+    string? PreviewImageUrl,
+    DateTimeOffset SubmittedAtUtc);
+
+/// <summary>
+/// Newest first; NextCursor = the last row's submissionId (null on the last page). TotalCount is how many
+/// of the CALLER's OWN proposals wait in this Collection (one indexed count) - the number a public
+/// submitter's screen shows, without any other count (nobody else's, never the Owner's queue).
+/// </summary>
+public sealed record MyCollectionLinkSubmissionPage(IReadOnlyList<MyCollectionLinkSubmissionDto> Items, long? NextCursor, int TotalCount = 0);
+
 public sealed record CollectionLinkSubmissionPage(IReadOnlyList<CollectionLinkSubmissionDto> Items, long? NextCursor);
 
 /// <summary>The approved proposal, for the notifications that follow it.</summary>
@@ -56,6 +74,21 @@ public interface ICollectionLinkSubmissionStore
     Task<CollectionLinkSubmissionPage> ListAsync(long collectionId, long? afterSubmissionId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Only userId's own waiting proposals in this Collection, newest first (cursor = the last row's id).
+    /// A proposal waits exactly as long as its row exists - approving or rejecting deletes it - so this
+    /// is "still pending" by construction.
+    /// </summary>
+    Task<MyCollectionLinkSubmissionPage> ListMineAsync(long collectionId, long userId, long? beforeSubmissionId, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// How many of userId's own proposals wait in ALL the Collections of their shared list (those they
+    /// are a member of and that still exist) - one set-based count, never one per Collection and never a
+    /// page of rows. A proposal made through a public link as a non-member is not in it: that Collection
+    /// is not in their list.
+    /// </summary>
+    Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// In one transaction under the Collection's row lock: the proposal becomes an ordinary link of
     /// the proposer's Item (added by them, through the public link if it came that way) and is
     /// deleted. CollectionLinkSubmissionNotFoundException when it is not (or no longer) waiting -
@@ -71,6 +104,12 @@ public interface ICollectionLinkSubmissionStore
 
 public interface ICollectionLinkSubmissionService
 {
+    /// <summary>The caller's own waiting proposals across their shared Collections (the 공유 컬렉션 tab's number).</summary>
+    Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>The caller's own waiting proposals in this Collection (SubmitLink - i.e. a 승인 후 추가 member), behind the same content gate as the links.</summary>
+    Task<MyCollectionLinkSubmissionPage> ListMineAsync(long userId, long collectionId, long? cursor, int limit, string? unlockToken, CancellationToken cancellationToken = default);
+
     Task<CollectionLinkSubmissionPage> ListAsync(long userId, long collectionId, long? cursor, int limit, string? unlockToken, CancellationToken cancellationToken = default);
 
     Task ApproveAsync(long userId, long collectionId, long submissionId, string? unlockToken, CancellationToken cancellationToken = default);
@@ -104,6 +143,23 @@ public sealed class CollectionLinkSubmissionService(
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.ReviewSubmissions, unlockToken, cancellationToken);
         return await store.ListAsync(collectionId, cursor, Math.Clamp(limit, 1, MaxPageSize), cancellationToken);
+    }
+
+    public Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default) =>
+        store.CountMineInSharedCollectionsAsync(userId, cancellationToken);
+
+    public async Task<MyCollectionLinkSubmissionPage> ListMineAsync(
+        long userId,
+        long collectionId,
+        long? cursor,
+        int limit,
+        string? unlockToken,
+        CancellationToken cancellationToken = default)
+    {
+        // The caller is always the filter - there is no way to ask for anyone else's proposals - and the
+        // Owner (who has no proposals of their own, they add directly) and Contributors/Viewers are refused.
+        await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.SubmitLink, unlockToken, cancellationToken);
+        return await store.ListMineAsync(collectionId, userId, cursor, Math.Clamp(limit, 1, MaxPageSize), cancellationToken);
     }
 
     public async Task ApproveAsync(

@@ -59,6 +59,14 @@ describe('AccountManagementScreen', () => {
     expect(Clipboard.setString).not.toHaveBeenCalled();
   });
 
+  it('has no 로그인 방식 heading - the account row starts with the method itself', async () => {
+    const renderer = await renderWith('email');
+
+    const rowTexts = texts(renderer.root.findByProps({ testID: 'account-sign-in-method' }));
+    expect(rowTexts[0]).toBe(i18n.t('account.methodEmail'));
+    expect(JSON.stringify(texts(renderer.root))).not.toContain('로그인 방식');
+  });
+
   it('an email account shows 이메일 with its address, and offers 비밀번호 재설정 (never "변경")', async () => {
     const renderer = await renderWith('email');
 

@@ -50,6 +50,9 @@ public sealed class ItemsController(
     /// to SavedAtUtc in [fromUtc, toUtc): one History section's window, as given by
     /// GET /api/v1/items/history/sections - same order, cursor and page shape, and a cursor from a
     /// window only ever continues inside that window.
+    /// Optional q (2-100 characters after trimming) searches the caller's OWN whole archive instead -
+    /// title, link (host / site) or memo contain it - newest first, same cursor/page shape; it cannot
+    /// be combined with fromUtc/toUtc, and Trash is never searched.
     /// </summary>
     [HttpGet("history")]
     public async Task<IActionResult> GetHistoryAsync(
@@ -57,8 +60,22 @@ public sealed class ItemsController(
         [FromQuery] string? cursor,
         CancellationToken cancellationToken,
         [FromQuery] DateTimeOffset? fromUtc = null,
-        [FromQuery] DateTimeOffset? toUtc = null)
+        [FromQuery] DateTimeOffset? toUtc = null,
+        [FromQuery] string? q = null)
     {
+        string? searchTerm = null;
+        if (q is not null)
+        {
+            searchTerm = ItemSearchPattern.Normalize(q);
+            if (searchTerm is null || fromUtc is not null || toUtc is not null)
+            {
+                return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["q"] = [$"q must be {ItemSearchPattern.MinLength}-{ItemSearchPattern.MaxLength} characters and cannot be combined with fromUtc/toUtc."],
+                }));
+            }
+        }
+
         if (fromUtc is { } from && toUtc is { } to && to <= from)
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -91,7 +108,7 @@ public sealed class ItemsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = fromUtc is null && toUtc is null
-                ? await getItemHistoryService.GetAsync(currentUser.UserId, typedCursor, resolvedLimit, cancellationToken)
+                ? await getItemHistoryService.GetAsync(currentUser.UserId, typedCursor, resolvedLimit, searchTerm, cancellationToken)
                 : await getItemHistoryService.GetRangeAsync(
                     currentUser.UserId,
                     fromUtc ?? DateTimeOffset.MinValue,

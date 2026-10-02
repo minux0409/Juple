@@ -289,4 +289,50 @@ describe('TrashScreen empty trash', () => {
     expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
     expect(findTextValues(renderer)).not.toContain(i18n.t('trash.emptyTrashSuccess'));
   });
+
+  const progress = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByProps({ testID: 'trash-empty-progress' }).find(node => typeof node.type !== 'string');
+
+  async function startEmpty(renderer: ReactTestRenderer.ReactTestRenderer) {
+    await act(async () => {
+      findPressableContainingText(renderer, i18n.t('trash.emptyAction'))!.props.onPress();
+    });
+    await act(async () => {
+      await getConfirmDialogButton(renderer, i18n.t('common.delete')).props.onPress();
+    });
+  }
+
+  it('blocks the screen with the deleting overlay while the request runs, and a second confirm starts nothing', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
+    let resolveEmpty!: () => void;
+    jest.mocked(emptyTrash).mockReturnValue(new Promise<void>(resolve => { resolveEmpty = resolve; }));
+    const renderer = await renderScreen();
+    expect(progress(renderer)!.props.visible).toBe(false);
+
+    await startEmpty(renderer);
+
+    expect(progress(renderer)!.props.visible).toBe(true);
+    expect(progress(renderer)!.props.message).toBe(i18n.t('trash.deleting'));
+    // The Empty button is disabled and the confirmation is gone - nothing can start a second request.
+    expect(findPressableContainingText(renderer, i18n.t('trash.emptyAction'))!.props.disabled).toBe(true);
+    expect(renderer.root.findAll(node => node.type === Modal && node.props.visible === true)).toHaveLength(1);
+    expect(emptyTrash).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveEmpty();
+    });
+    expect(progress(renderer)!.props.visible).toBe(false);
+    expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
+  });
+
+  it('on failure the overlay goes away, the rows stay and the common error dialog is shown', async () => {
+    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
+    jest.mocked(emptyTrash).mockRejectedValue(new Error('boom'));
+    const renderer = await renderScreen();
+
+    await startEmpty(renderer);
+
+    expect(progress(renderer)!.props.visible).toBe(false);
+    expect(findTextValues(renderer)).toContain(i18n.t('trash.emptyTrashError'));
+    expect(findTextValues(renderer)).not.toContain(i18n.t('trash.empty'));
+  });
 });

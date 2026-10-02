@@ -1,9 +1,12 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionParticipantsSheet } from '../CollectionParticipantsSheet';
 import { formatParticipantSummary } from '../participantSummary';
 import { CrownIcon } from '../../icons/CrownIcon';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
+import { UserAvatar } from '../../components/UserAvatar';
+import { StyleSheet } from 'react-native';
 import {
   getCollectionParticipants,
   participantRoleLabelKey,
@@ -11,6 +14,17 @@ import {
   revokeCollectionInvitation,
   type CollectionParticipants,
 } from '../api/collaborationApi';
+
+const mockPrefs = new Map<string, string>();
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async (key: string) => mockPrefs.get(key) ?? null),
+    setItem: jest.fn(async (key: string, value: string) => {
+      mockPrefs.set(key, value);
+    }),
+  },
+}));
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -28,6 +42,7 @@ beforeAll(async () => {
 });
 
 afterEach(() => jest.clearAllMocks());
+beforeEach(() => mockPrefs.clear());
 
 const members = [
   { jupleId: 'WNER2345', displayName: '피카츄', role: 'owner' },
@@ -46,6 +61,26 @@ async function renderSheet(data: CollectionParticipants) {
 }
 
 describe('CollectionParticipantsSheet', () => {
+  it('opens with the list the screen already holds - its first frame has the final rows, no spinner placeholder that later grows', () => {
+    // The request never resolves: whatever is shown is the very first frame.
+    jest.mocked(getCollectionParticipants).mockReturnValue(new Promise(() => undefined));
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(
+        <CollectionParticipantsSheet
+          authenticatedRequest={jest.fn() as never}
+          collectionId={5}
+          initialData={{ participants: [{ jupleId: 'WNER2345', displayName: '피카츄', role: 'owner', isMe: false }], pendingInvitations: [], canManage: false }}
+          onClose={jest.fn()}
+          visible
+        />,
+      );
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-WNER2345' }).length).toBeGreaterThan(0);
+    expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+  });
+
   it('appears at once - no slide-up animation dragging the dim backdrop up from the bottom', async () => {
     const renderer = await renderSheet({ participants: [{ jupleId: 'WNER2345', displayName: '쥬플리', role: 'owner', isMe: true }], pendingInvitations: [], canManage: false });
 
@@ -150,5 +185,186 @@ describe('formatParticipantSummary', () => {
   it('is null for a Collection nobody else is in', () => {
     expect(formatParticipantSummary({ participantPreview: null, otherParticipantCount: 0 }, t)).toBeNull();
     expect(formatParticipantSummary({}, t)).toBeNull();
+  });
+});
+
+describe('CollectionParticipantsSheet - List / Grid', () => {
+  const data: CollectionParticipants = {
+    participants: [
+      { jupleId: 'WNER2345', displayName: '피카츄', role: 'owner', isMe: false },
+      { jupleId: 'CNTRB234', displayName: null, role: 'contributor', isMe: false },
+    ],
+    pendingInvitations: [{ invitationId: 4, jupleId: 'PNDG2345', displayName: '꼬부기', role: 'Viewer', createdAtUtc: '', expiresAtUtc: '' }],
+    canManage: true,
+  };
+
+  async function renderWith(initial: CollectionParticipants) {
+    jest.mocked(getCollectionParticipants).mockResolvedValue(initial);
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} initialData={initial} onClose={jest.fn()} visible />,
+      );
+    });
+    return renderer;
+  }
+
+  it('puts the List/Grid switch on the title line, at the far end', async () => {
+    const renderer = await renderWith(data);
+
+    const toggle = renderer.root.findByType(ViewModeToggle);
+    const row = toggle.parent!;
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' });
+    const children = row.children as ReactTestRenderer.ReactTestInstance[];
+    expect(children[children.length - 1] === toggle).toBe(true);
+    expect(row.findAllByType(Text).some(node => node.props.children === i18n.t('collections.participantsTitle'))).toBe(true);
+  });
+
+  it('Grid uses the shared tiles (avatar with fallback, name, role, crown), keeps remove / cancel on the tiles, and saves the choice', async () => {
+    const renderer = await renderWith(data);
+    await act(async () => {
+      renderer.root.findByType(ViewModeToggle).props.onChange('grid');
+    });
+
+    expect(mockPrefs.get('juple.participantViewMode')).toBe('grid');
+    const grid = renderer.root.findByProps({ testID: 'participants-sheet-grid' });
+    expect(grid.findAllByType(UserAvatar)).toHaveLength(2);
+    expect(grid.findAllByType(CrownIcon)).toHaveLength(1);
+    expect(grid.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['피카츄', 'CNTR-B234', i18n.t('collections.roleOwner')]));
+    expect(grid.findAll(node => node.props.testID === 'participants-sheet-WNER2345' && typeof node.props.onPress === 'function')).toHaveLength(0);
+    await act(async () => {
+      grid.findAll(node => node.props.testID === 'participants-sheet-CNTRB234' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(renderer.root.findAllByType(Modal).some(modal => modal.props.visible && modal.findAll(node => node.props.accessibilityLabel === i18n.t('collaboration.remove')).length > 0)).toBe(true);
+    const pendingGrid = renderer.root.findByProps({ testID: 'participants-sheet-pending-grid' });
+    jest.mocked(revokeCollectionInvitation).mockResolvedValue(undefined);
+    await act(async () => {
+      pendingGrid.findAll(node => node.props.testID === 'participants-sheet-pending-4' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 5, 4);
+  });
+
+  it('shares the preference with the Share screen: a change made by another mounted screen shows here at once', async () => {
+    const renderer = await renderWith(data);
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-grid' })).toHaveLength(0);
+
+    let other!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      other = ReactTestRenderer.create(
+        <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} initialData={data} onClose={jest.fn()} visible />,
+      );
+    });
+    await act(async () => {
+      other.root.findByType(ViewModeToggle).props.onChange('grid');
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-grid' }).length).toBeGreaterThan(0);
+  });
+
+  it('the first frame is final-sized in Grid mode too (seeded list, no spinner)', async () => {
+    mockPrefs.set('juple.participantViewMode', 'grid');
+    jest.mocked(getCollectionParticipants).mockReturnValue(new Promise(() => undefined));
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(
+        <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} initialData={data} onClose={jest.fn()} visible />,
+      );
+    });
+    await act(async () => undefined);
+    expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-grid' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('CollectionParticipantsSheet - first visible frames', () => {
+  const data: CollectionParticipants = {
+    participants: [{ jupleId: 'WNER2345', displayName: '피카츄', role: 'owner', isMe: false }],
+    pendingInvitations: [],
+    canManage: false,
+  };
+  const sheetNodes = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'participants-sheet' && typeof node.type === 'string');
+  const styleOf = (node: ReactTestRenderer.ReactTestInstance) => StyleSheet.flatten(node.props.style) as { opacity: number; transform: { translateY: number }[] };
+
+  function mount(visible = true) {
+    jest.mocked(getCollectionParticipants).mockReturnValue(new Promise(() => undefined));
+    const element = (isVisible: boolean) => (
+      <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} initialData={data} onClose={jest.fn()} visible={isVisible} />
+    );
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(element(visible));
+    });
+    return { renderer, rerender: (isVisible: boolean) => act(() => renderer.update(element(isVisible))) };
+  }
+  const layout = (renderer: ReactTestRenderer.ReactTestRenderer, height: number) =>
+    act(() => {
+      sheetNodes(renderer)[0].props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 360, height } } });
+    });
+
+  it('the very first frame is invisible (opacity 0, backdrop included) and nothing is animating yet - no unanimated white panel', () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const { renderer } = mount();
+
+    expect(styleOf(sheetNodes(renderer)[0]).opacity).toBe(0);
+    const backdrop = renderer.root.findAll(node => node.props.testID === 'participants-sheet-backdrop' && typeof node.type === 'string')[0];
+    expect((StyleSheet.flatten(backdrop.props.style) as { opacity: number }).opacity).toBe(0);
+    expect(timing).not.toHaveBeenCalled();
+    timing.mockRestore();
+  });
+
+  it('there is exactly one sheet container, already carrying the seeded participants (no placeholder sheet first)', () => {
+    const { renderer } = mount();
+
+    expect(sheetNodes(renderer)).toHaveLength(1);
+    expect(renderer.root.findAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-WNER2345' }).length).toBeGreaterThan(0);
+  });
+
+  it('the single entrance starts from the sheet first layout (its real height), once - the list growing later restarts nothing', () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const { renderer } = mount();
+
+    layout(renderer, 320);
+    expect(timing).toHaveBeenCalledTimes(1);
+    expect(timing.mock.calls[0][1]).toMatchObject({ toValue: 1, useNativeDriver: true });
+    layout(renderer, 480);
+    layout(renderer, 0);
+    expect(timing).toHaveBeenCalledTimes(1);
+    timing.mockRestore();
+  });
+
+  it('the native Modal does not animate on top of it, and covers the whole window like the other modals', () => {
+    const { renderer } = mount();
+
+    const modal = renderer.root.findByType(Modal);
+    expect(modal.props).toMatchObject({ animationType: 'none', transparent: true, statusBarTranslucent: true, navigationBarTranslucent: true });
+  });
+
+  it('closing and opening again starts from the invisible state once more (no leftover shown sheet)', () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const { renderer, rerender } = mount();
+    layout(renderer, 320);
+    expect(timing).toHaveBeenCalledTimes(1);
+
+    rerender(false);
+    rerender(true);
+    expect(styleOf(sheetNodes(renderer)[0]).opacity).toBe(0);
+    layout(renderer, 320);
+    expect(timing).toHaveBeenCalledTimes(2);
+    timing.mockRestore();
+  });
+
+  it('List and Grid both render inside the same single container', async () => {
+    const { renderer } = mount();
+    await act(async () => {
+      renderer.root.findByType(ViewModeToggle).props.onChange('grid');
+    });
+    expect(sheetNodes(renderer)).toHaveLength(1);
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-grid' }).length).toBeGreaterThan(0);
+    await act(async () => {
+      renderer.root.findByType(ViewModeToggle).props.onChange('list');
+    });
+    expect(sheetNodes(renderer)).toHaveLength(1);
   });
 });

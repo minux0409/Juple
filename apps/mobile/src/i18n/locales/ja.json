@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "ホーム",
-    "history": "履歴",
+    "history": "保管庫",
     "collections": "コレクション",
     "myPage": "マイページ"
   },
@@ -55,6 +55,7 @@
     "trash": "削除履歴",
     "collectionSharedItem": "共有リンク",
     "collectionSubmissions": "リンクの承認待ち",
+    "myCollectionSubmissions": "自分の承認待ち",
     "collectionShare": "共有",
     "collectionLockSettings": "コレクションのロック"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "項目を削除できませんでした。"
   },
   "history": {
-    "title": "履歴",
+    "title": "保管庫",
+    "searchPlaceholder": "リンクを検索",
+    "searchClear": "検索をクリア",
+    "searchEmpty": "結果がありません。",
+    "searchError": "検索できませんでした。",
     "empty": "保存したリンクはまだありません。",
     "errorLoadFallback": "履歴を読み込めませんでした。",
     "today": "今日",
@@ -97,11 +102,11 @@
     "namePlaceholder": "コレクション名",
     "editTitle": "コレクションを編集",
     "createAction": "作成",
-    "sortDate": "日付順",
+    "sortDate": "時間順",
     "sortName": "名前順",
     "sortRecent": "新しい順",
-    "sortDateNewestA11y": "日付順、新しい順",
-    "sortDateOldestA11y": "日付順、古い順",
+    "sortDateNewestA11y": "時間順、新しい順",
+    "sortDateOldestA11y": "時間順、古い順",
     "sortNameTooLarge": "リンクが{{max}}件を超えるコレクションは、まだ名前順に並べ替えできません。",
     "itemCount": "{{count}}件",
     "newLinkNotificationsError": "通知設定を変更できませんでした。もう一度お試しください。",
@@ -131,7 +136,10 @@
     "copyClearAll": "すべて解除",
     "copyClearAllA11y": "すべての選択を解除",
     "copySelectUpTo": "{{max}}件まで選択",
-    "detailItemCount": "コレクションのリンク：{{count}}件",
+    "detailItemCount": "合計{{count}}件",
+    "myPendingSubmissions": "承認待ち（自分）{{count}}",
+    "myPendingSubmissionsA11y": "承認待ちの自分のリンク{{count}}件を見る",
+    "myPendingA11y": "自分の承認待ち：{{count}}件",
     "favoritesTitle": "お気に入り",
     "allCollectionsTitle": "すべてのコレクション",
     "addFavorite": "お気に入りに追加",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "アカウント管理",
-    "signInMethod": "ログイン方法",
     "methodEmail": "メール",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "空にする",
+    "deleting": "削除中...",
     "empty": "削除履歴はありません。",
     "loadError": "削除履歴を読み込めませんでした。",
     "restoreA11y": "復元",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "承認待ちのリンクはありません。",
+    "myEmpty": "承認待ちの自分のリンクはありません。",
+    "myLoadError": "承認待ちのリンクを読み込めませんでした。",
+    "myStatus": "承認待ち",
     "loadError": "承認待ちの一覧を読み込めませんでした。",
     "approve": "承認",
     "reject": "拒否",

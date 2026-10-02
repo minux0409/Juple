@@ -1,5 +1,6 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { colors, radii, spacing } from '../theme/tokens';
+import { GRID_CARD_PADDING_H } from './savedLinkLayout';
 
 /**
  * Where a saved link is about to appear while its page loads - the same footprint as SavedLinkRow
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
   titleLine: { width: '85%' },
   secondLine: { width: '60%' },
   metaLine: { width: '35%' },
-  gridCard: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+  gridCard: { paddingHorizontal: GRID_CARD_PADDING_H, paddingVertical: spacing.sm },
   gridImage: { aspectRatio: 1, backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 4 },
   gridTitle: { marginTop: spacing.sm, width: '80%' },
   gridMeta: { marginTop: spacing.xs + 2, width: '45%' },

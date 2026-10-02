@@ -50,7 +50,11 @@ public sealed record CollectionDto(
     int UnreadNewLinkCount = 0,
     // What the card's attention badge shows: PendingSubmissionCount (a task - stays until each proposal
     // is answered) + UnreadNewLinkCount. Reactions, comments and other activity are the Inbox's, not this.
-    int AttentionCount = 0);
+    int AttentionCount = 0,
+    // A submitter's view (승인 후 추가): how many of the CALLER's OWN proposed links still wait for the
+    // Owner. 0 for the Owner (who has PendingSubmissionCount) and for anyone with nothing waiting - a
+    // different number from the Owner's, never combined with it, and not part of AttentionCount.
+    int MyPendingSubmissionCount = 0);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the

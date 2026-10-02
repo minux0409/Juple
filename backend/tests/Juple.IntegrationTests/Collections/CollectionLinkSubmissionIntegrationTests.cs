@@ -5,6 +5,7 @@ using Juple.Application.Collections;
 using Juple.Application.Collections.Access;
 using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.Collaboration;
+using Juple.Application.Collections.Locking;
 using Juple.Application.Collections.EnableCollectionShare;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.Submissions;
@@ -192,6 +193,382 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
 
         Assert.True(await LinkedAsync(ownerItem));
         Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.CollectionId == _sharedId));
+    }
+
+    // ---------- my own waiting proposals ----------
+
+    [Fact]
+    public async Task MyPending_ASubmitterSeesOnlyTheirOwn_WithACount_NeverTheOwnersOrAnotherSubmitters()
+    {
+        await InviteAndAcceptAsync(_outsider, CollectionCollaboratorRole.Submitter);
+        var mine = await NewItemAsync(_submitter, "https://example.test/mine");
+        var theirs = await NewItemAsync(_outsider, "https://example.test/theirs");
+        await Add().AddAsync(_submitter, _sharedId, mine);
+        await Add().AddAsync(_outsider, _sharedId, theirs);
+        _db.ChangeTracker.Clear();
+
+        var page = await Review().ListMineAsync(_submitter, _sharedId, null, 50, null);
+        var own = Assert.Single(page.Items);
+        Assert.Equal("https://example.test/mine", own.Url);
+        Assert.Null(page.NextCursor);
+        // The two numbers are different things: the Owner's queue (2) and the submitter's own (1).
+        Assert.Equal(1, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+        Assert.Equal(0, (await _collections.GetAsync(_submitter, _sharedId)).PendingSubmissionCount);
+        var ownerView = await _collections.GetAsync(_owner, _sharedId);
+        Assert.Equal(2, ownerView.PendingSubmissionCount);
+        Assert.Equal(0, ownerView.MyPendingSubmissionCount);
+        Assert.Equal("https://example.test/theirs", Assert.Single((await Review().ListMineAsync(_outsider, _sharedId, null, 50, null)).Items).Url);
+    }
+
+    [Fact]
+    public async Task MyPending_TheCollectionsListCarriesTheCount_WithoutAnyPerCardRequest()
+    {
+        var mine = await NewItemAsync(_submitter, "https://example.test/list-mine");
+        var other = await NewItemAsync(_contributor, "https://example.test/list-other");
+        await Add().AddAsync(_submitter, _sharedId, mine);
+        await Add().AddAsync(_contributor, _sharedId, other);
+        var second = (await _collections.CreateAsync(_owner, "Second", "SECOND", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+
+        var counter = new CommandCounter();
+        await using var counted = NewContext(counter);
+        var store = new CollectionStore(counted);
+        counter.Reset();
+        var asSubmitter = await store.ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.Shared, null, null, null, 50);
+        var queriesFor = counter.Count;
+
+        Assert.Equal(1, asSubmitter.Items.Single(entry => entry.Id == _sharedId).MyPendingSubmissionCount);
+        // The Owner's own list never carries it (their number is PendingSubmissionCount).
+        var asOwner = await store.ListByScopeAsync(_owner, Juple.Application.Collections.ListCollections.CollectionListScope.Shared, null, null, null, 50);
+        Assert.All(asOwner.Items, entry => Assert.Equal(0, entry.MyPendingSubmissionCount));
+        Assert.Equal(1, asOwner.Items.Single(entry => entry.Id == _sharedId).PendingSubmissionCount);
+        // A few statements for the whole page, not one per card.
+        Assert.InRange(queriesFor, 1, 6);
+        Assert.NotEqual(0, second);
+    }
+
+    [Fact]
+    public async Task MyPending_TheSharedTabTotal_SumsAllMyCollections_NotOthers_NotNonMemberPublicOnes_InOneQuery()
+    {
+        // A second Collection of the same Owner, where the same submitter is also a member.
+        var second = (await _collections.CreateAsync(_owner, "Second", "SECOND", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        await _collaboration.InviteAsync(_owner, second, await JupleIdOfAsync(_submitter), CollectionCollaboratorRole.Submitter);
+        var invitation = await _db.CollectionInvitations.AsNoTracking().Where(entry => entry.CollectionId == second).Select(entry => entry.Id).SingleAsync();
+        await _collaboration.AcceptInvitationAsync(_submitter, invitation);
+        // A third one where they are not a member at all (only a public link) - never counted.
+        var third = (await _collections.CreateAsync(_owner, "Third", "THIRD", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+
+        foreach (var (collectionId, url) in new[] { (_sharedId, "https://example.test/t1"), (_sharedId, "https://example.test/t2"), (second, "https://example.test/t3") })
+        {
+            await Add().AddAsync(_submitter, collectionId, await NewItemAsync(_submitter, url));
+        }
+
+        var shareThird = await _shares.EnableAsync(_owner, third, CollectionSharePermission.Submit);
+        await PublicAdd().AddItemAsync(_submitter, shareThird.PublicId, await NewItemAsync(_submitter, "https://example.test/t4"), null);
+        // Someone else's proposal in the same Collections.
+        await InviteAndAcceptAsync(_outsider, CollectionCollaboratorRole.Submitter);
+        await Add().AddAsync(_outsider, _sharedId, await NewItemAsync(_outsider, "https://example.test/not-mine"));
+        _db.ChangeTracker.Clear();
+
+        var counter = new CommandCounter();
+        await using var counted = NewContext(counter);
+        var store = new CollectionLinkSubmissionStore(counted);
+        counter.Reset();
+        var total = await store.CountMineInSharedCollectionsAsync(_submitter);
+
+        Assert.Equal(3, total);
+        Assert.Equal(1, counter.Count);
+        Assert.Equal(1, await store.CountMineInSharedCollectionsAsync(_outsider));
+        // The Owner's own approval queue is not "mine": they never propose.
+        Assert.Equal(0, await store.CountMineInSharedCollectionsAsync(_owner));
+
+        // Approved / declined ones leave the total.
+        var queue = (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items;
+        await Review().ApproveAsync(_owner, _sharedId, queue.First(entry => entry.Url.EndsWith("/t1", StringComparison.Ordinal)).SubmissionId, null);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(2, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
+    }
+
+    [Fact]
+    public async Task MyPending_TheFilter_ListsOnlyMemberCollectionsWithMyOwnWaitingLinks_PagedAndBounded()
+    {
+        // Three more Collections of the same Owner: A and B where the submitter proposes (2 + 1 links), C where
+        // they are a member with nothing waiting, D where only someone else proposes, E deleted, F public-link only.
+        async Task<long> MakeAsync(string name, bool member)
+        {
+            var id = (await _collections.CreateAsync(_owner, name, name.ToUpperInvariant(), CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+            if (member)
+            {
+                var invitation = await _collaboration.InviteAsync(_owner, id, await JupleIdOfAsync(_submitter), CollectionCollaboratorRole.Submitter);
+                await _collaboration.AcceptInvitationAsync(_submitter, invitation.InvitationId);
+            }
+
+            _db.ChangeTracker.Clear();
+            return id;
+        }
+
+        var a = await MakeAsync("A", member: true);
+        var b = await MakeAsync("B", member: true);
+        var c = await MakeAsync("C", member: true);
+        var d = await MakeAsync("D", member: true);
+        var e = await MakeAsync("E", member: true);
+        var f = await MakeAsync("F", member: false);
+        await InviteAndAcceptAsync(_outsider, CollectionCollaboratorRole.Submitter);
+
+        async Task ProposeAsync(long who, long collectionId, string url) => await Add().AddAsync(who, collectionId, await NewItemAsync(who, url));
+        await ProposeAsync(_submitter, a, "https://example.test/fa1");
+        await ProposeAsync(_submitter, a, "https://example.test/fa2");
+        await ProposeAsync(_submitter, b, "https://example.test/fb1");
+        await ProposeAsync(_submitter, e, "https://example.test/fe1");
+        await ProposeAsync(_submitter, _sharedId, "https://example.test/fshared");
+        // D: another member's proposal only (the submitter has none there).
+        var invitationD = await _collaboration.InviteAsync(_owner, d, await JupleIdOfAsync(_outsider), CollectionCollaboratorRole.Submitter);
+        await _collaboration.AcceptInvitationAsync(_outsider, invitationD.InvitationId);
+        _db.ChangeTracker.Clear();
+        await ProposeAsync(_outsider, d, "https://example.test/fd-other");
+        // F: only a public link, no membership.
+        var shareF = await _shares.EnableAsync(_owner, f, CollectionSharePermission.Submit);
+        await PublicAdd().AddItemAsync(_submitter, shareF.PublicId, await NewItemAsync(_submitter, "https://example.test/ff"), null);
+        // E is deleted afterwards.
+        await new CollectionStore(_db).DeleteAsync(_owner, e);
+        _db.ChangeTracker.Clear();
+
+        var counter = new CommandCounter();
+        await using var counted = NewContext(counter);
+        var store = new CollectionStore(counted);
+        counter.Reset();
+        var all = await store.ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, null, 50);
+        var queries = counter.Count;
+
+        // Only A, B and the first shared Collection (all member + own waiting, not deleted); never C, D, E or F.
+        Assert.Equal(new[] { a, b, _sharedId }.OrderByDescending(id => id), all.Items.Select(entry => entry.Id));
+        Assert.Equal(2, all.Items.Single(entry => entry.Id == a).MyPendingSubmissionCount);
+        Assert.Equal(1, all.Items.Single(entry => entry.Id == b).MyPendingSubmissionCount);
+        Assert.Equal(1, all.Items.Single(entry => entry.Id == _sharedId).MyPendingSubmissionCount);
+        // The same rows through the count endpoint's rule: total LINKS (4), not Collections (3).
+        Assert.Equal(4, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
+        Assert.InRange(queries, 1, 6);
+
+        // Paged like every other scope (cursor, newest first).
+        var first = await store.ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, null, 2);
+        Assert.Equal(2, first.Items.Count);
+        Assert.NotNull(first.NextCursor);
+        var second = await store.ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, first.NextCursor, 2);
+        Assert.Single(second.Items);
+        Assert.Null(second.NextCursor);
+
+        // Someone with no proposals gets an empty list; the Owner never has "my" pending; other scopes are unchanged.
+        Assert.Empty((await store.ListByScopeAsync(_contributor, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, null, 50)).Items);
+        Assert.Empty((await store.ListByScopeAsync(_owner, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, null, 50)).Items);
+        var shared = await store.ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.Shared, null, null, null, 50);
+        Assert.Contains(shared.Items, entry => entry.Id == c);
+        Assert.DoesNotContain(shared.Items, entry => entry.Id == e);
+
+        // An approval leaves the filter once nothing of theirs waits in that Collection.
+        var queue = (await Review().ListAsync(_owner, b, null, 50, null)).Items;
+        await Review().ApproveAsync(_owner, b, queue.Single().SubmissionId, null);
+        _db.ChangeTracker.Clear();
+        var after = await new CollectionStore(counted).ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, null, 50);
+        Assert.DoesNotContain(after.Items, entry => entry.Id == b);
+        Assert.Equal(3, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
+    }
+
+    [Fact]
+    public async Task MyPending_OnlyAMemberWhoMaySubmitCanAsk_NobodyElse()
+    {
+        // The Owner adds directly (and has the approval list): their own list is simply always empty. A
+        // Contributor/Viewer never proposes, a person with only a pending invitation and a stranger are
+        // not members at all.
+        Assert.Empty((await Review().ListMineAsync(_owner, _sharedId, null, 50, null)).Items);
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => Review().ListMineAsync(_contributor, _sharedId, null, 50, null));
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => Review().ListMineAsync(_viewer, _sharedId, null, 50, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => Review().ListMineAsync(_pending, _sharedId, null, 50, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => Review().ListMineAsync(_outsider, _sharedId, null, 50, null));
+    }
+
+    [Fact]
+    public async Task MyPending_LeavesTheListAndTheCount_WhenApprovedOrRejected_AndPagesNewestFirst()
+    {
+        var first = await NewItemAsync(_submitter, "https://example.test/p1");
+        var second = await NewItemAsync(_submitter, "https://example.test/p2");
+        var third = await NewItemAsync(_submitter, "https://example.test/p3");
+        foreach (var itemId in new[] { first, second, third })
+        {
+            await Add().AddAsync(_submitter, _sharedId, itemId);
+        }
+
+        _db.ChangeTracker.Clear();
+        var pageOne = await Review().ListMineAsync(_submitter, _sharedId, null, 2, null);
+        Assert.Equal(["https://example.test/p3", "https://example.test/p2"], pageOne.Items.Select(entry => entry.Url));
+        Assert.NotNull(pageOne.NextCursor);
+        var pageTwo = await Review().ListMineAsync(_submitter, _sharedId, pageOne.NextCursor, 2, null);
+        Assert.Equal(["https://example.test/p1"], pageTwo.Items.Select(entry => entry.Url));
+        Assert.Null(pageTwo.NextCursor);
+        Assert.Equal(3, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+
+        var waiting = (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items;
+        await Review().ApproveAsync(_owner, _sharedId, waiting[0].SubmissionId, null);
+        await Review().RejectAsync(_owner, _sharedId, waiting[1].SubmissionId, null);
+        _db.ChangeTracker.Clear();
+
+        var left = Assert.Single((await Review().ListMineAsync(_submitter, _sharedId, null, 50, null)).Items);
+        Assert.Equal("https://example.test/p3", left.Url);
+        Assert.Equal(1, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+    }
+
+    // ---------- my own waiting proposals, through the public link (a signed-in NON-member) ----------
+
+    /// <summary>The public link's own surface: members and non-members are the same here - only the caller's rows.</summary>
+    private async Task<(string PublicId, long ShareId)> OpenSubmitLinkAsync()
+    {
+        await RaiseEveryoneAsync(CollectionCollaboratorRole.Submitter);
+        var share = await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Submit);
+        var shareId = await _db.CollectionShares.AsNoTracking().Where(entry => entry.PublicId == share.PublicId).Select(entry => entry.Id).SingleAsync();
+        return (share.PublicId, shareId);
+    }
+
+    [Fact]
+    public async Task PublicMyPending_ANonMemberWhoProposedThroughTheLinkSeesTheirOwn_WithTheirCount()
+    {
+        var (publicId, _) = await OpenSubmitLinkAsync();
+        var item = await NewItemAsync(_outsider, "https://example.test/public-mine");
+        await PublicAdd().AddItemAsync(_outsider, publicId, item, null);
+        _db.ChangeTracker.Clear();
+
+        var page = (await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null))!;
+
+        Assert.Equal("https://example.test/public-mine", Assert.Single(page.Items).Url);
+        Assert.Equal(1, page.TotalCount);
+        // No membership came with it: they are still nobody in the Collection.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => Review().ListMineAsync(_outsider, _sharedId, null, 50, null));
+    }
+
+    [Fact]
+    public async Task PublicMyPending_OnlyTheirOwn_NeverAnotherSubmittersOrTheOwnersQueue_AndNothingForAStranger()
+    {
+        var (publicId, _) = await OpenSubmitLinkAsync();
+        var stranger = await NewUserAsync();
+        var mine = await NewItemAsync(_outsider, "https://example.test/o1");
+        var theirs = await NewItemAsync(_pending, "https://example.test/o2");
+        await PublicAdd().AddItemAsync(_outsider, publicId, mine, null);
+        await PublicAdd().AddItemAsync(_pending, publicId, theirs, null);
+        var memberItem = await NewItemAsync(_submitter, "https://example.test/o3");
+        await Add().AddAsync(_submitter, _sharedId, memberItem);
+        _db.ChangeTracker.Clear();
+
+        var own = (await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null))!;
+        Assert.Equal(["https://example.test/o1"], own.Items.Select(entry => entry.Url));
+        // 3 wait for the Owner in all - this caller is told only about their own one.
+        Assert.Equal(3, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
+        Assert.Equal(1, own.TotalCount);
+        var other = (await PublicAdd().ListMyProposalsAsync(_pending, publicId, null, 50, null))!;
+        Assert.Equal(["https://example.test/o2"], other.Items.Select(entry => entry.Url));
+        var none = (await PublicAdd().ListMyProposalsAsync(stranger, publicId, null, 50, null))!;
+        Assert.Empty(none.Items);
+        Assert.Equal(0, none.TotalCount);
+    }
+
+    [Fact]
+    public async Task PublicMyPending_AnonymousCallersNeverReachIt_TheEndpointRequiresASignedInJupleUser()
+    {
+        var authorize = typeof(Juple.Api.Controllers.PublicShareWriteController)
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), inherit: true)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
+            .Single();
+        Assert.Equal(Juple.Api.Authentication.AuthorizationPolicies.JupleUser, authorize.Policy);
+        var action = typeof(Juple.Api.Controllers.PublicShareWriteController).GetMethod(nameof(Juple.Api.Controllers.PublicShareWriteController.ListMyProposalsAsync))!;
+        Assert.Empty(action.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), inherit: true));
+        await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task PublicMyPending_WhenThePublicLinkIsOffOrUnknown_NothingIsReachable()
+    {
+        var (publicId, _) = await OpenSubmitLinkAsync();
+        var item = await NewItemAsync(_outsider, "https://example.test/gone");
+        await PublicAdd().AddItemAsync(_outsider, publicId, item, null);
+        Assert.NotNull(await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null));
+
+        await new CollectionShareStore(_db).RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
+        _db.ChangeTracker.Clear();
+
+        Assert.Null(await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null));
+        Assert.Null(await PublicAdd().ListMyProposalsAsync(_outsider, "no-such-public-id", null, 50, null));
+    }
+
+    [Fact]
+    public async Task PublicMyPending_APasswordProtectedLink_NeedsTheUnlockGrant()
+    {
+        var (publicId, shareId) = await OpenSubmitLinkAsync();
+        var item = await NewItemAsync(_outsider, "https://example.test/protected");
+        await PublicAdd().AddItemAsync(_outsider, publicId, item, null);
+        // The Owner now protects the Collection with its own share password.
+        var protection = CollectionSharePassword.Create(_sharedId, "hash", "cipher", DateTimeOffset.UtcNow);
+        _db.CollectionSharePasswords.Add(protection);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<CollectionLockedException>(() => PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null));
+        await Assert.ThrowsAsync<CollectionLockedException>(() => PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, "not-a-grant"));
+        // A grant for the wrong purpose (the Owner's lock) is not the share password's.
+        var wrongPurpose = _tokens.Issue(_sharedId, CollectionUnlockSubject.ForPublicShare(shareId), protection.PasswordVersion, DateTimeOffset.UtcNow, CollectionUnlockPurpose.CollectionLock);
+        await Assert.ThrowsAsync<CollectionLockedException>(() => PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, wrongPurpose.Token));
+
+        var grant = _tokens.Issue(_sharedId, CollectionUnlockSubject.ForPublicShare(shareId), protection.PasswordVersion, DateTimeOffset.UtcNow, CollectionUnlockPurpose.SharePassword);
+        var page = (await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, grant.Token))!;
+        Assert.Equal("https://example.test/protected", Assert.Single(page.Items).Url);
+    }
+
+    [Fact]
+    public async Task PublicMyPending_ApprovedAndRejectedLeaveIt_AndApprovalMakesNoMembership()
+    {
+        var (publicId, _) = await OpenSubmitLinkAsync();
+        var approved = await NewItemAsync(_outsider, "https://example.test/yes");
+        var rejected = await NewItemAsync(_outsider, "https://example.test/no");
+        var waiting = await NewItemAsync(_outsider, "https://example.test/still");
+        foreach (var itemId in new[] { approved, rejected, waiting })
+        {
+            await PublicAdd().AddItemAsync(_outsider, publicId, itemId, null);
+        }
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(3, (await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null))!.TotalCount);
+        var queue = (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items;
+        await Review().ApproveAsync(_owner, _sharedId, queue.Single(entry => entry.Url.EndsWith("/yes", StringComparison.Ordinal)).SubmissionId, null);
+        await Review().RejectAsync(_owner, _sharedId, queue.Single(entry => entry.Url.EndsWith("/no", StringComparison.Ordinal)).SubmissionId, null);
+        _db.ChangeTracker.Clear();
+
+        var left = (await PublicAdd().ListMyProposalsAsync(_outsider, publicId, null, 50, null))!;
+        Assert.Equal(["https://example.test/still"], left.Items.Select(entry => entry.Url));
+        Assert.Equal(1, left.TotalCount);
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.CollectionId == _sharedId && entry.UserId == _outsider));
+    }
+
+    [Fact]
+    public async Task PublicMyPending_BoundedQueries_NoMatterHowManyProposalsExist()
+    {
+        var (publicId, _) = await OpenSubmitLinkAsync();
+        var counter = new CommandCounter();
+        await using var counted = NewContext(counter);
+        for (var i = 0; i < 6; i++)
+        {
+            var item = await NewItemAsync(_outsider, $"https://example.test/bounded-{i}");
+            await PublicAdd().AddItemAsync(_outsider, publicId, item, null);
+        }
+
+        var service = new PublicCollectionWriteService(
+            new PublicCollectionStore(counted), new CollectionStore(counted), _tokens, TimeProvider.System, null, new CollectionLinkSubmissionStore(counted));
+        counter.Reset();
+        var few = (await service.ListMyProposalsAsync(_outsider, publicId, null, 2, null))!;
+        var queries = counter.Count;
+        var all = (await service.ListMyProposalsAsync(_outsider, publicId, null, 50, null))!;
+
+        Assert.Equal(2, few.Items.Count);
+        Assert.Equal(6, all.Items.Count);
+        // Resolve the link + count + one page - the same few statements for 2 rows or 6.
+        Assert.InRange(queries, 1, 4);
+        Assert.Equal(queries, counter.Count - queries);
     }
 
     // ---------- one proposal per link ----------
@@ -546,6 +923,23 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         var invitation = await _db.CollectionInvitations.SingleAsync(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending);
         Assert.Equal(CollectionCollaboratorRole.Viewer, invitation.Role);
         Assert.Equal(CollectionInvitationStatus.Pending, invitation.Status);
+    }
+
+    private sealed class CommandCounter : DbCommandInterceptor
+    {
+        public int Count { get; private set; }
+
+        public void Reset() => Count = 0;
+
+        public override ValueTask<InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<System.Data.Common.DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Count++;
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
     }
 
     private sealed class BeforeSaveInterceptor(Func<CancellationToken, Task> action) : SaveChangesInterceptor

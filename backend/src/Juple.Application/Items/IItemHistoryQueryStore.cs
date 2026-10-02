@@ -12,10 +12,17 @@ public interface IItemHistoryQueryStore
     /// yet resolved to a read URL) for the caller to resolve via IItemImageStorage. PreviewImageUrl
     /// (an external URL, not a Blob) is already fully populated on each ItemHistoryEntryDto.
     /// </summary>
+    /// <summary>
+    /// With searchPattern (see ItemSearchPattern.ToContainsPattern) only the user's own Items whose
+    /// Title, Url (so its host / site name) or own Memo contain the term - the same rows, order, cursor
+    /// and page shape, so search results page exactly like History. Trash is never searched (deleted
+    /// Items are not History rows at all).
+    /// </summary>
     Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetHistoryAsync(
         long userId,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchPattern = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

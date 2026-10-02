@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "首頁",
-    "history": "紀錄",
+    "history": "典藏庫",
     "collections": "合集",
     "myPage": "我的"
   },
@@ -55,6 +55,7 @@
     "trash": "刪除記錄",
     "collectionSharedItem": "共享連結",
     "collectionSubmissions": "待審核連結",
+    "myCollectionSubmissions": "我的待審核",
     "collectionShare": "分享",
     "collectionLockSettings": "合集鎖定"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "無法刪除該項目。"
   },
   "history": {
-    "title": "紀錄",
+    "title": "典藏庫",
+    "searchPlaceholder": "搜尋連結",
+    "searchClear": "清除搜尋",
+    "searchEmpty": "沒有結果。",
+    "searchError": "無法搜尋。",
     "empty": "還沒有儲存任何連結。",
     "errorLoadFallback": "無法載入紀錄。",
     "today": "今天",
@@ -97,11 +102,11 @@
     "namePlaceholder": "合集名稱",
     "editTitle": "編輯合集",
     "createAction": "建立",
-    "sortDate": "依日期",
+    "sortDate": "依時間",
     "sortName": "依名稱",
     "sortRecent": "最新",
-    "sortDateNewestA11y": "依日期，最新在前",
-    "sortDateOldestA11y": "依日期，最早在前",
+    "sortDateNewestA11y": "依時間，最新在前",
+    "sortDateOldestA11y": "依時間，最早在前",
     "sortNameTooLarge": "連結超過 {{max}} 個的合集暫時無法依名稱排序。",
     "itemCount": "{{count}} 個",
     "newLinkNotificationsError": "無法變更通知設定，請再試一次。",
@@ -131,7 +136,10 @@
     "copyClearAll": "取消全選",
     "copyClearAllA11y": "取消全部選擇",
     "copySelectUpTo": "最多選擇 {{max}} 個",
-    "detailItemCount": "合集連結：{{count}} 個",
+    "detailItemCount": "共 {{count}} 個",
+    "myPendingSubmissions": "我的待審核 {{count}}",
+    "myPendingSubmissionsA11y": "查看我的 {{count}} 個待審核連結",
+    "myPendingA11y": "我的待審核：{{count}}",
     "favoritesTitle": "我的最愛",
     "allCollectionsTitle": "所有合集",
     "addFavorite": "加入我的最愛",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "帳號管理",
-    "signInMethod": "登入方式",
     "methodEmail": "電子郵件",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "清空",
+    "deleting": "正在刪除...",
     "empty": "沒有刪除記錄。",
     "loadError": "無法載入刪除記錄。",
     "restoreA11y": "復原",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "沒有待審核的連結。",
+    "myEmpty": "沒有等待審核的我的連結。",
+    "myLoadError": "無法載入我的待審核連結。",
+    "myStatus": "等待審核",
     "loadError": "無法載入待審核清單。",
     "approve": "核准",
     "reject": "拒絕",

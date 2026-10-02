@@ -8,9 +8,18 @@ export type ViewModePreferenceKey =
   | 'categoryViewMode'
   | 'categoryPickerViewMode'
   | 'replicatePickerViewMode'
-  | 'collectionDetailsViewMode';
+  | 'collectionDetailsViewMode'
+  | 'friendsViewMode'
+  | 'participantViewMode';
 
 const storageKey = (key: ViewModePreferenceKey) => `juple.${key}`;
+
+/**
+ * Screens that show the same thing in different places (Share status and the participants popup both
+ * show the participants) must agree at once, even while both are mounted in the navigation stack -
+ * so a change is also announced in memory to every other hook instance using the same key.
+ */
+const changeListeners = new Map<ViewModePreferenceKey, Set<(mode: ViewMode) => void>>();
 
 export function useViewModePreference(key: ViewModePreferenceKey, defaultValue: ViewMode = 'list') {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultValue);
@@ -25,8 +34,16 @@ export function useViewModePreference(key: ViewModePreferenceKey, defaultValue: 
     return () => { active = false; };
   }, [key]);
 
+  useEffect(() => {
+    const listeners = changeListeners.get(key) ?? new Set();
+    changeListeners.set(key, listeners);
+    listeners.add(setViewMode);
+    return () => { listeners.delete(setViewMode); };
+  }, [key]);
+
   const changeViewMode = (next: ViewMode) => {
     setViewMode(next);
+    changeListeners.get(key)?.forEach(listener => listener(next));
     void AsyncStorage.setItem(storageKey(key), next).catch(() => undefined);
   };
 

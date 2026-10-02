@@ -123,10 +123,13 @@ public sealed class CollectionsController(
             case "favorites":
                 resolvedScope = CollectionListScope.Favorites;
                 break;
+            case "myPending":
+                resolvedScope = CollectionListScope.MyPending;
+                break;
             default:
                 return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
                 {
-                    ["scope"] = ["scope must be 'owned', 'shared', 'all' or 'favorites'."],
+                    ["scope"] = ["scope must be 'owned', 'shared', 'all', 'favorites' or 'myPending'."],
                 }));
         }
 
@@ -1233,6 +1236,39 @@ public sealed class CollectionsController(
         [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
             userId => submissionService.ListAsync(userId, id, cursor, limit ?? CollectionLinkSubmissionService.MaxPageSize, unlockToken, cancellationToken),
+            page => Ok(page),
+            cancellationToken);
+
+    /// <summary>
+    /// How many of the caller's OWN proposed links still wait for approval across their shared
+    /// Collections - one number for the 공유 컬렉션 tab (the Owner's own approval queue is a different
+    /// number and is never part of it).
+    /// </summary>
+    [HttpGet("my-pending-submissions/count")]
+    public Task<IActionResult> CountMyPendingSubmissionsAsync(
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => submissionService.CountMineInSharedCollectionsAsync(userId, cancellationToken),
+            count => Ok(new MyPendingSubmissionCountResponse(count)),
+            cancellationToken);
+
+    public sealed record MyPendingSubmissionCountResponse(int MyPendingSubmissionCount);
+
+    /// <summary>
+    /// The caller's OWN links still waiting for approval (a 승인 후 추가 member), newest first (cursor = the
+    /// last row's submissionId). Never anyone else's; the Owner uses the list above instead (403 here).
+    /// </summary>
+    [HttpGet("{id:long}/submissions/mine")]
+    public Task<IActionResult> ListMySubmissionsAsync(
+        long id,
+        [FromQuery] long? cursor,
+        [FromQuery] int? limit,
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => submissionService.ListMineAsync(userId, id, cursor, limit ?? CollectionLinkSubmissionService.MaxPageSize, unlockToken, cancellationToken),
             page => Ok(page),
             cancellationToken);
 

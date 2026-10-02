@@ -16,7 +16,7 @@ export const NEAR_END_ROWS = 8;
 export const DATE_SECTION_GRID_COLUMNS = 2;
 
 /**
- * One row of a single date-grouped list (History, a Collection's 일자순). Only expanded sections
+ * One row of a single date-grouped list (History, a Collection's 시간순). Only expanded sections
  * contribute anything below their header, and only what they have loaded (plus skeletons while a
  * request is actually on its way) - so the list's length follows what the user opened, never how
  * many links exist.

@@ -1,10 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -67,6 +68,8 @@ export function TrashScreen() {
   const [pendingPermanentDeleteId, setPendingPermanentDeleteId] = useState<number | null>(null);
   const [isEmptyTrashConfirmVisible, setIsEmptyTrashConfirmVisible] = useState(false);
   const [isEmptyingTrash, setIsEmptyingTrash] = useState(false);
+  // Synchronous guard: two confirmations in the same frame must not both start a request.
+  const isEmptyingRef = useRef(false);
   // 비우기's own rendered width (it varies by locale/font scale) - mirrored by the header's leading
   // slot so the limit notice stays on the true center line (see the header's own remarks).
   const [emptyActionWidth, setEmptyActionWidth] = useState(0);
@@ -128,9 +131,10 @@ export function TrashScreen() {
   };
 
   const emptyTrashAction = async () => {
-    if (isEmptyingTrash) {
+    if (isEmptyingRef.current) {
       return;
     }
+    isEmptyingRef.current = true;
     setIsEmptyingTrash(true);
     setErrorMessage(null);
     try {
@@ -142,6 +146,7 @@ export function TrashScreen() {
     } catch {
       setErrorMessage(t('trash.emptyTrashError'));
     } finally {
+      isEmptyingRef.current = false;
       setIsEmptyingTrash(false);
     }
   };
@@ -278,6 +283,8 @@ export function TrashScreen() {
         title={t('trash.emptyTrashConfirmTitle')}
         visible={isEmptyTrashConfirmVisible}
       />
+      {/* Emptying a large trash can take a while: the screen is blocked (no repeat, no other action) until it settles. */}
+      <BlockingProgressOverlay message={t('trash.deleting')} testID="trash-empty-progress" visible={isEmptyingTrash} />
     </StackScreenSafeArea>
   );
 }

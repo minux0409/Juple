@@ -76,6 +76,21 @@ public interface IPublicCollectionWriteService
         long itemId,
         string? unlockToken,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A SIGNED-IN user's OWN links still waiting for the Owner through this public link (승인 후 추가) -
+    /// newest first, with how many wait in all. The caller is always the filter: never another
+    /// submitter's rows, no member data, no Owner count. The link must be active, and its content gate
+    /// (share password / legacy lock) must be passed exactly as for reading it (CollectionLockedException
+    /// otherwise). Null for an unknown / revoked link. Grants nothing: no membership, no Collection data.
+    /// </summary>
+    Task<MyCollectionLinkSubmissionPage?> ListMyProposalsAsync(
+        long userId,
+        string publicId,
+        long? cursor,
+        int limit,
+        string? unlockToken,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class PublicCollectionWriteService(
@@ -86,6 +101,31 @@ public sealed class PublicCollectionWriteService(
     ISocialNotificationPublisher? notifications = null,
     ICollectionLinkSubmissionStore? submissions = null) : IPublicCollectionWriteService
 {
+    public const int MaxProposalPageSize = 50;
+
+    public async Task<MyCollectionLinkSubmissionPage?> ListMyProposalsAsync(
+        long userId,
+        string publicId,
+        long? cursor,
+        int limit,
+        string? unlockToken,
+        CancellationToken cancellationToken = default)
+    {
+        // The same resolver and the same content gate as reading the public page - not a second copy.
+        var state = await shareStore.GetStateAsync(publicId, cancellationToken);
+        if (state is null || submissions is null)
+        {
+            return null;
+        }
+
+        if (!PublicShareGate.IsUnlocked(state, unlockToken, unlockTokenProtector, timeProvider.GetUtcNow()))
+        {
+            throw new CollectionLockedException();
+        }
+
+        return await submissions.ListMineAsync(state.CollectionId, userId, cursor, Math.Clamp(limit, 1, MaxProposalPageSize), cancellationToken);
+    }
+
     public async Task<CollectionLinkAddOutcome?> AddItemAsync(
         long userId,
         string publicId,

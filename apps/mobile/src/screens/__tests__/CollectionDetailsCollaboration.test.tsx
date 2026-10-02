@@ -1,6 +1,7 @@
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { BellIcon } from '../../icons/BellIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
+import { radii } from '../../theme/tokens';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import { ParticipantAvatarStack } from '../../components/ParticipantAvatarStack';
@@ -9,6 +10,9 @@ import { ReactionChips } from '../../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../../reactions/ReactionPickerDialog';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, StyleSheet, Switch, Text } from 'react-native';
+import { dateAccordionStyles } from '../../components/DateAccordion';
+import { LinkSortChips } from '../../components/LinkSortChips';
+import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP } from '../../components/savedLinkLayout';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { AppToastProvider } from '../../components/AppToast';
@@ -165,7 +169,7 @@ const lockedError = new ApiError('forbidden', 403, 'collectionLocked');
 
 
 /**
- * 일자순 as the server now serves it, standing in for GET collections/{id}/items/sections: every
+ * 시간순 as the server now serves it, standing in for GET collections/{id}/items/sections: every
  * link the test's own getCollectionItems mock returns (paged through with the same unlock grant -
  * so a locked Collection is locked here too) as one 오늘 section with its exact count. Each section
  * page request then gets the same links from that mock (it ignores the window), so the one section
@@ -191,7 +195,7 @@ beforeEach(() => {
 type ListRow = { readonly kind: string; readonly item?: CollectionItemEntry; readonly items?: readonly CollectionItemEntry[] };
 
 /**
- * The link list, whichever one the current sort renders: 일자순 (the default) is one flat list of
+ * The link list, whichever one the current sort renders: 시간순 (the default) is one flat list of
  * date-section rows (headers, links, skeletons), 이름순 a flat FlatList of links. Exposed with
  * FlatList-like props - `data` is every loaded link in display order, `renderItem` renders one
  * link's row - so tests about rows and data do not depend on which of the two is on screen.
@@ -202,7 +206,7 @@ function findItemList(
   const root = 'root' in renderer ? renderer.root : renderer;
   const list = root.findByType(FlatList);
   const data: readonly unknown[] = list.props.data;
-  // The 일자순 list is the one without columns (이름순 always sets numColumns).
+  // The 시간순 list is the one without columns (이름순 always sets numColumns).
   if (list.props.numColumns !== undefined) {
     return list;
   }
@@ -238,7 +242,7 @@ async function renderScreen() {
       </AppToastProvider>,
     );
   });
-  // 일자순 loads the section summary, then the open section's first page - let both land.
+  // 시간순 loads the section summary, then the open section's first page - let both land.
   await act(async () => {
     await new Promise<void>(resolve => setImmediate(() => resolve()));
   });
@@ -1602,6 +1606,121 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
       .map(node => node.props.testID)
       .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
     expect(order).toEqual(['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date']);
+  });
+
+  it('a link in a date section is framed by the very same accordion row History uses', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    const frame = row(renderer, mine).root.findByType(SwipeableItemRow).props.containerStyle;
+    // The same style objects (not look-alike copies): one definition for History and a Collection.
+    expect([frame].flat(2)).toContain(dateAccordionStyles.row);
+  });
+
+  const myPendingEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    header(renderer).root.findAll(node => node.props.testID === 'collection-details-my-pending' && typeof node.props.onPress === 'function')[0];
+
+  it('a submitter with links waiting sees 내 승인 대기 N (a status row, not the Owner queue), which opens their own list', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 2 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    const entry = myPendingEntry(renderer);
+    expect(entry.findByType(Text).props.children).toBe('내 승인 대기 2');
+    expect(entry.props.accessibilityLabel).toBe('내가 보낸 승인 대기 링크 2개 보기');
+    expect(pendingEntry(renderer)).toBeUndefined();
+    await act(async () => entry.props.onPress());
+    expect(mockNavigate).toHaveBeenCalledWith('MyCollectionSubmissions', { collectionId: COLLECTION_ID });
+  });
+
+  it('nothing of mine waiting (0): no row', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 0 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+
+    expect(myPendingEntry(await renderScreen())).toBeUndefined();
+  });
+
+  it('the row sits under the sort / List-Grid controls and right before the first link - a long row like the Owner one', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 2 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    const order = header(renderer).root
+      .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-sort-date', 'collection-details-my-pending'].includes(node.props.testID))
+      .map(node => node.props.testID)
+      .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
+    expect(order).toEqual(['collection-details-title', 'collection-sort-date', 'collection-details-my-pending']);
+    // It is the last thing of the header: the list's own rows (the links) follow it directly.
+    const headerChildren = header(renderer).root.findAll(node => typeof node.type === 'string' && node.props.testID === 'collection-details-my-pending');
+    expect(headerChildren).toHaveLength(1);
+    // Same family as the Owner row: one-line, a full touch target tall, same corner radius.
+    const entry = myPendingEntry(renderer);
+    expect(StyleSheet.flatten(entry.props.style)).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', borderRadius: radii.md }));
+    expect(entry.findByType(Text).props.children).toBe('내 승인 대기 2');
+  });
+
+  it('the Owner row and my row are separate rows with separate numbers - never merged', async () => {
+    // (A server never gives one person both; the screen is still built to show each on its own.)
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 3, myPendingSubmissionCount: 4 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('승인 대기 3');
+    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('내 승인 대기 4');
+    expect(pendingEntry(renderer).props.accessibilityLabel).toBe('승인 대기 중인 링크 3개 보기');
+    expect(myPendingEntry(renderer).props.accessibilityLabel).toBe('내가 보낸 승인 대기 링크 4개 보기');
+  });
+
+  it('pull-to-refresh keeps the count honest: a new proposal raises it, an approval or decline removes it', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 1 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('내 승인 대기 1');
+    const pull = async () => act(async () => {
+      renderer.root.findAllByType(FlatList)[0].props.refreshControl.props.onRefresh();
+    });
+
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 3 }));
+    await pull();
+    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('내 승인 대기 3');
+
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 0 }));
+    await pull();
+    expect(myPendingEntry(renderer)).toBeUndefined();
+  });
+
+  it('the 총 N개 line and the sort / List-Grid row are spaced like Home (the shared controls gap), the toggle at the far end', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+
+    const chips = header(renderer).root.findByType(LinkSortChips);
+    const controlsRow = chips.parent!;
+    expect(StyleSheet.flatten(controlsRow.props.style)).toMatchObject({ flexDirection: 'row', marginTop: LINK_CONTROLS_TOP_GAP, marginBottom: LINK_CONTROLS_BOTTOM_GAP });
+    // Two separate gaps: 총 N개 -> controls (top) and controls -> first link (bottom), the very values Home uses.
+    expect(LINK_CONTROLS_TOP_GAP).not.toBe(LINK_CONTROLS_BOTTOM_GAP);
+    // The wording is 시간순.
+    expect(chips.props.dateLabel).toBe('시간순');
+    const children = controlsRow.children as ReactTestRenderer.ReactTestInstance[];
+    expect(children[children.length - 1].type).toBe(ViewModeToggle);
+  });
+
+  it('pull-to-refresh reloads the Collection itself, so a proposal that arrived meanwhile shows at once', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18, pendingSubmissionCount: 0 }));
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+    const renderer = await renderScreen();
+    expect(pendingEntry(renderer)).toBeUndefined();
+
+    // B proposes a link while A stays on the screen - no navigation away and back.
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18, pendingSubmissionCount: 2 }));
+    const callsBefore = jest.mocked(getCollection).mock.calls.length;
+    await act(async () => {
+      renderer.root.findAllByType(FlatList)[0].props.refreshControl.props.onRefresh();
+    });
+
+    expect(jest.mocked(getCollection).mock.calls.length).toBe(callsBefore + 1);
+    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('승인 대기 2');
   });
 
   it('nothing waiting: no entry at all', async () => {

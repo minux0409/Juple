@@ -30,6 +30,41 @@ public sealed class PublicShareWriteController(
     IPublicCollectionWriteService writeService) : ControllerBase
 {
     /// <summary>
+    /// The caller's OWN links still waiting for approval through this link (a signed-in non-member who
+    /// proposed here), newest first with their total - never anyone else's, nothing about the
+    /// Collection beyond that. Same unlock gate as reading the link (403 collectionLocked without it);
+    /// 404 for an unknown / revoked link. Anonymous callers never get here (the controller requires a
+    /// Juple user).
+    /// </summary>
+    [HttpGet("submissions/mine")]
+    public async Task<IActionResult> ListMyProposalsAsync(
+        string publicId,
+        [FromQuery] long? cursor,
+        [FromQuery] int? limit,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = CollectionsController.UnlockTokenHeader)] string? unlockToken = null)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            var page = await writeService.ListMyProposalsAsync(
+                currentUser.UserId, publicId, cursor, limit ?? PublicCollectionWriteService.MaxProposalPageSize, unlockToken, cancellationToken);
+            return page is null ? NotFound() : Ok(page);
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionLockedException)
+        {
+            return CollectionProblems.CollectionLocked();
+        }
+    }
+
+    /// <summary>
     /// 204 added (idempotent). 202 { submitted: true } when the link takes proposals (승인 후 추가) - it
     /// waits for the Owner; 409 linkAlreadyInCollection / linkAlreadyPending for a link already there
     /// or already waiting. 404 unknown/revoked link or an Item that is not the caller's.

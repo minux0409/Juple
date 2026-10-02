@@ -1,6 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
 import i18n from '../../i18n';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 import {
   buildHistoryRows,
   DateHistoryScreen,
@@ -32,9 +33,13 @@ import { CenteredEmptyState } from '../../components/CenteredEmptyState';
 import { DateSectionHeader } from '../../components/DateAccordion';
 import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../../components/SavedLinkRow';
+import { SearchField } from '../../components/SearchField';
+import { ARCHIVE_SEARCH_DEBOUNCE_MS } from '../../items/useArchiveSearch';
+import { TextInput } from 'react-native';
 
+const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate }),
   // Runs once on mount, like a first focus - History's summary load and useToastBottomAnchor.
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
@@ -255,6 +260,34 @@ async function deleteViaSwipe(renderer: ReactTestRenderer.ReactTestRenderer, ite
 afterEach(() => {
   jest.clearAllMocks();
 });
+
+describe('DateHistoryScreen header', () => {
+  it('puts 보관함 and the List/Grid switch on one row (title at the start, switch at the end, centered), the gap below on the row itself', async () => {
+    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
+    const renderer = await renderScreen();
+
+    expect(i18n.t('history.title')).toBe('보관함');
+    const header = renderPart(getList(renderer).props.ListHeaderComponent);
+    const toggle = header.root.findByType(ViewModeToggle);
+    const row = toggle.parent!;
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' });
+    const children = row.children as ReactTestRenderer.ReactTestInstance[];
+    expect(children[children.length - 1]).toBe(toggle);
+    const title = header.root.findAll(node => node.props.children === '보관함' && typeof node.type === 'string')[0];
+    expect(row.findAll(node => node === title)).toHaveLength(1);
+    // No margin on the title alone (it would push the title above the toggle's center line).
+    expect(StyleSheet.flatten(title.props.style).marginBottom).toBeUndefined();
+    expect(StyleSheet.flatten(row.props.style).marginBottom).toBeGreaterThan(0);
+  });
+});
+
+function renderPart(element: React.ReactElement) {
+  let part!: ReactTestRenderer.ReactTestRenderer;
+  ReactTestRenderer.act(() => {
+    part = ReactTestRenderer.create(element);
+  });
+  return part;
+}
 
 describe('DateHistoryScreen loading', () => {
   it('opens with the section summary only, and loads just the expanded section\'s first page', async () => {
@@ -772,5 +805,163 @@ describe('buildHistoryRows', () => {
     const failed = buildHistoryRows([today], new Map([['2026-09-30', loadedPage(itemsFor(1, 25), '25', { error: 'offline' })]]), new Set(['2026-09-30']), 'list');
     expect(failed.filter(row => row.kind === 'skeleton')).toHaveLength(0);
     expect(failed[failed.length - 1].kind).toBe('error');
+  });
+});
+
+describe('DateHistoryScreen - search the whole archive', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockNavigate.mockClear();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** The server's own search stand-in: matches (title or url) over EVERYTHING, newest first - not only what the screen loaded. */
+  function installSearch(all: readonly ItemHistoryEntry[]) {
+    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
+    const normal = jest.mocked(getItemHistory).getMockImplementation()!;
+    jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
+      if (options.q === undefined) {
+        return normal(request, options);
+      }
+      const term = options.q.toLowerCase();
+      const hits = all.filter(item => `${item.title ?? ''} ${item.url}`.toLowerCase().includes(term));
+      const offset = options.cursor ? Number(options.cursor) : 0;
+      const limit = options.limit ?? 50;
+      return { items: hits.slice(offset, offset + limit), nextCursor: offset + limit < hits.length ? String(offset + limit) : null };
+    });
+  }
+
+  async function typeSearch(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
+    // The header element holds the controlled field; its onChangeText is the screen's own setter.
+    const onChangeText = renderPart(getList(renderer).props.ListHeaderComponent).root.findByType(SearchField).props.onChangeText;
+    await act(async () => {
+      onChangeText(text);
+    });
+  }
+  const searchRowsOf = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as { kind: string; item?: ItemHistoryEntry; items?: ItemHistoryEntry[]; status?: string }[];
+  const flush = async (ms = ARCHIVE_SEARCH_DEBOUNCE_MS + 10) => {
+    await act(async () => {
+      jest.advanceTimersByTime(ms);
+    });
+  };
+  const searchCalls = () => jest.mocked(getItemHistory).mock.calls.filter(([, options]) => options?.q !== undefined);
+
+  it('shows the search field under the title row, and the normal accordion while the text is empty or too short', async () => {
+    installSearch(itemsFor(100, 5));
+    const renderer = await renderScreen();
+
+    expect(renderPart(getList(renderer).props.ListHeaderComponent).root.findAllByType(TextInput)).toHaveLength(1);
+    expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+    await typeSearch(renderer, 'a');
+    await flush();
+    expect(searchCalls()).toHaveLength(0);
+    expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+  });
+
+  it('debounces: typing quickly sends ONE request for the final text, trimmed', async () => {
+    installSearch(itemsFor(100, 5));
+    const renderer = await renderScreen();
+
+    await typeSearch(renderer, 'li');
+    await flush(100);
+    await typeSearch(renderer, 'lin');
+    await flush(100);
+    await typeSearch(renderer, '  link 10  ');
+    expect(searchCalls()).toHaveLength(0);
+    await flush();
+
+    expect(searchCalls()).toHaveLength(1);
+    expect(searchCalls()[0][1]).toEqual({ limit: 30, q: 'link 10' });
+  });
+
+  it('searches the WHOLE archive (links never loaded by the accordion), as a flat newest-first result list', async () => {
+    const all = [...itemsFor(1, 3), ...itemsFor(500, 4, 'Quokka')];
+    installSearch(all);
+    const renderer = await renderScreen();
+
+    await typeSearch(renderer, 'quokka');
+    await flush();
+
+    const rows = searchRowsOf(renderer);
+    expect(rows.map(row => row.kind)).toEqual(['searchItem', 'searchItem', 'searchItem', 'searchItem']);
+    expect(rows.map(row => row.item!.id)).toEqual([500, 501, 502, 503]);
+    expect(getRows(renderer).some(row => row.kind === 'header')).toBe(false);
+  });
+
+  it('Grid shows the same results as lines of two tiles; switching List/Grid keeps the search', async () => {
+    installSearch(itemsFor(500, 3, 'Quokka'));
+    const renderer = await renderScreen();
+    await typeSearch(renderer, 'quokka');
+    await flush();
+    expect(searchRowsOf(renderer).map(row => row.kind)).toEqual(['searchItem', 'searchItem', 'searchItem']);
+
+    const onChange = renderPart(getList(renderer).props.ListHeaderComponent).root.findByType(ViewModeToggle).props.onChange;
+    await act(async () => {
+      onChange('grid');
+    });
+    const gridRows = searchRowsOf(renderer);
+    expect(gridRows.map(row => row.kind)).toEqual(['searchGridRow', 'searchGridRow']);
+    expect(gridRows.map(row => row.items!.length)).toEqual([2, 1]);
+    expect(searchCalls()).toHaveLength(1);
+  });
+
+  it('a slow answer for an older text never overwrites the newer one', async () => {
+    installSearch(itemsFor(500, 3, 'Quokka'));
+    const first = deferred<ReturnType<typeof serveHistoryPage>>();
+    const original = jest.mocked(getItemHistory).getMockImplementation()!;
+    jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) =>
+      options.q === 'quo' ? first.promise : original(request, options));
+    const renderer = await renderScreen();
+
+    await typeSearch(renderer, 'quo');
+    await flush();
+    await typeSearch(renderer, 'quokka');
+    await flush();
+    expect(searchRowsOf(renderer).map(row => row.kind)).toEqual(['searchItem', 'searchItem', 'searchItem']);
+
+    await act(async () => {
+      first.resolve({ items: [makeItem({ id: 999, title: 'Stale quo' })], nextCursor: null });
+    });
+    expect(searchRowsOf(renderer).map(row => row.item?.id)).toEqual([500, 501, 502]);
+  });
+
+  it('shows a status while loading, when nothing matches, and when the search fails', async () => {
+    installSearch(itemsFor(500, 2, 'Quokka'));
+    const renderer = await renderScreen();
+
+    await typeSearch(renderer, 'zzzz');
+    expect(searchRowsOf(renderer).map(row => row.status)).toEqual(['loading']);
+    await flush();
+    expect(searchRowsOf(renderer).map(row => row.status)).toEqual(['empty']);
+
+    const original = jest.mocked(getItemHistory).getMockImplementation()!;
+    jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
+      if (options.q === 'boom') {
+        throw new Error('offline');
+      }
+      return original(request, options);
+    });
+    await typeSearch(renderer, 'boom');
+    await flush();
+    expect(searchRowsOf(renderer).map(row => row.status)).toEqual(['error']);
+  });
+
+  it('clearing the text returns to the normal accordion at once, and a result opens its details', async () => {
+    installSearch(itemsFor(500, 2, 'Quokka'));
+    const renderer = await renderScreen();
+    await typeSearch(renderer, 'quokka');
+    await flush();
+
+    const tapped = searchRowsOf(renderer)[0].item!;
+    const element = getList(renderer).props.renderItem({ item: searchRowsOf(renderer)[0], index: 0 });
+    await act(async () => {
+      element.props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('ItemDetails', { itemId: tapped.id });
+
+    await typeSearch(renderer, '');
+    expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
   });
 });

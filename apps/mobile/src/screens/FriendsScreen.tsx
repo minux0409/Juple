@@ -5,6 +5,8 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { formatBadgeCount } from '../components/badgeCount';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
 import { FriendDetailModal } from '../friends/FriendDetailModal';
@@ -47,6 +49,8 @@ export function FriendsScreen() {
   const navigation = useNavigation();
   const authenticatedRequest = useAuthenticatedApi();
   const [tab, setTab] = useState<FriendsTab>('friends');
+  // The same List/Grid switch and persistence Home/History/Collections use.
+  const { viewMode, changeViewMode } = useViewModePreference('friendsViewMode');
 
   const [friends, setFriends] = useState<readonly Friend[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -254,8 +258,10 @@ export function FriendsScreen() {
 
   const friendsList = (
     <FlatList
+      key={viewMode}
       contentContainerStyle={styles.listContent}
       data={friends}
+      numColumns={viewMode === 'grid' ? 2 : 1}
       keyboardShouldPersistTaps="handled"
       keyExtractor={friend => friend.friendshipId.toString()}
       ListEmptyComponent={
@@ -276,15 +282,19 @@ export function FriendsScreen() {
       ListFooterComponent={isLoadingMore ? <ActivityIndicator style={styles.loading} /> : undefined}
       ListHeaderComponent={
         <View>
-          <TextInput
-            accessibilityLabel={t('friends.search')}
-            autoCorrect={false}
-            onChangeText={setSearch}
-            placeholder={t('friends.search')}
-            style={styles.searchInput}
-            testID="friends-search"
-            value={search}
-          />
+          {/* [search] on the start side, the List/Grid switch pinned to the end edge. */}
+          <View style={styles.searchRow}>
+            <TextInput
+              accessibilityLabel={t('friends.search')}
+              autoCorrect={false}
+              onChangeText={setSearch}
+              placeholder={t('friends.search')}
+              style={styles.searchInput}
+              testID="friends-search"
+              value={search}
+            />
+            <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+          </View>
           {banner}
           {hasLoadedFriends && friendsError ? <Text style={styles.banner} testID="friends-stale">{t('friends.loadFallback')}</Text> : null}
         </View>
@@ -292,7 +302,7 @@ export function FriendsScreen() {
       onEndReached={loadMore}
       onEndReachedThreshold={0.5}
       refreshControl={refreshControl}
-      renderItem={({ item }) => <FriendRow friend={item} onPress={() => setSelected(item)} />}
+      renderItem={({ item }) => <FriendRow friend={item} layout={viewMode} onPress={() => setSelected(item)} />}
       testID="friends-list"
     />
   );
@@ -422,9 +432,38 @@ function FriendsAddHeaderButton({ onPress }: { readonly onPress: () => void }) {
   );
 }
 
-/** A friend: photo, nickname, @Juple ID, my note (quietest) - the whole row opens the friend. */
-function FriendRow({ friend, onPress }: { readonly friend: Friend; readonly onPress: () => void }) {
+/**
+ * A friend: photo, nickname, @Juple ID, my note (quietest) - the whole row/tile opens the friend (the
+ * one action a friend has here; everything else lives in its detail). List is the full-width row,
+ * Grid a centered 2-column tile with the same content.
+ */
+function FriendRow({ friend, layout, onPress }: { readonly friend: Friend; readonly layout: ViewMode; readonly onPress: () => void }) {
   const hasNickname = !!friend.displayName?.trim();
+  const isGrid = layout === 'grid';
+  const avatar = <UserAvatar displayName={friend.displayName} imageUrl={friend.profileImageUrl} imageVersion={friend.profileImageVersion} jupleId={friend.jupleId} size={isGrid ? 56 : 44} />;
+  const texts = (
+    <>
+      <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle, isGrid && styles.tileText]}>{friendPrimaryLabel(friend)}</Text>
+      {hasNickname ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle, isGrid && styles.tileText]}>{atJupleId(friend.jupleId)}</Text> : null}
+      {friend.myNote ? <Text numberOfLines={isGrid ? 2 : 1} style={[styles.note, isGrid && styles.tileText]} testID={`friend-${friend.friendshipId}-note`}>{friend.myNote}</Text> : null}
+    </>
+  );
+  if (isGrid) {
+    return (
+      <View style={styles.tileCell}>
+        <Pressable
+          accessibilityLabel={friendPrimaryLabel(friend)}
+          accessibilityRole="button"
+          onPress={onPress}
+          style={({ pressed }) => [styles.tile, pressed && styles.rowPressed]}
+          testID={`friend-${friend.friendshipId}`}
+        >
+          {avatar}
+          <View style={styles.tileBody}>{texts}</View>
+        </Pressable>
+      </View>
+    );
+  }
   return (
     <Pressable
       accessibilityLabel={friendPrimaryLabel(friend)}
@@ -433,12 +472,8 @@ function FriendRow({ friend, onPress }: { readonly friend: Friend; readonly onPr
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       testID={`friend-${friend.friendshipId}`}
     >
-      <UserAvatar displayName={friend.displayName} imageUrl={friend.profileImageUrl} imageVersion={friend.profileImageVersion} jupleId={friend.jupleId} size={44} />
-      <View style={styles.rowText}>
-        <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle]}>{friendPrimaryLabel(friend)}</Text>
-        {hasNickname ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle]}>{atJupleId(friend.jupleId)}</Text> : null}
-        {friend.myNote ? <Text numberOfLines={1} style={styles.note} testID={`friend-${friend.friendshipId}-note`}>{friend.myNote}</Text> : null}
-      </View>
+      {avatar}
+      <View style={styles.rowText}>{texts}</View>
       <ChevronIcon color={colors.textSecondary} direction="right" size={18} />
     </Pressable>
   );
@@ -548,15 +583,17 @@ const styles = StyleSheet.create({
   tabBadgeTextEmphasized: { color: colors.surface },
   tabBadgeTextMuted: { color: colors.textSecondary },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  searchRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', marginBottom: spacing.xs },
   searchInput: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
     borderRadius: radii.md + 4,
     borderWidth: 1,
     color: colors.textPrimary,
+    flex: 1,
     fontSize: 16,
-    marginBottom: spacing.xs,
     minHeight: minTouchTarget,
+    minWidth: 0,
     paddingHorizontal: spacing.md,
   },
   banner: { color: colors.danger, fontSize: 13, marginBottom: spacing.xs, marginTop: spacing.xs },
@@ -571,6 +608,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   rowPressed: { opacity: 0.6 },
+  // Grid: 2 columns of centered tiles (same hairline separation as rows, no boxed cards).
+  tileCell: { flexBasis: '50%', maxWidth: '50%', padding: spacing.xs },
+  tile: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md + 4, borderWidth: StyleSheet.hairlineWidth, gap: spacing.sm, minHeight: minTouchTarget + 60, paddingHorizontal: spacing.sm, paddingVertical: spacing.md },
+  tileBody: { alignSelf: 'stretch', minWidth: 0 },
+  tileText: { textAlign: 'center' },
   rowText: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },

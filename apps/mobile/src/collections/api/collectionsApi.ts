@@ -44,6 +44,11 @@ export interface Collection {
   readonly isSharePasswordProtected?: boolean;
   /** Owner view only: how many proposed links (승인 후 추가) wait for the Owner's approval. */
   readonly pendingSubmissionCount?: number;
+  /**
+   * A submitter's view (승인 후 추가): how many of the CALLER's OWN proposed links still wait for the
+   * Owner. A different number from pendingSubmissionCount (the Owner's queue) - never combined with it.
+   */
+  readonly myPendingSubmissionCount?: number;
   /** The caller's own unread 새 링크 notifications about this Collection - cleared by opening it. */
   readonly unreadNewLinkCount?: number;
   /** The card's attention badge: pendingSubmissionCount (Owner only) + unreadNewLinkCount - never reactions/comments. */
@@ -173,7 +178,11 @@ export interface GetCollectionsOptions {
   readonly scope?: CollectionListScope;
 }
 
-export type CollectionListScope = 'owned' | 'shared' | 'all' | 'favorites';
+/**
+ * 'myPending': only the Collections I am a member of in which a proposal of mine (승인 후 추가) still waits -
+ * the Collections behind the 내 승인 대기 number, paged by the server like every other scope.
+ */
+export type CollectionListScope = 'owned' | 'shared' | 'all' | 'favorites' | 'myPending';
 
 /** Collection is a growing user data set - always cursor-paginated, never returns everything in one response. */
 export async function getCollections(
@@ -420,7 +429,7 @@ export interface GetCollectionItemsOptions {
 }
 
 /**
- * One 일자순 section of a Collection (see getCollectionItemSections) - the same shape and meaning as
+ * One 시간순 section of a Collection (see getCollectionItemSections) - the same shape and meaning as
  * a History section (ItemHistorySection), over when each link was added to this Collection.
  */
 export interface CollectionItemSection {
@@ -482,7 +491,7 @@ export async function getCollectionItems(
 }
 
 /**
- * A Collection's 일자순 summary: its non-empty 오늘 / 어제 / 이번 주 / month sections, newest first,
+ * A Collection's 시간순 summary: its non-empty 오늘 / 어제 / 이번 주 / month sections, newest first,
  * with exact link counts and no link data - one small request however large the Collection is. Each
  * section's links come from getCollectionItems with its fromUtc/toUtc. Same lock gate as the list.
  */
@@ -713,6 +722,52 @@ export async function getCollectionSubmissions(
   });
   if (!response.body) {
     throw new Error('Juple API returned no submissions body.');
+  }
+  return response.body;
+}
+
+/** One of the caller's OWN links still waiting for the Owner's approval - see GET /collections/{id}/submissions/mine. */
+export interface MyCollectionLinkSubmission {
+  readonly submissionId: number;
+  readonly url: string;
+  readonly title: string | null;
+  readonly previewImageUrl: string | null;
+  readonly submittedAtUtc: string;
+}
+
+export interface MyCollectionLinkSubmissionPage {
+  readonly items: readonly MyCollectionLinkSubmission[];
+  readonly nextCursor: number | null;
+  /** How many of the caller's OWN proposals wait here in all (absent from an older server). */
+  readonly totalCount?: number;
+}
+
+/**
+ * How many of my own proposed links wait for approval across ALL the Collections of my shared list -
+ * one set-based number from the server (the list itself is paged and only one filter is loaded at a
+ * time, so it cannot be summed here). Never the Owner's approval queue.
+ */
+export async function getMyPendingSubmissionTotal(request: AuthenticatedApiRequest): Promise<number> {
+  const response = await request<{ readonly myPendingSubmissionCount: number }>({
+    method: 'GET',
+    path: '/api/v1/collections/my-pending-submissions/count',
+  });
+  return response.body?.myPendingSubmissionCount ?? 0;
+}
+
+/** The caller's own waiting proposals in this Collection (a 승인 후 추가 member), newest first. Never anyone else's. */
+export async function getMyCollectionSubmissions(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  cursor?: number | null,
+): Promise<MyCollectionLinkSubmissionPage> {
+  const response = await request<MyCollectionLinkSubmissionPage>({
+    method: 'GET',
+    path: `/api/v1/collections/${collectionId}/submissions/mine${cursor ? `?cursor=${cursor}` : ''}`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no own-submissions body.');
   }
   return response.body;
 }

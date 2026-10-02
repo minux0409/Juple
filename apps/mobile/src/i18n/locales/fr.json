@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "Accueil",
-    "history": "Historique",
+    "history": "Archives",
     "collections": "Collections",
     "myPage": "Mon compte"
   },
@@ -55,6 +55,7 @@
     "trash": "Supprimés récemment",
     "collectionSharedItem": "Lien partagé",
     "collectionSubmissions": "Liens en attente",
+    "myCollectionSubmissions": "Mes approbations en attente",
     "collectionShare": "Partager",
     "collectionLockSettings": "Verrouillage des collections"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "Impossible de supprimer l'élément."
   },
   "history": {
-    "title": "Historique",
+    "title": "Archives",
+    "searchPlaceholder": "Rechercher des liens",
+    "searchClear": "Effacer la recherche",
+    "searchEmpty": "Aucun résultat.",
+    "searchError": "La recherche a échoué.",
     "empty": "Aucun lien enregistré pour le moment.",
     "errorLoadFallback": "Impossible de charger votre historique.",
     "today": "Aujourd'hui",
@@ -97,11 +102,11 @@
     "namePlaceholder": "Nom de la collection",
     "editTitle": "Modifier la collection",
     "createAction": "Créer",
-    "sortDate": "Date",
+    "sortDate": "Heure",
     "sortName": "Nom",
     "sortRecent": "Plus récentes",
-    "sortDateNewestA11y": "Date, plus récent d’abord",
-    "sortDateOldestA11y": "Date, plus ancien d’abord",
+    "sortDateNewestA11y": "Heure, plus récents d’abord",
+    "sortDateOldestA11y": "Heure, plus anciens d’abord",
     "sortNameTooLarge": "Les collections de plus de {{max}} liens ne peuvent pas encore être triées par nom.",
     "itemCount": "{{count}} enregistrés",
     "newLinkNotificationsError": "Impossible de modifier l’alerte. Veuillez réessayer.",
@@ -131,7 +136,10 @@
     "copyClearAll": "Tout désélectionner",
     "copyClearAllA11y": "Désélectionner tout",
     "copySelectUpTo": "Sélectionner jusqu’à {{max}}",
-    "detailItemCount": "Liens de la collection : {{count}}",
+    "detailItemCount": "Total : {{count}}",
+    "myPendingSubmissions": "Mes en attente {{count}}",
+    "myPendingSubmissionsA11y": "Voir mes {{count}} liens en attente d’approbation",
+    "myPendingA11y": "Mes approbations en attente : {{count}}",
     "favoritesTitle": "Favoris",
     "allCollectionsTitle": "Toutes les collections",
     "addFavorite": "Ajouter aux favoris",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "Gérer le compte",
-    "signInMethod": "Méthode de connexion",
     "methodEmail": "E-mail",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "Vider",
+    "deleting": "Suppression...",
     "empty": "Aucun lien supprimé récemment.",
     "loadError": "Impossible de charger l'historique des suppressions.",
     "restoreA11y": "Restaurer",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "Aucun lien en attente d’approbation.",
+    "myEmpty": "Aucun de mes liens n’attend d’approbation.",
+    "myLoadError": "Impossible de charger mes liens en attente.",
+    "myStatus": "En attente d’approbation",
     "loadError": "Impossible de charger les liens en attente.",
     "approve": "Approuver",
     "reject": "Refuser",

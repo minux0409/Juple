@@ -30,16 +30,39 @@ export function sortCollectionItemsByName(
   items: readonly CollectionItemEntry[],
   locale: string | undefined = i18n.language,
 ): readonly CollectionItemEntry[] {
+  return sortLinksByName(items, { title: a => a.title, url: a => a.url, addedAtUtc: a => a.addedAtUtc, id: a => a.itemId }, locale);
+}
+
+/** What the name order reads from a link of any list (a Collection's entry, a Home/History item). */
+export interface LinkNameAccessors<T> {
+  readonly title: (link: T) => string | null;
+  readonly url: (link: T) => string;
+  readonly addedAtUtc: (link: T) => string;
+  readonly id: (link: T) => number;
+}
+
+/**
+ * The one 이름순 rule (see sortCollectionItemsByName), for any link list - a Collection and Home
+ * order names identically: locale-aware, title-less links last, ties newest first, never mutating.
+ */
+export function sortLinksByName<T>(
+  items: readonly T[],
+  accessors: LinkNameAccessors<T>,
+  locale: string | undefined = i18n.language,
+): readonly T[] {
   const collator = createNameCollator(locale);
   return [...items].sort((a, b) => {
-    if ((a.title === null) !== (b.title === null)) {
-      return a.title === null ? 1 : -1;
+    if ((accessors.title(a) === null) !== (accessors.title(b) === null)) {
+      return accessors.title(a) === null ? 1 : -1;
     }
     return (
-      collator.compare(resolveSavedLinkPrimaryText(a.title, a.url), resolveSavedLinkPrimaryText(b.title, b.url))
+      collator.compare(
+        resolveSavedLinkPrimaryText(accessors.title(a), accessors.url(a)),
+        resolveSavedLinkPrimaryText(accessors.title(b), accessors.url(b)),
+      )
       // Same name (or equal under base sensitivity): newest first, so the order never shuffles.
-      || b.addedAtUtc.localeCompare(a.addedAtUtc)
-      || b.itemId - a.itemId
+      || accessors.addedAtUtc(b).localeCompare(accessors.addedAtUtc(a))
+      || accessors.id(b) - accessors.id(a)
     );
   });
 }
@@ -60,7 +83,7 @@ export function sortCollectionsByName<T extends { readonly id: number; readonly 
 }
 
 /**
- * 일자순 as History's own date accordion (see groupByLocalDate - one grouping rule, never a second
+ * 시간순 as History's own date accordion (see groupByLocalDate - one grouping rule, never a second
  * copy): the links arrive already in the server's order for `sort` (the whole Collection by
  * AddedAtUtc), so 'dateDesc' reads 오늘 → 어제 → 이번 주 → newer months → older months and 'dateAsc'
  * the exact reverse, each section in the same direction. Nothing is re-sorted here.

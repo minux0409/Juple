@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "Home",
-    "history": "History",
+    "history": "Archive",
     "collections": "Collections",
     "myPage": "My Page"
   },
@@ -55,6 +55,7 @@
     "trash": "Recently Deleted",
     "collectionSharedItem": "Shared link",
     "collectionSubmissions": "Links pending approval",
+    "myCollectionSubmissions": "My pending approvals",
     "collectionShare": "Share",
     "collectionLockSettings": "Collection lock"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "Couldn't delete the item."
   },
   "history": {
-    "title": "History",
+    "title": "Archive",
+    "searchPlaceholder": "Search links",
+    "searchClear": "Clear search",
+    "searchEmpty": "No results.",
+    "searchError": "Couldn't search.",
     "empty": "No links saved yet.",
     "errorLoadFallback": "Couldn't load your history.",
     "today": "Today",
@@ -97,11 +102,11 @@
     "namePlaceholder": "Collection name",
     "editTitle": "Edit collection",
     "createAction": "Create",
-    "sortDate": "Date",
+    "sortDate": "Time",
     "sortName": "Name",
     "sortRecent": "Newest",
-    "sortDateNewestA11y": "Date, newest first",
-    "sortDateOldestA11y": "Date, oldest first",
+    "sortDateNewestA11y": "Time, newest first",
+    "sortDateOldestA11y": "Time, oldest first",
     "sortNameTooLarge": "Collections with more than {{max}} links can’t be sorted by name yet.",
     "itemCount": "{{count}} saved",
     "newLinkNotificationsError": "Couldn't change the notification setting. Please try again.",
@@ -131,7 +136,10 @@
     "copyClearAll": "Deselect all",
     "copyClearAllA11y": "Deselect all",
     "copySelectUpTo": "Select up to {{max}}",
-    "detailItemCount": "Collection links: {{count}}",
+    "detailItemCount": "Total {{count}}",
+    "myPendingSubmissions": "My pending {{count}}",
+    "myPendingSubmissionsA11y": "View my {{count}} links waiting for approval",
+    "myPendingA11y": "My pending approvals: {{count}}",
     "favoritesTitle": "Favorites",
     "allCollectionsTitle": "All collections",
     "addFavorite": "Add to favorites",
@@ -353,7 +361,6 @@
   },
   "account": {
     "title": "Manage account",
-    "signInMethod": "Sign-in method",
     "methodEmail": "Email",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -511,6 +518,7 @@
   },
   "trash": {
     "emptyAction": "Empty",
+    "deleting": "Deleting...",
     "empty": "No recently deleted links.",
     "loadError": "Couldn't load recently deleted links.",
     "restoreA11y": "Restore",
@@ -655,6 +663,9 @@
   },
   "submissions": {
     "empty": "No links are waiting for approval.",
+    "myEmpty": "None of my links are waiting for approval.",
+    "myLoadError": "Couldn't load my pending links.",
+    "myStatus": "Waiting for approval",
     "loadError": "Couldn’t load the links waiting for approval.",
     "approve": "Approve",
     "reject": "Decline",

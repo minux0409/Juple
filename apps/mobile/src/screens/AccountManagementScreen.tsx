@@ -96,7 +96,6 @@ export function AccountManagementScreen() {
           <View style={styles.card}>
             <View style={styles.row} testID="account-sign-in-method">
               <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>{t('account.signInMethod')}</Text>
                 <Text style={styles.rowValue}>{t(METHOD_LABEL_KEYS[method])}</Text>
                 {method === 'email' && userEmail ? (
                   <Text numberOfLines={1} style={[styles.rowDescription, ltrTextStyle]}>{userEmail}</Text>
@@ -151,8 +150,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.md, ...cardShadow },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget, paddingVertical: spacing.md },
   rowText: { flex: 1, minWidth: 0 },
-  rowLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
-  rowValue: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', marginTop: 2 },
+  rowValue: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
   rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   rowDescription: { color: colors.textSecondary, fontSize: 13, marginTop: 3 },
   divider: { backgroundColor: colors.divider, height: StyleSheet.hairlineWidth },

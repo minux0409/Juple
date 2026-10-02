@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "หน้าแรก",
-    "history": "ประวัติ",
+    "history": "คลังเก็บ",
     "collections": "คอลเลกชัน",
     "myPage": "หน้าของฉัน"
   },
@@ -55,6 +55,7 @@
     "trash": "ลบล่าสุด",
     "collectionSharedItem": "ลิงก์ที่แชร์",
     "collectionSubmissions": "ลิงก์ที่รออนุมัติ",
+    "myCollectionSubmissions": "รออนุมัติของฉัน",
     "collectionShare": "แชร์",
     "collectionLockSettings": "ล็อกคอลเลกชัน"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "ไม่สามารถลบรายการได้"
   },
   "history": {
-    "title": "ประวัติ",
+    "title": "คลังเก็บ",
+    "searchPlaceholder": "ค้นหาลิงก์",
+    "searchClear": "ล้างการค้นหา",
+    "searchEmpty": "ไม่พบผลลัพธ์",
+    "searchError": "ไม่สามารถค้นหาได้",
     "empty": "ยังไม่มีลิงก์ที่บันทึกไว้",
     "errorLoadFallback": "ไม่สามารถโหลดประวัติของคุณได้",
     "today": "วันนี้",
@@ -97,11 +102,11 @@
     "namePlaceholder": "ชื่อคอลเลกชัน",
     "editTitle": "แก้ไขคอลเลกชัน",
     "createAction": "สร้าง",
-    "sortDate": "วันที่",
+    "sortDate": "เวลา",
     "sortName": "ชื่อ",
     "sortRecent": "ล่าสุด",
-    "sortDateNewestA11y": "วันที่ ใหม่สุดก่อน",
-    "sortDateOldestA11y": "วันที่ เก่าสุดก่อน",
+    "sortDateNewestA11y": "เวลา ใหม่สุดก่อน",
+    "sortDateOldestA11y": "เวลา เก่าสุดก่อน",
     "sortNameTooLarge": "คอลเลกชันที่มีลิงก์เกิน {{max}} รายการยังเรียงตามชื่อไม่ได้",
     "itemCount": "บันทึกแล้ว {{count}} รายการ",
     "newLinkNotificationsError": "เปลี่ยนการตั้งค่าการแจ้งเตือนไม่ได้ โปรดลองอีกครั้ง",
@@ -131,7 +136,10 @@
     "copyClearAll": "ยกเลิกทั้งหมด",
     "copyClearAllA11y": "ยกเลิกการเลือกทั้งหมด",
     "copySelectUpTo": "เลือกได้สูงสุด {{max}}",
-    "detailItemCount": "ลิงก์ในคอลเลกชัน: {{count}}",
+    "detailItemCount": "ทั้งหมด {{count}}",
+    "myPendingSubmissions": "รออนุมัติของฉัน {{count}}",
+    "myPendingSubmissionsA11y": "ดูลิงก์ของฉัน {{count}} รายการที่รออนุมัติ",
+    "myPendingA11y": "รออนุมัติของฉัน: {{count}}",
     "favoritesTitle": "รายการโปรด",
     "allCollectionsTitle": "คอลเลกชันทั้งหมด",
     "addFavorite": "เพิ่มในรายการโปรด",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "จัดการบัญชี",
-    "signInMethod": "วิธีเข้าสู่ระบบ",
     "methodEmail": "อีเมล",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "ล้าง",
+    "deleting": "กำลังลบ...",
     "empty": "ไม่มีลิงก์ที่ลบล่าสุด",
     "loadError": "ไม่สามารถโหลดประวัติการลบได้",
     "restoreA11y": "กู้คืน",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "ไม่มีลิงก์ที่รออนุมัติ",
+    "myEmpty": "ไม่มีลิงก์ของฉันที่รออนุมัติ",
+    "myLoadError": "ไม่สามารถโหลดลิงก์ที่รออนุมัติของฉันได้",
+    "myStatus": "รออนุมัติ",
     "loadError": "โหลดรายการที่รออนุมัติไม่ได้",
     "approve": "อนุมัติ",
     "reject": "ปฏิเสธ",

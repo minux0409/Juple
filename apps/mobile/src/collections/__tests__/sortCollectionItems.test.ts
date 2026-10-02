@@ -81,7 +81,7 @@ describe('sortCollectionItemsByName (이름순 over a whole Collection)', () => 
   });
 });
 
-describe('groupCollectionItemsByDate (일자순 accordion over the server order)', () => {
+describe('groupCollectionItemsByDate (시간순 accordion over the server order)', () => {
   const t = i18n.t.bind(i18n);
   const daysAgo = (days: number) => {
     const date = new Date();

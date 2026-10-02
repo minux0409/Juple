@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
 export type LinkSortOption = 'newest' | 'oldest' | 'title';
-export type SortPreferenceKey = 'collectionDetailsLinkSort' | 'replicatePickerSort';
+export type SortPreferenceKey = 'collectionDetailsLinkSort' | 'replicatePickerSort' | 'homeLinkSort';
 
 const storageKey = (key: SortPreferenceKey) => `juple.${key}`;
 

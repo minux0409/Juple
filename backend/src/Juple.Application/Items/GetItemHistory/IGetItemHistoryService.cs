@@ -2,10 +2,15 @@ namespace Juple.Application.Items.GetItemHistory;
 
 public interface IGetItemHistoryService
 {
+    /// <summary>
+    /// With searchTerm (already ItemSearchPattern.Normalize'd): only the user's own Items whose title,
+    /// link (host / site) or memo contain it - same order, cursor and page shape as the plain History.
+    /// </summary>
     Task<ItemHistoryPage> GetAsync(
         long userId,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchTerm = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

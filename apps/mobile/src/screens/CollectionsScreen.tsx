@@ -21,6 +21,7 @@ import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync
 import {
   createCollection,
   getCollections,
+  getMyPendingSubmissionTotal,
   setCollectionFavorite,
   type Collection,
   type CollectionListScope,
@@ -72,9 +73,12 @@ const NEXT_PAGE_SKELETON_LIST_ROWS = 2;
  */
 type CategoryFilter = CollectionListScope;
 
-const FILTERS: readonly CategoryFilter[] = ['all', 'favorites', 'owned', 'shared'];
+const FILTERS: readonly CategoryFilter[] = ['all', 'favorites', 'owned', 'shared', 'myPending'];
 
-/** The same four filters as a 2x2 grid - all at the same level, never nested. */
+/**
+ * The four filters as a 2x2 grid - all at the same level, never nested. 내 승인 대기 (myPending) is the
+ * fifth, a full-width row under them: it belongs to the same group but only shows while something waits.
+ */
 const FILTER_ROWS: readonly (readonly CategoryFilter[])[] = [
   ['favorites', 'all'],
   ['owned', 'shared'],
@@ -88,6 +92,7 @@ const FILTER_LABEL_KEYS: Record<CategoryFilter, string> = {
   favorites: 'collections.favoritesTitle',
   owned: 'collections.myCategoriesTab',
   shared: 'collections.sharedCategoriesTab',
+  myPending: 'collections.myPendingSubmissions',
 };
 
 const FILTER_EMPTY_KEYS: Record<CategoryFilter, string> = {
@@ -95,6 +100,7 @@ const FILTER_EMPTY_KEYS: Record<CategoryFilter, string> = {
   favorites: 'collections.favoritesEmpty',
   owned: 'collections.allCollectionsEmpty',
   shared: 'collections.sharedEmpty',
+  myPending: 'submissions.myEmpty',
 };
 
 interface FilterListState {
@@ -178,6 +184,7 @@ export function CollectionsScreen() {
     favorites: EMPTY_LIST,
     owned: EMPTY_LIST,
     shared: EMPTY_LIST,
+    myPending: EMPTY_LIST,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -193,6 +200,9 @@ export function CollectionsScreen() {
   // Collaboration invitations addressed to this user (never ones they sent, never friend requests).
   const [receivedInvitations, setReceivedInvitations] = useState<readonly ReceivedCollectionInvitation[]>([]);
   const [isShareRequestsVisible, setIsShareRequestsVisible] = useState(false);
+  // My own proposals waiting for approval across my whole shared list (one number from the server - the
+  // list is paged and only the active filter is loaded, so a sum of loaded cards would be wrong).
+  const [myPendingTotal, setMyPendingTotal] = useState(0);
 
   const loadRequestIdRef = useRef(0);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
@@ -248,6 +258,14 @@ export function CollectionsScreen() {
       .catch(() => undefined);
   }, [authenticatedRequest]);
 
+  // Reloaded wherever the list itself is (focus, pull-to-refresh, a Push about a proposal or its result):
+  // one request, best-effort - without it the tab simply shows no number.
+  const loadMyPendingTotal = useCallback(() => {
+    getMyPendingSubmissionTotal(authenticatedRequest)
+      .then(setMyPendingTotal)
+      .catch(() => undefined);
+  }, [authenticatedRequest]);
+
   /** Every other filter's cached page may now be stale - they reload when next selected. */
   const invalidateOtherFilters = useCallback((keep: CategoryFilter) => {
     setLists(previous => {
@@ -270,11 +288,12 @@ export function CollectionsScreen() {
       invalidateOtherFilters(current);
       load(current, 'refresh');
       loadReceivedInvitations();
+      loadMyPendingTotal();
       // Best-effort: keeps the native Direct Share/Quick Save composer category snapshot (see
       // categorySnapshotSync.ts) current on every visit, independently of this screen's own
       // paginated state - a failure here never affects what this screen shows.
       syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
-    }, [authenticatedRequest, invalidateOtherFilters, load, loadReceivedInvitations]),
+    }, [authenticatedRequest, invalidateOtherFilters, load, loadMyPendingTotal, loadReceivedInvitations]),
   );
 
   // Refresh signaling is deliberately separate from AppToast state: revisiting this tab must
@@ -310,9 +329,11 @@ export function CollectionsScreen() {
       invalidateOtherFilters(filterRef.current);
       load(filterRef.current, 'refresh');
       loadReceivedInvitations();
+      loadMyPendingTotal();
     },
-    // 새 링크 and 승인 요청 also change a card's attention badge (reactions/comments never do).
-    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered', 'collectionItemsAdded', 'collectionLinkSubmission'],
+    // 새 링크 and 승인 요청 also change a card's attention badge, and a proposal's result (approved /
+    // declined) changes the 내 승인 대기 chip (reactions/comments never do).
+    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered', 'collectionItemsAdded', 'collectionLinkSubmission', 'collectionLinkSubmissionApproved', 'collectionLinkSubmissionRejected'],
   );
 
   // Opening a Collection read its 새 링크: its card drops that part of the badge at once (its
@@ -544,6 +565,7 @@ export function CollectionsScreen() {
             onRefresh={() => {
               load(filter, 'refresh');
               loadReceivedInvitations();
+      loadMyPendingTotal();
             }}
           />
         }
@@ -606,6 +628,26 @@ export function CollectionsScreen() {
                 </View>
               ))}
             </View>
+
+            {/* 내 승인 대기 N: a full-width filter of the same group, right under the four. N is how many LINKS of
+                mine wait in all (one number from the server); tapping it lists exactly the Collections that
+                hold them (a server-side filter, correct beyond the first page) - the cards stay as they are.
+                Neutral, never the red attention color. Hidden at 0, except while it is the active filter
+                (so it never disappears under the finger when the last one is answered). */}
+            {myPendingTotal > 0 || filter === 'myPending' ? (
+              <Pressable
+                accessibilityLabel={t('collections.myPendingA11y', { count: myPendingTotal })}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: filter === 'myPending' }}
+                onPress={() => selectFilter('myPending')}
+                style={[styles.filterCell, styles.myPendingFilter, filter === 'myPending' && styles.filterCellActive]}
+                testID="collections-filter-my-pending"
+              >
+                <Text numberOfLines={2} style={[styles.filterLabel, filter === 'myPending' && styles.filterLabelActive]}>
+                  {t('collections.myPendingSubmissions', { count: formatBadgeCount(myPendingTotal) })}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {/* 공유 요청: only on 공유 카테고리 and only while there is something to answer - it
                 never takes space otherwise. */}
@@ -825,6 +867,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   filterCellWithBadge: { paddingEnd: spacing.sm + 26 },
+  myPendingFilter: { alignSelf: 'stretch', flex: 0, marginTop: spacing.xs },
   filterBadge: {
     alignItems: 'center',
     backgroundColor: colors.danger,

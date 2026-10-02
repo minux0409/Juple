@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, StyleSheet, Text } from 'react-native';
+import { Modal, StyleSheet, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { KeyboardAvoidingView } from 'react-native';
@@ -16,6 +16,8 @@ import {
   type CollectionParticipants,
 } from '../../collections/api/collaborationApi';
 import { CrownIcon } from '../../icons/CrownIcon';
+import { UserAvatar } from '../../components/UserAvatar';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { AppToastProvider } from '../../components/AppToast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -37,6 +39,17 @@ beforeAll(async () => {
 });
 
 jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
+const mockPrefs = new Map<string, string>();
+beforeEach(() => mockPrefs.clear());
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async (key: string) => mockPrefs.get(key) ?? null),
+    setItem: jest.fn(async (key: string, value: string) => {
+      mockPrefs.set(key, value);
+    }),
+  },
+}));
 
 // The window the screen lays its person rows out for - a narrow phone unless a test says otherwise.
 const mockWindow = { current: { width: 360, height: 800, scale: 2, fontScale: 1 } };
@@ -96,14 +109,18 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 const texts = (node: Renderer | ReactTestRenderer.ReactTestInstance) =>
   ('root' in node ? node.root : node).findAllByType(Text).map(text => String(text.props.children));
 const byId = (renderer: Renderer, testID: string) => renderer.root.findByProps({ testID });
-/** The public link's OFF | ON control (in its card header): one pill whose two sides are written inside it. */
-const publicSide = (renderer: Renderer, side: 'on' | 'off') => byId(renderer, `share-public-toggle-${side}`);
-const publicToggle = (renderer: Renderer) => publicSide(renderer, 'on');
-const isPublicOn = (renderer: Renderer) => publicSide(renderer, 'on').props.accessibilityState.checked === true;
+/** The public link's switch (in its card header): a Pressable around a touch-less visual Switch, no words. */
+const publicToggle = (renderer: Renderer) =>
+  renderer.root.findAll(node => node.props.testID === 'share-public-toggle' && typeof node.props.onPress === 'function')[0];
+const isPublicOn = (renderer: Renderer) => publicToggle(renderer).props.accessibilityState.checked === true;
+/** What the visual Switch itself shows - never anything but the actual state. */
+const shownSwitchValue = (renderer: Renderer) => publicToggle(renderer).findByType(Switch).props.value;
 async function turnPublic(renderer: Renderer, value: boolean) {
-  await act(async () => {
-    await publicSide(renderer, value ? 'on' : 'off').props.onPress();
-  });
+  if (isPublicOn(renderer) !== value) {
+    await act(async () => {
+      await publicToggle(renderer).props.onPress();
+    });
+  }
 }
 const raisePrompt = (renderer: Renderer) =>
   renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('shareSheet.raiseRolesTitle'))[0];
@@ -230,10 +247,18 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     expect(i18n.t('shareSheet.allUsersTitle')).toBe('컬렉션 공개');
     expect(texts(renderer)).not.toContain('공개 링크 공유');
     expect(i18n.t('shareSheet.inviteTitle')).toBe('친구 초대');
-    // No public link yet: the switch says OFF, and there is nothing to share.
-    expect(texts(byId(renderer, 'share-public-toggle'))).toEqual(['OFF', 'ON']);
+    // No public link yet: the switch is off, shows no OFF / ON words, and there is nothing to share.
+    expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+    expect(publicToggle(renderer).props.accessibilityRole).toBe('switch');
+    expect(texts(renderer)).not.toContain('OFF');
+    expect(texts(renderer)).not.toContain('ON');
     expect(isPublicOn(renderer)).toBe(false);
     expect(exists(renderer, 'share-link-action')).toBe(false);
+    // OFF: the switch is the only thing at the card header's end - no reserved, empty share-icon slot.
+    const offRows = renderer.root.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.flexDirection === 'row'
+      && StyleSheet.flatten(node.props.style)?.flexShrink === 0 && node.findAll(inner => inner.props.testID === 'share-public-toggle').length > 0);
+    const offTrailing = offRows[offRows.length - 1];
+    expect(offTrailing.children).toHaveLength(1);
     // Only the in-card tab bars remain; no 일반 공유 / 공동작업 split and none of the old wording.
     const tabs = renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityRole === 'tab');
     expect(tabs.map(tab => tab.props.testID)).toEqual([
@@ -253,16 +278,17 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
   });
 
   describe('모든 사용자 (the public link: 읽기 or 작성)', () => {
-    it('the OFF | ON control turns it on as 읽기 전용 ([공유] [OFF | ON] in the header, no outside ON/OFF text, no URL shown), and off only after confirming', async () => {
+    it('the switch turns it on as 읽기 전용 ([switch][공유 icon] in the header, no ON/OFF text, no URL shown), and off only after confirming', async () => {
       jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
       jest.mocked(revokeCollectionShare).mockResolvedValue(undefined);
       const renderer = await renderScreen();
       // Off at first: no link, no 공유 중, and no separate 공유 시작 / 공유 중지 buttons any more.
       expect(isPublicOn(renderer)).toBe(false);
-      expect(publicSide(renderer, 'off').props.accessibilityState.checked).toBe(true);
-      expect(renderer.root.findAll(node => node.props.testID === 'share-public-toggle' && node.props.accessibilityRole === 'radiogroup')[0].props.accessibilityLabel).toBe('컬렉션 공개');
-      // The two states are written inside the control itself - never as separate text beside it.
-      expect(texts(byId(renderer, 'share-public-toggle'))).toEqual(['OFF', 'ON']);
+      expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+    expect(publicToggle(renderer).props.accessibilityRole).toBe('switch');
+      // The switch alone is the control - no OFF / ON words anywhere.
+      expect(texts(renderer)).not.toContain('OFF');
+      expect(texts(renderer)).not.toContain('ON');
       expect(exists(renderer, 'share-public-state')).toBe(false);
       // Off: no share action either - there is nothing to share yet.
       for (const gone of ['share-create-link', 'share-stop', 'share-all-users-status', 'share-link', 'share-link-row', 'share-link-action']) {
@@ -280,8 +306,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       }
       expect(texts(renderer).some(text => text.includes('https://juple.test/c/p'))).toBe(false);
 
-      // The share action: icon-only, a full 44dp target, in the header to the start side of the
-      // OFF | ON control with a wide gap between them (a tap meant for one never lands on the other).
+      // The share action: icon-only, a full 44dp target, in the header right after (end side of) the
+      // switch, close to it.
       const shareAction = renderer.root.findAll(node => node.props.testID === 'share-link-action' && typeof node.props.onPress === 'function')[0];
       expect(shareAction.props.accessibilityLabel).toBe('컬렉션 링크 공유');
       const actionStyle = StyleSheet.flatten(shareAction.props.style);
@@ -291,11 +317,13 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const header = renderer.root.findAll(node => node.type === Text && node.props.children === '컬렉션 공개' && node.props.accessibilityRole === 'header')[0].parent!;
       const headerOrder = header.findAll(node => typeof node.type === 'string' && ['share-link-action', 'share-public-toggle'].includes(node.props.testID))
         .map(node => node.props.testID);
-      expect(headerOrder.filter((id, index) => headerOrder.indexOf(id) === index)).toEqual(['share-link-action', 'share-public-toggle']);
+      expect(headerOrder.filter((id, index) => headerOrder.indexOf(id) === index)).toEqual(['share-public-toggle', 'share-link-action']);
       const trailing = header.findAll(node => typeof node.type === 'string' && StyleSheet.flatten(node.props.style)?.flexDirection === 'row'
         && node.findAll(inner => inner.props.testID === 'share-link-action').length > 0
         && node.findAll(inner => inner.props.testID === 'share-public-toggle').length > 0);
-      expect(StyleSheet.flatten(trailing[trailing.length - 1].props.style).gap).toBeGreaterThanOrEqual(16);
+      expect(StyleSheet.flatten(trailing[trailing.length - 1].props.style).gap).toBeLessThanOrEqual(8);
+      // ON: exactly [switch][share icon], the icon taking its own place after the switch.
+      expect(trailing[trailing.length - 1].children).toHaveLength(2);
       // Not in the card body any more (neither in the permission field nor below the description).
       const permissionField = renderer.root.findAll(node => node.type === Text && node.props.children === '권한')[0].parent!;
       expect(permissionField.findAll(node => node.props.testID === 'share-link-action')).toHaveLength(0);
@@ -318,6 +346,94 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(isPublicOn(renderer)).toBe(false);
       expect(exists(renderer, 'share-link')).toBe(false);
       expect(exists(renderer, 'share-link-action')).toBe(false);
+    });
+
+    describe('the switch never pre-toggles (no ON -> OFF -> ON flicker)', () => {
+      const confirmDialog = (renderer: Renderer) => renderer.root.findAllByType(Modal).find(modal => modal.props.visible)!;
+      const stopSharingButton = (renderer: Renderer) =>
+        confirmDialog(renderer).findAll(node => node.props.accessibilityLabel === i18n.t('shareSheet.stopSharing') && typeof node.props.onPress === 'function')[0];
+      const cancelButton = (renderer: Renderer) =>
+        confirmDialog(renderer).findAll(node => node.props.accessibilityLabel === i18n.t('common.cancel') && typeof node.props.onPress === 'function')[0];
+
+      async function renderWithPublicOn() {
+        jest.mocked(enableCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'read' });
+        const renderer = await renderScreen();
+        await turnPublic(renderer, true);
+        expect(isPublicOn(renderer)).toBe(true);
+        return renderer;
+      }
+
+      it('ON + tap: the switch stays ON (as shown AND as announced) while the confirmation is asked; nothing is requested yet', async () => {
+        const renderer = await renderWithPublicOn();
+        await turnPublic(renderer, false);
+
+        expect(shownSwitchValue(renderer)).toBe(true);
+        expect(isPublicOn(renderer)).toBe(true);
+        expect(publicToggle(renderer).props.accessibilityRole).toBe('switch');
+        expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+        expect(revokeCollectionShare).not.toHaveBeenCalled();
+        expect(stopSharingButton(renderer)).toBeTruthy();
+        // The visual switch is not a touch target of its own - only the Pressable around it takes the tap.
+        expect(publicToggle(renderer).findByType(Switch).parent!.props.pointerEvents).toBe('none');
+      });
+
+      it('cancel leaves it ON - it never moved', async () => {
+        const renderer = await renderWithPublicOn();
+        await turnPublic(renderer, false);
+        await act(async () => {
+          cancelButton(renderer).props.onPress();
+        });
+
+        expect(shownSwitchValue(renderer)).toBe(true);
+        expect(isPublicOn(renderer)).toBe(true);
+        expect(revokeCollectionShare).not.toHaveBeenCalled();
+      });
+
+      it('confirm: still ON while the request is in flight, OFF only once it succeeded', async () => {
+        const renderer = await renderWithPublicOn();
+        let finish!: () => void;
+        jest.mocked(revokeCollectionShare).mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+        await turnPublic(renderer, false);
+        await act(async () => {
+          stopSharingButton(renderer).props.onPress();
+        });
+
+        expect(revokeCollectionShare).toHaveBeenCalledTimes(1);
+        expect(shownSwitchValue(renderer)).toBe(true);
+        await act(async () => {
+          finish();
+        });
+        expect(shownSwitchValue(renderer)).toBe(false);
+        expect(isPublicOn(renderer)).toBe(false);
+      });
+
+      it('a failed stop leaves it ON and shows the error', async () => {
+        const renderer = await renderWithPublicOn();
+        jest.mocked(revokeCollectionShare).mockRejectedValue(new Error('boom'));
+        await turnPublic(renderer, false);
+        await act(async () => {
+          stopSharingButton(renderer).props.onPress();
+        });
+
+        expect(shownSwitchValue(renderer)).toBe(true);
+        expect(isPublicOn(renderer)).toBe(true);
+        expect(texts(renderer)).toContain(i18n.t('item.shareError'));
+      });
+
+      it('OFF -> ON still works at once, and rapid taps send one enable request', async () => {
+        jest.mocked(enableCollectionShare).mockReturnValue(new Promise(() => undefined));
+        const renderer = await renderScreen();
+        expect(isPublicOn(renderer)).toBe(false);
+
+        await act(async () => {
+          const toggle = publicToggle(renderer);
+          toggle.props.onPress();
+          toggle.props.onPress();
+          toggle.props.onPress();
+        });
+
+        expect(enableCollectionShare).toHaveBeenCalledTimes(1);
+      });
     });
 
     it('작성 chosen before starting changes the description and creates a writable link', async () => {
@@ -1129,6 +1245,95 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(exists(renderer, 'member-actions-WNER2345')).toBe(false);
       // No inline toggles on accepted members - the rows stay short.
       expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('member-role-'))).toHaveLength(0);
+    });
+
+    it('shows each person avatar (their photo from the participant response, else the fallback) before the name - no extra request', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue({
+        ...withWriter,
+        participants: [
+          { ...owner, profileImageUrl: 'https://blob.example.test/p/WNER2345.jpg?sig=1', profileImageVersion: 'v1' },
+          withWriter.participants[1],
+          withWriter.participants[2],
+        ],
+      });
+      const renderer = await renderScreen();
+
+      const ownerRow = byId(renderer, 'participant-WNER2345');
+      const ownerAvatar = ownerRow.findByType(UserAvatar);
+      expect(ownerAvatar.props).toMatchObject({ jupleId: 'WNER2345', imageUrl: 'https://blob.example.test/p/WNER2345.jpg?sig=1', imageVersion: 'v1', size: 32 });
+      // A member without a photo still gets the (initial / glyph) fallback avatar - never an empty slot.
+      const writerRow = byId(renderer, 'participant-WRTR2345');
+      expect(writerRow.findAllByType(UserAvatar)).toHaveLength(1);
+      expect(writerRow.findByType(UserAvatar).props.imageUrl ?? null).toBeNull();
+      // The list came from the one participants request.
+      expect(getCollectionParticipants).toHaveBeenCalledTimes(1);
+    });
+
+    describe('공유 상태 - List / Grid', () => {
+      beforeEach(() => mockPrefs.clear());
+      const statusToggle = (renderer: Renderer) => byId(renderer, 'share-status').findByType(ViewModeToggle);
+      const setMode = async (renderer: Renderer, mode: 'list' | 'grid') => {
+        await act(async () => {
+          statusToggle(renderer).props.onChange(mode);
+        });
+      };
+
+      it('the List/Grid switch sits on the 공유 상태 title line, at the far end; List is the default', async () => {
+        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+        const renderer = await renderScreen();
+
+        const toggle = statusToggle(renderer);
+        const headerRow = toggle.parent!;
+        const children = headerRow.children as ReactTestRenderer.ReactTestInstance[];
+        expect(children[children.length - 1] === toggle).toBe(true);
+        expect(headerRow.findAll(node => node.type === Text && node.props.accessibilityRole === 'header' && node.props.children === '공유 상태').length).toBe(1);
+        expect(exists(renderer, 'share-members')).toBe(true);
+        expect(exists(renderer, 'share-members-grid')).toBe(false);
+      });
+
+      it('Grid shows every member as an avatar tile (photo or fallback) with name and role, and keeps the management action on the tile', async () => {
+        jest.mocked(getCollectionParticipants).mockResolvedValue({
+          ...withWriter,
+          participants: [{ ...owner, profileImageUrl: 'https://blob.example.test/p/WNER2345.jpg?sig=1', profileImageVersion: 'v1' }, withWriter.participants[1], withWriter.participants[2]],
+        });
+        const renderer = await renderScreen();
+        await setMode(renderer, 'grid');
+
+        expect(exists(renderer, 'share-members')).toBe(false);
+        const grid = byId(renderer, 'share-members-grid');
+        expect(grid.findAllByType(UserAvatar)).toHaveLength(3);
+        expect(grid.findAllByType(UserAvatar)[0].props.imageUrl).toBe('https://blob.example.test/p/WNER2345.jpg?sig=1');
+        expect(grid.findAllByType(UserAvatar)[1].props.imageUrl ?? null).toBeNull();
+        expect(texts(grid)).toEqual(expect.arrayContaining(['피카츄', '파이리', i18n.t('collections.roleOwner')]));
+        expect(grid.findAllByType(CrownIcon)).toHaveLength(1);
+        // The Owner own tile is not a button; a member tile is - and it opens the same menu as the List "..." button.
+        expect(grid.findAll(node => node.props.testID === 'participant-WNER2345' && typeof node.props.onPress === 'function')).toHaveLength(0);
+        await press(renderer, 'participant-RDER2345');
+        const menu = renderer.root.findByType(ActionMenuDialog);
+        expect(menu.props.visible).toBe(true);
+        expect(menu.props.actions.map((action: { label: string }) => action.label)).toEqual(expect.arrayContaining([i18n.t('shareSheet.changeToWrite')]));
+      });
+
+      it('Grid also covers 초대 대기 (tile = the same cancel / role menu) and saves the choice', async () => {
+        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+        const renderer = await renderScreen();
+        await setMode(renderer, 'grid');
+        expect(mockPrefs.get('juple.participantViewMode')).toBe('grid');
+
+        await press(renderer, 'share-status-tabs-pending');
+        const grid = byId(renderer, 'share-pending-grid');
+        expect(texts(grid)).toEqual(expect.arrayContaining(['이상해씨']));
+        await press(renderer, 'pending-9');
+        expect(renderer.root.findByType(ActionMenuDialog).props.visible).toBe(true);
+      });
+
+      it('restores a saved Grid choice on the next visit', async () => {
+        mockPrefs.set('juple.participantViewMode', 'grid');
+        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+        const renderer = await renderScreen();
+
+        expect(exists(renderer, 'share-members-grid')).toBe(true);
+      });
     });
 
     it('the "⋯" menu switches a member between 읽기 and 쓰기 in both directions', async () => {

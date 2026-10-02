@@ -7,6 +7,7 @@ import { lookupJupleId } from '../../collections/api/collaborationApi';
 import { AppModal } from '../../components/AppModal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { UserAvatar } from '../../components/UserAvatar';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { UserIcon } from '../../icons/UserIcon';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { jupleIdForLookup } from '../../friends/friendIdentity';
@@ -24,6 +25,16 @@ import {
 } from '../../friends/api/friendsApi';
 
 jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
+const mockPrefs = new Map<string, string>();
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async (key: string) => mockPrefs.get(key) ?? null),
+    setItem: jest.fn(async (key: string, value: string) => {
+      mockPrefs.set(key, value);
+    }),
+  },
+}));
 // The header's [+] is set through navigation options - kept here so a test can render and tap it.
 const mockNavigation = { setOptions: jest.fn() };
 jest.mock('@react-navigation/native', () => ({
@@ -725,5 +736,50 @@ describe('FriendsScreen - narrow screens and accessibility', () => {
       expect(texts(renderer).some(text => text.includes('@example') || text.includes('https://'))).toBe(false);
     }
     expect(renderer.root.findAllByType(TextInput).every(input => input.props.accessibilityLabel)).toBe(true);
+  });
+});
+
+describe('FriendsScreen - List / Grid', () => {
+  beforeEach(() => mockPrefs.clear());
+
+  it('shows the shared List/Grid switch on the far end of the search row; List is the default', async () => {
+    const renderer = await renderScreen();
+
+    const toggle = renderer.root.findByType(ViewModeToggle);
+    const row = toggle.parent!;
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row' });
+    const children = row.children as ReactTestRenderer.ReactTestInstance[];
+    expect(children[children.length - 1]).toBe(toggle);
+    expect(children[0].props.testID).toBe('friends-search');
+    expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(1);
+  });
+
+  it('Grid keeps every friend action (the tile opens the friend) with the same identity content, and persists', async () => {
+    const renderer = await renderScreen();
+
+    await act(async () => {
+      renderer.root.findByType(ViewModeToggle).props.onChange('grid');
+    });
+
+    expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(2);
+    expect(mockPrefs.get('juple.friendsViewMode')).toBe('grid');
+    const tileTexts = texts(renderer);
+    expect(tileTexts).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']));
+    // Same avatar component as List (photo, else initial/glyph).
+    expect(renderer.root.findAllByType(UserAvatar).length).toBeGreaterThanOrEqual(2);
+    await press(renderer, 'friend-7');
+    expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(true);
+  });
+
+  it('restores a saved Grid preference, and switching back to List persists too', async () => {
+    mockPrefs.set('juple.friendsViewMode', 'grid');
+    const renderer = await renderScreen();
+    expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(2);
+
+    await act(async () => {
+      renderer.root.findByType(ViewModeToggle).props.onChange('list');
+    });
+    expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(1);
+    expect(mockPrefs.get('juple.friendsViewMode')).toBe('list');
   });
 });

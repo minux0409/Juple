@@ -150,6 +150,43 @@ public sealed class CollectionLinkSubmissionStore(
             hasMore ? page[^1].Id : null);
     }
 
+    public async Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default) =>
+        await (
+            from submission in dbContext.CollectionLinkSubmissions.AsNoTracking()
+            where submission.SubmittedByUserId == userId
+            join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
+                on submission.CollectionId equals collection.Id
+            // Only Collections that are in the caller's shared list: they are a member of them.
+            where dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)
+            select submission.Id)
+            .CountAsync(cancellationToken);
+
+    public async Task<MyCollectionLinkSubmissionPage> ListMineAsync(
+        long collectionId,
+        long userId,
+        long? beforeSubmissionId,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        // Indexed queries (CollectionId / SubmittedByUserId): the caller's own rows only, and their count.
+        var totalCount = await dbContext.CollectionLinkSubmissions.AsNoTracking()
+            .CountAsync(submission => submission.CollectionId == collectionId && submission.SubmittedByUserId == userId, cancellationToken);
+        var rows = await dbContext.CollectionLinkSubmissions.AsNoTracking()
+            .Where(submission => submission.CollectionId == collectionId
+                && submission.SubmittedByUserId == userId
+                && (beforeSubmissionId == null || submission.Id < beforeSubmissionId))
+            .OrderByDescending(submission => submission.Id)
+            .Take(limit + 1)
+            .Select(submission => new { submission.Id, submission.Url, submission.Title, submission.PreviewImageUrl, submission.CreatedAtUtc })
+            .ToListAsync(cancellationToken);
+        var hasMore = rows.Count > limit;
+        var page = hasMore ? rows.GetRange(0, limit) : rows;
+        return new MyCollectionLinkSubmissionPage(
+            page.Select(row => new MyCollectionLinkSubmissionDto(row.Id, row.Url, row.Title, row.PreviewImageUrl, row.CreatedAtUtc)).ToList(),
+            hasMore ? page[^1].Id : null,
+            totalCount);
+    }
+
     public async Task<ApprovedCollectionLinkSubmission> ApproveAsync(
         long collectionId,
         long submissionId,

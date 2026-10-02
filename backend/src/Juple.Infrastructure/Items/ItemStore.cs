@@ -465,6 +465,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         long userId,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchPattern = null,
         CancellationToken cancellationToken = default)
     {
         // Orders/pages by SavedAtUtc (the original save moment). Backed by the existing
@@ -472,6 +473,18 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         var itemsQuery = dbContext.Items
             .AsNoTracking()
             .Where(item => item.UserId == userId && item.DeletedAtUtc == null);
+
+        if (searchPattern is not null)
+        {
+            // Contains-search over this one user's own rows (the UserId seek above bounds the scan to
+            // them; a leading-wildcard LIKE cannot use an index on its own). The pattern is a
+            // parameter with its wildcards escaped (see ItemSearchPattern) - case sensitivity follows
+            // the column collation like every other text comparison here.
+            itemsQuery = itemsQuery.Where(item =>
+                EF.Functions.Like(item.Url, searchPattern, ItemSearchPattern.EscapeCharacter)
+                || (item.Title != null && EF.Functions.Like(item.Title, searchPattern, ItemSearchPattern.EscapeCharacter))
+                || (item.Memo != null && EF.Functions.Like(item.Memo, searchPattern, ItemSearchPattern.EscapeCharacter)));
+        }
 
         if (cursor is not null)
         {

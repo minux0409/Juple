@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "होम",
-    "history": "इतिहास",
+    "history": "संग्रह",
     "collections": "संग्रह",
     "myPage": "मेरा पेज"
   },
@@ -55,6 +55,7 @@
     "trash": "हाल ही में हटाए गए",
     "collectionSharedItem": "साझा लिंक",
     "collectionSubmissions": "मंज़ूरी की प्रतीक्षा वाले लिंक",
+    "myCollectionSubmissions": "मेरे लंबित अनुमोदन",
     "collectionShare": "साझा करें",
     "collectionLockSettings": "संग्रह लॉक"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "आइटम हटाया नहीं जा सका।"
   },
   "history": {
-    "title": "इतिहास",
+    "title": "संग्रह",
+    "searchPlaceholder": "लिंक खोजें",
+    "searchClear": "खोज साफ़ करें",
+    "searchEmpty": "कोई परिणाम नहीं।",
+    "searchError": "खोज नहीं हो सकी।",
     "empty": "अभी तक कोई लिंक सेव नहीं किया गया है।",
     "errorLoadFallback": "आपका इतिहास लोड नहीं हो सका।",
     "today": "आज",
@@ -97,11 +102,11 @@
     "namePlaceholder": "संग्रह का नाम",
     "editTitle": "संग्रह संपादित करें",
     "createAction": "बनाएं",
-    "sortDate": "तारीख",
+    "sortDate": "समय",
     "sortName": "नाम",
     "sortRecent": "नवीनतम",
-    "sortDateNewestA11y": "तारीख, नया पहले",
-    "sortDateOldestA11y": "तारीख, पुराना पहले",
+    "sortDateNewestA11y": "समय, सबसे नए पहले",
+    "sortDateOldestA11y": "समय, सबसे पुराने पहले",
     "sortNameTooLarge": "{{max}} से ज़्यादा लिंक वाले संग्रह को अभी नाम से क्रमबद्ध नहीं किया जा सकता।",
     "itemCount": "{{count}} सेव किए",
     "newLinkNotificationsError": "सूचना सेटिंग नहीं बदली जा सकी। कृपया फिर से कोशिश करें।",
@@ -131,7 +136,10 @@
     "copyClearAll": "सभी का चयन हटाएँ",
     "copyClearAllA11y": "पूरा चयन हटाएँ",
     "copySelectUpTo": "{{max}} तक चुनें",
-    "detailItemCount": "कलेक्शन लिंक: {{count}}",
+    "detailItemCount": "कुल {{count}}",
+    "myPendingSubmissions": "मेरे लंबित {{count}}",
+    "myPendingSubmissionsA11y": "अनुमोदन की प्रतीक्षा में मेरे {{count}} लिंक देखें",
+    "myPendingA11y": "मेरे लंबित अनुमोदन: {{count}}",
     "favoritesTitle": "पसंदीदा",
     "allCollectionsTitle": "सभी संग्रह",
     "addFavorite": "पसंदीदा में जोड़ें",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "खाता प्रबंधित करें",
-    "signInMethod": "साइन-इन का तरीका",
     "methodEmail": "ईमेल",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "खाली करें",
+    "deleting": "हटाया जा रहा है...",
     "empty": "हाल ही में कोई लिंक नहीं हटाया गया।",
     "loadError": "हटाने का इतिहास लोड नहीं हो सका।",
     "restoreA11y": "पुनर्स्थापित करें",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "मंज़ूरी की प्रतीक्षा में कोई लिंक नहीं है।",
+    "myEmpty": "मेरा कोई लिंक अनुमोदन की प्रतीक्षा में नहीं है।",
+    "myLoadError": "मेरे लंबित लिंक लोड नहीं हो सके।",
+    "myStatus": "अनुमोदन की प्रतीक्षा में",
     "loadError": "प्रतीक्षा सूची लोड नहीं हो सकी।",
     "approve": "मंज़ूर करें",
     "reject": "अस्वीकार करें",

@@ -1,7 +1,7 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -23,8 +23,10 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout, TITLE_COUNT_GAP } from '../components/savedLinkLayout';
 import { SavedLinkGridCell, savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
+import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
@@ -45,6 +47,9 @@ import { isHttpUrl } from '../share/resolveIncomingShare';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
+import { useSortPreference } from '../settings/sortPreference';
+import { sortLinksByName } from '../collections/sortCollectionItems';
+import { NAME_ORDER_MAX_LINKS } from '../collections/useCollectionItems';
 
 /** Links per request - a screenful or two; the rest of the day comes a page at a time. */
 export const HOME_PAGE_SIZE = 25;
@@ -119,6 +124,9 @@ export function DailyInboxScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showUndoToast } = useAppToast();
   const { viewMode, changeViewMode } = useViewModePreference('homeViewMode');
+  // Independent of the view mode (switching List/Grid never resets the sort) - the same two
+  // separately-persisted preferences a Collection keeps (see CollectionDetailsScreen).
+  const { sortOption, setSortOption } = useSortPreference('homeLinkSort');
   // AppToastHost renders above NavigationContainer (root coordinate space), so unlike a
   // screen-local Toast this needs the actual bottom tab bar height, not 0 - otherwise the Toast
   // sits under the tab bar, over the Android system navigation area.
@@ -229,7 +237,7 @@ export function DailyInboxScreen() {
     [authenticatedRequest, t],
   );
 
-  const loadMore = useCallback(() => {
+  const loadMore = useCallback((limit: number = HOME_PAGE_SIZE) => {
     if (loadingMoreRef.current || isLoading || isRefreshing || !nextCursor || !windowStartUtc) {
       return;
     }
@@ -240,7 +248,7 @@ export function DailyInboxScreen() {
 
     (async () => {
       try {
-        const page = await getItemHistory(authenticatedRequest, { limit: HOME_PAGE_SIZE, cursor: nextCursor, fromUtc: windowStartUtc });
+        const page = await getItemHistory(authenticatedRequest, { limit, cursor: nextCursor, fromUtc: windowStartUtc });
         if (loadRequestIdRef.current !== requestId) {
           return;
         }
@@ -390,6 +398,35 @@ export function DailyInboxScreen() {
     setPendingDeleteItemId(previous => previous ?? itemId);
   };
 
+  // 시간순 ↓ (the server's own newest-first order) pages in as the list scrolls. 시간순 ↑ and 이름순 need
+  // the whole day: it is loaded here (largest pages) before anything is shown in that order, never
+  // presenting a partial order as the day's - exactly the Collection rule. A day larger than
+  // NAME_ORDER_MAX_LINKS stays on newest-first.
+  const isSortTooLarge = (todayCount ?? 0) > NAME_ORDER_MAX_LINKS;
+  const effectiveSort = sortOption !== 'newest' && isSortTooLarge ? 'newest' : sortOption;
+  const needsWholeDay = effectiveSort !== 'newest';
+  useEffect(() => {
+    if (needsWholeDay && nextCursor && !error && !isLoading && !isRefreshing && !isLoadingMore) {
+      loadMore(MAX_PAGE_LIMIT);
+    }
+  }, [error, isLoading, isLoadingMore, isRefreshing, loadMore, needsWholeDay, nextCursor]);
+  const isAssemblingOrder = needsWholeDay && !error && (nextCursor !== null || isLoadingMore);
+  const displayedItems = useMemo(() => {
+    if (isAssemblingOrder) {
+      return [];
+    }
+    if (effectiveSort === 'title') {
+      return sortLinksByName(items, { title: item => item.title, url: item => item.url, addedAtUtc: item => item.savedAtUtc, id: item => item.id });
+    }
+    return effectiveSort === 'oldest' ? [...items].reverse() : items;
+  }, [effectiveSort, isAssemblingOrder, items]);
+  const pressDateSort = () => setSortOption(effectiveSort === 'newest' ? 'oldest' : 'newest');
+  const pressNameSort = () => {
+    if (!isSortTooLarge) {
+      setSortOption('title');
+    }
+  };
+
   // Where links are about to appear - only while that request is actually on its way.
   const renderSkeletons = (count: number, testID: string) =>
     viewMode === 'grid' ? (
@@ -403,7 +440,7 @@ export function DailyInboxScreen() {
     ) : (
       <View testID={testID}>
         {Array.from({ length: count }, (_, index) => (
-          <View key={index} style={[styles.card, styles.skeletonCard]}>
+          <View key={index} style={[savedLinkLayout.card, styles.skeletonCard]}>
             <SavedLinkRowSkeleton testID="home-skeleton" />
           </View>
         ))}
@@ -415,7 +452,7 @@ export function DailyInboxScreen() {
       <FlatList
         key={viewMode}
         contentContainerStyle={styles.content}
-        data={items}
+        data={displayedItems}
         keyExtractor={entry => entry.id.toString()}
         numColumns={viewMode === 'grid' ? 2 : 1}
         initialNumToRender={10}
@@ -423,7 +460,7 @@ export function DailyInboxScreen() {
         windowSize={7}
         // Android: rows scrolled far away drop their native views (and images) entirely.
         removeClippedSubviews={Platform.OS === 'android'}
-        onEndReached={loadMore}
+        onEndReached={() => loadMore()}
         onEndReachedThreshold={0.5}
         onScrollBeginDrag={closeOpenRow}
         refreshControl={
@@ -469,13 +506,31 @@ export function DailyInboxScreen() {
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.recentHeaderRow}>
-              <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
-              <View style={styles.recentHeaderActions}><Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: todayCount ?? items.length })}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
+              {/* Title and count only - the controls are on the sort row below, as in a Collection. */}
+              <View style={styles.recentHeaderLabel}>
+                <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
+                <Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: todayCount ?? items.length })}</Text>
+              </View>
+            </View>
+            {/* [시간순 이름순] on the start side, the List/Grid switch pinned to the end edge. */}
+            <View style={styles.sortRow}>
+              <LinkSortChips
+                dateLabel={t('collections.sortDate')}
+                dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
+                dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
+                nameLabel={t('collections.sortName')}
+                onPressDate={pressDateSort}
+                onPressName={pressNameSort}
+                sort={effectiveSort}
+                testIDPrefix="home-sort"
+              />
+              <View style={styles.sortRowSpacer} />
+              <ViewModeToggle onChange={changeViewMode} value={viewMode} />
             </View>
           </View>
         }
         ListEmptyComponent={
-          isLoading && !error ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
+          (isLoading || isAssemblingOrder) && !error ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
         renderItem={({ item }) => viewMode === 'grid' ? (
           <SavedLinkGridCell
@@ -489,7 +544,7 @@ export function DailyInboxScreen() {
           />
         ) : (
           <SwipeableItemRow
-            containerStyle={styles.card}
+            containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null || isRefreshing}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => {
@@ -608,37 +663,28 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   recentHeaderRow: {
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.xs,
-    marginBottom: spacing.md,
+    gap: spacing.sm,
     marginTop: spacing.xl,
   },
+  // Title and count on ONE row, count right after the title: the title shrinks (and wraps within itself)
+  // on a long translation, the count never drops to a line of its own.
+  recentHeaderLabel: { alignItems: 'baseline', columnGap: TITLE_COUNT_GAP, flexDirection: 'row', flexShrink: 1, minWidth: 0 },
+  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
+  sortRowSpacer: { flex: 1 },
   recentTitle: {
+    flexShrink: 1,
     color: colors.textPrimary,
     fontSize: 17,
     fontWeight: '700',
   },
   recentCount: {
+    flexShrink: 0,
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '500',
   },
-  // Each saved link is its own standalone card - a white surface, clearly lifted off the screen's
-  // own cool-gray background (see safeArea), with a barely-visible border rather than a heavier
-  // divider line. No shadow here: SwipeableItemRow's wrapper (which this containerStyle merges
-  // onto) needs overflow:'hidden' to clip its revealed swipe actions to the card's rounded shape,
-  // and a shadow on the same view would just get clipped away by that same overflow:hidden (both
-  // iOS shadow* and Android elevation render outside the view's own bounds) - so the background/
-  // border contrast alone carries the "card" look here.
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: spacing.sm + 2,
-  },
-  recentHeaderActions: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   skeletonCard: { overflow: 'hidden' },
   gridSkeletons: { flexDirection: 'row', flexWrap: 'wrap' },
 });

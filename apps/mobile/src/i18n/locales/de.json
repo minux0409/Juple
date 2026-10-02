@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "Start",
-    "history": "Verlauf",
+    "history": "Archiv",
     "collections": "Sammlungen",
     "myPage": "Mein Bereich"
   },
@@ -55,6 +55,7 @@
     "trash": "Kürzlich gelöscht",
     "collectionSharedItem": "Geteilter Link",
     "collectionSubmissions": "Links mit ausstehender Freigabe",
+    "myCollectionSubmissions": "Meine ausstehenden Freigaben",
     "collectionShare": "Teilen",
     "collectionLockSettings": "Sammlungssperre"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."
   },
   "history": {
-    "title": "Verlauf",
+    "title": "Archiv",
+    "searchPlaceholder": "Links suchen",
+    "searchClear": "Suche löschen",
+    "searchEmpty": "Keine Ergebnisse.",
+    "searchError": "Die Suche ist fehlgeschlagen.",
     "empty": "Es wurden noch keine Links gespeichert.",
     "errorLoadFallback": "Der Verlauf konnte nicht geladen werden.",
     "today": "Heute",
@@ -97,11 +102,11 @@
     "namePlaceholder": "Sammlungsname",
     "editTitle": "Sammlung bearbeiten",
     "createAction": "Erstellen",
-    "sortDate": "Datum",
+    "sortDate": "Zeit",
     "sortName": "Name",
     "sortRecent": "Neueste",
-    "sortDateNewestA11y": "Datum, neueste zuerst",
-    "sortDateOldestA11y": "Datum, älteste zuerst",
+    "sortDateNewestA11y": "Zeit, neueste zuerst",
+    "sortDateOldestA11y": "Zeit, älteste zuerst",
     "sortNameTooLarge": "Sammlungen mit mehr als {{max}} Links können noch nicht nach Name sortiert werden.",
     "itemCount": "{{count}} gespeichert",
     "newLinkNotificationsError": "Die Benachrichtigung konnte nicht geändert werden. Bitte versuche es erneut.",
@@ -131,7 +136,10 @@
     "copyClearAll": "Auswahl aufheben",
     "copyClearAllA11y": "Gesamte Auswahl aufheben",
     "copySelectUpTo": "Bis zu {{max}} auswählen",
-    "detailItemCount": "Links in der Sammlung: {{count}}",
+    "detailItemCount": "Gesamt: {{count}}",
+    "myPendingSubmissions": "Meine Freigaben ausstehend {{count}}",
+    "myPendingSubmissionsA11y": "Meine {{count}} Links ansehen, die auf Freigabe warten",
+    "myPendingA11y": "Meine ausstehenden Freigaben: {{count}}",
     "favoritesTitle": "Favoriten",
     "allCollectionsTitle": "Alle Sammlungen",
     "addFavorite": "Zu Favoriten hinzufügen",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "Konto verwalten",
-    "signInMethod": "Anmeldemethode",
     "methodEmail": "E-Mail",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "Leeren",
+    "deleting": "Wird gelöscht...",
     "empty": "Keine kürzlich gelöschten Links.",
     "loadError": "Verlauf gelöschter Links konnte nicht geladen werden.",
     "restoreA11y": "Wiederherstellen",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "Keine Links warten auf Freigabe.",
+    "myEmpty": "Keiner meiner Links wartet auf Freigabe.",
+    "myLoadError": "Ausstehende Links konnten nicht geladen werden.",
+    "myStatus": "Wartet auf Freigabe",
     "loadError": "Die ausstehenden Links konnten nicht geladen werden.",
     "approve": "Freigeben",
     "reject": "Ablehnen",

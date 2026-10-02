@@ -4,6 +4,7 @@ import {
   AccessibilityInfo,
   Animated,
   PanResponder,
+  type PanResponderCallbacks,
   Pressable,
   StyleSheet,
   Text,
@@ -15,19 +16,80 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { cardShadow, colors, radii, spacing } from '../theme/tokens';
 import { notificationBannerQueue, type BannerQueue, type NotificationBanner } from './bannerQueue';
+import { isHorizontalBannerDrag, resolveBannerSwipe, type BannerSwipeDirection } from './bannerGesture';
 import { NotificationTypeIcon } from './NotificationTypeIcon';
 import { openNotification, subscribeNotificationUnavailable } from './openNotification';
 
 /** How long a banner stays before it slides away by itself. */
 export const BANNER_VISIBLE_MS = 4000;
 const SLIDE_MS = 220;
-/** An upward drag past this (or a quick flick) dismisses early. */
-const SWIPE_DISMISS_DISTANCE = 24;
 const MAX_BANNER_WIDTH = 480;
 
-/** Whether a released drag dismisses the banner: far enough up, or a quick upward flick. */
-export function isDismissSwipe(dy: number, vy: number): boolean {
-  return dy < -SWIPE_DISMISS_DISTANCE || vy < -0.5;
+/** Where each animated axis ends for one way of leaving; null = that axis is left exactly where it is. */
+export interface BannerExitPlan {
+  /** Horizontal drag offset (dp). */
+  readonly x: number | null;
+  /** The slide-in/out progress (1 = shown, 0 = slid up out of the top) - only the timer / a tap use it. */
+  readonly progress: number | null;
+}
+
+/**
+ * The exits. A user's swipe keeps going the way it was thrown, sideways and on X only - it never
+ * touches the vertical slide (`progress` maps to a translateY, which is what used to send a
+ * horizontally thrown banner flying UP at the end). Only the timer / a tap slide the banner back up
+ * through `progress`, as it came in.
+ */
+export function planBannerExit(direction: BannerSwipeDirection | undefined, screenWidth: number): BannerExitPlan {
+  switch (direction) {
+    case 'left':
+      return { x: -screenWidth, progress: null };
+    case 'right':
+      return { x: screenWidth, progress: null };
+    default:
+      return { x: null, progress: 0 };
+  }
+}
+
+export interface BannerPanCallbacks {
+  /** The touch became a drag (beyond a tap's slop): the tap that would follow must be ignored. */
+  readonly onDragStart: () => void;
+  /** The finger's horizontal travel - the only thing that moves the banner while dragging. */
+  readonly onDrag: (dx: number) => void;
+  readonly onSwipe: (direction: BannerSwipeDirection) => void;
+  readonly onDragCancel: () => void;
+  /** A new touch began - a previous drag's tap suppression ends. */
+  readonly onTouchStart: () => void;
+}
+
+/**
+ * The banner's gesture arbitration. A touch that stays within a tap's slop is left to the Pressable
+ * (tap -> open). Once it moves beyond it SIDEWAYS (more horizontal than vertical) the banner claims it
+ * in the capture phase, so the Pressable gets a terminate (no press on release) and the drag alone
+ * decides: a left/right swipe past the threshold dismisses (never opening), anything shorter springs
+ * back to X = 0. A vertical or vertical-dominant movement is never claimed: the banner neither moves
+ * nor dismisses.
+ */
+export function createBannerPanConfig(callbacks: BannerPanCallbacks): PanResponderCallbacks {
+  return {
+    onStartShouldSetPanResponderCapture: () => {
+      callbacks.onTouchStart();
+      return false;
+    },
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => isHorizontalBannerDrag(gesture),
+    onMoveShouldSetPanResponder: (_event, gesture) => isHorizontalBannerDrag(gesture),
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => callbacks.onDragStart(),
+    onPanResponderMove: (_event, gesture) => callbacks.onDrag(gesture.dx),
+    onPanResponderRelease: (_event, gesture) => {
+      const direction = resolveBannerSwipe(gesture);
+      if (direction) {
+        callbacks.onSwipe(direction);
+      } else {
+        callbacks.onDragCancel();
+      }
+    },
+    onPanResponderTerminate: () => callbacks.onDragCancel(),
+  };
 }
 
 /**
@@ -91,13 +153,16 @@ function BannerCard({
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const progress = useRef(new Animated.Value(0)).current;
-  const drag = useRef(new Animated.Value(0)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
+  // Fades a swiped-away banner (1 = visible) independently of the slide-in progress.
+  const swipeFade = useRef(new Animated.Value(1)).current;
+  const wasDraggedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLeavingRef = useRef(false);
   const onDismissedRef = useRef(onDismissed);
   onDismissedRef.current = onDismissed;
 
-  const leave = useCallback(() => {
+  const leave = useCallback((direction?: BannerSwipeDirection) => {
     if (isLeavingRef.current) {
       return;
     }
@@ -105,8 +170,19 @@ function BannerCard({
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
-    Animated.timing(progress, { duration: SLIDE_MS, toValue: 0, useNativeDriver: true }).start(() => onDismissedRef.current());
-  }, [progress]);
+    const plan = planBannerExit(direction, width);
+    const animations: Animated.CompositeAnimation[] = [];
+    if (plan.x !== null) {
+      animations.push(Animated.timing(dragX, { duration: SLIDE_MS, toValue: plan.x, useNativeDriver: true }));
+    }
+    if (plan.progress !== null) {
+      animations.push(Animated.timing(progress, { duration: SLIDE_MS, toValue: plan.progress, useNativeDriver: true }));
+    }
+    if (direction) {
+      animations.push(Animated.timing(swipeFade, { duration: SLIDE_MS, toValue: 0, useNativeDriver: true }));
+    }
+    Animated.parallel(animations).start(() => onDismissedRef.current());
+  }, [dragX, progress, swipeFade, width]);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) {
@@ -128,41 +204,37 @@ function BannerCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const springBack = () => {
+    Animated.spring(dragX, { toValue: 0, useNativeDriver: true }).start();
+    startTimer();
+  };
   const panResponder = useRef(
-    PanResponder.create({
-      // Only a vertical drag takes over - a plain tap stays the Pressable's.
-      onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderGrant: () => {
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-        }
-      },
-      onPanResponderMove: (_event, gesture) => drag.setValue(Math.min(0, gesture.dy)),
-      onPanResponderRelease: (_event, gesture) => {
-        if (isDismissSwipe(gesture.dy, gesture.vy)) {
-          leave();
-          return;
-        }
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
-        startTimer();
-      },
-      onPanResponderTerminate: () => {
-        Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
-        startTimer();
-      },
-    }),
+    PanResponder.create(
+      createBannerPanConfig({
+        onTouchStart: () => {
+          wasDraggedRef.current = false;
+        },
+        onDragStart: () => {
+          wasDraggedRef.current = true;
+          if (timerRef.current) {
+            clearTimeout(timerRef.current);
+          }
+        },
+        // Only the horizontal travel follows the finger; the banner never moves vertically.
+        onDrag: dx => dragX.setValue(dx),
+        onSwipe: direction => leave(direction),
+        onDragCancel: springBack,
+      }),
+    ),
   ).current;
 
-  const translateY = Animated.add(
-    progress.interpolate({ inputRange: [0, 1], outputRange: [-(insets.top + 120), 0] }),
-    drag,
-  );
+  const translateY = progress.interpolate({ inputRange: [0, 1], outputRange: [-(insets.top + 120), 0] });
 
   return (
     <View pointerEvents="box-none" style={[styles.layer, { top: insets.top + spacing.sm }]}>
       <Animated.View
         {...panResponder.panHandlers}
-        style={[styles.card, { maxWidth: Math.min(MAX_BANNER_WIDTH, width - spacing.lg * 2), opacity: progress, transform: [{ translateY }] }]}
+        style={[styles.card, { maxWidth: Math.min(MAX_BANNER_WIDTH, width - spacing.lg * 2), opacity: Animated.multiply(progress, swipeFade), transform: [{ translateX: dragX }, { translateY }] }]}
         testID="notification-banner"
       >
         <Pressable
@@ -170,6 +242,10 @@ function BannerCard({
           accessibilityLabel={t('notifications.bannerAnnouncement', { title: banner.title, body: banner.body })}
           accessibilityRole="button"
           onPress={() => {
+            // A release that ended a drag is never a tap.
+            if (wasDraggedRef.current) {
+              return;
+            }
             leave();
             onPress(banner);
           }}

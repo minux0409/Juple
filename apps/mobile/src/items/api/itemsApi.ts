@@ -51,6 +51,11 @@ export interface GetItemHistoryOptions {
    */
   readonly fromUtc?: string;
   readonly toUtc?: string | null;
+  /**
+   * Search the caller's WHOLE archive (title, link / site, own memo) instead - newest first, the same
+   * cursor and page shape. 2-100 characters after trimming; not combined with fromUtc/toUtc.
+   */
+  readonly q?: string;
 }
 
 /** All Items the user has ever saved, newest-saved-first (or one section's window of them - see fromUtc). */
@@ -64,6 +69,9 @@ export async function getItemHistory(
   }
   if (options.cursor) {
     query.set('cursor', options.cursor);
+  }
+  if (options.q) {
+    query.set('q', options.q);
   }
   if (options.fromUtc) {
     query.set('fromUtc', options.fromUtc);

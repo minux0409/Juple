@@ -42,7 +42,7 @@
   },
   "tabs": {
     "home": "Início",
-    "history": "Histórico",
+    "history": "Arquivo",
     "collections": "Coleções",
     "myPage": "Minha página"
   },
@@ -55,6 +55,7 @@
     "trash": "Excluídos recentemente",
     "collectionSharedItem": "Link compartilhado",
     "collectionSubmissions": "Links pendentes",
+    "myCollectionSubmissions": "Minhas aprovações pendentes",
     "collectionShare": "Compartilhar",
     "collectionLockSettings": "Bloqueio de coleções"
   },
@@ -77,7 +78,11 @@
     "errorDeleteFallback": "Não foi possível excluir o item."
   },
   "history": {
-    "title": "Histórico",
+    "title": "Arquivo",
+    "searchPlaceholder": "Pesquisar links",
+    "searchClear": "Limpar pesquisa",
+    "searchEmpty": "Nenhum resultado.",
+    "searchError": "Não foi possível pesquisar.",
     "empty": "Você ainda não salvou nenhum link.",
     "errorLoadFallback": "Não foi possível carregar seu histórico.",
     "today": "Hoje",
@@ -97,11 +102,11 @@
     "namePlaceholder": "Nome da coleção",
     "editTitle": "Editar coleção",
     "createAction": "Criar",
-    "sortDate": "Data",
+    "sortDate": "Horário",
     "sortName": "Nome",
     "sortRecent": "Mais recentes",
-    "sortDateNewestA11y": "Data, mais recentes primeiro",
-    "sortDateOldestA11y": "Data, mais antigos primeiro",
+    "sortDateNewestA11y": "Horário, mais recentes primeiro",
+    "sortDateOldestA11y": "Horário, mais antigos primeiro",
     "sortNameTooLarge": "Coleções com mais de {{max}} links ainda não podem ser ordenadas por nome.",
     "itemCount": "{{count}} salvos",
     "newLinkNotificationsError": "Não foi possível alterar o aviso. Tente novamente.",
@@ -131,7 +136,10 @@
     "copyClearAll": "Desmarcar tudo",
     "copyClearAllA11y": "Desmarcar toda a seleção",
     "copySelectUpTo": "Selecionar até {{max}}",
-    "detailItemCount": "Links da coleção: {{count}}",
+    "detailItemCount": "Total: {{count}}",
+    "myPendingSubmissions": "Meus pendentes {{count}}",
+    "myPendingSubmissionsA11y": "Ver meus {{count}} links aguardando aprovação",
+    "myPendingA11y": "Minhas aprovações pendentes: {{count}}",
     "favoritesTitle": "Favoritos",
     "allCollectionsTitle": "Todas as coleções",
     "addFavorite": "Adicionar aos favoritos",
@@ -338,7 +346,6 @@
   },
   "account": {
     "title": "Gerenciar conta",
-    "signInMethod": "Forma de login",
     "methodEmail": "E-mail",
     "methodGoogle": "Google",
     "methodApple": "Apple",
@@ -496,6 +503,7 @@
   },
   "trash": {
     "emptyAction": "Esvaziar",
+    "deleting": "Excluindo...",
     "empty": "Nenhum link excluído recentemente.",
     "loadError": "Não foi possível carregar o histórico de exclusões.",
     "restoreA11y": "Restaurar",
@@ -640,6 +648,9 @@
   },
   "submissions": {
     "empty": "Nenhum link aguardando aprovação.",
+    "myEmpty": "Nenhum dos meus links aguarda aprovação.",
+    "myLoadError": "Não foi possível carregar meus links pendentes.",
+    "myStatus": "Aguardando aprovação",
     "loadError": "Não foi possível carregar os links pendentes.",
     "approve": "Aprovar",
     "reject": "Recusar",

@@ -349,7 +349,7 @@ export function useDateSectionPages<T>(
     }, [loadSummary]),
   );
 
-  // Turned on later (e.g. switching a Collection back to 일자순): load as a focus would.
+  // Turned on later (e.g. switching a Collection back to 시간순): load as a focus would.
   const previousEnabledRef = useRef(enabled);
   useEffect(() => {
     if (enabled && !previousEnabledRef.current) {
