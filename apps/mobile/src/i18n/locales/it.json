@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Impossibile eliminare l'elemento."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} elementi da controllare",
     "title": "Raccolte",
     "empty": "Non ci sono ancora raccolte.",
     "create": "Nuova raccolta",
@@ -687,5 +688,18 @@
     "acceptA11y": "Accetta la richiesta di amicizia di {{name}}",
     "declineA11y": "Rifiuta la richiesta di amicizia di {{name}}",
     "cancelA11y": "Annulla la richiesta di amicizia a {{name}}"
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "markAllRead": "Segna tutto come letto",
+    "empty": "Ancora nessuna notifica.",
+    "unavailable": "Il contenuto di questa notifica non è più disponibile.",
+    "loadError": "Impossibile caricare le notifiche.",
+    "retry": "Riprova",
+    "unreadA11y": "Non letta",
+    "bellA11y": "Notifiche",
+    "bellUnreadA11y": "Notifiche, {{count}} non lette",
+    "bannerAnnouncement": "Nuova notifica: {{title}}. {{body}}",
+    "bannerHint": "Tocca per aprire. Scorri verso l’alto per chiudere."
   }
 }

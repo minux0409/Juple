@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Tidak dapat menghapus item."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} item perlu perhatian",
     "title": "Koleksi",
     "empty": "Belum ada koleksi.",
     "create": "Koleksi baru",
@@ -687,5 +688,18 @@
     "acceptA11y": "Terima permintaan pertemanan dari {{name}}",
     "declineA11y": "Tolak permintaan pertemanan dari {{name}}",
     "cancelA11y": "Batalkan permintaan pertemanan ke {{name}}"
+  },
+  "notifications": {
+    "title": "Notifikasi",
+    "markAllRead": "Tandai semua dibaca",
+    "empty": "Belum ada notifikasi.",
+    "unavailable": "Konten notifikasi ini sudah tidak tersedia.",
+    "loadError": "Tidak dapat memuat notifikasi.",
+    "retry": "Coba lagi",
+    "unreadA11y": "Belum dibaca",
+    "bellA11y": "Notifikasi",
+    "bellUnreadA11y": "Notifikasi, {{count}} belum dibaca",
+    "bannerAnnouncement": "Notifikasi baru: {{title}}. {{body}}",
+    "bannerHint": "Ketuk untuk membuka. Geser ke atas untuk menutup."
   }
 }

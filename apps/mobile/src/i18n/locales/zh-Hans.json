@@ -90,6 +90,7 @@
     "errorDeleteFallback": "无法删除该项目。"
   },
   "collections": {
+    "attentionA11y": "{{name}}，{{count}} 项待处理",
     "title": "合集",
     "empty": "还没有合集。",
     "create": "新建合集",
@@ -687,5 +688,18 @@
     "acceptA11y": "接受 {{name}} 的好友请求",
     "declineA11y": "拒绝 {{name}} 的好友请求",
     "cancelA11y": "取消发给 {{name}} 的好友请求"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "empty": "还没有通知。",
+    "unavailable": "此通知的内容已无法查看。",
+    "loadError": "无法加载通知。",
+    "retry": "重试",
+    "unreadA11y": "未读",
+    "bellA11y": "通知",
+    "bellUnreadA11y": "通知，{{count}} 条未读",
+    "bannerAnnouncement": "新通知：{{title}}。{{body}}",
+    "bannerHint": "点按打开，向上滑动关闭。"
   }
 }

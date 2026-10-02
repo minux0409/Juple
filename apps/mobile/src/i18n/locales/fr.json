@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Impossible de supprimer l'élément."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} éléments à traiter",
     "title": "Collections",
     "empty": "Aucune collection pour le moment.",
     "create": "Nouvelle collection",
@@ -687,5 +688,18 @@
     "acceptA11y": "Accepter la demande d'ami de {{name}}",
     "declineA11y": "Refuser la demande d'ami de {{name}}",
     "cancelA11y": "Annuler la demande d'ami envoyée à {{name}}"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "empty": "Aucune notification pour le moment.",
+    "unavailable": "Le contenu de cette notification n'est plus disponible.",
+    "loadError": "Impossible de charger les notifications.",
+    "retry": "Réessayer",
+    "unreadA11y": "Non lue",
+    "bellA11y": "Notifications",
+    "bellUnreadA11y": "Notifications, {{count}} non lues",
+    "bannerAnnouncement": "Nouvelle notification : {{title}}. {{body}}",
+    "bannerHint": "Touchez pour ouvrir. Balayez vers le haut pour fermer."
   }
 }

@@ -163,9 +163,11 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // The new revision is played by today's model, which also maps Collections.IconImageBlobName
         // (a later, purely additive nullable column - AddCollectionIconImage) and reads the later
         // CollectionSharePasswords (AddCollectionSharePasswords) and CollectionLinkSubmissions
-        // (AddCollectionLinkSubmissions - the Owner's 승인 대기 count) tables: all are added here the
+        // (AddCollectionLinkSubmissions - the Owner's 승인 대기 count) tables, and Notifications.CollectionId
+        // (a later nullable column - the caller's unread 새 링크 count on each card): all are added here the
         // way those migrations add them and given back before the real migrations run in step 10.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] ADD [IconImageBlobName] nvarchar(400) NULL");
+        await ExecuteAsync("ALTER TABLE [notifications].[Notifications] ADD [CollectionId] bigint NULL");
         await ExecuteAsync(
             """
             CREATE TABLE [collections].[CollectionSharePasswords] (
@@ -222,6 +224,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         await ExecuteAsync("ALTER TABLE [collections].[Collections] DROP COLUMN [IconImageBlobName]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionSharePasswords]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionLinkSubmissions]");
+        await ExecuteAsync("ALTER TABLE [notifications].[Notifications] DROP COLUMN [CollectionId]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));
         Assert.True(await HasFavoriteRowAsync(owner, starredLater));

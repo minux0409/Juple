@@ -1105,8 +1105,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_Notifications_PendingDispatch")
                         .HasFilter("[DispatchedAtUtc] IS NULL AND [DedupKey] IS NOT NULL");
 
-                    b.HasIndex("UserId", "ReadAtUtc")
-                        .HasDatabaseName("IX_Notifications_UserId_ReadAtUtc");
+                    b.HasIndex("UserId", "Id")
+                        .HasDatabaseName("IX_Notifications_Inbox")
+                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12)");
 
                     b.HasIndex("Type", "RepeatPurchaseId", "DueDate")
                         .IsUnique()
@@ -1115,6 +1116,12 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "CreatedAtUtc", "Id")
                         .HasDatabaseName("IX_Notifications_UserId_CreatedAtUtc_Id");
+
+                    b.HasIndex("UserId", "Type", "CollectionId")
+                        .HasDatabaseName("IX_Notifications_Unread")
+                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12)");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("UserId", "Type", "CollectionId"), new[] { "ReadAtUtc" });
 
                     b.ToTable("Notifications", "notifications", t =>
                         {

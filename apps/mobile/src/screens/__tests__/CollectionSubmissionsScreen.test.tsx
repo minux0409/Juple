@@ -12,6 +12,8 @@ import {
   rejectCollectionSubmission,
   type CollectionLinkSubmission,
 } from '../../collections/api/collectionsApi';
+import { markCollectionSubmissionRequestsRead } from '../../notifications/notificationsApi';
+import { getUnreadCount, resetNotificationState } from '../../notifications/notificationState';
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
@@ -22,6 +24,10 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+jest.mock('../../notifications/notificationsApi', () => ({
+  ...jest.requireActual('../../notifications/notificationsApi'),
+  markCollectionSubmissionRequestsRead: jest.fn().mockResolvedValue({ markedCount: 1, unreadCount: 2 }),
 }));
 jest.mock('../../collections/api/collectionsApi', () => ({
   getCollectionSubmissions: jest.fn(),
@@ -97,6 +103,22 @@ describe('CollectionSubmissionsScreen', () => {
     expect(JSON.stringify(publicRow.findAllByType(Text).map(node => node.props.children))).toContain('공개 링크로 제안됨');
     // No title: the site stands in for it.
     expect(JSON.stringify(publicRow.findAllByType(Text).map(node => node.props.children))).toContain('news.example.org');
+  });
+
+  it('seeing the list reads its 승인 요청 notifications (the requests themselves still wait); a failed load reads nothing', async () => {
+    resetNotificationState();
+    jest.mocked(getCollectionSubmissions).mockResolvedValueOnce({ items: [byMember], nextCursor: null });
+    await renderScreen();
+
+    expect(markCollectionSubmissionRequestsRead).toHaveBeenCalledWith(expect.any(Function), 5);
+    expect(getUnreadCount()).toBe(2);
+    expect(approveCollectionSubmission).not.toHaveBeenCalled();
+    expect(rejectCollectionSubmission).not.toHaveBeenCalled();
+
+    jest.mocked(markCollectionSubmissionRequestsRead).mockClear();
+    jest.mocked(getCollectionSubmissions).mockRejectedValueOnce(new ApiError('forbidden', 403, 'collectionLocked'));
+    await renderScreen();
+    expect(markCollectionSubmissionRequestsRead).not.toHaveBeenCalled();
   });
 
   it('승인 adds it and the row leaves - no reload of the list', async () => {

@@ -43,7 +43,14 @@ public sealed record CollectionDto(
     bool IsSharePasswordProtected = false,
     // Owner view only: how many proposed links (승인 후 추가) wait for the Owner's approval. Always 0
     // for anyone else - proposals are never visible to members or the public.
-    int PendingSubmissionCount = 0);
+    int PendingSubmissionCount = 0,
+    // The caller's own unread 새 링크 notifications (NotificationType.CollectionItemsAdded) about this
+    // Collection - read state of the caller's own notifications, never inferred from link dates, so
+    // their own adds and muted/suppressed ones never count. Cleared by opening the Collection.
+    int UnreadNewLinkCount = 0,
+    // What the card's attention badge shows: PendingSubmissionCount (a task - stays until each proposal
+    // is answered) + UnreadNewLinkCount. Reactions, comments and other activity are the Inbox's, not this.
+    int AttentionCount = 0);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the

@@ -44,6 +44,10 @@ export interface Collection {
   readonly isSharePasswordProtected?: boolean;
   /** Owner view only: how many proposed links (승인 후 추가) wait for the Owner's approval. */
   readonly pendingSubmissionCount?: number;
+  /** The caller's own unread 새 링크 notifications about this Collection - cleared by opening it. */
+  readonly unreadNewLinkCount?: number;
+  /** The card's attention badge: pendingSubmissionCount (Owner only) + unreadNewLinkCount - never reactions/comments. */
+  readonly attentionCount?: number;
   /** Contributor view only: the Owner's public Juple ID. */
   readonly ownerJupleId?: string | null;
   /** Contributor view only: the Owner's chosen display name (null when they have not set one). */

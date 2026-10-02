@@ -21,6 +21,7 @@ import {
 import { ApiError } from '../../api/ApiError';
 import { ReceivedInvitationsSheet } from '../../collections/ReceivedInvitationsSheet';
 import { emitSocialPushEvent } from '../../push/pushEvents';
+import { emitCollectionNewLinksRead } from '../../notifications/notificationState';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { ChevronIcon } from '../../icons/ChevronIcon';
 import { FolderIcon } from '../../icons/FolderIcon';
@@ -1031,5 +1032,87 @@ describe('CollectionsScreen large lists', () => {
     });
     expect(skeletons(renderer)).toHaveLength(0);
     expect(list(renderer).props.data).toHaveLength(3);
+  });
+});
+
+describe('CollectionsScreen attention badge (approvals waiting + unread new links)', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  async function renderIn(mode: 'grid' | 'list', collections: Collection[]) {
+    jest.mocked(getCollections).mockImplementation(async () => ({ items: collections, nextCursor: null }));
+    const renderer = await renderScreen();
+    if (mode === 'list') {
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      await act(async () => {
+        listToggle.props.onPress();
+      });
+    }
+    return renderer;
+  }
+
+  const badgeText = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
+    renderer.root
+      .findAll(node => node.props.testID === `collection-attention-${id}` && typeof node.type === 'string')
+      .flatMap(node => node.findAllByType(Text).map(text => String(text.props.children)));
+
+  it.each(['grid', 'list'] as const)('%s: shows the count (hidden at 0, 99+ past 99) and says the full count', async mode => {
+    const renderer = await renderIn(mode, [
+      makeCollection({ id: 1, name: 'A', accessRole: 'owner', pendingSubmissionCount: 2, unreadNewLinkCount: 3, attentionCount: 5 }),
+      makeCollection({ id: 2, name: 'B', accessRole: 'contributor', unreadNewLinkCount: 1, attentionCount: 1 }),
+      makeCollection({ id: 3, name: 'Quiet', accessRole: 'owner', attentionCount: 0 }),
+      makeCollection({ id: 4, name: 'Busy', accessRole: 'owner', pendingSubmissionCount: 20, unreadNewLinkCount: 100, attentionCount: 120 }),
+    ]);
+
+    expect(badgeText(renderer, 1)).toEqual(['5']);
+    expect(badgeText(renderer, 2)).toEqual(['1']);
+    expect(badgeText(renderer, 3)).toEqual([]);
+    expect(badgeText(renderer, 4)).toEqual(['99+']);
+    const labels = renderer.root.findAll(node => typeof node.props.onPress === 'function' && typeof node.props.accessibilityLabel === 'string')
+      .map(node => node.props.accessibilityLabel);
+    expect(labels).toContain(i18n.t('collections.attentionA11y', { name: 'Busy', count: 120 }));
+    expect(labels).toContain(i18n.t('collections.attentionA11y', { name: 'A', count: 5 }));
+  });
+
+  it('the badge is not a button of its own - tapping the card opens the Collection as before', async () => {
+    const renderer = await renderIn('grid', [makeCollection({ id: 1, name: 'A', accessRole: 'owner', attentionCount: 2, unreadNewLinkCount: 2 })]);
+
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-attention-1' && typeof node.props.onPress === 'function')).toHaveLength(0);
+    const card = renderer.root.findAll(node => node.props.accessibilityLabel === i18n.t('collections.attentionA11y', { name: 'A', count: 2 }) && typeof node.props.onPress === 'function')[0];
+    await act(async () => {
+      card.props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('CollectionDetails', { collectionId: 1 });
+  });
+
+  it('opening a Collection clears its new-link part at once; its waiting approvals stay', async () => {
+    const renderer = await renderIn('grid', [
+      makeCollection({ id: 1, name: 'A', accessRole: 'owner', pendingSubmissionCount: 2, unreadNewLinkCount: 3, attentionCount: 5 }),
+      makeCollection({ id: 2, name: 'B', accessRole: 'owner', unreadNewLinkCount: 1, attentionCount: 1 }),
+    ]);
+
+    act(() => emitCollectionNewLinksRead(1));
+    act(() => emitCollectionNewLinksRead(2));
+
+    expect(badgeText(renderer, 1)).toEqual(['2']);
+    expect(badgeText(renderer, 2)).toEqual([]);
+  });
+
+  it('a 새 링크 or 승인 요청 Push while open refreshes the badges; a reaction or comment does not', async () => {
+    await renderIn('grid', [makeCollection({ id: 1, name: 'A', accessRole: 'owner' })]);
+    const before = jest.mocked(getCollections).mock.calls.length;
+
+    act(() => emitSocialPushEvent({ type: 'collectionItemReaction', collectionId: 1 }));
+    act(() => emitSocialPushEvent({ type: 'collectionItemComment', collectionId: 1 }));
+    expect(jest.mocked(getCollections).mock.calls.length).toBe(before);
+
+    // (Earlier tests' screens may still be mounted - so only 'none' vs 'at least one' is asserted.)
+    await act(async () => emitSocialPushEvent({ type: 'collectionLinkSubmission', collectionId: 1 }));
+    const afterSubmission = jest.mocked(getCollections).mock.calls.length;
+    expect(afterSubmission).toBeGreaterThan(before);
+    await act(async () => emitSocialPushEvent({ type: 'collectionItemsAdded', collectionId: 1 }));
+    expect(jest.mocked(getCollections).mock.calls.length).toBeGreaterThan(afterSubmission);
   });
 });

@@ -7,8 +7,10 @@ using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Images;
 using Juple.Application.Collections.RemoveItemFromCollection;
 using Juple.Application.Items;
+using Juple.Application.Notifications.Inbox;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
+using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.Data.SqlClient;
@@ -211,6 +213,14 @@ public sealed class CollectionStore(
             PendingSubmissionCount = collection.UserId == userId
                 ? dbContext.CollectionLinkSubmissions.Count(submission => submission.CollectionId == collection.Id)
                 : 0,
+            // The caller's own unread 새 링크 notifications about this Collection - a seek on the small
+            // filtered IX_Notifications_Unread, inside this same statement (Types as literals so it matches).
+            UnreadNewLinkCount = dbContext.Notifications.Count(notification =>
+                notification.UserId == userId
+                && notification.ReadAtUtc == null
+                && notification.Type == NotificationType.CollectionItemsAdded
+                && notification.CollectionId == collection.Id
+                && EF.Constant(NotificationInboxPolicy.InboxTypes).Contains(notification.Type)),
             IconImageBlobName = collection.IconImageBlobName,
             // The caller's own membership role when the Collection is shared with them (null for
             // their own Collections).
@@ -319,7 +329,9 @@ public sealed class CollectionStore(
                 IconImageUrl: iconImageUrls.GetValueOrDefault(row.Id),
                 IconImageVersion: iconImageUrls.ContainsKey(row.Id) ? CollectionIconImageVersion.From(row.IconImageBlobName!) : null,
                 IsSharePasswordProtected: row.SharePasswordMode == CollectionSharePasswordMode.PerCollection,
-                PendingSubmissionCount: isOwner ? row.PendingSubmissionCount : 0);
+                PendingSubmissionCount: isOwner ? row.PendingSubmissionCount : 0,
+                UnreadNewLinkCount: row.UnreadNewLinkCount,
+                AttentionCount: (isOwner ? row.PendingSubmissionCount : 0) + row.UnreadNewLinkCount);
         }).ToList();
     }
 
@@ -352,6 +364,8 @@ public sealed class CollectionStore(
         public bool IsPublicShareActive { get; init; }
 
         public int PendingSubmissionCount { get; init; }
+
+        public int UnreadNewLinkCount { get; init; }
 
         public string? IconImageBlobName { get; init; }
 

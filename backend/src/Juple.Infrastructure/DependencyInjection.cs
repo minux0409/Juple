@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<ICollectionLockSettingsStore, CollectionLockSettingsStore>();
         services.AddScoped<ISocialNotificationPublisher, SocialNotificationPublisher>();
         services.AddScoped<IPushDispatchStore, PushDispatchStore>();
+        services.AddScoped<Juple.Application.Notifications.Inbox.INotificationInboxStore, NotificationInboxStore>();
         services.AddScoped<INotificationDeliveryStore, NotificationDeliveryStore>();
         AddNotificationPipeline(services, configuration);
         services.AddScoped<ICollectionCollaborationStore, CollectionCollaborationStore>();

@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
   Text,
   TextInput,
@@ -143,7 +144,7 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { showNotificationToast } = useAppToast();
-  const { itemId, collectionContext } = route.params;
+  const { itemId, collectionContext, initialFocus } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   const insets = useSafeAreaInsets();
   // The fixed bottom action bar's height isn't a fixed constant (button text can wrap under long
@@ -187,6 +188,20 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // can be missed or hidden under the keyboard. Drafts are never touched by it.
   const { showMessage, messageDialog } = useMessageDialog();
   useToastBottomAnchor(bottomBarHeight);
+
+  // Opened from a comment notification: the comments are brought into view once - after they are
+  // actually laid out (their position is measured, never guessed), so the screen never jumps early.
+  const scrollRef = useRef<ScrollViewInstance>(null);
+  const commentsYRef = useRef<number | null>(null);
+  const scrollToCommentsPending = useRef(initialFocus === 'comments');
+  const scrollToCommentsIfPending = useCallback(() => {
+    if (!scrollToCommentsPending.current || commentsYRef.current === null) {
+      return;
+    }
+    scrollToCommentsPending.current = false;
+    const y = Math.max(0, commentsYRef.current - spacing.md);
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ animated: true, y }));
+  }, []);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [title, setTitle] = useState('');
@@ -697,7 +712,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     <View style={styles.screen}>
       {/* Keeps the comment field above the keyboard - only where there is one (edge-to-edge Android does not resize the window itself). */}
       <KeyboardAvoidingView behavior="padding" enabled={isCollaborative} style={styles.keyboardAvoider}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
         <ContentPreviewCard
           onChangeTitle={text => {
             setTitle(text);
@@ -756,7 +771,17 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {collaboration.reactions}
-        {collaboration.comments}
+        {collaboration.comments ? (
+          <View
+            onLayout={event => {
+              commentsYRef.current = event.nativeEvent.layout.y;
+              scrollToCommentsIfPending();
+            }}
+            testID="item-comments-section"
+          >
+            {collaboration.comments}
+          </View>
+        ) : null}
         {collaboration.composer}
       </ScrollView>
 

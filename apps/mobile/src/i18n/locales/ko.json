@@ -90,6 +90,7 @@
     "errorDeleteFallback": "항목을 삭제할 수 없습니다."
   },
   "collections": {
+    "attentionA11y": "{{name}}, 확인할 항목 {{count}}개",
     "title": "컬렉션",
     "empty": "컬렉션이 아직 없습니다.",
     "create": "새 컬렉션",
@@ -688,5 +689,18 @@
     "acceptA11y": "{{name}} 님의 친구 요청 수락",
     "declineA11y": "{{name}} 님의 친구 요청 거절",
     "cancelA11y": "{{name}} 님에게 보낸 친구 요청 취소"
+  },
+  "notifications": {
+    "title": "알림",
+    "markAllRead": "모두 읽음",
+    "empty": "아직 알림이 없어요.",
+    "unavailable": "이 알림의 항목을 더 이상 볼 수 없어요.",
+    "loadError": "알림을 불러오지 못했어요.",
+    "retry": "다시 시도",
+    "unreadA11y": "읽지 않음",
+    "bellA11y": "알림",
+    "bellUnreadA11y": "알림, 읽지 않은 알림 {{count}}개",
+    "bannerAnnouncement": "새 알림: {{title}}. {{body}}",
+    "bannerHint": "열려면 누르세요. 위로 밀면 닫혀요."
   }
 }

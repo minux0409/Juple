@@ -26,6 +26,7 @@ import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkGridCell, savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { ViewModeToggle } from '../components/ViewModeToggle';
+import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -440,6 +441,8 @@ export function DailyInboxScreen() {
           <View>
             <View style={styles.brandRow}>
               <Text style={[styles.brand, ltrTextStyle]}>Juple</Text>
+              {/* 알림 - Home's top end, the one place it lives (not on every screen). */}
+              <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>
             <View style={styles.inputWrapper}>
               <View pointerEvents="none" style={styles.inputIconContainer}>

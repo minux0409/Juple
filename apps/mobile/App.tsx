@@ -18,6 +18,7 @@ import { applyStoredLanguagePreference } from './src/i18n/languagePreference';
 import { LayoutDirectionRoot, useLayoutDirection } from './src/i18n/layoutDirection';
 import { linking } from './src/navigation/linking';
 import { navigationRef } from './src/navigation/navigationRef';
+import { NotificationBannerHost } from './src/notifications/NotificationBannerHost';
 import { RootStack } from './src/navigation/RootStack';
 import { usePushMessageHandling } from './src/push/usePushMessageHandling';
 import { usePushRegistrationSync } from './src/push/usePushRegistrationSync';
@@ -58,7 +59,11 @@ function App() {
           <AuthProvider>
             <PushRegistrationSync />
             <CategorySnapshotSync />
-            <AppToastProvider><AppNavigation /></AppToastProvider>
+            <AppToastProvider>
+              <AppNavigation />
+              {/* Above the navigator: the in-app banner for a Push received in the foreground. */}
+              <NotificationBannerHost />
+            </AppToastProvider>
           </AuthProvider>
         ) : (
           <View style={styles.container}>

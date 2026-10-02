@@ -23,6 +23,8 @@ import { UserIcon } from '../icons/UserIcon';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { markCollectionSubmissionRequestsRead } from '../notifications/notificationsApi';
+import { setUnreadCount } from '../notifications/notificationState';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionSubmissions'>;
 
@@ -55,6 +57,11 @@ export function CollectionSubmissionsScreen({ route }: Props) {
       const page = await getCollectionSubmissions(authenticatedRequest, collectionId);
       setItems(page.items);
       setNextCursor(page.nextCursor);
+      // Seeing the list reads its 승인 요청 notifications (best-effort). The requests themselves - and
+      // the Collection card's pending count - stay until each one is approved or declined.
+      markCollectionSubmissionRequestsRead(authenticatedRequest, collectionId)
+        .then(result => setUnreadCount(result.unreadCount))
+        .catch(() => undefined);
     } catch (caughtError) {
       const gate = contentGateOfError(caughtError);
       setLoadError(gate === 'lock' ? t('collections.lockedMessage') : t('submissions.loadError'));

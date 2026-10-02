@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Không thể xóa mục này."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} mục cần chú ý",
     "title": "Bộ sưu tập",
     "empty": "Chưa có bộ sưu tập nào.",
     "create": "Bộ sưu tập mới",
@@ -687,5 +688,18 @@
     "acceptA11y": "Chấp nhận lời mời kết bạn của {{name}}",
     "declineA11y": "Từ chối lời mời kết bạn của {{name}}",
     "cancelA11y": "Hủy lời mời kết bạn gửi {{name}}"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "empty": "Chưa có thông báo nào.",
+    "unavailable": "Nội dung của thông báo này không còn khả dụng.",
+    "loadError": "Không thể tải thông báo.",
+    "retry": "Thử lại",
+    "unreadA11y": "Chưa đọc",
+    "bellA11y": "Thông báo",
+    "bellUnreadA11y": "Thông báo, {{count}} chưa đọc",
+    "bannerAnnouncement": "Thông báo mới: {{title}}. {{body}}",
+    "bannerHint": "Nhấn để mở. Vuốt lên để đóng."
   }
 }

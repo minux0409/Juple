@@ -90,6 +90,7 @@
     "errorDeleteFallback": "تعذّر حذف العنصر."
   },
   "collections": {
+    "attentionA11y": "{{name}}، عناصر تحتاج إلى انتباه: {{count}}",
     "title": "المجموعات",
     "empty": "لا توجد مجموعات بعد.",
     "create": "مجموعة جديدة",
@@ -687,5 +688,18 @@
     "acceptA11y": "قبول طلب الصداقة من {{name}}",
     "declineA11y": "رفض طلب الصداقة من {{name}}",
     "cancelA11y": "إلغاء طلب الصداقة المرسل إلى {{name}}"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تحديد الكل كمقروء",
+    "empty": "لا توجد إشعارات بعد.",
+    "unavailable": "لم يعد محتوى هذا الإشعار متاحًا.",
+    "loadError": "تعذّر تحميل الإشعارات.",
+    "retry": "إعادة المحاولة",
+    "unreadA11y": "غير مقروء",
+    "bellA11y": "الإشعارات",
+    "bellUnreadA11y": "الإشعارات، غير المقروءة: {{count}}",
+    "bannerAnnouncement": "إشعار جديد: {{title}}. {{body}}",
+    "bannerHint": "انقر للفتح. اسحب لأعلى للإغلاق."
   }
 }

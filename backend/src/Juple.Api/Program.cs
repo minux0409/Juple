@@ -195,6 +195,7 @@ builder.Services.Configure<CollectionSharePasswordOptions>(
 builder.Services.AddSingleton<IPublicCollectionItemPageCursorCodec, PublicCollectionItemPageCursorCodec>();
 builder.Services.AddScoped<IRegisterPushDeviceService, RegisterPushDeviceService>();
 builder.Services.AddScoped<IDispatchPendingPushNotificationsService, DispatchPendingPushNotificationsService>();
+builder.Services.AddScoped<Juple.Application.Notifications.Inbox.INotificationInboxService, Juple.Application.Notifications.Inbox.NotificationInboxService>();
 builder.Services.AddScoped<IUnregisterPushDeviceService, UnregisterPushDeviceService>();
 builder.Services.AddScoped<IListItemImagesService, ListItemImagesService>();
 builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();

@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Öğe silinemedi."
   },
   "collections": {
+    "attentionA11y": "{{name}}, ilgilenilmesi gereken {{count}} öğe",
     "title": "Koleksiyonlar",
     "empty": "Henüz koleksiyon yok.",
     "create": "Yeni koleksiyon",
@@ -687,5 +688,18 @@
     "acceptA11y": "{{name}} adlı kişinin arkadaşlık isteğini kabul et",
     "declineA11y": "{{name}} adlı kişinin arkadaşlık isteğini reddet",
     "cancelA11y": "{{name}} adlı kişiye gönderilen arkadaşlık isteğini iptal et"
+  },
+  "notifications": {
+    "title": "Bildirimler",
+    "markAllRead": "Tümünü okundu işaretle",
+    "empty": "Henüz bildirim yok.",
+    "unavailable": "Bu bildirimin içeriği artık kullanılamıyor.",
+    "loadError": "Bildirimler yüklenemedi.",
+    "retry": "Tekrar dene",
+    "unreadA11y": "Okunmadı",
+    "bellA11y": "Bildirimler",
+    "bellUnreadA11y": "Bildirimler, {{count}} okunmamış",
+    "bannerAnnouncement": "Yeni bildirim: {{title}}. {{body}}",
+    "bannerHint": "Açmak için dokunun. Kapatmak için yukarı kaydırın."
   }
 }

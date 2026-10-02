@@ -30,6 +30,8 @@ import { isCollaborative, isCollectionLocked } from '../collections/collectionAc
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
+import { CountBadge } from '../components/CountBadge';
+import { subscribeCollectionNewLinksRead } from '../notifications/notificationState';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
@@ -309,7 +311,31 @@ export function CollectionsScreen() {
       load(filterRef.current, 'refresh');
       loadReceivedInvitations();
     },
-    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered'],
+    // 새 링크 and 승인 요청 also change a card's attention badge (reactions/comments never do).
+    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered', 'collectionItemsAdded', 'collectionLinkSubmission'],
+  );
+
+  // Opening a Collection read its 새 링크: its card drops that part of the badge at once (its
+  // pending approvals stay - they are tasks, not notifications). The next load confirms it.
+  useEffect(
+    () =>
+      subscribeCollectionNewLinksRead(collectionId => {
+        setLists(previous => {
+          const next = { ...previous };
+          for (const key of FILTERS) {
+            next[key] = {
+              ...next[key],
+              items: next[key].items.map(card =>
+                card.id === collectionId && (card.unreadNewLinkCount ?? 0) > 0
+                  ? { ...card, unreadNewLinkCount: 0, attentionCount: Math.max(0, (card.attentionCount ?? 0) - (card.unreadNewLinkCount ?? 0)) }
+                  : card,
+              ),
+            };
+          }
+          return next;
+        });
+      }),
+    [],
   );
 
   const selectFilter = (next: CategoryFilter) => {
@@ -686,10 +712,12 @@ function CollectionTile({
   // favorite markers - link counts and participant names live on the Collection's own screen.
   return (
     <View style={styles.gridCell}>
-      <Pressable accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
+      <Pressable accessibilityLabel={attentionLabel(collection, t)} accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
         <View style={styles.tileIconSlot}>
           <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={56} />
           <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
+          {/* Approvals waiting + unread 새 링크 - the free bottom-end corner (the star holds the top end). */}
+          <CountBadge count={collection.attentionCount ?? 0} style={styles.tileAttention} testID={`collection-attention-${collection.id}`} />
           {/* The caller's own favorite mark - Owner and Contributor alike, never someone else's. */}
           <Pressable
             accessibilityLabel={
@@ -864,6 +892,8 @@ const styles = StyleSheet.create({
   // CollectionTile's own remarks on why that's still safe for touch handling), positioned against
   // tileIconSlot (sized exactly to the icon itself) rather than the full grid cell, so it lands on
   // the icon's actual corner regardless of the cell's on-screen width.
+  // Overlaps the icon's bottom-end corner like the other markers - never over the name.
+  tileAttention: { bottom: -6, end: -8, position: 'absolute' },
   starBadge: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -898,7 +928,7 @@ const styles = StyleSheet.create({
  */
 function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onPress, onToggleFavorite }: CollectionTileProps) {
   const { t } = useTranslation();
-  return <Pressable accessibilityRole="button" onPress={onPress} style={styles.listRow}>
+  return <Pressable accessibilityLabel={attentionLabel(collection, t)} accessibilityRole="button" onPress={onPress} style={styles.listRow}>
     <View style={styles.listIconSlot}>
       <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={48} />
       <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
@@ -906,8 +936,18 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
     <View style={styles.listText}>
       <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
     </View>
+    <CountBadge count={collection.attentionCount ?? 0} testID={`collection-attention-${collection.id}`} />
     <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
       <StarIcon color={collection.isFavorite ? colors.warning : colors.border} filled={collection.isFavorite} size={20} />
     </Pressable>
   </Pressable>;
+}
+
+/**
+ * A card's spoken name: with attention, its name plus the full count (the badge itself is hidden from
+ * assistive technology and caps at 99+); otherwise undefined, so the card's own text is read as before.
+ */
+function attentionLabel(collection: Collection, t: TFunction): string | undefined {
+  const count = collection.attentionCount ?? 0;
+  return count > 0 ? t('collections.attentionA11y', { name: collection.name, count }) : undefined;
 }

@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} Einträge erfordern Aufmerksamkeit",
     "title": "Sammlungen",
     "empty": "Es gibt noch keine Sammlungen.",
     "create": "Neue Sammlung",
@@ -687,5 +688,18 @@
     "acceptA11y": "Freundschaftsanfrage von {{name}} annehmen",
     "declineA11y": "Freundschaftsanfrage von {{name}} ablehnen",
     "cancelA11y": "Freundschaftsanfrage an {{name}} zurückziehen"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "markAllRead": "Alle als gelesen markieren",
+    "empty": "Noch keine Benachrichtigungen.",
+    "unavailable": "Der Inhalt dieser Benachrichtigung ist nicht mehr verfügbar.",
+    "loadError": "Benachrichtigungen konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "unreadA11y": "Ungelesen",
+    "bellA11y": "Benachrichtigungen",
+    "bellUnreadA11y": "Benachrichtigungen, {{count}} ungelesen",
+    "bannerAnnouncement": "Neue Benachrichtigung: {{title}}. {{body}}",
+    "bannerHint": "Zum Öffnen tippen. Zum Schließen nach oben wischen."
   }
 }

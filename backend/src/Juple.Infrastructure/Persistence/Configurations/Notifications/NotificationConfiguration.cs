@@ -1,3 +1,4 @@
+using Juple.Application.Notifications.Inbox;
 using Juple.Domain.Items;
 using Juple.Domain.Notifications;
 using Juple.Domain.Purchases;
@@ -79,9 +80,22 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         builder.HasIndex(notification => new { notification.UserId, notification.CreatedAtUtc, notification.Id })
             .HasDatabaseName("IX_Notifications_UserId_CreatedAtUtc_Id");
 
-        // Unread-count query pattern (WHERE UserId = @u AND ReadAtUtc IS NULL).
-        builder.HasIndex(notification => new { notification.UserId, notification.ReadAtUtc })
-            .HasDatabaseName("IX_Notifications_UserId_ReadAtUtc");
+        // The Notification Inbox (see NotificationInboxStore): the recipient's visible rows newest first,
+        // keyset by Id. Filtered to the Inbox Types so the data-only refresh rows (which are never shown
+        // and never read) are not even in it. The queries write the same Type set as SQL literals.
+        builder.HasIndex(notification => new { notification.UserId, notification.Id })
+            .HasFilter(NotificationInboxPolicy.InboxTypesSql)
+            .HasDatabaseName("IX_Notifications_Inbox");
+
+        // Unread Inbox rows only - small by nature (rows leave it when read): the bell's total, a
+        // Collection card's unread 새 링크 count (UserId, Type, CollectionId) and the set-based read updates.
+        // ReadAtUtc is included although the filter already fixes it: SQL Server only treats a query's
+        // "ReadAtUtc IS NULL" as covered when the filtered column is in the index (without it, the
+        // bell's count was planned as a clustered scan).
+        builder.HasIndex(notification => new { notification.UserId, notification.Type, notification.CollectionId })
+            .IncludeProperties(notification => notification.ReadAtUtc)
+            .HasFilter("[ReadAtUtc] IS NULL AND " + NotificationInboxPolicy.InboxTypesSql)
+            .HasDatabaseName("IX_Notifications_Unread");
 
         // EF already creates these by convention for the ItemId/RepeatPurchaseId FKs below (the
         // unique index further down has RepeatPurchaseId as a non-leading column, so it does not

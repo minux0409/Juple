@@ -14,6 +14,7 @@ import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { SharedCollectionScreen } from '../screens/SharedCollectionScreen';
 import { SignInScreen } from '../screens/SignInScreen';
@@ -43,7 +44,12 @@ export type RootStackParamList = {
    * content is open) - only then does the link show that Collection's reactions and comments. They belong
    * to (Collection, link), so a link opened from Home, History or a private Collection shows none.
    */
-  ItemDetails: { itemId: number; collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean } };
+  ItemDetails: {
+    itemId: number;
+    collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean };
+    /** A comment notification: bring the comments into view once they are laid out (consumed once). */
+    initialFocus?: 'comments';
+  };
   /**
    * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
    * refreshToken is optional and only ever meaningful when this exact screen might already be the
@@ -51,7 +57,16 @@ export type RootStackParamList = {
    * mirrors CollectionsScreen's own refreshToken param, needed because React Navigation does not
    * re-fire useFocusEffect for a `navigate` call that lands back on an already-focused screen.
    */
-  CollectionDetails: { collectionId: number; refreshToken?: number };
+  CollectionDetails: {
+    collectionId: number;
+    refreshToken?: number;
+    /**
+     * A reaction/comment notification on my link here: once the Collection's content is open (its
+     * lock / share-password gate passed, as for any visit), that link opens IN this Collection - so
+     * its reactions and comments show and the visit's unlock is reused. Consumed once.
+     */
+    openItem?: { readonly itemId: number; readonly focus: 'comments' | null };
+  };
   /**
    * Owner-only sharing of one Collection, as a modal - one screen: 모든 사용자 (the public link),
    * 친구 초대 / ID 초대하기 (읽기 or 쓰기 per person), the people it is shared with and pending
@@ -62,6 +77,8 @@ export type RootStackParamList = {
   CollectionSubmissions: { collectionId: number };
   /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
   Friends: undefined;
+  /** 알림: the signed-in user's Notification Inbox, newest first. */
+  Notifications: undefined;
   /**
    * Read-only view of another member's link inside a Collection (never the owner-only
    * ItemDetails) - fetched through that Collection, so it carries no memo or uploaded photos.
@@ -162,6 +179,11 @@ export function RootStack() {
               component={FriendsScreen}
               name="Friends"
               options={{ title: t('friends.title') }}
+            />
+            <Stack.Screen
+              component={NotificationsScreen}
+              name="Notifications"
+              options={{ title: t('notifications.title') }}
             />
             <Stack.Screen
               component={CollectionSharedItemScreen}

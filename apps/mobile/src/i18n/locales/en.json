@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Couldn't delete the item."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} items need attention",
     "title": "Collections",
     "empty": "No collections yet.",
     "create": "New collection",
@@ -702,5 +703,18 @@
     "acceptA11y": "Accept friend request from {{name}}",
     "declineA11y": "Decline friend request from {{name}}",
     "cancelA11y": "Cancel friend request to {{name}}"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications yet.",
+    "unavailable": "This notification's content is no longer available.",
+    "loadError": "Couldn't load notifications.",
+    "retry": "Try again",
+    "unreadA11y": "Unread",
+    "bellA11y": "Notifications",
+    "bellUnreadA11y": "Notifications, {{count}} unread",
+    "bannerAnnouncement": "New notification: {{title}}. {{body}}",
+    "bannerHint": "Tap to open. Swipe up to dismiss."
   }
 }

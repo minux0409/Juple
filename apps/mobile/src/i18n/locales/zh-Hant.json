@@ -90,6 +90,7 @@
     "errorDeleteFallback": "無法刪除該項目。"
   },
   "collections": {
+    "attentionA11y": "{{name}}，{{count}} 項待處理",
     "title": "合集",
     "empty": "還沒有合集。",
     "create": "新增合集",
@@ -687,5 +688,18 @@
     "acceptA11y": "接受 {{name}} 的好友請求",
     "declineA11y": "拒絕 {{name}} 的好友請求",
     "cancelA11y": "取消傳給 {{name}} 的好友請求"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "全部標為已讀",
+    "empty": "還沒有通知。",
+    "unavailable": "此通知的內容已無法查看。",
+    "loadError": "無法載入通知。",
+    "retry": "重試",
+    "unreadA11y": "未讀",
+    "bellA11y": "通知",
+    "bellUnreadA11y": "通知，{{count}} 則未讀",
+    "bannerAnnouncement": "新通知：{{title}}。{{body}}",
+    "bannerHint": "輕觸以開啟，向上滑動以關閉。"
   }
 }

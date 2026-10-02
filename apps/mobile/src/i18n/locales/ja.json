@@ -90,6 +90,7 @@
     "errorDeleteFallback": "項目を削除できませんでした。"
   },
   "collections": {
+    "attentionA11y": "{{name}}、確認が必要な項目 {{count}} 件",
     "title": "コレクション",
     "empty": "コレクションはまだありません。",
     "create": "新しいコレクション",
@@ -687,5 +688,18 @@
     "acceptA11y": "{{name}}さんの友だちリクエストを承認",
     "declineA11y": "{{name}}さんの友だちリクエストを拒否",
     "cancelA11y": "{{name}}さんへの友だちリクエストを取り消す"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "すべて既読",
+    "empty": "まだ通知はありません。",
+    "unavailable": "この通知の内容はもう表示できません。",
+    "loadError": "通知を読み込めませんでした。",
+    "retry": "再試行",
+    "unreadA11y": "未読",
+    "bellA11y": "通知",
+    "bellUnreadA11y": "通知、未読 {{count}} 件",
+    "bannerAnnouncement": "新しい通知: {{title}}。{{body}}",
+    "bannerHint": "タップして開きます。上にスワイプで閉じます。"
   }
 }

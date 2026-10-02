@@ -54,6 +54,8 @@ import { isCollaborative, isCollectionLocked, isSharedWithMe } from '../collecti
 import { describeItemAdder, shouldShowItemAdders } from '../collections/itemAdder';
 import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
 import { beginCollectionVisit, forgetCollectionUnlock, getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
+import { markCollectionNewLinksRead } from '../notifications/notificationsApi';
+import { emitCollectionNewLinksRead, setUnreadCount } from '../notifications/notificationState';
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
 import { getCollectionParticipants, type CollectionParticipants } from '../collections/api/collaborationApi';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
@@ -723,6 +725,50 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     loadCollection();
     refresh();
   }, [route.params.refreshToken, navigation, loadCollection, refresh]);
+
+  // The content is really open: the Collection and its links loaded, past its lock / share-password gate.
+  const isContentOpen = collection !== null && !isLoadingCollection && !isLoading && error === null && !isContentLocked;
+
+  // Opening the Collection is reading its 새 링크 notifications (best-effort - a failure only leaves
+  // the badge until next time). Its 승인 대기 count is a task, not a notification: untouched here.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isContentOpen) {
+        return;
+      }
+      markCollectionNewLinksRead(authenticatedRequest, collectionId)
+        .then(result => {
+          setUnreadCount(result.unreadCount);
+          if (result.markedCount > 0) {
+            emitCollectionNewLinksRead(collectionId);
+          }
+        })
+        .catch(() => undefined);
+    }, [authenticatedRequest, collectionId, isContentOpen]),
+  );
+
+  // A reaction/comment notification on my link here: once the content is open (so the gate and the
+  // visit's unlock apply exactly as for any visit), the link opens IN this Collection - its reactions
+  // and comments shown, scrolled to the comments for a comment. Once per notification.
+  const openItem = route.params.openItem;
+  useEffect(() => {
+    if (!openItem || !isContentOpen || collection === null) {
+      return;
+    }
+    navigation.setParams({ openItem: undefined });
+    const ownsCollection = !isSharedWithMe(collection);
+    navigation.navigate('ItemDetails', {
+      itemId: openItem.itemId,
+      // My own link (the server only targets the recipient's own link): removable from here like any of mine.
+      collectionContext: {
+        collectionId,
+        canRemove: true,
+        isCollectionOwner: ownsCollection,
+        isCollaborative: isSharedWithMe(collection) || collection.hasCollaborators === true,
+      },
+      ...(openItem.focus === 'comments' ? { initialFocus: 'comments' as const } : {}),
+    });
+  }, [collection, collectionId, isContentOpen, navigation, openItem]);
 
   /**
    * Managing a locked Collection (edit, delete, share) needs the same unlock grant as its content -

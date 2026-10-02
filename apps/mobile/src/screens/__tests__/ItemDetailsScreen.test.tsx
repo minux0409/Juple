@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Linking, Text, TextInput } from 'react-native';
+import { Linking, Text, TextInput, ScrollView } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
@@ -1061,6 +1061,39 @@ describe('ItemDetailsScreen', () => {
       // The item itself is as it was: still editable, still one load.
       expect(memoField(renderer).props.editable).not.toBe(false);
       expect(getItemDetails).toHaveBeenCalledTimes(1);
+    });
+
+    it('opened from a comment notification, the comments are scrolled into view once they are laid out - and only once', async () => {
+      jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1)], previousCursor: null, totalCount: 1 });
+      const contextRoute = { key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1, collectionContext: collaborative, initialFocus: 'comments' } } as never;
+      let renderer!: ReactTestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = ReactTestRenderer.create(
+          <AppToastProvider>
+            <ItemDetailsScreen navigation={navigation} route={contextRoute} />
+          </AppToastProvider>,
+        );
+      });
+      // The form's own ScrollView (the Jest preset's mock gives it a scrollTo spy).
+      const form = renderer.root.findAll(node => node.type === ScrollView && node.props.keyboardShouldPersistTaps === 'handled')[0];
+      const scrollTo = jest.mocked(form.instance.scrollTo);
+      scrollTo.mockClear();
+      const section = () => renderer.root.findAll(node => node.props.testID === 'item-comments-section' && typeof node.props.onLayout === 'function')[0];
+      expect(scrollTo).not.toHaveBeenCalled();
+
+      await act(async () => {
+        section().props.onLayout({ nativeEvent: { layout: { x: 0, y: 640, width: 360, height: 200 } } });
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      });
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenCalledWith({ animated: true, y: 628 });
+
+      // A later relayout (a new comment, the keyboard) never jumps the screen again.
+      await act(async () => {
+        section().props.onLayout({ nativeEvent: { layout: { x: 0, y: 700, width: 360, height: 260 } } });
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      });
+      expect(scrollTo).toHaveBeenCalledTimes(1);
     });
 
     it('B + C. opened from Home or History (no Collection context at all) there is no collaboration - and nothing is requested', async () => {

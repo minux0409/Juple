@@ -1,4 +1,5 @@
-import type { PushTapPayload } from './pushNavigation';
+/** A tapped Push notification's data payload as it arrives (untyped, possibly stale or malformed). */
+type PushTapPayload = Readonly<Record<string, unknown>>;
 
 /**
  * Holds at most one tapped Push payload that arrived before it was actually safe to navigate to it

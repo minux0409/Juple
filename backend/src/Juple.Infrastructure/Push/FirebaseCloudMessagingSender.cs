@@ -80,7 +80,7 @@ public sealed class FirebaseCloudMessagingSender : IPushSender
         }
     }
 
-    private static IReadOnlyDictionary<string, string> BuildDataPayload(PushNotificationPayload payload)
+    internal static IReadOnlyDictionary<string, string> BuildDataPayload(PushNotificationPayload payload)
     {
         var data = new Dictionary<string, string>(payload.Data)
         {

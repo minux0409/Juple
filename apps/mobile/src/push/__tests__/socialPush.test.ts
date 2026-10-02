@@ -1,5 +1,5 @@
 import { emitSocialPushEvent, parseSocialPushEvent, subscribeSocialPushEvents } from '../pushEvents';
-import { resolvePushTapNavigation } from '../pushNavigation';
+import { legacyPushTarget } from '../../notifications/notificationTarget';
 import { runWithConcurrency } from '../../collections/runWithConcurrency';
 import { formatBadgeCount } from '../../components/badgeCount';
 
@@ -15,34 +15,34 @@ describe('social Push payloads', () => {
   });
 
   it('a tapped friend request opens Friends, a Collection invitation opens 공유 요청; refresh signals go nowhere', () => {
-    expect(resolvePushTapNavigation({ type: 'friendRequest' })).toEqual({ screen: 'Friends' });
-    expect(resolvePushTapNavigation({ type: 'collectionInvitation', collectionId: '3' })).toEqual({ screen: 'CollectionShareRequests' });
-    expect(resolvePushTapNavigation({ type: 'collectionContentChanged' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionInvitationAnswered' })).toBeNull();
-    expect(resolvePushTapNavigation(undefined)).toBeNull();
+    expect(legacyPushTarget({ type: 'friendRequest' })).toEqual({ kind: 'friendRequests' });
+    expect(legacyPushTarget({ type: 'collectionInvitation', collectionId: '3' })).toEqual({ kind: 'collectionInvitations' });
+    expect(legacyPushTarget({ type: 'collectionContentChanged' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionInvitationAnswered' })).toBeNull();
+    expect(legacyPushTarget(undefined)).toBeNull();
   });
 
   it('a passed-on public link opens the public link page by its id - never the Collection itself, never a malformed id', () => {
     const publicId = 'AbCdEfGh_-0123456789abcdefghijkl';
-    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId })).toEqual({ screen: 'SharedCollection', publicId });
+    expect(legacyPushTarget({ type: 'collectionLinkShared', publicId })).toEqual({ kind: 'publicCollection', publicId });
     // Even if a collectionId were present, it is not where this goes.
-    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId, collectionId: '7' })).toEqual({ screen: 'SharedCollection', publicId });
-    expect(resolvePushTapNavigation({ type: 'collectionLinkShared' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId: '../evil' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId: 'short' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionLinkShared', publicId, collectionId: '7' })).toEqual({ kind: 'publicCollection', publicId });
+    expect(legacyPushTarget({ type: 'collectionLinkShared' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionLinkShared', publicId: '../evil' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionLinkShared', publicId: 'short' })).toBeNull();
   });
 
   it('collaboration pushes: reactions/comments open the Collection, a proposal the 승인 대기 list, a result a safe place - malformed ids go nowhere', () => {
-    expect(resolvePushTapNavigation({ type: 'collectionItemReaction', collectionId: '7' })).toEqual({ screen: 'CollectionDetails', collectionId: 7 });
-    expect(resolvePushTapNavigation({ type: 'collectionItemComment', collectionId: '7' })).toEqual({ screen: 'CollectionDetails', collectionId: 7 });
-    expect(resolvePushTapNavigation({ type: 'collectionItemComment', collectionId: 'abc' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmission', collectionId: '9' })).toEqual({ screen: 'CollectionSubmissions', collectionId: 9 });
-    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmission' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionApproved', collectionId: '3' })).toEqual({ screen: 'CollectionDetails', collectionId: 3 });
-    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionRejected', publicId: 'AbCdEfGh1234' }))
-      .toEqual({ screen: 'SharedCollection', publicId: 'AbCdEfGh1234' });
-    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionApproved', publicId: '../evil' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionRejected' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionItemReaction', collectionId: '7' })).toEqual({ kind: 'collection', collectionId: 7 });
+    expect(legacyPushTarget({ type: 'collectionItemComment', collectionId: '7' })).toEqual({ kind: 'collection', collectionId: 7 });
+    expect(legacyPushTarget({ type: 'collectionItemComment', collectionId: 'abc' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionLinkSubmission', collectionId: '9' })).toEqual({ kind: 'collectionSubmissions', collectionId: 9 });
+    expect(legacyPushTarget({ type: 'collectionLinkSubmission' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionLinkSubmissionApproved', collectionId: '3' })).toEqual({ kind: 'collection', collectionId: 3 });
+    expect(legacyPushTarget({ type: 'collectionLinkSubmissionRejected', publicId: 'AbCdEfGh1234' }))
+      .toEqual({ kind: 'publicCollection', publicId: 'AbCdEfGh1234' });
+    expect(legacyPushTarget({ type: 'collectionLinkSubmissionApproved', publicId: '../evil' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionLinkSubmissionRejected' })).toBeNull();
   });
 
   it('delivers foreground events to every subscriber until it unsubscribes', () => {

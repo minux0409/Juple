@@ -8,7 +8,7 @@ import {
 import { clearCollectionUnlockGrants, rememberCollectionUnlock } from '../collectionUnlockGrants';
 import { formatCopyResultMessage } from '../copyResultMessage';
 import { parseSocialPushEvent } from '../../push/pushEvents';
-import { resolvePushTapNavigation } from '../../push/pushNavigation';
+import { legacyPushTarget } from '../../notifications/notificationTarget';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -70,9 +70,9 @@ describe('copy result message', () => {
 describe('새 링크 Push', () => {
   it('is a known event, and a tap opens that Collection', () => {
     expect(parseSocialPushEvent({ type: 'collectionItemsAdded', collectionId: '42' })).toEqual({ type: 'collectionItemsAdded', collectionId: 42, publicId: null });
-    expect(resolvePushTapNavigation({ type: 'collectionItemsAdded', collectionId: '42' })).toEqual({ screen: 'CollectionDetails', collectionId: 42 });
+    expect(legacyPushTarget({ type: 'collectionItemsAdded', collectionId: '42' })).toEqual({ kind: 'collection', collectionId: 42 });
     // Without a usable Collection id there is nowhere to go.
-    expect(resolvePushTapNavigation({ type: 'collectionItemsAdded', collectionId: 'x' })).toBeNull();
-    expect(resolvePushTapNavigation({ type: 'collectionItemsAdded' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionItemsAdded', collectionId: 'x' })).toBeNull();
+    expect(legacyPushTarget({ type: 'collectionItemsAdded' })).toBeNull();
   });
 });

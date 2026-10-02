@@ -90,6 +90,7 @@
     "errorDeleteFallback": "Não foi possível excluir o item."
   },
   "collections": {
+    "attentionA11y": "{{name}}, {{count}} itens precisam de atenção",
     "title": "Coleções",
     "empty": "Ainda não há coleções.",
     "create": "Nova coleção",
@@ -687,5 +688,18 @@
     "acceptA11y": "Aceitar o pedido de amizade de {{name}}",
     "declineA11y": "Recusar o pedido de amizade de {{name}}",
     "cancelA11y": "Cancelar o pedido de amizade para {{name}}"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "markAllRead": "Marcar tudo como lido",
+    "empty": "Ainda não há notificações.",
+    "unavailable": "O conteúdo desta notificação não está mais disponível.",
+    "loadError": "Não foi possível carregar as notificações.",
+    "retry": "Tentar novamente",
+    "unreadA11y": "Não lida",
+    "bellA11y": "Notificações",
+    "bellUnreadA11y": "Notificações, {{count}} não lidas",
+    "bannerAnnouncement": "Nova notificação: {{title}}. {{body}}",
+    "bannerHint": "Toque para abrir. Deslize para cima para fechar."
   }
 }
