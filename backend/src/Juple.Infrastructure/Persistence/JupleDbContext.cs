@@ -71,6 +71,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<NotificationDelivery> NotificationDeliveries => Set<NotificationDelivery>();
 
+    public DbSet<NotificationEvent> NotificationEvents => Set<NotificationEvent>();
+
     public DbSet<PushDeviceRegistration> PushDeviceRegistrations => Set<PushDeviceRegistration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

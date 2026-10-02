@@ -5,85 +5,59 @@ using Juple.Domain.Notifications;
 namespace Juple.Application.Notifications;
 
 /// <summary>
-/// One pass of the push-dispatch Job: every not-yet-dispatched social notification is either sent
-/// to each of the recipient's enabled devices, skipped (its request/invitation was already answered
-/// or is gone, or the recipient has no device) or expired (too old to still be useful). Send-once
-/// per (notification, device) is guaranteed by INotificationDeliveryStore.TryClaimAsync, so two
-/// overlapping passes never both send. A transient failure leaves the notification pending for the
-/// next pass (until it expires); a permanently dead token disables that registration.
+/// One pass of the push-dispatch Job - since the Service Bus fast path, the RECOVERY sweep, not the
+/// normal way a Push goes out. It finishes what the fast path did not: outbox events whose signal was
+/// lost (Service Bus down, the API stopped right after its commit) or whose processor died (lease
+/// expired), and notifications still undispatched after the grace period (a lost deliveries message,
+/// a transient provider failure). It does so with the very same processors the worker uses, so the
+/// event lease and the per-(notification, device) claim keep it from duplicating the worker's work.
+/// It needs no Service Bus at all - with the fast path unconfigured or unavailable, it alone delivers
+/// everything, as before. It also expires stale notifications and trims old processed events.
 /// </summary>
 public sealed class DispatchPendingPushNotificationsService(
+    INotificationEventStore eventStore,
+    INotificationEventProcessor eventProcessor,
     IPushDispatchStore dispatchStore,
-    INotificationDeliveryStore deliveryStore,
-    IPushDeviceRegistrationStore deviceStore,
-    IPushSender pushSender,
-    TimeProvider timeProvider) : IDispatchPendingPushNotificationsService
+    IPushDeliveryProcessor deliveryProcessor,
+    TimeProvider timeProvider,
+    NotificationPipelineOptions options) : IDispatchPendingPushNotificationsService
 {
-    public const int BatchSize = 200;
-
     public async Task<DispatchPendingPushNotificationsResult> RunOnceAsync(CancellationToken cancellationToken = default)
     {
-        var pending = await dispatchStore.ListPendingAsync(BatchSize, cancellationToken);
-        int sent = 0, failed = 0, skipped = 0, expired = 0;
+        var nowUtc = timeProvider.GetUtcNow();
+        var createdBefore = nowUtc - TimeSpan.FromSeconds(Math.Max(0, options.RecoveryGraceSeconds));
 
-        foreach (var notification in pending)
+        // 1. Outbox events the fast path has not finished: materialized and delivered here, directly.
+        var recovered = 0;
+        var delivered = PushDeliveryResult.Empty;
+        var retriesScheduled = 0;
+        foreach (var eventId in await eventStore.ListRecoverableAsync(Math.Max(1, options.RecoveryEventLimit), createdBefore, nowUtc, cancellationToken))
         {
-            var nowUtc = timeProvider.GetUtcNow();
-            if (nowUtc - notification.CreatedAtUtc > SocialNotificationPolicy.MaxAge(notification.Type))
+            try
             {
-                await dispatchStore.MarkDispatchedAsync(notification.Id, nowUtc, cancellationToken);
-                expired++;
-                continue;
-            }
-
-            var context = await dispatchStore.GetContextAsync(notification, nowUtc, cancellationToken);
-            var devices = context.IsRelevant
-                ? await deviceStore.ListEnabledAsync(notification.UserId, cancellationToken)
-                : [];
-            if (devices.Count == 0)
-            {
-                await dispatchStore.MarkDispatchedAsync(notification.Id, nowUtc, cancellationToken);
-                skipped++;
-                continue;
-            }
-
-            var retryLater = false;
-            foreach (var device in devices)
-            {
-                if (!await deliveryStore.TryClaimAsync(notification.Id, device.Id, timeProvider.GetUtcNow(), cancellationToken))
+                var outcome = await eventProcessor.ProcessAsync(eventId, deliverInline: true, cancellationToken);
+                if (outcome.Processed)
                 {
-                    continue;
+                    recovered++;
+                    delivered = delivered.Add(outcome.Delivered ?? PushDeliveryResult.Empty);
                 }
-
-                var result = await pushSender.SendAsync(device, BuildPayload(notification, context, device.Locale), cancellationToken);
-                if (result.Status == NotificationDeliveryStatus.Sent)
-                {
-                    sent++;
-                }
-                else
-                {
-                    failed++;
-                    if (PushSendFailureCodes.IsPermanent(result.FailureCode))
-                    {
-                        await deviceStore.DisableByIdAsync(device.Id, timeProvider.GetUtcNow(), cancellationToken);
-                    }
-                    else
-                    {
-                        retryLater = true;
-                    }
-                }
-
-                await deliveryStore.RecordAttemptAsync(
-                    notification.Id, device.Id, result.Status, timeProvider.GetUtcNow(), result.ProviderMessageId, result.FailureCode, cancellationToken);
             }
-
-            if (!retryLater)
+            catch (NotificationEventRetryScheduledException)
             {
-                await dispatchStore.MarkDispatchedAsync(notification.Id, timeProvider.GetUtcNow(), cancellationToken);
+                // Its retry is scheduled in SQL; one failing event never stops the rest of the run.
+                retriesScheduled++;
             }
         }
 
-        return new DispatchPendingPushNotificationsResult(pending.Count, sent, failed, skipped, expired);
+        // 2. Notifications still undispatched after the grace period.
+        var pending = await dispatchStore.ListPendingAsync(Math.Max(1, options.RecoveryNotificationLimit), createdBefore, cancellationToken);
+        delivered = delivered.Add(await deliveryProcessor.DeliverLoadedAsync(pending, cancellationToken));
+
+        // 3. Processed events are kept a while for diagnosis, then removed in a bounded batch.
+        await eventStore.DeleteCompletedBeforeAsync(nowUtc - TimeSpan.FromDays(Math.Max(1, options.ProcessedEventRetentionDays)), 1000, cancellationToken);
+
+        return new DispatchPendingPushNotificationsResult(
+            delivered.Pending, delivered.Sent, delivered.Failed, delivered.Skipped, delivered.Expired, recovered, retriesScheduled);
     }
 
     public static PushNotificationPayload BuildPayload(Notification notification, PushDispatchContext context, string locale)

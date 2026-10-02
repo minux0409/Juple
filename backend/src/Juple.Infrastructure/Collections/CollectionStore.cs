@@ -458,7 +458,7 @@ public sealed class CollectionStore(
         // row, atomically - neither revision can ever miss the other's change. A Contributor's mark
         // exists only in CollectionFavorites. The legacy column is set with a set-based UPDATE of
         // that one column only: UpdatedAtUtc is untouched (a personal mark, not an edit).
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         if (isFavorite)
         {
             try
@@ -1002,7 +1002,7 @@ public sealed class CollectionStore(
             return null;
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         // Under the Collection row lock (the one share/permission changes serialize on), re-check
         // that this exact link is still active and writable - a concurrent revoke or switch to
         // read-only wins.
@@ -1229,7 +1229,7 @@ public sealed class CollectionStore(
         long targetCollectionId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
 
         var itemOwnedAndActive = await dbContext.Items.AsNoTracking().AnyAsync(
@@ -1278,7 +1278,7 @@ public sealed class CollectionStore(
         bool targetMembershipCreated,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
 
         var itemOwnedAndActive = await dbContext.Items.AsNoTracking().AnyAsync(
@@ -1327,7 +1327,7 @@ public sealed class CollectionStore(
         long targetCollectionId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         await EnsureOwnedCollectionsAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
 
         if (sourceCollectionId == targetCollectionId)
@@ -1400,7 +1400,7 @@ public sealed class CollectionStore(
         Guid undoOperationId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
 
         // Row-locked so two concurrent Undo calls for the same operation (e.g. a client retry racing
         // its own original request) serialize instead of both observing UndoneAtUtc == null and both
@@ -1501,7 +1501,7 @@ public sealed class CollectionStore(
         long? afterItemId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
 
         var collectionOwned = await dbContext.Collections
             .FromSqlInterpolated($"SELECT * FROM collections.Collections WITH (UPDLOCK, HOLDLOCK) WHERE Id = {collectionId}")

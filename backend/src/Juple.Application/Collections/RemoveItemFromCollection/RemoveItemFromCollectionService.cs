@@ -24,6 +24,7 @@ public sealed class RemoveItemFromCollectionService(
         CancellationToken cancellationToken = default)
     {
         var access = await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.View, unlockToken, cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         if (access.IsOwner)
         {
             await collectionItemStore.RemoveAsync(userId, collectionId, itemId, cancellationToken);
@@ -39,6 +40,8 @@ public sealed class RemoveItemFromCollectionService(
         {
             await notifications.CollectionsChangedAsync(userId, [collectionId], cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 }
 

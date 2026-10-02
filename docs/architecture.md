@@ -58,7 +58,15 @@ Backend는 Azure Notification Hubs를 사용하지 않기로 결정했다(Notifi
 
 Push 전송 서버 credential(Firebase 서비스 계정 JSON)은 Mobile의 `google-services.json`(client-side 설정, 비밀 아님)과 완전히 별개이며, Backend 설정(`Firebase:ServiceAccountKeyJson`)을 통해 local user-secrets 또는 Azure Container Apps secret으로만 주입한다 - 소스/appsettings에 두지 않는다.
 
-Push dispatch는 outbox 방식이다: API는 친구 신청·Collection 공유 초대·초대 응답·공유 Collection 내용 변경을 `notifications.Notifications`에 기록만 하고(best-effort, 사용자 동작을 실패시키지 않음), Azure Container Apps scheduled Job(`caj-juple-push-dispatch-{env}`, 기존 API 이미지 + `--run-push-dispatch`)이 이를 FCM으로 보낸다. Firebase credential은 이 Job에만 있다. 친구 신청/공유 초대는 tray 알림, 초대 응답/내용 변경은 열려 있는 화면만 새로 고치는 data-only 메시지다(`infra/azure/README.md`의 "Social Push" 참고).
+Push는 transactional outbox + Service Bus 방식이다(Round 33).
+
+- **API**: 알림을 일으키는 변경과 같은 SQL transaction 안에서 `notifications.NotificationEvents`에 **이벤트 1행**만 기록한다(수신자 수와 무관한 상수 비용 - 수신자 계산·`Notifications` 행 생성·FCM 호출은 API에서 하지 않는다). commit 후에는 이벤트 id를 프로세스 내부의 bounded channel에 넣고 바로 반환한다. Service Bus `notification-events` 큐로의 전송은 background publisher가 하므로 요청 경로에 네트워크 호출이 없다. channel이 가득 차거나 전송이 실패해도 이벤트는 SQL에 남는다(Azure SQL이 기록의 원본, Service Bus는 깨우는 통로일 뿐).
+- **Notification worker**(`ca-juple-notify-worker-{env}`, 같은 이미지 + `--run-notification-worker`): 이벤트를 받아 수신자를 keyset paging으로 페이지 단위 materialize하고(페이지마다 고정된 수의 query, 이벤트 lease + 결정적 DedupKey로 중복 메시지·재시도에도 중복 알림 없음), 결과를 `push-deliveries` 큐에 배치로 넘겨 bounded 병렬로 FCM 전송한다. KEDA가 큐 길이로 scale하며 `minReplicas`가 지연/비용 조절점이다(Dev 0, Production 1 권장).
+- **push-dispatch Job**(`caj-juple-push-dispatch-{env}`, 1분 주기): 이제 복구용이다 - 신호를 잃은 이벤트, lease가 만료된 이벤트, 유예 시간이 지나도 발송되지 않은 알림을 같은 processor로 처리한다. Service Bus 없이도 전부 전달할 수 있다.
+- **재시도**: 일시적 실패는 capped exponential back-off(`NextAttemptAtUtc`)로 횟수 제한 없이 재시도한다. 오래 실패하면 `RequiresAttention` 표시만 붙고, 구조적으로 불가능한 이벤트만 `FailedPermanent`로 끝난다. Service Bus DLQ로 간 신호는 SQL 이벤트를 무효화하지 않는다.
+- 전송은 (알림, 기기)별 claim으로 정상 경로에서 중복 발송하지 않지만, provider가 수락한 직후 기록 전에 프로세스가 죽으면 lease 만료 후 한 번 더 보낼 수 있다(at-least-once - exactly-once는 보장하지 않는다).
+
+Firebase credential은 worker와 이 Job에만 있다. 친구 신청/공유 초대는 tray 알림, 초대 응답/내용 변경은 열려 있는 화면만 새로 고치는 data-only 메시지다(`infra/azure/README.md`의 "Social Push" 참고).
 
 ## Azure 구성 방향
 

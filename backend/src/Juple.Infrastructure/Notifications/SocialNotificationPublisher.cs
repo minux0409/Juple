@@ -8,281 +8,181 @@ using Microsoft.Extensions.Logging;
 namespace Juple.Infrastructure.Notifications;
 
 /// <summary>
-/// Writes social notifications into the Push outbox (see ISocialNotificationPublisher). Every
-/// method is best-effort and never throws: the user's action already committed, and a missing
-/// notification only means the app refreshes on its next focus instead. The same event is written
-/// at most once (UX_Notifications_DedupKey); content changes are coalesced per recipient, Collection
-/// and minute. Logs never include names, links or ids beyond the notification type.
+/// Writes social events into the durable outbox (see ISocialNotificationPublisher): every method is ONE
+/// small insert into notifications.NotificationEvents - constant cost whatever the Collection's size;
+/// recipients, opt-outs and Push are decided later by NotificationEventStore and the delivery
+/// processor. Inside BeginAtomicScopeAsync the insert shares the change's transaction; a repeat of an
+/// already recorded event (same DedupKey - e.g. a second reaction change within the coalescing
+/// window - see NotificationEventKeys) is simply not recorded again. After the commit, the new events'
+/// ids are handed to INotificationSignal - an immediate, non-blocking hand-off to the in-process signal
+/// channel; no network call happens on the request's path. Logs never include names, links or ids
+/// beyond the notification type.
 /// </summary>
 public sealed class SocialNotificationPublisher(
     JupleDbContext dbContext,
     TimeProvider timeProvider,
-    ILogger<SocialNotificationPublisher> logger) : ISocialNotificationPublisher
+    ILogger<SocialNotificationPublisher> logger,
+    INotificationSignal? signal = null) : ISocialNotificationPublisher
 {
+    private readonly List<long> _unsignaled = [];
+
+    public async Task<INotificationOutboxScope> BeginAtomicScopeAsync(CancellationToken cancellationToken = default) =>
+        new OutboxScope(this, await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken));
+
+    public async Task FlushSignalsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_unsignaled.Count == 0 || signal is null)
+        {
+            _unsignaled.Clear();
+            return;
+        }
+
+        var eventIds = _unsignaled.ToList();
+        _unsignaled.Clear();
+        // Not the request's token: the change is committed, so the signal is handed off even if the
+        // client has just gone away. The hand-off itself never waits (see ChannelNotificationSignal).
+        await signal.SignalEventsAsync(eventIds, CancellationToken.None);
+    }
+
     public Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.FriendRequestReceived, () => EnqueueAsync(
-            [Notification.Social(recipientUserId, NotificationType.FriendRequestReceived, requesterUserId, null, friendshipId,
-                $"friend-request:{friendshipId}", timeProvider.GetUtcNow())],
-            cancellationToken));
+        RecordAsync(new NotificationEvent(
+            NotificationType.FriendRequestReceived, requesterUserId, recipientUserId, null, friendshipId, null, false, null,
+            NotificationEventKeys.FriendRequestReceived(friendshipId), Now()), cancellationToken);
 
     public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.FriendRequestAnswered, () => EnqueueAsync(
-            [Notification.Social(requesterUserId, NotificationType.FriendRequestAnswered, answererUserId, null, friendshipId,
-                $"friend-request-answered:{friendshipId}", timeProvider.GetUtcNow())],
-            cancellationToken));
+        RecordAsync(new NotificationEvent(
+            NotificationType.FriendRequestAnswered, answererUserId, requesterUserId, null, friendshipId, null, false, null,
+            NotificationEventKeys.FriendRequestAnswered(friendshipId), Now()), cancellationToken);
 
     public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.CollectionInvitationReceived, () => EnqueueAsync(
-            [Notification.Social(invitedUserId, NotificationType.CollectionInvitationReceived, ownerUserId, collectionId, invitationId,
-                $"collection-invitation:{invitationId}", timeProvider.GetUtcNow())],
-            cancellationToken));
+        RecordAsync(new NotificationEvent(
+            NotificationType.CollectionInvitationReceived, ownerUserId, invitedUserId, collectionId, invitationId, null, false, null,
+            NotificationEventKeys.CollectionInvitationReceived(invitationId), Now()), cancellationToken);
 
+    /// <summary>The Owner to tell (the inviter) is looked up when the event is processed.</summary>
     public Task CollectionInvitationAnsweredAsync(long inviteeUserId, long invitationId, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.CollectionInvitationAnswered, async () =>
+        RecordAsync(new NotificationEvent(
+            NotificationType.CollectionInvitationAnswered, inviteeUserId, null, null, invitationId, null, false, null,
+            NotificationEventKeys.CollectionInvitationAnswered(invitationId), Now()), cancellationToken);
+
+    /// <summary>One event per Collection (the ids are the caller's own choice, so bounded); repeats by the same person within the coalescing window are one.</summary>
+    public async Task CollectionsChangedAsync(long actorUserId, IReadOnlyCollection<long> collectionIds, CancellationToken cancellationToken = default)
+    {
+        var nowUtc = Now();
+        foreach (var collectionId in collectionIds.Distinct())
         {
-            var invitation = await dbContext.CollectionInvitations.AsNoTracking()
-                .Where(entry => entry.Id == invitationId && entry.InvitedUserId == inviteeUserId)
-                .Select(entry => new { entry.CollectionId, entry.InvitedByUserId })
-                .FirstOrDefaultAsync(cancellationToken);
-            if (invitation is null)
-            {
-                return;
-            }
+            await RecordAsync(new NotificationEvent(
+                NotificationType.CollectionContentChanged, actorUserId, null, collectionId, null, null, false, null,
+                NotificationEventKeys.CollectionContentChanged(collectionId, actorUserId, nowUtc), nowUtc), cancellationToken);
+        }
+    }
 
-            await EnqueueAsync(
-                [Notification.Social(invitation.InvitedByUserId, NotificationType.CollectionInvitationAnswered, inviteeUserId,
-                    invitation.CollectionId, invitationId, $"invitation-answered:{invitationId}", timeProvider.GetUtcNow())],
-                cancellationToken);
-        });
-
-    public Task CollectionsChangedAsync(long actorUserId, IReadOnlyCollection<long> collectionIds, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.CollectionContentChanged, () => EnqueueContentChangesAsync(actorUserId, collectionIds, cancellationToken));
-
-    public Task ItemCollectionsChangedAsync(long actorUserId, long itemId, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.CollectionContentChanged, async () =>
-        {
-            var collectionIds = await dbContext.CollectionItems.AsNoTracking()
-                .Where(entry => entry.ItemId == itemId)
-                .Select(entry => entry.CollectionId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-            await EnqueueContentChangesAsync(actorUserId, collectionIds, cancellationToken);
-        });
+    /// <summary>One item-wide event; the processor expands it into the Item's shared Collections (an unknown number - never looked up here).</summary>
+    public Task ItemCollectionsChangedAsync(long actorUserId, long itemId, CancellationToken cancellationToken = default)
+    {
+        var nowUtc = Now();
+        return RecordAsync(new NotificationEvent(
+            NotificationType.CollectionContentChanged, actorUserId, null, null, itemId, null, false, null,
+            NotificationEventKeys.ItemCollectionsChanged(itemId, actorUserId, nowUtc), nowUtc), cancellationToken);
+    }
 
     public Task CollectionItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, CancellationToken cancellationToken = default) =>
-        EnqueueItemsAddedAsync(actorUserId, collectionId, itemCount, hideActor, alsoSkipUserId: null, cancellationToken);
+        itemCount <= 0
+            ? Task.CompletedTask
+            : RecordAsync(new NotificationEvent(
+                NotificationType.CollectionItemsAdded, actorUserId, null, collectionId, null, itemCount, hideActor, null, null, Now()), cancellationToken);
 
+    /// <summary>Exactly a new link by its proposer - except that the approving Owner, who just did it, is not told either.</summary>
     public Task CollectionLinkApprovedAsync(long ownerUserId, long submitterUserId, long collectionId, bool hideActor, CancellationToken cancellationToken = default) =>
-        EnqueueItemsAddedAsync(submitterUserId, collectionId, 1, hideActor, alsoSkipUserId: ownerUserId, cancellationToken);
+        RecordAsync(new NotificationEvent(
+            NotificationType.CollectionItemsAdded, submitterUserId, null, collectionId, null, 1, hideActor, ownerUserId, null, Now()), cancellationToken);
 
     public Task CollectionItemReactionReceivedAsync(long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
-        EnqueueCollaborationAsync(NotificationType.CollectionItemReactionReceived, actorUserId, collectionId, itemId, cancellationToken);
+        RecordCollaborationAsync(NotificationType.CollectionItemReactionReceived, actorUserId, collectionId, itemId, cancellationToken);
 
     public Task CollectionItemCommentReceivedAsync(long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
-        EnqueueCollaborationAsync(NotificationType.CollectionItemCommentReceived, actorUserId, collectionId, itemId, cancellationToken);
+        RecordCollaborationAsync(NotificationType.CollectionItemCommentReceived, actorUserId, collectionId, itemId, cancellationToken);
 
+    /// <summary>The proposer is kept on the event only to find the proposal - the Owner's notification never names them.</summary>
     public Task CollectionLinkSubmittedAsync(long submitterUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
-        SafelyAsync(NotificationType.CollectionLinkSubmissionReceived, async () =>
-        {
-            // The proposal just recorded (one per Collection and link, so at most one waiting row of
-            // this Item by this person) and the Owner it waits for.
-            var waiting = await (
-                    from submission in dbContext.CollectionLinkSubmissions.AsNoTracking()
-                    where submission.CollectionId == collectionId && submission.ItemId == itemId && submission.SubmittedByUserId == submitterUserId
-                    join collection in dbContext.Collections.AsNoTracking() on submission.CollectionId equals collection.Id
-                    where collection.DeletedAtUtc == null
-                    orderby submission.Id descending
-                    select new { submission.Id, OwnerUserId = collection.UserId })
-                .FirstOrDefaultAsync(cancellationToken);
-            if (waiting is null || waiting.OwnerUserId == submitterUserId)
-            {
-                return;
-            }
-
-            // No actor: who proposed is never part of this notification (a proposal through the
-            // public link must stay anonymous, and the Owner sees members' names in 승인 대기 anyway).
-            await EnqueueAsync(
-                [Notification.Social(waiting.OwnerUserId, NotificationType.CollectionLinkSubmissionReceived, null, collectionId, waiting.Id,
-                    $"collection-submission:{waiting.Id}", timeProvider.GetUtcNow())],
-                cancellationToken);
-        });
+        RecordAsync(new NotificationEvent(
+            NotificationType.CollectionLinkSubmissionReceived, submitterUserId, null, collectionId, itemId, null, true, null, null, Now()), cancellationToken);
 
     public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, bool approved, CancellationToken cancellationToken = default)
     {
         var type = approved ? NotificationType.CollectionLinkSubmissionApproved : NotificationType.CollectionLinkSubmissionRejected;
-        return SafelyAsync(type, () => EnqueueAsync(
-            [Notification.Social(submitterUserId, type, null, collectionId, submissionId,
-                $"collection-submission-{(approved ? "approved" : "rejected")}:{submissionId}", timeProvider.GetUtcNow())],
-            cancellationToken));
+        return RecordAsync(new NotificationEvent(
+            type, null, submitterUserId, collectionId, submissionId, null, true, null,
+            NotificationEventKeys.CollectionLinkSubmissionAnswered(submissionId, approved), Now()), cancellationToken);
     }
 
-    /// <summary>
-    /// A reaction or comment on a link of a shared Collection: its owner (the Item's owner) - when that
-    /// is someone else who still owns or belongs to the Collection - gets one notification per actor,
-    /// link and CollaborationCoalescing window. Not subject to 새 링크 알림: that setting is about new
-    /// links in the Collection, and this is a reply to the recipient's own link.
-    /// </summary>
-    private Task EnqueueCollaborationAsync(NotificationType type, long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken) =>
-        SafelyAsync(type, async () =>
-        {
-            var target = await (
-                    from membership in dbContext.CollectionItems.AsNoTracking()
-                    where membership.CollectionId == collectionId && membership.ItemId == itemId
-                    join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
-                    where item.DeletedAtUtc == null
-                    join collection in dbContext.Collections.AsNoTracking() on membership.CollectionId equals collection.Id
-                    where collection.DeletedAtUtc == null
-                    select new { LinkOwnerUserId = item.UserId, CollectionOwnerUserId = collection.UserId })
-                .FirstOrDefaultAsync(cancellationToken);
-            if (target is null || target.LinkOwnerUserId == actorUserId)
-            {
-                return;
-            }
-
-            var recipientBelongs = target.LinkOwnerUserId == target.CollectionOwnerUserId
-                || await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(
-                    collaborator => collaborator.CollectionId == collectionId && collaborator.UserId == target.LinkOwnerUserId,
-                    cancellationToken);
-            if (!recipientBelongs)
-            {
-                return;
-            }
-
-            var nowUtc = timeProvider.GetUtcNow();
-            await EnqueueAsync(
-                [Notification.Social(target.LinkOwnerUserId, type, actorUserId, collectionId, itemId,
-                    SocialNotificationPolicy.CollaborationDedupKey(type, collectionId, itemId, actorUserId, nowUtc), nowUtc)],
-                cancellationToken);
-        });
-
-    private Task EnqueueItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, long? alsoSkipUserId, CancellationToken cancellationToken) =>
-        SafelyAsync(NotificationType.CollectionItemsAdded, async () =>
-        {
-            if (itemCount <= 0)
-            {
-                return;
-            }
-
-            var ownerUserId = await dbContext.Collections.AsNoTracking()
-                .Where(collection => collection.Id == collectionId && collection.DeletedAtUtc == null)
-                .Select(collection => (long?)collection.UserId)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (ownerUserId is null)
-            {
-                return;
-            }
-
-            // Owner + accepted members (a pending invitation is not a member), minus the actor and
-            // anyone who turned this Collection's new-link notifications off - set queries, never one
-            // per recipient.
-            var memberUserIds = await dbContext.CollectionCollaborators.AsNoTracking()
-                .Where(collaborator => collaborator.CollectionId == collectionId)
-                .Select(collaborator => collaborator.UserId)
-                .ToListAsync(cancellationToken);
-            var recipients = memberUserIds.Append(ownerUserId.Value)
-                .Where(userId => userId != actorUserId && userId != alsoSkipUserId)
-                .Distinct()
-                .ToList();
-            if (recipients.Count == 0)
-            {
-                return;
-            }
-
-            var optedOut = (await dbContext.CollectionNotificationPreferences.AsNoTracking()
-                    .Where(preference => preference.CollectionId == collectionId && !preference.NewItemNotificationsEnabled)
-                    .Select(preference => preference.UserId)
-                    .ToListAsync(cancellationToken))
-                .ToHashSet();
-
-            var nowUtc = timeProvider.GetUtcNow();
-            var operationId = Guid.NewGuid();
-            await EnqueueAsync(
-                recipients
-                    .Where(userId => !optedOut.Contains(userId))
-                    .Select(userId => Notification.Social(
-                        userId, NotificationType.CollectionItemsAdded, hideActor ? null : actorUserId, collectionId, null,
-                        SocialNotificationPolicy.ItemsAddedDedupKey(collectionId, userId, operationId), nowUtc, itemCount))
-                    .ToList(),
-                cancellationToken);
-        });
-
-    private async Task EnqueueContentChangesAsync(long actorUserId, IReadOnlyCollection<long> collectionIds, CancellationToken cancellationToken)
+    private Task RecordCollaborationAsync(NotificationType type, long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken)
     {
-        if (collectionIds.Count == 0)
-        {
-            return;
-        }
-
-        var ids = collectionIds.Distinct().ToList();
-        // Only shared Collections have anyone else to tell: the Owner plus every member.
-        var members = await dbContext.CollectionCollaborators.AsNoTracking()
-            .Where(collaborator => ids.Contains(collaborator.CollectionId))
-            .Select(collaborator => new { collaborator.CollectionId, collaborator.UserId })
-            .ToListAsync(cancellationToken);
-        if (members.Count == 0)
-        {
-            return;
-        }
-
-        var sharedIds = members.Select(member => member.CollectionId).Distinct().ToList();
-        var owners = await dbContext.Collections.AsNoTracking()
-            .Where(collection => sharedIds.Contains(collection.Id) && collection.DeletedAtUtc == null)
-            .Select(collection => new { CollectionId = collection.Id, collection.UserId })
-            .ToListAsync(cancellationToken);
-
-        var nowUtc = timeProvider.GetUtcNow();
-        var recipients = owners
-            .Concat(members.Where(member => owners.Any(owner => owner.CollectionId == member.CollectionId)))
-            .Where(recipient => recipient.UserId != actorUserId)
-            .Distinct()
-            .Select(recipient => Notification.Social(
-                recipient.UserId, NotificationType.CollectionContentChanged, actorUserId, recipient.CollectionId, null,
-                SocialNotificationPolicy.ContentChangeDedupKey(recipient.CollectionId, recipient.UserId, nowUtc), nowUtc))
-            .ToList();
-        await EnqueueAsync(recipients, cancellationToken);
+        var nowUtc = Now();
+        return RecordAsync(new NotificationEvent(
+            type, actorUserId, null, collectionId, itemId, null, false, null,
+            NotificationEventKeys.Collaboration(type, collectionId, itemId, actorUserId, nowUtc), nowUtc), cancellationToken);
     }
 
-    private async Task EnqueueAsync(IReadOnlyList<Notification> notifications, CancellationToken cancellationToken)
+    private async Task RecordAsync(NotificationEvent notificationEvent, CancellationToken cancellationToken)
     {
-        if (notifications.Count == 0)
-        {
-            return;
-        }
-
-        var keys = notifications.Select(notification => notification.DedupKey!).ToList();
-        var existing = (await dbContext.Notifications.AsNoTracking()
-                .Where(notification => notification.DedupKey != null && keys.Contains(notification.DedupKey))
-                .Select(notification => notification.DedupKey!)
-                .ToListAsync(cancellationToken))
-            .ToHashSet(StringComparer.Ordinal);
-
-        foreach (var notification in notifications.Where(notification => !existing.Contains(notification.DedupKey!)))
-        {
-            dbContext.Notifications.Add(notification);
-            try
-            {
-                await dbContext.SaveChangesAsync(cancellationToken);
-            }
-            catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
-            {
-                // A concurrent request enqueued the same event first - that one is enough.
-            }
-            finally
-            {
-                dbContext.Entry(notification).State = EntityState.Detached;
-            }
-        }
-    }
-
-    private async Task SafelyAsync(NotificationType type, Func<Task> action)
-    {
+        dbContext.NotificationEvents.Add(notificationEvent);
         try
         {
-            await action();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            _unsignaled.Add(notificationEvent.Id);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
         {
-            logger.LogWarning(exception, "Could not enqueue a {NotificationType} notification; the app refreshes on its next focus instead.", type);
+            // The same event is recorded already (coalesced) - that one is enough. Only this statement
+            // failed; the surrounding transaction and the change it carries are unaffected.
+            logger.LogDebug("A {NotificationType} event was coalesced into one already recorded.", notificationEvent.Type);
+        }
+        finally
+        {
+            dbContext.Entry(notificationEvent).State = EntityState.Detached;
+        }
+
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            // Recorded outside any scope (committed on its own): signal it right away.
+            await FlushSignalsAsync(cancellationToken);
+        }
+    }
+
+    private DateTimeOffset Now() => timeProvider.GetUtcNow();
+
+    private void DiscardAfterRollback()
+    {
+        _unsignaled.Clear();
+        dbContext.ChangeTracker.Clear();
+    }
+
+    private sealed class OutboxScope(SocialNotificationPublisher publisher, StoreTransaction transaction) : INotificationOutboxScope
+    {
+        private bool _committed;
+
+        public async Task CommitAsync(CancellationToken cancellationToken = default)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            _committed = true;
+            if (!transaction.IsJoined)
+            {
+                // The events now exist - wake the worker. A joined scope leaves this to the owner of the
+                // transaction, after ITS commit (FlushSignalsAsync).
+                await publisher.FlushSignalsAsync(cancellationToken);
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (!_committed && !transaction.IsJoined)
+            {
+                // Rolled back: none of these events exist, and nothing saved here may stay tracked.
+                publisher.DiscardAfterRollback();
+            }
+
+            await transaction.DisposeAsync();
         }
     }
 }

@@ -558,6 +558,79 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
   Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있다 - 개발자 PC 접근은 위 "EF Core migration
   적용"의 임시 규칙 절차를 쓴다.
 
+## Notification pipeline: outbox + Service Bus (Round 33 - 아직 DEV 미배포)
+
+Push가 1분 주기 Job을 기다리지 않도록, 알림 경로를 transactional outbox + Service Bus로 바꿨다(`docs/architecture.md` "Push 알림 전송" 참고).
+
+- **API**: 변경과 같은 transaction에서 `notifications.NotificationEvents`에 이벤트 1행만 기록한다. commit 후에는 이벤트 id를 **프로세스 내부의 bounded channel에 넣기만 하고 즉시 반환한다**(네트워크 호출도 대기도 없다).
+  - background publisher(`NotificationSignalPublisherService`)가 channel을 비우며 `notification-events` 큐로 보낸다. 전송 1회당 5초 제한, 재시도 1회.
+  - channel이 가득 차거나, 전송이 실패하거나, 프로세스가 종료돼도 이벤트는 SQL에 남는다. 그 이벤트는 recovery Job이 처리한다.
+- **Worker** (`notification-worker/main.bicep`, `--run-notification-worker`): 두 큐(`notification-events`, `push-deliveries`)를 처리한다.
+  - 메시지 lock 자동 갱신은 명시적으로 10분(`MaxAutoLockRenewalSeconds`)이다. 큐의 lock duration 1분보다 길고, 무한은 아니다.
+  - prefetch 0, 동시 처리 수는 설정값.
+- **push-dispatch Job** (`job/main.bicep`, 변경 없음): recovery sweep을 맡는다. 처리 기한이 된 미처리 이벤트(lease 만료 또는 `NextAttemptAtUtc` 경과)와, 30초 이상 발송되지 않은 알림을 처리한다. Service Bus를 쓰지 않는다.
+- **재시도**:
+  - 일시적인 실패는 `NextAttemptAtUtc`로 다음 시도를 예약한다(5초부터 2배씩, 최대 5분). **횟수 제한 없이** 계속 재시도한다.
+  - 8회를 넘기면 `RequiresAttention`이 켜지지만 재시도는 계속된다. 로그는 Error 레벨 `requires attention`.
+  - 구조적으로 처리할 수 없는 이벤트(필수 id 누락, 알 수 없는 type)만 `FailedPermanent`로 끝낸다. `LastErrorCode`가 함께 남고, Job 로그의 `EventsFailedPermanently`로 보인다.
+- **DLQ와 SQL의 관계**:
+  - 큐 메시지는 깨우는 신호일 뿐이다. 신호가 maxDeliveryCount(10)를 넘거나 TTL(1시간)이 지나 DLQ로 가도, SQL 이벤트는 Pending 그대로 남고 Job이 처리한다.
+  - 형식이 잘못된 메시지는 즉시 DLQ로 보낸다. 해당 이벤트가 정상이라면 SQL 쪽에서 따로 복구된다.
+- **Service Bus** (`foundation/resources.bicep`): `serviceBusSku` 파라미터, 기본값 Basic.
+  - Basic으로 충분하다: 큐, DLQ, max delivery를 쓰고, idempotency는 SQL에서 보장한다.
+  - Standard 전환은 backlog, throttling, 지연을 관측한 뒤 내리는 운영 결정이고 코드 변경은 필요 없다.
+  - `disableLocalAuth: true`로 SAS 키와 연결 문자열이 없다.
+  - 큐 설정: lock 1분, maxDeliveryCount 10, TTL 1시간, 만료 시 DLQ.
+
+### 권한 (least privilege, 큐 단위 - Data Owner 없음)
+
+| 주체 | Identity | 역할 |
+|---|---|---|
+| API | 기존 공용 `id-juple-{env}` (Jobs/Web와 공유) | `notification-events`: Data Sender |
+| Worker | 새 전용 `id-juple-notify-worker-{env}` | `notification-events`: Data Receiver / `push-deliveries`: Data Sender + Data Receiver / ACR: AcrPull |
+| Worker KEDA scaler | Worker identity | 위 Receiver 역할로 큐 길이 조회 (**DEV에서 검증 필요**) |
+| push-dispatch Job | 없음 | Service Bus를 쓰지 않는다 |
+
+Worker identity를 분리한 이유: 공용 identity에 Receiver를 주면, API·Jobs·Web이 큐를 읽거나 비울 수 있게 된다.
+
+**KEDA 권한 검증 (DEV 첫 배포 때)**:
+- Worker revision의 scale rule이 Managed Identity로 인증되는지 확인한다.
+- 큐 길이가 읽히는지 확인한다(`az containerapp logs show --type system`에서 KEDA/scaler 이벤트에 401/403이 없어야 한다).
+- 신호를 하나 보내 replica가 0 → 1로 늘어나는지 확인한다.
+- Receiver로 부족하면 Data Owner로 바로 올리지 **않는다**. 실패한 operation(예: entity runtime properties 조회의 `Manage` claim)을 확인한 뒤, 그 action만 가진 custom role을 큐 범위로 만든다.
+
+### 지연/비용 (worker `minReplicas`, `pollingIntervalSeconds`)
+
+- **dev**: min 0, polling 10초. 쉬다가 오는 첫 Push는 polling 대기(최대 10초) + cold start(수십 초)만큼 늦고, 유휴 비용은 없다.
+- **prod**: min 1, polling 15초. 항상 1개가 떠 있어 약 1초 안에 처리를 시작한다. polling은 scale-out 속도만 정한다.
+- 공통: cooldown 300초. 1초 같은 공격적인 polling은 기본값으로 쓰지 않는다(Service Bus 관리 호출이 늘어난다).
+
+### 배포 순서 (DEV, 미수행)
+
+1. Foundation 재배포: Service Bus namespace/큐, worker identity, 큐 단위 역할 할당. 기존 리소스는 바뀌지 않는다. 역할 반영에 몇 분 걸릴 수 있다.
+2. DB migration `AddNotificationOutbox`: 새 테이블과 인덱스만 추가한다. 기존 API는 이 테이블을 쓰지 않으므로 먼저 적용해도 안전하다.
+3. push-dispatch Job을 새 이미지로 교체한다. 반드시 새 API보다 **먼저** 한다. 새 API의 이벤트를 처리할 수 있는 것은 이 Job과 worker뿐이다. 새 Job은 기존 API가 직접 쓰는 `Notifications` 행도 그대로 발송한다.
+4. Worker 배포(`notification-worker/dev.bicepparam`, worker identity 사용).
+5. API를 새 이미지 + `serviceBusNamespaceFqdn`으로 배포한다. 이 값을 비워 두면 fast path 없이 Job만으로 동작한다.
+
+호환성:
+- 기존 API + 새 DB/Job/worker: 문제 없음.
+- 새 API + migration 미적용: **알림을 일으키는 모든 변경이 실패**한다(outbox insert가 변경과 같은 transaction이다). 2번은 반드시 5번보다 먼저 한다.
+- 새 API + Job 미교체: 이벤트가 쌓이기만 하고 유실은 없다. Job을 교체하면 바로 처리된다.
+
+롤백:
+- API 롤백: 남은 이벤트는 새 Job과 worker가 계속 처리한다.
+- Job까지 롤백: 이벤트가 처리되지 않고 남는다.
+- migration Down: 테이블을 삭제한다(미처리 이벤트 유실).
+
+### DEV 검증 항목 (배포 후)
+
+1. **KEDA RBAC**: 위 "KEDA 권한 검증" 항목을 모두 확인한다.
+2. **cold path 지연**: min 0 상태에서 반응을 남긴 시각부터 기기 수신까지 측정한다. polling 대기, cold start, 처리 시간을 구분해서 본다.
+3. **warm path 지연**: worker를 일시적으로 `minReplicas=1`로 두고 같은 측정을 한다. 이 수치가 순수 파이프라인 지연(SQL, Service Bus, worker, FCM)이다. 측정 후 dev 값(0)으로 되돌린다.
+4. **lock 갱신**: 큰 컬렉션의 fan-out처럼 1분을 넘는 handler 동안 메시지가 다시 배달되지 않는지, worker 로그의 `DeliveryCount`가 1인지 확인한다.
+5. **recovery fallback**: worker를 0/0으로 멈추거나 API의 Service Bus 값을 비운 상태에서 알림을 만들고, push-dispatch Job이 30초 유예 후 다음 실행에서 처리하는지 확인한다.
+
 ## Profile & Account (Round 21 - 아직 DEV 미배포)
 
 - Migration `AddUserProfileImage`: `users.Users.ProfileImageBlobName nvarchar(400) NULL` 하나만 추가(기존 row

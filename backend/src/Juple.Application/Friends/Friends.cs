@@ -141,12 +141,14 @@ public sealed class FriendService(
             throw new InvalidFriendRequestException("jupleId", "You cannot send a friend request to yourself.");
         }
 
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var request = await friendStore.CreateRequestAsync(userId, targetUserId, timeProvider.GetUtcNow(), cancellationToken);
         if (notifications is not null)
         {
             await notifications.FriendRequestReceivedAsync(userId, targetUserId, request.RequestId, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return request;
     }
 
@@ -159,23 +161,28 @@ public sealed class FriendService(
     /// </summary>
     public async Task<FriendDto> AcceptAsync(long userId, long requestId, CancellationToken cancellationToken = default)
     {
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var accepted = await friendStore.AcceptAsync(userId, requestId, timeProvider.GetUtcNow(), cancellationToken);
         if (notifications is not null)
         {
             await notifications.FriendRequestAnsweredAsync(userId, accepted.RequesterUserId, requestId, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return accepted.Friend;
     }
 
     /// <summary>Like AcceptAsync: the requester's 보낸 친구 신청 drops it without waiting for their next visit.</summary>
     public async Task DeclineAsync(long userId, long requestId, CancellationToken cancellationToken = default)
     {
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var requesterUserId = await friendStore.DeleteRequestAsync(userId, requestId, asRecipient: true, cancellationToken);
         if (notifications is not null)
         {
             await notifications.FriendRequestAnsweredAsync(userId, requesterUserId, requestId, cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 
     /// <summary>The recipient is not told - a cancelled request simply disappears on their next refresh.</summary>

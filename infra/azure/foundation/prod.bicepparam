@@ -21,6 +21,11 @@ param environmentName = 'prod'
 // little room to grow. S0 is still one of the cheapest genuinely-production tiers - this is not
 // an overprovision, and higher tiers were deliberately not chosen without an actual load signal
 // to justify them.
+// Service Bus: Basic covers the notification pipeline today (queues, DLQ, max delivery count; idempotency
+// lives in SQL). Moving to Standard is an operational scaling decision driven by observed backlog,
+// throttling or latency - not a code change.
+param serviceBusSku = 'Basic'
+
 param sqlDatabaseSku = {
   name: 'S0'
   tier: 'Standard'

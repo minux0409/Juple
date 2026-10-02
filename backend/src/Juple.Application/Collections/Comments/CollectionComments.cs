@@ -131,14 +131,16 @@ public sealed class CollectionItemCommentService(
     {
         var normalized = CollectionCommentBody.Normalize(body);
         await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var created = await store.CreateAsync(userId, collectionId, itemId, normalized, timeProvider.GetUtcNow(), cancellationToken)
             ?? throw new CollectionNotFoundException();
         if (notifications is not null)
         {
-            // The publisher decides who the link's owner is and skips the commenter's own link.
+            // Who the link's owner is (and that it is not the commenter) is decided when the event is processed.
             await notifications.CollectionItemCommentReceivedAsync(userId, collectionId, itemId, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return created;
     }
 

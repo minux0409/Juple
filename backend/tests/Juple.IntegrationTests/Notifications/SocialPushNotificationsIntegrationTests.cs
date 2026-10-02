@@ -91,7 +91,7 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
     }
 
     private DispatchPendingPushNotificationsService Dispatcher(TimeProvider? time = null) =>
-        new(new PushDispatchStore(_db), new NotificationDeliveryStore(_db), new PushDeviceRegistrationStore(_db), _sender, time ?? TimeProvider.System);
+        Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.Dispatcher(_db, _sender, time);
 
     [Fact]
     public async Task AFriendRequest_IsPushedOnce_WithTheSendersName_AndThePendingCount()
@@ -225,6 +225,8 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
         await _db.Database.ExecuteSqlRawAsync("DELETE FROM notifications.Notifications WHERE UserId = {0}", _member);
 
         await _publisher.ItemCollectionsChangedAsync(_owner, item);
+        // One item-wide outbox event; processing expands it into each shared Collection it is in.
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
 
         Assert.True(await _db.Notifications.AnyAsync(entry =>
             entry.UserId == _member && entry.Type == NotificationType.CollectionContentChanged && entry.CollectionId == _sharedId));
@@ -250,12 +252,21 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
     public async Task AccountDeletion_RemovesNotificationsTheUserCausedForOthers()
     {
         await _friends.SendRequestAsync(_stranger, await JupleIdOfAsync(_member));
+        await _friends.SendRequestAsync(_stranger, await JupleIdOfAsync(_owner));
+        // One materialized, one still only an outbox event: both go with the account.
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        await _db.NotificationEvents.Where(entry => entry.ActorUserId == _stranger && entry.RecipientUserId == _owner)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(entry => entry.Status, NotificationEventStatus.Pending)
+                .SetProperty(entry => entry.CompletedAtUtc, (DateTimeOffset?)null));
         Assert.True(await _db.Notifications.AnyAsync(entry => entry.ActorUserId == _stranger));
+        Assert.True(await _db.NotificationEvents.AnyAsync(entry => entry.ActorUserId == _stranger));
 
         await new AccountDeletionStore(_db).DeleteAllDataAsync(_stranger, $"test/{_stranger}/", DateTimeOffset.UtcNow);
         _userIds.Remove(_stranger);
 
         Assert.False(await _db.Notifications.AnyAsync(entry => entry.ActorUserId == _stranger));
+        Assert.False(await _db.NotificationEvents.AnyAsync(entry => entry.ActorUserId == _stranger || entry.RecipientUserId == _stranger));
     }
 
     // ---------- helpers ----------

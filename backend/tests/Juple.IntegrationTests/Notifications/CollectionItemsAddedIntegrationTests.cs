@@ -108,7 +108,7 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
     }
 
     private DispatchPendingPushNotificationsService Dispatcher() =>
-        new(new PushDispatchStore(_db), new NotificationDeliveryStore(_db), new PushDeviceRegistrationStore(_db), _sender, TimeProvider.System);
+        Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.Dispatcher(_db, _sender);
 
     [Fact]
     public async Task AnAdd_PushesOnce_ToTheOtherAcceptedParticipants_Only()
@@ -626,10 +626,14 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
 
     private CollectionAccessService Access() => new(new CollectionAccessStore(_db), Tokens(), TimeProvider.System);
 
-    private async Task<List<Notification>> ItemsAddedEvents(long collectionId) =>
-        await _db.Notifications.AsNoTracking()
+    /// <summary>The new-link notifications of the Collection - after the outbox recorded by the actions has been materialized.</summary>
+    private async Task<List<Notification>> ItemsAddedEvents(long collectionId)
+    {
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        return await _db.Notifications.AsNoTracking()
             .Where(entry => entry.Type == NotificationType.CollectionItemsAdded && entry.CollectionId == collectionId)
             .ToListAsync();
+    }
 
     private sealed class FakeImageStorage : IItemImageStorage
     {

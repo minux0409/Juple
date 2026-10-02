@@ -12,6 +12,13 @@ param sqlAdministratorLoginPassword string
 
 param sqlDatabaseSku object
 
+@description('Service Bus tier for the notification pipeline. Basic is enough: two queues, dead-lettering and max-delivery-count are all Basic features; duplicate detection, topics and sessions (Standard) are not used - processing is idempotent in SQL instead.')
+@allowed([
+  'Basic'
+  'Standard'
+])
+param serviceBusSku string = 'Basic'
+
 // Deterministic suffix for the three globally-unique names below (ACR, Storage, SQL server) -
 // derived purely from this Resource Group's own resource ID, so it is stable across redeployments
 // without hardcoding a literal anywhere in source.
@@ -41,7 +48,6 @@ var acrPullRoleId = '7f951dda-4ed3-4680-a7ca-43fe172d538d' // AcrPull
 // container level, not the whole account) while user delegation key issuance still needs to stay
 // account-wide - not the case today.
 var storageBlobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
-
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: managedIdentityName
   location: location
@@ -190,6 +196,21 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
   }
 }
 
+// -----------------------------------------------------------------------------------------------
+// Notification pipeline (Service Bus, the worker's identity, queue-scoped roles) - its own module so
+// an existing environment can add it without redeploying (and re-supplying the secrets of) the rest.
+// -----------------------------------------------------------------------------------------------
+module notificationPipeline 'notification-pipeline.bicep' = {
+  name: 'juple-${environmentName}-notification-pipeline'
+  params: {
+    environmentName: environmentName
+    location: location
+    serviceBusSku: serviceBusSku
+    apiIdentityName: managedIdentity.name
+    acrName: acr.name
+  }
+}
+
 output acrName string = acr.name
 output acrLoginServer string = acr.properties.loginServer
 
@@ -209,3 +230,12 @@ output managedIdentityName string = managedIdentity.name
 output managedIdentityResourceId string = managedIdentity.id
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output managedIdentityPrincipalId string = managedIdentity.properties.principalId
+
+output notificationWorkerIdentityName string = notificationPipeline.outputs.notificationWorkerIdentityName
+output notificationWorkerIdentityResourceId string = notificationPipeline.outputs.notificationWorkerIdentityResourceId
+output notificationWorkerIdentityClientId string = notificationPipeline.outputs.notificationWorkerIdentityClientId
+
+output serviceBusNamespaceName string = notificationPipeline.outputs.serviceBusNamespaceName
+output serviceBusNamespaceFqdn string = notificationPipeline.outputs.serviceBusNamespaceFqdn
+output notificationEventsQueueName string = notificationPipeline.outputs.notificationEventsQueueName
+output pushDeliveriesQueueName string = notificationPipeline.outputs.pushDeliveriesQueueName

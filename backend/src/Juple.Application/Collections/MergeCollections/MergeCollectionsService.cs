@@ -15,6 +15,8 @@ public sealed class MergeCollectionsService(
     {
         await accessService.RequireUnlockedAsync(userId, sourceCollectionId, CollectionPermission.Reorganize, unlockToken, cancellationToken);
         await accessService.RequireUnlockedAsync(userId, targetCollectionId, CollectionPermission.Reorganize, unlockToken, cancellationToken);
+        // The merge and its notification event commit together (see NotificationOutbox).
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var result = await collectionManagementStore.MergeAsync(userId, sourceCollectionId, targetCollectionId, cancellationToken);
         // One grouped notification for the links this merge actually added to the target (links the
         // target already had are not counted; none added - nobody is told). Same caveat as transfer:
@@ -24,6 +26,7 @@ public sealed class MergeCollectionsService(
             await notifications.CollectionItemsAddedAsync(userId, targetCollectionId, result.AddedToTargetCount, hideActor: false, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return result;
     }
 }

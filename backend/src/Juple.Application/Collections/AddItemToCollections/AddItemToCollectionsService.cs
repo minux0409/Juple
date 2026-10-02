@@ -78,7 +78,7 @@ public sealed class AddItemToCollectionsService(
                 }
             }
 
-            // Outbox rows only (the dispatch Job sends the Push later) - inside the transaction, so
+            // Outbox events only (Push is sent later, asynchronously) - inside the transaction, so
             // they exist exactly when the links they announce do.
             if (notifications is not null && added.Count > 0)
             {
@@ -90,6 +90,12 @@ public sealed class AddItemToCollectionsService(
             }
 
             await transaction.CommitAsync(cancellationToken);
+        }
+
+        if (notifications is not null)
+        {
+            // Committed: wake the notification worker (best-effort; the recovery Job covers a lost signal).
+            await notifications.FlushSignalsAsync(cancellationToken);
         }
 
         return new AddItemToCollectionsResult(added.Count, ids.Count - added.Count);

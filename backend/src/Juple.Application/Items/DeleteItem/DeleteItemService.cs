@@ -15,11 +15,16 @@ public sealed class DeleteItemService(
         // so the existing idempotent 204 semantics are unchanged. This moves the Item to the trash
         // rather than hard-deleting it - its Blobs, Collection memberships, and every other row are
         // left untouched (see Item.SoftDelete) so Restore brings it back exactly as it was.
-        await itemLifecycleStore.DeleteAsync(userId, itemId, timeProvider.GetUtcNow(), cancellationToken);
-        if (notifications is not null)
+        await using (var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken))
         {
-            // A trashed link no longer counts in the shared Collections it is in.
-            await notifications.ItemCollectionsChangedAsync(userId, itemId, cancellationToken);
+            await itemLifecycleStore.DeleteAsync(userId, itemId, timeProvider.GetUtcNow(), cancellationToken);
+            if (notifications is not null)
+            {
+                // A trashed link no longer counts in the shared Collections it is in.
+                await notifications.ItemCollectionsChangedAsync(userId, itemId, cancellationToken);
+            }
+
+            await outbox.CommitAsync(cancellationToken);
         }
 
         // Enforces the fixed per-user trash retention cap (see ItemTrashLimits) after every

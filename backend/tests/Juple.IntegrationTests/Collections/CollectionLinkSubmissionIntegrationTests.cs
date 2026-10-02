@@ -258,6 +258,7 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == submissionId));
         Assert.Equal(0, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
 
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
         var told = await _db.Notifications.AsNoTracking()
             .Where(entry => entry.Type == NotificationType.CollectionItemsAdded && entry.CollectionId == _sharedId)
             .ToListAsync();

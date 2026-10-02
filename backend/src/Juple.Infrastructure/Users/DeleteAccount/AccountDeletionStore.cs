@@ -38,6 +38,15 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
                 .Where(notification => notification.UserId == userId || notification.ActorUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // Not-yet-processed (or kept for diagnosis) outbox events this user caused or is the one
+            // recipient of - so nothing about them is materialized after the account is gone. Events
+            // about their Collections are harmless (processing finds the Collection gone).
+            await dbContext.NotificationEvents
+                .Where(notificationEvent => notificationEvent.ActorUserId == userId
+                    || notificationEvent.RecipientUserId == userId
+                    || notificationEvent.SkipUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // PushDeviceRegistrations -> cascades any remaining NotificationDeliveries.
             await dbContext.PushDeviceRegistrations
                 .Where(registration => registration.UserId == userId)

@@ -4,14 +4,31 @@ using Juple.Domain.Push;
 namespace Juple.Application.Notifications;
 
 /// <summary>
-/// Records social events for the Push outbox (notifications.Notifications - see NotificationType
-/// 1-12). Called by the friend/collaboration/Collection services only AFTER their own change has
-/// committed, and always best-effort: an implementation never throws, so a notification problem can
-/// never undo or fail the user's action. Nothing here sends anything - the push-dispatch Job does
-/// (see DispatchPendingPushNotificationsService), which keeps the Firebase credential out of the API.
+/// Records social events (NotificationType 1-12) in the durable outbox (notifications.NotificationEvents):
+/// ONE small row per event, whatever the number of recipients - never a recipient list, never a Push.
+/// Called inside the same SQL transaction as the change it is about (see BeginAtomicScopeAsync and
+/// NotificationOutbox.BeginAsync), so the change and the intent to notify commit - or roll back -
+/// together; a failure to record the event therefore fails the change too. Who is told, and the
+/// Push itself, happen later and asynchronously: the notification worker (woken through Service Bus
+/// right after the commit) or, if that signal is lost, the recovery Job - see NotificationEventProcessor.
 /// </summary>
 public interface ISocialNotificationPublisher
 {
+    /// <summary>
+    /// Opens the transaction the change and its outbox events share (or joins the one already open on
+    /// the request). Committing it hands the new events' ids to the signal (an immediate, non-blocking
+    /// in-process hand-off - no network call on the request path); a lost signal only delays the Push
+    /// until the recovery Job. Disposing it uncommitted rolls back.
+    /// </summary>
+    Task<INotificationOutboxScope> BeginAtomicScopeAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<INotificationOutboxScope>(NotificationOutbox.NoOpScope.Instance);
+
+    /// <summary>
+    /// Signals the events recorded so far by this request - for a caller that committed its own
+    /// transaction around them (a joined scope never signals by itself). Best-effort, never throws.
+    /// </summary>
+    Task FlushSignalsAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
     Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -93,12 +110,20 @@ public sealed record PushDispatchContext(
 
 public interface IPushDispatchStore
 {
-    /// <summary>Social notifications not yet dispatched, oldest first.</summary>
-    Task<IReadOnlyList<Notification>> ListPendingAsync(int limit, CancellationToken cancellationToken = default);
+    /// <summary>Social notifications not yet dispatched and created before createdBefore, oldest first (the recovery sweep).</summary>
+    Task<IReadOnlyList<Notification>> ListPendingAsync(int limit, DateTimeOffset createdBefore, CancellationToken cancellationToken = default);
 
-    Task<PushDispatchContext> GetContextAsync(Notification notification, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+    /// <summary>Those of these social notifications not yet dispatched (the fast path's batch, as a queue message names it).</summary>
+    Task<IReadOnlyList<Notification>> ListUndispatchedAsync(IReadOnlyCollection<long> notificationIds, CancellationToken cancellationToken = default);
 
-    Task MarkDispatchedAsync(long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// The send-time context of every one of these notifications, decided together: a fixed number of
+    /// set queries per batch, never a query per notification or per recipient.
+    /// </summary>
+    Task<IReadOnlyDictionary<long, PushDispatchContext>> GetContextsAsync(
+        IReadOnlyList<Notification> notifications, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
+    Task MarkDispatchedAsync(IReadOnlyCollection<long> notificationIds, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 }
 
 public interface INotificationDeliveryStore
@@ -111,6 +136,13 @@ public interface INotificationDeliveryStore
     /// </summary>
     Task<bool> TryClaimAsync(long notificationId, long pushDeviceRegistrationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// TryClaimAsync for a whole batch: the new claims are inserted together (batched, not one round
+    /// trip each); any pair that already has a row falls back to the same conditional reclaim. Returns
+    /// the pairs this caller now owns.
+    /// </summary>
+    Task<IReadOnlySet<DeliveryKey>> TryClaimManyAsync(IReadOnlyCollection<DeliveryKey> deliveries, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+
     Task RecordAttemptAsync(
         long notificationId,
         long pushDeviceRegistrationId,
@@ -119,9 +151,20 @@ public interface INotificationDeliveryStore
         string? providerMessageId,
         string? failureCode,
         CancellationToken cancellationToken = default);
+
+    /// <summary>The outcomes of a batch of claimed deliveries, written together.</summary>
+    Task RecordAttemptsAsync(IReadOnlyCollection<DeliveryAttempt> attempts, CancellationToken cancellationToken = default);
 }
 
-public sealed record DispatchPendingPushNotificationsResult(int Pending, int Sent, int Failed, int Skipped, int Expired);
+/// <summary>One (notification, device) delivery.</summary>
+public readonly record struct DeliveryKey(long NotificationId, long PushDeviceRegistrationId);
+
+public sealed record DeliveryAttempt(
+    DeliveryKey Key, NotificationDeliveryStatus Status, DateTimeOffset AttemptedAtUtc, string? ProviderMessageId, string? FailureCode);
+
+/// <param name="EventsRecovered">Outbox events the run had to process itself (their fast-path signal was lost or their processor died).</param>
+/// <param name="EventRetriesScheduled">Outbox events whose attempt in this run failed - each rescheduled with back-off in SQL.</param>
+public sealed record DispatchPendingPushNotificationsResult(int Pending, int Sent, int Failed, int Skipped, int Expired, int EventsRecovered = 0, int EventRetriesScheduled = 0);
 
 public interface IDispatchPendingPushNotificationsService
 {
@@ -137,7 +180,7 @@ public static class SocialNotificationPolicy
     /// <summary>A refresh event is useless once the app would have refreshed on its own anyway.</summary>
     public static readonly TimeSpan DataOnlyMaxAge = TimeSpan.FromMinutes(10);
 
-    /// <summary>Content-change events per recipient and Collection are coalesced into one per this window.</summary>
+    /// <summary>Content-change notifications per recipient and Collection are coalesced into one per this window.</summary>
     public static readonly TimeSpan ContentChangeCoalescing = TimeSpan.FromMinutes(1);
 
     /// <summary>Reactions (and comments) by one person on one link are coalesced into one notification per this window.</summary>
@@ -176,6 +219,10 @@ public static class SocialNotificationPolicy
     /// <summary>Unique per add operation (operationId) - two separate adds are two notifications.</summary>
     public static string ItemsAddedDedupKey(long collectionId, long recipientUserId, Guid operationId) =>
         $"collection-items:{collectionId}:{recipientUserId}:{operationId:N}";
+
+    /// <summary>The same for an outbox event: one per add operation (its event) and recipient - re-materializing the event never duplicates it.</summary>
+    public static string ItemsAddedDedupKey(long collectionId, long recipientUserId, long eventId) =>
+        $"collection-items:{collectionId}:{recipientUserId}:e{eventId}";
 
     public static string ContentChangeDedupKey(long collectionId, long recipientUserId, DateTimeOffset nowUtc) =>
         $"collection-content:{collectionId}:{recipientUserId}:{nowUtc.ToUnixTimeSeconds() / (long)ContentChangeCoalescing.TotalSeconds}";

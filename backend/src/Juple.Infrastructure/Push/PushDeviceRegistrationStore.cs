@@ -101,6 +101,18 @@ public sealed class PushDeviceRegistrationStore(JupleDbContext dbContext) : IPus
             .Where(registration => registration.UserId == userId && registration.IsEnabled)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledForUsersAsync(
+        IReadOnlyCollection<long> userIds, CancellationToken cancellationToken = default)
+    {
+        var ids = userIds.Distinct().ToList();
+        return ids.Count == 0
+            ? []
+            : await dbContext.PushDeviceRegistrations
+                .AsNoTracking()
+                .Where(registration => ids.Contains(registration.UserId) && registration.IsEnabled)
+                .ToListAsync(cancellationToken);
+    }
+
     private static PushDeviceRegistrationDto ToDto(PushDeviceRegistration registration) => new(
         registration.Id,
         registration.Platform,

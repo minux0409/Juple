@@ -1167,6 +1167,102 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Notifications.NotificationEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DedupKey")
+                        .HasMaxLength(120)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<bool>("HideActor")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ItemCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LastAttemptAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset?>("LeaseUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("RecipientCursor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("RecipientUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("RequiresAttention")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("SkipUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
+
+                    b.Property<long?>("SubjectId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte>("Type")
+                        .HasColumnType("tinyint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DedupKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_NotificationEvents_DedupKey")
+                        .HasFilter("[DedupKey] IS NOT NULL");
+
+                    b.HasIndex("CreatedAtUtc", "Id")
+                        .HasDatabaseName("IX_NotificationEvents_Pending")
+                        .HasFilter("[Status] = 0");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CreatedAtUtc", "Id"), new[] { "NextAttemptAtUtc", "LeaseUntilUtc" });
+
+                    b.HasIndex(new[] { "CompletedAtUtc" }, "IX_NotificationEvents_CompletedAtUtc")
+                        .HasFilter("[CompletedAtUtc] IS NOT NULL");
+
+                    b.HasIndex(new[] { "CompletedAtUtc" }, "IX_NotificationEvents_FailedPermanent")
+                        .HasFilter("[Status] = 2");
+
+                    b.ToTable("NotificationEvents", "notifications", t =>
+                        {
+                            t.HasCheckConstraint("CK_NotificationEvents_Status_Valid", "[Status] IN (0, 1, 2)");
+
+                            t.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Purchases.Purchase", b =>
                 {
                     b.Property<long>("Id")

@@ -82,17 +82,35 @@ var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordi
 var isBlobCleanupRetryJob = args.Contains("--run-blob-cleanup-retry", StringComparer.Ordinal);
 var isInstagramMetadataRetryJob = args.Contains("--run-instagram-metadata-retry", StringComparer.Ordinal);
 var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob;
+// --run-notification-worker: the long-running notification worker (Service Bus consumer - see
+// NotificationWorkerService). Like the Jobs it authenticates no request and runs no controllers; it
+// serves only /health. Only it and the push-dispatch Job hold the Firebase credential.
+var isNotificationWorker = args.Contains("--run-notification-worker", StringComparer.Ordinal);
+var isOutsideHttpApi = isOneShotJob || isNotificationWorker;
 
 // Never required, and never validated, for either Job - RequireScope still needs a non-null value
 // to register the policy below, but that policy is only ever evaluated by the ASP.NET Core
 // request pipeline neither Job runs.
-var requiredScope = isOneShotJob
+var requiredScope = isOutsideHttpApi
     ? string.Empty
     : builder.Configuration["Authentication:EntraExternalId:RequiredScope"]
         ?? throw new InvalidOperationException("Authentication:EntraExternalId:RequiredScope must be configured.");
 
 builder.Services.AddInfrastructure(builder.Configuration);
-if (!isOneShotJob)
+if (isNotificationWorker)
+{
+    builder.Services.AddHostedService<Juple.Api.Notifications.NotificationWorkerService>();
+}
+
+if (!isOutsideHttpApi
+    && !string.IsNullOrWhiteSpace(builder.Configuration[$"{NotificationPipelineOptions.SectionName}:ServiceBusNamespace"]))
+{
+    // Sends the committed outbox events' wake-up signals to Service Bus in the background (the
+    // requests only hand them to an in-process channel - see NotificationSignalPump).
+    builder.Services.AddHostedService<Juple.Api.Notifications.NotificationSignalPublisherService>();
+}
+
+if (!isOutsideHttpApi)
 {
     // HTTP API only: fetch the Blob User Delegation Key in the background right after start, so the
     // first image read URL does not wait for it (see UserDelegationKeyWarmupService). The one-shot
@@ -183,10 +201,18 @@ builder.Services.AddScoped<IUploadItemImageService, UploadItemImageService>();
 builder.Services.AddScoped<IDeleteItemImageService, DeleteItemImageService>();
 builder.Services.AddScoped<IResolveUrlMetadataService, ResolveUrlMetadataService>();
 builder.Services.AddScoped<IPreviewInstagramMetadataCandidateService, PreviewInstagramMetadataCandidateService>();
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApi(
-        builder.Configuration.GetSection("Authentication:EntraExternalId"));
+if (!isOutsideHttpApi)
+{
+    // HTTP API only. WebApplication adds the authentication middleware on its own whenever an
+    // authentication scheme is registered - in the notification worker (which serves only /health and
+    // has no Entra configuration) that would make every request, the health probe included, fail
+    // while building the JWT options. The one-shot Jobs never serve HTTP at all.
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddMicrosoftIdentityWebApi(
+            builder.Configuration.GetSection("Authentication:EntraExternalId"));
+}
+
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthorizationPolicies.JupleUser, policy =>
     {
@@ -271,6 +297,21 @@ if (isPushDispatchJob)
     return await RunPushDispatchOnceAsync(app.Services);
 }
 
+// The notification worker: its hosted service consumes the queues until shutdown; the only endpoint
+// is /health (no authentication, no controllers). Without a Service Bus namespace there is nothing to
+// consume - a misconfiguration, so it refuses to start rather than idling silently.
+if (isNotificationWorker)
+{
+    if (string.IsNullOrWhiteSpace(app.Services.GetRequiredService<NotificationPipelineOptions>().ServiceBusNamespace))
+    {
+        throw new InvalidOperationException("NotificationPipeline:ServiceBusNamespace must be configured for --run-notification-worker.");
+    }
+
+    app.MapHealthChecks("/health");
+    await app.RunAsync();
+    return 0;
+}
+
 // One-shot execution mode for the Blob cleanup retry Job (see AccountDeletionBlobCleanup/
 // BlobCleanupService's own remarks). This is NOT a rare failure-only safety net: even a fully
 // successful account deletion leaves its cleanup task pending on purpose - DeleteAccountService's
@@ -335,9 +376,12 @@ static async Task<int> RunPushDispatchOnceAsync(IServiceProvider rootServices)
     try
     {
         var result = await dispatchService.RunOnceAsync();
+        var stats = await scope.ServiceProvider.GetRequiredService<INotificationEventStore>().GetStatsAsync(TimeProvider.System.GetUtcNow());
         logger.LogInformation(
-            "Push dispatch complete. Pending={Pending} Sent={Sent} Failed={Failed} Skipped={Skipped} Expired={Expired}",
-            result.Pending, result.Sent, result.Failed, result.Skipped, result.Expired);
+            "Push dispatch complete. Pending={Pending} Sent={Sent} Failed={Failed} Skipped={Skipped} Expired={Expired} EventsRecovered={EventsRecovered} OutboxPending={OutboxPending} OutboxOldestSeconds={OutboxOldestSeconds} NotificationsPending={NotificationsPending} NotificationsOldestSeconds={NotificationsOldestSeconds} EventRetriesScheduled={EventRetriesScheduled} EventsRequiringAttention={EventsRequiringAttention} EventsFailedPermanently={EventsFailedPermanently}",
+            result.Pending, result.Sent, result.Failed, result.Skipped, result.Expired, result.EventsRecovered,
+            stats.PendingEvents, stats.OldestPendingEventSeconds, stats.PendingNotifications, stats.OldestPendingNotificationSeconds,
+            result.EventRetriesScheduled, stats.EventsRequiringAttention, stats.EventsFailedPermanently);
         return 0;
     }
     catch (Exception exception)

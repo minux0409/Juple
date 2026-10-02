@@ -22,7 +22,7 @@ public sealed class CollectionItemCopyStore(JupleDbContext dbContext) : ICollect
         bool rejectCallerOwnedItems = false,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         // Serializes with other copies into the same destination and re-checks, inside this
         // transaction, that it is still there and still the caller's.
         if (await CollectionRowLock.LockActiveAsync(dbContext, destinationCollectionId, cancellationToken) != userId)

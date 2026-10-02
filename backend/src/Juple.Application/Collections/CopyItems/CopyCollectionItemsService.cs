@@ -92,6 +92,7 @@ public sealed class CopyCollectionItemsService(
 
         // In their own Collection the Owner copies only what others added - their own links there
         // are replicated or moved, never turned into a second Item.
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var result = await copyStore.CopyAsync(
             userId, sourceCollectionId, ids, destinationCollectionId, timeProvider.GetUtcNow(), rejectCallerOwnedItems: source.IsOwner, cancellationToken);
         if (result.Copied > 0 && notifications is not null)
@@ -100,6 +101,7 @@ public sealed class CopyCollectionItemsService(
             await notifications.CollectionItemsAddedAsync(userId, destinationCollectionId, result.Copied, hideActor: false, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return result;
     }
 }

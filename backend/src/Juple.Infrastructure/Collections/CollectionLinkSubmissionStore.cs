@@ -25,7 +25,7 @@ public sealed class CollectionLinkSubmissionStore(
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var ownerUserId = await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken);
         if (ownerUserId is null)
         {
@@ -156,7 +156,7 @@ public sealed class CollectionLinkSubmissionStore(
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         // Every approve/reject of this Collection's proposals (and every add) serializes here, so the
         // same proposal can never be approved twice.
         var ownerUserId = await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken)

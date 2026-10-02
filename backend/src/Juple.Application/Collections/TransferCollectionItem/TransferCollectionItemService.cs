@@ -15,8 +15,9 @@ public sealed class TransferCollectionItemService(
     {
         await accessService.RequireUnlockedAsync(userId, sourceCollectionId, CollectionPermission.Reorganize, unlockToken, cancellationToken);
         await accessService.RequireUnlockedAsync(userId, targetCollectionId, CollectionPermission.Reorganize, unlockToken, cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var result = await collectionManagementStore.TransferItemAsync(userId, sourceCollectionId, itemId, targetCollectionId, cancellationToken);
-        // Only after the transfer committed, and only for a link that is new in the target. (Today
+        // In the transfer's own transaction, and only for a link that is new in the target. (Today
         // the store refuses collaborative Collections for transfer, so the target's only possible
         // recipient is the Owner - the actor - and nobody is told; the rule is kept regardless.)
         if (result.TargetMembershipCreated && notifications is not null)
@@ -24,6 +25,7 @@ public sealed class TransferCollectionItemService(
             await notifications.CollectionItemsAddedAsync(userId, targetCollectionId, 1, hideActor: false, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return result;
     }
 }

@@ -33,6 +33,7 @@ public sealed class AddItemToCollectionService(
                 throw new CollectionForbiddenException();
             }
 
+            await using var proposalOutbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
             var outcome = await submissions.SubmitAsync(userId, collectionId, itemId, requiredPublicId: null, timeProvider.GetUtcNow(), cancellationToken)
                 ?? throw new CollectionNotFoundException();
             if (outcome == CollectionLinkAddOutcome.Submitted && notifications is not null)
@@ -41,9 +42,11 @@ public sealed class AddItemToCollectionService(
                 await notifications.CollectionLinkSubmittedAsync(userId, collectionId, itemId, cancellationToken);
             }
 
+            await proposalOutbox.CommitAsync(cancellationToken);
             return outcome;
         }
 
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var added = await collectionItemStore.AddAsync(userId, collectionId, itemId, timeProvider.GetUtcNow(), cancellationToken);
         if (notifications is not null)
         {
@@ -54,6 +57,7 @@ public sealed class AddItemToCollectionService(
             }
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return CollectionLinkAddOutcome.Added;
     }
 }

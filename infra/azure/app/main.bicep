@@ -69,6 +69,9 @@ param customDomainName string = ''
 @description('Name of the existing Managed Certificate resource (Microsoft.App/managedEnvironments/managedCertificates, a child of the Environment named by containerAppsEnvironmentName) that covers customDomainName. This template only references an existing certificate by name - it never creates, renews, or deletes one (Container Apps\' free managed certificate is provisioned once via `az containerapp env certificate create`/the domain-binding flow, outside this template). No per-environment default here either, same reasoning as customDomainName. Must be set together with customDomainName (both empty, or both set).')
 param managedCertificateName string = ''
 
+@description('Service Bus namespace FQDN - Foundation output "serviceBusNamespaceFqdn". Not a secret. Empty = no fast path: the API still records every notification event in SQL and the push-dispatch Job delivers them on its schedule (the behavior before Service Bus). Set it once the namespace exists and the identity has its queue roles.')
+param serviceBusNamespaceFqdn string = ''
+
 @description('Scale-to-zero by default - the cheapest Dev option. The first request after idle pays a cold-start cost; raise minReplicas to 1 if that proves disruptive.')
 param minReplicas int = 0
 
@@ -230,6 +233,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'Authentication__EntraExternalId__RequiredScope'
               value: entraRequiredScope
+            }
+            {
+              // Not a secret. The API only SENDS to it (a post-commit wake-up signal per change, ids
+              // only, bounded) - it never receives, and never calls FCM/APNs. Empty = no fast path.
+              name: 'NotificationPipeline__ServiceBusNamespace'
+              value: serviceBusNamespaceFqdn
             }
             {
               // Not a secret. Empty is a safe no-op (see publicWebBaseUrl's own description) -

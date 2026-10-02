@@ -174,5 +174,9 @@ public sealed class RegisterPushDeviceServiceTests
         public Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(
             long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PushDeviceRegistration>>([]);
+
+        public Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledForUsersAsync(
+            IReadOnlyCollection<long> userIds, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<PushDeviceRegistration>>([]);
     }
 }

@@ -30,6 +30,13 @@ param sqlDatabaseSku object = {
   tier: 'Basic'
 }
 
+@description('Service Bus tier for the notification pipeline (see resources.bicep). Basic covers every feature the pipeline uses.')
+@allowed([
+  'Basic'
+  'Standard'
+])
+param serviceBusSku string = 'Basic'
+
 var resourceGroupName = 'rg-juple-${environmentName}'
 
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -50,6 +57,7 @@ module resources 'resources.bicep' = {
     sqlAdministratorLogin: sqlAdministratorLogin
     sqlAdministratorLoginPassword: sqlAdministratorLoginPassword
     sqlDatabaseSku: sqlDatabaseSku
+    serviceBusSku: serviceBusSku
   }
 }
 
@@ -74,3 +82,12 @@ output managedIdentityName string = resources.outputs.managedIdentityName
 output managedIdentityResourceId string = resources.outputs.managedIdentityResourceId
 output managedIdentityClientId string = resources.outputs.managedIdentityClientId
 output managedIdentityPrincipalId string = resources.outputs.managedIdentityPrincipalId
+
+output notificationWorkerIdentityName string = resources.outputs.notificationWorkerIdentityName
+output notificationWorkerIdentityResourceId string = resources.outputs.notificationWorkerIdentityResourceId
+output notificationWorkerIdentityClientId string = resources.outputs.notificationWorkerIdentityClientId
+
+output serviceBusNamespaceName string = resources.outputs.serviceBusNamespaceName
+output serviceBusNamespaceFqdn string = resources.outputs.serviceBusNamespaceFqdn
+output notificationEventsQueueName string = resources.outputs.notificationEventsQueueName
+output pushDeliveriesQueueName string = resources.outputs.pushDeliveriesQueueName

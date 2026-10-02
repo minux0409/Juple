@@ -16,7 +16,17 @@ public sealed class SocialPushDispatchTests
     private readonly FakeSender _sender = new();
     private readonly MutableTimeProvider _time = new(Now);
 
-    private DispatchPendingPushNotificationsService Service() => new(_store, _deliveries, _devices, _sender, _time);
+    private readonly FakeEventStore _events = new();
+    private readonly FakeDeliveryQueue _queue = new();
+
+    // Grace 0 (everything is due), one send at a time (deterministic order).
+    private readonly NotificationPipelineOptions _options = new() { RecoveryGraceSeconds = 0, MaxConcurrentSends = 1, DeliveryBatchSize = 2 };
+
+    private PushDeliveryProcessor Delivery() => new(_store, _deliveries, _devices, _sender, _time, _options);
+
+    private NotificationEventProcessor Processor(IPushDeliveryQueue? queue = null) => new(_events, Delivery(), _time, _options, queue);
+
+    private DispatchPendingPushNotificationsService Service() => new(_events, Processor(_queue), _store, Delivery(), _time, _options);
 
     private static Notification Pending(long id, NotificationType type, DateTimeOffset createdAtUtc, long userId = 5)
     {
@@ -95,6 +105,162 @@ public sealed class SocialPushDispatchTests
 
         Assert.Empty(_sender.Sent);
     }
+
+    [Fact]
+    public async Task ABatch_IsDecidedWithOneContextAndOneDeviceQuery_NotOnePerNotification()
+    {
+        for (var id = 1; id <= 6; id++)
+        {
+            _store.Items.Add(Pending(id, NotificationType.FriendRequestReceived, Now.AddMinutes(-1), userId: 100 + id));
+            _devices.Add(100 + id, 1000 + id, "ko");
+        }
+
+        var result = await Delivery().DeliverAsync([1, 2, 3, 4, 5, 6]);
+
+        Assert.Equal(6, result.Sent);
+        // DeliveryBatchSize 2: three batches - one context and one device query each.
+        Assert.Equal(3, _store.ContextCalls);
+        Assert.Equal(3, _devices.BatchQueries);
+    }
+
+    [Fact]
+    public async Task TheRecoveryRun_ProcessesALostEventItself_AndDeliversItsNotificationsDirectly()
+    {
+        _store.Items.Add(Pending(7, NotificationType.FriendRequestReceived, Now.AddMinutes(-1)));
+        _devices.Add(5, 100, "ko");
+        _events.Recoverable.Add(70);
+        _events.Pages[70] = new Queue<MaterializedPage>([new MaterializedPage([7], true, [])]);
+
+        var result = await Service().RunOnceAsync();
+
+        Assert.Equal(1, result.EventsRecovered);
+        Assert.Equal(7L, Assert.Single(_sender.Sent).Payload.NotificationId);
+        Assert.Empty(_queue.Queued); // the recovery path never relies on Service Bus
+    }
+
+    [Fact]
+    public async Task TheWorker_QueuesEachPageInBatches_AndDeliversItselfWhenTheQueueIsUnreachable()
+    {
+        foreach (var id in new long[] { 1, 2, 3 })
+        {
+            _store.Items.Add(Pending(id, NotificationType.CollectionItemsAdded, Now, userId: 10 + id));
+            _devices.Add(10 + id, 100 + id, "ko");
+        }
+
+        _events.Pages[80] = new Queue<MaterializedPage>([new MaterializedPage([1, 2, 3], false, []), new MaterializedPage([], true, [])]);
+        var outcome = await Processor(_queue).ProcessAsync(80, deliverInline: false);
+
+        Assert.True(outcome.Processed);
+        Assert.Equal(2, outcome.Pages);
+        Assert.Equal([[1L, 2L], [3L]], _queue.Queued.Select(batch => batch.ToArray()).ToArray());
+        Assert.Empty(_sender.Sent); // handed over, not sent here
+
+        _queue.Available = false;
+        _events.Pages[81] = new Queue<MaterializedPage>([new MaterializedPage([1, 2, 3], true, [])]);
+        await Processor(_queue).ProcessAsync(81, deliverInline: false);
+        Assert.Equal(3, _sender.Sent.Count);
+    }
+
+    [Fact]
+    public async Task AnEventAnotherProcessorHolds_IsLeftAlone_AndAFailedOneIsRescheduled_NotGivenUp()
+    {
+        _events.Pages[90] = new Queue<MaterializedPage>([new MaterializedPage([1], true, [])]);
+        _events.HeldElsewhere.Add(90);
+        var outcome = await Processor(_queue).ProcessAsync(90, deliverInline: false);
+        Assert.False(outcome.Processed);
+        Assert.Empty(_queue.Queued);
+
+        _events.HeldElsewhere.Clear();
+        _events.FailOnPage = new TimeoutException();
+        var retry = await Assert.ThrowsAsync<NotificationEventRetryScheduledException>(() => Processor(_queue).ProcessAsync(90, deliverInline: false));
+        Assert.IsType<TimeoutException>(retry.InnerException);
+        var scheduled = Assert.Single(_events.Retries);
+        Assert.Equal((90L, nameof(TimeoutException)), (scheduled.EventId, scheduled.Error));
+        // A: first failure - retry in RetryBaseDelaySeconds, not flagged, not permanent.
+        Assert.Equal(Now + TimeSpan.FromSeconds(_options.RetryBaseDelaySeconds), scheduled.NextAttemptAtUtc);
+        Assert.False(scheduled.RequiresAttention);
+    }
+
+    [Fact]
+    public async Task B_RepeatedTransientFailures_PastTheOldEightAttemptLimit_StayRetryable_WithACappedBackOff()
+    {
+        _events.Pages[91] = new Queue<MaterializedPage>([new MaterializedPage([1], true, [])]);
+        _events.FailOnPage = new TimeoutException();
+
+        for (var attempt = 1; attempt <= 30; attempt++)
+        {
+            await Assert.ThrowsAsync<NotificationEventRetryScheduledException>(() => Processor(_queue).ProcessAsync(91, deliverInline: false));
+        }
+
+        Assert.Equal(30, _events.Retries.Count); // every attempt rescheduled - never given up
+        Assert.All(_events.Retries.Take(_options.AttentionAfterAttempts - 1), retry => Assert.False(retry.RequiresAttention));
+        Assert.All(_events.Retries.Skip(_options.AttentionAfterAttempts - 1), retry => Assert.True(retry.RequiresAttention));
+        Assert.Equal(Now + TimeSpan.FromSeconds(_options.RetryMaxDelaySeconds), _events.Retries[^1].NextAttemptAtUtc); // capped
+
+        // Once the cause is gone, the very same event is processed normally.
+        _events.FailOnPage = null;
+        Assert.True((await Processor(_queue).ProcessAsync(91, deliverInline: false)).Processed);
+    }
+
+    [Theory]
+    [InlineData(1, 5)]
+    [InlineData(2, 10)]
+    [InlineData(4, 40)]
+    [InlineData(7, 300)]
+    [InlineData(50, 300)]
+    public void TheBackOff_DoublesFromTheBase_AndIsCapped(int attempt, int expectedSeconds) =>
+        Assert.Equal(TimeSpan.FromSeconds(expectedSeconds), NotificationRetryPolicy.DelayAfter(attempt, new NotificationPipelineOptions()));
+
+    [Fact]
+    public async Task C_AMalformedEvent_IsReportedAsPermanent()
+    {
+        _events.Pages[92] = new Queue<MaterializedPage>([new MaterializedPage([], true, [], "MalformedEvent")]);
+
+        var outcome = await Processor(_queue).ProcessAsync(92, deliverInline: false);
+
+        Assert.Equal("MalformedEvent", outcome.PermanentFailureCode);
+        Assert.Empty(_events.Retries);
+    }
+
+    [Fact]
+    public async Task TheRecoveryRun_KeepsGoing_WhenOneEventFails_AndCountsItsScheduledRetry()
+    {
+        _store.Items.Add(Pending(7, NotificationType.FriendRequestReceived, Now.AddMinutes(-1)));
+        _devices.Add(5, 100, "ko");
+        _events.Pages[93] = new Queue<MaterializedPage>([new MaterializedPage([7], true, [])]);
+        _events.Recoverable.AddRange([94, 93]); // 94 fails: it has no pages (throws in the fake)
+        _events.Pages[94] = null!;
+
+        var result = await Service().RunOnceAsync();
+
+        Assert.Equal(1, result.EventsRecovered);
+        Assert.Equal(1, result.EventRetriesScheduled);
+        Assert.Equal(7L, Assert.Single(_sender.Sent).Payload.NotificationId);
+    }
+
+    [Fact]
+    public async Task AnItemWideEvent_ProcessesTheChildEventsItExpandedInto()
+    {
+        _events.Pages[100] = new Queue<MaterializedPage>([new MaterializedPage([], true, [101, 102])]);
+        _events.Pages[101] = new Queue<MaterializedPage>([new MaterializedPage([1], true, [])]);
+        _events.Pages[102] = new Queue<MaterializedPage>([new MaterializedPage([2], true, [])]);
+
+        var outcome = await Processor(_queue).ProcessAsync(100, deliverInline: false);
+
+        Assert.Equal(2, outcome.Children);
+        Assert.Equal(2, outcome.Materialized);
+        Assert.Equal([[1L], [2L]], _queue.Queued.Select(batch => batch.ToArray()).ToArray());
+    }
+
+    [Theory]
+    [InlineData("1,2,3", new long[] { 1, 2, 3 })]
+    [InlineData(" 7 ", new long[] { 7 })]
+    [InlineData("", null)]
+    [InlineData("1,-2", null)]
+    [InlineData("1,x", null)]
+    [InlineData("1;2", null)]
+    public void ADeliveriesMessage_IsOnlyEverAListOfPositiveIds(string body, long[]? expected) =>
+        Assert.Equal(expected, Juple.Infrastructure.Notifications.ServiceBusNotificationConsumer.ParseIds(body)?.ToArray());
 
     [Fact]
     public void Payloads_VisibleOnesCarryTextAndBadge_RefreshSignalsCarryNoText()
@@ -346,16 +512,94 @@ public sealed class SocialPushDispatchTests
 
         public List<long> Dispatched { get; } = [];
 
-        public Task<IReadOnlyList<Notification>> ListPendingAsync(int limit, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<Notification>>(Items.Where(item => !Dispatched.Contains(item.Id)).ToList());
+        public int ContextCalls { get; private set; }
 
-        public Task<PushDispatchContext> GetContextAsync(Notification notification, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new PushDispatchContext(!Irrelevant.Contains(notification.Id), "Actor", "Collection", 1));
+        public Task<IReadOnlyList<Notification>> ListPendingAsync(int limit, DateTimeOffset createdBefore, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Notification>>(Items.Where(item => !Dispatched.Contains(item.Id) && item.CreatedAtUtc < createdBefore).Take(limit).ToList());
 
-        public Task MarkDispatchedAsync(long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<Notification>> ListUndispatchedAsync(IReadOnlyCollection<long> notificationIds, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Notification>>(Items.Where(item => notificationIds.Contains(item.Id) && !Dispatched.Contains(item.Id)).ToList());
+
+        public Task<IReadOnlyDictionary<long, PushDispatchContext>> GetContextsAsync(
+            IReadOnlyList<Notification> notifications, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
-            Dispatched.Add(notificationId);
+            ContextCalls++;
+            return Task.FromResult<IReadOnlyDictionary<long, PushDispatchContext>>(notifications.ToDictionary(
+                notification => notification.Id, notification => new PushDispatchContext(!Irrelevant.Contains(notification.Id), "Actor", "Collection", 1)));
+        }
+
+        public Task MarkDispatchedAsync(IReadOnlyCollection<long> notificationIds, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            Dispatched.AddRange(notificationIds.OrderBy(id => id));
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeEventStore : INotificationEventStore
+    {
+        public List<long> Recoverable { get; } = [];
+
+        public HashSet<long> HeldElsewhere { get; } = [];
+
+        /// <summary>Per event id: the pages MaterializeNextPageAsync hands out, in order.</summary>
+        public Dictionary<long, Queue<MaterializedPage>> Pages { get; } = [];
+
+        public List<(long EventId, string Error, DateTimeOffset NextAttemptAtUtc, bool RequiresAttention)> Retries { get; } = [];
+
+        public Dictionary<long, int> Attempts { get; } = [];
+
+        public Exception? FailOnPage { get; set; }
+
+        public Task<int?> TryClaimAsync(long eventId, DateTimeOffset nowUtc, TimeSpan lease, CancellationToken cancellationToken = default)
+        {
+            if (HeldElsewhere.Contains(eventId) || !Pages.ContainsKey(eventId))
+            {
+                return Task.FromResult<int?>(null);
+            }
+
+            Attempts[eventId] = Attempts.GetValueOrDefault(eventId) + 1;
+            return Task.FromResult<int?>(Attempts[eventId]);
+        }
+
+        public Task<MaterializedPage> MaterializeNextPageAsync(long eventId, int pageSize, DateTimeOffset nowUtc, TimeSpan lease, CancellationToken cancellationToken = default)
+        {
+            if (FailOnPage is { } failure)
+            {
+                throw failure;
+            }
+
+            return Task.FromResult(Pages[eventId].TryDequeue(out var page) ? page : new MaterializedPage([], true, []));
+        }
+
+        public Task ScheduleRetryAsync(long eventId, string errorCode, DateTimeOffset nextAttemptAtUtc, bool requiresAttention, CancellationToken cancellationToken = default)
+        {
+            Retries.Add((eventId, errorCode, nextAttemptAtUtc, requiresAttention));
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<long>> ListRecoverableAsync(int limit, DateTimeOffset createdBefore, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<long>>(Recoverable.Take(limit).ToList());
+
+        public Task<int> DeleteCompletedBeforeAsync(DateTimeOffset cutoff, int limit, CancellationToken cancellationToken = default) => Task.FromResult(0);
+
+        public Task<NotificationOutboxStats> GetStatsAsync(DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new NotificationOutboxStats(0, null, 0, null));
+    }
+
+    private sealed class FakeDeliveryQueue : IPushDeliveryQueue
+    {
+        public bool Available { get; set; } = true;
+
+        public List<IReadOnlyList<long>> Queued { get; } = [];
+
+        public Task<bool> TryEnqueueAsync(IReadOnlyList<long> notificationIds, CancellationToken cancellationToken = default)
+        {
+            if (Available)
+            {
+                Queued.Add(notificationIds);
+            }
+
+            return Task.FromResult(Available);
         }
     }
 
@@ -365,6 +609,18 @@ public sealed class SocialPushDispatchTests
 
         public Task<bool> TryClaimAsync(long notificationId, long pushDeviceRegistrationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult(Claimed.Add((notificationId, pushDeviceRegistrationId)));
+
+        public Task<IReadOnlySet<DeliveryKey>> TryClaimManyAsync(IReadOnlyCollection<DeliveryKey> deliveries, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlySet<DeliveryKey>>(deliveries.Where(key => Claimed.Add((key.NotificationId, key.PushDeviceRegistrationId))).ToHashSet());
+
+        public async Task RecordAttemptsAsync(IReadOnlyCollection<DeliveryAttempt> attempts, CancellationToken cancellationToken = default)
+        {
+            foreach (var attempt in attempts)
+            {
+                await RecordAttemptAsync(
+                    attempt.Key.NotificationId, attempt.Key.PushDeviceRegistrationId, attempt.Status, attempt.AttemptedAtUtc, attempt.ProviderMessageId, attempt.FailureCode, cancellationToken);
+            }
+        }
 
         public Task RecordAttemptAsync(long notificationId, long pushDeviceRegistrationId, NotificationDeliveryStatus status, DateTimeOffset attemptedAtUtc,
             string? providerMessageId, string? failureCode, CancellationToken cancellationToken = default)
@@ -391,8 +647,16 @@ public sealed class SocialPushDispatchTests
             _devices.Add(device);
         }
 
+        public int BatchQueries { get; private set; }
+
         public Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PushDeviceRegistration>>(_devices.Where(device => device.UserId == userId && !Disabled.Contains(device.Id)).ToList());
+
+        public Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledForUsersAsync(IReadOnlyCollection<long> userIds, CancellationToken cancellationToken = default)
+        {
+            BatchQueries++;
+            return Task.FromResult<IReadOnlyList<PushDeviceRegistration>>(_devices.Where(device => userIds.Contains(device.UserId) && !Disabled.Contains(device.Id)).ToList());
+        }
 
         public Task DisableByIdAsync(long id, DateTimeOffset updatedAtUtc, CancellationToken cancellationToken = default)
         {

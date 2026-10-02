@@ -114,7 +114,20 @@ public sealed class CollectionLinkSubmissionService(
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.ReviewSubmissions, unlockToken, cancellationToken);
-        var approved = await store.ApproveAsync(collectionId, submissionId, timeProvider.GetUtcNow(), cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
+        ApprovedCollectionLinkSubmission approved;
+        try
+        {
+            approved = await store.ApproveAsync(collectionId, submissionId, timeProvider.GetUtcNow(), cancellationToken);
+        }
+        catch (CollectionCollaborationConflictException)
+        {
+            // The proposal could not become a link and was cleared - that clearing stands (committed,
+            // with no notification) before the conflict is reported, exactly as without an outbox.
+            await outbox.CommitAsync(cancellationToken);
+            throw;
+        }
+
         if (notifications is not null)
         {
             await notifications.CollectionsChangedAsync(userId, [collectionId], cancellationToken);
@@ -123,6 +136,8 @@ public sealed class CollectionLinkSubmissionService(
             await notifications.CollectionLinkSubmissionAnsweredAsync(
                 approved.SubmittedByUserId, collectionId, submissionId, approved: true, cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 
     public async Task RejectAsync(
@@ -133,10 +148,13 @@ public sealed class CollectionLinkSubmissionService(
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.ReviewSubmissions, unlockToken, cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         // Rejecting twice declines once: only the call that actually removed the proposal tells its proposer.
         if (await store.RejectAsync(collectionId, submissionId, cancellationToken) is { } submitterUserId && notifications is not null)
         {
             await notifications.CollectionLinkSubmissionAnsweredAsync(submitterUserId, collectionId, submissionId, approved: false, cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 }

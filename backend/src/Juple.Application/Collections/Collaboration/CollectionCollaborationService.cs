@@ -56,6 +56,7 @@ public sealed class CollectionCollaborationService(
             throw new InvalidCollectionException("jupleId", "You cannot invite yourself.");
         }
 
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var invitation = await collaborationStore.CreateInvitationAsync(
             collectionId, userId, invitedUserId, timeProvider.GetUtcNow(), role, cancellationToken);
         if (notifications is not null)
@@ -63,6 +64,7 @@ public sealed class CollectionCollaborationService(
             await notifications.CollectionInvitationReceivedAsync(userId, invitedUserId, collectionId, invitation.InvitationId, cancellationToken);
         }
 
+        await outbox.CommitAsync(cancellationToken);
         return invitation;
     }
 
@@ -153,20 +155,37 @@ public sealed class CollectionCollaborationService(
     /// <summary>The Owner is told (data-only) so an open Share screen moves the person from 초대 대기 to 공유 중.</summary>
     public async Task AcceptInvitationAsync(long userId, long invitationId, CancellationToken cancellationToken = default)
     {
-        await collaborationStore.AcceptAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
+        try
+        {
+            await collaborationStore.AcceptAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
+        }
+        catch (CollectionCollaborationConflictException)
+        {
+            // An invitation found expired is marked so before the conflict is reported - that write
+            // stands (committed, with no notification), exactly as without an outbox.
+            await outbox.CommitAsync(cancellationToken);
+            throw;
+        }
+
         if (notifications is not null)
         {
             await notifications.CollectionInvitationAnsweredAsync(userId, invitationId, cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 
     public async Task DeclineInvitationAsync(long userId, long invitationId, CancellationToken cancellationToken = default)
     {
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         await collaborationStore.DeclineAsync(userId, invitationId, timeProvider.GetUtcNow(), cancellationToken);
         if (notifications is not null)
         {
             await notifications.CollectionInvitationAnsweredAsync(userId, invitationId, cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 
     private static void RequireKnownRole(CollectionCollaboratorRole role)

@@ -36,6 +36,102 @@ public sealed class NotificationDeliveryStore(JupleDbContext dbContext) : INotif
             dbContext.ChangeTracker.Clear();
         }
 
+        return await ReclaimAsync(notificationId, pushDeviceRegistrationId, nowUtc, cancellationToken);
+    }
+
+    public async Task<IReadOnlySet<DeliveryKey>> TryClaimManyAsync(
+        IReadOnlyCollection<DeliveryKey> deliveries, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+    {
+        var claimed = new HashSet<DeliveryKey>();
+        if (deliveries.Count == 0)
+        {
+            return claimed;
+        }
+
+        var wanted = deliveries.ToHashSet();
+        var notificationIds = wanted.Select(key => key.NotificationId).Distinct().ToList();
+        var existing = (await dbContext.NotificationDeliveries.AsNoTracking()
+                .Where(delivery => notificationIds.Contains(delivery.NotificationId))
+                .Select(delivery => new { delivery.NotificationId, delivery.PushDeviceRegistrationId })
+                .ToListAsync(cancellationToken))
+            .Select(entry => new DeliveryKey(entry.NotificationId, entry.PushDeviceRegistrationId))
+            .Where(wanted.Contains)
+            .ToHashSet();
+
+        // The normal case - never attempted yet: one batched insert claims them all.
+        var fresh = wanted.Where(key => !existing.Contains(key)).ToList();
+        if (fresh.Count > 0)
+        {
+            try
+            {
+                dbContext.NotificationDeliveries.AddRange(fresh.Select(key => new NotificationDelivery(
+                    key.NotificationId, key.PushDeviceRegistrationId, NotificationDeliveryStatus.Sending, attemptCount: 1, nowUtc, null, null)));
+                await dbContext.SaveChangesAsync(cancellationToken);
+                claimed.UnionWith(fresh);
+            }
+            catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
+            {
+                // Another pass inserted some of them at the same moment: fall back to one claim each,
+                // which resolves every pair individually (the batch insert itself was all-or-nothing).
+                dbContext.ChangeTracker.Clear();
+                foreach (var key in fresh)
+                {
+                    if (await TryClaimAsync(key.NotificationId, key.PushDeviceRegistrationId, nowUtc, cancellationToken))
+                    {
+                        claimed.Add(key);
+                    }
+                }
+            }
+            finally
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+
+        // Already attempted (a retry after a transient failure, or a stale claim): the conditional reclaim.
+        foreach (var key in existing)
+        {
+            if (await ReclaimAsync(key.NotificationId, key.PushDeviceRegistrationId, nowUtc, cancellationToken))
+            {
+                claimed.Add(key);
+            }
+        }
+
+        return claimed;
+    }
+
+    public async Task RecordAttemptsAsync(IReadOnlyCollection<DeliveryAttempt> attempts, CancellationToken cancellationToken = default)
+    {
+        if (attempts.Count == 0)
+        {
+            return;
+        }
+
+        var notificationIds = attempts.Select(attempt => attempt.Key.NotificationId).Distinct().ToList();
+        var rows = (await dbContext.NotificationDeliveries
+                .Where(delivery => notificationIds.Contains(delivery.NotificationId))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(delivery => new DeliveryKey(delivery.NotificationId, delivery.PushDeviceRegistrationId));
+        foreach (var attempt in attempts)
+        {
+            if (rows.TryGetValue(attempt.Key, out var row))
+            {
+                row.RecordAttempt(attempt.Status, attempt.AttemptedAtUtc, attempt.ProviderMessageId, attempt.FailureCode);
+            }
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            dbContext.ChangeTracker.Clear();
+        }
+    }
+
+    private async Task<bool> ReclaimAsync(long notificationId, long pushDeviceRegistrationId, DateTimeOffset nowUtc, CancellationToken cancellationToken)
+    {
         // A single conditional UPDATE, not a read followed by a write - the affected-row count (0 or
         // 1) IS the atomic claim decision, covering both reclaim cases in one predicate:
         //   - Failed: always claimable (ordinary retry).

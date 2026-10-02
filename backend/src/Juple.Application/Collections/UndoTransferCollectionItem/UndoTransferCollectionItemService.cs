@@ -14,6 +14,7 @@ public sealed class UndoTransferCollectionItemService(
     {
         await accessService.RequireUnlockedAsync(userId, sourceCollectionId, CollectionPermission.Reorganize, unlockToken, cancellationToken);
         await accessService.RequireUnlockedAsync(userId, targetCollectionId, CollectionPermission.Reorganize, unlockToken, cancellationToken);
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var sourceMembershipRecreated = await collectionManagementStore.UndoTransferItemAsync(
             userId, sourceCollectionId, itemId, targetCollectionId, targetMembershipCreated, cancellationToken);
         // The link is back in the source as a new relation there - the same rule as any other add.
@@ -21,5 +22,7 @@ public sealed class UndoTransferCollectionItemService(
         {
             await notifications.CollectionItemsAddedAsync(userId, sourceCollectionId, 1, hideActor: false, cancellationToken);
         }
+
+        await outbox.CommitAsync(cancellationToken);
     }
 }

@@ -40,4 +40,8 @@ public interface IPushDeviceRegistrationStore
     /// <summary>All currently-enabled registrations for userId - the dispatch worker's device fan-out list.</summary>
     Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledAsync(
         long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>The same for a whole delivery batch of recipients - one query, never one per recipient.</summary>
+    Task<IReadOnlyList<PushDeviceRegistration>> ListEnabledForUsersAsync(
+        IReadOnlyCollection<long> userIds, CancellationToken cancellationToken = default);
 }

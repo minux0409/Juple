@@ -240,6 +240,8 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
         var result = await SendLink().ShareAsync(_viewer, _sharedId, [await JupleIdOfAsync(_stranger), await JupleIdOfAsync(_stranger), "ZZZZ2345"]);
 
         Assert.Equal([await JupleIdOfAsync(_stranger)], result.Sent);
+        // Recorded in the outbox with the send; the recipient's notification is materialized asynchronously.
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
         var notification = Assert.Single(await _db.Notifications.AsNoTracking()
             .Where(entry => entry.UserId == _stranger && entry.Type == NotificationType.CollectionLinkShared).ToListAsync());
         Assert.Equal(_sharedId, notification.CollectionId);
@@ -250,14 +252,14 @@ public sealed class CollectionMemberShareLinkAndAdderIntegrationTests : IAsyncLi
         await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collections.GetAsync(_stranger, _sharedId));
 
         // Sent while the link is on: the push opens that public link.
-        var context = await new PushDispatchStore(_db).GetContextAsync(notification, DateTimeOffset.UtcNow);
+        var context = (await new PushDispatchStore(_db).GetContextsAsync([notification], DateTimeOffset.UtcNow))[notification.Id];
         Assert.True(context.IsRelevant);
         Assert.Equal(share.PublicId, context.PublicShareId);
 
         // Turned off before the push went out: nothing is sent.
         await _shares.RevokeAsync(_owner, _sharedId, DateTimeOffset.UtcNow);
         _db.ChangeTracker.Clear();
-        Assert.False((await new PushDispatchStore(_db).GetContextAsync(notification, DateTimeOffset.UtcNow)).IsRelevant);
+        Assert.False((await new PushDispatchStore(_db).GetContextsAsync([notification], DateTimeOffset.UtcNow))[notification.Id].IsRelevant);
     }
 
     [Fact]

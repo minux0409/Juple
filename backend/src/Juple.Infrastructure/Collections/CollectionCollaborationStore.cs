@@ -20,7 +20,7 @@ public sealed class CollectionCollaborationStore(
         CollectionCollaboratorRole role = CollectionCollaboratorRole.Contributor,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) != ownerUserId)
         {
             throw new CollectionNotFoundException();
@@ -109,7 +109,7 @@ public sealed class CollectionCollaborationStore(
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) != ownerUserId)
         {
             throw new CollectionNotFoundException();
@@ -150,7 +150,7 @@ public sealed class CollectionCollaborationStore(
         CollectionCollaboratorRole role,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) != ownerUserId)
         {
             throw new CollectionNotFoundException();
@@ -279,7 +279,7 @@ public sealed class CollectionCollaborationStore(
         long collaboratorUserId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         var collaborator = await dbContext.CollectionCollaborators.FirstOrDefaultAsync(
                 entry => entry.CollectionId == collectionId && entry.UserId == collaboratorUserId, cancellationToken)
             ?? throw new CollectionCollaboratorNotFoundException();
@@ -358,7 +358,7 @@ public sealed class CollectionCollaborationStore(
                 .FirstOrDefaultAsync(cancellationToken)
             ?? throw new CollectionInvitationNotFoundException();
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
         if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) is null)
         {
             throw new CollectionInvitationNotFoundException();

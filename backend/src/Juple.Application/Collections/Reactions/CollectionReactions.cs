@@ -119,16 +119,21 @@ public sealed class CollectionItemReactionService(
         }
 
         await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
-        var write = await store.SetAsync(userId, collectionId, itemId, reactionKey!, timeProvider.GetUtcNow(), cancellationToken);
-        if (write == CollectionReactionWrite.NotALink)
+        await using (var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken))
         {
-            throw new CollectionNotFoundException();
-        }
+            var write = await store.SetAsync(userId, collectionId, itemId, reactionKey!, timeProvider.GetUtcNow(), cancellationToken);
+            if (write == CollectionReactionWrite.NotALink)
+            {
+                throw new CollectionNotFoundException();
+            }
 
-        if (write is CollectionReactionWrite.Added or CollectionReactionWrite.Changed && notifications is not null)
-        {
-            // The publisher decides who the link's owner is and skips the reactor's own link.
-            await notifications.CollectionItemReactionReceivedAsync(userId, collectionId, itemId, cancellationToken);
+            if (write is CollectionReactionWrite.Added or CollectionReactionWrite.Changed && notifications is not null)
+            {
+                // Who the link's owner is (and that it is not the reactor) is decided when the event is processed.
+                await notifications.CollectionItemReactionReceivedAsync(userId, collectionId, itemId, cancellationToken);
+            }
+
+            await outbox.CommitAsync(cancellationToken);
         }
 
         return await SummaryOfAsync(userId, collectionId, itemId, cancellationToken);

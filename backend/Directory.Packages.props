@@ -5,6 +5,7 @@
 
   <ItemGroup>
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+    <PackageVersion Include="Azure.Messaging.ServiceBus" Version="7.21.0" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.2" />
     <!-- MIT-licensed, actively maintained managed HTML/DOM parser - used only for UrlMetadataResolver's
          og:title/twitter:title/<title> extraction (see HtmlTitleExtractor), not for any browsing/JS

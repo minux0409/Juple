@@ -96,6 +96,7 @@ public static class DependencyInjection
         services.AddScoped<ISocialNotificationPublisher, SocialNotificationPublisher>();
         services.AddScoped<IPushDispatchStore, PushDispatchStore>();
         services.AddScoped<INotificationDeliveryStore, NotificationDeliveryStore>();
+        AddNotificationPipeline(services, configuration);
         services.AddScoped<ICollectionCollaborationStore, CollectionCollaborationStore>();
         services.AddScoped<IUserDirectoryStore, UserDirectoryStore>();
         services.AddScoped<IUserProfileStore, UserProfileStore>();
@@ -190,6 +191,39 @@ public static class DependencyInjection
                     }, cancellationToken),
                 };
             });
+    }
+
+    /// <summary>
+    /// The notification pipeline (see NotificationEventProcessor): the outbox stores and processors
+    /// always; the Service Bus fast path only when NotificationPipeline:ServiceBusNamespace is set.
+    /// Without it, the API still records every event and the recovery Job (--run-push-dispatch)
+    /// processes and delivers them on its schedule - nothing is lost, it is only slower.
+    /// </summary>
+    private static void AddNotificationPipeline(IServiceCollection services, IConfiguration configuration)
+    {
+        var options = configuration.GetSection(NotificationPipelineOptions.SectionName).Get<NotificationPipelineOptions>()
+            ?? new NotificationPipelineOptions();
+        services.AddSingleton(options);
+        services.AddScoped<INotificationEventStore, NotificationEventStore>();
+        services.AddScoped<IPushDeliveryProcessor, PushDeliveryProcessor>();
+        services.AddScoped<INotificationEventProcessor, NotificationEventProcessor>();
+
+        if (string.IsNullOrWhiteSpace(options.ServiceBusNamespace))
+        {
+            services.AddSingleton<INotificationSignal, NoOpNotificationSignal>();
+            services.AddSingleton<IPushDeliveryQueue, NoPushDeliveryQueue>();
+            return;
+        }
+
+        services.AddSingleton<ServiceBusNotificationTransport>();
+        // The API's signal: a non-blocking hand-off to a bounded in-process channel; the pump (hosted by
+        // the HTTP API only) sends to Service Bus in the background - never on a request's path.
+        services.AddSingleton<NotificationSignalChannel>();
+        services.AddSingleton<INotificationSignal, ChannelNotificationSignal>();
+        services.AddSingleton<INotificationSignalSender, ServiceBusSignalSender>();
+        services.AddSingleton<NotificationSignalPump>();
+        services.AddSingleton<IPushDeliveryQueue, ServiceBusPushDeliveryQueue>();
+        services.AddSingleton<ServiceBusNotificationConsumer>();
     }
 
     /// <summary>

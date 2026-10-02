@@ -374,7 +374,7 @@ public sealed class CollaborationNotificationsIntegrationTests : IAsyncLifetime
     // ---------- helpers ----------
 
     private DispatchPendingPushNotificationsService Dispatcher() =>
-        new(new PushDispatchStore(_db), new NotificationDeliveryStore(_db), new PushDeviceRegistrationStore(_db), _sender, TimeProvider.System);
+        Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.Dispatcher(_db, _sender);
 
     private AddItemToCollectionService Add() =>
         new(_access, _collections, TimeProvider.System, _publisher, new CollectionLinkSubmissionStore(_db));
@@ -410,16 +410,27 @@ public sealed class CollaborationNotificationsIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>Moves this test's coalesced rows out of the current window, as if a minute had passed.</summary>
-    private async Task AgeCollaborationRowsAsync() =>
+    private async Task AgeCollaborationRowsAsync()
+    {
+        // Both coalescing levels: the outbox event and the recipient's notification.
+        await _db.NotificationEvents
+            .Where(entry => entry.CollectionId == _sharedId
+                && (entry.Type == NotificationType.CollectionItemReactionReceived || entry.Type == NotificationType.CollectionItemCommentReceived))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.DedupKey, entry => entry.DedupKey + ":aged"));
         await _db.Notifications
             .Where(entry => entry.CollectionId == _sharedId
                 && (entry.Type == NotificationType.CollectionItemReactionReceived || entry.Type == NotificationType.CollectionItemCommentReceived))
             .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.DedupKey, entry => entry.DedupKey + ":aged"));
+    }
 
-    private async Task<List<Notification>> RowsAsync(NotificationType type) =>
-        await _db.Notifications.AsNoTracking()
+    /// <summary>This test's users' notifications of the type - after the recorded outbox has been materialized.</summary>
+    private async Task<List<Notification>> RowsAsync(NotificationType type)
+    {
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        return await _db.Notifications.AsNoTracking()
             .Where(entry => entry.Type == type && _userIds.Contains(entry.UserId))
             .ToListAsync();
+    }
 
     private IReadOnlyList<PushNotificationPayload> Sent(long userId, string type) =>
         _sender.SentTo(userId).Where(sent => sent.Payload.Type == type).Select(sent => sent.Payload).ToList();
