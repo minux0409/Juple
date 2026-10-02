@@ -65,8 +65,8 @@ public interface ICollectionLinkSubmissionStore
     /// </summary>
     Task<ApprovedCollectionLinkSubmission> ApproveAsync(long collectionId, long submissionId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes the proposal; false when it was not waiting (already approved or rejected).</summary>
-    Task<bool> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default);
+    /// <summary>Deletes the proposal and returns who proposed it; null when it was not waiting (already approved or rejected).</summary>
+    Task<long?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default);
 }
 
 public interface ICollectionLinkSubmissionService
@@ -82,8 +82,9 @@ public interface ICollectionLinkSubmissionService
 /// The Owner's 승인 대기 list: only the Owner may see, approve or reject proposals (ReviewSubmissions),
 /// behind the same content gate as the links themselves (a locked Collection needs its grant).
 /// Approving notifies like any new link - the proposer as the one who added it (unnamed if it came
-/// through the public link), and never the approving Owner; rejecting tells nobody. Changing the
-/// public link or anyone's role never approves or deletes a waiting proposal on its own.
+/// through the public link), and never the approving Owner. The proposer is told the result either
+/// way (approved or declined), never by whom. Changing the public link or anyone's role never
+/// approves or deletes a waiting proposal on its own.
 /// </summary>
 public sealed class CollectionLinkSubmissionService(
     ICollectionAccessService accessService,
@@ -119,6 +120,8 @@ public sealed class CollectionLinkSubmissionService(
             await notifications.CollectionsChangedAsync(userId, [collectionId], cancellationToken);
             await notifications.CollectionLinkApprovedAsync(
                 approved.OwnerUserId, approved.SubmittedByUserId, collectionId, hideActor: approved.ViaPublicShare, cancellationToken);
+            await notifications.CollectionLinkSubmissionAnsweredAsync(
+                approved.SubmittedByUserId, collectionId, submissionId, approved: true, cancellationToken);
         }
     }
 
@@ -130,6 +133,10 @@ public sealed class CollectionLinkSubmissionService(
         CancellationToken cancellationToken = default)
     {
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.ReviewSubmissions, unlockToken, cancellationToken);
-        await store.RejectAsync(collectionId, submissionId, cancellationToken);
+        // Rejecting twice declines once: only the call that actually removed the proposal tells its proposer.
+        if (await store.RejectAsync(collectionId, submissionId, cancellationToken) is { } submitterUserId && notifications is not null)
+        {
+            await notifications.CollectionLinkSubmissionAnsweredAsync(submitterUserId, collectionId, submissionId, approved: false, cancellationToken);
+        }
     }
 }

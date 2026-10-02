@@ -106,6 +106,35 @@ public sealed class CollectionItemReactionServiceTests
         Assert.Null(action.GetCustomAttributes(typeof(CollectionPermissionAttribute), true).FirstOrDefault());
     }
 
+    [Theory]
+    [InlineData(CollectionReactionWrite.Added, true)]
+    [InlineData(CollectionReactionWrite.Changed, true)]
+    [InlineData(CollectionReactionWrite.Unchanged, false)]
+    public async Task OnlyANewOrChangedReaction_IsAnnounced(CollectionReactionWrite write, bool announced)
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+        var service = new CollectionItemReactionService(new FakeAccess(), new FakeStore { Write = write }, TimeProvider.System, publisher);
+
+        await service.SetAsync(1, 2, 3, "heart", null);
+
+        Assert.Equal(announced ? ["reaction:1:2:3"] : [], publisher.Events);
+    }
+
+    [Fact]
+    public async Task RemovingAReaction_OrAFailedSet_IsNeverAnnounced()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+
+        await new CollectionItemReactionService(new FakeAccess(), new FakeStore(), TimeProvider.System, publisher).DeleteAsync(1, 2, 3, null);
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemReactionService(new FakeAccess(), new FakeStore { IsLink = false }, TimeProvider.System, publisher).SetAsync(1, 2, 3, "heart", null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemReactionService(new FakeAccess { Throw = new CollectionNotFoundException() }, new FakeStore(), TimeProvider.System, publisher)
+                .SetAsync(1, 2, 3, "heart", null));
+
+        Assert.Empty(publisher.Events);
+    }
+
     private static IReadOnlyList<string> Keys => CollectionReactionCatalog.Keys;
 
     private sealed class FakeAccess : ICollectionAccessService
@@ -140,10 +169,12 @@ public sealed class CollectionItemReactionServiceTests
 
         public int Writes { get; private set; }
 
-        public Task<bool> SetAsync(long userId, long collectionId, long itemId, string key, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        public CollectionReactionWrite Write { get; init; } = CollectionReactionWrite.Added;
+
+        public Task<CollectionReactionWrite> SetAsync(long userId, long collectionId, long itemId, string key, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
             Writes++;
-            return Task.FromResult(IsLink);
+            return Task.FromResult(IsLink ? Write : CollectionReactionWrite.NotALink);
         }
 
         public Task DeleteAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default)

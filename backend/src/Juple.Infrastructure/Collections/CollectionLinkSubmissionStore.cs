@@ -199,10 +199,24 @@ public sealed class CollectionLinkSubmissionStore(
         return new ApprovedCollectionLinkSubmission(collectionId, ownerUserId, submission.SubmittedByUserId, submission.ViaPublicShare);
     }
 
-    public async Task<bool> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default) =>
-        await dbContext.CollectionLinkSubmissions
+    public async Task<long?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default)
+    {
+        var submitterUserId = await dbContext.CollectionLinkSubmissions.AsNoTracking()
             .Where(entry => entry.Id == submissionId && entry.CollectionId == collectionId)
-            .ExecuteDeleteAsync(cancellationToken) > 0;
+            .Select(entry => (long?)entry.SubmittedByUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (submitterUserId is null)
+        {
+            return null;
+        }
+
+        // Only the delete that actually removed it counts - a concurrent approve or reject that got
+        // there first leaves nothing to delete, and this reject is then not a result to report.
+        var deleted = await dbContext.CollectionLinkSubmissions
+            .Where(entry => entry.Id == submissionId && entry.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
+        return deleted > 0 ? submitterUserId : null;
+    }
 
     /// <summary>The same link = the same exact URL among the Collection's live links (the rule copying uses).</summary>
     private Task<bool> IsLinkInCollectionAsync(long collectionId, string url, CancellationToken cancellationToken) =>

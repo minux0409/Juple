@@ -1,4 +1,5 @@
 using Juple.Application.Collections.Access;
+using Juple.Application.Notifications;
 
 namespace Juple.Application.Collections.Reactions;
 
@@ -41,6 +42,22 @@ public static class CollectionReactionCatalog
     }
 }
 
+/// <summary>What setting a reaction did to the caller's one row on the link.</summary>
+public enum CollectionReactionWrite
+{
+    /// <summary>The Item is not a link of the Collection (or is in the trash) - nothing written.</summary>
+    NotALink,
+
+    /// <summary>The caller had no reaction on the link before.</summary>
+    Added,
+
+    /// <summary>The caller's reaction was another one before.</summary>
+    Changed,
+
+    /// <summary>The caller already had exactly this reaction - nothing changed.</summary>
+    Unchanged,
+}
+
 /// <summary>How many people reacted with this key.</summary>
 public sealed record ReactionCountDto(string Key, int Count);
 
@@ -55,10 +72,10 @@ public interface ICollectionItemReactionStore
     /// <summary>
     /// Makes key the caller's one reaction to this link: none yet - it is added; another - the same
     /// row is rewritten; the same - nothing changes. One atomic write either way (a concurrent change
-    /// by the same person ends with exactly one row). False when the Item is not a link of the
-    /// Collection (or is in the trash).
+    /// by the same person ends with exactly one row). Says which of these happened (NotALink when the
+    /// Item is not a link of the Collection, or is in the trash).
     /// </summary>
-    Task<bool> SetAsync(long userId, long collectionId, long itemId, string key, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
+    Task<CollectionReactionWrite> SetAsync(long userId, long collectionId, long itemId, string key, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
     /// <summary>Removes the caller's reaction to this link; nothing to remove is a success.</summary>
     Task DeleteAsync(long userId, long collectionId, long itemId, CancellationToken cancellationToken = default);
@@ -83,12 +100,15 @@ public interface ICollectionItemReactionService
 /// (Viewer, Submitter, Contributor) - a light way to answer a link, not a way to change the
 /// Collection. Anyone else (a pending invitee, a non-member, a holder of the public link) is told the
 /// Collection does not exist. The same content gate as reading the links applies: a locked or
-/// share-password-protected Collection needs its grant first, the Owner included.
+/// share-password-protected Collection needs its grant first, the Owner included. A new or changed
+/// reaction on someone else's link tells that link's owner (best-effort, after the write); removing a
+/// reaction, or setting the one already there, tells nobody.
 /// </summary>
 public sealed class CollectionItemReactionService(
     ICollectionAccessService accessService,
     ICollectionItemReactionStore store,
-    TimeProvider timeProvider) : ICollectionItemReactionService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : ICollectionItemReactionService
 {
     public async Task<CollectionItemReactionsDto> SetAsync(
         long userId, long collectionId, long itemId, string? reactionKey, string? unlockToken, CancellationToken cancellationToken = default)
@@ -99,9 +119,16 @@ public sealed class CollectionItemReactionService(
         }
 
         await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
-        if (!await store.SetAsync(userId, collectionId, itemId, reactionKey!, timeProvider.GetUtcNow(), cancellationToken))
+        var write = await store.SetAsync(userId, collectionId, itemId, reactionKey!, timeProvider.GetUtcNow(), cancellationToken);
+        if (write == CollectionReactionWrite.NotALink)
         {
             throw new CollectionNotFoundException();
+        }
+
+        if (write is CollectionReactionWrite.Added or CollectionReactionWrite.Changed && notifications is not null)
+        {
+            // The publisher decides who the link's owner is and skips the reactor's own link.
+            await notifications.CollectionItemReactionReceivedAsync(userId, collectionId, itemId, cancellationToken);
         }
 
         return await SummaryOfAsync(userId, collectionId, itemId, cancellationToken);

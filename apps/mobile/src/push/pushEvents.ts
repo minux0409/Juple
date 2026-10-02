@@ -11,12 +11,20 @@ export type SocialPushEventType =
   | 'collectionContentChanged'
   | 'friendRequestAnswered'
   | 'collectionItemsAdded'
-  | 'collectionLinkShared';
+  | 'collectionLinkShared'
+  | 'collectionItemReaction'
+  | 'collectionItemComment'
+  | 'collectionLinkSubmission'
+  | 'collectionLinkSubmissionApproved'
+  | 'collectionLinkSubmissionRejected';
 
 export interface SocialPushEvent {
   readonly type: SocialPushEventType;
   readonly collectionId: number | null;
-  /** collectionLinkShared only: the public link's id (the recipient is not a member - no collectionId). */
+  /**
+   * collectionLinkShared, and a proposal result for someone who is no member: the public link's id
+   * (the recipient is not a member - no collectionId).
+   */
   readonly publicId?: string | null;
 }
 
@@ -28,6 +36,11 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
   'friendRequestAnswered',
   'collectionItemsAdded',
   'collectionLinkShared',
+  'collectionItemReaction',
+  'collectionItemComment',
+  'collectionLinkSubmission',
+  'collectionLinkSubmissionApproved',
+  'collectionLinkSubmissionRejected',
 ]);
 
 /** A public link id as the server mints it - anything else is ignored rather than navigated to. */

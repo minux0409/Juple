@@ -75,6 +75,86 @@ public sealed class SocialNotificationPublisher(
     public Task CollectionLinkApprovedAsync(long ownerUserId, long submitterUserId, long collectionId, bool hideActor, CancellationToken cancellationToken = default) =>
         EnqueueItemsAddedAsync(submitterUserId, collectionId, 1, hideActor, alsoSkipUserId: ownerUserId, cancellationToken);
 
+    public Task CollectionItemReactionReceivedAsync(long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+        EnqueueCollaborationAsync(NotificationType.CollectionItemReactionReceived, actorUserId, collectionId, itemId, cancellationToken);
+
+    public Task CollectionItemCommentReceivedAsync(long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+        EnqueueCollaborationAsync(NotificationType.CollectionItemCommentReceived, actorUserId, collectionId, itemId, cancellationToken);
+
+    public Task CollectionLinkSubmittedAsync(long submitterUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
+        SafelyAsync(NotificationType.CollectionLinkSubmissionReceived, async () =>
+        {
+            // The proposal just recorded (one per Collection and link, so at most one waiting row of
+            // this Item by this person) and the Owner it waits for.
+            var waiting = await (
+                    from submission in dbContext.CollectionLinkSubmissions.AsNoTracking()
+                    where submission.CollectionId == collectionId && submission.ItemId == itemId && submission.SubmittedByUserId == submitterUserId
+                    join collection in dbContext.Collections.AsNoTracking() on submission.CollectionId equals collection.Id
+                    where collection.DeletedAtUtc == null
+                    orderby submission.Id descending
+                    select new { submission.Id, OwnerUserId = collection.UserId })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (waiting is null || waiting.OwnerUserId == submitterUserId)
+            {
+                return;
+            }
+
+            // No actor: who proposed is never part of this notification (a proposal through the
+            // public link must stay anonymous, and the Owner sees members' names in 승인 대기 anyway).
+            await EnqueueAsync(
+                [Notification.Social(waiting.OwnerUserId, NotificationType.CollectionLinkSubmissionReceived, null, collectionId, waiting.Id,
+                    $"collection-submission:{waiting.Id}", timeProvider.GetUtcNow())],
+                cancellationToken);
+        });
+
+    public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, bool approved, CancellationToken cancellationToken = default)
+    {
+        var type = approved ? NotificationType.CollectionLinkSubmissionApproved : NotificationType.CollectionLinkSubmissionRejected;
+        return SafelyAsync(type, () => EnqueueAsync(
+            [Notification.Social(submitterUserId, type, null, collectionId, submissionId,
+                $"collection-submission-{(approved ? "approved" : "rejected")}:{submissionId}", timeProvider.GetUtcNow())],
+            cancellationToken));
+    }
+
+    /// <summary>
+    /// A reaction or comment on a link of a shared Collection: its owner (the Item's owner) - when that
+    /// is someone else who still owns or belongs to the Collection - gets one notification per actor,
+    /// link and CollaborationCoalescing window. Not subject to 새 링크 알림: that setting is about new
+    /// links in the Collection, and this is a reply to the recipient's own link.
+    /// </summary>
+    private Task EnqueueCollaborationAsync(NotificationType type, long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken) =>
+        SafelyAsync(type, async () =>
+        {
+            var target = await (
+                    from membership in dbContext.CollectionItems.AsNoTracking()
+                    where membership.CollectionId == collectionId && membership.ItemId == itemId
+                    join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
+                    where item.DeletedAtUtc == null
+                    join collection in dbContext.Collections.AsNoTracking() on membership.CollectionId equals collection.Id
+                    where collection.DeletedAtUtc == null
+                    select new { LinkOwnerUserId = item.UserId, CollectionOwnerUserId = collection.UserId })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (target is null || target.LinkOwnerUserId == actorUserId)
+            {
+                return;
+            }
+
+            var recipientBelongs = target.LinkOwnerUserId == target.CollectionOwnerUserId
+                || await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(
+                    collaborator => collaborator.CollectionId == collectionId && collaborator.UserId == target.LinkOwnerUserId,
+                    cancellationToken);
+            if (!recipientBelongs)
+            {
+                return;
+            }
+
+            var nowUtc = timeProvider.GetUtcNow();
+            await EnqueueAsync(
+                [Notification.Social(target.LinkOwnerUserId, type, actorUserId, collectionId, itemId,
+                    SocialNotificationPolicy.CollaborationDedupKey(type, collectionId, itemId, actorUserId, nowUtc), nowUtc)],
+                cancellationToken);
+        });
+
     private Task EnqueueItemsAddedAsync(long actorUserId, long collectionId, int itemCount, bool hideActor, long? alsoSkipUserId, CancellationToken cancellationToken) =>
         SafelyAsync(NotificationType.CollectionItemsAdded, async () =>
         {

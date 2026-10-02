@@ -36,4 +36,31 @@ public enum NotificationType : byte
     /// public link page, with its own password gate. Sent only while that public link is still on.
     /// </summary>
     CollectionLinkShared = 7,
+
+    /// <summary>
+    /// Visible: another member reacted to (or changed their reaction on) the recipient's own link in a
+    /// shared Collection (CollectionId, SubjectId = the Item id, ActorUserId = who reacted). Never the
+    /// reaction itself. Sent only while that link is still in the Collection, the recipient still
+    /// belongs to it and the actor's reaction still exists.
+    /// </summary>
+    CollectionItemReactionReceived = 8,
+
+    /// <summary>
+    /// Visible: another member commented on the recipient's own link in a shared Collection
+    /// (CollectionId, SubjectId = the Item id, ActorUserId = who commented). Never the comment's text.
+    /// Sent only while the link is still there, the recipient still belongs and the actor's comment still exists.
+    /// </summary>
+    CollectionItemCommentReceived = 9,
+
+    /// <summary>
+    /// Visible: a link was proposed (승인 후 추가) to the recipient's - the Owner's - Collection
+    /// (CollectionId, SubjectId = the proposal id). Never who proposed it. Sent only while it still waits.
+    /// </summary>
+    CollectionLinkSubmissionReceived = 10,
+
+    /// <summary>Visible: the Owner approved the recipient's proposal (CollectionId, SubjectId = the proposal id). Never who approved.</summary>
+    CollectionLinkSubmissionApproved = 11,
+
+    /// <summary>Visible: the Owner declined the recipient's proposal (CollectionId, SubjectId = the proposal id). Never who declined.</summary>
+    CollectionLinkSubmissionRejected = 12,
 }

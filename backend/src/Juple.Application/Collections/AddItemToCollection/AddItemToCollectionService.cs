@@ -33,8 +33,15 @@ public sealed class AddItemToCollectionService(
                 throw new CollectionForbiddenException();
             }
 
-            return await submissions.SubmitAsync(userId, collectionId, itemId, requiredPublicId: null, timeProvider.GetUtcNow(), cancellationToken)
+            var outcome = await submissions.SubmitAsync(userId, collectionId, itemId, requiredPublicId: null, timeProvider.GetUtcNow(), cancellationToken)
                 ?? throw new CollectionNotFoundException();
+            if (outcome == CollectionLinkAddOutcome.Submitted && notifications is not null)
+            {
+                // A recorded proposal (a duplicate or a failure threw above): its Owner is told.
+                await notifications.CollectionLinkSubmittedAsync(userId, collectionId, itemId, cancellationToken);
+            }
+
+            return outcome;
         }
 
         var added = await collectionItemStore.AddAsync(userId, collectionId, itemId, timeProvider.GetUtcNow(), cancellationToken);

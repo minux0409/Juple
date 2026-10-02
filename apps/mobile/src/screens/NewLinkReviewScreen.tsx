@@ -10,8 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // back to a non-cryptographic Math.random() on Hermes.
 import { v4 as uuidv4 } from 'uuid';
 import { ApiError } from '../api/ApiError';
-import { linkProposalErrorMessage } from '../collections/linkProposals';
-import { formatSaveOutcomeMessage } from '../collections/saveOutcomeMessage';
+import { formatSaveOutcomeMessage, needsSaveOutcomeDialog } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { addItemToCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
 import { CategoryField } from '../collections/CategoryField';
@@ -24,6 +23,7 @@ import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useMessageDialog } from '../components/useMessageDialog';
 import { uploadItemImage, type ItemImageAsset } from '../images/api/imagesApi';
 import { RepresentativePhotoField } from '../images/RepresentativePhotoField';
 import { setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
@@ -66,10 +66,6 @@ function isKnownYouTubePlaceholderTitle(url: string, title: string): boolean {
 type Props = NativeStackScreenProps<RootStackParamList, 'NewLinkReview'>;
 
 function getSaveErrorMessage(error: unknown, t: TFunction): string {
-  const proposalMessage = linkProposalErrorMessage(error, t);
-  if (proposalMessage) {
-    return proposalMessage;
-  }
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');
@@ -148,17 +144,17 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [selectedCollections, setSelectedCollections] = useState<readonly Collection[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // The result of a save that proposed the link to 승인 후 추가 Collections - a dialog (never a toast that
-  // can be missed); whatever should follow the save (leaving the screen) waits for its 확인.
-  const [submissionResult, setSubmissionResult] = useState<{ readonly message: string; readonly onDone: () => void } | null>(null);
+  // What a save (or a photo pick, or opening the link) did when it was not a plain success - and the
+  // result of a save that proposed the link to 승인 후 추가 Collections - in the shared message dialog,
+  // never a red line under the Save button that the keyboard can hide. Whatever should follow a
+  // finished save (leaving the screen) waits for its 확인; a failed save keeps every draft as typed.
+  const { showMessage, messageDialog } = useMessageDialog();
 
   // Compact source row (icon + site name) by default - raw URL text only appears while the user has
   // deliberately opened it for editing (e.g. fixing a malformed shared URL), never as a passive
   // display. Starts collapsed even for a non-http review text (kind: 'reviewText'), which still
   // needs to be editable the same way.
   const [isEditingUrl, setIsEditingUrl] = useState(false);
-  const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
   const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
   // Set only when the metadata fetch itself throws (network/timeout/server error) - never for a
@@ -191,7 +187,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     previewImageUrlRef.current = previewImageUrl;
   }, [previewImageUrl]);
   const [isPickingPhoto, setIsPickingPhoto] = useState(false);
-  const [photosError, setPhotosError] = useState<string | null>(null);
   // Stable across retries of the SAME url (so a retried Save after a partial failure replays the
   // already-created Item instead of creating a duplicate - see saveInboxEntry's own
   // clientRequestId idempotency), but regenerated the moment the url actually changes, since that
@@ -389,11 +384,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   };
 
   const openUrl = async () => {
-    setUrlOpenError(null);
     try {
       await Linking.openURL(url);
     } catch {
-      setUrlOpenError(t('item.urlOpenFailed'));
+      showMessage(t('item.urlOpenFailed'));
     }
   };
 
@@ -418,11 +412,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
       const asset = result.assets?.[0];
       if (result.errorCode || !asset?.uri) {
-        setPhotosError(getImagePickerErrorMessage(result.errorCode, t));
+        showMessage(getImagePickerErrorMessage(result.errorCode, t));
         return;
       }
 
-      setPhotosError(null);
       setStagedPhoto({ uri: asset.uri, type: asset.type, fileName: asset.fileName });
     } finally {
       setIsPickingPhoto(false);
@@ -451,7 +444,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     }
 
     setIsSaving(true);
-    setError(null);
     try {
       const savedEntry = await saveInboxEntry(authenticatedRequest, trimmedUrl, clientRequestIdRef.current);
 
@@ -464,15 +456,35 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         });
       }
 
-      // 승인 후 추가 Collections take it as a proposal for their Owner - said once the save is done.
+      // 승인 후 추가 Collections take it as a proposal for their Owner - said once the save is done. A
+      // Collection that already has this link waiting for its Owner (or already has it) is not a
+      // failure of the save: the link itself is saved by now, so the other Collections, the photo and
+      // the preview still go through and the dialog says what happened there. Anything else still
+      // stops the save (a retry replays the same Item - see clientRequestIdRef).
       let proposed = 0;
+      let added = 0;
+      let alreadyPending = 0;
+      let alreadyInCollection = 0;
       for (const collection of selectedCollections) {
-        // A locked Collection goes with the grant this screen's picker obtained for it.
-        const outcome = await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id, {
-          unlockToken: categoryPicker.unlockTokenFor(collection.id),
-        });
-        if (outcome === 'submitted') {
-          proposed += 1;
+        try {
+          // A locked Collection goes with the grant this screen's picker obtained for it.
+          const outcome = await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id, {
+            unlockToken: categoryPicker.unlockTokenFor(collection.id),
+          });
+          if (outcome === 'submitted') {
+            proposed += 1;
+          } else {
+            added += 1;
+          }
+        } catch (caughtError) {
+          const code = caughtError instanceof ApiError && caughtError.kind === 'conflict' ? caughtError.code : undefined;
+          if (code === 'linkAlreadyPending') {
+            alreadyPending += 1;
+          } else if (code === 'linkAlreadyInCollection') {
+            alreadyInCollection += 1;
+          } else {
+            throw caughtError;
+          }
         }
       }
 
@@ -485,7 +497,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         try {
           await uploadItemImage(authenticatedRequest, savedEntry.id, stagedPhoto);
         } catch (caughtError) {
-          setError(getPhotoUploadErrorMessage(caughtError, t));
+          showMessage(getPhotoUploadErrorMessage(caughtError, t));
           setIsSaving(false);
           return;
         }
@@ -509,16 +521,17 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         await applyInstagramDeviceFallback(authenticatedRequest, savedEntry.id, trimmedUrl, pendingInstagramFetch);
       }
 
-      if (proposed > 0) {
-        setSubmissionResult({
-          message: formatSaveOutcomeMessage({ added: selectedCollections.length - proposed, submitted: proposed }, t),
+      const saveOutcome = { added, submitted: proposed, alreadyPending, alreadyInCollection };
+      if (needsSaveOutcomeDialog(saveOutcome)) {
+        showMessage(formatSaveOutcomeMessage(saveOutcome, t), {
+          title: proposed > 0 ? t('collections.saveOutcomeTitle') : undefined,
           onDone: onSuccess,
         });
       } else {
         onSuccess();
       }
     } catch (caughtError) {
-      setError(getSaveErrorMessage(caughtError, t));
+      showMessage(getSaveErrorMessage(caughtError, t));
     } finally {
       setIsSaving(false);
     }
@@ -544,7 +557,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   };
 
   // "저장 후 계속" - runs the exact same save() the main Save button uses, just with a different
-  // onSuccess. On failure, save() already sets `error` and resets `isSaving` on its own;
+  // onSuccess. On failure, save() already shows why (the message dialog) and resets `isSaving` on its own;
   // pendingConflictShare is deliberately left untouched here so the dialog stays open and the user
   // can retry either button - the new share is never silently dropped.
   const resolveConflictWithSave = () => {
@@ -650,7 +663,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
               url={url}
             />
           )}
-          {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
         </ContentPreviewCard>
 
         <CategoryField
@@ -680,11 +692,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           onRemove={() => setStagedPhoto(null)}
           photoUrl={stagedPhoto?.uri ?? previewImageUrl}
         />
-        {photosError ? <Text style={styles.error}>{photosError}</Text> : null}
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: !url.trim() || isSaving || isResolvingMetadataTitle, busy: isSaving }}
@@ -736,18 +746,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         onCancel) can never discard data by mistake.
       */}
       <ConfirmDialog
-        confirmLabel={t('common.confirm')}
-        destructive={false}
-        message={submissionResult?.message ?? ''}
-        onConfirm={() => {
-          const done = submissionResult?.onDone;
-          setSubmissionResult(null);
-          done?.();
-        }}
-        title={t('collections.saveOutcomeTitle')}
-        visible={submissionResult !== null}
-      />
-      <ConfirmDialog
         cancelLabel={t('item.saveDraftAndContinue')}
         confirmLabel={t('item.discardDraftAndContinue')}
         message={t('item.activeDraftConflictMessage')}
@@ -756,6 +754,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         title={t('item.activeDraftConflictTitle')}
         visible={pendingConflictShare !== null}
       />
+      {/* Last, so a failed "저장 후 계속" says why above the still-open conflict dialog. */}
+      {messageDialog}
     </View>
   );
 }
@@ -808,11 +808,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md + 2,
     paddingVertical: spacing.md,
     textAlignVertical: 'top',
-  },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-    marginTop: 16,
   },
   metadataResolutionFailedHint: {
     color: colors.textSecondary,

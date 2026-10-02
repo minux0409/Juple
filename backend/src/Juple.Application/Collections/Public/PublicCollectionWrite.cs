@@ -114,13 +114,17 @@ public sealed class PublicCollectionWriteService(
         if (takesProposals)
         {
             // 승인 후 추가: a proposal for the Owner (the store re-checks the link under the lock). Not
-            // part of the Collection yet, so nobody is notified - except that the Owner's own link
-            // goes straight in.
+            // part of the Collection yet, so the members are not notified - only the Owner, who has a
+            // proposal to review (never told by whom). The Owner's own link goes straight in.
             var outcome = await submissions!.SubmitAsync(userId, state.CollectionId, itemId, publicId, nowUtc, cancellationToken);
             if (outcome == CollectionLinkAddOutcome.Added && notifications is not null)
             {
                 await notifications.CollectionsChangedAsync(userId, [state.CollectionId], cancellationToken);
                 await notifications.CollectionItemsAddedAsync(userId, state.CollectionId, 1, hideActor: false, cancellationToken);
+            }
+            else if (outcome == CollectionLinkAddOutcome.Submitted && notifications is not null)
+            {
+                await notifications.CollectionLinkSubmittedAsync(userId, state.CollectionId, itemId, cancellationToken);
             }
 
             return outcome;

@@ -8,7 +8,7 @@ namespace Juple.Infrastructure.Collections;
 
 public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICollectionItemReactionStore
 {
-    public async Task<bool> SetAsync(
+    public async Task<CollectionReactionWrite> SetAsync(
         long userId, long collectionId, long itemId, string key, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         var isLink = await (
@@ -18,20 +18,29 @@ public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICol
             select membership.Id).AnyAsync(cancellationToken);
         if (!isLink)
         {
-            return false;
+            return CollectionReactionWrite.NotALink;
         }
 
         // Two writes of the same person racing end with exactly one row: the UPDATE rewrites the row if
-        // it exists; otherwise the INSERT either wins or loses to the other write on the unique index,
-        // and then the UPDATE is simply tried again.
+        // it holds another reaction; a row that already holds this one is left alone; otherwise the
+        // INSERT either wins or loses to the other write on the unique index, and then it is all
+        // simply tried again.
         for (var attempt = 0; attempt < 3; attempt++)
         {
             var updated = await dbContext.CollectionItemReactions
-                .Where(reaction => reaction.CollectionId == collectionId && reaction.ItemId == itemId && reaction.UserId == userId)
+                .Where(reaction => reaction.CollectionId == collectionId && reaction.ItemId == itemId && reaction.UserId == userId
+                    && reaction.ReactionKey != key)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(reaction => reaction.ReactionKey, key), cancellationToken);
             if (updated > 0)
             {
-                return true;
+                return CollectionReactionWrite.Changed;
+            }
+
+            if (await dbContext.CollectionItemReactions.AnyAsync(
+                    reaction => reaction.CollectionId == collectionId && reaction.ItemId == itemId && reaction.UserId == userId,
+                    cancellationToken))
+            {
+                return CollectionReactionWrite.Unchanged;
             }
 
             var created = new CollectionItemReaction(collectionId, itemId, userId, key, nowUtc);
@@ -39,7 +48,7 @@ public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICol
             try
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
-                return true;
+                return CollectionReactionWrite.Added;
             }
             catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
             {
@@ -49,7 +58,7 @@ public sealed class CollectionItemReactionStore(JupleDbContext dbContext) : ICol
             {
                 // The link left the Collection between the check and the write.
                 dbContext.Entry(created).State = EntityState.Detached;
-                return false;
+                return CollectionReactionWrite.NotALink;
             }
         }
 

@@ -65,6 +65,34 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                     && share.IsActive
                     && dbContext.Collections.Any(collection => collection.Id == share.CollectionId && collection.DeletedAtUtc == null),
                 cancellationToken),
+            // A reaction/comment on the recipient's own link: only while that link is still in the
+            // Collection, the recipient still owns or belongs to it, and what the actor left is still
+            // there (a reaction taken back, or a comment deleted, is not announced late).
+            NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived =>
+                await IsOwnLinkInCollectionAsync(notification, cancellationToken)
+                && (notification.Type == NotificationType.CollectionItemReactionReceived
+                    ? await dbContext.CollectionItemReactions.AnyAsync(
+                        reaction => reaction.CollectionId == notification.CollectionId
+                            && reaction.ItemId == notification.SubjectId
+                            && reaction.UserId == notification.ActorUserId,
+                        cancellationToken)
+                    : await dbContext.CollectionItemComments.AnyAsync(
+                        comment => comment.CollectionId == notification.CollectionId
+                            && comment.ItemId == notification.SubjectId
+                            && comment.UserId == notification.ActorUserId,
+                        cancellationToken)),
+            // The proposal still waits for this recipient - still the Collection's Owner.
+            NotificationType.CollectionLinkSubmissionReceived => await dbContext.CollectionLinkSubmissions.AnyAsync(
+                submission => submission.Id == notification.SubjectId
+                    && submission.CollectionId == notification.CollectionId
+                    && dbContext.Collections.Any(
+                        collection => collection.Id == submission.CollectionId && collection.DeletedAtUtc == null && collection.UserId == userId),
+                cancellationToken),
+            // The result of the recipient's own proposal stays true; only a deleted Collection makes it moot.
+            NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected =>
+                await dbContext.Collections.AnyAsync(
+                    collection => collection.Id == notification.CollectionId && collection.DeletedAtUtc == null,
+                    cancellationToken),
             // Refresh signal about the recipient's own (now answered, possibly deleted) request:
             // there is nothing left to re-check - the payload carries no id, only the type.
             NotificationType.FriendRequestAnswered => true,
@@ -99,7 +127,20 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 && invitation.ExpiresAtUtc > nowUtc,
             cancellationToken);
 
-        var publicShareId = notification.Type == NotificationType.CollectionLinkShared
+        // A proposal's result goes to whoever proposed - possibly through the public link, as no
+        // member: the push may open the Collection itself only for someone who owns or belongs to it,
+        // else its public link while that is on, else nothing (the app just opens).
+        var isProposalResult = notification.Type
+            is NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected;
+        var recipientBelongs = !isProposalResult
+            || await dbContext.Collections.AnyAsync(
+                collection => collection.Id == notification.CollectionId
+                    && (collection.UserId == userId
+                        || dbContext.CollectionCollaborators.Any(
+                            collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)),
+                cancellationToken);
+
+        var publicShareId = notification.Type == NotificationType.CollectionLinkShared || (isProposalResult && !recipientBelongs)
             ? await dbContext.CollectionShares.AsNoTracking()
                 .Where(share => share.CollectionId == notification.CollectionId && share.IsActive)
                 .Select(share => share.PublicId)
@@ -111,7 +152,25 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
             actor is null ? null : string.IsNullOrWhiteSpace(actor.DisplayName) ? FormatJupleId(actor.PublicCode) : actor.DisplayName,
             collectionName,
             pendingFriendRequests + pendingInvitations,
-            publicShareId);
+            publicShareId,
+            recipientBelongs);
+    }
+
+    /// <summary>The notification's link (SubjectId) is the recipient's own live Item, still in that live Collection, which the recipient still owns or belongs to.</summary>
+    private Task<bool> IsOwnLinkInCollectionAsync(Notification notification, CancellationToken cancellationToken)
+    {
+        var userId = notification.UserId;
+        return (
+            from membership in dbContext.CollectionItems
+            where membership.CollectionId == notification.CollectionId && membership.ItemId == notification.SubjectId
+            join item in dbContext.Items on membership.ItemId equals item.Id
+            where item.DeletedAtUtc == null && item.UserId == userId
+            join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+            where collection.DeletedAtUtc == null
+                && (collection.UserId == userId
+                    || dbContext.CollectionCollaborators.Any(
+                        collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId))
+            select membership.Id).AnyAsync(cancellationToken);
     }
 
     public async Task MarkDispatchedAsync(long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>

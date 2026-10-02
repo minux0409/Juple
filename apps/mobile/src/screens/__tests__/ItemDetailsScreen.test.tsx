@@ -635,7 +635,44 @@ describe('ItemDetailsScreen', () => {
         await findPressableByText(renderer, '저장')?.props.onPress();
       });
 
-      expect(renderer.root.findAllByType(Text).some(node => node.props.children === '이미 승인 대기 중인 링크예요.')).toBe(true);
+      // In the shared message dialog - never a red line under the form.
+      const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
+      expect(dialog.props.message).toBe('이미 승인 대기 중인 링크예요.');
+      expect(dialog.props.onCancel).toBeUndefined();
+      // Settled: nothing is left to save for that Collection, so it does not keep Save on.
+      expect(isSaveDisabled(renderer)).toBe(true);
+    });
+
+    it('a duplicate proposal keeps the unsaved memo and the other choices, and never reloads the item', async () => {
+      const { Keyboard } = require('react-native');
+      const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+      jest.mocked(addItemToCollection).mockRejectedValue(new ApiError('conflict', 409, 'linkAlreadyInCollection'));
+      jest.mocked(updateItemDetails).mockRejectedValue(new Error('network error'));
+      const renderer = await renderScreen();
+      const memoInput = () => renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
+
+      await act(async () => {
+        memoInput().props.onChangeText('draft memo');
+      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      expect(dismissSpy).toHaveBeenCalled();
+      // Every reason in ONE dialog, each once.
+      const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
+      expect(dialog.props.message).toBe(`${i18n.t('item.errorSaveFallback')}\n${i18n.t('collections.linkAlreadyInCollection')}`);
+      await act(async () => {
+        dialog.props.onConfirm();
+      });
+      expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeUndefined();
+      // The memo that did not save is still there to retry; nothing was reloaded.
+      expect(memoInput().props.value).toBe('draft memo');
+      expect(isSaveDisabled(renderer)).toBe(false);
+      expect(getItemDetails).toHaveBeenCalledTimes(1);
+      dismissSpy.mockRestore();
     });
 
     it('a staged category change triggers the unsaved-changes back warning until saved', async () => {

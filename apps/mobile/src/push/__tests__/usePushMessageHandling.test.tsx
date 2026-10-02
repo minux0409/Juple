@@ -64,6 +64,47 @@ describe('usePushMessageHandling', () => {
     });
   });
 
+  it('collaboration taps: a reaction or comment opens the Collection, a proposal its 승인 대기 list, a result the Collection or its public page', async () => {
+    await mount();
+    const tap = jest.mocked(onNotificationOpenedApp).mock.calls[0][1] as (message: unknown) => void;
+
+    act(() => tap({ data: { type: 'collectionItemReaction', collectionId: '7' } }));
+    expect(navigationRef.navigate).toHaveBeenLastCalledWith('CollectionDetails', expect.objectContaining({ collectionId: 7 }));
+
+    act(() => tap({ data: { type: 'collectionItemComment', collectionId: '8' } }));
+    expect(navigationRef.navigate).toHaveBeenLastCalledWith('CollectionDetails', expect.objectContaining({ collectionId: 8 }));
+
+    act(() => tap({ data: { type: 'collectionLinkSubmission', collectionId: '9' } }));
+    expect(navigationRef.navigate).toHaveBeenLastCalledWith('CollectionSubmissions', { collectionId: 9 });
+
+    act(() => tap({ data: { type: 'collectionLinkSubmissionApproved', collectionId: '10' } }));
+    expect(navigationRef.navigate).toHaveBeenLastCalledWith('CollectionDetails', expect.objectContaining({ collectionId: 10 }));
+
+    act(() => tap({ data: { type: 'collectionLinkSubmissionRejected', publicId: 'AbCdEfGh1234' } }));
+    expect(navigationRef.navigate).toHaveBeenLastCalledWith('SharedCollection', { publicId: 'AbCdEfGh1234' });
+
+    // A result with nowhere safe to go (public link off, no membership): the app just opens.
+    jest.mocked(navigationRef.navigate).mockClear();
+    act(() => tap({ data: { type: 'collectionLinkSubmissionRejected' } }));
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+  });
+
+  it('a foreground collaboration message is passed to open screens and never navigates', async () => {
+    await mount();
+    const received: string[] = [];
+    const unsubscribe = subscribeSocialPushEvents(event => received.push(event.type));
+
+    const handler = jest.mocked(onMessage).mock.calls[0][1] as (message: unknown) => void;
+    act(() => {
+      handler({ data: { type: 'collectionItemComment', collectionId: '7' } });
+      handler({ data: { type: 'collectionLinkSubmission', collectionId: '7' } });
+    });
+    unsubscribe();
+
+    expect(received).toEqual(['collectionItemComment', 'collectionLinkSubmission']);
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+  });
+
   it('a cold-start tap waits until the user is signed in and bootstrapped', async () => {
     mockAuth.isAuthenticated = false;
     jest.mocked(getInitialNotification).mockResolvedValueOnce({ data: { type: 'friendRequest' } } as never);

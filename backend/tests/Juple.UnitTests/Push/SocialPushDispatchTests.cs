@@ -220,6 +220,114 @@ public sealed class SocialPushDispatchTests
         Assert.True(SocialNotificationPolicy.ItemsAddedDedupKey(long.MaxValue, long.MaxValue, Guid.NewGuid()).Length <= 120);
     }
 
+    [Theory]
+    [InlineData(NotificationType.CollectionItemReactionReceived, "collectionItemReaction", 8)]
+    [InlineData(NotificationType.CollectionItemCommentReceived, "collectionItemComment", 9)]
+    [InlineData(NotificationType.CollectionLinkSubmissionReceived, "collectionLinkSubmission", 10)]
+    [InlineData(NotificationType.CollectionLinkSubmissionApproved, "collectionLinkSubmissionApproved", 11)]
+    [InlineData(NotificationType.CollectionLinkSubmissionRejected, "collectionLinkSubmissionRejected", 12)]
+    public void CollaborationTypes_AreAppendedVisibleTypes_WithStableWireNames(NotificationType type, string wire, byte value)
+    {
+        Assert.Equal(value, (byte)type);
+        Assert.Equal(wire, SocialNotificationPolicy.WireType(type));
+        Assert.False(SocialNotificationPolicy.IsDataOnly(type));
+        Assert.Equal(SocialNotificationPolicy.VisibleMaxAge, SocialNotificationPolicy.MaxAge(type));
+        // The existing values never move.
+        Assert.Equal(7, (byte)NotificationType.CollectionLinkShared);
+        Assert.Equal(6, (byte)NotificationType.CollectionItemsAdded);
+    }
+
+    [Fact]
+    public void AReactionOrComment_NamesWhoAndWhere_OpensTheCollection_AndCarriesNothingElse()
+    {
+        var context = new PushDispatchContext(true, "피카츄", "여행", 2);
+
+        var reaction = DispatchPendingPushNotificationsService.BuildPayload(Pending(1, NotificationType.CollectionItemReactionReceived, Now), context, "ko");
+        var comment = DispatchPendingPushNotificationsService.BuildPayload(Pending(2, NotificationType.CollectionItemCommentReceived, Now), context, "ko");
+
+        Assert.Equal(("새 반응", "피카츄님이 '여행'에 있는 내 링크에 반응을 남겼어요."), (reaction.Title, reaction.Body));
+        Assert.Equal(("새 댓글", "피카츄님이 '여행'에 있는 내 링크에 댓글을 남겼어요."), (comment.Title, comment.Body));
+        // Only the Collection to open - never the Item id (SubjectId 77), the actor id or anything of the link.
+        Assert.Equal(["collectionId"], reaction.Data.Keys);
+        Assert.Equal("42", reaction.Data["collectionId"]);
+        Assert.Equal(["collectionId"], comment.Data.Keys);
+        Assert.DoesNotContain(reaction.Data.Values, value => value is "77" or "9");
+    }
+
+    [Fact]
+    public void AProposal_TellsTheOwner_WithoutNamingWhoProposed()
+    {
+        // The row never carries an actor; even a context with a name must not put it in the text.
+        var context = new PushDispatchContext(true, "SENDER", "여행", 0);
+        var notification = Notification.Social(5, NotificationType.CollectionLinkSubmissionReceived, null, 42, 77, "k", Now);
+
+        var payload = DispatchPendingPushNotificationsService.BuildPayload(notification, context, "ko");
+
+        Assert.Equal(("승인 요청", "'여행'에 승인을 기다리는 새 링크가 있어요."), (payload.Title, payload.Body));
+        Assert.Equal(["collectionId"], payload.Data.Keys);
+        Assert.Equal("collectionLinkSubmission", payload.Type);
+    }
+
+    [Fact]
+    public void AProposalResult_OpensTheCollectionForAMember_ThePublicLinkForSomeoneElse_OrNothing()
+    {
+        var approved = Notification.Social(5, NotificationType.CollectionLinkSubmissionApproved, null, 42, 77, "a", Now);
+        var rejected = Notification.Social(5, NotificationType.CollectionLinkSubmissionRejected, null, 42, 77, "r", Now);
+
+        var member = DispatchPendingPushNotificationsService.BuildPayload(approved, new PushDispatchContext(true, null, "여행", 0, "pub1", RecipientBelongs: true), "ko");
+        Assert.Equal(("링크 승인", "'여행'에 보낸 링크가 승인됐어요."), (member.Title, member.Body));
+        Assert.Equal(["collectionId"], member.Data.Keys);
+
+        var outsider = DispatchPendingPushNotificationsService.BuildPayload(rejected, new PushDispatchContext(true, null, "여행", 0, "pub1", RecipientBelongs: false), "ko");
+        Assert.Equal(("링크 미승인", "'여행'에 보낸 링크가 승인되지 않았어요."), (outsider.Title, outsider.Body));
+        Assert.Equal(["publicId"], outsider.Data.Keys);
+        Assert.Equal("pub1", outsider.Data["publicId"]);
+
+        // Someone else, and the public link is off: the push opens the app, nothing more.
+        var nowhere = DispatchPendingPushNotificationsService.BuildPayload(rejected, new PushDispatchContext(true, null, "여행", 0, null, RecipientBelongs: false), "en");
+        Assert.Empty(nowhere.Data);
+        Assert.Equal("The link you sent to \"여행\" was not approved.", nowhere.Body);
+    }
+
+    [Fact]
+    public void CollaborationText_CoversEveryAppLanguage_NamesOnlyWhereItShould_AndShortensNames()
+    {
+        var longName = string.Concat(Enumerable.Repeat("가", 60));
+        foreach (var locale in new[] { "ko", "en", "ja", "zh-Hans", "zh-Hant", "es", "fr", "de", "it", "pt-BR", "vi", "th", "id", "ru", "tr", "ar", "hi" })
+        {
+            var titles = new HashSet<string>();
+            foreach (var type in new[]
+                     {
+                         NotificationType.CollectionItemReactionReceived, NotificationType.CollectionItemCommentReceived,
+                         NotificationType.CollectionLinkSubmissionReceived, NotificationType.CollectionLinkSubmissionApproved,
+                         NotificationType.CollectionLinkSubmissionRejected,
+                     })
+            {
+                var (title, body) = SocialPushText.For(type, locale, "SENDER", "COLL");
+                Assert.False(string.IsNullOrWhiteSpace(title));
+                Assert.Contains("COLL", body);
+                Assert.DoesNotContain("{", body);
+                Assert.True(titles.Add(title), $"{locale}: {type} shares its title");
+                var named = type is NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived;
+                Assert.Equal(named, body.Contains("SENDER", StringComparison.Ordinal));
+                Assert.DoesNotContain(longName, SocialPushText.For(type, locale, "SENDER", longName).Body);
+            }
+        }
+    }
+
+    [Fact]
+    public void ReactionsAndComments_AreCoalescedPerActorLinkAndMinute_AndNeverShareAKey()
+    {
+        var first = SocialNotificationPolicy.CollaborationDedupKey(NotificationType.CollectionItemReactionReceived, 42, 7, 5, Now);
+        Assert.Equal(first, SocialNotificationPolicy.CollaborationDedupKey(NotificationType.CollectionItemReactionReceived, 42, 7, 5, Now.AddSeconds(30)));
+        Assert.NotEqual(first, SocialNotificationPolicy.CollaborationDedupKey(NotificationType.CollectionItemReactionReceived, 42, 7, 5, Now.AddSeconds(61)));
+        Assert.NotEqual(first, SocialNotificationPolicy.CollaborationDedupKey(NotificationType.CollectionItemReactionReceived, 42, 7, 6, Now));
+        Assert.NotEqual(first, SocialNotificationPolicy.CollaborationDedupKey(NotificationType.CollectionItemReactionReceived, 42, 8, 5, Now));
+        Assert.NotEqual(first, SocialNotificationPolicy.CollaborationDedupKey(NotificationType.CollectionItemCommentReceived, 42, 7, 5, Now));
+        Assert.True(SocialNotificationPolicy.CollaborationDedupKey(
+            NotificationType.CollectionItemCommentReceived, long.MaxValue, long.MaxValue, long.MaxValue, Now).Length <= 120);
+    }
+
     [Fact]
     public void ContentChanges_AreCoalescedPerRecipientCollectionAndMinute()
     {

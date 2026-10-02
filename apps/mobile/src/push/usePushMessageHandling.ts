@@ -32,6 +32,8 @@ export function usePushMessageHandling(): void {
       });
     } else if (target?.screen === 'CollectionDetails') {
       navigationRef.navigate('CollectionDetails', { collectionId: target.collectionId, refreshToken: Date.now() });
+    } else if (target?.screen === 'CollectionSubmissions') {
+      navigationRef.navigate('CollectionSubmissions', { collectionId: target.collectionId });
     } else if (target?.screen === 'SharedCollection') {
       navigationRef.navigate('SharedCollection', { publicId: target.publicId });
     }

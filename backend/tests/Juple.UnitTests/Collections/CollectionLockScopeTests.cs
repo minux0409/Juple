@@ -288,5 +288,35 @@ public sealed class CollectionLockScopeTests
             Events.Add($"items-added:{actorUserId}:{collectionId}:{itemCount}:{(hideActor ? "hidden" : "named")}");
             return Task.CompletedTask;
         }
+
+        public Task CollectionLinkApprovedAsync(long ownerUserId, long submitterUserId, long collectionId, bool hideActor, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"link-approved:{ownerUserId}:{submitterUserId}:{collectionId}:{(hideActor ? "hidden" : "named")}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionItemReactionReceivedAsync(long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"reaction:{actorUserId}:{collectionId}:{itemId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionItemCommentReceivedAsync(long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"comment:{actorUserId}:{collectionId}:{itemId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionLinkSubmittedAsync(long submitterUserId, long collectionId, long itemId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"submitted:{submitterUserId}:{collectionId}:{itemId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, bool approved, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"submission-{(approved ? "approved" : "rejected")}:{submitterUserId}:{collectionId}:{submissionId}");
+            return Task.CompletedTask;
+        }
     }
 }

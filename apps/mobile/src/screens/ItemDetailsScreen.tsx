@@ -36,6 +36,7 @@ import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { contentGateOfError } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
+import { useMessageDialog } from '../components/useMessageDialog';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
@@ -181,10 +182,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     row: collaborationRow,
     enabled: isCollaborative && collaborationRow !== null,
   });
-  // The result of a save that proposed the link to 승인 후 추가 Collections - a dialog, never a toast that can be missed.
-  const [submissionResultMessage, setSubmissionResultMessage] = useState<string | null>(null);
+  // What a save, photo change, delete or open just did when it was not a plain success (or a save that
+  // proposed the link to 승인 후 추가 Collections) - the shared message dialog, never a red line that
+  // can be missed or hidden under the keyboard. Drafts are never touched by it.
+  const { showMessage, messageDialog } = useMessageDialog();
   useToastBottomAnchor(bottomBarHeight);
-  const [urlOpenError, setUrlOpenError] = useState<string | null>(null);
 
   const [item, setItem] = useState<ItemDetails | null>(null);
   const [title, setTitle] = useState('');
@@ -223,7 +225,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   const [isItemActionInFlight, setIsItemActionInFlight] = useState(false);
   const [isDeletingItem, setIsDeletingItem] = useState(false);
-  const [itemActionError, setItemActionError] = useState<string | null>(null);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const [isRemoveFromCollectionConfirmVisible, setIsRemoveFromCollectionConfirmVisible] = useState(false);
   // Flips true only once the Delete API call has actually succeeded - never before (see
@@ -391,7 +392,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
     const asset = result.assets?.[0];
     if (result.errorCode || !asset?.uri) {
-      setImagesError(getImagePickerErrorMessage(result.errorCode, t));
+      showMessage(getImagePickerErrorMessage(result.errorCode, t));
       return;
     }
 
@@ -416,8 +417,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           : previous,
       );
     } catch (caughtError) {
-      // The previous photo (or none) stays exactly as it was, with a short reason under it.
-      setImagesError(getImageUploadErrorMessage(caughtError, t));
+      // The previous photo (or none) stays exactly as it was; the reason is said in the message dialog.
+      showMessage(getImageUploadErrorMessage(caughtError, t));
     } finally {
       endPhotoChange();
     }
@@ -437,7 +438,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setImages([]);
       setItem(previous => (previous ? { ...previous, coverImage: null } : previous));
     } catch (caughtError) {
-      setImagesError(getImageDeleteErrorMessage(caughtError, t));
+      showMessage(getImageDeleteErrorMessage(caughtError, t));
     } finally {
       endPhotoChange();
     }
@@ -469,14 +470,13 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     itemActionInFlightRef.current = true;
     setIsItemActionInFlight(true);
     setIsDeletingItem(true);
-    setItemActionError(null);
     try {
       await deleteItem(authenticatedRequest, itemId);
       // Does NOT call navigation.goBack() directly here - see the isDeleted effect below for why
       // the actual navigation must wait for this state update to actually commit first.
       setIsDeleted(true);
     } catch (caughtError) {
-      setItemActionError(getItemDeleteErrorMessage(caughtError, t));
+      showMessage(getItemDeleteErrorMessage(caughtError, t));
     } finally {
       itemActionInFlightRef.current = false;
       setIsItemActionInFlight(false);
@@ -505,7 +505,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     itemActionInFlightRef.current = true;
     setIsItemActionInFlight(true);
     setIsDeletingItem(true);
-    setItemActionError(null);
     try {
       await removeItemFromCollection(authenticatedRequest, contextCollectionId, itemId);
       setSelectedCategories(previous => previous.filter(option => option.id !== contextCollectionId));
@@ -519,7 +518,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       // the usual "leave without saving?" question - the link itself was not deleted.
       navigation.goBack();
     } catch (caughtError) {
-      setItemActionError(
+      showMessage(
         contentGateOfError(caughtError) === 'sharePassword'
           ? t('collections.sharePasswordRequiredForAction')
           : contentGateOfError(caughtError) === 'lock'
@@ -604,8 +603,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     const categoryIdsToRemove = [...originalCategoryIds].filter(id => !currentSelectedIds.has(id));
 
     // 승인 후 추가: those became proposals for their Owners - not memberships, so they leave the
-    // selection again (the link is not in those Collections until approved).
+    // selection again (the link is not in those Collections until approved). A Collection that
+    // already has this link, or already has it waiting for its Owner, is settled the same way: there
+    // is nothing left to save for it, so it must not keep Save on (a retry could only fail again).
     const proposedIds = new Set<number>();
+    const settledIds = new Set<number>();
     let addedCount = 0;
     for (const option of categoriesToAdd) {
       try {
@@ -618,11 +620,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           setOriginalCategoryIds(previous => new Set(previous).add(option.id));
         }
       } catch (caughtError) {
+        if (linkProposalErrorMessage(caughtError, t) !== null) {
+          settledIds.add(option.id);
+        }
         failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
       }
     }
-    if (proposedIds.size > 0) {
-      setSelectedCategories(previous => previous.filter(option => !proposedIds.has(option.id)));
+    if (proposedIds.size > 0 || settledIds.size > 0) {
+      setSelectedCategories(previous => previous.filter(option => !proposedIds.has(option.id) && !settledIds.has(option.id)));
     }
     for (const collectionId of categoryIdsToRemove) {
       try {
@@ -638,17 +643,16 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
 
     setIsSaving(false);
+    // De-duplicated - several failed operations of the same kind must not repeat the same sentence.
+    const failureText = [...new Set(failureMessages)].join('\n');
     if (proposedIds.size > 0) {
-      setSubmissionResultMessage(formatSaveOutcomeMessage({ added: addedCount, submitted: proposedIds.size }, t));
-    }
-    if (failureMessages.length > 0) {
-      // De-duplicated - several failed operations of the same kind must not repeat the same
-      // sentence over and over.
-      setError([...new Set(failureMessages)].join('\n'));
+      // One dialog for the whole save: the proposals, then anything that did not go through.
+      const outcome = formatSaveOutcomeMessage({ added: addedCount, submitted: proposedIds.size }, t);
+      showMessage(failureText ? `${outcome}\n\n${failureText}` : outcome, { title: t('collections.saveOutcomeTitle') });
+    } else if (failureText) {
+      showMessage(failureText);
     } else {
-      if (proposedIds.size === 0) {
-        showNotificationToast(t('item.saved'));
-      }
+      showNotificationToast(t('item.saved'));
     }
   };
 
@@ -666,11 +670,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       return;
     }
 
-    setUrlOpenError(null);
     try {
       await Linking.openURL(item.url);
     } catch {
-      setUrlOpenError(t('item.urlOpenFailed'));
+      showMessage(t('item.urlOpenFailed'));
     }
   };
 
@@ -717,7 +720,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             }
             url={item.url}
           />
-          {urlOpenError ? <Text style={styles.error}>{urlOpenError}</Text> : null}
         </ContentPreviewCard>
 
         <CategoryField
@@ -752,7 +754,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         )}
 
         {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
-        {itemActionError ? <Text style={styles.error}>{itemActionError}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {collaboration.reactions}
         {collaboration.comments}
@@ -789,14 +790,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       </View>
       </KeyboardAvoidingView>
 
-      <ConfirmDialog
-        confirmLabel={t('common.confirm')}
-        destructive={false}
-        message={submissionResultMessage ?? ''}
-        onConfirm={() => setSubmissionResultMessage(null)}
-        title={t('collections.saveOutcomeTitle')}
-        visible={submissionResultMessage !== null}
-      />
+      {messageDialog}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

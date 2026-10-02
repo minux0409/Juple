@@ -355,6 +355,74 @@ describe('NewLinkReviewScreen', () => {
     expect(props.navigation.goBack).not.toHaveBeenCalled();
   });
 
+  it('Case A: the chosen Collection already has this link waiting - the link is still saved, the rest of the save goes on, and one dialog says exactly that', async () => {
+    jest.mocked(getCollections).mockResolvedValue({
+      items: [
+        { id: 4, name: '팀 아이디어', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' },
+        { id: 5, name: '내 컬렉션', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null },
+      ],
+      nextCursor: null,
+    });
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 57, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => {
+      if (collectionId === 4) {
+        throw new ApiError('conflict', 409, 'linkAlreadyPending');
+      }
+      return 'added';
+    });
+    const { renderer, navigation } = await renderScreen();
+    await openCategoryPicker(renderer);
+    await act(async () => {
+      findByAccessibilityLabel(renderer, '팀 아이디어').props.onPress();
+    });
+    await act(async () => {
+      findByAccessibilityLabel(renderer, '내 컬렉션').props.onPress();
+    });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    // The other Collection still got it - the conflict did not stop the save.
+    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 5, 57, expect.anything());
+    const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
+    expect(dialog.props.message).toBe('링크는 저장되었어요.\n선택한 컬렉션에는 이미 승인 대기 중인 링크가 있어요.');
+    // No red line under Save, and the screen waits for the dialog before closing.
+    expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.linkAlreadyPending'))).toHaveLength(0);
+    expect(navigation.goBack).not.toHaveBeenCalled();
+    await act(async () => {
+      dialog.props.onConfirm();
+    });
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('a link the chosen Collection already has: saved, and said in the dialog - never a red line', async () => {
+    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 57, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    jest.mocked(addItemToCollection).mockRejectedValue(new ApiError('conflict', 409, 'linkAlreadyInCollection'));
+    jest.mocked(getCollections).mockResolvedValue({
+      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' }],
+      nextCursor: null,
+    });
+    const { renderer, navigation } = await renderScreen();
+    await openCategoryPicker(renderer);
+    await act(async () => {
+      findByAccessibilityLabel(renderer, '영화').props.onPress();
+    });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
+    expect(dialog.props.message).toBe(`${i18n.t('collections.saveOutcomeSaved')}\n${i18n.t('collections.saveOutcomeAlreadyInCollection')}`);
+    await act(async () => {
+      dialog.props.onConfirm();
+    });
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
   it('saving into direct collections only shows no dialog - it closes as before', async () => {
     jest.mocked(saveInboxEntry).mockResolvedValue({ id: 59, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
     jest.mocked(addItemToCollection).mockResolvedValue('added');
@@ -1221,9 +1289,15 @@ describe('NewLinkReviewScreen', () => {
         await pressSaveButton(renderer);
       });
 
-      expect(renderer.root.findByProps({ children: '사진을 업로드할 수 없습니다.' })).toBeTruthy();
-      // Never navigated away - the failure is surfaced, not silently swallowed.
+      // Said in the shared message dialog (centered, above the keyboard) - never navigated away.
+      const uploadFailure = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
+      expect(uploadFailure.props.message).toBe('사진을 업로드할 수 없습니다.');
       expect(navigation.goBack).not.toHaveBeenCalled();
+      await act(async () => {
+        uploadFailure.props.onConfirm();
+      });
+      // The picked photo is still staged for the retry.
+      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
 
       // Retrying Save replays the SAME clientRequestId/Item (never a second saveInboxEntry create
       // with a different id) - see clientRequestIdRef's own remarks.
@@ -1252,7 +1326,35 @@ describe('NewLinkReviewScreen', () => {
     });
 
     expect(navigation.goBack).not.toHaveBeenCalled();
-    expect(renderer.root.findByProps({ children: i18n.t('inbox.errorSaveFallback') })).toBeTruthy();
+    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.message).toBe(i18n.t('inbox.errorSaveFallback'));
+  });
+
+  it('a failed save is said in the message dialog with the keyboard closed first, and keeps the memo as typed', async () => {
+    const { Keyboard } = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    jest.mocked(saveInboxEntry).mockRejectedValue(new Error('network down'));
+    const { renderer, navigation } = await renderScreen();
+    const memoInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
+    await act(async () => {
+      memoInput.props.onChangeText('draft memo');
+    });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    expect(dismissSpy).toHaveBeenCalled();
+    const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
+    expect(dialog.props.message).toBe(i18n.t('inbox.errorSaveFallback'));
+    // Single-action alert: just 확인, no cancel.
+    expect(dialog.props.onCancel).toBeUndefined();
+    await act(async () => {
+      dialog.props.onConfirm();
+    });
+    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeUndefined();
+    expect(renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!.props.value).toBe('draft memo');
+    expect(navigation.goBack).not.toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 
   it('uses the same shared category picker row ItemDetailsScreen uses - not the old horizontal chip list', async () => {

@@ -69,6 +69,123 @@ public static class SocialPushText
         ["hi"] = new("संग्रह का लिंक", "{0} ने आपको \"{1}\" संग्रह का लिंक भेजा है।"),
     };
 
+    /// <summary>
+    /// Types 8-12: {0} = who reacted/commented (reaction and comment only), {1} = Collection name. A
+    /// proposal and its result never name anyone, and nothing says which reaction or what a comment said.
+    /// </summary>
+    private sealed record CollaborationTexts(
+        string ReactionTitle, string ReactionBody,
+        string CommentTitle, string CommentBody,
+        string SubmissionTitle, string SubmissionBody,
+        string ApprovedTitle, string ApprovedBody,
+        string RejectedTitle, string RejectedBody);
+
+    private static readonly Dictionary<string, CollaborationTexts> CollaborationByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new(
+            "새 반응", "{0}님이 '{1}'에 있는 내 링크에 반응을 남겼어요.",
+            "새 댓글", "{0}님이 '{1}'에 있는 내 링크에 댓글을 남겼어요.",
+            "승인 요청", "'{1}'에 승인을 기다리는 새 링크가 있어요.",
+            "링크 승인", "'{1}'에 보낸 링크가 승인됐어요.",
+            "링크 미승인", "'{1}'에 보낸 링크가 승인되지 않았어요."),
+        ["en"] = new(
+            "New reaction", "{0} reacted to your link in \"{1}\".",
+            "New comment", "{0} commented on your link in \"{1}\".",
+            "Approval request", "A new link is waiting for your approval in \"{1}\".",
+            "Link approved", "The link you sent to \"{1}\" was approved.",
+            "Link not approved", "The link you sent to \"{1}\" was not approved."),
+        ["ja"] = new(
+            "新しいリアクション", "{0}さんが「{1}」のあなたのリンクにリアクションしました。",
+            "新しいコメント", "{0}さんが「{1}」のあなたのリンクにコメントしました。",
+            "承認リクエスト", "「{1}」に承認待ちの新しいリンクがあります。",
+            "リンクが承認されました", "「{1}」に送ったリンクが承認されました。",
+            "リンクは承認されませんでした", "「{1}」に送ったリンクは承認されませんでした。"),
+        ["zh-Hans"] = new(
+            "新回应", "{0} 回应了你在「{1}」中的链接。",
+            "新评论", "{0} 评论了你在「{1}」中的链接。",
+            "审核请求", "「{1}」中有新链接等待你审核。",
+            "链接已通过", "你发送到「{1}」的链接已通过审核。",
+            "链接未通过", "你发送到「{1}」的链接未通过审核。"),
+        ["zh-Hant"] = new(
+            "新回應", "{0} 回應了你在「{1}」中的連結。",
+            "新留言", "{0} 在「{1}」中對你的連結留言。",
+            "審核請求", "「{1}」中有新連結等待你審核。",
+            "連結已通過", "你傳送到「{1}」的連結已通過審核。",
+            "連結未通過", "你傳送到「{1}」的連結未通過審核。"),
+        ["es"] = new(
+            "Nueva reacción", "{0} reaccionó a tu enlace en «{1}».",
+            "Nuevo comentario", "{0} comentó tu enlace en «{1}».",
+            "Solicitud de aprobación", "Hay un nuevo enlace esperando tu aprobación en «{1}».",
+            "Enlace aprobado", "Se aprobó el enlace que enviaste a «{1}».",
+            "Enlace no aprobado", "No se aprobó el enlace que enviaste a «{1}»."),
+        ["fr"] = new(
+            "Nouvelle réaction", "{0} a réagi à votre lien dans « {1} ».",
+            "Nouveau commentaire", "{0} a commenté votre lien dans « {1} ».",
+            "Demande d’approbation", "Un nouveau lien attend votre approbation dans « {1} ».",
+            "Lien approuvé", "Le lien que vous avez envoyé à « {1} » a été approuvé.",
+            "Lien non approuvé", "Le lien que vous avez envoyé à « {1} » n’a pas été approuvé."),
+        ["de"] = new(
+            "Neue Reaktion", "{0} hat auf deinen Link in „{1}“ reagiert.",
+            "Neuer Kommentar", "{0} hat deinen Link in „{1}“ kommentiert.",
+            "Freigabeanfrage", "In „{1}“ wartet ein neuer Link auf deine Freigabe.",
+            "Link freigegeben", "Der Link, den du an „{1}“ gesendet hast, wurde freigegeben.",
+            "Link nicht freigegeben", "Der Link, den du an „{1}“ gesendet hast, wurde nicht freigegeben."),
+        ["it"] = new(
+            "Nuova reazione", "{0} ha reagito al tuo link in «{1}».",
+            "Nuovo commento", "{0} ha commentato il tuo link in «{1}».",
+            "Richiesta di approvazione", "In «{1}» c’è un nuovo link in attesa della tua approvazione.",
+            "Link approvato", "Il link che hai inviato a «{1}» è stato approvato.",
+            "Link non approvato", "Il link che hai inviato a «{1}» non è stato approvato."),
+        ["pt-BR"] = new(
+            "Nova reação", "{0} reagiu ao seu link em \"{1}\".",
+            "Novo comentário", "{0} comentou no seu link em \"{1}\".",
+            "Pedido de aprovação", "Há um novo link aguardando sua aprovação em \"{1}\".",
+            "Link aprovado", "O link que você enviou para \"{1}\" foi aprovado.",
+            "Link não aprovado", "O link que você enviou para \"{1}\" não foi aprovado."),
+        ["vi"] = new(
+            "Cảm xúc mới", "{0} đã bày tỏ cảm xúc với liên kết của bạn trong \"{1}\".",
+            "Bình luận mới", "{0} đã bình luận về liên kết của bạn trong \"{1}\".",
+            "Yêu cầu phê duyệt", "Có liên kết mới đang chờ bạn phê duyệt trong \"{1}\".",
+            "Liên kết đã được phê duyệt", "Liên kết bạn gửi đến \"{1}\" đã được phê duyệt.",
+            "Liên kết không được phê duyệt", "Liên kết bạn gửi đến \"{1}\" không được phê duyệt."),
+        ["th"] = new(
+            "รีแอคชันใหม่", "{0} แสดงความรู้สึกต่อลิงก์ของคุณใน \"{1}\"",
+            "ความคิดเห็นใหม่", "{0} แสดงความคิดเห็นในลิงก์ของคุณใน \"{1}\"",
+            "คำขออนุมัติ", "มีลิงก์ใหม่รอการอนุมัติจากคุณใน \"{1}\"",
+            "ลิงก์ได้รับการอนุมัติ", "ลิงก์ที่คุณส่งไปยัง \"{1}\" ได้รับการอนุมัติแล้ว",
+            "ลิงก์ไม่ได้รับการอนุมัติ", "ลิงก์ที่คุณส่งไปยัง \"{1}\" ไม่ได้รับการอนุมัติ"),
+        ["id"] = new(
+            "Reaksi baru", "{0} memberi reaksi pada tautan Anda di \"{1}\".",
+            "Komentar baru", "{0} mengomentari tautan Anda di \"{1}\".",
+            "Permintaan persetujuan", "Ada tautan baru yang menunggu persetujuan Anda di \"{1}\".",
+            "Tautan disetujui", "Tautan yang Anda kirim ke \"{1}\" telah disetujui.",
+            "Tautan tidak disetujui", "Tautan yang Anda kirim ke \"{1}\" tidak disetujui."),
+        ["ru"] = new(
+            "Новая реакция", "{0} реагирует на вашу ссылку в «{1}».",
+            "Новый комментарий", "{0} комментирует вашу ссылку в «{1}».",
+            "Запрос на одобрение", "В «{1}» новая ссылка ждёт вашего одобрения.",
+            "Ссылка одобрена", "Ссылка, которую вы отправили в «{1}», одобрена.",
+            "Ссылка не одобрена", "Ссылка, которую вы отправили в «{1}», не одобрена."),
+        ["tr"] = new(
+            "Yeni tepki", "{0}, \"{1}\" koleksiyonundaki bağlantınıza tepki verdi.",
+            "Yeni yorum", "{0}, \"{1}\" koleksiyonundaki bağlantınıza yorum yaptı.",
+            "Onay isteği", "\"{1}\" koleksiyonunda onayınızı bekleyen yeni bir bağlantı var.",
+            "Bağlantı onaylandı", "\"{1}\" koleksiyonuna gönderdiğiniz bağlantı onaylandı.",
+            "Bağlantı onaylanmadı", "\"{1}\" koleksiyonuna gönderdiğiniz bağlantı onaylanmadı."),
+        ["ar"] = new(
+            "تفاعل جديد", "تفاعل {0} مع رابطك في \"{1}\".",
+            "تعليق جديد", "علّق {0} على رابطك في \"{1}\".",
+            "طلب موافقة", "يوجد رابط جديد بانتظار موافقتك في \"{1}\".",
+            "تمت الموافقة على الرابط", "تمت الموافقة على الرابط الذي أرسلته إلى \"{1}\".",
+            "لم تتم الموافقة على الرابط", "لم تتم الموافقة على الرابط الذي أرسلته إلى \"{1}\"."),
+        ["hi"] = new(
+            "नई प्रतिक्रिया", "{0} ने \"{1}\" में आपके लिंक पर प्रतिक्रिया दी है।",
+            "नई टिप्पणी", "{0} ने \"{1}\" में आपके लिंक पर टिप्पणी की है।",
+            "मंज़ूरी का अनुरोध", "\"{1}\" में एक नया लिंक आपकी मंज़ूरी की प्रतीक्षा में है।",
+            "लिंक मंज़ूर हुआ", "\"{1}\" में भेजा गया आपका लिंक मंज़ूर हो गया है।",
+            "लिंक मंज़ूर नहीं हुआ", "\"{1}\" में भेजा गया आपका लिंक मंज़ूर नहीं हुआ।"),
+    };
+
     private static readonly Dictionary<string, Texts> ByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ko"] = new("친구 신청", "{0}님이 친구 신청을 보냈어요.", "컬렉션 공유", "{0}님이 '{1}' 컬렉션을 공유했어요."),
@@ -115,6 +232,24 @@ public static class SocialPushText
         {
             var link = Resolve(LinkByLocale, locale);
             return (link.Title, string.Format(CultureInfo.InvariantCulture, link.Body, actorName, Shorten(collectionName)));
+        }
+
+        if (type is NotificationType.CollectionItemReactionReceived
+            or NotificationType.CollectionItemCommentReceived
+            or NotificationType.CollectionLinkSubmissionReceived
+            or NotificationType.CollectionLinkSubmissionApproved
+            or NotificationType.CollectionLinkSubmissionRejected)
+        {
+            var collaboration = Resolve(CollaborationByLocale, locale);
+            var (title, body) = type switch
+            {
+                NotificationType.CollectionItemReactionReceived => (collaboration.ReactionTitle, collaboration.ReactionBody),
+                NotificationType.CollectionItemCommentReceived => (collaboration.CommentTitle, collaboration.CommentBody),
+                NotificationType.CollectionLinkSubmissionReceived => (collaboration.SubmissionTitle, collaboration.SubmissionBody),
+                NotificationType.CollectionLinkSubmissionApproved => (collaboration.ApprovedTitle, collaboration.ApprovedBody),
+                _ => (collaboration.RejectedTitle, collaboration.RejectedBody),
+            };
+            return (title, string.Format(CultureInfo.InvariantCulture, body, actorName, Shorten(collectionName)));
         }
 
         var texts = Resolve(ByLocale, locale);

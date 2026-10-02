@@ -138,6 +138,25 @@ public sealed class CollectionItemCommentServiceTests
     }
 
     [Fact]
+    public async Task ANewComment_IsAnnounced_WithoutItsText_AndDeletingOrAFailedCommentIsNot()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+
+        await new CollectionItemCommentService(new FakeAccess(), new FakeStore(), TimeProvider.System, publisher).CreateAsync(1, 2, 3, "secret words", null);
+        await new CollectionItemCommentService(new FakeAccess(), new FakeStore(), TimeProvider.System, publisher).DeleteAsync(1, 2, 3, 4, null);
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore { IsLink = false }, TimeProvider.System, publisher).CreateAsync(1, 2, 3, "x", null));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore(), TimeProvider.System, publisher).CreateAsync(1, 2, 3, "   ", null));
+
+        // Only who, where and which link - the publisher is never even handed the text.
+        Assert.Equal(["comment:1:2:3"], publisher.Events);
+        Assert.DoesNotContain(
+            typeof(Juple.Application.Notifications.ISocialNotificationPublisher).GetMethod("CollectionItemCommentReceivedAsync")!.GetParameters(),
+            parameter => parameter.ParameterType == typeof(string));
+    }
+
+    [Fact]
     public void TheCommentDtosCarryNoEmailProviderOrInternalIdField()
     {
         var names = typeof(CollectionCommentDto).GetProperties().Concat(typeof(CollectionCommentAuthorDto).GetProperties()).Select(property => property.Name);

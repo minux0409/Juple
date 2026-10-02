@@ -32,6 +32,19 @@ describe('social Push payloads', () => {
     expect(resolvePushTapNavigation({ type: 'collectionLinkShared', publicId: 'short' })).toBeNull();
   });
 
+  it('collaboration pushes: reactions/comments open the Collection, a proposal the 승인 대기 list, a result a safe place - malformed ids go nowhere', () => {
+    expect(resolvePushTapNavigation({ type: 'collectionItemReaction', collectionId: '7' })).toEqual({ screen: 'CollectionDetails', collectionId: 7 });
+    expect(resolvePushTapNavigation({ type: 'collectionItemComment', collectionId: '7' })).toEqual({ screen: 'CollectionDetails', collectionId: 7 });
+    expect(resolvePushTapNavigation({ type: 'collectionItemComment', collectionId: 'abc' })).toBeNull();
+    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmission', collectionId: '9' })).toEqual({ screen: 'CollectionSubmissions', collectionId: 9 });
+    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmission' })).toBeNull();
+    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionApproved', collectionId: '3' })).toEqual({ screen: 'CollectionDetails', collectionId: 3 });
+    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionRejected', publicId: 'AbCdEfGh1234' }))
+      .toEqual({ screen: 'SharedCollection', publicId: 'AbCdEfGh1234' });
+    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionApproved', publicId: '../evil' })).toBeNull();
+    expect(resolvePushTapNavigation({ type: 'collectionLinkSubmissionRejected' })).toBeNull();
+  });
+
   it('delivers foreground events to every subscriber until it unsubscribes', () => {
     const received: string[] = [];
     const unsubscribe = subscribeSocialPushEvents(event => received.push(event.type));

@@ -1,4 +1,5 @@
 using Juple.Application.Collections.Access;
+using Juple.Application.Notifications;
 
 namespace Juple.Application.Collections.Comments;
 
@@ -99,12 +100,15 @@ public interface ICollectionItemCommentService
 /// else - a pending invitee, a non-member, a holder of the public link - is told the Collection does
 /// not exist. The same content gate as reading the links applies (a lock or share password needs its
 /// grant first, the Owner included). Writing a comment does not make a link or change the Collection,
-/// so a Viewer may comment. The Owner may delete any comment; everyone else only their own.
+/// so a Viewer may comment. The Owner may delete any comment; everyone else only their own. A new
+/// comment on someone else's link tells that link's owner (best-effort, after the write, never the
+/// text); deleting a comment tells nobody.
 /// </summary>
 public sealed class CollectionItemCommentService(
     ICollectionAccessService accessService,
     ICollectionItemCommentStore store,
-    TimeProvider timeProvider) : ICollectionItemCommentService
+    TimeProvider timeProvider,
+    ISocialNotificationPublisher? notifications = null) : ICollectionItemCommentService
 {
     public const int DefaultPageSize = 30;
     public const int MaxPageSize = 100;
@@ -127,8 +131,15 @@ public sealed class CollectionItemCommentService(
     {
         var normalized = CollectionCommentBody.Normalize(body);
         await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
-        return await store.CreateAsync(userId, collectionId, itemId, normalized, timeProvider.GetUtcNow(), cancellationToken)
+        var created = await store.CreateAsync(userId, collectionId, itemId, normalized, timeProvider.GetUtcNow(), cancellationToken)
             ?? throw new CollectionNotFoundException();
+        if (notifications is not null)
+        {
+            // The publisher decides who the link's owner is and skips the commenter's own link.
+            await notifications.CollectionItemCommentReceivedAsync(userId, collectionId, itemId, cancellationToken);
+        }
+
+        return created;
     }
 
     public async Task DeleteAsync(
