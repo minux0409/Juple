@@ -1,14 +1,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
-import { ClockIcon } from '../icons/ClockIcon';
-import { FolderIcon } from '../icons/FolderIcon';
-import { HomeIcon } from '../icons/HomeIcon';
-import { UserIcon } from '../icons/UserIcon';
 import { CollectionsScreen } from '../screens/CollectionsScreen';
 import { DailyInboxScreen } from '../screens/DailyInboxScreen';
 import { DateHistoryScreen } from '../screens/DateHistoryScreen';
 import { MyPageScreen } from '../screens/MyPageScreen';
 import { colors, radii, spacing } from '../theme/tokens';
+import { screenIcons } from './screenIcons';
 
 export type MainTabParamList = {
   Home: undefined;
@@ -32,19 +29,19 @@ function tabIconColor(focused: boolean): string {
 }
 
 function renderHomeIcon({ focused }: { focused: boolean }) {
-  return <HomeIcon color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.home color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
 function renderHistoryIcon({ focused }: { focused: boolean }) {
-  return <ClockIcon color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.archive color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
 function renderCollectionsIcon({ focused }: { focused: boolean }) {
-  return <FolderIcon color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.collections color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
 function renderMyPageIcon({ focused }: { focused: boolean }) {
-  return <UserIcon color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
+  return <screenIcons.myPage color={tabIconColor(focused)} size={TAB_ICON_SIZE} />;
 }
 
 export function MainTabs() {

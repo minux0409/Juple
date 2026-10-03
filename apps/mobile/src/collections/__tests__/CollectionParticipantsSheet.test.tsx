@@ -6,6 +6,7 @@ import { formatParticipantSummary } from '../participantSummary';
 import { CrownIcon } from '../../icons/CrownIcon';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { UserAvatar } from '../../components/UserAvatar';
+import { getFriendRequests, getFriends } from '../../friends/api/friendsApi';
 import { StyleSheet } from 'react-native';
 import {
   getCollectionParticipants,
@@ -35,6 +36,13 @@ jest.mock('../api/collaborationApi', () => ({
   getCollectionParticipants: jest.fn(),
   removeCollaborator: jest.fn(),
   revokeCollectionInvitation: jest.fn(),
+}));
+
+jest.mock('../../friends/api/friendsApi', () => ({
+  ...jest.requireActual('../../friends/api/friendsApi'),
+  getFriends: jest.fn(),
+  getFriendRequests: jest.fn(),
+  sendFriendRequest: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -130,25 +138,23 @@ describe('CollectionParticipantsSheet', () => {
     expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-revoke-'))).toHaveLength(0);
   });
 
-  it('the Owner can cancel a pending invitation and remove a Contributor (after confirming)', async () => {
+  it('the Owner sees the pending invitation too - but the popup is view-only: no remove, no cancel, no "..."', async () => {
     const renderer = await renderSheet({
       participants: [...members],
       pendingInvitations: [{ invitationId: 9, jupleId: 'PNDNG234', displayName: null, role: 'Contributor', createdAtUtc: '', expiresAtUtc: '' }],
       canManage: true,
     });
 
-    expect(renderer.root.findAll(node => node.props.testID === 'participants-sheet-remove-WNER2345')).toHaveLength(0);
     // The pending section says exactly what it is: invitations this Owner sent, not yet accepted.
     expect(renderer.root.findAllByType(Text).map(node => node.props.children)).toContain(i18n.t('collaboration.pendingCollaborationTitle'));
-    await act(async () => {
-      await renderer.root.findByProps({ testID: 'participants-sheet-revoke-9' }).props.onPress();
-    });
-    expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 5, 9);
-
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'participants-sheet-remove-CNTRB234' }).props.onPress();
-    });
+    expect(renderer.root.findAll(node => node.props.testID === 'participants-sheet-pending-9').length).toBeGreaterThan(0);
+    const ids = renderer.root.findAll(node => typeof node.props.testID === 'string').map(node => node.props.testID as string);
+    expect(ids.filter(id => /-(remove|revoke)-|-manage$/.test(id))).toEqual([]);
+    const labels = renderer.root.findAll(node => typeof node.props.accessibilityLabel === 'string').map(node => node.props.accessibilityLabel as string);
+    expect(labels).not.toContain(i18n.t('collaboration.remove'));
+    expect(labels).not.toContain(i18n.t('collaboration.revoke'));
     expect(removeCollaborator).not.toHaveBeenCalled();
+    expect(revokeCollectionInvitation).not.toHaveBeenCalled();
   });
 });
 
@@ -220,7 +226,7 @@ describe('CollectionParticipantsSheet - List / Grid', () => {
     expect(row.findAllByType(Text).some(node => node.props.children === i18n.t('collections.participantsTitle'))).toBe(true);
   });
 
-  it('Grid uses the shared tiles (avatar with fallback, name, role, crown), keeps remove / cancel on the tiles, and saves the choice', async () => {
+  it('Grid uses the shared tiles (avatar with fallback, name, role, crown) - identity only, no "..." and no removal - and saves the choice', async () => {
     const renderer = await renderWith(data);
     await act(async () => {
       renderer.root.findByType(ViewModeToggle).props.onChange('grid');
@@ -231,17 +237,32 @@ describe('CollectionParticipantsSheet - List / Grid', () => {
     expect(grid.findAllByType(UserAvatar)).toHaveLength(2);
     expect(grid.findAllByType(CrownIcon)).toHaveLength(1);
     expect(grid.findAllByType(Text).map(node => node.props.children)).toEqual(expect.arrayContaining(['피카츄', 'CNTR-B234', i18n.t('collections.roleOwner')]));
-    expect(grid.findAll(node => node.props.testID === 'participants-sheet-WNER2345' && typeof node.props.onPress === 'function')).toHaveLength(0);
+    const ids = renderer.root.findAll(node => typeof node.props.testID === 'string').map(node => node.props.testID as string);
+    expect(ids.filter(id => /-manage$|-remove-|-revoke-/.test(id))).toEqual([]);
+    expect(renderer.root.findAllByType(Modal).some(modal => modal.props.visible && modal.findAll(node => node.props.accessibilityLabel === i18n.t('collaboration.remove')).length > 0)).toBe(false);
+  });
+
+  it('an avatar tap opens the person (user info + friend request) - there is nothing to remove from here', async () => {
+    jest.mocked(getFriendRequests).mockResolvedValue([]);
+    jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+    const renderer = await renderWith(data);
+    const tap = async (testID: string) => {
+      await act(async () => {
+        renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0].props.onPress();
+      });
+    };
+
+    // List avatar.
+    await tap('participants-sheet-avatar-CNTRB234');
+    expect(renderer.root.findAll(node => node.props.testID === 'person-profile-send').length).toBeGreaterThan(0);
+    expect(removeCollaborator).not.toHaveBeenCalled();
+
+    // Grid avatar too (after closing the first).
     await act(async () => {
-      grid.findAll(node => node.props.testID === 'participants-sheet-CNTRB234' && typeof node.props.onPress === 'function')[0].props.onPress();
+      renderer.root.findByType(ViewModeToggle).props.onChange('grid');
     });
-    expect(renderer.root.findAllByType(Modal).some(modal => modal.props.visible && modal.findAll(node => node.props.accessibilityLabel === i18n.t('collaboration.remove')).length > 0)).toBe(true);
-    const pendingGrid = renderer.root.findByProps({ testID: 'participants-sheet-pending-grid' });
-    jest.mocked(revokeCollectionInvitation).mockResolvedValue(undefined);
-    await act(async () => {
-      pendingGrid.findAll(node => node.props.testID === 'participants-sheet-pending-4' && typeof node.props.onPress === 'function')[0].props.onPress();
-    });
-    expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), 5, 4);
+    await tap('participants-sheet-CNTRB234-avatar');
+    expect(removeCollaborator).not.toHaveBeenCalled();
   });
 
   it('shares the preference with the Share screen: a change made by another mounted screen shows here at once', async () => {

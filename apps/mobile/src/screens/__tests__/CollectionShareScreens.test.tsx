@@ -21,9 +21,14 @@ import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { AppToastProvider } from '../../components/AppToast';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { colors, radii } from '../../theme/tokens';
+import { colors, radii, spacing } from '../../theme/tokens';
 import { shareItem } from '../../items/shareItem';
-import { getFriends, type Friend } from '../../friends/api/friendsApi';
+import { getFriendRequests, getFriends, sendFriendRequest, type Friend } from '../../friends/api/friendsApi';
+import { PersonProfileModal } from '../../friends/PersonProfileModal';
+import { CheckIcon } from '../../icons/CheckIcon';
+import { EyeIcon } from '../../icons/EyeIcon';
+import { PlusIcon } from '../../icons/PlusIcon';
+import { UserMinusIcon } from '../../icons/UserMinusIcon';
 import {
   enableCollectionShare,
   revokeCollectionShare,
@@ -73,6 +78,8 @@ jest.mock('../../items/shareItem', () => ({ shareItem: jest.fn().mockResolvedVal
 jest.mock('../../friends/api/friendsApi', () => ({
   ...jest.requireActual('../../friends/api/friendsApi'),
   getFriends: jest.fn(),
+  getFriendRequests: jest.fn(),
+  sendFriendRequest: jest.fn(),
 }));
 
 jest.mock('../../collections/api/collaborationApi', () => ({
@@ -231,7 +238,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     mockWindow.current = { width: 360, height: 800, scale: 2, fontScale: 1 };
   });
 
-  it('is independent cards - 컬렉션 공개, 친구 초대, 접근 비밀번호, 공유 상태 - never tabs to choose between, and opening it creates nothing', async () => {
+  it('is independent cards - 공용 컬렉션 설정, 친구 초대, 접근 비밀번호, 공유 상태 - never tabs to choose between, and opening it creates nothing', async () => {
     jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
     const renderer = await renderScreen();
 
@@ -243,12 +250,12 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     expect(exists(renderer, 'share-main-tabs')).toBe(false);
     expect(exists(renderer, 'share-ways-section')).toBe(false);
     const headers = renderer.root.findAll(node => node.type === Text && node.props.accessibilityRole === 'header').map(node => node.props.children);
-    expect(headers).toEqual(['컬렉션 공개', '친구 초대', '접근 비밀번호', '공유 상태']);
-    expect(i18n.t('shareSheet.allUsersTitle')).toBe('컬렉션 공개');
+    expect(headers).toEqual(['공용 컬렉션 설정', '친구 초대', '접근 비밀번호', '참여자']);
+    expect(i18n.t('shareSheet.allUsersTitle')).toBe('공용 컬렉션 설정');
     expect(texts(renderer)).not.toContain('공개 링크 공유');
     expect(i18n.t('shareSheet.inviteTitle')).toBe('친구 초대');
     // No public link yet: the switch is off, shows no OFF / ON words, and there is nothing to share.
-    expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+    expect(publicToggle(renderer).props.accessibilityLabel).toBe('공용 컬렉션 설정');
     expect(publicToggle(renderer).props.accessibilityRole).toBe('switch');
     expect(texts(renderer)).not.toContain('OFF');
     expect(texts(renderer)).not.toContain('ON');
@@ -284,7 +291,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       const renderer = await renderScreen();
       // Off at first: no link, no 공유 중, and no separate 공유 시작 / 공유 중지 buttons any more.
       expect(isPublicOn(renderer)).toBe(false);
-      expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+      expect(publicToggle(renderer).props.accessibilityLabel).toBe('공용 컬렉션 설정');
     expect(publicToggle(renderer).props.accessibilityRole).toBe('switch');
       // The switch alone is the control - no OFF / ON words anywhere.
       expect(texts(renderer)).not.toContain('OFF');
@@ -314,7 +321,11 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(actionStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }));
       expect(actionStyle.backgroundColor).toBeUndefined();
       expect(actionStyle.borderWidth).toBeUndefined();
-      const header = renderer.root.findAll(node => node.type === Text && node.props.children === '컬렉션 공개' && node.props.accessibilityRole === 'header')[0].parent!;
+      let header = renderer.root.findAll(node => node.type === Text && node.props.children === '공용 컬렉션 설정' && node.props.accessibilityRole === 'header')[0].parent!;
+      // Climb past the title cluster (title + info button) to the header row that also holds the switch.
+      while (header.findAll(node => node.props.testID === 'share-public-toggle').length === 0) {
+        header = header.parent!;
+      }
       const headerOrder = header.findAll(node => typeof node.type === 'string' && ['share-link-action', 'share-public-toggle'].includes(node.props.testID))
         .map(node => node.props.testID);
       expect(headerOrder.filter((id, index) => headerOrder.indexOf(id) === index)).toEqual(['share-public-toggle', 'share-link-action']);
@@ -325,7 +336,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       // ON: exactly [switch][share icon], the icon taking its own place after the switch.
       expect(trailing[trailing.length - 1].children).toHaveLength(2);
       // Not in the card body any more (neither in the permission field nor below the description).
-      const permissionField = renderer.root.findAll(node => node.type === Text && node.props.children === '권한')[0].parent!;
+      const permissionField = renderer.root.findAll(node => node.props.testID === 'share-all-users-permission')[0].parent!;
       expect(permissionField.findAll(node => node.props.testID === 'share-link-action')).toHaveLength(0);
       await act(async () => {
         await shareAction.props.onPress();
@@ -370,7 +381,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         expect(shownSwitchValue(renderer)).toBe(true);
         expect(isPublicOn(renderer)).toBe(true);
         expect(publicToggle(renderer).props.accessibilityRole).toBe('switch');
-        expect(publicToggle(renderer).props.accessibilityLabel).toBe('컬렉션 공개');
+        expect(publicToggle(renderer).props.accessibilityLabel).toBe('공용 컬렉션 설정');
         expect(revokeCollectionShare).not.toHaveBeenCalled();
         expect(stopSharingButton(renderer)).toBeTruthy();
         // The visual switch is not a touch target of its own - only the Pressable around it takes the tap.
@@ -971,7 +982,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       jest.mocked(getCollectionShare).mockResolvedValue({ publicId: 'p', shareUrl: 'https://juple.test/c/p', createdAtUtc: '', permission: 'write' });
       jest.mocked(getFriends).mockResolvedValue({ items: [friend('FRND2345', '피카츄')], nextCursor: null });
       const renderer = await renderScreen();
-      const reason = '컬렉션 공개 권한보다 낮은 권한은 부여할 수 없습니다.';
+      const reason = '공용 컬렉션 권한보다 낮은 권한은 부여할 수 없습니다.';
       expect(i18n.t('shareSheet.belowPublicPermission')).toBe(reason);
 
       expect(exists(renderer, 'share-invite-fixed-role')).toBe(false);
@@ -1026,7 +1037,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await act(async () => {
         option('draft-role-FRND2345-viewer').props.onPress();
       });
-      expect(texts(renderer)).toContain('컬렉션 공개 권한보다 낮은 권한은 부여할 수 없습니다.');
+      expect(texts(renderer)).toContain('공용 컬렉션 권한보다 낮은 권한은 부여할 수 없습니다.');
       await press(renderer, 'draft-role-GGGG2345-contributor');
       expect(option('draft-role-GGGG2345-contributor').props.accessibilityState.checked).toBe(true);
 
@@ -1269,70 +1280,92 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(getCollectionParticipants).toHaveBeenCalledTimes(1);
     });
 
-    describe('공유 상태 - List / Grid', () => {
-      beforeEach(() => mockPrefs.clear());
-      const statusToggle = (renderer: Renderer) => byId(renderer, 'share-status').findByType(ViewModeToggle);
-      const setMode = async (renderer: Renderer, mode: 'list' | 'grid') => {
-        await act(async () => {
-          statusToggle(renderer).props.onChange(mode);
-        });
-      };
-
-      it('the List/Grid switch sits on the 공유 상태 title line, at the far end; List is the default', async () => {
-        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
-        const renderer = await renderScreen();
-
-        const toggle = statusToggle(renderer);
-        const headerRow = toggle.parent!;
-        const children = headerRow.children as ReactTestRenderer.ReactTestInstance[];
-        expect(children[children.length - 1] === toggle).toBe(true);
-        expect(headerRow.findAll(node => node.type === Text && node.props.accessibilityRole === 'header' && node.props.children === '공유 상태').length).toBe(1);
-        expect(exists(renderer, 'share-members')).toBe(true);
-        expect(exists(renderer, 'share-members-grid')).toBe(false);
-      });
-
-      it('Grid shows every member as an avatar tile (photo or fallback) with name and role, and keeps the management action on the tile', async () => {
-        jest.mocked(getCollectionParticipants).mockResolvedValue({
-          ...withWriter,
-          participants: [{ ...owner, profileImageUrl: 'https://blob.example.test/p/WNER2345.jpg?sig=1', profileImageVersion: 'v1' }, withWriter.participants[1], withWriter.participants[2]],
-        });
-        const renderer = await renderScreen();
-        await setMode(renderer, 'grid');
-
-        expect(exists(renderer, 'share-members')).toBe(false);
-        const grid = byId(renderer, 'share-members-grid');
-        expect(grid.findAllByType(UserAvatar)).toHaveLength(3);
-        expect(grid.findAllByType(UserAvatar)[0].props.imageUrl).toBe('https://blob.example.test/p/WNER2345.jpg?sig=1');
-        expect(grid.findAllByType(UserAvatar)[1].props.imageUrl ?? null).toBeNull();
-        expect(texts(grid)).toEqual(expect.arrayContaining(['피카츄', '파이리', i18n.t('collections.roleOwner')]));
-        expect(grid.findAllByType(CrownIcon)).toHaveLength(1);
-        // The Owner own tile is not a button; a member tile is - and it opens the same menu as the List "..." button.
-        expect(grid.findAll(node => node.props.testID === 'participant-WNER2345' && typeof node.props.onPress === 'function')).toHaveLength(0);
-        await press(renderer, 'participant-RDER2345');
-        const menu = renderer.root.findByType(ActionMenuDialog);
-        expect(menu.props.visible).toBe(true);
-        expect(menu.props.actions.map((action: { label: string }) => action.label)).toEqual(expect.arrayContaining([i18n.t('shareSheet.changeToWrite')]));
-      });
-
-      it('Grid also covers 초대 대기 (tile = the same cancel / role menu) and saves the choice', async () => {
-        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
-        const renderer = await renderScreen();
-        await setMode(renderer, 'grid');
-        expect(mockPrefs.get('juple.participantViewMode')).toBe('grid');
-
-        await press(renderer, 'share-status-tabs-pending');
-        const grid = byId(renderer, 'share-pending-grid');
-        expect(texts(grid)).toEqual(expect.arrayContaining(['이상해씨']));
-        await press(renderer, 'pending-9');
-        expect(renderer.root.findByType(ActionMenuDialog).props.visible).toBe(true);
-      });
-
-      it('restores a saved Grid choice on the next visit', async () => {
+    describe('참여자 - List only (the management screen)', () => {
+      it('has no List/Grid switch and no Grid tiles, whatever a saved preference says; the rows keep identity, role and "⋯"', async () => {
         mockPrefs.set('juple.participantViewMode', 'grid');
         jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
         const renderer = await renderScreen();
 
-        expect(exists(renderer, 'share-members-grid')).toBe(true);
+        expect(byId(renderer, 'share-status').findAllByType(ViewModeToggle)).toHaveLength(0);
+        expect(exists(renderer, 'share-members-grid')).toBe(false);
+        expect(exists(renderer, 'share-pending-grid')).toBe(false);
+        expect(exists(renderer, 'share-members')).toBe(true);
+        expect(exists(renderer, 'member-actions-RDER2345')).toBe(true);
+        await press(renderer, 'share-status-tabs-pending');
+        expect(exists(renderer, 'share-pending-grid')).toBe(false);
+        expect(exists(renderer, 'pending-actions-9')).toBe(true);
+      });
+    });
+
+    it('the "⋯" popup is action rows only: no name header, an icon before each action, and the same flows', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+      const renderer = await renderScreen();
+
+      await press(renderer, 'member-actions-RDER2345');
+      const menu = renderer.root.findByType(ActionMenuDialog);
+      expect(menu.props.title).toBeUndefined();
+      const actions = menu.props.actions as { label: string; icon?: unknown; destructive?: boolean }[];
+      expect(actions.map(action => action.label)).toEqual([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite'), i18n.t('shareSheet.removeMember')]);
+      expect(actions.every(action => action.icon !== undefined)).toBe(true);
+      expect(actions[0].icon).toBe(CheckIcon);
+      expect(actions[1].icon).toBe(PlusIcon);
+      expect(actions[2].icon).toBe(UserMinusIcon);
+      expect(actions[2].destructive).toBe(true);
+      expect(texts(menu)).not.toContain('피카츄');
+      expect(texts(menu)).toEqual([i18n.t('shareSheet.changeToSubmit'), i18n.t('shareSheet.changeToWrite'), i18n.t('shareSheet.removeMember'), i18n.t('common.cancel')]);
+      // A read-only member's permission icon is the eye; both flows still work from the popup.
+      await act(async () => {
+        menu.props.onCancel();
+      });
+      await chooseFromMenu(renderer, 'member-actions-WRTR2345', i18n.t('shareSheet.changeToRead'));
+      expect(changeCollaboratorRole).toHaveBeenCalledWith(expect.anything(), 5, 'WRTR2345', 'viewer');
+      expect(EyeIcon).toBeDefined();
+      await chooseFromMenu(renderer, 'member-actions-RDER2345', i18n.t('shareSheet.removeMember'));
+      expect(removeCollaborator).not.toHaveBeenCalled();
+    });
+
+    describe('tapping an avatar inspects the person - it never starts a removal', () => {
+      const profile = (renderer: Renderer) => renderer.root.findByType(PersonProfileModal);
+      beforeEach(() => {
+        jest.mocked(getFriendRequests).mockResolvedValue([]);
+        jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+      });
+
+      it('a non-friend (List avatar): user info with a friend-request button; sending asks the server once', async () => {
+        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+        jest.mocked(sendFriendRequest).mockResolvedValue({ requestId: 1, jupleId: 'RDER2345', direction: 'outgoing', createdAtUtc: '' } as never);
+        const renderer = await renderScreen();
+
+        await press(renderer, 'participant-avatar-RDER2345');
+        expect(renderer.root.findAllByType(Modal).some(modal => modal.props.visible && modal.findAll(node => node.props.accessibilityLabel === i18n.t('collaboration.remove')).length > 0)).toBe(false);
+        expect(removeCollaborator).not.toHaveBeenCalled();
+        expect(exists(renderer, 'person-profile')).toBe(true);
+        expect(byId(renderer, 'person-profile-name').props.children).toBe('피카츄');
+        await press(renderer, 'person-profile-send');
+        expect(sendFriendRequest).toHaveBeenCalledWith(expect.anything(), 'RDER2345');
+        expect(exists(renderer, 'person-profile-status-pending')).toBe(true);
+        expect(profile(renderer)).toBeDefined();
+      });
+
+      it('an existing friend: the regular friend detail opens directly (no user-info modal first), no request button', async () => {
+        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+        jest.mocked(getFriends).mockResolvedValue({ items: [friend('RDER2345', '피카츄', '내 친구')], nextCursor: null });
+        const renderer = await renderScreen();
+
+        await press(renderer, 'participant-avatar-RDER2345');
+        expect(exists(renderer, 'friend-detail')).toBe(true);
+        expect(exists(renderer, 'person-profile-send')).toBe(false);
+        expect(removeCollaborator).not.toHaveBeenCalled();
+      });
+
+      it('myself: my identity only - no friend request, no removal', async () => {
+        jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
+        const renderer = await renderScreen();
+
+        await press(renderer, 'participant-avatar-WNER2345');
+        expect(exists(renderer, 'person-profile-status-self')).toBe(true);
+        expect(exists(renderer, 'person-profile-send')).toBe(false);
+        expect(getFriends).not.toHaveBeenCalled();
       });
     });
 
@@ -1403,6 +1436,38 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(exists(renderer, `participant-${accepted.jupleId}`)).toBe(true);
     });
 
+    it('the public card has an info button right after its title; tapping shows the explanation and the switch is unaffected', async () => {
+      const renderer = await renderScreen();
+      const info = renderer.root.findAll(node => node.props.testID === 'share-public-info' && typeof node.props.onPress === 'function')[0];
+
+      expect(info.props.accessibilityLabel).toBe(i18n.t('shareSheet.publicInfoA11y'));
+      expect(info.props.accessibilityRole).toBe('button');
+      const card = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === 'share-all-users');
+      expect(card.findAll(node => node.props.testID === 'share-public-toggle').length).toBeGreaterThan(0);
+      await act(async () => {
+        info.props.onPress();
+      });
+      expect(texts(renderer)).toContain(i18n.t('shareSheet.publicInfo'));
+      expect(isPublicOn(renderer)).toBe(false);
+    });
+
+    it('the public card is titled 공용 컬렉션 설정 and its permission control follows the title directly: three options, no 권한 text, no empty slot', async () => {
+      const renderer = await renderScreen();
+      const card = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === 'share-all-users');
+      expect(i18n.t('shareSheet.allUsersTitle')).toBe('공용 컬렉션 설정');
+      expect(texts(card)).toContain('공용 컬렉션 설정');
+      expect(texts(card)).not.toContain('권한');
+      const segment = card.findAll(node => node.props.testID === 'share-all-users-permission')[0];
+      expect(texts(segment)).toEqual([i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionSubmit'), i18n.t('shareSheet.permissionWrite')]);
+      // The segmented control is the first thing under the header: its field wrapper holds nothing but the control.
+      const field = segment.parent!;
+      expect(StyleSheet.flatten(field.props.style)).toEqual({ gap: spacing.xs });
+      expect(field.children.filter(child => typeof child !== 'string' && child.type === Text)).toHaveLength(0);
+      for (const locale of ['en', 'ja', 'de']) {
+        expect(i18n.getFixedT(locale)('shareSheet.allUsersTitle')).not.toBe('공용 컬렉션 설정');
+      }
+    });
+
     it('공개 링크 공유, 친구 초대 and 공유 상태 are separately outlined cards with room between them', async () => {
       const renderer = await renderScreen();
       const hostById = (testID: string) => renderer.root.find(node => typeof node.type === 'string' && node.props.testID === testID);
@@ -1412,8 +1477,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         // Compact: 12dp inside top/bottom, 14dp at the sides, 10dp to the next card.
         expect(section).toEqual(expect.objectContaining({ paddingVertical: 12, paddingHorizontal: 14, marginBottom: 10 }));
       }
-      // The public link's permission sits under its own 권한 label, inside its card.
-      expect(texts(hostById('share-all-users'))).toContain('권한');
+      // The public link's permission control sits right under the title - no separate 권한 label - inside its card.
+      expect(texts(hostById('share-all-users'))).not.toContain('권한');
       expect(hostById('share-all-users').findAll(node => node.props.testID === 'share-all-users-permission').length).toBeGreaterThan(0);
       expect(hostById('share-all-users-permission').props.accessibilityLabel).toBe('권한');
       expect(hostById('share-all-users-permission').props.accessibilityRole).toBe('radiogroup');

@@ -163,8 +163,8 @@ describe('SharedCollectionScreen - 내 승인 대기 (a signed-in non-member who
     const renderer = await renderScreen();
 
     expect(mockRequest).toHaveBeenCalledWith({ method: 'GET', path: '/api/v1/public-shares/pub-1/submissions/mine' });
-    expect(row(renderer).findByType(Text).props.children).toBe('내 승인 대기 3');
-    expect(row(renderer).props.accessibilityLabel).toBe('내가 보낸 승인 대기 링크 3개 보기');
+    expect(row(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 3');
+    expect(row(renderer).props.accessibilityLabel).toBe('보낸 승인 요청 3개 보기');
     await act(async () => row(renderer).props.onPress());
     expect(mockNavigate).toHaveBeenCalledWith('MyCollectionSubmissions', { publicId: 'pub-1' });
     // Nothing of the Owner's approval UI is here - only the viewer's own status row.
@@ -213,6 +213,6 @@ describe('SharedCollectionScreen - 내 승인 대기 (a signed-in non-member who
       await byId(renderer, 'shared-collection-add-submit').props.onPress();
     });
 
-    expect(row(renderer).findByType(Text).props.children).toBe('내 승인 대기 1');
+    expect(row(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 1');
   });
 });

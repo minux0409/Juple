@@ -54,8 +54,7 @@
     "newLinkReview": "Verifica nuovo link",
     "trash": "Eliminati di recente",
     "collectionSharedItem": "Link condiviso",
-    "collectionSubmissions": "Link in attesa",
-    "myCollectionSubmissions": "Le mie approvazioni in attesa",
+    "myCollectionSubmissions": "Richieste di approvazione inviate",
     "collectionShare": "Condividi",
     "collectionLockSettings": "Blocco raccolte"
   },
@@ -92,7 +91,8 @@
     "retry": "Riprova",
     "deleteConfirmTitle": "Elimina elemento",
     "deleteConfirmMessage": "Eliminare questo elemento? L'operazione non può essere annullata.",
-    "errorDeleteFallback": "Impossibile eliminare l'elemento."
+    "errorDeleteFallback": "Impossibile eliminare l'elemento.",
+    "searchMinHint": "Inserisci almeno 2 caratteri."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} elementi da controllare",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Annulla tutta la selezione",
     "copySelectUpTo": "Seleziona fino a {{max}}",
     "detailItemCount": "Totale: {{count}}",
-    "myPendingSubmissions": "Le mie in attesa {{count}}",
-    "myPendingSubmissionsA11y": "Vedi i miei {{count}} link in attesa di approvazione",
-    "myPendingA11y": "Le mie approvazioni in attesa: {{count}}",
+    "myPendingSubmissions": "Richieste di approvazione inviate {{count}}",
+    "myPendingSubmissionsA11y": "Vedi {{count}}: Richieste di approvazione inviate",
+    "myPendingA11y": "Richieste di approvazione inviate: {{count}}",
     "favoritesTitle": "Preferiti",
     "allCollectionsTitle": "Tutte le raccolte",
     "addFavorite": "Aggiungi ai preferiti",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Salva raccolta",
     "errorColorUpdateFallback": "Impossibile aggiornare il colore.",
     "favoritesEmpty": "Nessun preferito.",
-    "allCollectionsEmpty": "Nessuna raccolta.", "manageAction": "Gestisci raccolta", "itemManageAction": "Altre azioni del link", "addToOther": "Duplica in un’altra raccolta", "moveToOther": "Sposta in un’altra raccolta", "mergeWithOther": "Unisci a un’altra raccolta", "targetPickerTitle": "Seleziona raccolta", "moveTitle": "Sposta link", "moveAction": "Sposta", "moveConfirmMessage": "Spostare questo link in \"{{target}}\"?", "moveError": "Impossibile spostare il link.", "mergeTitle": "Unisci raccolte", "mergeAction": "Unisci", "mergeConfirmMessage": "Unire \"{{source}}\" in \"{{target}}\"? I link verranno uniti e questa raccolta verrà eliminata.", "mergeError": "Impossibile unire la raccolta.", "errorTargetLoadFallback": "Impossibile caricare le raccolte.",
+    "allCollectionsEmpty": "Nessuna raccolta.",
+    "manageAction": "Gestisci raccolta",
+    "itemManageAction": "Altre azioni del link",
+    "addToOther": "Duplica in un’altra raccolta",
+    "moveToOther": "Sposta in un’altra raccolta",
+    "mergeWithOther": "Unisci a un’altra raccolta",
+    "targetPickerTitle": "Seleziona raccolta",
+    "moveTitle": "Sposta link",
+    "moveAction": "Sposta",
+    "moveConfirmMessage": "Spostare questo link in \"{{target}}\"?",
+    "moveError": "Impossibile spostare il link.",
+    "mergeTitle": "Unisci raccolte",
+    "mergeAction": "Unisci",
+    "mergeConfirmMessage": "Unire \"{{source}}\" in \"{{target}}\"? I link verranno uniti e questa raccolta verrà eliminata.",
+    "mergeError": "Impossibile unire la raccolta.",
+    "errorTargetLoadFallback": "Impossibile caricare le raccolte.",
     "myCategoriesTab": "Le mie raccolte",
     "sharedCategoriesTab": "Condivise",
     "sharedEmpty": "Ancora nessuna raccolta condivisa.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "Nella raccolta scelta questo link è già in attesa di approvazione.",
     "saveOutcomeAlreadyInCollection": "La raccolta scelta contiene già questo link.",
     "roleSubmitter": "Con approvazione",
-    "pendingSubmissions": "In attesa {{count}}",
-    "pendingSubmissionsA11y": "Vedi {{count}} link in attesa di approvazione",
+    "pendingSubmissions": "Richieste di approvazione ricevute {{count}}",
+    "pendingSubmissionsA11y": "Vedi {{count}}: Richieste di approvazione ricevute",
     "removeFromSharedOwnerOnly": "Solo il proprietario può rimuovere link da una raccolta condivisa con te.",
     "removeFromCollection": "Rimuovi dalla raccolta",
     "iconPhotoChoose": "Scegli foto",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Password di accesso",
     "sharePasswordWrong": "La password non è corretta.",
     "sharePasswordContactOwner": "Chiedi la password di accesso a chi ha condiviso questa raccolta.",
-    "sharePasswordRequiredForAction": "Apri prima la raccolta e inserisci la password di accesso."
+    "sharePasswordRequiredForAction": "Apri prima la raccolta e inserisci la password di accesso.",
+    "sortNameAscA11y": "Nome, dalla A alla Z",
+    "sortNameDescA11y": "Nome, dalla Z alla A"
   },
-  "toast": { "moveSuccess": "Spostato.", "undoAction": "Annulla", "undoMoveError": "Impossibile annullare lo spostamento.", "deleteSuccess": "Eliminato.", "undoDeleteError": "Impossibile annullare l'eliminazione.", "unlinkSuccess": "Rimosso dalla raccolta.", "undoUnlinkError": "Impossibile annullare la rimozione dalla raccolta.", "collectionDeleteSuccess": "Raccolta eliminata.", "undoCollectionDeleteError": "Impossibile annullare l'eliminazione della raccolta.", "collectionMergeSuccess": "Raccolta unita.", "undoCollectionMergeError": "Impossibile annullare l'unione della raccolta." },
+  "toast": {
+    "moveSuccess": "Spostato.",
+    "undoAction": "Annulla",
+    "undoMoveError": "Impossibile annullare lo spostamento.",
+    "deleteSuccess": "Eliminato.",
+    "undoDeleteError": "Impossibile annullare l'eliminazione.",
+    "unlinkSuccess": "Rimosso dalla raccolta.",
+    "undoUnlinkError": "Impossibile annullare la rimozione dalla raccolta.",
+    "collectionDeleteSuccess": "Raccolta eliminata.",
+    "undoCollectionDeleteError": "Impossibile annullare l'eliminazione della raccolta.",
+    "collectionMergeSuccess": "Raccolta unita.",
+    "undoCollectionMergeError": "Impossibile annullare l'unione della raccolta."
+  },
   "myPage": {
     "title": "Il mio profilo",
-    "settings": "Impostazioni",
     "signOutConfirmTitle": "Uscire?",
     "signOutConfirmMessage": "Dovrai accedere di nuovo per continuare.",
     "deleteAccountErrorFallback": "Impossibile eliminare il tuo account. Riprova.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Lingua",
-    "quickSaveOnShare": "Salva istantaneamente alla condivisione",
-    "quickSaveOnShareOnDescription": "Condividere un link da YouTube, Instagram e altre app lo salva subito in Juple senza aprire l'app.",
-    "quickSaveOnShareOffDescription": "Dopo la condivisione, Juple si apre per permetterti di verificare i dettagli del link e scegliere una raccolta prima di salvare.",
+    "quickSaveOnShare": "Salvataggio rapido",
+    "quickSaveOnShareOnDescription": "I link che condividi con Juple da altre app vengono salvati subito, senza schermata di revisione.",
+    "quickSaveOnShareOffDescription": "I link che condividi con Juple aprono una schermata di revisione in cui controlli i dettagli e scegli una raccolta prima di salvare.",
     "trash": "Eliminati di recente",
     "collectionLock": "Blocco raccolte",
     "collectionLockDescription": "Imposta una password per le tue raccolte.",
@@ -521,7 +549,10 @@
     "limitNotice": "Puoi visualizzare fino alle tue {{count}} eliminazioni più recenti.",
     "restoreConfirmTitle": "Ripristinare?",
     "restoreConfirmMessage": "Il link eliminato verrà ripristinato.",
-    "restoreConfirmAction": "Ripristina"
+    "restoreConfirmAction": "Ripristina",
+    "openLink": "Apri link",
+    "moreA11y": "Altre azioni",
+    "emptyA11y": "Svuota eliminati di recente"
   },
   "collaboration": {
     "jupleIdLabel": "ID Juple",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "Aggiungi {{count}}",
     "alreadyMember": "Già presente",
     "alreadyAdded": "Aggiunto",
-    "allUsersTitle": "Raccolta pubblica",
+    "allUsersTitle": "Impostazioni raccolta pubblica",
     "belowPublicPermission": "Non puoi assegnare un permesso inferiore al permesso pubblico della raccolta.",
     "permissionLabel": "Permesso",
     "publicOn": "ON",
@@ -623,7 +654,7 @@
     "inviteTitle": "Invita amici",
     "inviteTabFriends": "Amici",
     "inviteTabId": "ID",
-    "statusTitle": "Stato condivisione",
+    "statusTitle": "Partecipanti",
     "statusTabMembers": "Condivisa {{count}}",
     "statusTabPending": "In attesa {{count}}",
     "permissionMismatch": "Qualcuno ha un permesso inferiore a questo permesso pubblico, quindi non può essere applicato.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Modifica insieme",
     "reviewMembers": "Vedi le persone",
     "selectedCount": "{{count}} selezionati",
-    "addPersonToInviteList": "Aggiungi {{name}} all’elenco degli inviti"
+    "addPersonToInviteList": "Aggiungi {{name}} all’elenco degli inviti",
+    "publicInfo": "Chiunque conosca il link della raccolta può accedervi.\nPuoi impostare un permesso comune per chi accede e assegnare separatamente un permesso superiore alle persone invitate direttamente.\nI permessi si possono modificare anche dall’elenco dei partecipanti.",
+    "publicInfoA11y": "Info sulla raccolta pubblica"
   },
   "linkShare": {
     "description": "Inoltra il link della raccolta pubblica. Chi lo riceve non diventa partecipante di questa raccolta.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "Rimuovi {{name}}"
   },
   "submissions": {
-    "empty": "Nessun link in attesa di approvazione.",
-    "myEmpty": "Nessuno dei miei link è in attesa di approvazione.",
-    "myLoadError": "Impossibile caricare i miei link in attesa.",
+    "empty": "Richieste di approvazione ricevute: nessuna",
+    "myEmpty": "Richieste di approvazione inviate: nessuna",
+    "myLoadError": "Impossibile caricare le richieste inviate.",
     "myStatus": "In attesa di approvazione",
     "loadError": "Impossibile caricare i link in attesa.",
     "approve": "Approva",
@@ -662,7 +695,20 @@
     "unavailable": "Questa richiesta non può più essere approvata.",
     "viaPublicLink": "Proposto tramite il link pubblico",
     "approveA11y": "Approva {{title}}",
-    "rejectA11y": "Rifiuta {{title}}"
+    "rejectA11y": "Rifiuta {{title}}",
+    "mySheetTitle": "Richieste di approvazione inviate",
+    "ownerSheetTitle": "Richieste di approvazione ricevute",
+    "cancelRequest": "Annulla richiesta",
+    "cancelRequestA11y": "Annulla la richiesta di approvazione per {{title}}",
+    "cancelRequestConfirm": "Annullare la richiesta di approvazione?",
+    "cancelRequestConfirmMessage": "Il link scomparirà anche dall'elenco di approvazione del proprietario della raccolta.",
+    "keepRequest": "Mantieni richiesta",
+    "alreadyProcessed": "Questa richiesta è già stata gestita.",
+    "alreadyCancelledOrProcessed": "Questa richiesta è già stata annullata o gestita.",
+    "cancelFailed": "Impossibile annullare la richiesta. Riprova.",
+    "sharedCollectionShort": "Raccolta condivisa",
+    "approveConfirmTitle": "Approvare questa richiesta di link?",
+    "approveConfirmMessage": "Con l’approvazione il link viene aggiunto alla raccolta."
   },
   "friends": {
     "title": "Amici",
@@ -679,7 +725,7 @@
     "loadFallback": "Impossibile caricare gli amici.",
     "empty": "Ancora nessun amico.",
     "searchEmpty": "Nessun amico corrisponde.",
-    "note": "La mia nota",
+    "note": "Nota",
     "noteInvalid": "Usa al massimo 200 caratteri su una sola riga.",
     "remove": "Rimuovi amico",
     "removeConfirmTitle": "Rimuovere questo amico?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Nessuna richiesta di amicizia ricevuta.",
     "outgoingEmpty": "Nessuna richiesta di amicizia inviata.",
     "requestPending": "Richiesta in attesa",
-    "noteHelper": "Visibile solo a te",
     "lookupHint": "Trova un amico con il suo ID Juple.",
     "incomingFromThem": "Questa persona ti ha inviato una richiesta di amicizia.",
     "viewIncoming": "Vedi richieste ricevute",
     "acceptA11y": "Accetta la richiesta di amicizia di {{name}}",
     "declineA11y": "Rifiuta la richiesta di amicizia di {{name}}",
-    "cancelA11y": "Annulla la richiesta di amicizia a {{name}}"
+    "cancelA11y": "Annulla la richiesta di amicizia a {{name}}",
+    "personTitle": "Info utente",
+    "you": "Tu"
   },
   "notifications": {
     "title": "Notifiche",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Notifiche, {{count}} non lette",
     "bannerAnnouncement": "Nuova notifica: {{title}}. {{body}}",
     "bannerHint": "Tocca per aprire. Scorri verso l’alto per chiudere."
+  },
+  "contact": {
+    "title": "Contattaci",
+    "description": "Per qualsiasi richiesta su Juple, scrivici un'email.",
+    "sendEmail": "Invia email",
+    "subject": "Richiesta su Juple",
+    "noMailApp": "Impossibile aprire un'app di posta. Scrivi direttamente a {{email}}.",
+    "copyEmail": "Copia indirizzo email"
   }
 }

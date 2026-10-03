@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   type ScrollViewInstance,
@@ -35,10 +34,8 @@ import {
   type JupleIdLookupResult,
 } from '../collections/api/collaborationApi';
 import { OwnerCrown } from '../collections/CollectionParticipantsSheet';
+import { SearchIconButton } from '../components/SearchIconButton';
 import { UserAvatar } from '../components/UserAvatar';
-import { ViewModeToggle } from '../components/ViewModeToggle';
-import { ParticipantGrid } from '../collections/ParticipantGrid';
-import { useViewModePreference } from '../settings/viewModePreference';
 import {
   enableCollectionShare,
   getCollection,
@@ -60,7 +57,12 @@ import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/Act
 import { useAppToast } from '../components/AppToast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
+import { InfoCallout } from '../components/InfoCallout';
+import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
+import { EyeIcon } from '../icons/EyeIcon';
+import { UserMinusIcon } from '../icons/UserMinusIcon';
+import { usePersonProfile, type PersonProfileTarget } from '../friends/PersonProfileModal';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { MoreIcon } from '../icons/MoreIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
@@ -72,6 +74,7 @@ import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionShare'>;
 
@@ -346,7 +349,7 @@ function Segmented<T extends string>({
 }
 
 /**
- * The 컬렉션 공개 on/off: the same switch look as the 접근 비밀번호 card's - no OFF / ON words - but
+ * The 공용 컬렉션 설정 on/off: the same switch look as the 접근 비밀번호 card's - no OFF / ON words - but
  * driven by a Pressable around a purely visual, touch-less Switch. A native Switch flips itself on
  * touch BEFORE any JS runs, so with a confirmation in between (ON -> stop sharing?) it showed
  * ON -> OFF -> ON again. Here the Switch only ever shows the `value` it is given: a tap just reports
@@ -363,7 +366,7 @@ function PublicToggle({
   readonly value: boolean;
   readonly onChange: (next: boolean) => void;
   readonly disabled?: boolean;
-  /** What is switched (e.g. 컬렉션 공개), announced with the switch. */
+  /** What is switched (e.g. 공용 컬렉션 설정), announced with the switch. */
   readonly label: string;
   readonly testID: string;
 }) {
@@ -390,6 +393,7 @@ function SectionCard({
   title,
   count,
   trailing,
+  titleAccessory,
   children,
   testID,
 }: {
@@ -398,6 +402,8 @@ function SectionCard({
   readonly count?: string;
   /** A control at the end of the header - e.g. the public link's on/off switch. */
   readonly trailing?: ReactNode;
+  /** Right after the title text (e.g. an info button). */
+  readonly titleAccessory?: ReactNode;
   readonly children: ReactNode;
   readonly testID: string;
 }) {
@@ -405,7 +411,14 @@ function SectionCard({
     <View style={styles.card} testID={testID}>
       <View style={styles.cardHeader}>
         <View style={styles.cardIcon}>{icon}</View>
-        <Text accessibilityRole="header" numberOfLines={2} style={styles.cardTitle}>{title}</Text>
+        {titleAccessory ? (
+          <View style={styles.titleCluster}>
+            <Text accessibilityRole="header" numberOfLines={2} style={[styles.cardTitle, styles.cardTitleInCluster]}>{title}</Text>
+            {titleAccessory}
+          </View>
+        ) : (
+          <Text accessibilityRole="header" numberOfLines={2} style={styles.cardTitle}>{title}</Text>
+        )}
         {count !== undefined ? <Text style={[styles.cardCount, ltrTextStyle]} testID={`${testID}-count`}>{count}</Text> : null}
         {trailing}
       </View>
@@ -417,7 +430,7 @@ function SectionCard({
 /**
  * The one place for sharing a Collection (Owner only). The ways of sharing are independent and can
  * be used together, so each is its own card, always shown (never tabs that look like a choice):
- * - 컬렉션 공개: the public link and its 권한 - [읽기 전용] (anyone with the link views, signed in
+ * - 공용 컬렉션 설정: the public link and its 권한 - [읽기 전용] (anyone with the link views, signed in
  *   or not) or [링크 추가 가능] (additionally, holders SIGNED IN to Juple may add their own links -
  *   never anonymously). "공유 중" on the card while the link is on.
  * - 친구 초대: [친구] | [ID] tabs feeding one batch of any size; each person gets 읽기 전용 (viewer)
@@ -452,7 +465,6 @@ export function CollectionShareScreen({ route }: Props) {
   const [sharePasswordMode, setSharePasswordMode] = useState<SharePasswordMode | null>(null);
   const [isUnshareConfirmVisible, setIsUnshareConfirmVisible] = useState(false);
   // Shared with the participants popup: the same people, so the same List/Grid choice.
-  const { viewMode: participantViewMode, changeViewMode: changeParticipantViewMode } = useViewModePreference('participantViewMode');
   const publicToggleBusyRef = useRef(false);
   // A public permission that someone below it stands in the way of: the Owner is asked whether to raise
   // them too (nothing changes until they say yes; no is "never mind" - the selector stays as it was).
@@ -877,6 +889,7 @@ export function CollectionShareScreen({ route }: Props) {
           .filter(role => role !== managed.role && raiseToMinimum(role, minimumRole) === role)
           .map(role => ({
             label: t(role === 'viewer' ? 'shareSheet.changeToRead' : role === 'submitter' ? 'shareSheet.changeToSubmit' : 'shareSheet.changeToWrite'),
+            icon: role === 'viewer' ? EyeIcon : role === 'submitter' ? CheckIcon : PlusIcon,
             onPress: () => {
               const person = managed;
               setManaged(null);
@@ -886,6 +899,7 @@ export function CollectionShareScreen({ route }: Props) {
         managed.kind === 'member'
           ? {
               label: t('shareSheet.removeMember'),
+              icon: UserMinusIcon,
               destructive: true,
               onPress: () => {
                 const person = managed;
@@ -895,6 +909,7 @@ export function CollectionShareScreen({ route }: Props) {
             }
           : {
               label: t('shareSheet.cancelInvitation'),
+              icon: CloseIcon,
               destructive: true,
               onPress: () => {
                 const person = managed;
@@ -921,6 +936,20 @@ export function CollectionShareScreen({ route }: Props) {
     </View>
   );
 
+  const { openProfile, profileModal } = usePersonProfile();
+  /** A person's avatar: tapping it inspects them (profile / friend) - never a management action. */
+  const avatarButton = (person: PersonProfileTarget & { readonly displayName?: string | null }, testID: string) => (
+    <Pressable
+      accessibilityLabel={`${personLabel(person)}, ${t('friends.personTitle')}`}
+      accessibilityRole="button"
+      hitSlop={4}
+      onPress={() => openProfile(person)}
+      testID={testID}
+    >
+      <UserAvatar displayName={person.displayName} imageUrl={person.profileImageUrl} imageVersion={person.profileImageVersion} jupleId={person.jupleId} size={STATUS_AVATAR_SIZE} />
+    </Pressable>
+  );
+
   const moreButton = (label: string, onPress: () => void, testID: string) => (
     <Pressable
       accessibilityLabel={t('shareSheet.memberActionsA11y', { name: label })}
@@ -937,20 +966,21 @@ export function CollectionShareScreen({ route }: Props) {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
-      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+      <KeyboardSafeView style={styles.flex}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
         {isLoading && !participants ? <ActivityIndicator style={styles.loading} /> : null}
         {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
 
         {participants ? (
           <View ref={contentRef} testID="share-unified">
-            {/* A. 컬렉션 공개: [ON/OFF switch] at the end of the header - the setting only. Passing the
+            {/* A. 공용 컬렉션 설정: [ON/OFF switch] at the end of the header - the setting only. Passing the
                 link on is its own compact action at the card's bottom end, well away from the switch
                 (a tap meant for the switch must never share). The URL itself is not shown. */}
             <SectionCard
               icon={<GlobeIcon color={colors.textSecondary} size={16} />}
               testID="share-all-users"
               title={t('shareSheet.allUsersTitle')}
+              titleAccessory={<InfoCallout accessibilityLabel={t('shareSheet.publicInfoA11y')} message={t('shareSheet.publicInfo')} testID="share-public-info" />}
               trailing={
                 <View style={styles.headerTrailing}>
                   {/* On creates the link (the server's own enable), off stops it after a confirmation. */}
@@ -985,7 +1015,7 @@ export function CollectionShareScreen({ route }: Props) {
               }
             >
               <View style={styles.field}>
-                <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
+                {/* No separate 권한 heading: the options themselves (읽기 전용 / 승인 후 추가 / 링크 추가) say what this is. */}
                 <Segmented
                   accessibilityLabel={t('shareSheet.permissionLabel')}
                   disabled={isManagingShare}
@@ -1074,16 +1104,13 @@ export function CollectionShareScreen({ route }: Props) {
                       testID="id-invite-input"
                       value={idInput}
                     />
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: inviteDisabled || !idInput.trim() }}
-                      disabled={inviteDisabled || !idInput.trim() || idLookup.status === 'lookingUp'}
+                    <SearchIconButton
+                      accessibilityLabel={t('collaboration.find')}
+                      disabled={inviteDisabled || !idInput.trim()}
+                      isLoading={idLookup.status === 'lookingUp'}
                       onPress={findById}
-                      style={[styles.secondaryButton, (inviteDisabled || !idInput.trim()) && styles.disabled]}
                       testID="id-invite-find"
-                    >
-                      {idLookup.status === 'lookingUp' ? <ActivityIndicator size="small" /> : <Text numberOfLines={1} style={styles.secondaryLabel}>{t('collaboration.find')}</Text>}
-                    </Pressable>
+                    />
                   </View>
                   {idLookup.status === 'found' && idLookup.person ? (
                     // Who and "+" on one line, then 권한 over their permission - the same shape as a
@@ -1194,8 +1221,6 @@ export function CollectionShareScreen({ route }: Props) {
               icon={<PeopleIcon color={colors.textSecondary} size={16} />}
               testID="share-status"
               title={t('shareSheet.statusTitle')}
-              // 공유 상태 ........ [List/Grid] on the title's own line, the switch at the far end.
-              trailing={<ViewModeToggle onChange={changeParticipantViewMode} value={participantViewMode} />}
             >
               <Segmented
                 kind="tabs"
@@ -1207,62 +1232,14 @@ export function CollectionShareScreen({ route }: Props) {
                 testID="share-status-tabs"
                 value={statusTab}
               />
-              {statusTab === 'members' && participantViewMode === 'grid' ? (
-                <ParticipantGrid
-                  testID="share-members-grid"
-                  tiles={members.map(member => {
-                    const kind = memberRoleOf(member.role);
-                    const label = member.isMe ? t('collections.participantMe', { name: personLabel(member) }) : personLabel(member);
-                    const roleText = kind === 'owner' ? t('collections.roleOwner') : t(roleLabelKey(kind));
-                    return {
-                      key: member.jupleId,
-                      jupleId: member.jupleId,
-                      displayName: member.displayName,
-                      imageUrl: member.profileImageUrl,
-                      imageVersion: member.profileImageVersion,
-                      isOwner: kind === 'owner',
-                      name: label,
-                      detail: roleText,
-                      // The same action as the List row's "⋯": change role / remove.
-                      onPress: kind !== 'owner' && isOwnerView && busyKey === null
-                        ? () => setManaged({ kind: 'member', jupleId: member.jupleId, label: personLabel(member), role: kind })
-                        : undefined,
-                      accessibilityLabel: kind !== 'owner' && isOwnerView
-                        ? t('shareSheet.memberActionsA11y', { name: personLabel(member) })
-                        : `${label}, ${roleText}`,
-                      testID: `participant-${member.jupleId}`,
-                    };
-                  })}
-                />
-              ) : statusTab === 'pending' && participantViewMode === 'grid' && pendingInvitations.length > 0 ? (
-                <ParticipantGrid
-                  testID="share-pending-grid"
-                  tiles={pendingInvitations.map(invitation => {
-                    const role = invitationRoleOf(invitation.role);
-                    return {
-                      key: `invitation-${invitation.invitationId}`,
-                      jupleId: invitation.jupleId,
-                      displayName: invitation.displayName,
-                      imageUrl: invitation.profileImageUrl,
-                      imageVersion: invitation.profileImageVersion,
-                      name: personLabel(invitation),
-                      detail: `${t(roleLabelKey(role))} · ${t('shareSheet.pendingStatus')}`,
-                      onPress: busyKey === null
-                        ? () => setManaged({ kind: 'pending', invitationId: invitation.invitationId, label: personLabel(invitation), role })
-                        : undefined,
-                      accessibilityLabel: t('shareSheet.memberActionsA11y', { name: personLabel(invitation) }),
-                      testID: `pending-${invitation.invitationId}`,
-                    };
-                  })}
-                />
-              ) : statusTab === 'members' ? (
+              {statusTab === 'members' ? (
                 <View testID="share-members">
                   {members.map((member, index) => {
                     const kind = memberRoleOf(member.role);
                     const label = member.isMe ? t('collections.participantMe', { name: personLabel(member) }) : personLabel(member);
                     return (
                       <View key={member.jupleId} style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]} testID={`participant-${member.jupleId}`}>
-                        <UserAvatar displayName={member.displayName} imageUrl={member.profileImageUrl} imageVersion={member.profileImageVersion} jupleId={member.jupleId} size={STATUS_AVATAR_SIZE} />
+                        {avatarButton({ jupleId: member.jupleId, displayName: member.displayName, profileImageUrl: member.profileImageUrl, profileImageVersion: member.profileImageVersion, isSelf: member.isMe }, `participant-avatar-${member.jupleId}`)}
                         {kind === 'owner' ? <OwnerCrown /> : null}
                         {personText(member, label)}
                         <RoleBadge kind={kind} testID={`participant-role-${member.jupleId}`} />
@@ -1283,7 +1260,7 @@ export function CollectionShareScreen({ route }: Props) {
                       const role = invitationRoleOf(invitation.role);
                       return (
                         <View key={invitation.invitationId} style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]} testID={`pending-${invitation.invitationId}`}>
-                          <UserAvatar displayName={invitation.displayName} imageUrl={invitation.profileImageUrl} imageVersion={invitation.profileImageVersion} jupleId={invitation.jupleId} size={STATUS_AVATAR_SIZE} />
+                          {avatarButton({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion }, `pending-avatar-${invitation.invitationId}`)}
                           <View style={styles.personText}>
                             <Text numberOfLines={1} style={styles.personName}>{personLabel(invitation)}</Text>
                             <Text numberOfLines={1} style={styles.pendingStatus}>
@@ -1304,7 +1281,7 @@ export function CollectionShareScreen({ route }: Props) {
           </View>
         ) : null}
       </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
       <FriendPickerModal
         authenticatedRequest={authenticatedRequest}
         onClose={() => setIsFriendPickerVisible(false)}
@@ -1312,11 +1289,11 @@ export function CollectionShareScreen({ route }: Props) {
         unavailable={unavailableFriends}
         visible={isFriendPickerVisible}
       />
+      {profileModal}
       <ActionMenuDialog
         actions={menuActions}
         cancelLabel={t('common.cancel')}
         onCancel={() => setManaged(null)}
-        title={managed?.label}
         visible={managed !== null}
       />
       <ConfirmDialog
@@ -1425,6 +1402,8 @@ const styles = StyleSheet.create({
   actionError: { marginBottom: spacing.sm + 2 },
   cardHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   cardIcon: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
+  titleCluster: { alignItems: 'center', flex: 1, flexDirection: 'row', minWidth: 0 },
+  cardTitleInCluster: { flex: 0, flexShrink: 1 },
   cardTitle: { color: colors.textPrimary, flex: 1, flexShrink: 1, fontSize: 15, fontWeight: '600' },
   cardCount: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   // Never wider than about half a row, so the person's name always keeps its own share of the line.

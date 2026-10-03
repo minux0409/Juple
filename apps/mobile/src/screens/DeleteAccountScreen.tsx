@@ -12,6 +12,7 @@ import { formatJupleId } from '../collections/api/collaborationApi';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { RECENT_AUTHENTICATION_REQUIRED_CODE } from '../settings/CollectionLockPasswordDialog';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Step = 'warning' | 'reauthenticate' | 'confirm';
 
@@ -123,6 +124,7 @@ export function DeleteAccountScreen() {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
+      <KeyboardSafeView>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {step === 'warning' ? (
           <View testID="delete-account-warning">
@@ -213,6 +215,7 @@ export function DeleteAccountScreen() {
           <Text style={styles.cancelLabel}>{t('common.cancel')}</Text>
         </Pressable>
       </ScrollView>
+      </KeyboardSafeView>
     </StackScreenSafeArea>
   );
 }

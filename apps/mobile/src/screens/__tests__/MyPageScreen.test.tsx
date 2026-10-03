@@ -4,6 +4,8 @@ import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
 import { useAuth } from '../../auth/AuthContext';
 import { deleteAccount } from '../../api/accountApi';
+import { ScreenTitle } from '../../components/ScreenTitle';
+import { screenIcons } from '../../navigation/screenIcons';
 
 jest.mock('../../auth/AuthContext', () => ({
   useAuth: jest.fn(),
@@ -111,6 +113,70 @@ describe('MyPageScreen settings entry points', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('Trash');
+  });
+
+  it('has no 설정 heading - the rows (language, Quick Save, friends, lock, trash, account, contact, logout) are not all settings', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    expect(findTextValues(renderer)).not.toContain('설정');
+    // The profile card is followed directly by the one card of rows (no generic section heading in between).
+    const labels = [
+      i18n.t('settings.language'),
+      i18n.t('settings.quickSaveOnShare'),
+      i18n.t('friends.title'),
+      i18n.t('settings.collectionLock'),
+      i18n.t('settings.trash'),
+      i18n.t('account.title'),
+      i18n.t('contact.title'),
+      i18n.t('auth.logout'),
+    ];
+    const shown = findTextValues(renderer);
+    const positions = labels.map(label => shown.indexOf(label));
+    expect(positions.every(position => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it('calls 공유 즉시 저장 by its new name 빠른 저장 (never 자동 저장), described as sharing into Juple', async () => {
+    await i18n.changeLanguage('ko');
+    try {
+      mockUseAuth({ userEmail: null });
+      const renderer = await renderScreen();
+
+      expect(i18n.t('settings.quickSaveOnShare')).toBe('빠른 저장');
+      expect(findTextValues(renderer)).toContain('빠른 저장');
+      expect(findTextValues(renderer)).toContain('다른 앱에서 Juple로 공유한 링크를 검토 화면 없이 바로 저장합니다.');
+      const everyKoreanValue = JSON.stringify(require('../../i18n/locales/ko.json'));
+      expect(everyKoreanValue).not.toContain('공유 즉시 저장');
+      expect(everyKoreanValue).not.toContain('자동 저장');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
+  it('has a 문의하기 row that opens the Contact screen', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    const row = renderer.root.findByProps({ testID: 'my-contact' });
+    expect(row.findAllByType(Text).map(node => node.props.children)).toContain(i18n.t('contact.title'));
+    await act(async () => {
+      row.props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('Contact');
+  });
+
+  it('shows the same icons as the matching tab / screen titles (one icon per navigation item)', async () => {
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    const iconTypes = (testID: string) => renderer.root.findByProps({ testID }).findAll(node => node.type === screenIcons.friends || node.type === screenIcons.collectionLock || node.type === screenIcons.account || node.type === screenIcons.contact).map(node => node.type);
+    expect(iconTypes('my-friends')).toContain(screenIcons.friends);
+    expect(iconTypes('my-collection-lock')).toContain(screenIcons.collectionLock);
+    expect(iconTypes('my-account-management')).toContain(screenIcons.account);
+    expect(iconTypes('my-contact')).toContain(screenIcons.contact);
+    expect(renderer.root.findAllByType(ScreenTitle)[0].props.icon).toBe(screenIcons.myPage);
   });
 
   it('has a 계정 관리 row that opens Account Management', async () => {

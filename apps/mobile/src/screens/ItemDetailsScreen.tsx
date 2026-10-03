@@ -3,7 +3,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Linking,
   ScrollView,
   type ScrollViewInstance,
@@ -58,6 +57,7 @@ import {
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -710,8 +710,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      {/* Keeps the comment field above the keyboard - only where there is one (edge-to-edge Android does not resize the window itself). */}
-      <KeyboardAvoidingView behavior="padding" enabled={isCollaborative} style={styles.keyboardAvoider}>
+      {/* Keeps whatever is being typed (the memo, the comment field) above the keyboard - edge-to-edge Android does not resize the window itself. */}
+      <KeyboardSafeView style={styles.keyboardAvoider}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
         <ContentPreviewCard
           onChangeTitle={text => {
@@ -813,7 +813,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           </Text>
         </Pressable>
       </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
 
       {messageDialog}
       <ConfirmDialog

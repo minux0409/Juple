@@ -65,9 +65,6 @@ export function navigateWithRootNavigator(action: NotificationNavigationAction):
     case 'CollectionDetails':
       navigationRef.navigate('CollectionDetails', action.params);
       return;
-    case 'CollectionSubmissions':
-      navigationRef.navigate('CollectionSubmissions', action.params);
-      return;
     case 'SharedCollection':
       navigationRef.navigate('SharedCollection', action.params);
       return;

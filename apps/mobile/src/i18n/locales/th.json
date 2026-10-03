@@ -54,8 +54,7 @@
     "newLinkReview": "ตรวจสอบลิงก์ใหม่",
     "trash": "ลบล่าสุด",
     "collectionSharedItem": "ลิงก์ที่แชร์",
-    "collectionSubmissions": "ลิงก์ที่รออนุมัติ",
-    "myCollectionSubmissions": "รออนุมัติของฉัน",
+    "myCollectionSubmissions": "คำขออนุมัติที่ส่ง",
     "collectionShare": "แชร์",
     "collectionLockSettings": "ล็อกคอลเลกชัน"
   },
@@ -92,7 +91,8 @@
     "retry": "ลองอีกครั้ง",
     "deleteConfirmTitle": "ลบรายการ",
     "deleteConfirmMessage": "ลบรายการนี้หรือไม่? ไม่สามารถย้อนกลับได้หลังจากลบแล้ว",
-    "errorDeleteFallback": "ไม่สามารถลบรายการได้"
+    "errorDeleteFallback": "ไม่สามารถลบรายการได้",
+    "searchMinHint": "กรุณาพิมพ์อย่างน้อย 2 ตัวอักษร"
   },
   "collections": {
     "attentionA11y": "{{name}} มี {{count}} รายการที่ต้องดู",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "ยกเลิกการเลือกทั้งหมด",
     "copySelectUpTo": "เลือกได้สูงสุด {{max}}",
     "detailItemCount": "ทั้งหมด {{count}}",
-    "myPendingSubmissions": "รออนุมัติของฉัน {{count}}",
-    "myPendingSubmissionsA11y": "ดูลิงก์ของฉัน {{count}} รายการที่รออนุมัติ",
-    "myPendingA11y": "รออนุมัติของฉัน: {{count}}",
+    "myPendingSubmissions": "คำขออนุมัติที่ส่ง {{count}}",
+    "myPendingSubmissionsA11y": "ดูคำขออนุมัติที่ส่ง {{count}} รายการ",
+    "myPendingA11y": "คำขออนุมัติที่ส่ง: {{count}}",
     "favoritesTitle": "รายการโปรด",
     "allCollectionsTitle": "คอลเลกชันทั้งหมด",
     "addFavorite": "เพิ่มในรายการโปรด",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "บันทึกคอลเลกชัน",
     "errorColorUpdateFallback": "ไม่สามารถอัปเดตสีได้",
     "favoritesEmpty": "ไม่มีรายการโปรด",
-    "allCollectionsEmpty": "ไม่มีคอลเลกชัน", "manageAction": "จัดการคอลเลกชัน", "itemManageAction": "การดำเนินการลิงก์เพิ่มเติม", "addToOther": "ทำสำเนาไปยังคอลเลกชันอื่น", "moveToOther": "ย้ายไปยังคอลเลกชันอื่น", "mergeWithOther": "รวมกับคอลเลกชันอื่น", "targetPickerTitle": "เลือกคอลเลกชัน", "moveTitle": "ย้ายลิงก์", "moveAction": "ย้าย", "moveConfirmMessage": "ย้ายลิงก์นี้ไปยัง \"{{target}}\" หรือไม่?", "moveError": "ไม่สามารถย้ายลิงก์ได้", "mergeTitle": "รวมคอลเลกชัน", "mergeAction": "รวม", "mergeConfirmMessage": "รวม \"{{source}}\" เข้ากับ \"{{target}}\" หรือไม่? ลิงก์จะถูกรวมกันและคอลเลกชันนี้จะถูกลบ", "mergeError": "ไม่สามารถรวมคอลเลกชันได้", "errorTargetLoadFallback": "ไม่สามารถโหลดคอลเลกชันได้",
+    "allCollectionsEmpty": "ไม่มีคอลเลกชัน",
+    "manageAction": "จัดการคอลเลกชัน",
+    "itemManageAction": "การดำเนินการลิงก์เพิ่มเติม",
+    "addToOther": "ทำสำเนาไปยังคอลเลกชันอื่น",
+    "moveToOther": "ย้ายไปยังคอลเลกชันอื่น",
+    "mergeWithOther": "รวมกับคอลเลกชันอื่น",
+    "targetPickerTitle": "เลือกคอลเลกชัน",
+    "moveTitle": "ย้ายลิงก์",
+    "moveAction": "ย้าย",
+    "moveConfirmMessage": "ย้ายลิงก์นี้ไปยัง \"{{target}}\" หรือไม่?",
+    "moveError": "ไม่สามารถย้ายลิงก์ได้",
+    "mergeTitle": "รวมคอลเลกชัน",
+    "mergeAction": "รวม",
+    "mergeConfirmMessage": "รวม \"{{source}}\" เข้ากับ \"{{target}}\" หรือไม่? ลิงก์จะถูกรวมกันและคอลเลกชันนี้จะถูกลบ",
+    "mergeError": "ไม่สามารถรวมคอลเลกชันได้",
+    "errorTargetLoadFallback": "ไม่สามารถโหลดคอลเลกชันได้",
     "myCategoriesTab": "คอลเลกชันของฉัน",
     "sharedCategoriesTab": "ที่แชร์",
     "sharedEmpty": "ยังไม่มีคอลเลกชันที่แชร์",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "ลิงก์นี้กำลังรออนุมัติอยู่แล้วในคอลเลกชันที่คุณเลือก",
     "saveOutcomeAlreadyInCollection": "คอลเลกชันที่คุณเลือกมีลิงก์นี้อยู่แล้ว",
     "roleSubmitter": "เพิ่มหลังอนุมัติ",
-    "pendingSubmissions": "รออนุมัติ {{count}}",
-    "pendingSubmissionsA11y": "ดูลิงก์ที่รออนุมัติ {{count}} รายการ",
+    "pendingSubmissions": "คำขออนุมัติที่ได้รับ {{count}}",
+    "pendingSubmissionsA11y": "ดูคำขออนุมัติที่ได้รับ {{count}} รายการ",
     "removeFromSharedOwnerOnly": "มีเพียงเจ้าของที่นำลิงก์ออกจากคอลเลกชันที่แชร์กับคุณได้",
     "removeFromCollection": "นำออกจากคอลเลกชัน",
     "iconPhotoChoose": "เลือกรูปภาพ",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "รหัสผ่านการเข้าถึง",
     "sharePasswordWrong": "รหัสผ่านไม่ถูกต้อง",
     "sharePasswordContactOwner": "ขอรหัสผ่านการเข้าถึงจากผู้ที่แชร์คอลเลกชันนี้",
-    "sharePasswordRequiredForAction": "เปิดคอลเลกชันและใส่รหัสผ่านการเข้าถึงก่อน"
+    "sharePasswordRequiredForAction": "เปิดคอลเลกชันและใส่รหัสผ่านการเข้าถึงก่อน",
+    "sortNameAscA11y": "ชื่อ เรียงจาก ก ถึง ฮ",
+    "sortNameDescA11y": "ชื่อ เรียงจาก ฮ ถึง ก"
   },
-  "toast": { "moveSuccess": "ย้ายแล้ว", "undoAction": "เลิกทำ", "undoMoveError": "ไม่สามารถเลิกทำการย้ายได้", "deleteSuccess": "ลบแล้ว", "undoDeleteError": "ไม่สามารถเลิกทำการลบได้", "unlinkSuccess": "นำออกจากคอลเลกชันแล้ว", "undoUnlinkError": "ไม่สามารถเลิกทำการนำออกจากคอลเลกชันได้", "collectionDeleteSuccess": "ลบคอลเลกชันแล้ว", "undoCollectionDeleteError": "ไม่สามารถเลิกทำการลบคอลเลกชันได้", "collectionMergeSuccess": "รวมคอลเลกชันแล้ว", "undoCollectionMergeError": "ไม่สามารถเลิกทำการรวมคอลเลกชันได้" },
+  "toast": {
+    "moveSuccess": "ย้ายแล้ว",
+    "undoAction": "เลิกทำ",
+    "undoMoveError": "ไม่สามารถเลิกทำการย้ายได้",
+    "deleteSuccess": "ลบแล้ว",
+    "undoDeleteError": "ไม่สามารถเลิกทำการลบได้",
+    "unlinkSuccess": "นำออกจากคอลเลกชันแล้ว",
+    "undoUnlinkError": "ไม่สามารถเลิกทำการนำออกจากคอลเลกชันได้",
+    "collectionDeleteSuccess": "ลบคอลเลกชันแล้ว",
+    "undoCollectionDeleteError": "ไม่สามารถเลิกทำการลบคอลเลกชันได้",
+    "collectionMergeSuccess": "รวมคอลเลกชันแล้ว",
+    "undoCollectionMergeError": "ไม่สามารถเลิกทำการรวมคอลเลกชันได้"
+  },
   "myPage": {
     "title": "หน้าของฉัน",
-    "settings": "การตั้งค่า",
     "signOutConfirmTitle": "ออกจากระบบหรือไม่?",
     "signOutConfirmMessage": "คุณจะต้องเข้าสู่ระบบอีกครั้งเพื่อใช้งานต่อ",
     "deleteAccountErrorFallback": "ไม่สามารถลบบัญชีของคุณได้ โปรดลองอีกครั้ง",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "ภาษา",
-    "quickSaveOnShare": "บันทึกทันทีเมื่อแชร์",
-    "quickSaveOnShareOnDescription": "เมื่อแชร์ลิงก์จาก YouTube, Instagram และแอปอื่น ๆ มายัง Juple จะบันทึกทันทีโดยไม่ต้องเปิดแอป",
-    "quickSaveOnShareOffDescription": "หลังจากแชร์ Juple จะเปิดขึ้นเพื่อให้คุณตรวจสอบรายละเอียดลิงก์และเลือกคอลเลกชันก่อนบันทึก",
+    "quickSaveOnShare": "บันทึกด่วน",
+    "quickSaveOnShareOnDescription": "ลิงก์ที่คุณแชร์มายัง Juple จากแอปอื่นจะถูกบันทึกทันที โดยไม่ต้องผ่านหน้าจอตรวจสอบ",
+    "quickSaveOnShareOffDescription": "ลิงก์ที่แชร์มายัง Juple จะเปิดหน้าจอตรวจสอบ ให้คุณดูรายละเอียดและเลือกคอลเลกชันก่อนบันทึก",
     "trash": "ลบล่าสุด",
     "collectionLock": "ล็อกคอลเลกชัน",
     "collectionLockDescription": "ตั้งรหัสผ่านสำหรับคอลเลกชันของคุณ",
@@ -521,7 +549,10 @@
     "limitNotice": "คุณสามารถดูประวัติการลบล่าสุดได้สูงสุด {{count}} รายการ",
     "restoreConfirmTitle": "กู้คืนหรือไม่?",
     "restoreConfirmMessage": "ลิงก์ที่ลบจะถูกกู้คืน",
-    "restoreConfirmAction": "กู้คืน"
+    "restoreConfirmAction": "กู้คืน",
+    "openLink": "เปิดลิงก์",
+    "moreA11y": "การทำงานเพิ่มเติม",
+    "emptyA11y": "ล้างรายการที่ลบล่าสุด"
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "เพิ่ม {{count}} คน",
     "alreadyMember": "เข้าร่วมแล้ว",
     "alreadyAdded": "เพิ่มแล้ว",
-    "allUsersTitle": "เผยแพร่คอลเลกชัน",
+    "allUsersTitle": "การตั้งค่าคอลเลกชันสาธารณะ",
     "belowPublicPermission": "ให้สิทธิ์ต่ำกว่าสิทธิ์สาธารณะของคอลเลกชันไม่ได้",
     "permissionLabel": "สิทธิ์",
     "publicOn": "เปิด",
@@ -623,7 +654,7 @@
     "inviteTitle": "เชิญเพื่อน",
     "inviteTabFriends": "เพื่อน",
     "inviteTabId": "ID",
-    "statusTitle": "สถานะการแชร์",
+    "statusTitle": "ผู้เข้าร่วม",
     "statusTabMembers": "กำลังแชร์ {{count}}",
     "statusTabPending": "รอการตอบรับ {{count}}",
     "permissionMismatch": "มีผู้ใช้ที่มีสิทธิ์ต่ำกว่าสิทธิ์สาธารณะนี้ จึงใช้สิทธิ์นี้ไม่ได้",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "เปลี่ยนพร้อมกัน",
     "reviewMembers": "ดูผู้ที่แชร์",
     "selectedCount": "เลือกแล้ว {{count}} คน",
-    "addPersonToInviteList": "เพิ่ม {{name}} ในรายการเชิญ"
+    "addPersonToInviteList": "เพิ่ม {{name}} ในรายการเชิญ",
+    "publicInfo": "ใครก็ตามที่รู้ลิงก์ของคอลเลกชันก็เข้าถึงคอลเลกชันได้\nคุณตั้งสิทธิ์ร่วมสำหรับผู้ใช้ที่เข้าถึงได้ และกำหนดสิทธิ์ที่สูงกว่าแยกต่างหากให้ผู้ที่เชิญโดยตรงได้\nสามารถแก้ไขสิทธิ์ได้จากรายชื่อผู้เข้าร่วมด้วย",
+    "publicInfoA11y": "เกี่ยวกับคอลเลกชันสาธารณะ"
   },
   "linkShare": {
     "description": "ส่งต่อลิงก์คอลเลกชันสาธารณะ ผู้รับจะไม่ได้เป็นผู้เข้าร่วมคอลเลกชันนี้",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "นำ {{name}} ออก"
   },
   "submissions": {
-    "empty": "ไม่มีลิงก์ที่รออนุมัติ",
-    "myEmpty": "ไม่มีลิงก์ของฉันที่รออนุมัติ",
-    "myLoadError": "ไม่สามารถโหลดลิงก์ที่รออนุมัติของฉันได้",
+    "empty": "ไม่มีคำขออนุมัติที่ได้รับ",
+    "myEmpty": "ไม่มีคำขออนุมัติที่ส่ง",
+    "myLoadError": "ไม่สามารถโหลดคำขอที่ส่งได้",
     "myStatus": "รออนุมัติ",
     "loadError": "โหลดรายการที่รออนุมัติไม่ได้",
     "approve": "อนุมัติ",
@@ -662,7 +695,20 @@
     "unavailable": "คำขอนี้อนุมัติไม่ได้แล้ว",
     "viaPublicLink": "เสนอผ่านลิงก์สาธารณะ",
     "approveA11y": "อนุมัติ {{title}}",
-    "rejectA11y": "ปฏิเสธ {{title}}"
+    "rejectA11y": "ปฏิเสธ {{title}}",
+    "mySheetTitle": "คำขออนุมัติที่ส่ง",
+    "ownerSheetTitle": "คำขออนุมัติที่ได้รับ",
+    "cancelRequest": "ยกเลิกคำขอ",
+    "cancelRequestA11y": "ยกเลิกคำขออนุมัติสำหรับ {{title}}",
+    "cancelRequestConfirm": "ยกเลิกคำขออนุมัติหรือไม่",
+    "cancelRequestConfirmMessage": "ลิงก์จะหายไปจากรายการรออนุมัติของเจ้าของคอลเลกชันด้วย",
+    "keepRequest": "เก็บคำขอไว้",
+    "alreadyProcessed": "คำขอนี้ได้รับการดำเนินการแล้ว",
+    "alreadyCancelledOrProcessed": "คำขอนี้ถูกยกเลิกหรือดำเนินการไปแล้ว",
+    "cancelFailed": "ไม่สามารถยกเลิกคำขอได้ โปรดลองอีกครั้ง",
+    "sharedCollectionShort": "คอลเลกชันที่แชร์",
+    "approveConfirmTitle": "อนุมัติคำขอลิงก์นี้หรือไม่",
+    "approveConfirmMessage": "เมื่ออนุมัติ ลิงก์นี้จะถูกเพิ่มลงในคอลเลกชัน"
   },
   "friends": {
     "title": "เพื่อน",
@@ -679,7 +725,7 @@
     "loadFallback": "โหลดรายชื่อเพื่อนไม่ได้",
     "empty": "ยังไม่มีเพื่อน",
     "searchEmpty": "ไม่พบเพื่อนที่ตรงกัน",
-    "note": "บันทึกของฉัน",
+    "note": "บันทึก",
     "noteInvalid": "ใช้ได้ไม่เกิน 200 ตัวอักษรในบรรทัดเดียว",
     "remove": "ลบเพื่อน",
     "removeConfirmTitle": "ลบเพื่อนคนนี้หรือไม่",
@@ -692,13 +738,14 @@
     "incomingEmpty": "ไม่มีคำขอเป็นเพื่อนที่ได้รับ",
     "outgoingEmpty": "ไม่มีคำขอเป็นเพื่อนที่ส่งไป",
     "requestPending": "รอการตอบรับ",
-    "noteHelper": "เห็นได้เฉพาะคุณ",
     "lookupHint": "ค้นหาเพื่อนด้วย Juple ID",
     "incomingFromThem": "ผู้ใช้นี้ส่งคำขอเป็นเพื่อนถึงคุณแล้ว",
     "viewIncoming": "ดูคำขอที่ได้รับ",
     "acceptA11y": "ยอมรับคำขอเป็นเพื่อนจาก {{name}}",
     "declineA11y": "ปฏิเสธคำขอเป็นเพื่อนจาก {{name}}",
-    "cancelA11y": "ยกเลิกคำขอเป็นเพื่อนที่ส่งถึง {{name}}"
+    "cancelA11y": "ยกเลิกคำขอเป็นเพื่อนที่ส่งถึง {{name}}",
+    "personTitle": "ข้อมูลผู้ใช้",
+    "you": "คุณ"
   },
   "notifications": {
     "title": "การแจ้งเตือน",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "การแจ้งเตือน ยังไม่ได้อ่าน {{count}} รายการ",
     "bannerAnnouncement": "การแจ้งเตือนใหม่: {{title}} {{body}}",
     "bannerHint": "แตะเพื่อเปิด ปัดขึ้นเพื่อปิด"
+  },
+  "contact": {
+    "title": "ติดต่อเรา",
+    "description": "หากมีข้อสงสัยเกี่ยวกับ Juple โปรดส่งอีเมลถึงเรา",
+    "sendEmail": "ส่งอีเมล",
+    "subject": "สอบถามเกี่ยวกับ Juple",
+    "noMailApp": "ไม่สามารถเปิดแอปอีเมลได้ โปรดส่งอีเมลถึง {{email}} โดยตรง",
+    "copyEmail": "คัดลอกที่อยู่อีเมล"
   }
 }

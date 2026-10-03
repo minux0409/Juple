@@ -11,6 +11,7 @@ import { ShareIcon } from '../icons/ShareIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { formatJupleId, lookupJupleId, personLabel } from './api/collaborationApi';
 import { MAX_LINK_SHARE_RECIPIENTS, sendCollectionShareLink } from './api/collectionsApi';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 /** Someone the link is about to be sent to - picked from friends or found by Juple ID. */
 interface Recipient {
@@ -197,7 +198,7 @@ export function CollectionLinkShareSheet({
         // everything as it was.
         visible={visible && !isPickingFriends}
       >
-        <View style={styles.backdrop}>
+        <KeyboardSafeView style={styles.backdrop}>
           <Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onClose} style={StyleSheet.absoluteFill} />
           <View accessibilityViewIsModal style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]} testID="link-share-sheet">
             <View style={styles.headerRow}>
@@ -325,7 +326,7 @@ export function CollectionLinkShareSheet({
               )}
             </Pressable>
           </View>
-        </View>
+        </KeyboardSafeView>
       </Modal>
       <FriendPickerModal
         authenticatedRequest={authenticatedRequest}

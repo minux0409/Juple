@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Animated,
@@ -16,7 +16,8 @@ import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import { closeOpenRow, notifyRowClosed, notifyRowOpened } from './swipeableRowCoordinator';
 
 const ACTION_WIDTH = 76;
-const OPEN_THRESHOLD = ACTION_WIDTH / 2;
+/** A compact row (a narrow Grid tile) reveals stacked icon + short-label actions in a slimmer pane, so they never eat most of the tile. */
+const COMPACT_ACTION_WIDTH = 72;
 /** Below this horizontal movement, a touch is treated as a tap/vertical scroll, not a swipe. */
 const HORIZONTAL_INTENT_THRESHOLD = 8;
 
@@ -24,10 +25,42 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+export interface SwipeableStartAction {
+  readonly label: string;
+  /** compact only: the visible label (default: `label`); accessibility keeps `label`. */
+  readonly shortLabel?: string;
+  readonly icon: ComponentType<{ readonly color?: string; readonly size?: number }>;
+  readonly onPress: () => void;
+  /** Background of the revealed action (default: the brand blue 공유 uses). */
+  readonly backgroundColor?: string;
+  readonly testID?: string;
+}
+
 interface SwipeableItemRowProps {
   /** Row content - unchanged tap-to-navigate behavior, always enabled regardless of `disabled`. */
   readonly children: ReactNode;
-  readonly onPress: () => void;
+  /**
+   * The row's own tap. Omit it for a row whose content has nothing to open (a pending request card - its only
+   * tap target is the icon inside): a tap then only closes an open row.
+   */
+  readonly onPress?: () => void;
+  /**
+   * False when the content holds controls of its own (an icon button): the content is then NOT one accessible
+   * button, so those controls stay reachable for assistive technology. Default true (the whole row is one button).
+   */
+  readonly contentAccessible?: boolean;
+  /**
+   * A different action on the start side (revealed by swiping right) in place of 공유 - e.g. Trash's 복구. Same
+   * gesture, same one-open-row rule; `onShare` is ignored when this is given. Revealing never runs it: only a tap
+   * on the revealed action does.
+   */
+  readonly startAction?: SwipeableStartAction;
+  /** The revealed delete action shows only its icon (its accessibility label is still deleteLabel). */
+  readonly deleteIconOnly?: boolean;
+  /** Narrow tiles (Grid): a slimmer pane with the icon stacked over a short one-line label. */
+  readonly compact?: boolean;
+  /** testID of the revealed delete action. */
+  readonly deleteTestID?: string;
   /**
    * Reveals a compact 삭제 action on the right when the row is swiped left. Omit it when the viewer
    * may not delete/remove this row (e.g. a Contributor in a shared Category, or another member's
@@ -39,8 +72,11 @@ interface SwipeableItemRowProps {
    * since there it only takes the link out of that Collection (the saved link stays).
    */
   readonly deleteLabel?: string;
-  /** Reveals a compact 공유 action on the left when the row is swiped right. */
-  readonly onShare: () => void;
+  /**
+   * Reveals a compact 공유 action on the left when the row is swiped right. Omit it where a row has
+   * nothing to share (e.g. a friend) - then there is no share action and the row only swipes left.
+   */
+  readonly onShare?: () => void;
   /** Disables opening/using the swipe actions (e.g. another row's action is in flight) - navigation stays enabled. */
   readonly disabled?: boolean;
   /**
@@ -59,6 +95,8 @@ interface SwipeableItemRowProps {
    * leave long-press unhandled, exactly like every other screen using this component today.
    */
   readonly onLongPress?: () => void;
+  /** testID of the content Pressable (the row's tap target). */
+  readonly testID?: string;
   /** Overrides the content Pressable's own accessibility label - e.g. CollectionDetailsScreen's "Item N, long-press for options", which needs the row's position, not just its content. */
   readonly accessibilityLabel?: string;
 }
@@ -75,14 +113,23 @@ export function SwipeableItemRow({
   onPress,
   onDelete,
   deleteLabel,
+  deleteIconOnly = false,
+  compact = false,
+  deleteTestID,
+  contentAccessible = true,
+  startAction,
   onShare,
   disabled,
   containerStyle,
   onLongPress,
   accessibilityLabel,
+  testID,
 }: SwipeableItemRowProps) {
   const { t } = useTranslation();
   const deleteActionLabel = deleteLabel ?? t('common.delete');
+  const actionWidth = compact ? COMPACT_ACTION_WIDTH : ACTION_WIDTH;
+  const openThreshold = actionWidth / 2;
+  const hasStartSide = onShare !== undefined || startAction !== undefined;
   const translateX = useRef(new Animated.Value(0)).current;
   const openDirectionRef = useRef<'left' | 'right' | null>(null);
   const currentOffsetRef = useRef(0);
@@ -117,11 +164,11 @@ export function SwipeableItemRow({
   const openTo = useCallback(
     (direction: 'left' | 'right') => {
       openDirectionRef.current = direction;
-      const target = direction === 'left' ? -ACTION_WIDTH : ACTION_WIDTH;
+      const target = direction === 'left' ? -actionWidth : actionWidth;
       Animated.timing(translateX, { toValue: target, duration: 200, useNativeDriver: true }).start();
       notifyRowOpened(close);
     },
-    [translateX, close],
+    [translateX, close, actionWidth],
   );
 
   const panResponder = useMemo(
@@ -135,17 +182,17 @@ export function SwipeableItemRow({
         onPanResponderMove: (_event, gesture) => {
           const base =
             openDirectionRef.current === 'left'
-              ? -ACTION_WIDTH
+              ? -actionWidth
               : openDirectionRef.current === 'right'
-                ? ACTION_WIDTH
+                ? actionWidth
                 : 0;
-          translateX.setValue(clamp(base + gesture.dx, onDelete ? -ACTION_WIDTH : 0, ACTION_WIDTH));
+          translateX.setValue(clamp(base + gesture.dx, onDelete ? -actionWidth : 0, hasStartSide ? actionWidth : 0));
         },
         onPanResponderRelease: () => {
           const offset = currentOffsetRef.current;
-          if (onDelete && offset <= -OPEN_THRESHOLD) {
+          if (onDelete && offset <= -openThreshold) {
             openTo('left');
-          } else if (offset >= OPEN_THRESHOLD) {
+          } else if (hasStartSide && offset >= openThreshold) {
             openTo('right');
           } else {
             close();
@@ -153,7 +200,7 @@ export function SwipeableItemRow({
         },
         onPanResponderTerminate: close,
       }),
-    [disabled, translateX, openTo, close, onDelete],
+    [disabled, translateX, openTo, close, onDelete, hasStartSide, actionWidth, openThreshold],
   );
 
   const handleContentPress = () => {
@@ -163,14 +210,32 @@ export function SwipeableItemRow({
       return;
     }
     closeOpenRow();
-    onPress();
+    onPress?.();
   };
 
   return (
     <View style={[styles.wrapper, containerStyle]}>
       {isRevealed ? (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-          <View style={[styles.actionSlot, styles.shareSlot]}>
+          {startAction ? (
+          <View style={[styles.actionSlot, styles.shareSlot, { width: actionWidth }]}>
+            <Pressable
+              accessibilityLabel={startAction.label}
+              accessibilityRole="button"
+              disabled={disabled}
+              onPress={() => {
+                close();
+                startAction.onPress();
+              }}
+              style={[styles.actionButton, styles.shareAction, startAction.backgroundColor ? { backgroundColor: startAction.backgroundColor } : null]}
+              testID={startAction.testID}
+            >
+              <startAction.icon color={colors.surface} size={compact ? 20 : 18} />
+              <Text numberOfLines={compact ? 1 : 2} style={styles.actionLabel}>{compact ? (startAction.shortLabel ?? startAction.label) : startAction.label}</Text>
+            </Pressable>
+          </View>
+          ) : onShare ? (
+          <View style={[styles.actionSlot, styles.shareSlot, { width: actionWidth }]}>
             <Pressable
               accessibilityLabel={t('common.share')}
               accessibilityRole="button"
@@ -185,8 +250,9 @@ export function SwipeableItemRow({
               <Text style={styles.actionLabel}>{t('common.share')}</Text>
             </Pressable>
           </View>
+          ) : null}
           {onDelete ? (
-          <View style={[styles.actionSlot, styles.deleteSlot]}>
+          <View style={[styles.actionSlot, styles.deleteSlot, { width: actionWidth }]}>
             <Pressable
               accessibilityLabel={deleteActionLabel}
               accessibilityRole="button"
@@ -196,9 +262,10 @@ export function SwipeableItemRow({
                 onDelete();
               }}
               style={[styles.actionButton, styles.deleteAction]}
+              testID={deleteTestID}
             >
-              <TrashIcon color={colors.surface} size={18} />
-              <Text numberOfLines={2} style={styles.actionLabel}>{deleteActionLabel}</Text>
+              <TrashIcon color={colors.surface} size={deleteIconOnly ? 22 : compact ? 20 : 18} />
+              {deleteIconOnly ? null : <Text numberOfLines={compact ? 1 : 2} style={styles.actionLabel}>{deleteActionLabel}</Text>}
             </Pressable>
           </View>
           ) : null}
@@ -207,13 +274,15 @@ export function SwipeableItemRow({
       <Animated.View
         accessibilityActions={[
           ...(onDelete ? [{ name: 'delete', label: deleteActionLabel }] : []),
-          { name: 'share', label: t('common.share') },
+          ...(startAction ? [{ name: 'start', label: startAction.label }] : onShare ? [{ name: 'share', label: t('common.share') }] : []),
         ]}
         onAccessibilityAction={event => {
           if (event.nativeEvent.actionName === 'delete') {
             onDelete?.();
+          } else if (event.nativeEvent.actionName === 'start') {
+            startAction?.onPress();
           } else if (event.nativeEvent.actionName === 'share') {
-            onShare();
+            onShare?.();
           }
         }}
         style={[styles.content, { transform: [{ translateX }] }]}
@@ -221,11 +290,13 @@ export function SwipeableItemRow({
       >
         <Pressable
           accessibilityLabel={accessibilityLabel}
-          accessibilityRole="button"
+          accessibilityRole={contentAccessible ? 'button' : undefined}
+          accessible={contentAccessible}
           delayLongPress={350}
           onLongPress={onLongPress}
           onPress={handleContentPress}
           style={styles.contentPressable}
+          testID={testID}
         >
           {children}
         </Pressable>

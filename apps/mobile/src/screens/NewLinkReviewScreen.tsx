@@ -42,6 +42,7 @@ import {
   type KnownMetadata,
 } from '../urlMetadata/instagramDeviceFallback';
 import { fetchInstagramOpenGraphCandidate, type InstagramOpenGraphFetchResult } from '../urlMetadata/instagramOpenGraphFetch';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -596,6 +597,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.screen}>
+      <KeyboardSafeView>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/*
           Field order (제목, URL, 카테고리, 메모, 사진) matches ItemDetailsScreen's exactly - this
@@ -708,6 +710,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
         </Pressable>
       </View>
+      </KeyboardSafeView>
 
       {isResolvingMetadataTitle ? (
         <View pointerEvents="auto" style={styles.metadataLoadingOverlay}>

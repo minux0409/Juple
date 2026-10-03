@@ -28,6 +28,7 @@ import {
 } from '../collections/api/collectionsApi';
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
+import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -43,6 +44,8 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from '../collections/collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/collectionIcons';
+import { CollectionNameLabel } from '../collections/CollectionNameLabel';
+import { PendingActionRow } from '../components/PendingActionRow';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
@@ -50,6 +53,8 @@ import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { ScreenTitle } from '../components/ScreenTitle';
+import { screenIcons } from '../navigation/screenIcons';
 
 const GRID_COLUMNS = 4;
 
@@ -73,11 +78,11 @@ const NEXT_PAGE_SKELETON_LIST_ROWS = 2;
  */
 type CategoryFilter = CollectionListScope;
 
-const FILTERS: readonly CategoryFilter[] = ['all', 'favorites', 'owned', 'shared', 'myPending'];
+const FILTERS: readonly CategoryFilter[] = ['all', 'favorites', 'owned', 'shared'];
 
 /**
- * The four filters as a 2x2 grid - all at the same level, never nested. 내 승인 대기 (myPending) is the
- * fifth, a full-width row under them: it belongs to the same group but only shows while something waits.
+ * The four filters as a 2x2 grid - all at the same level, never nested. 내 승인 대기 is not a filter: a
+ * full-width row under them that only shows while something waits and opens a popup of those links.
  */
 const FILTER_ROWS: readonly (readonly CategoryFilter[])[] = [
   ['favorites', 'all'],
@@ -92,7 +97,6 @@ const FILTER_LABEL_KEYS: Record<CategoryFilter, string> = {
   favorites: 'collections.favoritesTitle',
   owned: 'collections.myCategoriesTab',
   shared: 'collections.sharedCategoriesTab',
-  myPending: 'collections.myPendingSubmissions',
 };
 
 const FILTER_EMPTY_KEYS: Record<CategoryFilter, string> = {
@@ -100,7 +104,6 @@ const FILTER_EMPTY_KEYS: Record<CategoryFilter, string> = {
   favorites: 'collections.favoritesEmpty',
   owned: 'collections.allCollectionsEmpty',
   shared: 'collections.sharedEmpty',
-  myPending: 'submissions.myEmpty',
 };
 
 interface FilterListState {
@@ -184,7 +187,6 @@ export function CollectionsScreen() {
     favorites: EMPTY_LIST,
     owned: EMPTY_LIST,
     shared: EMPTY_LIST,
-    myPending: EMPTY_LIST,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -203,6 +205,8 @@ export function CollectionsScreen() {
   // My own proposals waiting for approval across my whole shared list (one number from the server - the
   // list is paged and only the active filter is loaded, so a sum of loaded cards would be wrong).
   const [myPendingTotal, setMyPendingTotal] = useState(0);
+  // 내 링크 승인 대기: a popup of those links (not a filter and not a screen).
+  const [isMyPendingSheetVisible, setIsMyPendingSheetVisible] = useState(false);
 
   const loadRequestIdRef = useRef(0);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
@@ -579,7 +583,7 @@ export function CollectionsScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.titleRow}>
-              <Text style={styles.title}>{t('collections.title')}</Text>
+              <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
               <View style={styles.headerButtons}>
                 <ViewModeToggle onChange={changeViewMode} value={viewMode} />
                 <Pressable accessibilityLabel={t('collections.create')} accessibilityRole="button" onPress={openCreateDialog} style={styles.addButton}>
@@ -629,24 +633,18 @@ export function CollectionsScreen() {
               ))}
             </View>
 
-            {/* 내 승인 대기 N: a full-width filter of the same group, right under the four. N is how many LINKS of
-                mine wait in all (one number from the server); tapping it lists exactly the Collections that
-                hold them (a server-side filter, correct beyond the first page) - the cards stay as they are.
-                Neutral, never the red attention color. Hidden at 0, except while it is the active filter
-                (so it never disappears under the finger when the last one is answered). */}
-            {myPendingTotal > 0 || filter === 'myPending' ? (
-              <Pressable
+            {/* 내 승인 대기 N: a full-width row right under the four filters. N is how many LINKS of mine
+                wait in all (one number from the server); tapping it opens a popup listing exactly those
+                links - what, in which Collection, since when - without selecting a filter or entering
+                a Collection first. Neutral, never the red attention color. Hidden at 0. */}
+            {myPendingTotal > 0 ? (
+              <PendingActionRow
                 accessibilityLabel={t('collections.myPendingA11y', { count: myPendingTotal })}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: filter === 'myPending' }}
-                onPress={() => selectFilter('myPending')}
-                style={[styles.filterCell, styles.myPendingFilter, filter === 'myPending' && styles.filterCellActive]}
+                label={t('collections.myPendingSubmissions', { count: formatBadgeCount(myPendingTotal) })}
+                onPress={() => setIsMyPendingSheetVisible(true)}
+                style={styles.myPendingRow}
                 testID="collections-filter-my-pending"
-              >
-                <Text numberOfLines={2} style={[styles.filterLabel, filter === 'myPending' && styles.filterLabelActive]}>
-                  {t('collections.myPendingSubmissions', { count: formatBadgeCount(myPendingTotal) })}
-                </Text>
-              </Pressable>
+              />
             ) : null}
 
             {/* 공유 요청: only on 공유 카테고리 and only while there is something to answer - it
@@ -706,6 +704,21 @@ export function CollectionsScreen() {
         onResponded={handleInvitationResponded}
         onStale={loadReceivedInvitations}
         visible={isShareRequestsVisible}
+      />
+
+      <ApprovalSubmissionSheet
+        authenticatedRequest={authenticatedRequest}
+        collectionId={null}
+        expectedCount={myPendingTotal}
+        onChanged={() => {
+          // One of my proposals was cancelled: the number and the cards' own pending counts follow.
+          loadMyPendingTotal();
+          load(filterRef.current, 'refresh');
+        }}
+        onClose={() => setIsMyPendingSheetVisible(false)}
+        onTotalLoaded={setMyPendingTotal}
+        variant="mine"
+        visible={isMyPendingSheetVisible}
       />
 
       <CategoryEditorDialog
@@ -779,9 +792,14 @@ function CollectionTile({
             />
           </Pressable>
         </View>
-        <Text numberOfLines={1} style={styles.tileLabel}>
-          {collection.name}
-        </Text>
+        <CollectionNameLabel
+          crownSize={14}
+          isOwner={isOwnedByMe(collection)}
+          name={collection.name}
+          style={styles.tileNameRow}
+          testID={`collection-owner-crown-${collection.id}`}
+          textStyle={styles.tileLabel}
+        />
       </Pressable>
     </View>
   );
@@ -867,7 +885,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   filterCellWithBadge: { paddingEnd: spacing.sm + 26 },
-  myPendingFilter: { alignSelf: 'stretch', flex: 0, marginTop: spacing.xs },
+  // The shared 승인 대기 row, connected to the group above (the filter grid's own 12dp bottom margin) and 12dp above the content.
+  myPendingRow: { marginBottom: spacing.md },
   filterBadge: {
     alignItems: 'center',
     backgroundColor: colors.danger,
@@ -953,10 +972,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 13,
     fontWeight: '600',
-    marginTop: spacing.xs + 2,
-    maxWidth: 84,
     textAlign: 'center',
   },
+  // [crown] name, centered under the tile icon; the name ellipsizes before the crown does.
+  tileNameRow: { justifyContent: 'center', marginTop: spacing.xs + 2, maxWidth: 84 },
   listRow: { alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, flexDirection: 'row', gap: spacing.md, marginBottom: spacing.sm, padding: spacing.sm },
   listName: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
   listText: { flex: 1, minWidth: 0 },
@@ -977,7 +996,7 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
       <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />
     </View>
     <View style={styles.listText}>
-      <Text numberOfLines={1} style={styles.listName}>{collection.name}</Text>
+      <CollectionNameLabel crownSize={16} isOwner={isOwnedByMe(collection)} name={collection.name} testID={`collection-owner-crown-${collection.id}`} textStyle={styles.listName} />
     </View>
     <CountBadge count={collection.attentionCount ?? 0} testID={`collection-attention-${collection.id}`} />
     <Pressable accessibilityLabel={collection.isFavorite ? t('collections.removeFavorite') : t('collections.addFavorite')} accessibilityRole="button" accessibilityState={{ disabled: isFavoriteToggleDisabled, busy: isTogglingFavorite }} disabled={isFavoriteToggleDisabled} hitSlop={8} onPress={onToggleFavorite} style={styles.listFavorite}>
@@ -992,5 +1011,12 @@ function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFav
  */
 function attentionLabel(collection: Collection, t: TFunction): string | undefined {
   const count = collection.attentionCount ?? 0;
-  return count > 0 ? t('collections.attentionA11y', { name: collection.name, count }) : undefined;
+  const base = count > 0 ? t('collections.attentionA11y', { name: collection.name, count }) : undefined;
+  // The crown is decorative: a Collection of mine says so in its spoken label ("내 컬렉션, 이름").
+  return isOwnedByMe(collection) ? `${t('collections.myCategoriesTab')}, ${base ?? collection.name}` : base;
+}
+
+/** The server's own answer (accessRole) - never inferred from sharing, favorites, roles or who added what. */
+function isOwnedByMe(collection: Pick<Collection, 'accessRole'>): boolean {
+  return collection.accessRole === 'owner';
 }

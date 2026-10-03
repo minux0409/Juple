@@ -47,9 +47,11 @@ import { isHttpUrl } from '../share/resolveIncomingShare';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { useSortPreference } from '../settings/sortPreference';
+import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { sortLinksByName } from '../collections/sortCollectionItems';
 import { NAME_ORDER_MAX_LINKS } from '../collections/useCollectionItems';
+import { ScreenTitleGlyph } from '../components/ScreenTitle';
+import { ClockIcon } from '../icons/ClockIcon';
 
 /** Links per request - a screenful or two; the rest of the day comes a page at a time. */
 export const HOME_PAGE_SIZE = 25;
@@ -415,15 +417,20 @@ export function DailyInboxScreen() {
     if (isAssemblingOrder) {
       return [];
     }
-    if (effectiveSort === 'title') {
-      return sortLinksByName(items, { title: item => item.title, url: item => item.url, addedAtUtc: item => item.savedAtUtc, id: item => item.id });
+    if (isNameSort(effectiveSort)) {
+      return sortLinksByName(
+        items,
+        { title: item => item.title, url: item => item.url, addedAtUtc: item => item.savedAtUtc, id: item => item.id },
+        undefined,
+        effectiveSort === 'titleDesc' ? 'desc' : 'asc',
+      );
     }
     return effectiveSort === 'oldest' ? [...items].reverse() : items;
   }, [effectiveSort, isAssemblingOrder, items]);
-  const pressDateSort = () => setSortOption(effectiveSort === 'newest' ? 'oldest' : 'newest');
+  const pressDateSort = () => setSortOption(nextDateSort(effectiveSort));
   const pressNameSort = () => {
     if (!isSortTooLarge) {
-      setSortOption('title');
+      setSortOption(nextNameSort(effectiveSort));
     }
   };
 
@@ -507,6 +514,7 @@ export function DailyInboxScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={styles.recentHeaderRow}>
               {/* Title and count only - the controls are on the sort row below, as in a Collection. */}
+              <ScreenTitleGlyph icon={ClockIcon} />
               <View style={styles.recentHeaderLabel}>
                 <Text style={styles.recentTitle}>{t('inbox.recentSaved')}</Text>
                 <Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: todayCount ?? items.length })}</Text>
@@ -518,6 +526,8 @@ export function DailyInboxScreen() {
                 dateLabel={t('collections.sortDate')}
                 dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
                 dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
+                nameAscA11yLabel={t('collections.sortNameAscA11y')}
+                nameDescA11yLabel={t('collections.sortNameDescA11y')}
                 nameLabel={t('collections.sortName')}
                 onPressDate={pressDateSort}
                 onPressName={pressNameSort}

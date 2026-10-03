@@ -1,8 +1,10 @@
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { BellIcon } from '../../icons/BellIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
-import { radii } from '../../theme/tokens';
+import { colors, radii } from '../../theme/tokens';
+import { PendingActionRow } from '../../components/PendingActionRow';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ApprovalSubmissionSheet } from '../../collections/ApprovalSubmissionSheet';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import { ParticipantAvatarStack } from '../../components/ParticipantAvatarStack';
 import { QuickReactionBar } from '../../reactions/QuickReactionBar';
@@ -97,6 +99,10 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   setCollectionNotificationPreference: jest.fn(),
   copyCollectionItems: jest.fn(),
   getCollectionShareLink: jest.fn().mockResolvedValue(null),
+  getCollectionSubmissions: jest.fn().mockResolvedValue({ items: [], nextCursor: null }),
+  getMyCollectionSubmissions: jest.fn().mockResolvedValue({ items: [], nextCursor: null, totalCount: 0 }),
+  approveCollectionSubmission: jest.fn(),
+  rejectCollectionSubmission: jest.fn(),
   removeItemFromCollection: jest.fn(),
   addItemToCollection: jest.fn(),
   addItemToCollections: jest.fn(),
@@ -1572,24 +1578,38 @@ describe('CollectionDetailsScreen - 컬렉션에서 제거 of my own link in som
   });
 });
 
+/** The shared row's own (host) Pressable style, resolved for the idle state. */
+const rowStyle = (entry: ReactTestRenderer.ReactTestInstance) => {
+  const host = entry.findAll(node => node.props.accessibilityRole === 'button' && node.props.testID === entry.props.testID)[0];
+  return typeof host.props.style === 'function' ? host.props.style({ pressed: false }) : host.props.style;
+};
+
 describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)', () => {
   afterEach(() => jest.clearAllMocks());
 
   const pendingEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
     header(renderer).root.findAll(node => node.props.testID === 'collection-details-pending' && typeof node.props.onPress === 'function')[0];
 
-  it('the Owner sees 승인 대기 N next to the link count, and it opens the approval list', async () => {
+  const approvalSheet = (renderer: ReactTestRenderer.ReactTestRenderer, variant: 'owner' | 'mine') =>
+    renderer.root.findAllByType(ApprovalSubmissionSheet).find(sheet => sheet.props.variant === variant)!;
+
+  it('the Owner sees 승인 대기 N next to the link count, and it opens the approval popup (not a screen)', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, itemCount: 18, pendingSubmissionCount: 3 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
     const entry = pendingEntry(renderer);
-    expect(entry.findByType(Text).props.children).toBe('승인 대기 3');
-    expect(entry.props.accessibilityLabel).toBe('승인 대기 중인 링크 3개 보기');
+    expect(entry.findByType(Text).props.children).toBe('받은 승인 요청 3');
+    expect(entry.props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
     // The link count is the links only - proposals are never counted in it.
     expect(header(renderer).root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.detailItemCount', { count: 18 }))).toBe(true);
+    expect(approvalSheet(renderer, 'owner').props.visible).toBe(false);
     await act(async () => entry.props.onPress());
-    expect(mockNavigate).toHaveBeenCalledWith('CollectionSubmissions', { collectionId: COLLECTION_ID });
+    expect(approvalSheet(renderer, 'owner').props.visible).toBe(true);
+    expect(approvalSheet(renderer, 'owner').props.collectionId).toBe(COLLECTION_ID);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    // Answering inside the popup refreshes this Collection (its count and links) without leaving it.
+    expect(approvalSheet(renderer, 'owner').props.onChanged).toEqual(expect.any(Function));
   });
 
   it('it is a clear one-line row of its own - below the title/header actions and above the sort chips, a full touch target, not small inline text', async () => {
@@ -1598,8 +1618,9 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     const renderer = await renderScreen();
 
     const entry = pendingEntry(renderer);
-    expect(entry.findByType(Text).props.children).toBe('승인 대기 1');
-    expect(StyleSheet.flatten(entry.props.style)).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
+    expect(entry.findByType(Text).props.children).toBe('받은 승인 요청 1');
+    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', backgroundColor: colors.brandSoft, borderColor: colors.brand }));
+    expect(entry.type).toBe(PendingActionRow);
     // Order inside the list header: title, header actions, this row, then the sort chips.
     const order = header(renderer).root
       .findAll(node => typeof node.type === 'string' && ['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date'].includes(node.props.testID))
@@ -1621,17 +1642,20 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
   const myPendingEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
     header(renderer).root.findAll(node => node.props.testID === 'collection-details-my-pending' && typeof node.props.onPress === 'function')[0];
 
-  it('a submitter with links waiting sees 내 승인 대기 N (a status row, not the Owner queue), which opens their own list', async () => {
+  it('a submitter with links waiting sees 내 승인 대기 N (a status row, not the Owner queue), which opens their own popup scoped to this Collection', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 2 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
     const entry = myPendingEntry(renderer);
-    expect(entry.findByType(Text).props.children).toBe('내 승인 대기 2');
-    expect(entry.props.accessibilityLabel).toBe('내가 보낸 승인 대기 링크 2개 보기');
+    expect(entry.findByType(Text).props.children).toBe('보낸 승인 요청 2');
+    expect(entry.props.accessibilityLabel).toBe('보낸 승인 요청 2개 보기');
     expect(pendingEntry(renderer)).toBeUndefined();
+    expect(approvalSheet(renderer, 'mine').props.visible).toBe(false);
     await act(async () => entry.props.onPress());
-    expect(mockNavigate).toHaveBeenCalledWith('MyCollectionSubmissions', { collectionId: COLLECTION_ID });
+    expect(approvalSheet(renderer, 'mine').props.visible).toBe(true);
+    expect(approvalSheet(renderer, 'mine').props.collectionId).toBe(COLLECTION_ID);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('nothing of mine waiting (0): no row', async () => {
@@ -1656,8 +1680,10 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     expect(headerChildren).toHaveLength(1);
     // Same family as the Owner row: one-line, a full touch target tall, same corner radius.
     const entry = myPendingEntry(renderer);
-    expect(StyleSheet.flatten(entry.props.style)).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', borderRadius: radii.md }));
-    expect(entry.findByType(Text).props.children).toBe('내 승인 대기 2');
+    expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row', borderRadius: radii.md, backgroundColor: colors.brandSoft, borderColor: colors.brand }));
+    expect(entry.findByType(Text).props.children).toBe('보낸 승인 요청 2');
+    // The very same shared row as the Owner's - only the text and the handler differ.
+    expect(entry.type).toBe(PendingActionRow);
   });
 
   it('the Owner row and my row are separate rows with separate numbers - never merged', async () => {
@@ -1666,24 +1692,24 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
 
-    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('승인 대기 3');
-    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('내 승인 대기 4');
-    expect(pendingEntry(renderer).props.accessibilityLabel).toBe('승인 대기 중인 링크 3개 보기');
-    expect(myPendingEntry(renderer).props.accessibilityLabel).toBe('내가 보낸 승인 대기 링크 4개 보기');
+    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('받은 승인 요청 3');
+    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 4');
+    expect(pendingEntry(renderer).props.accessibilityLabel).toBe('받은 승인 요청 3개 보기');
+    expect(myPendingEntry(renderer).props.accessibilityLabel).toBe('보낸 승인 요청 4개 보기');
   });
 
   it('pull-to-refresh keeps the count honest: a new proposal raises it, an approval or decline removes it', async () => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 1 }));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
     const renderer = await renderScreen();
-    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('내 승인 대기 1');
+    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 1');
     const pull = async () => act(async () => {
       renderer.root.findAllByType(FlatList)[0].props.refreshControl.props.onRefresh();
     });
 
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 3 }));
     await pull();
-    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('내 승인 대기 3');
+    expect(myPendingEntry(renderer).findByType(Text).props.children).toBe('보낸 승인 요청 3');
 
     jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'submitter', ownerJupleId: 'K7MP4Q8N', myPendingSubmissionCount: 0 }));
     await pull();
@@ -1720,7 +1746,7 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
     });
 
     expect(jest.mocked(getCollection).mock.calls.length).toBe(callsBefore + 1);
-    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('승인 대기 2');
+    expect(pendingEntry(renderer).findByType(Text).props.children).toBe('받은 승인 요청 2');
   });
 
   it('nothing waiting: no entry at all', async () => {
@@ -1807,7 +1833,7 @@ describe('CollectionDetailsScreen - passing on the public link as a member', () 
     expect(sheet(renderer).props.visible).toBe(false);
     expect(shareItem).not.toHaveBeenCalled();
     expect(shareLinkButton(renderer)).toBeUndefined();
-    expect(hasToast(renderer, '컬렉션 공개가 종료되었습니다.')).toBe(true);
+    expect(hasToast(renderer, '공용 컬렉션이 종료되었습니다.')).toBe(true);
   });
 
   it('외부 공유 checks once more and hands the URL the server has now to the OS share sheet', async () => {
@@ -1844,7 +1870,7 @@ describe('CollectionDetailsScreen - passing on the public link as a member', () 
     await act(async () => sheet(renderer).props.onLinkInactive());
     expect(sheet(renderer).props.visible).toBe(false);
     expect(shareLinkButton(renderer)).toBeUndefined();
-    expect(hasToast(renderer, '컬렉션 공개가 종료되었습니다.')).toBe(true);
+    expect(hasToast(renderer, '공용 컬렉션이 종료되었습니다.')).toBe(true);
   });
 
   it('the Owner keeps the share button that opens the Share settings, and never asks for the member link', async () => {
@@ -2105,7 +2131,7 @@ describe('CollectionDetailsScreen - 잠금 설정 under the Owner\'s lock passwo
   });
 });
 
-describe('CollectionDetailsScreen - participant management on a locked Collection (Owner)', () => {
+describe('CollectionDetailsScreen - the participants popup is view-only (management lives on the Share screen)', () => {
   const ownerView = {
     participants: [
       { jupleId: 'WNER2345', displayName: '피카츄', role: 'owner', isMe: true },
@@ -2118,14 +2144,11 @@ describe('CollectionDetailsScreen - participant management on a locked Collectio
   beforeEach(() => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection({
       accessRole: 'owner',
-      isLocked: true,
       hasCollaborators: true,
       participantPreview: [{ jupleId: 'CNTRB234', displayName: '파이리', role: 'contributor' }],
       otherParticipantCount: 1,
     }));
-    jest.mocked(getCollectionItems).mockRejectedValue(lockedError);
     jest.mocked(getCollectionParticipants).mockResolvedValue(ownerView as never);
-    jest.mocked(unlockCollection).mockResolvedValue({ unlockToken: 'grant-5', expiresAtUtc: new Date(Date.now() + 15 * 60_000).toISOString() });
   });
 
   afterEach(() => {
@@ -2133,128 +2156,25 @@ describe('CollectionDetailsScreen - participant management on a locked Collectio
     clearCollectionUnlockGrants();
   });
 
-  async function openSheet() {
+  it('the Owner sees participants and the pending invitation with NO remove / cancel controls, in List and in Grid', async () => {
     const renderer = await renderScreen();
     const top = header(renderer);
     await act(async () => {
       top.root.findByProps({ testID: 'collection-details-participants' }).props.onPress();
     });
-    return renderer;
-  }
+    const ids = () => renderer.root.findAll(node => typeof node.props.testID === 'string').map(node => node.props.testID as string);
 
-  async function confirmRemoval(renderer: ReactTestRenderer.ReactTestRenderer) {
+    expect(ids()).toContain('participants-sheet-avatar-CNTRB234');
+    expect(ids()).toContain('participants-sheet-pending-9');
+    expect(ids().filter(id => /participants-sheet-(remove|revoke)-|-manage$/.test(id))).toEqual([]);
+
     await act(async () => {
-      renderer.root.findByProps({ testID: 'participants-sheet-remove-CNTRB234' }).props.onPress();
+      renderer.root.findAll(node => node.props.testID === 'participants-sheet')[0].findByType(ViewModeToggle).props.onChange('grid');
     });
-    const dialog = renderer.root.findAllByType(ConfirmDialog).find(node => node.props.title === i18n.t('collaboration.removeConfirmTitle'))!;
-    await act(async () => {
-      dialog.props.onConfirm();
-    });
-  }
-
-  async function unlockWith(renderer: ReactTestRenderer.ReactTestRenderer, password: string) {
-    const gate = () => renderer.root.findByProps({ testID: 'collection-details-unlock-gate' });
-    await act(async () => {
-      gate().findByProps({ testID: 'collection-unlock-password' }).props.onChangeText(password);
-    });
-    await act(async () => {
-      await gate().findByProps({ testID: 'collection-unlock-submit' }).props.onPress();
-    });
-  }
-
-  const sheetVisible = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    renderer.root.findByType(CollectionParticipantsSheet).props.visible;
-
-  it('the list itself opens without unlocking', async () => {
-    const renderer = await openSheet();
-
-    expect(sheetVisible(renderer)).toBe(true);
-    expect(renderer.root.findByProps({ testID: 'participants-sheet-CNTRB234' })).toBeTruthy();
-    expect(unlockCollection).not.toHaveBeenCalled();
-  });
-
-  it('removing a collaborator asks for the password, then removes them and refreshes the list', async () => {
-    const renderer = await openSheet();
-    await confirmRemoval(renderer);
-
+    expect(ids().filter(id => /participants-sheet-(remove|revoke)-|-manage$/.test(id))).toEqual([]);
+    expect(ids()).toContain('participants-sheet-CNTRB234-avatar');
     expect(removeCollaborator).not.toHaveBeenCalled();
-    expect(sheetVisible(renderer)).toBe(false); // stepped aside for the password prompt
-
-    await unlockWith(renderer, 'correct horse');
-
-    expect(removeCollaborator).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 'CNTRB234');
-    expect(sheetVisible(renderer)).toBe(true);
-    expect(jest.mocked(getCollectionParticipants).mock.calls.length).toBeGreaterThanOrEqual(3); // reloaded after the change
-  });
-
-  it('cancelling a pending invitation asks for the password, then revokes it', async () => {
-    const renderer = await openSheet();
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'participants-sheet-revoke-9' }).props.onPress();
-    });
-
     expect(revokeCollectionInvitation).not.toHaveBeenCalled();
-    await unlockWith(renderer, 'correct horse');
-
-    expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 9);
-  });
-
-  it('a wrong password never runs the action', async () => {
-    jest.mocked(unlockCollection).mockRejectedValue(new ApiError('forbidden', 403, 'invalidCollectionPassword'));
-    const renderer = await openSheet();
-    await confirmRemoval(renderer);
-
-    await unlockWith(renderer, 'wrong-guess');
-
-    expect(removeCollaborator).not.toHaveBeenCalled();
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-details-unlock-gate').length).toBeGreaterThan(0);
-  });
-
-  it('cancelling the password prompt never runs the action, and brings the list back', async () => {
-    const renderer = await openSheet();
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'participants-sheet-revoke-9' }).props.onPress();
-    });
-
-    const cancel = renderer.root.findByProps({ testID: 'collection-details-unlock-gate' })
-      .findAll(node => node.props.accessibilityRole === 'button' && typeof node.props.onPress === 'function')
-      .find(node => node.findAllByType(Text).some(text => text.props.children === i18n.t('common.cancel')))!;
-    await act(async () => {
-      cancel.props.onPress();
-    });
-
-    expect(revokeCollectionInvitation).not.toHaveBeenCalled();
-    expect(sheetVisible(renderer)).toBe(true);
-  });
-
-  it('with a grant from this session, the action runs at once without asking', async () => {
-    rememberCollectionUnlock(COLLECTION_ID, 'grant-6', new Date(Date.now() + 10 * 60_000).toISOString());
-    jest.mocked(getCollectionItems).mockResolvedValue({ items: [], nextCursor: null });
-    const renderer = await openSheet();
-
-    await act(async () => {
-      renderer.root.findByProps({ testID: 'participants-sheet-revoke-9' }).props.onPress();
-    });
-
-    expect(revokeCollectionInvitation).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, 9);
-    expect(unlockCollection).not.toHaveBeenCalled();
-    expect(renderer.root.findAll(node => node.props.testID === 'collection-details-unlock-gate')).toHaveLength(0);
-  });
-
-  it('a Contributor gets the same list with no management controls at all', async () => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({
-      accessRole: 'contributor',
-      isLocked: true,
-      ownerJupleId: 'WNER2345',
-      participantPreview: [{ jupleId: 'WNER2345', displayName: '피카츄', role: 'owner' }],
-      otherParticipantCount: 1,
-    }));
-    jest.mocked(getCollectionParticipants).mockResolvedValue({ ...ownerView, pendingInvitations: [], canManage: false } as never);
-    const renderer = await openSheet();
-
-    expect(renderer.root.findByProps({ testID: 'participants-sheet-CNTRB234' })).toBeTruthy();
-    expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-remove-'))).toHaveLength(0);
-    expect(renderer.root.findAll(node => String(node.props.testID).startsWith('participants-sheet-revoke-'))).toHaveLength(0);
   });
 });
 

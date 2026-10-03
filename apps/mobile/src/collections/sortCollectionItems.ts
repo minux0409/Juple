@@ -29,9 +29,13 @@ function createNameCollator(locale: string | undefined): Intl.Collator {
 export function sortCollectionItemsByName(
   items: readonly CollectionItemEntry[],
   locale: string | undefined = i18n.language,
+  direction: NameSortDirection = 'asc',
 ): readonly CollectionItemEntry[] {
-  return sortLinksByName(items, { title: a => a.title, url: a => a.url, addedAtUtc: a => a.addedAtUtc, id: a => a.itemId }, locale);
+  return sortLinksByName(items, { title: a => a.title, url: a => a.url, addedAtUtc: a => a.addedAtUtc, id: a => a.itemId }, locale, direction);
 }
+
+/** 이름순 ↑ (A→Z) or ↓ (Z→A). Title-less links stay last and ties stay newest first in both. */
+export type NameSortDirection = 'asc' | 'desc';
 
 /** What the name order reads from a link of any list (a Collection's entry, a Home/History item). */
 export interface LinkNameAccessors<T> {
@@ -49,14 +53,16 @@ export function sortLinksByName<T>(
   items: readonly T[],
   accessors: LinkNameAccessors<T>,
   locale: string | undefined = i18n.language,
+  direction: NameSortDirection = 'asc',
 ): readonly T[] {
   const collator = createNameCollator(locale);
+  const sign = direction === 'desc' ? -1 : 1;
   return [...items].sort((a, b) => {
     if ((accessors.title(a) === null) !== (accessors.title(b) === null)) {
       return accessors.title(a) === null ? 1 : -1;
     }
     return (
-      collator.compare(
+      sign * collator.compare(
         resolveSavedLinkPrimaryText(accessors.title(a), accessors.url(a)),
         resolveSavedLinkPrimaryText(accessors.title(b), accessors.url(b)),
       )

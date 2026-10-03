@@ -11,6 +11,7 @@ import { type CollectionIconKey } from './collectionIcons';
 import { DialogActions } from '../components/DialogActions';
 import { ImageIcon } from '../icons/ImageIcon';
 import { colors, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 interface CategoryEditorDialogProps {
   readonly visible: boolean;
@@ -115,7 +116,7 @@ export function CategoryEditorDialog({
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
-      <View
+      <KeyboardSafeView
         style={[
           styles.overlay,
           { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom },
@@ -193,7 +194,7 @@ export function CategoryEditorDialog({
             />
           </View>
         </View>
-      </View>
+      </KeyboardSafeView>
     </Modal>
   );
 }

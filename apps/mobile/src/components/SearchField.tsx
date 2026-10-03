@@ -10,10 +10,12 @@ interface SearchFieldProps {
   /** Accessibility label of the clear button (shown only while there is text). */
   readonly clearLabel: string;
   readonly testID?: string;
+  /** Spoken after the label (e.g. the minimum length) - kept out of the visible placeholder. */
+  readonly accessibilityHint?: string;
 }
 
 /** A single-line search box with a clear button - the Archive's (and any list's) text filter field. */
-export function SearchField({ value, onChangeText, placeholder, clearLabel, testID = 'search-field' }: SearchFieldProps) {
+export function SearchField({ value, onChangeText, placeholder, clearLabel, testID = 'search-field', accessibilityHint }: SearchFieldProps) {
   return (
     <View style={styles.wrapper}>
       {/* The magnifier is part of the field, not a control: it takes no touches of its own (a tap there
@@ -22,6 +24,7 @@ export function SearchField({ value, onChangeText, placeholder, clearLabel, test
         <SearchIcon color={colors.textSecondary} size={18} />
       </View>
       <TextInput
+        accessibilityHint={accessibilityHint}
         accessibilityLabel={placeholder}
         autoCapitalize="none"
         autoCorrect={false}

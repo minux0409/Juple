@@ -54,8 +54,7 @@
     "newLinkReview": "Vérifier le nouveau lien",
     "trash": "Supprimés récemment",
     "collectionSharedItem": "Lien partagé",
-    "collectionSubmissions": "Liens en attente",
-    "myCollectionSubmissions": "Mes approbations en attente",
+    "myCollectionSubmissions": "Demandes d’approbation envoyées",
     "collectionShare": "Partager",
     "collectionLockSettings": "Verrouillage des collections"
   },
@@ -92,7 +91,8 @@
     "retry": "Réessayer",
     "deleteConfirmTitle": "Supprimer l'élément",
     "deleteConfirmMessage": "Supprimer cet élément ? Cette action est irréversible.",
-    "errorDeleteFallback": "Impossible de supprimer l'élément."
+    "errorDeleteFallback": "Impossible de supprimer l'élément.",
+    "searchMinHint": "Saisissez au moins 2 caractères."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} éléments à traiter",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Désélectionner tout",
     "copySelectUpTo": "Sélectionner jusqu’à {{max}}",
     "detailItemCount": "Total : {{count}}",
-    "myPendingSubmissions": "Mes en attente {{count}}",
-    "myPendingSubmissionsA11y": "Voir mes {{count}} liens en attente d’approbation",
-    "myPendingA11y": "Mes approbations en attente : {{count}}",
+    "myPendingSubmissions": "Demandes d’approbation envoyées {{count}}",
+    "myPendingSubmissionsA11y": "Voir {{count}} : Demandes d’approbation envoyées",
+    "myPendingA11y": "Demandes d’approbation envoyées: {{count}}",
     "favoritesTitle": "Favoris",
     "allCollectionsTitle": "Toutes les collections",
     "addFavorite": "Ajouter aux favoris",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Enregistrer la collection",
     "errorColorUpdateFallback": "Impossible de mettre à jour la couleur.",
     "favoritesEmpty": "Aucun favori.",
-    "allCollectionsEmpty": "Aucune collection.", "manageAction": "Gérer la collection", "itemManageAction": "Autres actions du lien", "addToOther": "Dupliquer dans une autre collection", "moveToOther": "Déplacer vers une autre collection", "mergeWithOther": "Fusionner avec une autre collection", "targetPickerTitle": "Sélectionner une collection", "moveTitle": "Déplacer le lien", "moveAction": "Déplacer", "moveConfirmMessage": "Déplacer ce lien vers \"{{target}}\" ?", "moveError": "Impossible de déplacer le lien.", "mergeTitle": "Fusionner les collections", "mergeAction": "Fusionner", "mergeConfirmMessage": "Fusionner \"{{source}}\" dans \"{{target}}\" ? Les liens seront regroupés et cette collection sera supprimée.", "mergeError": "Impossible de fusionner la collection.", "errorTargetLoadFallback": "Impossible de charger les collections.",
+    "allCollectionsEmpty": "Aucune collection.",
+    "manageAction": "Gérer la collection",
+    "itemManageAction": "Autres actions du lien",
+    "addToOther": "Dupliquer dans une autre collection",
+    "moveToOther": "Déplacer vers une autre collection",
+    "mergeWithOther": "Fusionner avec une autre collection",
+    "targetPickerTitle": "Sélectionner une collection",
+    "moveTitle": "Déplacer le lien",
+    "moveAction": "Déplacer",
+    "moveConfirmMessage": "Déplacer ce lien vers \"{{target}}\" ?",
+    "moveError": "Impossible de déplacer le lien.",
+    "mergeTitle": "Fusionner les collections",
+    "mergeAction": "Fusionner",
+    "mergeConfirmMessage": "Fusionner \"{{source}}\" dans \"{{target}}\" ? Les liens seront regroupés et cette collection sera supprimée.",
+    "mergeError": "Impossible de fusionner la collection.",
+    "errorTargetLoadFallback": "Impossible de charger les collections.",
     "myCategoriesTab": "Mes collections",
     "sharedCategoriesTab": "Partagées",
     "sharedEmpty": "Aucune collection partagée pour l'instant.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "Dans la collection choisie, ce lien est déjà en attente d’approbation.",
     "saveOutcomeAlreadyInCollection": "La collection choisie contient déjà ce lien.",
     "roleSubmitter": "Avec approbation",
-    "pendingSubmissions": "En attente {{count}}",
-    "pendingSubmissionsA11y": "Voir {{count}} liens en attente d’approbation",
+    "pendingSubmissions": "Demandes d’approbation reçues {{count}}",
+    "pendingSubmissionsA11y": "Voir {{count}} : Demandes d’approbation reçues",
     "removeFromSharedOwnerOnly": "Seul le propriétaire peut retirer des liens d’une collection partagée avec vous.",
     "removeFromCollection": "Retirer de la collection",
     "iconPhotoChoose": "Choisir une photo",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Mot de passe d’accès",
     "sharePasswordWrong": "Ce mot de passe est incorrect.",
     "sharePasswordContactOwner": "Demandez le mot de passe d’accès à la personne qui a partagé cette collection.",
-    "sharePasswordRequiredForAction": "Ouvrez d’abord la collection et saisissez son mot de passe d’accès."
+    "sharePasswordRequiredForAction": "Ouvrez d’abord la collection et saisissez son mot de passe d’accès.",
+    "sortNameAscA11y": "Nom, de A à Z",
+    "sortNameDescA11y": "Nom, de Z à A"
   },
-  "toast": { "moveSuccess": "Déplacé.", "undoAction": "Annuler", "undoMoveError": "Impossible d’annuler le déplacement.", "deleteSuccess": "Supprimé.", "undoDeleteError": "Impossible d’annuler la suppression.", "unlinkSuccess": "Retiré de la collection.", "undoUnlinkError": "Impossible d’annuler le retrait de la collection.", "collectionDeleteSuccess": "Collection supprimée.", "undoCollectionDeleteError": "Impossible d’annuler la suppression de la collection.", "collectionMergeSuccess": "Collection fusionnée.", "undoCollectionMergeError": "Impossible d’annuler la fusion de la collection." },
+  "toast": {
+    "moveSuccess": "Déplacé.",
+    "undoAction": "Annuler",
+    "undoMoveError": "Impossible d’annuler le déplacement.",
+    "deleteSuccess": "Supprimé.",
+    "undoDeleteError": "Impossible d’annuler la suppression.",
+    "unlinkSuccess": "Retiré de la collection.",
+    "undoUnlinkError": "Impossible d’annuler le retrait de la collection.",
+    "collectionDeleteSuccess": "Collection supprimée.",
+    "undoCollectionDeleteError": "Impossible d’annuler la suppression de la collection.",
+    "collectionMergeSuccess": "Collection fusionnée.",
+    "undoCollectionMergeError": "Impossible d’annuler la fusion de la collection."
+  },
   "myPage": {
     "title": "Mon compte",
-    "settings": "Paramètres",
     "signOutConfirmTitle": "Se déconnecter ?",
     "signOutConfirmMessage": "Vous devrez vous reconnecter pour continuer.",
     "deleteAccountErrorFallback": "Impossible de supprimer votre compte. Veuillez réessayer.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Langue",
-    "quickSaveOnShare": "Enregistrer instantanément au partage",
-    "quickSaveOnShareOnDescription": "Le partage d'un lien depuis YouTube, Instagram et d'autres apps l'enregistre immédiatement dans Juple sans ouvrir l'app.",
-    "quickSaveOnShareOffDescription": "Après le partage, Juple s'ouvre pour que vous puissiez vérifier les détails du lien et choisir une collection avant d'enregistrer.",
+    "quickSaveOnShare": "Enregistrement rapide",
+    "quickSaveOnShareOnDescription": "Les liens que vous partagez vers Juple depuis d’autres apps sont enregistrés immédiatement, sans écran de vérification.",
+    "quickSaveOnShareOffDescription": "Les liens que vous partagez vers Juple ouvrent un écran de vérification où vous contrôlez les détails et choisissez une collection avant d’enregistrer.",
     "trash": "Supprimés récemment",
     "collectionLock": "Verrouillage des collections",
     "collectionLockDescription": "Définissez un mot de passe pour vos collections.",
@@ -521,7 +549,10 @@
     "limitNotice": "Vous pouvez consulter jusqu’à vos {{count}} dernières suppressions.",
     "restoreConfirmTitle": "Restaurer ?",
     "restoreConfirmMessage": "Le lien supprimé sera restauré.",
-    "restoreConfirmAction": "Restaurer"
+    "restoreConfirmAction": "Restaurer",
+    "openLink": "Ouvrir le lien",
+    "moreA11y": "Plus d’actions",
+    "emptyA11y": "Vider les éléments supprimés récemment"
   },
   "collaboration": {
     "jupleIdLabel": "ID Juple",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "Ajouter {{count}}",
     "alreadyMember": "Déjà membre",
     "alreadyAdded": "Ajouté",
-    "allUsersTitle": "Collection publique",
+    "allUsersTitle": "Paramètres de la collection publique",
     "belowPublicPermission": "Impossible d’accorder une autorisation inférieure à l’autorisation publique de la collection.",
     "permissionLabel": "Autorisation",
     "publicOn": "OUI",
@@ -623,7 +654,7 @@
     "inviteTitle": "Inviter des amis",
     "inviteTabFriends": "Amis",
     "inviteTabId": "ID",
-    "statusTitle": "État du partage",
+    "statusTitle": "Participants",
     "statusTabMembers": "Partagée {{count}}",
     "statusTabPending": "En attente {{count}}",
     "permissionMismatch": "Quelqu’un a une autorisation inférieure à cette autorisation publique ; elle ne peut pas être appliquée.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Modifier ensemble",
     "reviewMembers": "Voir les personnes",
     "selectedCount": "{{count}} sélectionné(s)",
-    "addPersonToInviteList": "Ajouter {{name}} à la liste d’invitation"
+    "addPersonToInviteList": "Ajouter {{name}} à la liste d’invitation",
+    "publicInfo": "Toute personne qui connaît le lien de la collection peut y accéder.\nVous pouvez définir une autorisation commune pour ces personnes et accorder séparément une autorisation supérieure aux personnes invitées directement.\nLes autorisations peuvent aussi être modifiées dans la liste des participants.",
+    "publicInfoA11y": "À propos de la collection publique"
   },
   "linkShare": {
     "description": "Transmettez le lien de la collection publique. Les destinataires ne deviennent pas participants de cette collection.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "Retirer {{name}}"
   },
   "submissions": {
-    "empty": "Aucun lien en attente d’approbation.",
-    "myEmpty": "Aucun de mes liens n’attend d’approbation.",
-    "myLoadError": "Impossible de charger mes liens en attente.",
+    "empty": "Demandes d’approbation reçues : aucune",
+    "myEmpty": "Demandes d’approbation envoyées : aucune",
+    "myLoadError": "Impossible de charger les demandes envoyées.",
     "myStatus": "En attente d’approbation",
     "loadError": "Impossible de charger les liens en attente.",
     "approve": "Approuver",
@@ -662,7 +695,20 @@
     "unavailable": "Cette demande ne peut plus être approuvée.",
     "viaPublicLink": "Proposé via le lien public",
     "approveA11y": "Approuver {{title}}",
-    "rejectA11y": "Refuser {{title}}"
+    "rejectA11y": "Refuser {{title}}",
+    "mySheetTitle": "Demandes d’approbation envoyées",
+    "ownerSheetTitle": "Demandes d’approbation reçues",
+    "cancelRequest": "Annuler la demande",
+    "cancelRequestA11y": "Annuler la demande d’approbation pour {{title}}",
+    "cancelRequestConfirm": "Annuler la demande d’approbation ?",
+    "cancelRequestConfirmMessage": "Le lien disparaîtra aussi de la liste d’approbation du propriétaire de la collection.",
+    "keepRequest": "Garder la demande",
+    "alreadyProcessed": "Cette demande a déjà été traitée.",
+    "alreadyCancelledOrProcessed": "Cette demande a déjà été annulée ou traitée.",
+    "cancelFailed": "Impossible d’annuler la demande. Réessayez.",
+    "sharedCollectionShort": "Collection partagée",
+    "approveConfirmTitle": "Approuver cette demande de lien ?",
+    "approveConfirmMessage": "En approuvant, ce lien sera ajouté à la collection."
   },
   "friends": {
     "title": "Amis",
@@ -679,7 +725,7 @@
     "loadFallback": "Impossible de charger les amis.",
     "empty": "Pas encore d'amis.",
     "searchEmpty": "Aucun ami ne correspond.",
-    "note": "Ma note",
+    "note": "Note",
     "noteInvalid": "Utilisez jusqu'à 200 caractères sur une seule ligne.",
     "remove": "Retirer l'ami",
     "removeConfirmTitle": "Retirer cet ami ?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Aucune demande d'ami reçue.",
     "outgoingEmpty": "Aucune demande d'ami envoyée.",
     "requestPending": "Demande en attente",
-    "noteHelper": "Visible par vous seul",
     "lookupHint": "Trouvez un ami grâce à son identifiant Juple.",
     "incomingFromThem": "Cette personne vous a envoyé une demande d'ami.",
     "viewIncoming": "Voir les demandes reçues",
     "acceptA11y": "Accepter la demande d'ami de {{name}}",
     "declineA11y": "Refuser la demande d'ami de {{name}}",
-    "cancelA11y": "Annuler la demande d'ami envoyée à {{name}}"
+    "cancelA11y": "Annuler la demande d'ami envoyée à {{name}}",
+    "personTitle": "Infos sur l'utilisateur",
+    "you": "Vous"
   },
   "notifications": {
     "title": "Notifications",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Notifications, {{count}} non lues",
     "bannerAnnouncement": "Nouvelle notification : {{title}}. {{body}}",
     "bannerHint": "Touchez pour ouvrir. Balayez vers le haut pour fermer."
+  },
+  "contact": {
+    "title": "Nous contacter",
+    "description": "Pour toute question sur Juple, écrivez-nous par e-mail.",
+    "sendEmail": "Envoyer un e-mail",
+    "subject": "Question sur Juple",
+    "noMailApp": "Impossible d’ouvrir une app de messagerie. Écrivez directement à {{email}}.",
+    "copyEmail": "Copier l’adresse e-mail"
   }
 }

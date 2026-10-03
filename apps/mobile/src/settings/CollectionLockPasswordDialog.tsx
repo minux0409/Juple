@@ -7,6 +7,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { changeCollectionLockPassword, resetCollectionLockPassword } from '../collections/api/collectionLockPasswordApi';
 import { LOCK_PASSWORD_MAX_LENGTH, LOCK_PASSWORD_MIN_LENGTH } from '../collections/CollectionLockDialog';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 export const RECENT_AUTHENTICATION_REQUIRED_CODE = 'recentAuthenticationRequired';
 
@@ -106,7 +107,7 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
-      <View style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
+      <KeyboardSafeView style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
@@ -146,7 +147,7 @@ export function CollectionLockPasswordDialog({ visible, mode, onCancel, onSaved,
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardSafeView>
     </Modal>
   );
 }

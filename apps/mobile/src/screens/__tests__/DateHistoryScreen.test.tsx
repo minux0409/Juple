@@ -860,6 +860,29 @@ describe('DateHistoryScreen - search the whole archive', () => {
     expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
   });
 
+  it('shows the 2-character helper only while exactly 1 character is typed - no request, hidden again at 2+ and when cleared', async () => {
+    installSearch(itemsFor(100, 5));
+    const renderer = await renderScreen();
+    const hint = () => renderPart(getList(renderer).props.ListHeaderComponent).root.findAll(node => node.props.testID === 'history-search-hint' && typeof node.type === 'string');
+
+    expect(hint()).toHaveLength(0);
+    await typeSearch(renderer, 'a');
+    await flush();
+    expect(hint()).toHaveLength(1);
+    expect(hint()[0].props.children).toBe(i18n.t('history.searchMinHint'));
+    expect(searchCalls()).toHaveLength(0);
+    expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+
+    await typeSearch(renderer, 'li');
+    expect(hint()).toHaveLength(0);
+    await flush();
+    expect(searchCalls()).toHaveLength(1);
+
+    await typeSearch(renderer, '');
+    expect(hint()).toHaveLength(0);
+    expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+  });
+
   it('debounces: typing quickly sends ONE request for the final text, trimmed', async () => {
     installSearch(itemsFor(100, 5));
     const renderer = await renderScreen();

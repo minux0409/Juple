@@ -7,8 +7,9 @@ import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
-import { CollectionSubmissionsScreen } from '../screens/CollectionSubmissionsScreen';
+import { ContactScreen } from '../screens/ContactScreen';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
+import { headerTitleWithIcon, screenIcons } from './screenIcons';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
@@ -67,6 +68,8 @@ export type RootStackParamList = {
      * its reactions and comments show and the visit's unlock is reused. Consumed once.
      */
     openItem?: { readonly itemId: number; readonly focus: 'comments' | null };
+    /** A 승인 요청 notification: opens the Owner's 링크 승인 대기 popup over the Collection once its content is open. Consumed once. */
+    openApprovals?: boolean;
   };
   /**
    * Owner-only sharing of one Collection, as a modal - one screen: 모든 사용자 (the public link),
@@ -74,10 +77,8 @@ export type RootStackParamList = {
    * invitations. Opening it never enables anything by itself.
    */
   CollectionShare: { collectionId: number };
-  /** The Owner's 승인 대기 list of links proposed for this Collection (승인 후 추가). */
-  CollectionSubmissions: { collectionId: number };
-  /** A member passes the Collection id; a signed-in public-link submitter (not a member) passes the link's publicId. */
-  MyCollectionSubmissions: { collectionId: number } | { publicId: string };
+  /** A signed-in public-link submitter's (not a member's) own waiting links. A member's 내 승인 대기 is a popup (ApprovalSubmissionSheet), not a screen. */
+  MyCollectionSubmissions: { publicId: string };
   /** 친구: friends, friend requests and the signed-in user's private notes. Grants no Collection access. */
   Friends: undefined;
   /** 알림: the signed-in user's Notification Inbox, newest first. */
@@ -108,6 +109,8 @@ export type RootStackParamList = {
   /** 계정 관리 > 계정 삭제: warning, a fresh sign-in, then typing the Juple ID - never a single tap. */
   DeleteAccount: undefined;
   Trash: undefined;
+  /** 내 페이지 > 문의하기: the support address and a button that opens the system mail app. */
+  Contact: undefined;
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
@@ -174,11 +177,6 @@ export function RootStack() {
               options={{ presentation: 'modal', title: t('nav.collectionShare') }}
             />
             <Stack.Screen
-              component={CollectionSubmissionsScreen}
-              name="CollectionSubmissions"
-              options={{ title: t('nav.collectionSubmissions') }}
-            />
-            <Stack.Screen
               component={MyCollectionSubmissionsScreen}
               name="MyCollectionSubmissions"
               options={{ title: t('nav.myCollectionSubmissions') }}
@@ -186,7 +184,7 @@ export function RootStack() {
             <Stack.Screen
               component={FriendsScreen}
               name="Friends"
-              options={{ title: t('friends.title') }}
+              options={{ title: t('friends.title'), ...headerTitleWithIcon(screenIcons.friends, t('friends.title')) }}
             />
             <Stack.Screen
               component={NotificationsScreen}
@@ -206,16 +204,17 @@ export function RootStack() {
             <Stack.Screen
               component={LanguageSettingsScreen}
               name="LanguageSettings"
-              options={{ title: t('nav.languageSettings') }}
+              options={{ title: t('nav.languageSettings'), ...headerTitleWithIcon(screenIcons.language, t('nav.languageSettings')) }}
             />
             <Stack.Screen
               component={CollectionLockSettingsScreen}
               name="CollectionLockSettings"
-              options={{ title: t('nav.collectionLockSettings') }}
+              options={{ title: t('nav.collectionLockSettings'), ...headerTitleWithIcon(screenIcons.collectionLock, t('nav.collectionLockSettings')) }}
             />
-            <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash') }} />
+            <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
+            <Stack.Screen component={ContactScreen} name="Contact" options={{ title: t('contact.title'), ...headerTitleWithIcon(screenIcons.contact, t('contact.title')) }} />
             <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit') }} />
-            <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title') }} />
+            <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
             <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle') }} />
           </Stack.Group>
         ) : isInitializing || isAuthenticated ? (

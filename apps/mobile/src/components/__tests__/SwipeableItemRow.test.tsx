@@ -48,6 +48,89 @@ async function renderRow(props: { onPress: () => void; onDelete: () => void; onS
   return renderer;
 }
 
+describe('SwipeableItemRow as a card wrapper (a pending-request card: icon-only delete, content with controls of its own)', () => {
+  afterEach(() => {
+    closeOpenRow();
+  });
+
+  async function renderCard(onDelete: () => void) {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <SwipeableItemRow contentAccessible={false} deleteIconOnly deleteLabel="승인 요청 취소" deleteTestID="card-delete" onDelete={onDelete} testID="card">
+          <Text>Card</Text>
+        </SwipeableItemRow>,
+      );
+    });
+    return renderer;
+  }
+
+  it('the revealed delete action is icon-only, keeps its accessibility label, and swiping alone deletes nothing', async () => {
+    const onDelete = jest.fn();
+    const renderer = await renderCard(onDelete);
+    await revealRow(renderer);
+
+    const action = renderer.root.find(node => node.props.testID === 'card-delete' && typeof node.props.onPress === 'function');
+    expect(action.findAllByType(Text)).toHaveLength(0);
+    expect(action.props.accessibilityLabel).toBe('승인 요청 취소');
+    expect(onDelete).not.toHaveBeenCalled();
+    await act(async () => {
+      action.props.onPress();
+    });
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('without onPress a tap does nothing, and the content is not one accessible button (its own controls stay reachable)', async () => {
+    const renderer = await renderCard(jest.fn());
+
+    const content = renderer.root.find(node => node.props.testID === 'card' && typeof node.props.onPress === 'function');
+    expect(content.props.accessible).toBe(false);
+    expect(content.props.accessibilityRole).toBeUndefined();
+    expect(() => content.props.onPress()).not.toThrow();
+  });
+});
+
+describe('SwipeableItemRow without a share action (a friend row)', () => {
+  afterEach(() => {
+    closeOpenRow();
+  });
+
+  async function renderDeleteOnly(onDelete: () => void) {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <SwipeableItemRow onDelete={onDelete} onLongPress={jest.fn()} onPress={jest.fn()} testID="row">
+          <Text>Row content</Text>
+        </SwipeableItemRow>,
+      );
+    });
+    return renderer;
+  }
+
+  it('reveals only 삭제 - no 공유 slot is mounted, and the accessibility actions list only delete', async () => {
+    const onDelete = jest.fn();
+    const renderer = await renderDeleteOnly(onDelete);
+    await revealRow(renderer);
+
+    expect(findByAccessibilityLabel(renderer, i18n.t('common.share'))).toBeUndefined();
+    const deleteAction = findByAccessibilityLabel(renderer, i18n.t('common.delete'));
+    expect(deleteAction).toBeDefined();
+    await act(async () => {
+      deleteAction.props.onPress();
+    });
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    const layer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    expect(layer.props.accessibilityActions.map((action: { name: string }) => action.name)).toEqual(['delete']);
+  });
+
+  it('forwards the long press to the row content (the tap and the long press are separate)', async () => {
+    const renderer = await renderDeleteOnly(jest.fn());
+
+    const content = renderer.root.find(node => node.props.testID === 'row' && typeof node.props.onPress === 'function');
+    expect(content.props.onLongPress).toEqual(expect.any(Function));
+  });
+});
+
 describe('SwipeableItemRow', () => {
   afterEach(() => {
     // Every test starts with a clean "no row open" coordinator state.
@@ -188,5 +271,33 @@ describe('SwipeableItemRow', () => {
     // Declared (and therefore painted) before the content layer - RN stacks later siblings on
     // top, so the actions are only ever visible once the content slides away via translateX.
     expect(siblings.indexOf(actionsOverlay)).toBeLessThan(siblings.indexOf(contentLayer as never));
+  });
+});
+
+describe('SwipeableItemRow startAction (a generic start-side action in place of 공유)', () => {
+  afterEach(() => {
+    closeOpenRow();
+  });
+
+  it('reveals the custom action with its label; swiping alone does not run it, a tap does', async () => {
+    const onPress = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <SwipeableItemRow onDelete={jest.fn()} startAction={{ icon: () => null, label: '복구', onPress, testID: 'start-action' }}>
+          <Text>Row</Text>
+        </SwipeableItemRow>,
+      );
+    });
+    await revealRow(renderer);
+
+    expect(onPress).not.toHaveBeenCalled();
+    expect(findByAccessibilityLabel(renderer, i18n.t('common.share'))).toBeUndefined();
+    const action = renderer.root.find(node => node.props.testID === 'start-action' && typeof node.props.onPress === 'function');
+    expect(action.props.accessibilityLabel).toBe('복구');
+    await act(async () => {
+      action.props.onPress();
+    });
+    expect(onPress).toHaveBeenCalledTimes(1);
   });
 });

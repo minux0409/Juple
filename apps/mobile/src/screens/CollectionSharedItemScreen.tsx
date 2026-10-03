@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getSharedCollectionItem, type SharedCollectionItem } from '../collections/api/collectionsApi';
@@ -12,11 +12,13 @@ import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants'
 import { contentGateOfError } from '../collections/useCollectionItems';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { ItemAdderBadge } from '../components/ItemAdderBadge';
+import { usePersonProfile } from '../friends/PersonProfileModal';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionSharedItem'>;
 
@@ -41,6 +43,7 @@ export function CollectionSharedItemScreen({ route }: Props) {
   const [openError, setOpenError] = useState<string | null>(null);
   // Reactions and comments of this link IN this Collection - the one shared implementation (the owner's
   // ItemDetails uses the same). A link opened here is always one of a Collection the caller belongs to.
+  const { openProfile, profileModal } = usePersonProfile();
   const collaboration = useItemCollaboration({ collectionId, itemId, isCollectionOwner, row: item, enabled: true });
 
   useFocusEffect(
@@ -112,7 +115,7 @@ export function CollectionSharedItemScreen({ route }: Props) {
   return (
     <StackScreenSafeArea style={styles.safeArea}>
       {/* Keeps the comment field above the keyboard (edge-to-edge Android does not resize the window by itself). */}
-      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+      <KeyboardSafeView style={styles.flex}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ContentPreviewCard
           onChangeTitle={noop}
@@ -130,7 +133,14 @@ export function CollectionSharedItemScreen({ route }: Props) {
           // (avatar, crown for the Owner; the words only for assistive technology).
           <View style={styles.adderRow} testID="shared-item-added-by">
             <Text style={styles.adderLabel}>{t('collections.addedByLabel')}</Text>
-            <ItemAdderBadge adder={addedBy} avatarSize={ADDER_AVATAR_SIZE} testID="shared-item-adder" />
+            <ItemAdderBadge
+              adder={addedBy}
+              avatarSize={ADDER_AVATAR_SIZE}
+              onPress={addedBy.kind === 'person' && addedBy.jupleId
+                ? () => openProfile({ jupleId: addedBy.jupleId as string, displayName: addedBy.displayName, profileImageUrl: addedBy.imageUrl, profileImageVersion: addedBy.imageVersion, isSelf: addedBy.isMe })
+                : undefined}
+              testID="shared-item-adder"
+            />
           </View>
         ) : null}
         {collaboration.reactions}
@@ -143,7 +153,8 @@ export function CollectionSharedItemScreen({ route }: Props) {
         {collaboration.comments}
       </ScrollView>
       {collaboration.composer}
-      </KeyboardAvoidingView>
+      </KeyboardSafeView>
+      {profileModal}
     </StackScreenSafeArea>
   );
 }

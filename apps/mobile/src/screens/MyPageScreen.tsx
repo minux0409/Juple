@@ -10,16 +10,13 @@ import { getMyProfile, type UserProfile } from '../api/profileApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { formatBadgeCount } from '../components/badgeCount';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ScreenTitle } from '../components/ScreenTitle';
 import { UserAvatar } from '../components/UserAvatar';
 import { getFriendRequests } from '../friends/api/friendsApi';
-import { GlobeIcon } from '../icons/GlobeIcon';
-import { LockIcon } from '../icons/LockIcon';
 import { LogoutIcon } from '../icons/LogoutIcon';
-import { PeopleIcon } from '../icons/PeopleIcon';
 import { ShareIcon } from '../icons/ShareIcon';
-import { TrashIcon } from '../icons/TrashIcon';
-import { UserIcon } from '../icons/UserIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
+import { screenIcons } from '../navigation/screenIcons';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import {
   loadQuickSaveOnSharePreference,
@@ -28,8 +25,9 @@ import {
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 /**
- * 내 페이지: a compact profile header (photo, nickname, @Juple ID, 프로필 편집) → Settings (언어, 공유
- * 즉시 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리, 로그아웃). Account deletion is deliberately NOT
+ * 내 페이지: a compact profile header (photo, nickname, @Juple ID, 프로필 편집) → one card of rows (언어,
+ * 빠른 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리, 문의하기, 로그아웃) - deliberately without a
+ * "설정" heading, since they are not all settings. Account deletion is deliberately NOT
  * on this page - it lives under 계정 관리, behind its own multi-step flow. Sign-out asks first.
  */
 export function MyPageScreen() {
@@ -109,7 +107,7 @@ export function MyPageScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{t('myPage.title')}</Text>
+        <ScreenTitle icon={screenIcons.myPage} textStyle={styles.title} title={t('myPage.title')} />
 
         {/* Compact profile header - never a large SNS-style cover. The nickname line falls back to
             "설정 안 됨" (the Juple ID below is what others then see). */}
@@ -148,7 +146,6 @@ export function MyPageScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.sectionTitle}>{t('myPage.settings')}</Text>
         <View style={styles.settingsGroup}>
           <Pressable
             accessibilityRole="button"
@@ -156,7 +153,7 @@ export function MyPageScreen() {
             style={styles.settingsRow}
           >
             <View style={styles.settingsRowIcon}>
-              <GlobeIcon color={colors.textSecondary} size={18} />
+              <screenIcons.language color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('settings.language')}</Text>
           </Pressable>
@@ -187,7 +184,7 @@ export function MyPageScreen() {
             testID="my-friends"
           >
             <View style={styles.settingsRowIcon}>
-              <PeopleIcon color={colors.textSecondary} size={18} />
+              <screenIcons.friends color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('friends.title')}</Text>
             {incomingFriendRequestCount > 0 ? (
@@ -204,7 +201,7 @@ export function MyPageScreen() {
             testID="my-collection-lock"
           >
             <View style={styles.settingsRowIcon}>
-              <LockIcon color={colors.textSecondary} size={18} />
+              <screenIcons.collectionLock color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('settings.collectionLock')}</Text>
           </Pressable>
@@ -215,7 +212,7 @@ export function MyPageScreen() {
             style={styles.settingsRow}
           >
             <View style={styles.settingsRowIcon}>
-              <TrashIcon color={colors.textSecondary} size={18} />
+              <screenIcons.trash color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('settings.trash')}</Text>
           </Pressable>
@@ -227,9 +224,21 @@ export function MyPageScreen() {
             testID="my-account-management"
           >
             <View style={styles.settingsRowIcon}>
-              <UserIcon color={colors.textSecondary} size={18} />
+              <screenIcons.account color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('account.title')}</Text>
+          </Pressable>
+          <View style={styles.settingsRowDivider} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('Contact')}
+            style={styles.settingsRow}
+            testID="my-contact"
+          >
+            <View style={styles.settingsRowIcon}>
+              <screenIcons.contact color={colors.textSecondary} size={18} />
+            </View>
+            <Text style={styles.settingsRowLabel}>{t('contact.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <Pressable
@@ -318,19 +327,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   countBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
-  sectionTitle: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: spacing.xl,
-    marginBottom: spacing.sm,
-  },
   // One grouped white card (matches Home/Categories' floating-card language) holding every
   // settings row, rather than each row being its own separately bordered box.
   settingsGroup: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
     ...cardShadow,
   },
   // No justifyContent:'space-between' here - the quick-save row's own settingsRowTextColumn

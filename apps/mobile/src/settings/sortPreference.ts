@@ -1,8 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
-export type LinkSortOption = 'newest' | 'oldest' | 'title';
-export type SortPreferenceKey = 'collectionDetailsLinkSort' | 'replicatePickerSort' | 'homeLinkSort';
+/** 시간순 ↓ newest / ↑ oldest, 이름순 ↑ title (A→Z) / ↓ titleDesc (Z→A). */
+export type LinkSortOption = 'newest' | 'oldest' | 'title' | 'titleDesc';
+
+/** Whether this is one of the two 이름순 directions. */
+export const isNameSort = (sort: LinkSortOption): sort is 'title' | 'titleDesc' => sort === 'title' || sort === 'titleDesc';
+
+/** Pressing 시간순: first press picks newest ↓; pressed again it flips ↓ newest ↔ ↑ oldest. */
+export const nextDateSort = (current: LinkSortOption): LinkSortOption => (current === 'newest' ? 'oldest' : 'newest');
+
+/** Pressing 이름순: first press picks A→Z ↑; pressed again it flips ↑ ↔ ↓. */
+export const nextNameSort = (current: LinkSortOption): LinkSortOption => (current === 'title' ? 'titleDesc' : 'title');
+export type SortPreferenceKey = 'collectionDetailsLinkSort' | 'replicatePickerSort' | 'homeLinkSort' | 'trashLinkSort';
 
 const storageKey = (key: SortPreferenceKey) => `juple.${key}`;
 
@@ -20,7 +30,7 @@ export function useSortPreference(key: SortPreferenceKey, defaultValue: LinkSort
   useEffect(() => {
     let active = true;
     void AsyncStorage.getItem(storageKey(key)).then(value => {
-      if (active && (value === 'newest' || value === 'oldest' || value === 'title')) {
+      if (active && (value === 'newest' || value === 'oldest' || value === 'title' || value === 'titleDesc')) {
         setSortOptionState(value);
       }
     }).catch(() => undefined);

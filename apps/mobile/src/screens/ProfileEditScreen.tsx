@@ -29,6 +29,7 @@ import { ImageIcon } from '../icons/ImageIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { forgetProfileImage, rememberLocalProfileImage } from '../profile/profileImageCache';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 /** What 저장 will do with the photo: leave it, or upload a newly picked one (removal happens at once, see removePhoto). */
 type PhotoChange =
@@ -252,6 +253,7 @@ export function ProfileEditScreen() {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
+      <KeyboardSafeView>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.photoSection}>
           {/* The avatar and its pencil are siblings (never nested), so one tap is only ever one press -
@@ -334,6 +336,7 @@ export function ProfileEditScreen() {
           {isSaving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.saveLabel}>{t('common.save')}</Text>}
         </Pressable>
       </ScrollView>
+      </KeyboardSafeView>
       <ActionMenuDialog
         actions={photoMenuActions}
         cancelLabel={t('common.cancel')}

@@ -7,6 +7,7 @@ using Juple.Application.Collections.AddItemToCollection;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.Locking;
 using Juple.Application.Collections.EnableCollectionShare;
+using Juple.Application.Collections.RevokeCollectionShare;
 using Juple.Application.Collections.Public;
 using Juple.Application.Collections.Submissions;
 using Juple.Application.Items;
@@ -114,6 +115,22 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         new(new PublicCollectionStore(_db), _collections, _tokens, TimeProvider.System,
             new SocialNotificationPublisher(_db, TimeProvider.System, NullLogger<SocialNotificationPublisher>.Instance),
             new CollectionLinkSubmissionStore(_db));
+
+    /// <summary>The public route's cancel: the same CollectionLinkSubmissionService operation behind the link's own gate.</summary>
+    private PublicCollectionWriteService PublicCancel(JupleDbContext? db = null)
+    {
+        db ??= _db;
+        return new PublicCollectionWriteService(
+            new PublicCollectionStore(db), new CollectionStore(db), _tokens, TimeProvider.System,
+            new SocialNotificationPublisher(db, TimeProvider.System, NullLogger<SocialNotificationPublisher>.Instance),
+            new CollectionLinkSubmissionStore(db),
+            Review(db));
+    }
+
+    private async Task<long> WaitingIdAsync(string url) =>
+        (await _db.CollectionLinkSubmissions.AsNoTracking()
+            .Join(_db.Items.AsNoTracking(), submission => submission.ItemId, item => item.Id, (submission, item) => new { submission.Id, item.Url })
+            .SingleAsync(entry => entry.Url == url)).Id;
 
     private CollectionLinkSubmissionService Review(JupleDbContext? db = null)
     {
@@ -248,7 +265,7 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MyPending_TheSharedTabTotal_SumsAllMyCollections_NotOthers_NotNonMemberPublicOnes_InOneQuery()
+    public async Task MyPending_TheTotal_SumsAllMyWaitingRequests_PublicLinkOnesToo_NotOthers_InOneQuery()
     {
         // A second Collection of the same Owner, where the same submitter is also a member.
         var second = (await _collections.CreateAsync(_owner, "Second", "SECOND", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
@@ -277,7 +294,8 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         counter.Reset();
         var total = await store.CountMineInSharedCollectionsAsync(_submitter);
 
-        Assert.Equal(3, total);
+        // 3 member proposals + the one made through a public link as a non-member: every request of mine that waits.
+        Assert.Equal(4, total);
         Assert.Equal(1, counter.Count);
         Assert.Equal(1, await store.CountMineInSharedCollectionsAsync(_outsider));
         // The Owner's own approval queue is not "mine": they never propose.
@@ -287,8 +305,403 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         var queue = (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items;
         await Review().ApproveAsync(_owner, _sharedId, queue.First(entry => entry.Url.EndsWith("/t1", StringComparison.Ordinal)).SubmissionId, null);
         _db.ChangeTracker.Clear();
-        Assert.Equal(2, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
+        Assert.Equal(3, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
     }
+
+    [Fact]
+    public async Task MyPending_AcrossCollections_OnlyMyOwnRows_MemberOnesWithTheirName_PagedNewestFirst_InBoundedQueries()
+    {
+        var second = (await _collections.CreateAsync(_owner, "Wishlist", "WISHLIST", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var invitation = await _collaboration.InviteAsync(_owner, second, await JupleIdOfAsync(_submitter), CollectionCollaboratorRole.Submitter);
+        await _collaboration.AcceptInvitationAsync(_submitter, invitation.InvitationId);
+        // A Collection reachable only through a public link (never a member) - must not be mixed in.
+        var publicOnly = (await _collections.CreateAsync(_owner, "PublicOnly", "PUBLICONLY", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        _db.ChangeTracker.Clear();
+
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/x1"));
+        await Add().AddAsync(_submitter, second, await NewItemAsync(_submitter, "https://example.test/x2"));
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/x3"));
+        var sharePublicOnly = await _shares.EnableAsync(_owner, publicOnly, CollectionSharePermission.Submit);
+        await PublicAdd().AddItemAsync(_submitter, sharePublicOnly.PublicId, await NewItemAsync(_submitter, "https://example.test/x4"), null);
+        await InviteAndAcceptAsync(_outsider, CollectionCollaboratorRole.Submitter);
+        await Add().AddAsync(_outsider, _sharedId, await NewItemAsync(_outsider, "https://example.test/not-mine"));
+        _db.ChangeTracker.Clear();
+
+        var counter = new CommandCounter();
+        await using var counted = NewContext(counter);
+        var store = new CollectionLinkSubmissionStore(counted);
+        counter.Reset();
+        var all = await store.ListMineAcrossCollectionsAsync(_submitter, null, 50);
+        Assert.True(counter.Count <= 2);
+
+        // Newest first: x4 was proposed through a public link as a non-member - listed as MY request, with no Collection data.
+        Assert.Equal(4, all.TotalCount);
+        Assert.Equal(new[] { "https://example.test/x4", "https://example.test/x3", "https://example.test/x2", "https://example.test/x1" }, all.Items.Select(entry => entry.Url));
+        Assert.Null(all.Items[0].CollectionId);
+        Assert.Null(all.Items[0].CollectionName);
+        Assert.Equal("Wishlist", all.Items.Single(entry => entry.Url.EndsWith("/x2", StringComparison.Ordinal)).CollectionName);
+        Assert.Equal(second, all.Items.Single(entry => entry.Url.EndsWith("/x2", StringComparison.Ordinal)).CollectionId);
+
+        var first = await store.ListMineAcrossCollectionsAsync(_submitter, null, 2);
+        Assert.Equal(2, first.Items.Count);
+        Assert.NotNull(first.NextCursor);
+        var rest = await store.ListMineAcrossCollectionsAsync(_submitter, first.NextCursor, 2);
+        Assert.Equal(2, rest.Items.Count);
+        Assert.Null(rest.NextCursor);
+
+        // Only the caller's own: the other proposer sees theirs, the Owner (who never proposes) nothing.
+        Assert.Single((await store.ListMineAcrossCollectionsAsync(_outsider, null, 50)).Items);
+        Assert.Empty((await store.ListMineAcrossCollectionsAsync(_owner, null, 50)).Items);
+
+        // Approved ones leave the list.
+        var queue = (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items;
+        await Review().ApproveAsync(_owner, _sharedId, queue.First(entry => entry.Url.EndsWith("/x1", StringComparison.Ordinal)).SubmissionId, null);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(3, (await new CollectionLinkSubmissionStore(counted).ListMineAcrossCollectionsAsync(_submitter, null, 50)).TotalCount);
+    }
+
+    // ---------- cancelling my own waiting proposal ----------
+
+    [Fact]
+    public async Task Cancel_TheSubmitterWithdrawsTheirOwnProposal_CountsDrop_NothingElseChanges()
+    {
+        var keep = await NewItemAsync(_submitter, "https://example.test/c-keep");
+        var gone = await NewItemAsync(_submitter, "https://example.test/c-gone");
+        await Add().AddAsync(_submitter, _sharedId, keep);
+        await Add().AddAsync(_submitter, _sharedId, gone);
+        var goneId = await WaitingIdAsync("https://example.test/c-gone");
+        var members = await _db.CollectionCollaborators.AsNoTracking().CountAsync(entry => entry.CollectionId == _sharedId);
+        var links = await LinkCountAsync();
+        Assert.Equal(2, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+        Assert.Equal(2, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
+        Assert.Equal(2, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_submitter));
+
+        await Review().CancelMineAsync(_submitter, goneId, null);
+        _db.ChangeTracker.Clear();
+
+        Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == goneId));
+        Assert.Equal(1, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+        Assert.Equal(1, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
+        Assert.Equal(1, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_submitter));
+        Assert.Single((await new CollectionLinkSubmissionStore(_db).ListMineAcrossCollectionsAsync(_submitter, null, 50)).Items);
+        Assert.Single((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+        // Not a rejection and not an approval: nothing was added, nobody joined or left, the Item stays theirs.
+        Assert.Equal(links, await LinkCountAsync());
+        Assert.Equal(members, await _db.CollectionCollaborators.AsNoTracking().CountAsync(entry => entry.CollectionId == _sharedId));
+        Assert.True(await _db.Items.AnyAsync(entry => entry.Id == gone && entry.DeletedAtUtc == null));
+        // And it is gone for good: a second cancel finds nothing.
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => Review().CancelMineAsync(_submitter, goneId, null));
+    }
+
+    [Fact]
+    public async Task Cancel_OnlyTheOriginalRequester_NobodyElse_NotEvenTheOwner_AndNothingIsDisclosed()
+    {
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/c-mine"));
+        var id = await WaitingIdAsync("https://example.test/c-mine");
+        await InviteAndAcceptAsync(_outsider, CollectionCollaboratorRole.Submitter);
+
+        foreach (var other in new[] { _owner, _contributor, _viewer, _outsider })
+        {
+            await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => Review().CancelMineAsync(other, id, null));
+        }
+
+        // An id that never existed answers exactly like someone else's.
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => Review().CancelMineAsync(_submitter, long.MaxValue, null));
+        Assert.True(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == id));
+        // The cancel endpoints take no user id at all: the caller is the authenticated user.
+        var member = typeof(Juple.Api.Controllers.CollectionsController).GetMethod(nameof(Juple.Api.Controllers.CollectionsController.CancelMySubmissionAsync))!;
+        Assert.DoesNotContain(member.GetParameters(), parameter => parameter.Name!.Contains("user", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Cancel_AnonymousCallersNeverReachIt_BothRoutesRequireASignedInJupleUser()
+    {
+        foreach (var controller in new[] { typeof(Juple.Api.Controllers.CollectionsController), typeof(Juple.Api.Controllers.PublicShareWriteController) })
+        {
+            var authorize = controller
+                .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), inherit: true)
+                .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
+                .Single();
+            Assert.Equal(Juple.Api.Authentication.AuthorizationPolicies.JupleUser, authorize.Policy);
+        }
+
+        var memberAction = typeof(Juple.Api.Controllers.CollectionsController).GetMethod(nameof(Juple.Api.Controllers.CollectionsController.CancelMySubmissionAsync))!;
+        var publicAction = typeof(Juple.Api.Controllers.PublicShareWriteController).GetMethod(nameof(Juple.Api.Controllers.PublicShareWriteController.CancelMyProposalAsync))!;
+        Assert.Empty(memberAction.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), inherit: true));
+        Assert.Empty(publicAction.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), inherit: true));
+        await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task Cancel_ApprovedOrRejectedProposalsCannotBeCancelled_NothingIsResurrected()
+    {
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/c-approved"));
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/c-rejected"));
+        var approvedId = await WaitingIdAsync("https://example.test/c-approved");
+        var rejectedId = await WaitingIdAsync("https://example.test/c-rejected");
+        await Review().ApproveAsync(_owner, _sharedId, approvedId, null);
+        await Review().RejectAsync(_owner, _sharedId, rejectedId, null);
+        var links = await LinkCountAsync();
+
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => Review().CancelMineAsync(_submitter, approvedId, null));
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => Review().CancelMineAsync(_submitter, rejectedId, null));
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(links, await LinkCountAsync());
+        Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == approvedId || entry.Id == rejectedId));
+    }
+
+    [Fact]
+    public async Task Cancel_APublicNonMemberWithdrawsTheirOwnProposal_ThroughThePublicLinkOnly_NoMembershipEver()
+    {
+        var publicCollection = (await _collections.CreateAsync(_owner, "Open", "OPEN", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var otherCollection = (await _collections.CreateAsync(_owner, "Other", "OTHER", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var share = await _shares.EnableAsync(_owner, publicCollection, CollectionSharePermission.Submit);
+        var otherShare = await _shares.EnableAsync(_owner, otherCollection, CollectionSharePermission.Submit);
+        await PublicAdd().AddItemAsync(_outsider, share.PublicId, await NewItemAsync(_outsider, "https://example.test/pc-mine"), null);
+        await PublicAdd().AddItemAsync(_pending, share.PublicId, await NewItemAsync(_pending, "https://example.test/pc-theirs"), null);
+        await PublicAdd().AddItemAsync(_outsider, otherShare.PublicId, await NewItemAsync(_outsider, "https://example.test/pc-other-link"), null);
+        var mineId = await WaitingIdAsync("https://example.test/pc-mine");
+        var theirsId = await WaitingIdAsync("https://example.test/pc-theirs");
+        var otherLinkId = await WaitingIdAsync("https://example.test/pc-other-link");
+
+        // Another user's proposal is never reachable - through this link or any other id.
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => PublicCancel().CancelMyProposalAsync(_outsider, share.PublicId, theirsId));
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => PublicCancel().CancelMyProposalAsync(_outsider, share.PublicId, long.MaxValue));
+
+        await PublicCancel().CancelMyProposalAsync(_outsider, share.PublicId, mineId);
+        _db.ChangeTracker.Clear();
+
+        Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == mineId));
+        Assert.True(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == theirsId));
+        Assert.True(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == otherLinkId));
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.UserId == _outsider && entry.CollectionId == publicCollection));
+        Assert.Equal(1, (await _collections.GetAsync(_owner, publicCollection)).PendingSubmissionCount);
+        Assert.Empty((await new PublicCollectionWriteService(new PublicCollectionStore(_db), _collections, _tokens, TimeProvider.System, null, new CollectionLinkSubmissionStore(_db))
+            .ListMyProposalsAsync(_outsider, share.PublicId, null, 50, null))!.Items);
+    }
+
+    [Fact]
+    public async Task Cancel_ARevokedOrChangedPublicLink_NeverTrapsMyPendingRequest_ItIsStillListedAndCancellable()
+    {
+        var publicCollection = (await _collections.CreateAsync(_owner, "Open", "OPEN", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var share = await _shares.EnableAsync(_owner, publicCollection, CollectionSharePermission.Submit);
+        foreach (var name in new[] { "revoked", "read-only", "other-user" })
+        {
+            await PublicAdd().AddItemAsync(name == "other-user" ? _pending : _outsider, share.PublicId, await NewItemAsync(name == "other-user" ? _pending : _outsider, $"https://example.test/rv-{name}"), null);
+        }
+
+        var revokedId = await WaitingIdAsync("https://example.test/rv-revoked");
+        var readOnlyId = await WaitingIdAsync("https://example.test/rv-read-only");
+        var otherUsersId = await WaitingIdAsync("https://example.test/rv-other-user");
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        Assert.Equal(3, (await ReceivedSubjectsInAsync(publicCollection)).Count);
+        Assert.Equal(3, (await _collections.GetAsync(_owner, publicCollection)).PendingSubmissionCount);
+
+        // The Owner switches the public link off (and, for the second request, only makes it read-only first).
+        await _db.CollectionShares.Where(entry => entry.CollectionId == publicCollection)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Permission, CollectionSharePermission.Read));
+        await new RevokeCollectionShareService(new CollectionShareStore(_db), TimeProvider.System).RevokeAsync(_owner, publicCollection);
+        _db.ChangeTracker.Clear();
+
+        // The requester still FINDS both of their own requests in the global list - as their own, with nothing of the
+        // Collection - and the other user's is not there.
+        var listed = (await new CollectionLinkSubmissionStore(_db).ListMineAcrossCollectionsAsync(_outsider, null, 50)).Items;
+        Assert.Equal(new[] { readOnlyId, revokedId }.Order(), listed.Select(entry => entry.SubmissionId).Order());
+        Assert.All(listed, entry =>
+        {
+            Assert.Null(entry.CollectionId);
+            Assert.Null(entry.CollectionName);
+        });
+        Assert.Equal(2, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_outsider));
+        Assert.Equal(1, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_pending));
+
+        // The canonical (member-shaped) cancel works with no link at all; the public route works too.
+        var members = await _db.CollectionCollaborators.AsNoTracking().CountAsync(entry => entry.CollectionId == publicCollection);
+        await Review().CancelMineAsync(_outsider, revokedId, null);
+        await PublicCancel().CancelMyProposalAsync(_outsider, share.PublicId, readOnlyId);
+        _db.ChangeTracker.Clear();
+
+        Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == revokedId || entry.Id == readOnlyId));
+        Assert.True(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == otherUsersId));
+        Assert.Equal(1, (await _collections.GetAsync(_owner, publicCollection)).PendingSubmissionCount);
+        Assert.Equal(0, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_outsider));
+        // Exactly those two owner notifications are retracted; the other user's stays.
+        Assert.Equal([otherUsersId], await ReceivedSubjectsInAsync(publicCollection));
+        // Nobody joined, nothing was rejected or approved.
+        Assert.Equal(members, await _db.CollectionCollaborators.AsNoTracking().CountAsync(entry => entry.CollectionId == publicCollection));
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.UserId == _outsider && entry.CollectionId == publicCollection));
+        Assert.Equal(0, await _db.NotificationEvents.AsNoTracking().CountAsync(entry => entry.SubjectId == revokedId
+            && (entry.Type == NotificationType.CollectionLinkSubmissionRejected || entry.Type == NotificationType.CollectionLinkSubmissionApproved)));
+        // Someone else cannot cancel it - revoked link or not.
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => Review().CancelMineAsync(_outsider, otherUsersId, null));
+        await Assert.ThrowsAsync<CollectionLinkSubmissionNotFoundException>(() => PublicCancel().CancelMyProposalAsync(_outsider, share.PublicId, otherUsersId));
+    }
+
+    [Fact]
+    public async Task MyPendingList_MemberRowsKeepTheirCollection_PublicOnlyRowsCarryNoCollectionData_AndAreNeverAnotherUsers()
+    {
+        var publicCollection = (await _collections.CreateAsync(_owner, "Secret Name", "SECRET NAME", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var share = await _shares.EnableAsync(_owner, publicCollection, CollectionSharePermission.Submit);
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/ml-member"));
+        await PublicAdd().AddItemAsync(_submitter, share.PublicId, await NewItemAsync(_submitter, "https://example.test/ml-public"), null);
+        await PublicAdd().AddItemAsync(_outsider, share.PublicId, await NewItemAsync(_outsider, "https://example.test/ml-other"), null);
+        _db.ChangeTracker.Clear();
+
+        var store = new CollectionLinkSubmissionStore(_db);
+        var page = await store.ListMineAcrossCollectionsAsync(_submitter, null, 50);
+
+        Assert.Equal(2, page.TotalCount);
+        var member = page.Items.Single(entry => entry.Url.EndsWith("/ml-member", StringComparison.Ordinal));
+        Assert.Equal(_sharedId, member.CollectionId);
+        Assert.Equal("Trip", member.CollectionName);
+        var publicOnly = page.Items.Single(entry => entry.Url.EndsWith("/ml-public", StringComparison.Ordinal));
+        Assert.Null(publicOnly.CollectionId);
+        Assert.Null(publicOnly.CollectionName);
+        Assert.DoesNotContain(page.Items, entry => entry.Url.EndsWith("/ml-other", StringComparison.Ordinal));
+        Assert.Equal(1, (await store.ListMineAcrossCollectionsAsync(_outsider, null, 50)).Items.Count);
+        // The serialized row cannot leak the name or the id either.
+        var json = System.Text.Json.JsonSerializer.Serialize(publicOnly);
+        Assert.DoesNotContain("Secret Name", json, StringComparison.Ordinal);
+        Assert.Contains("\"CollectionId\":null", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Cancel_VersusApprove_OnlyOneWins_NeverBoth_NeverNeither()
+    {
+        for (var round = 0; round < 4; round++)
+        {
+            var url = $"https://example.test/race-approve-{round}";
+            await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, url));
+            var id = await WaitingIdAsync(url);
+            await using var cancelDb = NewContext();
+            await using var approveDb = NewContext();
+
+            var cancel = Review(cancelDb).CancelMineAsync(_submitter, id, null);
+            var approve = Review(approveDb).ApproveAsync(_owner, _sharedId, id, null);
+            var outcomes = await Task.WhenAll(Settle(cancel), Settle(approve));
+
+            _db.ChangeTracker.Clear();
+            Assert.Equal(1, outcomes.Count(outcome => outcome is null));
+            Assert.Equal(1, outcomes.Count(outcome => outcome is CollectionLinkSubmissionNotFoundException));
+            Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == id));
+            var linked = await LinkedByUrlAsync(url);
+            // Approve won exactly when the link is in the Collection; cancel won exactly when it is not.
+            Assert.Equal(outcomes[1] is null, linked);
+            Assert.Equal(outcomes[0] is null, !linked);
+        }
+    }
+
+    [Fact]
+    public async Task Cancel_VersusReject_OnlyOneWins_TheLoserReportsNothingToTheRequester()
+    {
+        for (var round = 0; round < 4; round++)
+        {
+            var url = $"https://example.test/race-reject-{round}";
+            await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, url));
+            var id = await WaitingIdAsync(url);
+            await using var cancelDb = NewContext();
+            await using var rejectDb = NewContext();
+
+            var cancel = Review(cancelDb).CancelMineAsync(_submitter, id, null);
+            var reject = Review(rejectDb).RejectAsync(_owner, _sharedId, id, null);
+            var cancelOutcome = (await Task.WhenAll(Settle(cancel), Settle(reject)))[0];
+
+            _db.ChangeTracker.Clear();
+            Assert.False(await _db.CollectionLinkSubmissions.AnyAsync(entry => entry.Id == id));
+            Assert.False(await LinkedByUrlAsync(url));
+            var rejectedEvents = await _db.NotificationEvents.AsNoTracking()
+                .CountAsync(entry => entry.Type == NotificationType.CollectionLinkSubmissionRejected && entry.SubjectId == id);
+            // Exactly one of them removed it: either the cancel succeeded and NO rejection result exists,
+            // or the rejection was recorded once and the cancel found nothing.
+            Assert.Equal(cancelOutcome is null ? 0 : 1, rejectedEvents);
+        }
+    }
+
+    [Fact]
+    public async Task Cancel_RemovesExactlyThisProposalsOwnerNotification_NotTheOtherProposalsNorTheCollectionsOthers()
+    {
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/n-a"));
+        await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, "https://example.test/n-b"));
+        var a = await WaitingIdAsync("https://example.test/n-a");
+        var b = await WaitingIdAsync("https://example.test/n-b");
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        Assert.Equal(new[] { a, b }.Order(), (await ReceivedSubjectsAsync()).Order());
+        Assert.Equal(2, await new NotificationInboxStore(_db).CountUnreadAsync(_owner));
+
+        await Review().CancelMineAsync(_submitter, a, null);
+        _db.ChangeTracker.Clear();
+
+        Assert.Equal([b], await ReceivedSubjectsAsync());
+        Assert.Equal(1, await new NotificationInboxStore(_db).CountUnreadAsync(_owner));
+        // Another Collection's proposal notification of the same Owner is untouched too.
+        var other = (await _collections.CreateAsync(_owner, "Elsewhere", "ELSEWHERE", CollectionIcon.Folder, DateTimeOffset.UtcNow)).Id;
+        var invitation = await _collaboration.InviteAsync(_owner, other, await JupleIdOfAsync(_submitter), CollectionCollaboratorRole.Submitter);
+        await _collaboration.AcceptInvitationAsync(_submitter, invitation.InvitationId);
+        _db.ChangeTracker.Clear();
+        await Add().AddAsync(_submitter, other, await NewItemAsync(_submitter, "https://example.test/n-c"));
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        var c = await WaitingIdAsync("https://example.test/n-c");
+        await Review().CancelMineAsync(_submitter, b, null);
+        _db.ChangeTracker.Clear();
+        Assert.Equal([c], await ReceivedSubjectsAsync());
+    }
+
+    [Fact]
+    public async Task Cancel_QueryCountIsBounded_NoMatterHowManyProposalsOrNotificationsExist()
+    {
+        async Task<int> CancelCountedAsync(string url)
+        {
+            await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, url));
+            var id = await WaitingIdAsync(url);
+            var counter = new CommandCounter();
+            await using var counted = NewContext(counter);
+            counter.Reset();
+            await Review(counted).CancelMineAsync(_submitter, id, null);
+            return counter.Count;
+        }
+
+        var withFew = await CancelCountedAsync("https://example.test/q-1");
+        for (var index = 0; index < 6; index++)
+        {
+            await Add().AddAsync(_submitter, _sharedId, await NewItemAsync(_submitter, $"https://example.test/q-fill-{index}"));
+        }
+
+        var withMany = await CancelCountedAsync("https://example.test/q-2");
+        Assert.Equal(withFew, withMany);
+        Assert.True(withMany <= 10);
+    }
+
+    private static async Task<Exception?> Settle(Task task)
+    {
+        try
+        {
+            await task;
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
+        }
+    }
+
+    private async Task<List<long>> ReceivedSubjectsInAsync(long collectionId) =>
+        await _db.Notifications.AsNoTracking()
+            .Where(entry => entry.Type == NotificationType.CollectionLinkSubmissionReceived && entry.CollectionId == collectionId)
+            .Select(entry => entry.SubjectId!.Value)
+            .ToListAsync();
+
+    private async Task<List<long>> ReceivedSubjectsAsync() =>
+        await _db.Notifications.AsNoTracking()
+            .Where(entry => entry.Type == NotificationType.CollectionLinkSubmissionReceived && entry.UserId == _owner)
+            .Select(entry => entry.SubjectId!.Value)
+            .ToListAsync();
+
+    private async Task<bool> LinkedByUrlAsync(string url) =>
+        await (from membership in _db.CollectionItems.AsNoTracking()
+               join item in _db.Items.AsNoTracking() on membership.ItemId equals item.Id
+               where membership.CollectionId == _sharedId && item.Url == url
+               select membership.Id).AnyAsync();
 
     [Fact]
     public async Task MyPending_TheFilter_ListsOnlyMemberCollectionsWithMyOwnWaitingLinks_PagedAndBounded()
@@ -346,8 +759,8 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         Assert.Equal(2, all.Items.Single(entry => entry.Id == a).MyPendingSubmissionCount);
         Assert.Equal(1, all.Items.Single(entry => entry.Id == b).MyPendingSubmissionCount);
         Assert.Equal(1, all.Items.Single(entry => entry.Id == _sharedId).MyPendingSubmissionCount);
-        // The same rows through the count endpoint's rule: total LINKS (4), not Collections (3).
-        Assert.Equal(4, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
+        // The same rows through the count endpoint's rule: total LINKS (5 - the public-link proposal in F counts too), not Collections.
+        Assert.Equal(5, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
         Assert.InRange(queries, 1, 6);
 
         // Paged like every other scope (cursor, newest first).
@@ -371,7 +784,7 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         _db.ChangeTracker.Clear();
         var after = await new CollectionStore(counted).ListByScopeAsync(_submitter, Juple.Application.Collections.ListCollections.CollectionListScope.MyPending, null, null, null, 50);
         Assert.DoesNotContain(after.Items, entry => entry.Id == b);
-        Assert.Equal(3, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
+        Assert.Equal(4, await new CollectionLinkSubmissionStore(counted).CountMineInSharedCollectionsAsync(_submitter));
     }
 
     [Fact]

@@ -1,44 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { BottomSheetModal } from '../components/BottomSheetModal';
 import { UserAvatar } from '../components/UserAvatar';
+import { usePersonProfile } from '../friends/PersonProfileModal';
 import { OwnerCrown } from './OwnerCrown';
 import { ParticipantGrid, type ParticipantTileData } from './ParticipantGrid';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, ltrTextStyle, minTouchTarget, spacing } from '../theme/tokens';
 import {
   formatJupleId,
   getCollectionParticipants,
   invitationRoleOf,
   participantRoleLabelKey,
   personLabel,
-  removeCollaborator,
-  revokeCollectionInvitation,
   type CollectionParticipants,
 } from './api/collaborationApi';
-import { isCollectionLockedError } from './useCollectionItems';
-
-/** How long the backdrop fade / sheet slide takes - an animation duration, not a wait before showing anything. */
-const ENTRANCE_MS = 200;
 
 interface CollectionParticipantsSheetProps {
   readonly visible: boolean;
   readonly collectionId: number;
   readonly authenticatedRequest: AuthenticatedApiRequest;
   readonly onClose: () => void;
-  /** Called after a membership change, so the caller can refresh its summary/content. */
-  readonly onChanged?: () => void;
-  /**
-   * The caller's unlock gate for managing a locked Collection (CollectionDetailsScreen.runUnlocked):
-   * runs the action at once with a valid grant, otherwise asks for the password first and runs it
-   * only after a successful unlock (never after a wrong password or a cancel). Without it, actions
-   * run directly.
-   */
-  readonly runUnlocked?: (action: () => void) => void;
   /**
    * The participant list the caller already holds (the avatar stack's source). The sheet opens with
    * it - its first frame is already the final size - and only revalidates in the background, instead
@@ -50,25 +35,23 @@ interface CollectionParticipantsSheetProps {
 /**
  * Who is in a collaborative Category, opened from its participant summary. Every member sees the
  * same list (the Owner and accepted Contributors, by display name or Juple ID); only the Owner - as
- * the server reports via canManage - also sees pending invitations and the remove/cancel controls.
- * A Contributor's view is strictly read-only.
+ * the server reports via canManage - also sees pending invitations. VIEW-ONLY for everyone: the popup is for seeing
+ * who is in and opening their profile / friend information; removing someone or cancelling an invitation lives only
+ * on the Share screen (the dedicated management place).
  */
 export function CollectionParticipantsSheet({
   visible,
   collectionId,
   authenticatedRequest,
   onClose,
-  onChanged,
-  runUnlocked = action => action(),
   initialData = null,
 }: CollectionParticipantsSheetProps) {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const [data, setData] = useState<CollectionParticipants | null>(initialData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [pendingRemoval, setPendingRemoval] = useState<{ jupleId: string } | null>(null);
+  // An avatar tap inspects the person (self / friend / non-friend, resolved before anything opens).
+  const { openProfile, profileModal } = usePersonProfile();
 
   // The caller's list can arrive after this component mounted (it is mounted with the screen).
   useEffect(() => {
@@ -98,56 +81,12 @@ export function CollectionParticipantsSheet({
     }
   }, [load, visible]);
 
-  const runAction = async (key: string, action: () => Promise<void>) => {
-    if (busyKey !== null) {
-      return;
-    }
-    setBusyKey(key);
-    setError(null);
-    try {
-      await action();
-      await load();
-      onChanged?.();
-    } catch (caughtError) {
-      // A grant that expired in the meantime: the server refused it; say so rather than a generic failure.
-      setError(isCollectionLockedError(caughtError) ? t('collections.lockRequiredForAction') : t('collaboration.actionFallback'));
-    } finally {
-      setBusyKey(null);
-    }
-  };
-
   const canManage = data?.canManage === true;
 
-  // ONE controlled entrance, driven by a single value (0 = not shown, 1 = shown): the dim backdrop
-  // fades in and the sheet slides up from just below its own final position - and until the sheet
-  // has been laid out once (its real height known) it is fully transparent, so no first frame ever
-  // shows an unanimated white panel, a default-sized one, or one that is still resizing. The
-  // animation starts from that first layout, not from a timer, and never again while the sheet
-  // stays open (the list growing later changes nothing about it).
-  const { height: windowHeight } = useWindowDimensions();
-  const entrance = useRef(new Animated.Value(0)).current;
-  const entranceStartedRef = useRef(false);
-  const [sheetHeight, setSheetHeight] = useState<number | null>(null);
-  useEffect(() => {
-    if (!visible) {
-      entrance.setValue(0);
-      entranceStartedRef.current = false;
-      setSheetHeight(null);
-    }
-  }, [entrance, visible]);
-  const handleSheetLayout = (event: LayoutChangeEvent) => {
-    const height = event.nativeEvent.layout.height;
-    if (height > 0 && !entranceStartedRef.current) {
-      entranceStartedRef.current = true;
-      setSheetHeight(height);
-      Animated.timing(entrance, { duration: ENTRANCE_MS, toValue: 1, useNativeDriver: true }).start();
-    }
-  };
   // One participant preference for this popup and the Share screen's 공유 상태 (they show the same people).
   const { viewMode, changeViewMode } = useViewModePreference('participantViewMode');
 
-  // The Grid's tiles: the same people and the same actions as the List rows below - a manageable
-  // member's tile asks to remove them, a pending invitation's tile cancels it.
+  // The Grid's tiles: the same people as the List rows below, identity only.
   const memberTiles: readonly ParticipantTileData[] = (data?.participants ?? []).map(participant => ({
     key: participant.jupleId,
     jupleId: participant.jupleId,
@@ -157,7 +96,8 @@ export function CollectionParticipantsSheet({
     isOwner: participant.role === 'owner',
     name: participant.isMe ? t('collections.participantMe', { name: personLabel(participant) }) : personLabel(participant),
     detail: t(participantRoleLabelKey(participant.role)),
-    onPress: canManage && participant.role !== 'owner' ? () => setPendingRemoval({ jupleId: participant.jupleId }) : undefined,
+    onAvatarPress: () => openProfile({ jupleId: participant.jupleId, displayName: participant.displayName, profileImageUrl: participant.profileImageUrl, profileImageVersion: participant.profileImageVersion, isSelf: participant.isMe }),
+    avatarAccessibilityLabel: `${personLabel(participant)}, ${t('friends.personTitle')}`,
     accessibilityLabel: `${participant.isMe ? t('collections.participantMe', { name: personLabel(participant) }) : personLabel(participant)}, ${t(participantRoleLabelKey(participant.role))}`,
     testID: `participants-sheet-${participant.jupleId}`,
   }));
@@ -170,36 +110,20 @@ export function CollectionParticipantsSheet({
         imageVersion: invitation.profileImageVersion,
         name: personLabel(invitation),
         detail: t(participantRoleLabelKey(invitationRoleOf(invitation.role))),
-        onPress: busyKey === null
-          ? () => runUnlocked(() => runAction(`revoke-${invitation.invitationId}`, () => revokeCollectionInvitation(authenticatedRequest, collectionId, invitation.invitationId)))
-          : undefined,
-        accessibilityLabel: `${personLabel(invitation)}, ${t('collaboration.pendingCollaborationTitle')}, ${t('collaboration.revoke')}`,
+        onAvatarPress: () => openProfile({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion }),
+        avatarAccessibilityLabel: `${personLabel(invitation)}, ${t('friends.personTitle')}`,
+        accessibilityLabel: `${personLabel(invitation)}, ${t('collaboration.pendingCollaborationTitle')}`,
         testID: `participants-sheet-pending-${invitation.invitationId}`,
       }))
     : [];
 
   return (
-    // The native Modal does not animate ("none") - the one entrance is the controlled one above, so the
-    // two never stack. The backdrop and the whole window are translucent like every other modal here.
-    <Modal animationType="none" navigationBarTranslucent onRequestClose={onClose} statusBarTranslucent transparent visible={visible}>
-      <View style={styles.overlay}>
-        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: entrance }]} testID="participants-sheet-backdrop" />
-        <Pressable
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          onPress={onClose}
-          style={StyleSheet.absoluteFill}
-        />
-        <Animated.View
-          accessibilityViewIsModal
-          onLayout={handleSheetLayout}
-          style={[
-            styles.sheet,
-            { paddingBottom: spacing.lg + insets.bottom },
-            { opacity: entrance, transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [sheetHeight ?? windowHeight, 0] }) }] },
-          ]}
-          testID="participants-sheet"
-        >
+    <BottomSheetModal
+      modalExtras={profileModal}
+      onClose={onClose}
+      testID="participants-sheet"
+      visible={visible}
+    >
           {/* 참여자 ........ [List/Grid]: one line, the switch at the far end. */}
           <View style={styles.titleRow}>
             <Text style={styles.title}>{t('collections.participantsTitle')}</Text>
@@ -220,13 +144,21 @@ export function CollectionParticipantsSheet({
             ) : null}
             {viewMode === 'list' ? data?.participants.map(participant => (
               <View key={participant.jupleId} style={styles.row} testID={`participants-sheet-${participant.jupleId}`}>
-                <UserAvatar
-                  displayName={participant.displayName}
-                  imageUrl={participant.profileImageUrl}
-                  imageVersion={participant.profileImageVersion}
-                  jupleId={participant.jupleId}
-                  size={32}
-                />
+                <Pressable
+                  accessibilityLabel={`${personLabel(participant)}, ${t('friends.personTitle')}`}
+                  accessibilityRole="button"
+                  hitSlop={6}
+                  onPress={() => openProfile({ jupleId: participant.jupleId, displayName: participant.displayName, profileImageUrl: participant.profileImageUrl, profileImageVersion: participant.profileImageVersion, isSelf: participant.isMe })}
+                  testID={`participants-sheet-avatar-${participant.jupleId}`}
+                >
+                  <UserAvatar
+                    displayName={participant.displayName}
+                    imageUrl={participant.profileImageUrl}
+                    imageVersion={participant.profileImageVersion}
+                    jupleId={participant.jupleId}
+                    size={32}
+                  />
+                </Pressable>
                 <View style={styles.rowText}>
                   <View style={styles.nameRow}>
                     {participant.role === 'owner' ? <OwnerCrown /> : null}
@@ -239,17 +171,6 @@ export function CollectionParticipantsSheet({
                     {formatJupleId(participant.jupleId)}
                   </Text>
                 </View>
-                {canManage && participant.role !== 'owner' ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={busyKey !== null}
-                    onPress={() => setPendingRemoval({ jupleId: participant.jupleId })}
-                    style={styles.action}
-                    testID={`participants-sheet-remove-${participant.jupleId}`}
-                  >
-                    <Text style={styles.removeLabel}>{t('collaboration.remove')}</Text>
-                  </Pressable>
-                ) : null}
               </View>
             )) : null}
             {viewMode === 'list' && canManage && data && data.pendingInvitations.length > 0 ? (
@@ -257,30 +178,25 @@ export function CollectionParticipantsSheet({
                 <Text style={styles.sectionTitle}>{t('collaboration.pendingCollaborationTitle')}</Text>
                 {data.pendingInvitations.map(invitation => (
                   <View key={invitation.invitationId} style={styles.row} testID={`participants-sheet-pending-${invitation.invitationId}`}>
-                    <UserAvatar
-                      displayName={invitation.displayName}
-                      imageUrl={invitation.profileImageUrl}
-                      imageVersion={invitation.profileImageVersion}
-                      jupleId={invitation.jupleId}
-                      size={32}
-                    />
+                    <Pressable
+                      accessibilityLabel={`${personLabel(invitation)}, ${t('friends.personTitle')}`}
+                      accessibilityRole="button"
+                      hitSlop={6}
+                      onPress={() => openProfile({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion })}
+                      testID={`participants-sheet-pending-avatar-${invitation.invitationId}`}
+                    >
+                      <UserAvatar
+                        displayName={invitation.displayName}
+                        imageUrl={invitation.profileImageUrl}
+                        imageVersion={invitation.profileImageVersion}
+                        jupleId={invitation.jupleId}
+                        size={32}
+                      />
+                    </Pressable>
                     <View style={styles.rowText}>
                       <Text numberOfLines={1} style={styles.name}>{personLabel(invitation)}</Text>
                       <Text style={styles.role}>{t(participantRoleLabelKey(invitationRoleOf(invitation.role)))}</Text>
                     </View>
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={busyKey !== null}
-                      onPress={() =>
-                        runUnlocked(() =>
-                          runAction(`revoke-${invitation.invitationId}`, () =>
-                            revokeCollectionInvitation(authenticatedRequest, collectionId, invitation.invitationId)))
-                      }
-                      style={styles.action}
-                      testID={`participants-sheet-revoke-${invitation.invitationId}`}
-                    >
-                      <Text style={styles.actionLabel}>{t('collaboration.revoke')}</Text>
-                    </Pressable>
                   </View>
                 ))}
               </>
@@ -290,25 +206,7 @@ export function CollectionParticipantsSheet({
           <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
             <Text style={styles.closeLabel}>{t('common.close')}</Text>
           </Pressable>
-        </Animated.View>
-      </View>
-      <ConfirmDialog
-        cancelLabel={t('common.cancel')}
-        confirmLabel={t('collaboration.remove')}
-        message={t('collaboration.removeConfirmMessage')}
-        onCancel={() => setPendingRemoval(null)}
-        onConfirm={() => {
-          const target = pendingRemoval;
-          setPendingRemoval(null);
-          if (target) {
-            runUnlocked(() =>
-              runAction(`remove-${target.jupleId}`, () => removeCollaborator(authenticatedRequest, collectionId, target.jupleId)));
-          }
-        }}
-        title={t('collaboration.removeConfirmTitle')}
-        visible={pendingRemoval !== null}
-      />
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
@@ -317,18 +215,6 @@ export { OwnerCrown };
 const styles = StyleSheet.create({
   nameRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   nameText: { flexShrink: 1 },
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: {
-    alignSelf: 'center',
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    maxHeight: '75%',
-    maxWidth: 640,
-    padding: spacing.lg,
-    width: '100%',
-  },
   titleRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
   list: { flexGrow: 0 },
@@ -339,9 +225,6 @@ const styles = StyleSheet.create({
   role: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   jupleId: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: spacing.md },
-  action: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget, paddingHorizontal: spacing.sm },
-  actionLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
-  removeLabel: { color: colors.danger, fontSize: 14, fontWeight: '600' },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
   close: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, minHeight: minTouchTarget, justifyContent: 'center' },
   closeLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },

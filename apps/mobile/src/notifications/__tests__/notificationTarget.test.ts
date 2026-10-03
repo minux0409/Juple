@@ -44,7 +44,7 @@ describe('notification targets', () => {
       'collectionLinkSubmission (approval queue)',
       { kind: 'collectionSubmissions', collectionId: 42 },
       { kind: 'collectionSubmissions', collectionId: 42 },
-      { name: 'CollectionSubmissions', params: { collectionId: 42 } },
+      { name: 'CollectionDetails', params: { collectionId: 42, refreshToken: NOW, openApprovals: true } },
     ],
     [
       'collectionLinkShared / a non-member proposal result',

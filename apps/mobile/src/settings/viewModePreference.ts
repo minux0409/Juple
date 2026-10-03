@@ -10,7 +10,8 @@ export type ViewModePreferenceKey =
   | 'replicatePickerViewMode'
   | 'collectionDetailsViewMode'
   | 'friendsViewMode'
-  | 'participantViewMode';
+  | 'participantViewMode'
+  | 'trashViewMode';
 
 const storageKey = (key: ViewModePreferenceKey) => `juple.${key}`;
 

@@ -54,8 +54,7 @@
     "newLinkReview": "Xem lại liên kết mới",
     "trash": "Đã xóa gần đây",
     "collectionSharedItem": "Liên kết được chia sẻ",
-    "collectionSubmissions": "Liên kết chờ phê duyệt",
-    "myCollectionSubmissions": "Liên kết của tôi chờ duyệt",
+    "myCollectionSubmissions": "Yêu cầu duyệt đã gửi",
     "collectionShare": "Chia sẻ",
     "collectionLockSettings": "Khóa bộ sưu tập"
   },
@@ -92,7 +91,8 @@
     "retry": "Thử lại",
     "deleteConfirmTitle": "Xóa mục",
     "deleteConfirmMessage": "Xóa mục này? Không thể hoàn tác sau khi xóa.",
-    "errorDeleteFallback": "Không thể xóa mục này."
+    "errorDeleteFallback": "Không thể xóa mục này.",
+    "searchMinHint": "Nhập ít nhất 2 ký tự."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} mục cần chú ý",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Bỏ chọn toàn bộ",
     "copySelectUpTo": "Chọn tối đa {{max}}",
     "detailItemCount": "Tổng {{count}}",
-    "myPendingSubmissions": "Chờ duyệt của tôi {{count}}",
-    "myPendingSubmissionsA11y": "Xem {{count}} liên kết của tôi đang chờ duyệt",
-    "myPendingA11y": "Liên kết của tôi chờ duyệt: {{count}}",
+    "myPendingSubmissions": "Yêu cầu duyệt đã gửi {{count}}",
+    "myPendingSubmissionsA11y": "Xem {{count}}: Yêu cầu duyệt đã gửi",
+    "myPendingA11y": "Yêu cầu duyệt đã gửi: {{count}}",
     "favoritesTitle": "Yêu thích",
     "allCollectionsTitle": "Tất cả bộ sưu tập",
     "addFavorite": "Thêm vào yêu thích",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Lưu bộ sưu tập",
     "errorColorUpdateFallback": "Không thể cập nhật màu.",
     "favoritesEmpty": "Không có mục yêu thích.",
-    "allCollectionsEmpty": "Không có bộ sưu tập.", "manageAction": "Quản lý bộ sưu tập", "itemManageAction": "Thao tác khác với liên kết", "addToOther": "Nhân bản sang bộ sưu tập khác", "moveToOther": "Chuyển sang bộ sưu tập khác", "mergeWithOther": "Gộp với bộ sưu tập khác", "targetPickerTitle": "Chọn bộ sưu tập", "moveTitle": "Chuyển liên kết", "moveAction": "Chuyển", "moveConfirmMessage": "Chuyển liên kết này sang \"{{target}}\"?", "moveError": "Không thể chuyển liên kết.", "mergeTitle": "Gộp bộ sưu tập", "mergeAction": "Gộp", "mergeConfirmMessage": "Gộp \"{{source}}\" vào \"{{target}}\"? Các liên kết sẽ được gộp và bộ sưu tập này sẽ bị xóa.", "mergeError": "Không thể gộp bộ sưu tập.", "errorTargetLoadFallback": "Không thể tải bộ sưu tập.",
+    "allCollectionsEmpty": "Không có bộ sưu tập.",
+    "manageAction": "Quản lý bộ sưu tập",
+    "itemManageAction": "Thao tác khác với liên kết",
+    "addToOther": "Nhân bản sang bộ sưu tập khác",
+    "moveToOther": "Chuyển sang bộ sưu tập khác",
+    "mergeWithOther": "Gộp với bộ sưu tập khác",
+    "targetPickerTitle": "Chọn bộ sưu tập",
+    "moveTitle": "Chuyển liên kết",
+    "moveAction": "Chuyển",
+    "moveConfirmMessage": "Chuyển liên kết này sang \"{{target}}\"?",
+    "moveError": "Không thể chuyển liên kết.",
+    "mergeTitle": "Gộp bộ sưu tập",
+    "mergeAction": "Gộp",
+    "mergeConfirmMessage": "Gộp \"{{source}}\" vào \"{{target}}\"? Các liên kết sẽ được gộp và bộ sưu tập này sẽ bị xóa.",
+    "mergeError": "Không thể gộp bộ sưu tập.",
+    "errorTargetLoadFallback": "Không thể tải bộ sưu tập.",
     "myCategoriesTab": "Bộ sưu tập của tôi",
     "sharedCategoriesTab": "Đã chia sẻ",
     "sharedEmpty": "Chưa có bộ sưu tập nào được chia sẻ.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "Trong bộ sưu tập bạn chọn, liên kết này đang chờ phê duyệt.",
     "saveOutcomeAlreadyInCollection": "Bộ sưu tập bạn chọn đã có liên kết này.",
     "roleSubmitter": "Cần phê duyệt",
-    "pendingSubmissions": "Chờ duyệt {{count}}",
-    "pendingSubmissionsA11y": "Xem {{count}} liên kết đang chờ phê duyệt",
+    "pendingSubmissions": "Yêu cầu duyệt đã nhận {{count}}",
+    "pendingSubmissionsA11y": "Xem {{count}}: Yêu cầu duyệt đã nhận",
     "removeFromSharedOwnerOnly": "Chỉ chủ sở hữu mới có thể gỡ liên kết khỏi bộ sưu tập được chia sẻ với bạn.",
     "removeFromCollection": "Xóa khỏi bộ sưu tập",
     "iconPhotoChoose": "Chọn ảnh",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Mật khẩu truy cập",
     "sharePasswordWrong": "Mật khẩu không đúng.",
     "sharePasswordContactOwner": "Hãy hỏi người đã chia sẻ bộ sưu tập này để lấy mật khẩu truy cập.",
-    "sharePasswordRequiredForAction": "Hãy mở bộ sưu tập và nhập mật khẩu truy cập trước."
+    "sharePasswordRequiredForAction": "Hãy mở bộ sưu tập và nhập mật khẩu truy cập trước.",
+    "sortNameAscA11y": "Tên, A đến Z",
+    "sortNameDescA11y": "Tên, Z đến A"
   },
-  "toast": { "moveSuccess": "Đã chuyển.", "undoAction": "Hoàn tác", "undoMoveError": "Không thể hoàn tác việc chuyển.", "deleteSuccess": "Đã xóa.", "undoDeleteError": "Không thể hoàn tác việc xóa.", "unlinkSuccess": "Đã xóa khỏi bộ sưu tập.", "undoUnlinkError": "Không thể hoàn tác việc xóa khỏi bộ sưu tập.", "collectionDeleteSuccess": "Đã xóa bộ sưu tập.", "undoCollectionDeleteError": "Không thể hoàn tác việc xóa bộ sưu tập.", "collectionMergeSuccess": "Đã hợp nhất bộ sưu tập.", "undoCollectionMergeError": "Không thể hoàn tác việc hợp nhất bộ sưu tập." },
+  "toast": {
+    "moveSuccess": "Đã chuyển.",
+    "undoAction": "Hoàn tác",
+    "undoMoveError": "Không thể hoàn tác việc chuyển.",
+    "deleteSuccess": "Đã xóa.",
+    "undoDeleteError": "Không thể hoàn tác việc xóa.",
+    "unlinkSuccess": "Đã xóa khỏi bộ sưu tập.",
+    "undoUnlinkError": "Không thể hoàn tác việc xóa khỏi bộ sưu tập.",
+    "collectionDeleteSuccess": "Đã xóa bộ sưu tập.",
+    "undoCollectionDeleteError": "Không thể hoàn tác việc xóa bộ sưu tập.",
+    "collectionMergeSuccess": "Đã hợp nhất bộ sưu tập.",
+    "undoCollectionMergeError": "Không thể hoàn tác việc hợp nhất bộ sưu tập."
+  },
   "myPage": {
     "title": "Trang của tôi",
-    "settings": "Cài đặt",
     "signOutConfirmTitle": "Đăng xuất?",
     "signOutConfirmMessage": "Bạn sẽ cần đăng nhập lại để tiếp tục.",
     "deleteAccountErrorFallback": "Không thể xóa tài khoản của bạn. Vui lòng thử lại.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Ngôn ngữ",
-    "quickSaveOnShare": "Lưu ngay khi chia sẻ",
-    "quickSaveOnShareOnDescription": "Khi chia sẻ liên kết từ YouTube, Instagram và các ứng dụng khác, Juple sẽ lưu ngay mà không cần mở ứng dụng.",
-    "quickSaveOnShareOffDescription": "Sau khi chia sẻ, Juple sẽ mở lên để bạn xem lại thông tin liên kết và chọn bộ sưu tập trước khi lưu.",
+    "quickSaveOnShare": "Lưu nhanh",
+    "quickSaveOnShareOnDescription": "Liên kết bạn chia sẻ đến Juple từ ứng dụng khác được lưu ngay, không qua màn hình xem lại.",
+    "quickSaveOnShareOffDescription": "Liên kết chia sẻ đến Juple sẽ mở màn hình xem lại để bạn kiểm tra thông tin và chọn bộ sưu tập trước khi lưu.",
     "trash": "Đã xóa gần đây",
     "collectionLock": "Khóa bộ sưu tập",
     "collectionLockDescription": "Đặt mật khẩu cho các bộ sưu tập của bạn.",
@@ -521,7 +549,10 @@
     "limitNotice": "Bạn có thể xem tối đa {{count}} mục đã xóa gần đây nhất.",
     "restoreConfirmTitle": "Khôi phục?",
     "restoreConfirmMessage": "Liên kết đã xóa sẽ được khôi phục.",
-    "restoreConfirmAction": "Khôi phục"
+    "restoreConfirmAction": "Khôi phục",
+    "openLink": "Mở liên kết",
+    "moreA11y": "Thao tác khác",
+    "emptyA11y": "Dọn sạch mục đã xóa gần đây"
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "Thêm {{count}}",
     "alreadyMember": "Đã tham gia",
     "alreadyAdded": "Đã thêm",
-    "allUsersTitle": "Công khai bộ sưu tập",
+    "allUsersTitle": "Cài đặt bộ sưu tập công khai",
     "belowPublicPermission": "Không thể cấp quyền thấp hơn quyền công khai của bộ sưu tập.",
     "permissionLabel": "Quyền",
     "publicOn": "BẬT",
@@ -623,7 +654,7 @@
     "inviteTitle": "Mời bạn bè",
     "inviteTabFriends": "Bạn bè",
     "inviteTabId": "ID",
-    "statusTitle": "Trạng thái chia sẻ",
+    "statusTitle": "Người tham gia",
     "statusTabMembers": "Đang chia sẻ {{count}}",
     "statusTabPending": "Đang chờ {{count}}",
     "permissionMismatch": "Có người đang có quyền thấp hơn quyền công khai này nên không thể áp dụng.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Đổi cùng lúc",
     "reviewMembers": "Xem người được chia sẻ",
     "selectedCount": "Đã chọn {{count}} người",
-    "addPersonToInviteList": "Thêm {{name}} vào danh sách mời"
+    "addPersonToInviteList": "Thêm {{name}} vào danh sách mời",
+    "publicInfo": "Bất kỳ ai biết liên kết của bộ sưu tập đều có thể truy cập.\nBạn có thể đặt quyền chung cho người truy cập và đặt riêng quyền cao hơn cho người được mời trực tiếp.\nQuyền cũng có thể thay đổi trong danh sách người tham gia.",
+    "publicInfoA11y": "Giới thiệu bộ sưu tập công khai"
   },
   "linkShare": {
     "description": "Chuyển tiếp liên kết bộ sưu tập công khai. Người nhận không trở thành người tham gia bộ sưu tập này.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "Bỏ {{name}}"
   },
   "submissions": {
-    "empty": "Không có liên kết nào đang chờ phê duyệt.",
-    "myEmpty": "Không có liên kết nào của tôi đang chờ duyệt.",
-    "myLoadError": "Không thể tải các liên kết đang chờ duyệt của tôi.",
+    "empty": "Yêu cầu duyệt đã nhận: không có",
+    "myEmpty": "Yêu cầu duyệt đã gửi: không có",
+    "myLoadError": "Không thể tải các yêu cầu đã gửi.",
     "myStatus": "Đang chờ duyệt",
     "loadError": "Không tải được danh sách chờ phê duyệt.",
     "approve": "Phê duyệt",
@@ -662,7 +695,20 @@
     "unavailable": "Yêu cầu này không còn phê duyệt được.",
     "viaPublicLink": "Đề xuất qua liên kết công khai",
     "approveA11y": "Phê duyệt {{title}}",
-    "rejectA11y": "Từ chối {{title}}"
+    "rejectA11y": "Từ chối {{title}}",
+    "mySheetTitle": "Yêu cầu duyệt đã gửi",
+    "ownerSheetTitle": "Yêu cầu duyệt đã nhận",
+    "cancelRequest": "Hủy yêu cầu",
+    "cancelRequestA11y": "Hủy yêu cầu duyệt cho {{title}}",
+    "cancelRequestConfirm": "Hủy yêu cầu duyệt?",
+    "cancelRequestConfirmMessage": "Liên kết cũng sẽ biến mất khỏi danh sách chờ duyệt của chủ bộ sưu tập.",
+    "keepRequest": "Giữ yêu cầu",
+    "alreadyProcessed": "Yêu cầu này đã được xử lý.",
+    "alreadyCancelledOrProcessed": "Yêu cầu này đã bị hủy hoặc đã được xử lý.",
+    "cancelFailed": "Không thể hủy yêu cầu. Vui lòng thử lại.",
+    "sharedCollectionShort": "Bộ sưu tập được chia sẻ",
+    "approveConfirmTitle": "Duyệt yêu cầu liên kết này?",
+    "approveConfirmMessage": "Khi duyệt, liên kết này sẽ được thêm vào bộ sưu tập."
   },
   "friends": {
     "title": "Bạn bè",
@@ -679,7 +725,7 @@
     "loadFallback": "Không thể tải bạn bè.",
     "empty": "Chưa có bạn bè.",
     "searchEmpty": "Không có bạn bè phù hợp.",
-    "note": "Ghi chú của tôi",
+    "note": "Ghi chú",
     "noteInvalid": "Dùng tối đa 200 ký tự trên một dòng.",
     "remove": "Xóa bạn",
     "removeConfirmTitle": "Xóa người bạn này?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Không có lời mời kết bạn nào.",
     "outgoingEmpty": "Chưa gửi lời mời kết bạn nào.",
     "requestPending": "Đang chờ phản hồi",
-    "noteHelper": "Chỉ mình bạn thấy",
     "lookupHint": "Tìm bạn bằng Juple ID.",
     "incomingFromThem": "Người này đã gửi lời mời kết bạn cho bạn.",
     "viewIncoming": "Xem lời mời đã nhận",
     "acceptA11y": "Chấp nhận lời mời kết bạn của {{name}}",
     "declineA11y": "Từ chối lời mời kết bạn của {{name}}",
-    "cancelA11y": "Hủy lời mời kết bạn gửi {{name}}"
+    "cancelA11y": "Hủy lời mời kết bạn gửi {{name}}",
+    "personTitle": "Thông tin người dùng",
+    "you": "Bạn"
   },
   "notifications": {
     "title": "Thông báo",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Thông báo, {{count}} chưa đọc",
     "bannerAnnouncement": "Thông báo mới: {{title}}. {{body}}",
     "bannerHint": "Nhấn để mở. Vuốt lên để đóng."
+  },
+  "contact": {
+    "title": "Liên hệ",
+    "description": "Nếu bạn có thắc mắc về Juple, hãy gửi email cho chúng tôi.",
+    "sendEmail": "Gửi email",
+    "subject": "Câu hỏi về Juple",
+    "noMailApp": "Không thể mở ứng dụng email. Vui lòng gửi email trực tiếp đến {{email}}.",
+    "copyEmail": "Sao chép địa chỉ email"
   }
 }

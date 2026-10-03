@@ -4,7 +4,11 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { formatJupleId, personLabel } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
+import { getFriendSearchEmptyState } from './friendSearchEmptyState';
+import { UserAvatar } from '../components/UserAvatar';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+
+const AVATAR_SIZE = 40;
 import { getFriends, type Friend } from './api/friendsApi';
 
 const PAGE_LIMIT = 50;
@@ -103,6 +107,9 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
   const reasonLabel = (reason: FriendUnavailableReason) =>
     reason === 'member' ? t('shareSheet.alreadyMember') : reason === 'pending' ? t('shareSheet.pendingLabel') : t('shareSheet.alreadyAdded');
 
+  // The same rule as My Page > Friends. Without a query the list shown is every friend I have.
+  const emptyState = getFriendSearchEmptyState({ query: search, totalCount: friends.length, filteredCount: friends.length });
+
   return (
     <AppModal
       footer={
@@ -143,7 +150,9 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
         initialNumToRender={20}
         keyboardShouldPersistTaps="handled"
         keyExtractor={friend => friend.friendshipId.toString()}
-        ListEmptyComponent={isLoading ? <ActivityIndicator style={styles.loading} /> : <Text style={styles.empty}>{t('friends.empty')}</Text>}
+        ListEmptyComponent={isLoading ? <ActivityIndicator style={styles.loading} /> : emptyState === 'none' ? undefined : (
+          <Text style={styles.empty} testID="friend-picker-empty">{t(emptyState === 'noResults' ? 'friends.searchEmpty' : 'friends.empty')}</Text>
+        )}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         renderItem={({ item }) => {
@@ -162,6 +171,14 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
               <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
                 {isSelected ? <Text style={styles.checkmark}>✓</Text> : null}
               </View>
+              {/* The friend's photo (from the friend list itself - no request per row), else the shared initial / person fallback. */}
+              <UserAvatar
+                displayName={item.displayName}
+                imageUrl={item.profileImageUrl}
+                imageVersion={item.profileImageVersion}
+                jupleId={item.jupleId}
+                size={AVATAR_SIZE}
+              />
               <View style={styles.rowText}>
                 <Text numberOfLines={1} style={styles.name}>{personLabel(item)}</Text>
                 {item.myNote ? <Text numberOfLines={1} style={styles.note}>{item.myNote}</Text> : null}

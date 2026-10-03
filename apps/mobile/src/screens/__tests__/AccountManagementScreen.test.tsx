@@ -1,6 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { Modal, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { getMyProfile } from '../../api/profileApi';
 import { useAuth } from '../../auth/AuthContext';
@@ -76,6 +76,26 @@ describe('AccountManagementScreen', () => {
     // A plain "비밀번호 재설정 >" row - no description under it.
     expect(texts(reset)).toEqual(['비밀번호 재설정']);
     expect(JSON.stringify(texts(renderer.root))).not.toContain('비밀번호 변경');
+  });
+
+  it('the email is ONE row - 이메일 at the start, the address at the end, ellipsizing instead of wrapping - with 비밀번호 재설정 beneath', async () => {
+    const renderer = await renderWith('email');
+
+    const row = renderer.root.findByProps({ testID: 'account-sign-in-method' });
+    const label = row.findAllByType(Text).find(text => text.props.children === i18n.t('account.methodEmail'))!;
+    const email = renderer.root.findByProps({ testID: 'account-email' });
+    // Same row (a single flex row holding both), label first.
+    expect(email.parent === label.parent).toBe(true);
+    const line = StyleSheet.flatten(label.parent!.props.style);
+    expect(line).toMatchObject({ flexDirection: 'row', alignItems: 'center' });
+    expect(StyleSheet.flatten(label.props.style).flexShrink).toBe(0);
+    // The address takes the rest, is aligned to the end and is cut with an ellipsis on one line.
+    expect(email.props.numberOfLines).toBe(1);
+    expect(email.props.ellipsizeMode).toBe('tail');
+    expect(StyleSheet.flatten(email.props.style)).toMatchObject({ flex: 1, minWidth: 0, textAlign: 'right' });
+    // No second line under the label any more.
+    expect(texts(row)).toEqual([i18n.t('account.methodEmail'), 'me@example.com']);
+    expect(has(renderer, 'account-password-reset')).toBe(true);
   });
 
   it.each([

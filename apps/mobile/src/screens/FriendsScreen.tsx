@@ -1,15 +1,23 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { formatBadgeCount } from '../components/badgeCount';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { savedLinkLayout } from '../components/savedLinkLayout';
+import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewMode } from '../settings/viewModePreference';
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
 import { FriendDetailModal } from '../friends/FriendDetailModal';
+import { formatJupleId } from '../collections/api/collaborationApi';
+import { getFriendSearchEmptyState } from '../friends/friendSearchEmptyState';
 import { atJupleId, friendPrimaryLabel } from '../friends/friendIdentity';
 import {
   acceptFriendRequest,
@@ -17,17 +25,25 @@ import {
   declineFriendRequest,
   getFriendRequests,
   getFriends,
+  removeFriend,
   type Friend,
   type FriendRequest,
 } from '../friends/api/friendsApi';
-import { ChevronIcon } from '../icons/ChevronIcon';
+import { CopyIcon } from '../icons/CopyIcon';
 import { PlusIcon } from '../icons/PlusIcon';
+import { TrashIcon } from '../icons/TrashIcon';
+import { UserIcon } from '../icons/UserIcon';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const PAGE_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 300;
+/** One line of a friend's memo (12pt text) - reserved even when empty, scaled by the system font scale. */
+const NOTE_LINE_HEIGHT = 16;
+const ID_LINE_HEIGHT = 16;
+/** The gap between two friend cards (List): the compact repeated-item gap, smaller than the controls' gap above the first card. */
+const FRIEND_CARD_GAP = spacing.sm;
 /** While a sent friend request is waiting (Friends screen open, app in the foreground). */
 export const OUTGOING_POLL_INTERVAL_MS = 10_000;
 /** Per visit - after that, Push / focus / returning to the app refresh it. */
@@ -70,6 +86,10 @@ export function FriendsScreen() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selected, setSelected] = useState<Friend | null>(null);
+  // A long press (or the swipe) on a friend: the compact action popup, and the delete confirmation it leads to.
+  const [menuFriend, setMenuFriend] = useState<Friend | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const openAdd = useCallback(() => setIsAddOpen(true), []);
@@ -241,6 +261,16 @@ export function FriendsScreen() {
       dropRequest(request.requestId);
     });
 
+  const removeFromList = async (friend: Friend) => {
+    setActionError(null);
+    try {
+      await removeFriend(authenticatedRequest, friend.friendshipId);
+      setFriends(previous => previous.filter(existing => existing.friendshipId !== friend.friendshipId));
+    } catch {
+      setActionError(t('friends.actionFallback'));
+    }
+  };
+
   const incoming = requests.filter(request => request.direction === 'incoming');
   const outgoing = requests.filter(request => request.direction === 'outgoing');
 
@@ -267,7 +297,7 @@ export function FriendsScreen() {
       ListEmptyComponent={
         !hasLoadedFriends ? (
           friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-error') : <ActivityIndicator style={styles.loading} testID="friends-loading" />
-        ) : search.trim() ? (
+        ) : getFriendSearchEmptyState({ query: search, totalCount: friends.length, filteredCount: friends.length }) === 'noResults' ? (
           <Text style={styles.stateText}>{t('friends.searchEmpty')}</Text>
         ) : (
           <View style={styles.stateBlock} testID="friends-empty">
@@ -283,16 +313,22 @@ export function FriendsScreen() {
       ListHeaderComponent={
         <View>
           {/* [search] on the start side, the List/Grid switch pinned to the end edge. */}
-          <View style={styles.searchRow}>
-            <TextInput
-              accessibilityLabel={t('friends.search')}
-              autoCorrect={false}
-              onChangeText={setSearch}
-              placeholder={t('friends.search')}
-              style={styles.searchInput}
-              testID="friends-search"
-              value={search}
-            />
+          <View style={[styles.searchRow, viewMode === 'list' && styles.searchRowList]}>
+            <View style={styles.searchField}>
+              {/* A person glyph inside the field - decoration, not a control (a tap there reaches the input). */}
+              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.searchIcon} testID="friends-search-icon">
+                <UserIcon color={colors.textSecondary} size={18} />
+              </View>
+              <TextInput
+                accessibilityLabel={t('friends.search')}
+                autoCorrect={false}
+                onChangeText={setSearch}
+                placeholder={t('friends.search')}
+                style={styles.searchInput}
+                testID="friends-search"
+                value={search}
+              />
+            </View>
             <ViewModeToggle onChange={changeViewMode} value={viewMode} />
           </View>
           {banner}
@@ -302,7 +338,15 @@ export function FriendsScreen() {
       onEndReached={loadMore}
       onEndReachedThreshold={0.5}
       refreshControl={refreshControl}
-      renderItem={({ item }) => <FriendRow friend={item} layout={viewMode} onPress={() => setSelected(item)} />}
+      renderItem={({ item }) => (
+        <FriendRow
+          friend={item}
+          layout={viewMode}
+          onLongPress={() => setMenuFriend(item)}
+          onPress={() => setSelected(item)}
+          onSwipeDelete={() => setPendingRemoval(item)}
+        />
+      )}
       testID="friends-list"
     />
   );
@@ -393,6 +437,47 @@ export function FriendsScreen() {
           setSelected(null);
         }}
       />
+      <ActionMenuDialog
+        actions={menuFriend ? [
+          {
+            label: t('profile.copyJupleId'),
+            icon: CopyIcon,
+            onPress: () => {
+              const friend = menuFriend;
+              afterMenuCloses(() => setMenuFriend(null), () => Clipboard.setString(atJupleId(friend.jupleId)));
+            },
+          },
+          {
+            label: t('friends.remove'),
+            icon: TrashIcon,
+            destructive: true,
+            onPress: () => {
+              const friend = menuFriend;
+              afterMenuCloses(() => setMenuFriend(null), () => setPendingRemoval(friend));
+            },
+          },
+        ] : []}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setMenuFriend(null)}
+        onDismiss={onMenuDismiss}
+        title={menuFriend ? friendPrimaryLabel(menuFriend) : undefined}
+        visible={menuFriend !== null}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('friends.remove')}
+        message={t('friends.removeConfirmMessage')}
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={() => {
+          const friend = pendingRemoval;
+          setPendingRemoval(null);
+          if (friend) {
+            removeFromList(friend).catch(() => undefined);
+          }
+        }}
+        title={t('friends.removeConfirmTitle')}
+        visible={pendingRemoval !== null}
+      />
       <AddFriendModal
         friends={friends}
         onClose={() => setIsAddOpen(false)}
@@ -433,19 +518,44 @@ function FriendsAddHeaderButton({ onPress }: { readonly onPress: () => void }) {
 }
 
 /**
- * A friend: photo, nickname, @Juple ID, my note (quietest) - the whole row/tile opens the friend (the
- * one action a friend has here; everything else lives in its detail). List is the full-width row,
- * Grid a centered 2-column tile with the same content.
+ * A friend: photo, name, and my memo on one line beneath it. No Juple ID and no chevron (the ID is in
+ * the detail and in the long-press menu; a friend without a nickname shows it as the name, since a
+ * row needs one). The memo line is always reserved - even with no memo - so every row/tile of the
+ * list has the same height. Tap opens the friend; long press opens the compact action popup; in List
+ * a left swipe reveals 삭제. Grid is a centered 2-column tile with the same content.
  */
-function FriendRow({ friend, layout, onPress }: { readonly friend: Friend; readonly layout: ViewMode; readonly onPress: () => void }) {
+function FriendRow({ friend, layout, onPress, onLongPress, onSwipeDelete }: {
+  readonly friend: Friend;
+  readonly layout: ViewMode;
+  readonly onPress: () => void;
+  readonly onLongPress: () => void;
+  readonly onSwipeDelete: () => void;
+}) {
+  const { fontScale } = useWindowDimensions();
   const hasNickname = !!friend.displayName?.trim();
   const isGrid = layout === 'grid';
   const avatar = <UserAvatar displayName={friend.displayName} imageUrl={friend.profileImageUrl} imageVersion={friend.profileImageVersion} jupleId={friend.jupleId} size={isGrid ? 56 : 44} />;
   const texts = (
     <>
       <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle, isGrid && styles.tileText]}>{friendPrimaryLabel(friend)}</Text>
-      {hasNickname ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle, isGrid && styles.tileText]}>{atJupleId(friend.jupleId)}</Text> : null}
-      {friend.myNote ? <Text numberOfLines={isGrid ? 2 : 1} style={[styles.note, isGrid && styles.tileText]} testID={`friend-${friend.friendshipId}-note`}>{friend.myNote}</Text> : null}
+      {/* Grid: name / @ID / memo, each on one reserved line (an empty one keeps its height, so every tile is the same size).
+          The ID is never made up: no ID, an empty line. List shows the ID as its trailing column instead. */}
+      {isGrid ? (
+        <Text
+          numberOfLines={1}
+          style={[styles.tileId, ltrTextStyle, { minHeight: ID_LINE_HEIGHT * fontScale }]}
+          testID={`friend-${friend.friendshipId}-id`}
+        >
+          {friend.jupleId ? atJupleId(friend.jupleId) : ''}
+        </Text>
+      ) : null}
+      <Text
+        numberOfLines={1}
+        style={[styles.note, { minHeight: NOTE_LINE_HEIGHT * fontScale }, isGrid && styles.tileText]}
+        testID={`friend-${friend.friendshipId}-note`}
+      >
+        {friend.myNote ?? ''}
+      </Text>
     </>
   );
   if (isGrid) {
@@ -454,6 +564,7 @@ function FriendRow({ friend, layout, onPress }: { readonly friend: Friend; reado
         <Pressable
           accessibilityLabel={friendPrimaryLabel(friend)}
           accessibilityRole="button"
+          onLongPress={onLongPress}
           onPress={onPress}
           style={({ pressed }) => [styles.tile, pressed && styles.rowPressed]}
           testID={`friend-${friend.friendshipId}`}
@@ -465,17 +576,23 @@ function FriendRow({ friend, layout, onPress }: { readonly friend: Friend; reado
     );
   }
   return (
-    <Pressable
+    <SwipeableItemRow
       accessibilityLabel={friendPrimaryLabel(friend)}
-      accessibilityRole="button"
+      containerStyle={[savedLinkLayout.card, styles.friendCard]}
+      onDelete={onSwipeDelete}
+      onLongPress={onLongPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       testID={`friend-${friend.friendshipId}`}
     >
-      {avatar}
-      <View style={styles.rowText}>{texts}</View>
-      <ChevronIcon color={colors.textSecondary} direction="right" size={18} />
-    </Pressable>
+      <View style={styles.row}>
+        {avatar}
+        <View style={styles.rowText}>{texts}</View>
+        {/* Trailing identity column, vertically centered (the memo keeps the whole line under the name) - always shown, even when the name falls back to the ID. */}
+        {friend.jupleId ? (
+          <Text numberOfLines={1} style={[styles.trailingId, ltrTextStyle]} testID={`friend-${friend.friendshipId}-id`}>{formatJupleId(friend.jupleId)}</Text>
+        ) : null}
+      </View>
+    </SwipeableItemRow>
   );
 }
 
@@ -584,39 +701,43 @@ const styles = StyleSheet.create({
   tabBadgeTextMuted: { color: colors.textSecondary },
   listContent: { flexGrow: 1, paddingBottom: spacing.xl, paddingHorizontal: spacing.xl, paddingTop: spacing.md },
   searchRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', marginBottom: spacing.xs },
+  searchRowList: { marginBottom: spacing.md },
+  searchField: { flex: 1, justifyContent: 'center', minWidth: 0 },
+  searchIcon: { alignItems: 'center', bottom: 0, justifyContent: 'center', position: 'absolute', start: spacing.md, top: 0, zIndex: 1 },
   searchInput: {
     backgroundColor: colors.surface,
     borderColor: colors.inputBorder,
     borderRadius: radii.md + 4,
     borderWidth: 1,
     color: colors.textPrimary,
-    flex: 1,
     fontSize: 16,
     minHeight: minTouchTarget,
     minWidth: 0,
-    paddingHorizontal: spacing.md,
+    paddingEnd: spacing.md,
+    paddingStart: spacing.md + 18 + spacing.sm,
   },
   banner: { color: colors.danger, fontSize: 13, marginBottom: spacing.xs, marginTop: spacing.xs },
   // Rows are set apart by a hairline, not boxed cards.
   row: {
     alignItems: 'center',
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.md,
-    minHeight: minTouchTarget + 20,
-    paddingVertical: spacing.sm,
+    padding: spacing.md,
   },
+  // List cards sit closer together than the controls sit above the first one (the section gap is searchRowList).
+  friendCard: { marginBottom: FRIEND_CARD_GAP },
+  trailingId: { color: colors.textSecondary, flexShrink: 0, fontSize: 12, maxWidth: '38%' },
   rowPressed: { opacity: 0.6 },
-  // Grid: 2 columns of centered tiles (same hairline separation as rows, no boxed cards).
+  // Grid: 2 columns of centered tiles - the same card family as the List rows and Home's saved links (surface, hairline border, card radius).
   tileCell: { flexBasis: '50%', maxWidth: '50%', padding: spacing.xs },
-  tile: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md + 4, borderWidth: StyleSheet.hairlineWidth, gap: spacing.sm, minHeight: minTouchTarget + 60, paddingHorizontal: spacing.sm, paddingVertical: spacing.md },
+  tile: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.inputBorder, borderRadius: radii.lg, borderWidth: StyleSheet.hairlineWidth, gap: spacing.sm, minHeight: minTouchTarget + 60, paddingHorizontal: spacing.sm, paddingVertical: spacing.md },
   tileBody: { alignSelf: 'stretch', minWidth: 0 },
   tileText: { textAlign: 'center' },
+  tileId: { color: colors.textSecondary, fontSize: 12, lineHeight: ID_LINE_HEIGHT, marginTop: 2, textAlign: 'center' },
   rowText: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  note: { color: colors.textSecondary, fontSize: 12, marginTop: 2, opacity: 0.85 },
+  note: { color: colors.textSecondary, fontSize: 12, lineHeight: NOTE_LINE_HEIGHT, marginTop: 2, opacity: 0.85 },
   pending: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 },
   requestRow: {
     borderBottomColor: colors.border,

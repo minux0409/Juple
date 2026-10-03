@@ -7,8 +7,15 @@ import { lookupJupleId } from '../../collections/api/collaborationApi';
 import { AppModal } from '../../components/AppModal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { UserAvatar } from '../../components/UserAvatar';
+import { ChevronIcon } from '../../icons/ChevronIcon';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { UserIcon } from '../../icons/UserIcon';
+import { SearchIcon } from '../../icons/SearchIcon';
+import { CopyIcon } from '../../icons/CopyIcon';
+import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { SwipeableItemRow } from '../../components/SwipeableItemRow';
+import { colors, radii, spacing } from '../../theme/tokens';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { jupleIdForLookup } from '../../friends/friendIdentity';
 import {
@@ -24,6 +31,7 @@ import {
   type FriendRequest,
 } from '../../friends/api/friendsApi';
 
+jest.mock('@react-native-clipboard/clipboard', () => ({ __esModule: true, default: { setString: jest.fn() } }));
 jest.mock('../../push/pushPermissionFlow', () => ({ ensurePushPermissionOnce: jest.fn() }));
 const mockPrefs = new Map<string, string>();
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -243,30 +251,183 @@ describe('FriendsScreen - tabs', () => {
 });
 
 describe('FriendsScreen - a friend row', () => {
-  it('shows the photo, nickname, @Juple ID and my note - quietest last - and opens the friend', async () => {
+  it('shows the photo, name and my memo on ONE line, the Juple ID trailing - no chevron - and opens the friend', async () => {
     const renderer = await renderScreen();
     const row = byId(renderer, 'friend-7');
 
     const avatar = row.findByType(UserAvatar);
     expect(avatar.props).toEqual(expect.objectContaining({ jupleId: 'K7MP4Q8N', imageUrl: pikachu.profileImageUrl, imageVersion: 'v1', size: 44 }));
     expect(row.findAllByType(Image).length).toBeGreaterThan(0);
-    expect(texts(row)).toEqual(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']);
-    const [name, , note] = row.findAllByType(Text);
+    expect(texts(row)).toEqual(['피카츄', '회사 개발팀 김민수', 'K7MP-4Q8N']);
+    expect(texts(row).some(text => text.includes('@'))).toBe(false);
+    const [name, note] = row.findAllByType(Text);
+    // The ID is the trailing, bounded, one-line, muted element - after the content, smaller than the name; the memo keeps its own line.
+    const id = byId(renderer, 'friend-7-id');
+    const content = row.findAllByType(Text);
+    expect(content.indexOf(id)).toBe(content.length - 1);
+    expect(id.props.numberOfLines).toBe(1);
+    expect(StyleSheet.flatten(id.props.style)).toMatchObject({ color: colors.textSecondary, flexShrink: 0 });
+    expect(StyleSheet.flatten(id.props.style).fontSize).toBeLessThan(StyleSheet.flatten(name.props.style).fontSize);
+    expect(StyleSheet.flatten(id.props.style).maxWidth).toBeDefined();
     expect(name.props.numberOfLines).toBe(1);
     expect(note.props.numberOfLines).toBe(1);
     expect(StyleSheet.flatten(note.props.style).fontSize).toBeLessThan(StyleSheet.flatten(name.props.style).fontSize);
+    // No right-side chevron.
+    expect(row.findAllByType(ChevronIcon)).toHaveLength(0);
 
     await press(renderer, 'friend-7');
     expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(true);
   });
 
-  it('without a nickname the @Juple ID is the name, the avatar falls back to a person glyph, and no note line', async () => {
+  it('without a nickname the @Juple ID is the name (a row needs one), the avatar falls back to a person glyph', async () => {
     const renderer = await renderScreen();
     const row = byId(renderer, 'friend-8');
 
-    expect(texts(row)).toEqual(['@NNCK-2345']);
+    expect(texts(row)[0]).toBe('@NNCK-2345');
     expect(row.findAllByType(UserIcon).length).toBeGreaterThan(0);
-    expect(exists(renderer, 'friend-8-note')).toBe(false);
+  });
+
+  it('List: every friend is an individual Home-family card (shared card layout), not a flat divided row', async () => {
+    const renderer = await renderScreen();
+    const swipe = renderer.root.findAllByType(SwipeableItemRow).find(row => row.props.testID === 'friend-7')!;
+
+    const frame = StyleSheet.flatten(swipe.props.containerStyle);
+    expect(frame).toEqual(expect.objectContaining({ backgroundColor: colors.surface, borderRadius: radii.lg }));
+    // Cards sit closer together (8dp) than the controls sit above the first card (12dp): the section gap is the larger one.
+    expect(frame.marginBottom).toBe(spacing.sm);
+    const controls = StyleSheet.flatten(byId(renderer, 'friends-list').props.ListHeaderComponent.props.children[0].props.style);
+    expect(controls.marginBottom).toBe(spacing.md);
+    expect(controls.marginBottom).toBeGreaterThan(frame.marginBottom as number);
+  });
+
+  it('List: the trailing ID is always there - also without a nickname, when the name itself falls back to the @ID', async () => {
+    const renderer = await renderScreen();
+    expect(byId(renderer, 'friend-7-id').props.children).toBe('K7MP-4Q8N');
+    const fallback = byId(renderer, 'friend-8-id');
+    expect(fallback.props.children).toBe('NNCK-2345');
+    expect(fallback.props.numberOfLines).toBe(1);
+    expect(texts(byId(renderer, 'friend-8'))[0]).toBe('@NNCK-2345');
+  });
+
+  it('List: a friend with no ID gets no fake trailing value', async () => {
+    jest.mocked(getFriends).mockResolvedValue({ items: [{ ...pikachu, jupleId: '' }], nextCursor: null });
+    const renderer = await renderScreen();
+    expect(exists(renderer, `friend-${pikachu.friendshipId}`)).toBe(true);
+    expect(exists(renderer, `friend-${pikachu.friendshipId}-id`)).toBe(false);
+  });
+
+  it('a friend without a memo still reserves the memo line, so every row has the same height', async () => {
+    const renderer = await renderScreen();
+
+    const withNote = byId(renderer, 'friend-7-note');
+    const without = byId(renderer, 'friend-8-note');
+    expect(without.props.children).toBe('');
+    expect(without.props.numberOfLines).toBe(1);
+    const reserved = (node: ReactTestRenderer.ReactTestInstance) => StyleSheet.flatten(node.props.style).minHeight;
+    expect(reserved(without)).toBeGreaterThan(0);
+    expect(reserved(without)).toBe(reserved(withNote));
+  });
+
+  it('List: a left swipe reveals 삭제 only (a friend has nothing to share), confirmed before deleting; no row is wider than the others', async () => {
+    jest.mocked(removeFriend).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    const swipe = renderer.root.findAllByType(SwipeableItemRow).find(row => row.props.testID === 'friend-7')!;
+
+    expect(swipe.props.onDelete).toEqual(expect.any(Function));
+    expect(swipe.props.onShare).toBeUndefined();
+    await act(async () => {
+      swipe.props.onDelete();
+    });
+    expect(removeFriend).not.toHaveBeenCalled();
+    const confirm = renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.visible)!;
+    expect(confirm.props.title).toBe('이 친구를 삭제할까요?');
+    await act(async () => {
+      await confirm.props.onConfirm();
+    });
+
+    expect(removeFriend).toHaveBeenCalledWith(expect.anything(), 7);
+    expect(exists(renderer, 'friend-7')).toBe(false);
+  });
+
+  describe('long press: the compact action popup (the swipe and the tap stay as they are)', () => {
+    const menu = (renderer: Renderer) => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible);
+    afterEach(() => mockPrefs.clear());
+
+    it('List: [copy icon] Juple ID 복사 and [trash icon] 친구 삭제; copying writes the ID as shown', async () => {
+      const renderer = await renderScreen();
+      expect(menu(renderer)).toBeUndefined();
+
+      await act(async () => {
+        byId(renderer, 'friend-7').props.onLongPress();
+      });
+
+      const open = menu(renderer)!;
+      expect(open.props.actions.map((action: { label: string }) => action.label)).toEqual(['Juple ID 복사', '친구 삭제']);
+      expect(open.props.actions[0].icon).toBe(CopyIcon);
+      expect(open.props.actions[1].destructive).toBe(true);
+      // A long press never opened the detail.
+      expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(false);
+
+      await act(async () => {
+        open.props.actions[0].onPress();
+      });
+      // (iOS waits for the menu to finish closing - its onDismiss - before acting; Android acts at once.)
+      await act(async () => {
+        renderer.root.findByType(ActionMenuDialog).props.onDismiss();
+      });
+      expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP-4Q8N');
+      expect(menu(renderer)).toBeUndefined();
+    });
+
+    it('삭제 from the popup asks first, then removes', async () => {
+      jest.mocked(removeFriend).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+      await act(async () => {
+        byId(renderer, 'friend-7').props.onLongPress();
+      });
+
+      await act(async () => {
+        menu(renderer)!.props.actions[1].onPress();
+      });
+      await act(async () => {
+        renderer.root.findByType(ActionMenuDialog).props.onDismiss();
+      });
+      expect(removeFriend).not.toHaveBeenCalled();
+      const confirm = renderer.root.findAllByType(ConfirmDialog).find(dialog => dialog.props.visible)!;
+      await act(async () => {
+        await confirm.props.onConfirm();
+      });
+
+      expect(removeFriend).toHaveBeenCalledWith(expect.anything(), 7);
+      expect(exists(renderer, 'friend-7')).toBe(false);
+    });
+
+    it('Grid: the same popup on a long press, and the tap still opens the friend', async () => {
+      mockPrefs.set('juple.friendsViewMode', 'grid');
+      const renderer = await renderScreen();
+
+      await act(async () => {
+        byId(renderer, 'friend-7').props.onLongPress();
+      });
+      expect(menu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual(['Juple ID 복사', '친구 삭제']);
+      await act(async () => {
+        menu(renderer)!.props.onCancel();
+      });
+      expect(menu(renderer)).toBeUndefined();
+
+      await press(renderer, 'friend-7');
+      expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(true);
+    });
+  });
+
+  it('the search field carries a (non-tappable) person icon at its start, and still searches', async () => {
+    const renderer = await renderScreen();
+
+    const icon = byId(renderer, 'friends-search-icon');
+    expect(icon.findAllByType(UserIcon)).toHaveLength(1);
+    expect(icon.props.pointerEvents).toBe('none');
+    expect(icon.props.onPress).toBeUndefined();
+    expect(byId(renderer, 'friends-search').props.accessibilityLabel).toBe(i18n.t('friends.search'));
   });
 
   it('without a photo, the nickname\'s first letter', async () => {
@@ -533,7 +694,26 @@ describe('FriendsScreen - 친구 추가', () => {
     });
 
     expect(lookupJupleId).toHaveBeenCalledTimes(1);
-    expect(byId(renderer, 'friends-add-lookup').props.accessibilityState).toEqual({ disabled: true, busy: true });
+    const lookup = renderer.root.findAll(node => node.props.testID === 'friends-add-lookup' && node.props.accessibilityState)[0];
+    expect(lookup.props.accessibilityState).toEqual({ disabled: true, busy: true });
+  });
+
+  it('찾기 is a magnifying-glass icon button: still labelled 찾기, a full touch target, disabled until there is an ID', async () => {
+    const renderer = await renderScreen();
+    await openAddFromHeader(renderer);
+
+    const lookup = renderer.root.findAll(node => node.props.testID === 'friends-add-lookup' && node.props.accessibilityState)[0];
+    expect(lookup.findAllByType(SearchIcon)).toHaveLength(1);
+    expect(lookup.findAllByType(Text)).toHaveLength(0);
+    expect(lookup.props.accessibilityLabel).toBe('찾기');
+    expect(lookup.props.accessibilityState).toEqual({ disabled: true, busy: false });
+    expect(StyleSheet.flatten(lookup.props.style)).toEqual(expect.objectContaining({ height: 44, width: 44 }));
+
+    await act(async () => {
+      byId(renderer, 'friends-add-input').props.onChangeText('NEWF2345');
+    });
+    const ready = renderer.root.findAll(node => node.props.testID === 'friends-add-lookup' && node.props.accessibilityState)[0];
+    expect(ready.props.accessibilityState).toEqual({ disabled: false, busy: false });
   });
 
   it.each([
@@ -630,14 +810,39 @@ describe('FriendsScreen - a friend', () => {
   }
   const detail = (renderer: Renderer) => renderer.root.findAllByType(AppModal).find(modal => modal.props.testID === 'friend-detail')!;
 
-  it('shows the photo (72), nickname, @Juple ID, and 내 메모 - 나에게만 보여요', async () => {
+  it('shows ONE identity section (photo 72, name, @Juple ID with a copy button) and 메모 beneath - nothing repeated, no 나에게만 보여요', async () => {
     const renderer = await openPikachu();
     const modal = detail(renderer);
 
     expect(modal.findByType(UserAvatar).props).toEqual(expect.objectContaining({ size: 72, imageUrl: pikachu.profileImageUrl }));
-    expect(texts(modal)).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N', '내 메모', '나에게만 보여요', '메모 저장', '친구 삭제']));
+    expect(texts(modal)).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N', '메모', '메모 저장', '친구 삭제']));
+    expect(texts(modal)).not.toContain('내 메모');
+    expect(texts(modal)).not.toContain('나에게만 보여요');
+    expect(exists(renderer, 'friend-note-helper')).toBe(false);
+    // The nickname appears once (the title is the generic 친구, not the friend's name again).
+    expect(texts(modal).filter(text => text === '피카츄')).toHaveLength(1);
+    expect(modal.props.title).toBe('친구');
     expect(byId(renderer, 'friend-note-input').props.value).toBe('회사 개발팀 김민수');
     expect(byId(renderer, 'friend-note-input').props.placeholder).toBeUndefined();
+  });
+
+  it('the Juple ID has a copy icon right beside it that writes the ID to the clipboard', async () => {
+    const renderer = await openPikachu();
+
+    const copy = byId(renderer, 'friend-detail-copy-id');
+    expect(copy.props.accessibilityLabel).toBe('Juple ID 복사');
+    expect(detail(renderer).findAllByType(CopyIcon)).toHaveLength(1);
+    // Same row as the ID text: the nearest row-direction ancestor of the ID holds the copy button too.
+    let row: ReactTestRenderer.ReactTestInstance | null = byId(renderer, 'friend-detail-juple-id');
+    while (row && StyleSheet.flatten(row.props.style)?.flexDirection !== 'row') {
+      row = row.parent;
+    }
+    expect(row).not.toBeNull();
+    expect(row!.findAll(node => node.props.testID === 'friend-detail-copy-id').length).toBeGreaterThan(0);
+    await act(async () => {
+      copy.props.onPress();
+    });
+    expect(Clipboard.setString).toHaveBeenCalledWith('@K7MP-4Q8N');
   });
 
   it('saves the note only on 메모 저장 (once), and the list shows it at once', async () => {
@@ -750,8 +955,47 @@ describe('FriendsScreen - List / Grid', () => {
     expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row' });
     const children = row.children as ReactTestRenderer.ReactTestInstance[];
     expect(children[children.length - 1]).toBe(toggle);
-    expect(children[0].props.testID).toBe('friends-search');
+    expect(children[0].findByProps({ testID: 'friends-search' })).toBeDefined();
     expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(1);
+  });
+
+  describe('Grid tile: avatar / name / @ID / memo', () => {
+    const toGrid = async (renderer: Renderer) => {
+      await act(async () => {
+        renderer.root.findByType(ViewModeToggle).props.onChange('grid');
+      });
+    };
+
+    it('without a nickname the name falls back to the @ID and the ID line STILL shows it', async () => {
+      const renderer = await renderScreen();
+      await toGrid(renderer);
+
+      expect(texts(byId(renderer, 'friend-8'))).toEqual(['@NNCK-2345', '@NNCK-2345', '']);
+    });
+
+    it('a friend with no ID gets an empty reserved ID line - nothing is made up - and every tile has the same line structure', async () => {
+      jest.mocked(getFriends).mockResolvedValue({ items: [pikachu, noNickname, { ...pikachu, friendshipId: 9, jupleId: '', displayName: '이름만', myNote: null }], nextCursor: null });
+      const renderer = await renderScreen();
+      await toGrid(renderer);
+
+      expect(byId(renderer, 'friend-9-id').props.children).toBe('');
+      expect(texts(byId(renderer, 'friend-9'))).toEqual(['이름만', '', '']);
+      const structure = (id: number) => byId(renderer, `friend-${id}`).findAllByType(Text).map(node => `${node.props.numberOfLines}:${StyleSheet.flatten(node.props.style).minHeight ?? 0}`);
+      expect(structure(7)).toHaveLength(3);
+      expect(structure(8)).toEqual(structure(7));
+      expect(structure(9)).toEqual(structure(7));
+    });
+
+    it('memo and ID together: the ID sits between the name and the memo, both on one line; tap and long press are unchanged', async () => {
+      const renderer = await renderScreen();
+      await toGrid(renderer);
+      const lines = byId(renderer, 'friend-7').findAllByType(Text);
+
+      expect(lines.map(node => node.props.children)).toEqual(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']);
+      expect(lines.every(node => node.props.numberOfLines === 1)).toBe(true);
+      await press(renderer, 'friend-7');
+      expect(renderer.root.findAllByType(AppModal).some(modal => modal.props.testID === 'friend-detail')).toBe(true);
+    });
   });
 
   it('Grid keeps every friend action (the tile opens the friend) with the same identity content, and persists', async () => {
@@ -764,7 +1008,15 @@ describe('FriendsScreen - List / Grid', () => {
     expect(renderer.root.findByProps({ testID: 'friends-list' }).props.numColumns).toBe(2);
     expect(mockPrefs.get('juple.friendsViewMode')).toBe('grid');
     const tileTexts = texts(renderer);
+    // The tile shows avatar, name, the @Juple ID and the one-line memo - in that order.
     expect(tileTexts).toEqual(expect.arrayContaining(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']));
+    expect(texts(byId(renderer, 'friend-7'))).toEqual(['피카츄', '@K7MP-4Q8N', '회사 개발팀 김민수']);
+    expect(byId(renderer, 'friend-7-id').props.numberOfLines).toBe(1);
+    const idStyle = StyleSheet.flatten(byId(renderer, 'friend-7-id').props.style);
+    expect(idStyle.fontSize).toBeLessThan(StyleSheet.flatten(byId(renderer, 'friend-7').findAllByType(Text)[0].props.style).fontSize);
+    expect(idStyle.color).toBe(colors.textSecondary);
+    expect(byId(renderer, 'friend-7-note').props.numberOfLines).toBe(1);
+    expect(exists(renderer, 'friend-8-note')).toBe(true);
     // Same avatar component as List (photo, else initial/glyph).
     expect(renderer.root.findAllByType(UserAvatar).length).toBeGreaterThanOrEqual(2);
     await press(renderer, 'friend-7');

@@ -178,11 +178,7 @@ export interface GetCollectionsOptions {
   readonly scope?: CollectionListScope;
 }
 
-/**
- * 'myPending': only the Collections I am a member of in which a proposal of mine (승인 후 추가) still waits -
- * the Collections behind the 내 승인 대기 number, paged by the server like every other scope.
- */
-export type CollectionListScope = 'owned' | 'shared' | 'all' | 'favorites' | 'myPending';
+export type CollectionListScope = 'owned' | 'shared' | 'all' | 'favorites';
 
 /** Collection is a growing user data set - always cursor-paginated, never returns everything in one response. */
 export async function getCollections(
@@ -753,6 +749,51 @@ export async function getMyPendingSubmissionTotal(request: AuthenticatedApiReque
     path: '/api/v1/collections/my-pending-submissions/count',
   });
   return response.body?.myPendingSubmissionCount ?? 0;
+}
+
+/** One of the caller's OWN waiting proposals, with the Collection it waits in - see GET /collections/submissions/mine. */
+export interface MyCollectionLinkSubmissionWithCollection extends MyCollectionLinkSubmission {
+  /** Null for a request of mine in a Collection I am not a member of (a public-link request, a link since revoked): no Collection data is sent. */
+  readonly collectionId: number | null;
+  readonly collectionName: string | null;
+}
+
+export interface MyCollectionLinkSubmissionAcrossPage {
+  readonly items: readonly MyCollectionLinkSubmissionWithCollection[];
+  readonly nextCursor: number | null;
+  readonly totalCount: number;
+}
+
+/**
+ * The caller's own waiting proposals across every Collection they have one in, newest first - the
+ * Collections screen's 내 승인 대기 popup. The server takes no user id: only the caller's own rows, never the
+ * Owner's queue. A request made through a public link as a non-member (even after the link was revoked) is
+ * listed too, as MY request with no Collection id or name, so it can always be found and cancelled.
+ */
+export async function getMyPendingSubmissionsAcrossCollections(
+  request: AuthenticatedApiRequest,
+  cursor?: number | null,
+): Promise<MyCollectionLinkSubmissionAcrossPage> {
+  const response = await request<MyCollectionLinkSubmissionAcrossPage>({
+    method: 'GET',
+    path: `/api/v1/collections/submissions/mine${cursor ? `?cursor=${cursor}` : ''}`,
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no own-submissions body.');
+  }
+  return response.body;
+}
+
+/**
+ * Cancels (withdraws) MY OWN still-waiting proposal - DELETE /collections/submissions/mine/{id}. The server
+ * knows who I am; no user id is sent. 204 (it leaves the Owner's queue, counts and Inbox), 404 for anything
+ * that is not my own waiting proposal (already approved / rejected / cancelled, or not mine).
+ */
+export async function cancelMySubmission(request: AuthenticatedApiRequest, submissionId: number): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/collections/submissions/mine/${submissionId}`,
+  });
 }
 
 /** The caller's own waiting proposals in this Collection (a 승인 후 추가 member), newest first. Never anyone else's. */

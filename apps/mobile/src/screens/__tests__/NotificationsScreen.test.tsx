@@ -13,6 +13,7 @@ import {
   type AppNotification,
   type NotificationsPage,
 } from '../../notifications/notificationsApi';
+import { emitSocialPushEvent } from '../../push/pushEvents';
 import { NotificationsScreen } from '../NotificationsScreen';
 
 const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn() };
@@ -110,6 +111,23 @@ describe('NotificationsScreen', () => {
     const texts = renderer.root.findAllByType(Text).map(text => text.props.children);
     expect(texts).toContain('이 알림의 항목을 더 이상 볼 수 없어요.');
     expect(getUnreadCount()).toBe(3);
+  });
+
+  it('a cancelled approval request disappears from the open Inbox when the Collection refresh signal arrives, with its unread count; the other rows stay', async () => {
+    const request = (id: number) => row(id, { type: 'collectionLinkSubmission', actor: null, body: `request ${id}`, target: { kind: 'collectionSubmissions', collectionId: 4 } });
+    jest.mocked(getNotifications).mockResolvedValueOnce(page([request(2), request(1), row(0)]));
+    const renderer = await render();
+    expect(renderer.root.findByType(FlatList).props.data.map((item: AppNotification) => item.id)).toEqual([2, 1, 0]);
+    expect(getUnreadCount()).toBe(3);
+
+    // The requester cancelled request 2: the server deleted its row.
+    jest.mocked(getNotifications).mockResolvedValue(page([request(1), row(0)]));
+    await act(async () => {
+      emitSocialPushEvent({ type: 'collectionContentChanged', collectionId: 4 });
+    });
+
+    expect(renderer.root.findByType(FlatList).props.data.map((item: AppNotification) => item.id)).toEqual([1, 0]);
+    expect(getUnreadCount()).toBe(2);
   });
 
   it('tapping a row shows it read at once, lowers the bell, marks it on the server and opens its exact target', async () => {

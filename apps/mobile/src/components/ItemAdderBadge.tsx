@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { CrownIcon } from '../icons/CrownIcon';
 import { UserIcon } from '../icons/UserIcon';
@@ -17,15 +17,26 @@ export function ItemAdderBadge({
   avatarSize,
   style,
   testID = 'saved-link-added-by',
+  onPress,
 }: {
   readonly adder: ItemAdderDisplay;
   readonly avatarSize: number;
   readonly style?: StyleProp<ViewStyle>;
   readonly testID?: string;
+  /** Makes a person's avatar a button (open their profile). Without it - the cards - the badge stays plain. */
+  readonly onPress?: () => void;
 }) {
   const glyphSize = Math.round(avatarSize * 0.75);
+  const isPressable = onPress !== undefined && adder.kind === 'person' && !!adder.jupleId;
+  const Container = isPressable ? Pressable : View;
   return (
-    <View accessibilityLabel={adder.accessibilityLabel} accessible style={[styles.row, style]} testID={testID}>
+    <Container
+      accessibilityLabel={adder.accessibilityLabel}
+      accessible
+      {...(isPressable ? { accessibilityRole: 'button' as const, hitSlop: 8, onPress } : null)}
+      style={[styles.row, style]}
+      testID={testID}
+    >
       {adder.kind === 'publicLink' ? (
         <>
           <UserIcon color={colors.textSecondary} size={glyphSize} strokeWidth={2} />
@@ -53,7 +64,7 @@ export function ItemAdderBadge({
           ) : null}
         </>
       )}
-    </View>
+    </Container>
   );
 }
 

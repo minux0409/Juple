@@ -344,6 +344,66 @@ public sealed class CollaborationNotificationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ACancelledProposal_IsNeverPushedToTheOwner_WhetherItsEventOrItsNotificationWasStillWaiting()
+    {
+        var first = await NewItemAsync(_submitter, "https://example.test/cancel-before-event");
+        var second = await NewItemAsync(_submitter, "https://example.test/cancel-before-send");
+        var third = await NewItemAsync(_submitter, "https://example.test/stays");
+        await Add().AddAsync(_submitter, _sharedId, first);
+        var firstId = (await _db.CollectionLinkSubmissions.AsNoTracking().SingleAsync(entry => entry.ItemId == first)).Id;
+        // Cancelled while its outbox EVENT is still unprocessed.
+        await Cancel(firstId);
+
+        await Add().AddAsync(_submitter, _sharedId, second);
+        var secondId = (await _db.CollectionLinkSubmissions.AsNoTracking().SingleAsync(entry => entry.ItemId == second)).Id;
+        Assert.Contains(secondId, (await RowsAsync(NotificationType.CollectionLinkSubmissionReceived)).Select(row => row.SubjectId!.Value));
+        // Cancelled after its notification was MATERIALIZED (queued for delivery) but before anything was sent.
+        await Cancel(secondId);
+
+        await Add().AddAsync(_submitter, _sharedId, third);
+        await Dispatcher().RunOnceAsync();
+
+        // Only the proposal that still waits reaches the Owner; the requester is told nothing at all.
+        Assert.Single(Sent(_owner, "collectionLinkSubmission"));
+        var rows = await RowsAsync(NotificationType.CollectionLinkSubmissionReceived);
+        var remaining = Assert.Single(rows);
+        Assert.NotEqual(firstId, remaining.SubjectId);
+        Assert.NotEqual(secondId, remaining.SubjectId);
+        Assert.Empty(Sent(_submitter, "collectionLinkSubmissionRejected"));
+        Assert.Empty(Sent(_submitter, "collectionLinkSubmissionApproved"));
+    }
+
+    [Fact]
+    public async Task CancellingAnAlreadySentProposal_RemovesItsInboxRowAndUnread_TellsTheRequesterNothing_AndSendsOnlyARefresh()
+    {
+        var item = await NewItemAsync(_submitter, "https://example.test/cancel-after-send");
+        await Add().AddAsync(_submitter, _sharedId, item);
+        var id = (await _db.CollectionLinkSubmissions.AsNoTracking().SingleAsync(entry => entry.ItemId == item)).Id;
+        await Dispatcher().RunOnceAsync();
+        Assert.Single(Sent(_owner, "collectionLinkSubmission"));
+        Assert.Equal(1, await new NotificationInboxStore(_db).CountUnreadAsync(_owner));
+        _sender.Clear();
+
+        await Cancel(id);
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Empty(await RowsAsync(NotificationType.CollectionLinkSubmissionReceived));
+        Assert.Equal(0, await new NotificationInboxStore(_db).CountUnreadAsync(_owner));
+        Assert.Empty(await _db.NotificationDeliveries.AsNoTracking().Where(entry => !_db.Notifications.Any(row => row.Id == entry.NotificationId)).ToListAsync());
+        // No result notification - this is not a rejection - and no tray notification for anyone: the
+        // only message is the data-only refresh signal for the Collection.
+        Assert.Empty(Sent(_submitter, "collectionLinkSubmissionRejected"));
+        Assert.Empty(Sent(_owner, "collectionLinkSubmission"));
+        Assert.Empty(_sender.SentTo(_owner).Where(sent => sent.Payload.Type != "collectionContentChanged" && sent.Payload.Type != "collectionLinkSubmission"));
+    }
+
+    private async Task Cancel(long submissionId)
+    {
+        await Review().CancelMineAsync(_submitter, submissionId, null);
+        _db.ChangeTracker.Clear();
+    }
+
+    [Fact]
     public async Task AResultForADeletedCollection_IsNotPushed()
     {
         var item = await NewItemAsync(_submitter, "https://example.test/gone");

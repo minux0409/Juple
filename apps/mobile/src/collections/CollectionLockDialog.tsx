@@ -9,6 +9,7 @@ import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { removeCollectionLock, setCollectionLock } from './api/collectionsApi';
 import { getCollectionLockPasswordStatus } from './api/collectionLockPasswordApi';
 import { forgetCollectionUnlock } from './collectionUnlockGrants';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 /** Mirrors the backend CollectionLockPasswordPolicy (6-64 characters) - the server re-checks it. */
 export const LOCK_PASSWORD_MIN_LENGTH = 6;
@@ -146,7 +147,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, onCancel, on
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
-      <View style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
+      <KeyboardSafeView style={[styles.overlay, { paddingTop: spacing.xl + insets.top, paddingBottom: spacing.xl + insets.bottom }]}>
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
@@ -195,7 +196,7 @@ export function CollectionLockDialog({ visible, collectionId, mode, onCancel, on
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardSafeView>
     </Modal>
   );
 }

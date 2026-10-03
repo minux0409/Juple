@@ -16,11 +16,9 @@ export interface ParticipantTileData {
   readonly name: string;
   /** Role / status under the name ("링크 추가", "초대 대기"...). */
   readonly detail?: string;
-  /**
-   * What tapping the tile does - the very action the List row offers (manage a member, cancel an
-   * invitation). Omitted for people the viewer cannot manage: the tile is then not a button at all.
-   */
-  readonly onPress?: () => void;
+  /** Tapping the AVATAR: inspect the person (profile / friend). Never a management action. */
+  readonly onAvatarPress?: () => void;
+  readonly avatarAccessibilityLabel?: string;
   readonly accessibilityLabel: string;
   readonly testID?: string;
 }
@@ -39,33 +37,30 @@ export function ParticipantGrid({ tiles, testID }: { readonly tiles: readonly Pa
   return (
     <View style={styles.grid} testID={testID}>
       {tiles.map(tile => {
-        const content = (
-          <>
-            <View style={styles.avatarWrap}>
-              <UserAvatar displayName={tile.displayName} imageUrl={tile.imageUrl} imageVersion={tile.imageVersion} jupleId={tile.jupleId} size={TILE_AVATAR_SIZE} />
-              {tile.isOwner ? <View style={styles.crown}><OwnerCrown /></View> : null}
-            </View>
-            <Text numberOfLines={1} style={styles.name}>{tile.name}</Text>
-            {tile.detail ? <Text numberOfLines={1} style={styles.detail}>{tile.detail}</Text> : null}
-          </>
+        const avatar = (
+          <View style={styles.avatarWrap}>
+            <UserAvatar displayName={tile.displayName} imageUrl={tile.imageUrl} imageVersion={tile.imageVersion} jupleId={tile.jupleId} size={TILE_AVATAR_SIZE} />
+            {tile.isOwner ? <View style={styles.crown}><OwnerCrown /></View> : null}
+          </View>
         );
         return (
           <View key={tile.key} style={styles.cell}>
-            {tile.onPress ? (
-              <Pressable
-                accessibilityLabel={tile.accessibilityLabel}
-                accessibilityRole="button"
-                onPress={tile.onPress}
-                style={({ pressed }) => [styles.tile, pressed && styles.pressed]}
-                testID={tile.testID}
-              >
-                {content}
-              </Pressable>
-            ) : (
-              <View accessibilityLabel={tile.accessibilityLabel} accessible style={styles.tile} testID={tile.testID}>
-                {content}
-              </View>
-            )}
+            <View style={styles.tile} testID={tile.testID}>
+              {tile.onAvatarPress ? (
+                <Pressable
+                  accessibilityLabel={tile.avatarAccessibilityLabel ?? tile.accessibilityLabel}
+                  accessibilityRole="button"
+                  hitSlop={4}
+                  onPress={tile.onAvatarPress}
+                  style={({ pressed }) => pressed && styles.pressed}
+                  testID={tile.testID ? `${tile.testID}-avatar` : undefined}
+                >
+                  {avatar}
+                </Pressable>
+              ) : avatar}
+              <Text accessibilityLabel={tile.accessibilityLabel} numberOfLines={1} style={styles.name}>{tile.name}</Text>
+              {tile.detail ? <Text numberOfLines={1} style={styles.detail}>{tile.detail}</Text> : null}
+            </View>
           </View>
         );
       })}

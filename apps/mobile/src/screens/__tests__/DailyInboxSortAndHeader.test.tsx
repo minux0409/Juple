@@ -6,6 +6,10 @@ import i18n from '../../i18n';
 import { AppToastProvider } from '../../components/AppToast';
 import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
+import { ClockIcon } from '../../icons/ClockIcon';
+import { HomeIcon } from '../../icons/HomeIcon';
+import { SCREEN_TITLE_ICON_SIZE } from '../../components/ScreenTitle';
+import { colors } from '../../theme/tokens';
 import { getItemHistory, getItemHistoryCount, type GetItemHistoryOptions, type ItemHistoryEntry } from '../../items/api/itemsApi';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, TITLE_COUNT_GAP } from '../../components/savedLinkLayout';
 import { DailyInboxScreen } from '../DailyInboxScreen';
@@ -142,6 +146,35 @@ describe('Home sorting (the Collection sort control and rules)', () => {
     expect(mockStore.get('juple.homeLinkSort')).toBe('title');
   });
 
+  it('이름순 flips ↑ (A→Z) ↔ ↓ (Z→A) on a second press, title-less links last in both, and persists the direction', async () => {
+    serve(ITEMS);
+    const renderer = await renderScreen();
+
+    await press(renderer, 'home-sort-name');
+    expect(order(renderer)).toEqual([2, 4, 1, 3]);
+    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('title');
+
+    await press(renderer, 'home-sort-name');
+    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('titleDesc');
+    expect(order(renderer)).toEqual([1, 4, 2, 3]);
+    expect(mockStore.get('juple.homeLinkSort')).toBe('titleDesc');
+    expect(renderer.root.findByProps({ testID: 'home-sort-name' }).props.accessibilityLabel).toBe(i18n.t('collections.sortNameDescA11y'));
+
+    // Pressing 시간순 leaves 이름순 and starts at ↓ newest again.
+    await press(renderer, 'home-sort-date');
+    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('newest');
+    expect(order(renderer)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('restores a saved 이름순 ↓ next to the saved view mode', async () => {
+    mockStore.set('juple.homeLinkSort', 'titleDesc');
+    serve(ITEMS);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByType(LinkSortChips).props.sort).toBe('titleDesc');
+    expect(order(renderer)).toEqual([1, 4, 2, 3]);
+  });
+
   it('loads the whole day (largest pages) before showing a name order - never a partial one', async () => {
     const many = Array.from({ length: 60 }, (_, index) => item(index + 1, `Link ${String(index + 1).padStart(2, '0')}`, index + 1));
     serve(many);
@@ -179,6 +212,19 @@ describe('Home sorting (the Collection sort control and rules)', () => {
     expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
     expect(order(renderer)).toEqual([2, 4, 1, 3]);
     expect(AsyncStorage.getItem).toHaveBeenCalledWith('juple.homeLinkSort');
+  });
+});
+
+describe('Home title icon', () => {
+  it('최근 저장 carries a subtle time icon (the same glyph size as other titles), not the home-navigation icon', async () => {
+    serve(ITEMS.slice(0, 3));
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByType(ClockIcon).length).toBeGreaterThan(0);
+    expect(renderer.root.findAllByType(HomeIcon)).toHaveLength(0);
+    const glyph = renderer.root.findByType(ClockIcon);
+    expect(glyph.props.size).toBe(SCREEN_TITLE_ICON_SIZE);
+    expect(glyph.props.color).toBe(colors.brand);
   });
 });
 

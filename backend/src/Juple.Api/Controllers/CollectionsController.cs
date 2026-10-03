@@ -1256,6 +1256,36 @@ public sealed class CollectionsController(
     public sealed record MyPendingSubmissionCountResponse(int MyPendingSubmissionCount);
 
     /// <summary>
+    /// The caller cancels (withdraws) THEIR OWN still-waiting proposal. The owner of the request is the
+    /// authenticated caller - never a client-supplied user id. 204; 404 (non-disclosing) for anything that
+    /// is not the caller's own waiting proposal (someone else's, already approved/rejected, unknown).
+    /// </summary>
+    [HttpDelete("submissions/mine/{submissionId:long}")]
+    public Task<IActionResult> CancelMySubmissionAsync(
+        long submissionId,
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => submissionService.CancelMineAsync(userId, submissionId, null, cancellationToken),
+            cancellationToken);
+
+    /// <summary>
+    /// The caller's OWN links still waiting for approval across the Collections they are a member of,
+    /// newest first (cursor = the last row's submissionId), each with its Collection's id and name.
+    /// There is no userId parameter: the caller is always the filter.
+    /// </summary>
+    [HttpGet("submissions/mine")]
+    public Task<IActionResult> ListMySubmissionsAcrossCollectionsAsync(
+        [FromQuery] long? cursor,
+        [FromQuery] int? limit,
+        [FromServices] ICollectionLinkSubmissionService submissionService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => submissionService.ListMineAcrossCollectionsAsync(userId, cursor, limit ?? CollectionLinkSubmissionService.MaxPageSize, cancellationToken),
+            page => Ok(page),
+            cancellationToken);
+
+    /// <summary>
     /// The caller's OWN links still waiting for approval (a 승인 후 추가 member), newest first (cursor = the
     /// last row's submissionId). Never anyone else's; the Owner uses the list above instead (403 here).
     /// </summary>

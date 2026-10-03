@@ -162,3 +162,44 @@ describe('locale key parity (en is the source of truth)', () => {
     expect(mismatches).toEqual([]);
   });
 });
+
+describe('participants wording', () => {
+  it('the Share screen section is 참여자 (no 공유 상태), matching the participants popup, in every locale', () => {
+    for (const [language, locale] of Object.entries(LOCALES)) {
+      expect([language, (locale.shareSheet as JsonRecord).statusTitle]).toEqual([language, (locale.collections as JsonRecord).participantsTitle]);
+    }
+    expect((ko.shareSheet as JsonRecord).statusTitle).toBe('참여자');
+    expect((ko.shareSheet as JsonRecord).statusTabMembers).toBe('참여 중 {{count}}');
+    expect((ko.shareSheet as JsonRecord).statusTabPending).toBe('초대 대기 {{count}}');
+  });
+});
+
+describe('requester vs owner approval wording', () => {
+  const get = (locale: JsonRecord, group: string, key: string) => ((locale[group] as JsonRecord)[key] as string);
+  const PAIRS: ReadonlyArray<readonly [string, string, string, string]> = [
+    ['collections', 'myPendingSubmissions', 'collections', 'pendingSubmissions'],
+    ['submissions', 'mySheetTitle', 'submissions', 'ownerSheetTitle'],
+  ];
+
+  it('never shows the requester (awaiting) and the owner (approval requests) the same text, in any locale', () => {
+    const same: string[] = [];
+    for (const [language, locale] of Object.entries(LOCALES)) {
+      for (const [g1, k1, g2, k2] of PAIRS) {
+        if (get(locale, g1, k1) === get(locale, g2, k2)) {
+          same.push(`${language}: ${g1}.${k1} === ${g2}.${k2}`);
+        }
+      }
+    }
+    expect(same).toEqual([]);
+  });
+
+  it('Korean: requester says 보낸 승인 요청, owner says 받은 승인 요청', () => {
+    expect(get(ko, 'collections', 'myPendingSubmissions')).toBe('보낸 승인 요청 {{count}}');
+    expect(get(ko, 'submissions', 'mySheetTitle')).toBe('보낸 승인 요청');
+    expect(get(ko, 'collections', 'pendingSubmissions')).toBe('받은 승인 요청 {{count}}');
+    expect(get(ko, 'submissions', 'ownerSheetTitle')).toBe('받은 승인 요청');
+    expect(JSON.stringify(ko)).not.toContain('내 승인 대기');
+    expect(JSON.stringify(ko)).not.toContain('승인 대기중');
+    expect(JSON.stringify(ko)).not.toContain('내 링크 승인 대기');
+  });
+});

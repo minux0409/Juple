@@ -58,6 +58,7 @@ import { markCollectionNewLinksRead } from '../notifications/notificationsApi';
 import { emitCollectionNewLinksRead, setUnreadCount } from '../notifications/notificationState';
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
 import { getCollectionParticipants, type CollectionParticipants } from '../collections/api/collaborationApi';
+import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
@@ -86,6 +87,7 @@ import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { LinkSortChips } from '../components/LinkSortChips';
+import { PendingActionRow } from '../components/PendingActionRow';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
@@ -101,7 +103,6 @@ import {
 import { BellIcon } from '../icons/BellIcon';
 import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
-import { ChevronIcon } from '../icons/ChevronIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { EditIcon } from '../icons/EditIcon';
 import { LockIcon } from '../icons/LockIcon';
@@ -119,12 +120,12 @@ import { historySectionLabel } from '../items/historyDateGrouping';
 import { useDateSectionPages, type DateSectionPagesSource } from '../items/useDateSectionPages';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { useSortPreference } from '../settings/sortPreference';
+import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference } from '../settings/viewModePreference';
-import { useLayoutDirection } from '../i18n/layoutDirection';
-import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -303,6 +304,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
+  const [isOwnerApprovalSheetVisible, setIsOwnerApprovalSheetVisible] = useState(false);
+  const [isMyApprovalSheetVisible, setIsMyApprovalSheetVisible] = useState(false);
   // Emoji reactions to the Collection's links (shared Collections only): the optimistic per-link state,
   // this device's recent picks, and the full picker (opened from the menu's "+", one modal at a time).
   const itemReactions = useItemReactions(
@@ -317,7 +320,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Everyone accepted into a shared Collection (the avatars under its title) - null while unknown or not shared.
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [participantsFailed, setParticipantsFailed] = useState(false);
-  const layoutDirection = useLayoutDirection();
 
   const [pendingUnlinkItemId, setPendingUnlinkItemId] = useState<number | null>(null);
   const [actionMenuItem, setActionMenuItem] = useState<CollectionItemEntry | null>(null);
@@ -365,11 +367,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // from its link count, or found while loading - stays on 시간순 instead of a partial name order.
   const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
   const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
-  const effectiveSort = sortOption === 'title' && isNameOrderUnavailable ? 'newest' : sortOption;
+  const effectiveSort = isNameSort(sortOption) && isNameOrderUnavailable ? 'newest' : sortOption;
   // 시간순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
   // expanded section's links from the server a page at a time (see useDateSectionPages). 이름순
   // loads the whole Collection first and sorts it here (see NAME_ORDER_MAX_LINKS).
-  const dateSortDirection = effectiveSort === 'title' ? null : effectiveSort;
+  const dateSortDirection = isNameSort(effectiveSort) ? null : effectiveSort;
   const isDateOrder = dateSortDirection !== null;
   const pageSort = dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc';
 
@@ -441,7 +443,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   // Name order only ever over the whole Collection (the 'whole' load publishes nothing until every
   // link is in).
-  const displayedItems = useMemo(() => sortCollectionItemsByName(nameOrdered.items), [nameOrdered.items]);
+  const displayedItems = useMemo(
+    () => sortCollectionItemsByName(nameOrdered.items, undefined, effectiveSort === 'titleDesc' ? 'desc' : 'asc'),
+    [effectiveSort, nameOrdered.items],
+  );
   // The server's sections are newest first; ↑ oldest shows them (and each one's pages) the other way.
   const dateSections = useMemo(
     () => (dateSortDirection === 'oldest' ? [...dated.sections].reverse() : dated.sections),
@@ -478,14 +483,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     });
   };
   /** 시간순: first press picks it (newest first); pressed again it flips ↓ newest ↔ ↑ oldest. */
-  const pressDateSort = () => setSortOption(effectiveSort === 'newest' ? 'oldest' : 'newest');
+  const pressDateSort = () => setSortOption(nextDateSort(effectiveSort));
   /** 이름순, unless this Collection is too large to be name-ordered as a whole - then it says so. */
   const pressNameSort = () => {
     if (isNameOrderUnavailable) {
       setNotice(t('collections.sortNameTooLarge', { max: NAME_ORDER_MAX_LINKS }));
       return;
     }
-    setSortOption('title');
+    setSortOption(nextNameSort(effectiveSort));
   };
   // Who added each link - only where more than one person can add (see shouldShowItemAdders).
   const showItemAdders = shouldShowItemAdders(collection, items);
@@ -801,6 +806,19 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         .catch(() => undefined);
     }, [authenticatedRequest, collectionId, isContentOpen]),
   );
+
+  // A 승인 요청 notification: once the content is open (the lock / share-password gate passed, as for any
+  // visit) the Owner's 링크 승인 대기 popup opens over this Collection. Once per notification.
+  const openApprovals = route.params.openApprovals === true;
+  useEffect(() => {
+    if (!openApprovals || !isContentOpen || collection === null) {
+      return;
+    }
+    navigation.setParams({ openApprovals: undefined });
+    if (!isSharedWithMe(collection)) {
+      setIsOwnerApprovalSheetVisible(true);
+    }
+  }, [collection, isContentOpen, navigation, openApprovals]);
 
   // A reaction/comment notification on my link here: once the content is open (so the gate and the
   // visit's unlock apply exactly as for any visit), the link opens IN this Collection - its reactions
@@ -1542,19 +1560,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {/* The Owner's 승인 대기: proposed links (승인 후 추가) waiting for them - a clear one-line row
           (like the 공유 요청 row of the Collections tab), only while there are any. Never part of the link count. */}
       {isOwner && (collection.pendingSubmissionCount ?? 0) > 0 ? (
-        <Pressable
+        <PendingActionRow
           accessibilityLabel={t('collections.pendingSubmissionsA11y', { count: collection.pendingSubmissionCount })}
-          accessibilityRole="button"
-          onPress={() => runUnlocked(() => navigation.navigate('CollectionSubmissions', { collectionId }))}
-          style={styles.pendingRow}
+          label={t('collections.pendingSubmissions', { count: collection.pendingSubmissionCount })}
+          onPress={() => runUnlocked(() => setIsOwnerApprovalSheetVisible(true))}
+          style={styles.pendingRowSpacing}
           testID="collection-details-pending"
-        >
-          <Text numberOfLines={2} style={styles.pendingRowLabel}>
-            {t('collections.pendingSubmissions', { count: collection.pendingSubmissionCount })}
-          </Text>
-          {/* Points toward the reading direction's end (mirrored under RTL). */}
-          <ChevronIcon color={colors.brand} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
-        </Pressable>
+        />
       ) : null}
       {/* View mode (List/Grid) and sort are two independent, separately-persisted
           preferences (see useViewModePreference/useSortPreference) - switching one never
@@ -1564,6 +1576,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           dateLabel={t('collections.sortDate')}
           dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
           dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
+          nameAscA11yLabel={t('collections.sortNameAscA11y')}
+          nameDescA11yLabel={t('collections.sortNameDescA11y')}
           nameLabel={t('collections.sortName')}
           onPressDate={pressDateSort}
           onPressName={pressNameSort}
@@ -1578,18 +1592,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           color), directly under the sort / List-Grid controls and right before the first link. Separate
           from the Owner's row: a different number for a different person, never merged. */}
       {(collection.myPendingSubmissionCount ?? 0) > 0 ? (
-        <Pressable
+        <PendingActionRow
           accessibilityLabel={t('collections.myPendingSubmissionsA11y', { count: collection.myPendingSubmissionCount })}
-          accessibilityRole="button"
-          onPress={() => navigation.navigate('MyCollectionSubmissions', { collectionId })}
-          style={styles.myPendingRow}
+          label={t('collections.myPendingSubmissions', { count: collection.myPendingSubmissionCount })}
+          onPress={() => setIsMyApprovalSheetVisible(true)}
+          style={styles.myPendingRowSpacing}
           testID="collection-details-my-pending"
-        >
-          <Text numberOfLines={2} style={styles.myPendingRowLabel}>
-            {t('collections.myPendingSubmissions', { count: collection.myPendingSubmissionCount })}
-          </Text>
-          <ChevronIcon color={colors.textSecondary} direction={layoutDirection === 'rtl' ? 'left' : 'right'} size={16} />
-        </Pressable>
+        />
       ) : null}
       {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
 
@@ -1661,6 +1670,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
+      {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
+      <KeyboardSafeView enabled={isContentLocked}>
       {isDateOrder && !isContentLocked ? (
         // One virtualized list: headers, the loaded rows of expanded dates (in image view one list
         // row per pair of tiles), skeletons while a page is on its way, and a retry row.
@@ -1700,6 +1711,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           renderItem={({ item }) => renderCollectionItem(item)}
         />
       )}
+      </KeyboardSafeView>
       {selectedItemIds ? (
         <View style={styles.selectionBar} testID="collection-copy-bar">
           {/* [N개 선택됨 · 전체 선택] on the start side (wrapping onto two lines on a narrow screen),
@@ -1857,7 +1869,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         transparent
         visible={pendingUnlockAction !== null}
       >
-        <View style={styles.unlockOverlay} testID="collection-details-unlock-gate">
+        <KeyboardSafeView style={styles.unlockOverlay} testID="collection-details-unlock-gate">
           <CollectionUnlockPanel
             collectionId={collectionId}
             isOwner={isOwner}
@@ -1871,7 +1883,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           <Pressable accessibilityRole="button" onPress={() => setPendingUnlockAction(null)} style={styles.unlockCancel}>
             <Text style={styles.unlockCancelLabel}>{t('common.cancel')}</Text>
           </Pressable>
-        </View>
+        </KeyboardSafeView>
       </Modal>
       <ReactionPickerDialog
         myReaction={reactionPickerItem ? itemReactions.reactionsOf(reactionPickerItem.itemId, reactionPickerItem).myReaction : null}
@@ -1944,13 +1956,38 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         }}
         visible={isLinkShareSheetVisible && !isOwner}
       />
+      {/* 승인 대기 popups (status lists, not places): the Owner's queue, and my own waiting links in this Collection. */}
+      <ApprovalSubmissionSheet
+        authenticatedRequest={authenticatedRequest}
+        collectionId={collectionId}
+        expectedCount={collection.pendingSubmissionCount ?? 0}
+        onChanged={refreshAll}
+        onClose={() => setIsOwnerApprovalSheetVisible(false)}
+        variant="owner"
+        visible={isOwnerApprovalSheetVisible && isOwner && pendingUnlockAction === null}
+      />
+      <ApprovalSubmissionSheet
+        authenticatedRequest={authenticatedRequest}
+        collectionId={collectionId}
+        expectedCount={collection.myPendingSubmissionCount ?? 0}
+        onChanged={() => {
+          // One of my proposals was cancelled: this Collection's own pending count follows.
+          loadCollection().catch(() => undefined);
+        }}
+        onClose={() => setIsMyApprovalSheetVisible(false)}
+        onTotalLoaded={total => {
+          if (total !== (collection.myPendingSubmissionCount ?? 0)) {
+            loadCollection().catch(() => undefined);
+          }
+        }}
+        variant="mine"
+        visible={isMyApprovalSheetVisible && pendingUnlockAction === null}
+      />
       <CollectionParticipantsSheet
         authenticatedRequest={authenticatedRequest}
         collectionId={collectionId}
         initialData={participants}
-        onChanged={loadCollection}
         onClose={() => setIsParticipantsSheetVisible(false)}
-        runUnlocked={runUnlocked}
         // Stepped aside while the password prompt is up (one modal at a time on iOS); it returns
         // after the unlock - with the resumed action running - or after a cancel.
         visible={isParticipantsSheetVisible && pendingUnlockAction === null}
@@ -2051,38 +2088,10 @@ const styles = StyleSheet.create({
   countCluster: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap', minWidth: 0 },
   // 승인 대기: a full-width, one-line tappable row on its own (the same family as the Collections tab's
   // 공유 요청 row), tinted so it is seen at a glance - not a small inline label.
-  pendingRow: {
-    alignItems: 'center',
-    backgroundColor: colors.brandSoft,
-    borderColor: colors.brand,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...cardShadow,
-  },
-  // The Owner's pendingRow geometry (the same family), in neutral colors; the controls row above already
-  // carries the gap, this one the gap to the first link.
-  myPendingRow: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: LINK_CONTROLS_BOTTOM_GAP,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...cardShadow,
-  },
-  myPendingRowLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
-  pendingRowLabel: { color: colors.brand, flex: 1, fontSize: 15, fontWeight: '700', minWidth: 0 },
+  // Outer spacing only: the 승인 대기 look itself is the shared PendingActionRow.
+  pendingRowSpacing: { marginTop: spacing.md },
+  // The controls row above already carries the gap; this one the gap to the first link.
+  myPendingRowSpacing: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
   itemCount: {
     color: colors.textSecondary,
     fontSize: 14,

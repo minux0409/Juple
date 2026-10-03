@@ -54,8 +54,7 @@
     "newLinkReview": "Проверка новой ссылки",
     "trash": "Недавно удалённые",
     "collectionSharedItem": "Общая ссылка",
-    "collectionSubmissions": "Ссылки на одобрении",
-    "myCollectionSubmissions": "Мои ссылки на одобрении",
+    "myCollectionSubmissions": "Отправленные запросы на одобрение",
     "collectionShare": "Поделиться",
     "collectionLockSettings": "Блокировка коллекций"
   },
@@ -92,7 +91,8 @@
     "retry": "Повторить",
     "deleteConfirmTitle": "Удалить элемент",
     "deleteConfirmMessage": "Удалить этот элемент? Это действие нельзя отменить.",
-    "errorDeleteFallback": "Не удалось удалить элемент."
+    "errorDeleteFallback": "Не удалось удалить элемент.",
+    "searchMinHint": "Введите не менее 2 символов."
   },
   "collections": {
     "attentionA11y": "{{name}}, требуют внимания: {{count}}",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Снять весь выбор",
     "copySelectUpTo": "Выбрать до {{max}}",
     "detailItemCount": "Всего: {{count}}",
-    "myPendingSubmissions": "Мои на одобрении {{count}}",
-    "myPendingSubmissionsA11y": "Показать мои ссылки на одобрении: {{count}}",
-    "myPendingA11y": "Мои ссылки на одобрении: {{count}}",
+    "myPendingSubmissions": "Отправленные запросы на одобрение {{count}}",
+    "myPendingSubmissionsA11y": "Показать ({{count}}): Отправленные запросы на одобрение",
+    "myPendingA11y": "Отправленные запросы на одобрение: {{count}}",
     "favoritesTitle": "Избранное",
     "allCollectionsTitle": "Все коллекции",
     "addFavorite": "Добавить в избранное",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Сохранить коллекцию",
     "errorColorUpdateFallback": "Не удалось обновить цвет.",
     "favoritesEmpty": "Нет избранного.",
-    "allCollectionsEmpty": "Нет коллекций.", "manageAction": "Управление коллекцией", "itemManageAction": "Другие действия со ссылкой", "addToOther": "Дублировать в другую коллекцию", "moveToOther": "Переместить в другую коллекцию", "mergeWithOther": "Объединить с другой коллекцией", "targetPickerTitle": "Выберите коллекцию", "moveTitle": "Переместить ссылку", "moveAction": "Переместить", "moveConfirmMessage": "Переместить эту ссылку в \"{{target}}\"?", "moveError": "Не удалось переместить ссылку.", "mergeTitle": "Объединить коллекции", "mergeAction": "Объединить", "mergeConfirmMessage": "Объединить \"{{source}}\" с \"{{target}}\"? Ссылки будут объединены, а эта коллекция будет удалена.", "mergeError": "Не удалось объединить коллекцию.", "errorTargetLoadFallback": "Не удалось загрузить коллекции.",
+    "allCollectionsEmpty": "Нет коллекций.",
+    "manageAction": "Управление коллекцией",
+    "itemManageAction": "Другие действия со ссылкой",
+    "addToOther": "Дублировать в другую коллекцию",
+    "moveToOther": "Переместить в другую коллекцию",
+    "mergeWithOther": "Объединить с другой коллекцией",
+    "targetPickerTitle": "Выберите коллекцию",
+    "moveTitle": "Переместить ссылку",
+    "moveAction": "Переместить",
+    "moveConfirmMessage": "Переместить эту ссылку в \"{{target}}\"?",
+    "moveError": "Не удалось переместить ссылку.",
+    "mergeTitle": "Объединить коллекции",
+    "mergeAction": "Объединить",
+    "mergeConfirmMessage": "Объединить \"{{source}}\" с \"{{target}}\"? Ссылки будут объединены, а эта коллекция будет удалена.",
+    "mergeError": "Не удалось объединить коллекцию.",
+    "errorTargetLoadFallback": "Не удалось загрузить коллекции.",
     "myCategoriesTab": "Мои коллекции",
     "sharedCategoriesTab": "Общие",
     "sharedEmpty": "Общих коллекций пока нет.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "В выбранной коллекции эта ссылка уже ждёт одобрения.",
     "saveOutcomeAlreadyInCollection": "В выбранной коллекции эта ссылка уже есть.",
     "roleSubmitter": "С одобрением",
-    "pendingSubmissions": "Ожидают {{count}}",
-    "pendingSubmissionsA11y": "Показать ссылки, ожидающие одобрения: {{count}}",
+    "pendingSubmissions": "Полученные запросы на одобрение {{count}}",
+    "pendingSubmissionsA11y": "Показать ({{count}}): Полученные запросы на одобрение",
     "removeFromSharedOwnerOnly": "Удалять ссылки из коллекции, которой с вами поделились, может только владелец.",
     "removeFromCollection": "Убрать из коллекции",
     "iconPhotoChoose": "Выбрать фото",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Пароль доступа",
     "sharePasswordWrong": "Неверный пароль.",
     "sharePasswordContactOwner": "Спросите пароль доступа у того, кто поделился этой коллекцией.",
-    "sharePasswordRequiredForAction": "Сначала откройте коллекцию и введите пароль доступа."
+    "sharePasswordRequiredForAction": "Сначала откройте коллекцию и введите пароль доступа.",
+    "sortNameAscA11y": "По названию, от А до Я",
+    "sortNameDescA11y": "По названию, от Я до А"
   },
-  "toast": { "moveSuccess": "Перемещено.", "undoAction": "Отменить", "undoMoveError": "Не удалось отменить перемещение.", "deleteSuccess": "Удалено.", "undoDeleteError": "Не удалось отменить удаление.", "unlinkSuccess": "Убрано из коллекции.", "undoUnlinkError": "Не удалось отменить удаление из коллекции.", "collectionDeleteSuccess": "Коллекция удалена.", "undoCollectionDeleteError": "Не удалось отменить удаление коллекции.", "collectionMergeSuccess": "Коллекция объединена.", "undoCollectionMergeError": "Не удалось отменить объединение коллекции." },
+  "toast": {
+    "moveSuccess": "Перемещено.",
+    "undoAction": "Отменить",
+    "undoMoveError": "Не удалось отменить перемещение.",
+    "deleteSuccess": "Удалено.",
+    "undoDeleteError": "Не удалось отменить удаление.",
+    "unlinkSuccess": "Убрано из коллекции.",
+    "undoUnlinkError": "Не удалось отменить удаление из коллекции.",
+    "collectionDeleteSuccess": "Коллекция удалена.",
+    "undoCollectionDeleteError": "Не удалось отменить удаление коллекции.",
+    "collectionMergeSuccess": "Коллекция объединена.",
+    "undoCollectionMergeError": "Не удалось отменить объединение коллекции."
+  },
   "myPage": {
     "title": "Мой профиль",
-    "settings": "Настройки",
     "signOutConfirmTitle": "Выйти?",
     "signOutConfirmMessage": "Для продолжения потребуется снова войти в систему.",
     "deleteAccountErrorFallback": "Не удалось удалить вашу учётную запись. Повторите попытку.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Язык",
-    "quickSaveOnShare": "Сохранять сразу при отправке",
-    "quickSaveOnShareOnDescription": "При отправке ссылки из YouTube, Instagram и других приложений она сразу сохраняется в Juple без открытия приложения.",
-    "quickSaveOnShareOffDescription": "После отправки откроется Juple, где вы сможете проверить сведения о ссылке и выбрать коллекцию перед сохранением.",
+    "quickSaveOnShare": "Быстрое сохранение",
+    "quickSaveOnShareOnDescription": "Ссылки, которые вы отправляете в Juple из других приложений, сохраняются сразу, без экрана проверки.",
+    "quickSaveOnShareOffDescription": "Ссылки, отправленные в Juple, открывают экран проверки: там вы смотрите сведения и выбираете коллекцию перед сохранением.",
     "trash": "Недавно удалённые",
     "collectionLock": "Блокировка коллекций",
     "collectionLockDescription": "Задайте пароль для своих коллекций.",
@@ -521,7 +549,10 @@
     "limitNotice": "Можно просмотреть до {{count}} последних удалённых ссылок.",
     "restoreConfirmTitle": "Восстановить?",
     "restoreConfirmMessage": "Удалённая ссылка будет восстановлена.",
-    "restoreConfirmAction": "Восстановить"
+    "restoreConfirmAction": "Восстановить",
+    "openLink": "Открыть ссылку",
+    "moreA11y": "Другие действия",
+    "emptyA11y": "Очистить недавно удалённые"
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "Добавить: {{count}}",
     "alreadyMember": "Уже участник",
     "alreadyAdded": "Добавлен",
-    "allUsersTitle": "Публичная коллекция",
+    "allUsersTitle": "Настройки публичной коллекции",
     "belowPublicPermission": "Нельзя дать права ниже публичных прав коллекции.",
     "permissionLabel": "Права",
     "publicOn": "ВКЛ",
@@ -623,7 +654,7 @@
     "inviteTitle": "Пригласить друзей",
     "inviteTabFriends": "Друзья",
     "inviteTabId": "ID",
-    "statusTitle": "Статус доступа",
+    "statusTitle": "Участники",
     "statusTabMembers": "Доступ {{count}}",
     "statusTabPending": "Ожидают {{count}}",
     "permissionMismatch": "У кого-то права ниже этих публичных прав, поэтому их нельзя применить.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Изменить вместе",
     "reviewMembers": "Посмотреть участников",
     "selectedCount": "Выбрано: {{count}}",
-    "addPersonToInviteList": "Добавить {{name}} в список приглашений"
+    "addPersonToInviteList": "Добавить {{name}} в список приглашений",
+    "publicInfo": "Любой, кто знает ссылку на коллекцию, может открыть её.\nДля таких пользователей можно задать общие права, а приглашённым напрямую — отдельно назначить более высокие.\nПрава можно изменить и в списке участников.",
+    "publicInfoA11y": "О публичной коллекции"
   },
   "linkShare": {
     "description": "Перешлите ссылку на публичную коллекцию. Получатели не становятся участниками этой коллекции.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "Убрать {{name}}"
   },
   "submissions": {
-    "empty": "Нет ссылок, ожидающих одобрения.",
-    "myEmpty": "Ни одна из моих ссылок не ждёт одобрения.",
-    "myLoadError": "Не удалось загрузить мои ссылки на одобрении.",
+    "empty": "Полученные запросы на одобрение: нет",
+    "myEmpty": "Отправленные запросы на одобрение: нет",
+    "myLoadError": "Не удалось загрузить отправленные запросы.",
     "myStatus": "Ожидает одобрения",
     "loadError": "Не удалось загрузить ссылки на одобрении.",
     "approve": "Одобрить",
@@ -662,7 +695,20 @@
     "unavailable": "Этот запрос больше нельзя одобрить.",
     "viaPublicLink": "Предложено через публичную ссылку",
     "approveA11y": "Одобрить: {{title}}",
-    "rejectA11y": "Отклонить: {{title}}"
+    "rejectA11y": "Отклонить: {{title}}",
+    "mySheetTitle": "Отправленные запросы на одобрение",
+    "ownerSheetTitle": "Полученные запросы на одобрение",
+    "cancelRequest": "Отменить запрос",
+    "cancelRequestA11y": "Отменить запрос на одобрение: {{title}}",
+    "cancelRequestConfirm": "Отменить запрос на одобрение?",
+    "cancelRequestConfirmMessage": "Ссылка также исчезнет из списка одобрения владельца коллекции.",
+    "keepRequest": "Оставить запрос",
+    "alreadyProcessed": "Этот запрос уже обработан.",
+    "alreadyCancelledOrProcessed": "Этот запрос уже отменён или обработан.",
+    "cancelFailed": "Не удалось отменить запрос. Повторите попытку.",
+    "sharedCollectionShort": "Общая коллекция",
+    "approveConfirmTitle": "Одобрить этот запрос на ссылку?",
+    "approveConfirmMessage": "После одобрения ссылка будет добавлена в коллекцию."
   },
   "friends": {
     "title": "Друзья",
@@ -679,7 +725,7 @@
     "loadFallback": "Не удалось загрузить друзей.",
     "empty": "Пока нет друзей.",
     "searchEmpty": "Ничего не найдено.",
-    "note": "Моя заметка",
+    "note": "Заметка",
     "noteInvalid": "Не более 200 символов в одну строку.",
     "remove": "Удалить из друзей",
     "removeConfirmTitle": "Удалить из друзей?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Нет входящих заявок в друзья.",
     "outgoingEmpty": "Нет исходящих заявок в друзья.",
     "requestPending": "Заявка ожидает ответа",
-    "noteHelper": "Видно только вам",
     "lookupHint": "Найдите друга по его Juple ID.",
     "incomingFromThem": "Этот пользователь отправил вам заявку в друзья.",
     "viewIncoming": "Открыть входящие заявки",
     "acceptA11y": "Принять заявку в друзья от {{name}}",
     "declineA11y": "Отклонить заявку в друзья от {{name}}",
-    "cancelA11y": "Отменить заявку в друзья для {{name}}"
+    "cancelA11y": "Отменить заявку в друзья для {{name}}",
+    "personTitle": "Информация о пользователе",
+    "you": "Вы"
   },
   "notifications": {
     "title": "Уведомления",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Уведомления, непрочитанных: {{count}}",
     "bannerAnnouncement": "Новое уведомление: {{title}}. {{body}}",
     "bannerHint": "Нажмите, чтобы открыть. Смахните вверх, чтобы закрыть."
+  },
+  "contact": {
+    "title": "Связаться с нами",
+    "description": "Если у вас есть вопросы о Juple, напишите нам на электронную почту.",
+    "sendEmail": "Написать письмо",
+    "subject": "Вопрос о Juple",
+    "noMailApp": "Не удалось открыть почтовое приложение. Напишите напрямую на {{email}}.",
+    "copyEmail": "Скопировать адрес почты"
   }
 }

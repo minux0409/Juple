@@ -269,10 +269,10 @@ describe('CommentList', () => {
 });
 
 describe('the keyboard', () => {
-  it('KeyboardAvoidingView is what keeps the composer above the keyboard (padding, in the screen that owns it)', () => {
+  it('the shared KeyboardSafeView is what keeps the composer above the keyboard (in the screen that owns it)', () => {
     const source: string = require('fs').readFileSync(require('path').resolve(__dirname, '../../screens/CollectionSharedItemScreen.tsx'), 'utf8');
 
-    expect(source).toMatch(/<KeyboardAvoidingView behavior="padding"/);
+    expect(source).toMatch(/<KeyboardSafeView/);
     expect(KeyboardAvoidingView).toBeDefined();
   });
 });

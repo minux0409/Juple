@@ -54,8 +54,7 @@
     "newLinkReview": "नया लिंक जांचें",
     "trash": "हाल ही में हटाए गए",
     "collectionSharedItem": "साझा लिंक",
-    "collectionSubmissions": "मंज़ूरी की प्रतीक्षा वाले लिंक",
-    "myCollectionSubmissions": "मेरे लंबित अनुमोदन",
+    "myCollectionSubmissions": "भेजे गए अनुमोदन अनुरोध",
     "collectionShare": "साझा करें",
     "collectionLockSettings": "संग्रह लॉक"
   },
@@ -92,7 +91,8 @@
     "retry": "फिर से प्रयास करें",
     "deleteConfirmTitle": "आइटम हटाएं",
     "deleteConfirmMessage": "क्या इस आइटम को हटाना है? यह वापस नहीं किया जा सकता।",
-    "errorDeleteFallback": "आइटम हटाया नहीं जा सका।"
+    "errorDeleteFallback": "आइटम हटाया नहीं जा सका।",
+    "searchMinHint": "कम से कम 2 अक्षर दर्ज करें।"
   },
   "collections": {
     "attentionA11y": "{{name}}, ध्यान देने वाले {{count}} आइटम",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "पूरा चयन हटाएँ",
     "copySelectUpTo": "{{max}} तक चुनें",
     "detailItemCount": "कुल {{count}}",
-    "myPendingSubmissions": "मेरे लंबित {{count}}",
-    "myPendingSubmissionsA11y": "अनुमोदन की प्रतीक्षा में मेरे {{count}} लिंक देखें",
-    "myPendingA11y": "मेरे लंबित अनुमोदन: {{count}}",
+    "myPendingSubmissions": "भेजे गए अनुमोदन अनुरोध {{count}}",
+    "myPendingSubmissionsA11y": "भेजे गए अनुमोदन अनुरोध देखें: {{count}}",
+    "myPendingA11y": "भेजे गए अनुमोदन अनुरोध: {{count}}",
     "favoritesTitle": "पसंदीदा",
     "allCollectionsTitle": "सभी संग्रह",
     "addFavorite": "पसंदीदा में जोड़ें",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "संग्रह सहेजें",
     "errorColorUpdateFallback": "रंग अपडेट नहीं हो सका।",
     "favoritesEmpty": "कोई पसंदीदा नहीं है।",
-    "allCollectionsEmpty": "कोई संग्रह नहीं है।", "manageAction": "संग्रह प्रबंधित करें", "itemManageAction": "लिंक की अन्य कार्रवाइयाँ", "addToOther": "दूसरे संग्रह में डुप्लिकेट करें", "moveToOther": "दूसरे संग्रह में ले जाएँ", "mergeWithOther": "दूसरे संग्रह के साथ मर्ज करें", "targetPickerTitle": "संग्रह चुनें", "moveTitle": "लिंक ले जाएँ", "moveAction": "ले जाएँ", "moveConfirmMessage": "इस लिंक को \"{{target}}\" में ले जाएँ?", "moveError": "लिंक को ले जाया नहीं जा सका।", "mergeTitle": "संग्रह मर्ज करें", "mergeAction": "मर्ज करें", "mergeConfirmMessage": "\"{{source}}\" को \"{{target}}\" में मर्ज करें? लिंक मर्ज हो जाएंगे और यह संग्रह हटा दिया जाएगा।", "mergeError": "संग्रह मर्ज नहीं किया जा सका।", "errorTargetLoadFallback": "संग्रह लोड नहीं किए जा सके।",
+    "allCollectionsEmpty": "कोई संग्रह नहीं है।",
+    "manageAction": "संग्रह प्रबंधित करें",
+    "itemManageAction": "लिंक की अन्य कार्रवाइयाँ",
+    "addToOther": "दूसरे संग्रह में डुप्लिकेट करें",
+    "moveToOther": "दूसरे संग्रह में ले जाएँ",
+    "mergeWithOther": "दूसरे संग्रह के साथ मर्ज करें",
+    "targetPickerTitle": "संग्रह चुनें",
+    "moveTitle": "लिंक ले जाएँ",
+    "moveAction": "ले जाएँ",
+    "moveConfirmMessage": "इस लिंक को \"{{target}}\" में ले जाएँ?",
+    "moveError": "लिंक को ले जाया नहीं जा सका।",
+    "mergeTitle": "संग्रह मर्ज करें",
+    "mergeAction": "मर्ज करें",
+    "mergeConfirmMessage": "\"{{source}}\" को \"{{target}}\" में मर्ज करें? लिंक मर्ज हो जाएंगे और यह संग्रह हटा दिया जाएगा।",
+    "mergeError": "संग्रह मर्ज नहीं किया जा सका।",
+    "errorTargetLoadFallback": "संग्रह लोड नहीं किए जा सके।",
     "myCategoriesTab": "मेरे संग्रह",
     "sharedCategoriesTab": "साझा",
     "sharedEmpty": "अभी तक कोई साझा संग्रह नहीं है।",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "आपके चुने हुए संग्रह में यह लिंक पहले से मंज़ूरी की प्रतीक्षा में है।",
     "saveOutcomeAlreadyInCollection": "आपके चुने हुए संग्रह में यह लिंक पहले से है।",
     "roleSubmitter": "मंज़ूरी के बाद जुड़ेगा",
-    "pendingSubmissions": "प्रतीक्षा में {{count}}",
-    "pendingSubmissionsA11y": "मंज़ूरी की प्रतीक्षा वाले {{count}} लिंक देखें",
+    "pendingSubmissions": "प्राप्त अनुमोदन अनुरोध {{count}}",
+    "pendingSubmissionsA11y": "प्राप्त अनुमोदन अनुरोध देखें: {{count}}",
     "removeFromSharedOwnerOnly": "आपके साथ साझा किए गए संग्रह से लिंक केवल स्वामी हटा सकते हैं।",
     "removeFromCollection": "संग्रह से हटाएँ",
     "iconPhotoChoose": "फ़ोटो चुनें",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "एक्सेस पासवर्ड",
     "sharePasswordWrong": "पासवर्ड सही नहीं है।",
     "sharePasswordContactOwner": "एक्सेस पासवर्ड के लिए उस व्यक्ति से पूछें जिसने यह कलेक्शन शेयर किया।",
-    "sharePasswordRequiredForAction": "पहले कलेक्शन खोलें और उसका एक्सेस पासवर्ड डालें।"
+    "sharePasswordRequiredForAction": "पहले कलेक्शन खोलें और उसका एक्सेस पासवर्ड डालें।",
+    "sortNameAscA11y": "नाम, A से Z",
+    "sortNameDescA11y": "नाम, Z से A"
   },
-  "toast": { "moveSuccess": "स्थानांतरित किया गया।", "undoAction": "पूर्ववत करें", "undoMoveError": "स्थानांतरण पूर्ववत नहीं किया जा सका।", "deleteSuccess": "हटा दिया गया।", "undoDeleteError": "हटाना पूर्ववत नहीं किया जा सका।", "unlinkSuccess": "संग्रह से हटाया गया।", "undoUnlinkError": "संग्रह से हटाना पूर्ववत नहीं किया जा सका।", "collectionDeleteSuccess": "संग्रह हटा दिया गया।", "undoCollectionDeleteError": "संग्रह हटाना पूर्ववत नहीं किया जा सका।", "collectionMergeSuccess": "संग्रह का विलय कर दिया गया।", "undoCollectionMergeError": "संग्रह का विलय पूर्ववत नहीं किया जा सका।" },
+  "toast": {
+    "moveSuccess": "स्थानांतरित किया गया।",
+    "undoAction": "पूर्ववत करें",
+    "undoMoveError": "स्थानांतरण पूर्ववत नहीं किया जा सका।",
+    "deleteSuccess": "हटा दिया गया।",
+    "undoDeleteError": "हटाना पूर्ववत नहीं किया जा सका।",
+    "unlinkSuccess": "संग्रह से हटाया गया।",
+    "undoUnlinkError": "संग्रह से हटाना पूर्ववत नहीं किया जा सका।",
+    "collectionDeleteSuccess": "संग्रह हटा दिया गया।",
+    "undoCollectionDeleteError": "संग्रह हटाना पूर्ववत नहीं किया जा सका।",
+    "collectionMergeSuccess": "संग्रह का विलय कर दिया गया।",
+    "undoCollectionMergeError": "संग्रह का विलय पूर्ववत नहीं किया जा सका।"
+  },
   "myPage": {
     "title": "मेरा पेज",
-    "settings": "सेटिंग्स",
     "signOutConfirmTitle": "क्या लॉग आउट करना है?",
     "signOutConfirmMessage": "जारी रखने के लिए आपको फिर से लॉग इन करना होगा।",
     "deleteAccountErrorFallback": "आपका खाता हटाया नहीं जा सका। कृपया फिर से प्रयास करें।",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "भाषा",
-    "quickSaveOnShare": "शेयर करते ही तुरंत सेव करें",
-    "quickSaveOnShareOnDescription": "YouTube, Instagram और अन्य ऐप्स से लिंक शेयर करने पर, ऐप खोले बिना यह तुरंत Juple में सेव हो जाता है।",
-    "quickSaveOnShareOffDescription": "शेयर करने के बाद, सेव करने से पहले लिंक विवरण जांचने और संग्रह चुनने के लिए Juple खुल जाता है।",
+    "quickSaveOnShare": "क्विक सेव",
+    "quickSaveOnShareOnDescription": "अन्य ऐप्स से Juple में शेयर किए गए लिंक बिना समीक्षा स्क्रीन के तुरंत सेव हो जाते हैं।",
+    "quickSaveOnShareOffDescription": "Juple में शेयर किए गए लिंक एक समीक्षा स्क्रीन खोलते हैं, जहाँ आप विवरण जाँचकर सेव करने से पहले संग्रह चुनते हैं।",
     "trash": "हाल ही में हटाए गए",
     "collectionLock": "संग्रह लॉक",
     "collectionLockDescription": "अपने कलेक्शन के लिए पासवर्ड सेट करें।",
@@ -521,7 +549,10 @@
     "limitNotice": "आप हाल ही में हटाए गए अधिकतम {{count}} लिंक देख सकते हैं।",
     "restoreConfirmTitle": "पुनर्स्थापित करें?",
     "restoreConfirmMessage": "हटाया गया लिंक पुनर्स्थापित किया जाएगा।",
-    "restoreConfirmAction": "पुनर्स्थापित करें"
+    "restoreConfirmAction": "पुनर्स्थापित करें",
+    "openLink": "लिंक खोलें",
+    "moreA11y": "और कार्रवाइयाँ",
+    "emptyA11y": "हाल ही में हटाए गए खाली करें"
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "{{count}} जोड़ें",
     "alreadyMember": "पहले से शामिल",
     "alreadyAdded": "जोड़ा गया",
-    "allUsersTitle": "सार्वजनिक संग्रह",
+    "allUsersTitle": "सार्वजनिक संग्रह सेटिंग",
     "belowPublicPermission": "संग्रह की सार्वजनिक अनुमति से कम अनुमति नहीं दी जा सकती।",
     "permissionLabel": "अनुमति",
     "publicOn": "चालू",
@@ -623,7 +654,7 @@
     "inviteTitle": "दोस्तों को आमंत्रित करें",
     "inviteTabFriends": "मित्र",
     "inviteTabId": "ID",
-    "statusTitle": "साझाकरण स्थिति",
+    "statusTitle": "प्रतिभागी",
     "statusTabMembers": "साझा {{count}}",
     "statusTabPending": "लंबित {{count}}",
     "permissionMismatch": "किसी के पास इस सार्वजनिक अनुमति से कम अनुमति है, इसलिए इसे लागू नहीं किया जा सकता।",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "साथ में बदलें",
     "reviewMembers": "लोगों को देखें",
     "selectedCount": "{{count}} चुने गए",
-    "addPersonToInviteList": "{{name}} को आमंत्रण सूची में जोड़ें"
+    "addPersonToInviteList": "{{name}} को आमंत्रण सूची में जोड़ें",
+    "publicInfo": "संग्रह का लिंक जानने वाला कोई भी व्यक्ति उस तक पहुँच सकता है।\nआप पहुँचने वाले उपयोगकर्ताओं के लिए एक सामान्य अनुमति तय कर सकते हैं, और सीधे आमंत्रित उपयोगकर्ताओं को अलग से उच्च अनुमति दे सकते हैं।\nअनुमतियाँ प्रतिभागियों की सूची से भी बदली जा सकती हैं।",
+    "publicInfoA11y": "सार्वजनिक संग्रह के बारे में"
   },
   "linkShare": {
     "description": "सार्वजनिक संग्रह का लिंक आगे भेजें। पाने वाले इस संग्रह के प्रतिभागी नहीं बनते।",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "{{name}} को हटाएँ"
   },
   "submissions": {
-    "empty": "मंज़ूरी की प्रतीक्षा में कोई लिंक नहीं है।",
-    "myEmpty": "मेरा कोई लिंक अनुमोदन की प्रतीक्षा में नहीं है।",
-    "myLoadError": "मेरे लंबित लिंक लोड नहीं हो सके।",
+    "empty": "प्राप्त अनुमोदन अनुरोध: कोई नहीं",
+    "myEmpty": "भेजे गए अनुमोदन अनुरोध: कोई नहीं",
+    "myLoadError": "भेजे गए अनुरोध लोड नहीं हो सके।",
     "myStatus": "अनुमोदन की प्रतीक्षा में",
     "loadError": "प्रतीक्षा सूची लोड नहीं हो सकी।",
     "approve": "मंज़ूर करें",
@@ -662,7 +695,20 @@
     "unavailable": "यह अनुरोध अब मंज़ूर नहीं किया जा सकता।",
     "viaPublicLink": "सार्वजनिक लिंक से सुझाया गया",
     "approveA11y": "{{title}} मंज़ूर करें",
-    "rejectA11y": "{{title}} अस्वीकार करें"
+    "rejectA11y": "{{title}} अस्वीकार करें",
+    "mySheetTitle": "भेजे गए अनुमोदन अनुरोध",
+    "ownerSheetTitle": "प्राप्त अनुमोदन अनुरोध",
+    "cancelRequest": "अनुरोध रद्द करें",
+    "cancelRequestA11y": "{{title}} के लिए अनुमोदन अनुरोध रद्द करें",
+    "cancelRequestConfirm": "क्या अनुमोदन अनुरोध रद्द करें?",
+    "cancelRequestConfirmMessage": "लिंक संग्रह के स्वामी की अनुमोदन सूची से भी हट जाएगा।",
+    "keepRequest": "अनुरोध रखें",
+    "alreadyProcessed": "यह अनुरोध पहले ही संसाधित हो चुका है।",
+    "alreadyCancelledOrProcessed": "यह अनुरोध पहले ही रद्द या संसाधित हो चुका है।",
+    "cancelFailed": "अनुरोध रद्द नहीं हो सका। कृपया फिर से कोशिश करें।",
+    "sharedCollectionShort": "साझा संग्रह",
+    "approveConfirmTitle": "क्या इस लिंक अनुरोध को स्वीकृत करें?",
+    "approveConfirmMessage": "स्वीकृत करने पर यह लिंक संग्रह में जुड़ जाएगा।"
   },
   "friends": {
     "title": "मित्र",
@@ -679,7 +725,7 @@
     "loadFallback": "मित्र लोड नहीं हो सके।",
     "empty": "अभी कोई मित्र नहीं।",
     "searchEmpty": "कोई मेल खाता मित्र नहीं।",
-    "note": "मेरा नोट",
+    "note": "नोट",
     "noteInvalid": "एक ही पंक्ति में अधिकतम 200 वर्ण उपयोग करें।",
     "remove": "मित्र हटाएँ",
     "removeConfirmTitle": "इस मित्र को हटाएँ?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "कोई दोस्ती अनुरोध नहीं मिला।",
     "outgoingEmpty": "कोई दोस्ती अनुरोध नहीं भेजा गया।",
     "requestPending": "अनुरोध लंबित",
-    "noteHelper": "सिर्फ़ आपको दिखता है",
     "lookupHint": "Juple ID से दोस्त खोजें।",
     "incomingFromThem": "इस व्यक्ति ने आपको दोस्ती अनुरोध भेजा है।",
     "viewIncoming": "प्राप्त अनुरोध देखें",
     "acceptA11y": "{{name}} का दोस्ती अनुरोध स्वीकार करें",
     "declineA11y": "{{name}} का दोस्ती अनुरोध अस्वीकार करें",
-    "cancelA11y": "{{name}} को भेजा दोस्ती अनुरोध रद्द करें"
+    "cancelA11y": "{{name}} को भेजा दोस्ती अनुरोध रद्द करें",
+    "personTitle": "उपयोगकर्ता की जानकारी",
+    "you": "आप"
   },
   "notifications": {
     "title": "सूचनाएं",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "सूचनाएं, {{count}} अपठित",
     "bannerAnnouncement": "नई सूचना: {{title}}। {{body}}",
     "bannerHint": "खोलने के लिए टैप करें। बंद करने के लिए ऊपर स्वाइप करें।"
+  },
+  "contact": {
+    "title": "संपर्क करें",
+    "description": "Juple के बारे में कोई भी पूछताछ हो तो हमें ईमेल करें।",
+    "sendEmail": "ईमेल भेजें",
+    "subject": "Juple पूछताछ",
+    "noMailApp": "मेल ऐप नहीं खुल सका। कृपया सीधे {{email}} पर ईमेल करें।",
+    "copyEmail": "ईमेल पता कॉपी करें"
   }
 }

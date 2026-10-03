@@ -112,8 +112,7 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
 export type NotificationNavigationAction =
   | { readonly name: 'Friends' }
   | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number } } }
-  | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null } } }
-  | { readonly name: 'CollectionSubmissions'; readonly params: { readonly collectionId: number } }
+  | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null }; readonly openApprovals?: true } }
   | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } };
 
 /** Null for 'unavailable' - the caller then stays where it is. */
@@ -132,7 +131,8 @@ export function navigationActionFor(target: NotificationTarget, nowMs: number = 
         params: { collectionId: target.collectionId, refreshToken: nowMs, openItem: { itemId: target.itemId, focus: target.focus } },
       };
     case 'collectionSubmissions':
-      return { name: 'CollectionSubmissions', params: { collectionId: target.collectionId } };
+      // Through the Collection: its 링크 승인 대기 popup opens once the content is open (lock gate included).
+      return { name: 'CollectionDetails', params: { collectionId: target.collectionId, refreshToken: nowMs, openApprovals: true } };
     case 'publicCollection':
       return { name: 'SharedCollection', params: { publicId: target.publicId } };
     case 'unavailable':

@@ -109,6 +109,54 @@ describe('usePushMessageHandling', () => {
     expect(navigationRef.navigate).not.toHaveBeenCalled();
   });
 
+  it('a Collection refresh signal withdraws the approval-request banners whose notification no longer exists - exactly those, on screen or queued', async () => {
+    mockDetails.set(155, new ApiError('notFound', 404, 'gone')); // cancelled by its requester: deleted on the server
+    mockDetails.set(156, { kind: 'collectionSubmissions', collectionId: 7 }); // another request, still there
+    mockDetails.set(158, new ApiError('notFound', 404, 'gone')); // a cancelled request of ANOTHER Collection
+    await mount();
+    const banner = (id: number, type: string, collectionId: string) => ({
+      key: `n:${id}`,
+      notificationId: id,
+      type,
+      title: `t${id}`,
+      body: 'b',
+      data: { type, collectionId, notificationId: String(id) },
+    });
+    act(() => {
+      notificationBannerQueue.enqueue(banner(155, 'collectionLinkSubmission', '7'));
+      notificationBannerQueue.enqueue(banner(156, 'collectionLinkSubmission', '7'));
+      notificationBannerQueue.enqueue(banner(157, 'collectionItemComment', '7'));
+      notificationBannerQueue.enqueue(banner(158, 'collectionLinkSubmission', '8'));
+    });
+    mockRequest.mockClear();
+
+    act(() => {
+      foregroundHandler()({ data: { type: 'collectionContentChanged', collectionId: '7' } });
+    });
+    await flush();
+
+    expect(notificationBannerQueue.all().map(entry => entry.notificationId)).toEqual([156, 157, 158]);
+    // Only the approval-request banners of THAT Collection were asked about - by their own ids.
+    const asked = mockRequest.mock.calls.map(([request]) => request.path).filter(path => /^\/api\/v1\/notifications\/\d+\?/.test(path));
+    expect(asked.map(path => /notifications\/(\d+)/.exec(path)![1]).sort()).toEqual(['155', '156']);
+    expect(navigationRef.navigate).not.toHaveBeenCalled();
+  });
+
+  it('a banner is kept when the check itself fails (offline) - it is only a banner, the Inbox is the truth', async () => {
+    mockDetails.set(255, new ApiError('unavailable'));
+    await mount();
+    act(() => {
+      notificationBannerQueue.enqueue({ key: 'n:255', notificationId: 255, type: 'collectionLinkSubmission', title: 't', body: 'b', data: { collectionId: '7' } });
+    });
+
+    act(() => {
+      foregroundHandler()({ data: { type: 'collectionContentChanged', collectionId: '7' } });
+    });
+    await flush();
+
+    expect(notificationBannerQueue.current()?.notificationId).toBe(255);
+  });
+
   it('a visible foreground Push becomes one in-app banner (a replay of it does not), and nothing is read or opened', async () => {
     await mount();
     const message = {
@@ -176,7 +224,7 @@ describe('usePushMessageHandling', () => {
     act(() => tapHandler()({ data: { type: 'collectionLinkSubmission', collectionId: '9', notificationId: '58' } }));
     await flush();
 
-    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionSubmissions', { collectionId: 9 });
+    expect(navigationRef.navigate).toHaveBeenCalledWith('CollectionDetails', expect.objectContaining({ collectionId: 9, openApprovals: true }));
   });
 
   it('an older Push without notificationId routes by its legacy fields', async () => {

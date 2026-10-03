@@ -46,6 +46,8 @@ import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
+import { ScreenTitle } from '../components/ScreenTitle';
+import { screenIcons } from '../navigation/screenIcons';
 
 export { FIRST_PAGE_SKELETON_ROWS, NEAR_END_ROWS, NEXT_PAGE_SKELETON_ROWS } from '../components/DateSectionList';
 
@@ -367,18 +369,23 @@ export function DateHistoryScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.titleRow}>
-              <Text style={styles.title}>{t('history.title')}</Text>
+              <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} />
               <ViewModeToggle onChange={changeViewMode} value={viewMode} />
             </View>
             <View style={styles.searchBox}>
               <SearchField
                 clearLabel={t('history.searchClear')}
                 onChangeText={setSearchText}
+                accessibilityHint={t('history.searchMinHint')}
                 placeholder={t('history.searchPlaceholder')}
                 testID="history-search"
                 value={searchText}
               />
             </View>
+            {/* One character: a small hint right under the field (nothing is searched yet). 0 characters: nothing; 2+: the search runs. */}
+            {searchText.trim().length === 1 ? (
+              <Text accessibilityLiveRegion="polite" style={styles.searchHint} testID="history-search-hint">{t('history.searchMinHint')}</Text>
+            ) : null}
             {error && !search.isSearching ? <Text style={styles.error}>{error}</Text> : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
           </View>
@@ -445,7 +452,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
   },
+  // The hint sits close under the field (the box's own bottom gap is taken back), so showing it moves the list down by one compact line only.
   searchBox: { marginBottom: spacing.md },
+  searchHint: { color: colors.textSecondary, fontSize: 12, marginBottom: spacing.sm, marginTop: -spacing.sm },
   searchGridRow: { flexDirection: 'row' },
   searchStatus: { marginTop: spacing.xl },
   searchStatusText: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },

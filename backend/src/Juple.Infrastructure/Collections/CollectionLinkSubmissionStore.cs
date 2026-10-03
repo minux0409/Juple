@@ -4,6 +4,7 @@ using Juple.Application.Collections.Submissions;
 using Juple.Application.Items;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
+using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
@@ -150,16 +151,60 @@ public sealed class CollectionLinkSubmissionStore(
             hasMore ? page[^1].Id : null);
     }
 
+    // Every proposal the caller still has waiting in a Collection that exists - whether they are a member of it
+    // now, proposed through a public link as a non-member, or the link has since been switched off. It never
+    // depends on current membership or an enabled link: it is the caller's own request and it must stay findable
+    // (and cancellable) so a revoked public link can never trap it.
     public async Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default) =>
         await (
             from submission in dbContext.CollectionLinkSubmissions.AsNoTracking()
             where submission.SubmittedByUserId == userId
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
                 on submission.CollectionId equals collection.Id
-            // Only Collections that are in the caller's shared list: they are a member of them.
-            where dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)
             select submission.Id)
             .CountAsync(cancellationToken);
+
+    public async Task<MyCollectionLinkSubmissionAcrossPage> ListMineAcrossCollectionsAsync(
+        long userId,
+        long? beforeSubmissionId,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        // The caller's own rows in Collections that exist (the same set as the count above). For a Collection
+        // they are a member of: its id and name. For one they are NOT (a public-link proposal, a link since
+        // revoked, a former member): no id and no name - only the caller's own request and its status, so
+        // nothing about the Collection is revealed merely because their proposal exists.
+        var mine =
+            from submission in dbContext.CollectionLinkSubmissions.AsNoTracking()
+            where submission.SubmittedByUserId == userId
+            join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
+                on submission.CollectionId equals collection.Id
+            let isMember = dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id && collaborator.UserId == userId)
+            select new
+            {
+                submission.Id,
+                // Only for a member; never for anyone else (see above).
+                CollectionId = isMember ? (long?)collection.Id : null,
+                CollectionName = isMember ? collection.Name : null,
+                submission.Url,
+                submission.Title,
+                submission.PreviewImageUrl,
+                submission.CreatedAtUtc,
+            };
+        var totalCount = await mine.CountAsync(cancellationToken);
+        var rows = await mine
+            .Where(row => beforeSubmissionId == null || row.Id < beforeSubmissionId)
+            .OrderByDescending(row => row.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken);
+        var hasMore = rows.Count > limit;
+        var page = hasMore ? rows.GetRange(0, limit) : rows;
+        return new MyCollectionLinkSubmissionAcrossPage(
+            page.Select(row => new MyCollectionLinkSubmissionWithCollectionDto(
+                row.Id, row.CollectionId, row.CollectionName, row.Url, row.Title, row.PreviewImageUrl, row.CreatedAtUtc)).ToList(),
+            hasMore ? page[^1].Id : null,
+            totalCount);
+    }
 
     public async Task<MyCollectionLinkSubmissionPage> ListMineAsync(
         long collectionId,
@@ -234,6 +279,54 @@ public sealed class CollectionLinkSubmissionStore(
         }
 
         return new ApprovedCollectionLinkSubmission(collectionId, ownerUserId, submission.SubmittedByUserId, submission.ViaPublicShare);
+    }
+
+    public async Task<CancelledCollectionLinkSubmission?> CancelMineAsync(
+        long userId,
+        long submissionId,
+        long? requiredCollectionId,
+        CancellationToken cancellationToken = default)
+    {
+        // Which Collection to lock - read only for the caller's own row, so another user's id reveals nothing.
+        var collectionId = await dbContext.CollectionLinkSubmissions.AsNoTracking()
+            .Where(entry => entry.Id == submissionId && entry.SubmittedByUserId == userId
+                && (requiredCollectionId == null || entry.CollectionId == requiredCollectionId))
+            .Select(entry => (long?)entry.CollectionId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (collectionId is null)
+        {
+            return null;
+        }
+
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
+        // The lock approve takes: cancel and approve of this Collection's proposals are strictly ordered.
+        var ownerUserId = await CollectionRowLock.LockActiveAsync(dbContext, collectionId.Value, cancellationToken);
+        if (ownerUserId is null)
+        {
+            return null;
+        }
+
+        // The conditional delete is the transition: only the one that removes the row wins, and a
+        // proposal already approved or rejected is simply not there (never resurrected, never duplicated).
+        var deleted = await dbContext.CollectionLinkSubmissions
+            .Where(entry => entry.Id == submissionId && entry.SubmittedByUserId == userId && entry.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
+        if (deleted == 0)
+        {
+            return null;
+        }
+
+        // Exactly this proposal's notification (its SubjectId IS the proposal id) - never the others of
+        // the Collection. Push deliveries go with it (cascade), and a queued/recovered Push for it finds
+        // neither the notification nor the proposal and is skipped.
+        await dbContext.Notifications
+            .Where(notification => notification.Type == NotificationType.CollectionLinkSubmissionReceived
+                && notification.SubjectId == submissionId
+                && notification.CollectionId == collectionId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+        return new CancelledCollectionLinkSubmission(collectionId.Value, ownerUserId.Value);
     }
 
     public async Task<long?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default)

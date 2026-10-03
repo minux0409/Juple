@@ -54,8 +54,7 @@
     "newLinkReview": "Revisar novo link",
     "trash": "Excluídos recentemente",
     "collectionSharedItem": "Link compartilhado",
-    "collectionSubmissions": "Links pendentes",
-    "myCollectionSubmissions": "Minhas aprovações pendentes",
+    "myCollectionSubmissions": "Solicitações de aprovação enviadas",
     "collectionShare": "Compartilhar",
     "collectionLockSettings": "Bloqueio de coleções"
   },
@@ -92,7 +91,8 @@
     "retry": "Tentar novamente",
     "deleteConfirmTitle": "Excluir item",
     "deleteConfirmMessage": "Excluir este item? Essa ação não pode ser desfeita.",
-    "errorDeleteFallback": "Não foi possível excluir o item."
+    "errorDeleteFallback": "Não foi possível excluir o item.",
+    "searchMinHint": "Digite pelo menos 2 caracteres."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} itens precisam de atenção",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Desmarcar toda a seleção",
     "copySelectUpTo": "Selecionar até {{max}}",
     "detailItemCount": "Total: {{count}}",
-    "myPendingSubmissions": "Meus pendentes {{count}}",
-    "myPendingSubmissionsA11y": "Ver meus {{count}} links aguardando aprovação",
-    "myPendingA11y": "Minhas aprovações pendentes: {{count}}",
+    "myPendingSubmissions": "Solicitações de aprovação enviadas {{count}}",
+    "myPendingSubmissionsA11y": "Ver {{count}}: Solicitações de aprovação enviadas",
+    "myPendingA11y": "Solicitações de aprovação enviadas: {{count}}",
     "favoritesTitle": "Favoritos",
     "allCollectionsTitle": "Todas as coleções",
     "addFavorite": "Adicionar aos favoritos",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Salvar coleção",
     "errorColorUpdateFallback": "Não foi possível atualizar a cor.",
     "favoritesEmpty": "Nenhum favorito.",
-    "allCollectionsEmpty": "Nenhuma coleção.", "manageAction": "Gerenciar coleção", "itemManageAction": "Mais ações do link", "addToOther": "Duplicar em outra coleção", "moveToOther": "Mover para outra coleção", "mergeWithOther": "Mesclar com outra coleção", "targetPickerTitle": "Selecionar coleção", "moveTitle": "Mover link", "moveAction": "Mover", "moveConfirmMessage": "Mover este link para \"{{target}}\"?", "moveError": "Não foi possível mover o link.", "mergeTitle": "Mesclar coleções", "mergeAction": "Mesclar", "mergeConfirmMessage": "Mesclar \"{{source}}\" em \"{{target}}\"? Os links serão combinados e esta coleção será excluída.", "mergeError": "Não foi possível mesclar a coleção.", "errorTargetLoadFallback": "Não foi possível carregar as coleções.",
+    "allCollectionsEmpty": "Nenhuma coleção.",
+    "manageAction": "Gerenciar coleção",
+    "itemManageAction": "Mais ações do link",
+    "addToOther": "Duplicar em outra coleção",
+    "moveToOther": "Mover para outra coleção",
+    "mergeWithOther": "Mesclar com outra coleção",
+    "targetPickerTitle": "Selecionar coleção",
+    "moveTitle": "Mover link",
+    "moveAction": "Mover",
+    "moveConfirmMessage": "Mover este link para \"{{target}}\"?",
+    "moveError": "Não foi possível mover o link.",
+    "mergeTitle": "Mesclar coleções",
+    "mergeAction": "Mesclar",
+    "mergeConfirmMessage": "Mesclar \"{{source}}\" em \"{{target}}\"? Os links serão combinados e esta coleção será excluída.",
+    "mergeError": "Não foi possível mesclar a coleção.",
+    "errorTargetLoadFallback": "Não foi possível carregar as coleções.",
     "myCategoriesTab": "Minhas coleções",
     "sharedCategoriesTab": "Compartilhadas",
     "sharedEmpty": "Ainda não há coleções compartilhadas.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "Na coleção escolhida, este link já está aguardando aprovação.",
     "saveOutcomeAlreadyInCollection": "A coleção escolhida já tem este link.",
     "roleSubmitter": "Com aprovação",
-    "pendingSubmissions": "Pendentes {{count}}",
-    "pendingSubmissionsA11y": "Ver {{count}} links aguardando aprovação",
+    "pendingSubmissions": "Solicitações de aprovação recebidas {{count}}",
+    "pendingSubmissionsA11y": "Ver {{count}}: Solicitações de aprovação recebidas",
     "removeFromSharedOwnerOnly": "Só o proprietário pode remover links de uma coleção compartilhada com você.",
     "removeFromCollection": "Remover da coleção",
     "iconPhotoChoose": "Escolher foto",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Senha de acesso",
     "sharePasswordWrong": "A senha não está correta.",
     "sharePasswordContactOwner": "Peça a senha de acesso a quem compartilhou esta coleção.",
-    "sharePasswordRequiredForAction": "Abra a coleção e digite a senha de acesso primeiro."
+    "sharePasswordRequiredForAction": "Abra a coleção e digite a senha de acesso primeiro.",
+    "sortNameAscA11y": "Nome, de A a Z",
+    "sortNameDescA11y": "Nome, de Z a A"
   },
-  "toast": { "moveSuccess": "Movido.", "undoAction": "Desfazer", "undoMoveError": "Não foi possível desfazer a movimentação.", "deleteSuccess": "Excluído.", "undoDeleteError": "Não foi possível desfazer a exclusão.", "unlinkSuccess": "Removido da coleção.", "undoUnlinkError": "Não foi possível desfazer a remoção da coleção.", "collectionDeleteSuccess": "Coleção excluída.", "undoCollectionDeleteError": "Não foi possível desfazer a exclusão da coleção.", "collectionMergeSuccess": "Coleção mesclada.", "undoCollectionMergeError": "Não foi possível desfazer a mesclagem da coleção." },
+  "toast": {
+    "moveSuccess": "Movido.",
+    "undoAction": "Desfazer",
+    "undoMoveError": "Não foi possível desfazer a movimentação.",
+    "deleteSuccess": "Excluído.",
+    "undoDeleteError": "Não foi possível desfazer a exclusão.",
+    "unlinkSuccess": "Removido da coleção.",
+    "undoUnlinkError": "Não foi possível desfazer a remoção da coleção.",
+    "collectionDeleteSuccess": "Coleção excluída.",
+    "undoCollectionDeleteError": "Não foi possível desfazer a exclusão da coleção.",
+    "collectionMergeSuccess": "Coleção mesclada.",
+    "undoCollectionMergeError": "Não foi possível desfazer a mesclagem da coleção."
+  },
   "myPage": {
     "title": "Minha página",
-    "settings": "Configurações",
     "signOutConfirmTitle": "Sair?",
     "signOutConfirmMessage": "Você precisará entrar novamente para continuar.",
     "deleteAccountErrorFallback": "Não foi possível excluir sua conta. Tente novamente.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Idioma",
-    "quickSaveOnShare": "Salvar instantaneamente ao compartilhar",
-    "quickSaveOnShareOnDescription": "Compartilhar um link do YouTube, Instagram e outros apps salva-o na Juple na hora, sem abrir o app.",
-    "quickSaveOnShareOffDescription": "Após compartilhar, a Juple abre para você revisar os detalhes do link e escolher uma coleção antes de salvar.",
+    "quickSaveOnShare": "Salvamento rápido",
+    "quickSaveOnShareOnDescription": "Os links que você compartilha com a Juple de outros apps são salvos na hora, sem tela de revisão.",
+    "quickSaveOnShareOffDescription": "Os links que você compartilha com a Juple abrem uma tela de revisão, onde você confere os detalhes e escolhe uma coleção antes de salvar.",
     "trash": "Excluídos recentemente",
     "collectionLock": "Bloqueio de coleções",
     "collectionLockDescription": "Defina uma senha para suas coleções.",
@@ -521,7 +549,10 @@
     "limitNotice": "Você pode ver até suas {{count}} exclusões mais recentes.",
     "restoreConfirmTitle": "Restaurar?",
     "restoreConfirmMessage": "O link excluído será restaurado.",
-    "restoreConfirmAction": "Restaurar"
+    "restoreConfirmAction": "Restaurar",
+    "openLink": "Abrir link",
+    "moreA11y": "Mais ações",
+    "emptyA11y": "Esvaziar excluídos recentemente"
   },
   "collaboration": {
     "jupleIdLabel": "ID do Juple",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "Adicionar {{count}}",
     "alreadyMember": "Já participa",
     "alreadyAdded": "Adicionado",
-    "allUsersTitle": "Coleção pública",
+    "allUsersTitle": "Configurações da coleção pública",
     "belowPublicPermission": "Não é possível dar uma permissão menor que a permissão pública da coleção.",
     "permissionLabel": "Permissão",
     "publicOn": "ON",
@@ -623,7 +654,7 @@
     "inviteTitle": "Convidar amigos",
     "inviteTabFriends": "Amigos",
     "inviteTabId": "ID",
-    "statusTitle": "Status do compartilhamento",
+    "statusTitle": "Participantes",
     "statusTabMembers": "Compartilhada {{count}}",
     "statusTabPending": "Pendentes {{count}}",
     "permissionMismatch": "Alguém tem uma permissão menor que esta permissão pública, então ela não pode ser aplicada.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Alterar juntos",
     "reviewMembers": "Ver pessoas",
     "selectedCount": "{{count}} selecionados",
-    "addPersonToInviteList": "Adicionar {{name}} à lista de convites"
+    "addPersonToInviteList": "Adicionar {{name}} à lista de convites",
+    "publicInfo": "Qualquer pessoa que conheça o link da coleção pode acessá-la.\nVocê pode definir uma permissão comum para quem acessa e dar separadamente uma permissão maior a quem for convidado diretamente.\nAs permissões também podem ser alteradas na lista de participantes.",
+    "publicInfoA11y": "Sobre a coleção pública"
   },
   "linkShare": {
     "description": "Repasse o link da coleção pública. Quem recebe não passa a participar desta coleção.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "Remover {{name}}"
   },
   "submissions": {
-    "empty": "Nenhum link aguardando aprovação.",
-    "myEmpty": "Nenhum dos meus links aguarda aprovação.",
-    "myLoadError": "Não foi possível carregar meus links pendentes.",
+    "empty": "Solicitações de aprovação recebidas: nenhuma",
+    "myEmpty": "Solicitações de aprovação enviadas: nenhuma",
+    "myLoadError": "Não foi possível carregar as solicitações enviadas.",
     "myStatus": "Aguardando aprovação",
     "loadError": "Não foi possível carregar os links pendentes.",
     "approve": "Aprovar",
@@ -662,7 +695,20 @@
     "unavailable": "Este pedido não pode mais ser aprovado.",
     "viaPublicLink": "Sugerido pelo link público",
     "approveA11y": "Aprovar {{title}}",
-    "rejectA11y": "Recusar {{title}}"
+    "rejectA11y": "Recusar {{title}}",
+    "mySheetTitle": "Solicitações de aprovação enviadas",
+    "ownerSheetTitle": "Solicitações de aprovação recebidas",
+    "cancelRequest": "Cancelar solicitação",
+    "cancelRequestA11y": "Cancelar solicitação de aprovação de {{title}}",
+    "cancelRequestConfirm": "Cancelar a solicitação de aprovação?",
+    "cancelRequestConfirmMessage": "O link também sumirá da lista de aprovações do dono da coleção.",
+    "keepRequest": "Manter solicitação",
+    "alreadyProcessed": "Esta solicitação já foi tratada.",
+    "alreadyCancelledOrProcessed": "Esta solicitação já foi cancelada ou tratada.",
+    "cancelFailed": "Não foi possível cancelar a solicitação. Tente novamente.",
+    "sharedCollectionShort": "Coleção compartilhada",
+    "approveConfirmTitle": "Aprovar esta solicitação de link?",
+    "approveConfirmMessage": "Ao aprovar, o link será adicionado à coleção."
   },
   "friends": {
     "title": "Amigos",
@@ -679,7 +725,7 @@
     "loadFallback": "Não foi possível carregar os amigos.",
     "empty": "Nenhum amigo ainda.",
     "searchEmpty": "Nenhum amigo corresponde.",
-    "note": "Minha nota",
+    "note": "Nota",
     "noteInvalid": "Use até 200 caracteres em uma única linha.",
     "remove": "Remover amigo",
     "removeConfirmTitle": "Remover este amigo?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Nenhum pedido de amizade recebido.",
     "outgoingEmpty": "Nenhum pedido de amizade enviado.",
     "requestPending": "Pedido pendente",
-    "noteHelper": "Só você pode ver",
     "lookupHint": "Encontre um amigo pelo ID Juple.",
     "incomingFromThem": "Esta pessoa enviou um pedido de amizade para você.",
     "viewIncoming": "Ver pedidos recebidos",
     "acceptA11y": "Aceitar o pedido de amizade de {{name}}",
     "declineA11y": "Recusar o pedido de amizade de {{name}}",
-    "cancelA11y": "Cancelar o pedido de amizade para {{name}}"
+    "cancelA11y": "Cancelar o pedido de amizade para {{name}}",
+    "personTitle": "Informações do usuário",
+    "you": "Você"
   },
   "notifications": {
     "title": "Notificações",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Notificações, {{count}} não lidas",
     "bannerAnnouncement": "Nova notificação: {{title}}. {{body}}",
     "bannerHint": "Toque para abrir. Deslize para cima para fechar."
+  },
+  "contact": {
+    "title": "Fale conosco",
+    "description": "Se tiver alguma dúvida sobre a Juple, envie um e-mail para nós.",
+    "sendEmail": "Enviar e-mail",
+    "subject": "Dúvida sobre a Juple",
+    "noMailApp": "Não foi possível abrir um app de e-mail. Envie diretamente para {{email}}.",
+    "copyEmail": "Copiar endereço de e-mail"
   }
 }

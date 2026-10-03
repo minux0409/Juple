@@ -6,6 +6,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { lookupJupleId, type JupleIdLookupResult } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
+import { SearchIconButton } from '../components/SearchIconButton';
 import { UserAvatar } from '../components/UserAvatar';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { sendFriendRequest, type Friend, type FriendRequest } from './api/friendsApi';
@@ -171,16 +172,13 @@ export function AddFriendModal({ visible, onClose, friends, requests, onRequestS
           testID="friends-add-input"
           value={input}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canLookUp, busy: isLookingUp }}
+        <SearchIconButton
+          accessibilityLabel={t('collaboration.find')}
           disabled={!canLookUp}
+          isLoading={isLookingUp}
           onPress={lookup}
-          style={[styles.secondaryButton, !canLookUp && !isLookingUp && styles.disabled]}
           testID="friends-add-lookup"
-        >
-          {isLookingUp ? <ActivityIndicator size="small" /> : <Text style={styles.secondaryLabel}>{t('collaboration.find')}</Text>}
-        </Pressable>
+        />
       </View>
 
       {found ? (

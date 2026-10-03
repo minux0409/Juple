@@ -96,10 +96,16 @@ export function AccountManagementScreen() {
           <View style={styles.card}>
             <View style={styles.row} testID="account-sign-in-method">
               <View style={styles.rowText}>
-                <Text style={styles.rowValue}>{t(METHOD_LABEL_KEYS[method])}</Text>
+                {/* Email: ONE row - the label at the start, the address at the end (it ellipsizes on a narrow
+                    screen instead of wrapping to a second line). */}
                 {method === 'email' && userEmail ? (
-                  <Text numberOfLines={1} style={[styles.rowDescription, ltrTextStyle]}>{userEmail}</Text>
-                ) : null}
+                  <View style={styles.valueRow}>
+                    <Text style={styles.rowValue}>{t(METHOD_LABEL_KEYS[method])}</Text>
+                    <Text ellipsizeMode="tail" numberOfLines={1} style={[styles.emailValue, ltrTextStyle]} testID="account-email">{userEmail}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.rowValue}>{t(METHOD_LABEL_KEYS[method])}</Text>
+                )}
                 {method === 'google' || method === 'apple' ? (
                   <Text style={styles.rowDescription} testID="account-password-managed-elsewhere">
                     {t(method === 'google' ? 'account.passwordManagedByGoogle' : 'account.passwordManagedByApple')}
@@ -150,7 +156,9 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.md, ...cardShadow },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: minTouchTarget, paddingVertical: spacing.md },
   rowText: { flex: 1, minWidth: 0 },
-  rowValue: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
+  rowValue: { color: colors.textPrimary, flexShrink: 0, fontSize: 16, fontWeight: '600' },
+  valueRow: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row' },
+  emailValue: { color: colors.textSecondary, flex: 1, fontSize: 15, minWidth: 0, textAlign: 'right' },
   rowTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   rowDescription: { color: colors.textSecondary, fontSize: 13, marginTop: 3 },
   divider: { backgroundColor: colors.divider, height: StyleSheet.hairlineWidth },

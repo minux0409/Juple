@@ -1,15 +1,26 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LinkSortChips } from '../components/LinkSortChips';
+import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SwipeableItemRow } from '../components/SwipeableItemRow';
+import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { useActionAfterMenu } from '../components/useActionAfterMenu';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
+import { ViewModeToggle } from '../components/ViewModeToggle';
+import { sortLinksByName } from '../collections/sortCollectionItems';
+import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { RestoreIcon } from '../icons/RestoreIcon';
+import { EmptyTrashIcon } from '../icons/EmptyTrashIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import {
   emptyTrash,
@@ -20,7 +31,9 @@ import {
   type ItemTrashEntry,
 } from '../items/api/itemsApi';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
-import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
+import { useViewModePreference } from '../settings/viewModePreference';
+import { colors, minTouchTarget, spacing } from '../theme/tokens';
 
 /** Adapts an ItemTrashEntry to SavedLinkRow's expected shape - deletedAtUtc stands in for savedAtUtc (the row's own time display), matching the same display-shape-adapter pattern CollectionDetailsScreen already uses for its own Item list. */
 function toSavedLinkRowItem(entry: ItemTrashEntry): ItemHistoryEntry {
@@ -34,6 +47,10 @@ function toSavedLinkRowItem(entry: ItemTrashEntry): ItemHistoryEntry {
     previewImageUrl: entry.previewImageUrl,
     coverImage: entry.coverImage,
   };
+}
+
+function resolveTrashTitle(entry: ItemTrashEntry): string {
+  return entry.title?.trim() ? entry.title : entry.url;
 }
 
 function getLoadErrorMessage(error: unknown, t: TFunction): string {
@@ -58,6 +75,12 @@ export function TrashScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const { viewMode, changeViewMode } = useViewModePreference('trashViewMode');
+  const { sortOption, setSortOption } = useSortPreference('trashLinkSort');
+  // The deleted link whose action popup (링크 열기 / 복구 / 영구 삭제) is open. A deleted link has no
+  // ItemDetails, so tapping or long-pressing it opens this instead.
+  const [actionItem, setActionItem] = useState<ItemTrashEntry | null>(null);
+  const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   const [actionInFlightId, setActionInFlightId] = useState<number | null>(null);
   // Only ever an error notice (no success dialog - see restoreAction/permanentlyDeleteAction/
   // emptyTrashAction's own remarks: each is already gated behind its own ConfirmDialog, and the
@@ -93,6 +116,36 @@ export function TrashScreen() {
       load();
     }, [load]),
   );
+
+  // The server caps the list, so the whole list is here: any order is a local sort.
+  const displayedItems = useMemo(() => {
+    if (isNameSort(sortOption)) {
+      return sortLinksByName(
+        items,
+        { title: item => item.title, url: item => item.url, addedAtUtc: item => item.deletedAtUtc, id: item => item.id },
+        undefined,
+        sortOption === 'titleDesc' ? 'desc' : 'asc',
+      );
+    }
+    // 시간순 is the deletion time: newest deleted first, or the reverse (never relying on the server's order alone).
+    const direction = sortOption === 'oldest' ? 1 : -1;
+    return [...items].sort((a, b) => direction * (a.deletedAtUtc.localeCompare(b.deletedAtUtc) || a.id - b.id));
+  }, [items, sortOption]);
+
+  const closeMenuThen = (action: () => void) => afterMenuCloses(() => setActionItem(null), action);
+
+  /**
+   * Opens the raw saved URL in the system browser (the same openURL as ItemDetails). Deliberately no
+   * canOpenURL pre-check (Android package visibility) - a real failure surfaces via the catch. Opening a
+   * link never restores or changes the deleted item.
+   */
+  const openLink = async (entry: ItemTrashEntry) => {
+    try {
+      await Linking.openURL(entry.url);
+    } catch {
+      setErrorMessage(t('item.urlOpenFailed'));
+    }
+  };
 
   const restoreAction = async (itemId: number) => {
     if (actionInFlightId !== null) {
@@ -169,20 +222,43 @@ export function TrashScreen() {
         </Text>
         {hasEmptyAction ? (
           <Pressable
+            accessibilityLabel={t('trash.emptyA11y')}
             accessibilityRole="button"
             accessibilityState={{ disabled: isEmptyingTrash }}
             disabled={isEmptyingTrash}
             onLayout={event => setEmptyActionWidth(event.nativeEvent.layout.width)}
             onPress={() => setIsEmptyTrashConfirmVisible(true)}
             style={styles.emptyTrashButton}
+            testID="trash-empty-button"
           >
-            <Text style={styles.emptyTrashButtonLabel}>{t('trash.emptyAction')}</Text>
+            <EmptyTrashIcon color={colors.danger} size={22} />
           </Pressable>
         ) : null}
       </View>
+      {items.length > 0 ? (
+        <View style={styles.controlsRow}>
+          <LinkSortChips
+            dateLabel={t('collections.sortDate')}
+            dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
+            dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
+            nameAscA11yLabel={t('collections.sortNameAscA11y')}
+            nameDescA11yLabel={t('collections.sortNameDescA11y')}
+            nameLabel={t('collections.sortName')}
+            onPressDate={() => setSortOption(nextDateSort(sortOption))}
+            onPressName={() => setSortOption(nextNameSort(sortOption))}
+            sort={sortOption}
+            testIDPrefix="trash-sort"
+          />
+          <View style={styles.controlsSpacer} />
+          <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+        </View>
+      ) : null}
       <FlatList
+        key={viewMode}
         contentContainerStyle={styles.content}
-        data={items}
+        data={displayedItems}
+        numColumns={viewMode === 'grid' ? 2 : 1}
+        onScrollBeginDrag={closeOpenRow}
         style={styles.list}
         keyExtractor={item => item.id.toString()}
         ListEmptyComponent={
@@ -194,40 +270,79 @@ export function TrashScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <View style={styles.rowContent}>
-              <SavedLinkRow
+        renderItem={({ item }) => viewMode === 'grid' ? (
+          // The same SavedLinkGridCard as Home/History/Collections, in the same swipe row as the List (compact: slim,
+          // icon-only actions): right reveals 복구, left reveals 영구 삭제 - both still ask first. Tap and long-press open
+          // the titleless action popup.
+          <View style={savedLinkGridLayout.cell}>
+            <SwipeableItemRow
+              accessibilityLabel={resolveTrashTitle(item)}
+              compact
+              containerStyle={[savedLinkGridLayout.swipeContainer, styles.gridCard]}
+              deleteLabel={t('trash.permanentDeleteA11y')}
+              deleteTestID={`trash-delete-${item.id}`}
+              disabled={actionInFlightId !== null}
+              onDelete={() => setPendingPermanentDeleteId(item.id)}
+              onLongPress={() => setActionItem(item)}
+              onPress={() => setActionItem(item)}
+              startAction={{
+                backgroundColor: colors.brand,
+                icon: RestoreIcon,
+                label: t('trash.restoreA11y'),
+                shortLabel: t('trash.restoreConfirmAction'),
+                onPress: () => setPendingRestoreId(item.id),
+                testID: `trash-restore-${item.id}`,
+              }}
+              testID={`trash-item-${item.id}`}
+            >
+              <SavedLinkGridCard
                 dateDisplayMode="dateTime"
                 isActionInFlight={actionInFlightId === item.id}
                 item={toSavedLinkRowItem(item)}
                 preferEffectiveThumbnail
               />
-            </View>
-            <View style={styles.rowActions}>
-              <Pressable
-                accessibilityLabel={t('trash.restoreA11y')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: actionInFlightId !== null }}
-                disabled={actionInFlightId !== null}
-                onPress={() => setPendingRestoreId(item.id)}
-                style={styles.actionButton}
-              >
-                <RestoreIcon color={colors.brand} size={18} />
-              </Pressable>
-              <Pressable
-                accessibilityLabel={t('trash.permanentDeleteA11y')}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: actionInFlightId !== null }}
-                disabled={actionInFlightId !== null}
-                onPress={() => setPendingPermanentDeleteId(item.id)}
-                style={styles.actionButton}
-              >
-                <TrashIcon color={colors.danger} size={18} />
-              </Pressable>
-            </View>
+            </SwipeableItemRow>
           </View>
+        ) : (
+          // The shared swipe row: right reveals 복구, left reveals 영구 삭제 (both still ask first); a tap or long press
+          // opens the titleless action popup. No permanent ⋯ button - the card itself is the target.
+          <SwipeableItemRow
+            accessibilityLabel={resolveTrashTitle(item)}
+            containerStyle={savedLinkLayout.card}
+            deleteLabel={t('trash.permanentDeleteA11y')}
+            deleteTestID={`trash-delete-${item.id}`}
+            disabled={actionInFlightId !== null}
+            onDelete={() => setPendingPermanentDeleteId(item.id)}
+            onLongPress={() => setActionItem(item)}
+            onPress={() => setActionItem(item)}
+            startAction={{
+              backgroundColor: colors.brand,
+              icon: RestoreIcon,
+              label: t('trash.restoreA11y'),
+              onPress: () => setPendingRestoreId(item.id),
+              testID: `trash-restore-${item.id}`,
+            }}
+            testID={`trash-item-${item.id}`}
+          >
+            <SavedLinkRow
+              dateDisplayMode="dateTime"
+              isActionInFlight={actionInFlightId === item.id}
+              item={toSavedLinkRowItem(item)}
+              preferEffectiveThumbnail
+            />
+          </SwipeableItemRow>
         )}
+      />
+      <ActionMenuDialog
+        actions={actionItem ? [
+          { label: t('trash.openLink'), icon: ExternalLinkIcon, onPress: () => { const entry = actionItem; closeMenuThen(() => { openLink(entry).catch(() => undefined); }); } },
+          { label: t('trash.restoreConfirmAction'), icon: RestoreIcon, onPress: () => { const entry = actionItem; closeMenuThen(() => setPendingRestoreId(entry.id)); } },
+          { label: t('trash.permanentDeleteA11y'), icon: TrashIcon, destructive: true, onPress: () => { const entry = actionItem; closeMenuThen(() => setPendingPermanentDeleteId(entry.id)); } },
+        ] : []}
+        cancelLabel={t('common.cancel')}
+        onCancel={() => setActionItem(null)}
+        onDismiss={onMenuDismiss}
+        visible={actionItem !== null}
       />
       {loadError ? <Text style={styles.loadErrorText}>{loadError}</Text> : null}
 
@@ -333,12 +448,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     justifyContent: 'center',
     minHeight: minTouchTarget,
-    paddingHorizontal: spacing.xs,
-  },
-  emptyTrashButtonLabel: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '700',
+    minWidth: minTouchTarget,
+    alignItems: 'center',
   },
   loading: {
     paddingVertical: spacing.lg,
@@ -354,29 +465,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  row: {
+  controlsRow: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    marginBottom: spacing.sm + 2,
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
   },
-  rowContent: {
-    flex: 1,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingEnd: spacing.sm,
-  },
-  actionButton: {
-    alignItems: 'center',
-    height: minTouchTarget,
-    justifyContent: 'center',
-    width: minTouchTarget,
-  },
+  controlsSpacer: { flex: 1 },
+  gridCard: { flexGrow: 1 },
   loadErrorText: {
     color: colors.danger,
     fontSize: 14,

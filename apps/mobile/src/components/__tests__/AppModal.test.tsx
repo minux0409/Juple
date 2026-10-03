@@ -1,7 +1,8 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, KeyboardAvoidingView, Modal, Text } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { AppModal, APP_MODAL_BACKDROP } from '../AppModal';
+import { UserAvatar } from '../UserAvatar';
 import { FriendPickerModal } from '../../friends/FriendPickerModal';
 import { getFriends, type Friend } from '../../friends/api/friendsApi';
 
@@ -48,10 +49,13 @@ describe('AppModal - the standard centered modal', () => {
 
   it('keeps the card inside the real safe-area insets and above the keyboard', async () => {
     const { renderer } = await renderModal();
-    const frame = renderer.root.findByType(KeyboardAvoidingView);
-
-    expect(frame.props.behavior).toBe('padding');
-    const style = Object.assign({}, ...[frame.props.style].flat(2));
+    // The shared keyboard-safe container: padding avoidance on the outer view, the safe-area padding on the
+    // inner one (KeyboardAvoidingView's own padding would replace it).
+    const avoiding = renderer.root.findByType(KeyboardAvoidingView);
+    expect(avoiding.props.behavior).toBe('padding');
+    // The inner view (the second box-none host) carries the frame's padding.
+    const inner = avoiding.findAll(node => typeof node.type === 'string' && node.props.pointerEvents === 'box-none' && StyleSheet.flatten(node.props.style)?.paddingTop !== undefined)[0];
+    const style = Object.assign({}, ...[inner.props.style].flat(2));
     expect(style.paddingTop).toBeGreaterThanOrEqual(24);
     expect(style.paddingBottom).toBeGreaterThanOrEqual(48);
   });
@@ -110,6 +114,63 @@ describe('FriendPickerModal (Share › 친구 선택)', () => {
     });
     jest.useRealTimers();
     expect(getFriends).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ query: '개발' }));
+  });
+
+  it('shows each friend avatar between the checkbox and the name, from the friend list itself (no extra request)', async () => {
+    friends[1] = { ...friends[1], profileImageUrl: 'https://img.example/f1.png', profileImageVersion: 'v3' } as Friend;
+    const renderer = await renderPicker();
+
+    const row = renderer.root.findByProps({ testID: `friend-picker-${friends[1].jupleId}` });
+    const avatar = row.findByType(UserAvatar);
+    expect(avatar.props).toEqual(expect.objectContaining({ imageUrl: 'https://img.example/f1.png', imageVersion: 'v3', jupleId: friends[1].jupleId }));
+    expect(avatar.props.size).toBeGreaterThanOrEqual(36);
+    expect(avatar.props.size).toBeLessThanOrEqual(44);
+    expect(getFriends).toHaveBeenCalledTimes(1);
+    // Disabled (already a member) rows keep their avatar, and the row is the dimmed one.
+    const disabled = renderer.root.findByProps({ testID: 'friend-picker-F0012345' });
+    expect(disabled.props.disabled).toBe(true);
+    expect(disabled.findAllByType(UserAvatar)).toHaveLength(1);
+  });
+
+  describe('empty list message - the same rule as My Page > Friends', () => {
+    const typeSearch = async (renderer: Renderer, text: string) => {
+      jest.useFakeTimers();
+      act(() => renderer.root.findByProps({ testID: 'friend-picker-search' }).props.onChangeText(text));
+      await act(async () => {
+        jest.advanceTimersByTime(400);
+      });
+      jest.useRealTimers();
+    };
+    const emptyText = (renderer: Renderer) => renderer.root.findAllByProps({ testID: 'friend-picker-empty' })[0]?.props.children;
+
+    it('no query and no friends -> 아직 친구가 없어요.', async () => {
+      const renderer = await renderPicker();
+      jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+      await typeSearch(renderer, '');
+      await typeSearch(renderer, ' ');
+      expect(emptyText(renderer)).toBe(i18n.t('friends.empty'));
+    });
+
+    it('a real query with zero matches -> 검색 결과가 없어요. - never the no-friends message, even though I have friends', async () => {
+      const renderer = await renderPicker();
+      jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+      await typeSearch(renderer, '없는이름');
+      expect(emptyText(renderer)).toBe(i18n.t('friends.searchEmpty'));
+      expect(emptyText(renderer)).not.toBe(i18n.t('friends.empty'));
+    });
+
+    it('whitespace only is no query; a matching query lists the match and shows no message', async () => {
+      const renderer = await renderPicker();
+      jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+      await typeSearch(renderer, '   ');
+      expect(emptyText(renderer)).toBe(i18n.t('friends.empty'));
+      expect(getFriends).toHaveBeenLastCalledWith(expect.anything(), expect.objectContaining({ query: undefined }));
+
+      jest.mocked(getFriends).mockResolvedValue({ items: [friends[0]], nextCursor: null });
+      await typeSearch(renderer, '개발');
+      expect(emptyText(renderer)).toBeUndefined();
+      expect(renderer.root.findAllByProps({ testID: 'friend-picker-F0002345' }).length).toBeGreaterThan(0);
+    });
   });
 
   it('selects any number of friends (never someone already in), shows the count and hands back only ID and name', async () => {

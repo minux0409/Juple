@@ -1,16 +1,19 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { LinkSortOption } from '../settings/sortPreference';
+import { isNameSort, type LinkSortOption } from '../settings/sortPreference';
 import { colors, radii, spacing } from '../theme/tokens';
 
 interface LinkSortChipsProps {
-  /** The sort actually in effect ('newest' | 'oldest' = the date chip with ↓ / ↑, 'title' = the name chip). */
+  /** The sort actually in effect ('newest' | 'oldest' = the date chip with ↓ / ↑, 'title' | 'titleDesc' = the name chip with ↑ / ↓). */
   readonly sort: LinkSortOption;
   readonly dateLabel: string;
   readonly nameLabel: string;
   readonly dateNewestA11yLabel: string;
   readonly dateOldestA11yLabel: string;
+  readonly nameAscA11yLabel: string;
+  readonly nameDescA11yLabel: string;
   /** First press picks the date order (newest first); pressed again it flips ↓ newest ↔ ↑ oldest - the caller decides. */
   readonly onPressDate: () => void;
+  /** First press picks A→Z (↑); pressed again it flips ↑ ↔ ↓ - the caller decides (see nextNameSort). */
   readonly onPressName: () => void;
   /** testIDs are `${testIDPrefix}-date` and `${testIDPrefix}-name`. */
   readonly testIDPrefix: string;
@@ -21,8 +24,9 @@ interface LinkSortChipsProps {
  * never grow different sorting UIs. Pure presentation - the caller owns the preference and the
  * semantics (see useSortPreference, sortCollectionItemsByName).
  */
-export function LinkSortChips({ sort, dateLabel, nameLabel, dateNewestA11yLabel, dateOldestA11yLabel, onPressDate, onPressName, testIDPrefix }: LinkSortChipsProps) {
-  const isDate = sort !== 'title';
+export function LinkSortChips({ sort, dateLabel, nameLabel, dateNewestA11yLabel, dateOldestA11yLabel, nameAscA11yLabel, nameDescA11yLabel, onPressDate, onPressName, testIDPrefix }: LinkSortChipsProps) {
+  const isDate = !isNameSort(sort);
+  const isName = !isDate;
   return (
     <View style={styles.row}>
       <Pressable
@@ -38,13 +42,16 @@ export function LinkSortChips({ sort, dateLabel, nameLabel, dateNewestA11yLabel,
         </Text>
       </Pressable>
       <Pressable
+        accessibilityLabel={isName ? (sort === 'titleDesc' ? nameDescA11yLabel : nameAscA11yLabel) : nameLabel}
         accessibilityRole="button"
-        accessibilityState={{ selected: sort === 'title' }}
+        accessibilityState={{ selected: isName }}
         onPress={onPressName}
-        style={[styles.chip, sort === 'title' && styles.chipSelected]}
+        style={[styles.chip, isName && styles.chipSelected]}
         testID={`${testIDPrefix}-name`}
       >
-        <Text style={[styles.label, sort === 'title' && styles.labelSelected]}>{nameLabel}</Text>
+        <Text style={[styles.label, isName && styles.labelSelected]}>
+          {isName ? `${nameLabel} ${sort === 'titleDesc' ? '↓' : '↑'}` : nameLabel}
+        </Text>
       </Pressable>
     </View>
   );

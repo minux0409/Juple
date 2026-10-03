@@ -1,5 +1,5 @@
 import i18n from '../../i18n';
-import { groupCollectionItemsByDate, sortCollectionItemsByName } from '../sortCollectionItems';
+import { groupCollectionItemsByDate, sortCollectionItemsByName, sortLinksByName } from '../sortCollectionItems';
 import type { CollectionItemEntry } from '../api/collectionsApi';
 
 function makeItem(overrides: Partial<CollectionItemEntry>): CollectionItemEntry {
@@ -24,6 +24,33 @@ describe('sortCollectionItemsByName (이름순 over a whole Collection)', () => 
 
   it('Korean follows 가나다 order', () => {
     expect(namesOf(sortCollectionItemsByName(titled(['하마', '가방', '나비', '다리']), 'ko'))).toEqual(['가방', '나비', '다리', '하마']);
+  });
+
+  it('descending (Z→A) is the exact reverse of the names, with title-less links still last and ties still newest first', () => {
+    const items = [
+      makeItem({ itemId: 1, title: 'banana', addedAtUtc: '2026-01-01T00:00:00Z' }),
+      makeItem({ itemId: 2, title: 'Banana', addedAtUtc: '2026-01-03T00:00:00Z' }),
+      makeItem({ itemId: 3, title: 'cherry', addedAtUtc: '2026-01-02T00:00:00Z' }),
+      makeItem({ itemId: 4, title: null, url: 'https://zzz.example/x', addedAtUtc: '2026-01-04T00:00:00Z' }),
+      makeItem({ itemId: 5, title: 'apple', addedAtUtc: '2026-01-05T00:00:00Z' }),
+    ];
+
+    expect(sortCollectionItemsByName(items, 'en', 'asc').map(item => item.itemId)).toEqual([5, 2, 1, 3, 4]);
+    // Same-name pair (2, 1) stays newest first in BOTH directions; the title-less link is last in both.
+    expect(sortCollectionItemsByName(items, 'en', 'desc').map(item => item.itemId)).toEqual([3, 2, 1, 5, 4]);
+    expect(items.map(item => item.itemId)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('the one rule serves any link list (Home, Archive search, Trash): same fallback name, same direction semantics', () => {
+    const links = [
+      { id: 1, title: 'Beta', url: 'https://a.example/1', at: '2026-01-01T00:00:00Z' },
+      { id: 2, title: null, url: 'https://alpha.example/2', at: '2026-01-02T00:00:00Z' },
+      { id: 3, title: 'Gamma', url: 'https://a.example/3', at: '2026-01-03T00:00:00Z' },
+    ];
+    const accessors = { title: (link: (typeof links)[number]) => link.title, url: (link: (typeof links)[number]) => link.url, addedAtUtc: (link: (typeof links)[number]) => link.at, id: (link: (typeof links)[number]) => link.id };
+
+    expect(sortLinksByName(links, accessors, 'en').map(link => link.id)).toEqual([1, 3, 2]);
+    expect(sortLinksByName(links, accessors, 'en', 'desc').map(link => link.id)).toEqual([3, 1, 2]);
   });
 
   it('English ignores letter case', () => {

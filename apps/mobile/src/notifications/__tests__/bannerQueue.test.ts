@@ -4,6 +4,24 @@ function banner(key: string): NotificationBanner {
   return { key, notificationId: null, type: 'collectionItemsAdded', title: key, body: `${key} body`, data: {} };
 }
 
+describe('banner queue - withdrawing one notification\'s banner', () => {
+  const noted = (id: number): NotificationBanner => ({ key: `n:${id}`, notificationId: id, type: 'collectionLinkSubmission', title: `t${id}`, body: 'b', data: { collectionId: '7' } });
+
+  it('removes exactly that notification: the one on screen is replaced by the next, a waiting one just leaves, others stay', () => {
+    const queue = createBannerQueue(5);
+    for (const id of [1, 2, 3]) {
+      queue.enqueue(noted(id));
+    }
+
+    expect(queue.removeNotification(2)).toBe(true);
+    expect(queue.all().map(entry => entry.notificationId)).toEqual([1, 3]);
+    expect(queue.removeNotification(1)).toBe(true);
+    expect(queue.current()?.notificationId).toBe(3);
+    expect(queue.removeNotification(99)).toBe(false);
+    expect(queue.all().map(entry => entry.notificationId)).toEqual([3]);
+  });
+});
+
 describe('banner queue', () => {
   it('shows one banner at a time; the next takes its place when it leaves', () => {
     const queue = createBannerQueue(5);

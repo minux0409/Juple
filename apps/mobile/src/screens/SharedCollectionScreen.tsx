@@ -18,6 +18,7 @@ import { ChevronIcon } from '../icons/ChevronIcon';
 import { usePublicCollectionItems } from '../collections/usePublicCollectionItems';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
 
@@ -178,6 +179,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
+      <KeyboardSafeView>
       <FlatList
         contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
         data={items}
@@ -274,6 +276,7 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
           ) : undefined
         }
       />
+      </KeyboardSafeView>
     </SafeAreaView>
   );
 }

@@ -6,6 +6,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { navigationRef } from '../navigation/navigationRef';
 import { bannerFromRemoteMessage, notificationBannerQueue } from '../notifications/bannerQueue';
+import { dropRetractedSubmissionBanners } from '../notifications/retractedBanners';
 import { refreshUnreadCount, resetNotificationState } from '../notifications/notificationState';
 import { notificationIdOf } from '../notifications/notificationTarget';
 import { openNotification } from '../notifications/openNotification';
@@ -112,6 +113,12 @@ export function usePushMessageHandling(): void {
         const event = parseSocialPushEvent(remoteMessage?.data);
         if (event) {
           emitSocialPushEvent(event);
+          if (event.type === 'collectionContentChanged') {
+            // A requester may have cancelled a proposal: an Owner's approval-request banner (visible or
+            // queued) and the unread badge for it are re-checked against the server.
+            dropRetractedSubmissionBanners(notificationBannerQueue, request, event.collectionId, localeRef.current).catch(() => undefined);
+            refreshUnreadCount(request).catch(() => undefined);
+          }
         }
         if (!isReadyRef.current) {
           return;

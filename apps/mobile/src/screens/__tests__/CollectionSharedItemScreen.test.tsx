@@ -13,6 +13,14 @@ import { UserAvatar } from '../../components/UserAvatar';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CrownIcon } from '../../icons/CrownIcon';
+import { getFriendRequests, getFriends, sendFriendRequest } from '../../friends/api/friendsApi';
+
+jest.mock('../../friends/api/friendsApi', () => ({
+  ...jest.requireActual('../../friends/api/friendsApi'),
+  getFriends: jest.fn(),
+  getFriendRequests: jest.fn(),
+  sendFriendRequest: jest.fn(),
+}));
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
@@ -117,6 +125,60 @@ describe('CollectionSharedItemScreen', () => {
       expect(badge.findAllByType(CrownIcon)).toHaveLength(0);
       expect(badge.props.accessibilityLabel).toBe('참여자 CNTR-C234님이 추가한 링크');
       expect(shownTexts(renderer)).not.toContain('CNTR-C234');
+    });
+
+    describe('tapping the adder avatar is never a dead element', () => {
+      const exists = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID).length > 0;
+      const tapAdder = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+        await act(async () => {
+          renderer.root.findAll(node => node.props.testID === 'shared-item-adder' && typeof node.props.onPress === 'function')[0].props.onPress();
+        });
+      };
+      beforeEach(() => {
+        jest.mocked(getFriendRequests).mockResolvedValue([]);
+        jest.mocked(getFriends).mockResolvedValue({ items: [], nextCursor: null });
+      });
+
+      it('not my friend: user info with a friend-request button (and nothing that removes anyone)', async () => {
+        jest.mocked(getSharedCollectionItem).mockResolvedValue({ ...base, addedBy: { kind: 'member', jupleId: 'CNTRC234', displayName: '꼬부기' } });
+        jest.mocked(sendFriendRequest).mockResolvedValue({ requestId: 1 } as never);
+        const renderer = await renderScreen();
+        await tapAdder(renderer);
+
+        expect(exists(renderer, 'person-profile')).toBe(true);
+        expect(renderer.root.findAll(node => node.props.testID === 'person-profile-name')[0].props.children).toBe('꼬부기');
+        await act(async () => {
+          renderer.root.findAll(node => node.props.testID === 'person-profile-send' && typeof node.props.onPress === 'function')[0].props.onPress();
+        });
+        expect(sendFriendRequest).toHaveBeenCalledWith(expect.anything(), 'CNTRC234');
+        expect(JSON.stringify(renderer.root.findAllByType(Text).map(node => node.props.children))).not.toContain(i18n.t('collaboration.remove'));
+      });
+
+      it('already my friend: own friend detail instead, no request button', async () => {
+        jest.mocked(getFriends).mockResolvedValue({ items: [{ friendshipId: 3, jupleId: 'CNTRC234', displayName: '꼬부기', myNote: null, friendsSinceUtc: '' }], nextCursor: null });
+        jest.mocked(getSharedCollectionItem).mockResolvedValue({ ...base, addedBy: { kind: 'member', jupleId: 'CNTRC234', displayName: '꼬부기' } });
+        const renderer = await renderScreen();
+        await tapAdder(renderer);
+
+        expect(exists(renderer, 'friend-detail')).toBe(true);
+        expect(exists(renderer, 'person-profile-send')).toBe(false);
+      });
+
+      it('my own link: my identity only, no request, and no friend lookup', async () => {
+        jest.mocked(getSharedCollectionItem).mockResolvedValue({ ...base, isMine: true, addedBy: { kind: 'me', jupleId: 'MEEE2345', displayName: '나' } });
+        const renderer = await renderScreen();
+        await tapAdder(renderer);
+
+        expect(exists(renderer, 'person-profile-status-self')).toBe(true);
+        expect(exists(renderer, 'person-profile-send')).toBe(false);
+        expect(getFriends).not.toHaveBeenCalled();
+      });
+
+      it('an anonymous public-link adder has nobody to open', async () => {
+        jest.mocked(getSharedCollectionItem).mockResolvedValue({ ...base, addedBy: { kind: 'publicLink' } });
+        const renderer = await renderScreen();
+        expect(renderer.root.findAll(node => node.props.testID === 'shared-item-adder' && typeof node.props.onPress === 'function')).toHaveLength(0);
+      });
     });
 
     it('added through the public link: only that fact - no avatar, no crown, nobody named', async () => {

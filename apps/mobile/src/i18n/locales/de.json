@@ -54,8 +54,7 @@
     "newLinkReview": "Neuen Link prüfen",
     "trash": "Kürzlich gelöscht",
     "collectionSharedItem": "Geteilter Link",
-    "collectionSubmissions": "Links mit ausstehender Freigabe",
-    "myCollectionSubmissions": "Meine ausstehenden Freigaben",
+    "myCollectionSubmissions": "Gesendete Freigabeanfragen",
     "collectionShare": "Teilen",
     "collectionLockSettings": "Sammlungssperre"
   },
@@ -92,7 +91,8 @@
     "retry": "Erneut versuchen",
     "deleteConfirmTitle": "Eintrag löschen",
     "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
-    "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden."
+    "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden.",
+    "searchMinHint": "Bitte mindestens 2 Zeichen eingeben."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} Einträge erfordern Aufmerksamkeit",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Gesamte Auswahl aufheben",
     "copySelectUpTo": "Bis zu {{max}} auswählen",
     "detailItemCount": "Gesamt: {{count}}",
-    "myPendingSubmissions": "Meine Freigaben ausstehend {{count}}",
-    "myPendingSubmissionsA11y": "Meine {{count}} Links ansehen, die auf Freigabe warten",
-    "myPendingA11y": "Meine ausstehenden Freigaben: {{count}}",
+    "myPendingSubmissions": "Gesendete Freigabeanfragen {{count}}",
+    "myPendingSubmissionsA11y": "Gesendete Freigabeanfragen: {{count}} ansehen",
+    "myPendingA11y": "Gesendete Freigabeanfragen: {{count}}",
     "favoritesTitle": "Favoriten",
     "allCollectionsTitle": "Alle Sammlungen",
     "addFavorite": "Zu Favoriten hinzufügen",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Sammlung speichern",
     "errorColorUpdateFallback": "Die Farbe konnte nicht aktualisiert werden.",
     "favoritesEmpty": "Keine Favoriten.",
-    "allCollectionsEmpty": "Keine Sammlungen.", "manageAction": "Sammlung verwalten", "itemManageAction": "Weitere Linkaktionen", "addToOther": "In andere Sammlung duplizieren", "moveToOther": "In andere Sammlung verschieben", "mergeWithOther": "Mit anderer Sammlung zusammenführen", "targetPickerTitle": "Sammlung auswählen", "moveTitle": "Link verschieben", "moveAction": "Verschieben", "moveConfirmMessage": "Diesen Link nach \"{{target}}\" verschieben?", "moveError": "Link konnte nicht verschoben werden.", "mergeTitle": "Sammlungen zusammenführen", "mergeAction": "Zusammenführen", "mergeConfirmMessage": "\"{{source}}\" mit \"{{target}}\" zusammenführen? Die Links werden zusammengeführt und diese Sammlung wird gelöscht.", "mergeError": "Sammlung konnte nicht zusammengeführt werden.", "errorTargetLoadFallback": "Sammlungen konnten nicht geladen werden.",
+    "allCollectionsEmpty": "Keine Sammlungen.",
+    "manageAction": "Sammlung verwalten",
+    "itemManageAction": "Weitere Linkaktionen",
+    "addToOther": "In andere Sammlung duplizieren",
+    "moveToOther": "In andere Sammlung verschieben",
+    "mergeWithOther": "Mit anderer Sammlung zusammenführen",
+    "targetPickerTitle": "Sammlung auswählen",
+    "moveTitle": "Link verschieben",
+    "moveAction": "Verschieben",
+    "moveConfirmMessage": "Diesen Link nach \"{{target}}\" verschieben?",
+    "moveError": "Link konnte nicht verschoben werden.",
+    "mergeTitle": "Sammlungen zusammenführen",
+    "mergeAction": "Zusammenführen",
+    "mergeConfirmMessage": "\"{{source}}\" mit \"{{target}}\" zusammenführen? Die Links werden zusammengeführt und diese Sammlung wird gelöscht.",
+    "mergeError": "Sammlung konnte nicht zusammengeführt werden.",
+    "errorTargetLoadFallback": "Sammlungen konnten nicht geladen werden.",
     "myCategoriesTab": "Meine Sammlungen",
     "sharedCategoriesTab": "Geteilt",
     "sharedEmpty": "Noch keine geteilten Sammlungen.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "In der gewählten Sammlung wartet dieser Link schon auf Freigabe.",
     "saveOutcomeAlreadyInCollection": "Die gewählte Sammlung enthält diesen Link schon.",
     "roleSubmitter": "Mit Freigabe",
-    "pendingSubmissions": "Ausstehend {{count}}",
-    "pendingSubmissionsA11y": "{{count}} Links ansehen, die auf Freigabe warten",
+    "pendingSubmissions": "Erhaltene Freigabeanfragen {{count}}",
+    "pendingSubmissionsA11y": "Erhaltene Freigabeanfragen: {{count}} ansehen",
     "removeFromSharedOwnerOnly": "Nur der Eigentümer kann Links aus einer mit dir geteilten Sammlung entfernen.",
     "removeFromCollection": "Aus Sammlung entfernen",
     "iconPhotoChoose": "Foto auswählen",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Zugangspasswort",
     "sharePasswordWrong": "Das Passwort ist nicht korrekt.",
     "sharePasswordContactOwner": "Frag die Person, die diese Sammlung geteilt hat, nach dem Zugangspasswort.",
-    "sharePasswordRequiredForAction": "Öffne zuerst die Sammlung und gib ihr Zugangspasswort ein."
+    "sharePasswordRequiredForAction": "Öffne zuerst die Sammlung und gib ihr Zugangspasswort ein.",
+    "sortNameAscA11y": "Name, A bis Z",
+    "sortNameDescA11y": "Name, Z bis A"
   },
-  "toast": { "moveSuccess": "Verschoben.", "undoAction": "Rückgängig", "undoMoveError": "Verschieben konnte nicht rückgängig gemacht werden.", "deleteSuccess": "Gelöscht.", "undoDeleteError": "Löschen konnte nicht rückgängig gemacht werden.", "unlinkSuccess": "Aus der Sammlung entfernt.", "undoUnlinkError": "Entfernen aus der Sammlung konnte nicht rückgängig gemacht werden.", "collectionDeleteSuccess": "Sammlung gelöscht.", "undoCollectionDeleteError": "Das Löschen der Sammlung konnte nicht rückgängig gemacht werden.", "collectionMergeSuccess": "Sammlung zusammengeführt.", "undoCollectionMergeError": "Das Zusammenführen der Sammlung konnte nicht rückgängig gemacht werden." },
+  "toast": {
+    "moveSuccess": "Verschoben.",
+    "undoAction": "Rückgängig",
+    "undoMoveError": "Verschieben konnte nicht rückgängig gemacht werden.",
+    "deleteSuccess": "Gelöscht.",
+    "undoDeleteError": "Löschen konnte nicht rückgängig gemacht werden.",
+    "unlinkSuccess": "Aus der Sammlung entfernt.",
+    "undoUnlinkError": "Entfernen aus der Sammlung konnte nicht rückgängig gemacht werden.",
+    "collectionDeleteSuccess": "Sammlung gelöscht.",
+    "undoCollectionDeleteError": "Das Löschen der Sammlung konnte nicht rückgängig gemacht werden.",
+    "collectionMergeSuccess": "Sammlung zusammengeführt.",
+    "undoCollectionMergeError": "Das Zusammenführen der Sammlung konnte nicht rückgängig gemacht werden."
+  },
   "myPage": {
     "title": "Mein Bereich",
-    "settings": "Einstellungen",
     "signOutConfirmTitle": "Abmelden?",
     "signOutConfirmMessage": "Sie müssen sich erneut anmelden, um fortzufahren.",
     "deleteAccountErrorFallback": "Ihr Konto konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Sprache",
-    "quickSaveOnShare": "Beim Teilen sofort speichern",
-    "quickSaveOnShareOnDescription": "Wenn Sie einen Link aus YouTube, Instagram oder anderen Apps teilen, wird er sofort in Juple gespeichert, ohne die App zu öffnen.",
-    "quickSaveOnShareOffDescription": "Nach dem Teilen öffnet sich Juple, damit Sie die Linkdetails prüfen und vor dem Speichern eine Sammlung wählen können.",
+    "quickSaveOnShare": "Schnellspeichern",
+    "quickSaveOnShareOnDescription": "Links, die Sie aus anderen Apps mit Juple teilen, werden sofort ohne Prüfbildschirm gespeichert.",
+    "quickSaveOnShareOffDescription": "Links, die Sie mit Juple teilen, öffnen einen Prüfbildschirm, auf dem Sie die Details ansehen und vor dem Speichern eine Sammlung wählen.",
     "trash": "Kürzlich gelöscht",
     "collectionLock": "Sammlungssperre",
     "collectionLockDescription": "Lege ein Passwort für deine Sammlungen fest.",
@@ -521,7 +549,10 @@
     "limitNotice": "Du kannst deine letzten {{count}} gelöschten Links ansehen.",
     "restoreConfirmTitle": "Wiederherstellen?",
     "restoreConfirmMessage": "Der gelöschte Link wird wiederhergestellt.",
-    "restoreConfirmAction": "Wiederherstellen"
+    "restoreConfirmAction": "Wiederherstellen",
+    "openLink": "Link öffnen",
+    "moreA11y": "Weitere Aktionen",
+    "emptyA11y": "Kürzlich gelöscht leeren"
   },
   "collaboration": {
     "jupleIdLabel": "Juple-ID",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "{{count}} hinzufügen",
     "alreadyMember": "Bereits dabei",
     "alreadyAdded": "Hinzugefügt",
-    "allUsersTitle": "Öffentliche Sammlung",
+    "allUsersTitle": "Einstellungen für öffentliche Sammlung",
     "belowPublicPermission": "Du kannst keine niedrigere Berechtigung vergeben als die öffentliche Berechtigung der Sammlung.",
     "permissionLabel": "Berechtigung",
     "publicOn": "AN",
@@ -623,7 +654,7 @@
     "inviteTitle": "Freunde einladen",
     "inviteTabFriends": "Freunde",
     "inviteTabId": "ID",
-    "statusTitle": "Freigabestatus",
+    "statusTitle": "Teilnehmende",
     "statusTabMembers": "Geteilt {{count}}",
     "statusTabPending": "Ausstehend {{count}}",
     "permissionMismatch": "Jemand hat eine niedrigere Berechtigung als diese öffentliche Berechtigung, daher kann sie nicht angewendet werden.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Gemeinsam ändern",
     "reviewMembers": "Personen ansehen",
     "selectedCount": "{{count}} ausgewählt",
-    "addPersonToInviteList": "{{name}} zur Einladungsliste hinzufügen"
+    "addPersonToInviteList": "{{name}} zur Einladungsliste hinzufügen",
+    "publicInfo": "Jeder, der den Link der Sammlung kennt, kann darauf zugreifen.\nDu kannst eine gemeinsame Berechtigung für alle festlegen, die darüber zugreifen, und direkt eingeladenen Personen separat eine höhere Berechtigung geben.\nBerechtigungen lassen sich auch in der Teilnehmerliste ändern.",
+    "publicInfoA11y": "Info zur öffentlichen Sammlung"
   },
   "linkShare": {
     "description": "Gib den Link zur öffentlichen Sammlung weiter. Empfänger werden dadurch nicht Teilnehmer dieser Sammlung.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "{{name}} entfernen"
   },
   "submissions": {
-    "empty": "Keine Links warten auf Freigabe.",
-    "myEmpty": "Keiner meiner Links wartet auf Freigabe.",
-    "myLoadError": "Ausstehende Links konnten nicht geladen werden.",
+    "empty": "Erhaltene Freigabeanfragen: keine",
+    "myEmpty": "Gesendete Freigabeanfragen: keine",
+    "myLoadError": "Gesendete Anfragen konnten nicht geladen werden.",
     "myStatus": "Wartet auf Freigabe",
     "loadError": "Die ausstehenden Links konnten nicht geladen werden.",
     "approve": "Freigeben",
@@ -662,7 +695,20 @@
     "unavailable": "Diese Anfrage kann nicht mehr freigegeben werden.",
     "viaPublicLink": "Über den öffentlichen Link vorgeschlagen",
     "approveA11y": "{{title}} freigeben",
-    "rejectA11y": "{{title}} ablehnen"
+    "rejectA11y": "{{title}} ablehnen",
+    "mySheetTitle": "Gesendete Freigabeanfragen",
+    "ownerSheetTitle": "Erhaltene Freigabeanfragen",
+    "cancelRequest": "Anfrage abbrechen",
+    "cancelRequestA11y": "Freigabeanfrage für {{title}} abbrechen",
+    "cancelRequestConfirm": "Freigabeanfrage abbrechen?",
+    "cancelRequestConfirmMessage": "Der Link verschwindet auch aus der Freigabeliste des Sammlungsbesitzers.",
+    "keepRequest": "Anfrage behalten",
+    "alreadyProcessed": "Diese Anfrage wurde bereits bearbeitet.",
+    "alreadyCancelledOrProcessed": "Diese Anfrage wurde bereits abgebrochen oder bearbeitet.",
+    "cancelFailed": "Die Anfrage konnte nicht abgebrochen werden. Bitte versuchen Sie es erneut.",
+    "sharedCollectionShort": "Geteilte Sammlung",
+    "approveConfirmTitle": "Diese Linkanfrage freigeben?",
+    "approveConfirmMessage": "Mit der Freigabe wird dieser Link zur Sammlung hinzugefügt."
   },
   "friends": {
     "title": "Freunde",
@@ -679,7 +725,7 @@
     "loadFallback": "Freunde konnten nicht geladen werden.",
     "empty": "Noch keine Freunde.",
     "searchEmpty": "Keine passenden Freunde.",
-    "note": "Meine Notiz",
+    "note": "Notiz",
     "noteInvalid": "Verwende höchstens 200 Zeichen in einer Zeile.",
     "remove": "Freund entfernen",
     "removeConfirmTitle": "Diesen Freund entfernen?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Keine Freundschaftsanfragen erhalten.",
     "outgoingEmpty": "Keine Freundschaftsanfragen gesendet.",
     "requestPending": "Anfrage ausstehend",
-    "noteHelper": "Nur für dich sichtbar",
     "lookupHint": "Finde Freunde über ihre Juple-ID.",
     "incomingFromThem": "Diese Person hat dir eine Freundschaftsanfrage geschickt.",
     "viewIncoming": "Erhaltene Anfragen ansehen",
     "acceptA11y": "Freundschaftsanfrage von {{name}} annehmen",
     "declineA11y": "Freundschaftsanfrage von {{name}} ablehnen",
-    "cancelA11y": "Freundschaftsanfrage an {{name}} zurückziehen"
+    "cancelA11y": "Freundschaftsanfrage an {{name}} zurückziehen",
+    "personTitle": "Nutzerinfo",
+    "you": "Du"
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Benachrichtigungen, {{count}} ungelesen",
     "bannerAnnouncement": "Neue Benachrichtigung: {{title}}. {{body}}",
     "bannerHint": "Zum Öffnen tippen. Zum Schließen nach oben wischen."
+  },
+  "contact": {
+    "title": "Kontakt",
+    "description": "Wenn Sie Fragen zu Juple haben, schreiben Sie uns eine E-Mail.",
+    "sendEmail": "E-Mail senden",
+    "subject": "Juple-Anfrage",
+    "noMailApp": "Es konnte keine E-Mail-App geöffnet werden. Bitte schreiben Sie direkt an {{email}}.",
+    "copyEmail": "E-Mail-Adresse kopieren"
   }
 }

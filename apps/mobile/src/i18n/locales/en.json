@@ -54,8 +54,7 @@
     "newLinkReview": "Review New Link",
     "trash": "Recently Deleted",
     "collectionSharedItem": "Shared link",
-    "collectionSubmissions": "Links pending approval",
-    "myCollectionSubmissions": "My pending approvals",
+    "myCollectionSubmissions": "Sent approval requests",
     "collectionShare": "Share",
     "collectionLockSettings": "Collection lock"
   },
@@ -92,7 +91,8 @@
     "retry": "Try again",
     "deleteConfirmTitle": "Delete item",
     "deleteConfirmMessage": "Delete this item? This can't be undone.",
-    "errorDeleteFallback": "Couldn't delete the item."
+    "errorDeleteFallback": "Couldn't delete the item.",
+    "searchMinHint": "Enter at least 2 characters."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} items need attention",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Deselect all",
     "copySelectUpTo": "Select up to {{max}}",
     "detailItemCount": "Total {{count}}",
-    "myPendingSubmissions": "My pending {{count}}",
-    "myPendingSubmissionsA11y": "View my {{count}} links waiting for approval",
-    "myPendingA11y": "My pending approvals: {{count}}",
+    "myPendingSubmissions": "Sent approval requests {{count}}",
+    "myPendingSubmissionsA11y": "View {{count}}: Sent approval requests",
+    "myPendingA11y": "Sent approval requests: {{count}}",
     "favoritesTitle": "Favorites",
     "allCollectionsTitle": "All collections",
     "addFavorite": "Add to favorites",
@@ -279,8 +279,8 @@
     "saveOutcomeAlreadyPending": "The collection you chose already has this link waiting for approval.",
     "saveOutcomeAlreadyInCollection": "The collection you chose already has this link.",
     "roleSubmitter": "Needs approval",
-    "pendingSubmissions": "Pending {{count}}",
-    "pendingSubmissionsA11y": "View {{count}} links waiting for approval",
+    "pendingSubmissions": "Received approval requests {{count}}",
+    "pendingSubmissionsA11y": "View {{count}}: Received approval requests",
     "removeFromSharedOwnerOnly": "Only the owner can remove links from a collection shared with you.",
     "removeFromCollection": "Remove from collection",
     "iconPhotoChoose": "Choose photo",
@@ -326,12 +326,25 @@
     "sharePasswordLabel": "Access password",
     "sharePasswordWrong": "That password isn't correct.",
     "sharePasswordContactOwner": "Ask the person who shared this collection for the access password.",
-    "sharePasswordRequiredForAction": "Open the collection and enter its access password first."
+    "sharePasswordRequiredForAction": "Open the collection and enter its access password first.",
+    "sortNameAscA11y": "Name, A to Z",
+    "sortNameDescA11y": "Name, Z to A"
   },
-  "toast": { "moveSuccess": "Moved.", "undoAction": "Undo", "undoMoveError": "Couldn't undo the move.", "deleteSuccess": "Deleted.", "undoDeleteError": "Couldn't undo the delete.", "unlinkSuccess": "Removed from the collection.", "undoUnlinkError": "Couldn't undo removing from the collection.", "collectionDeleteSuccess": "Collection deleted.", "undoCollectionDeleteError": "Couldn't undo deleting the collection.", "collectionMergeSuccess": "Collection merged.", "undoCollectionMergeError": "Couldn't undo merging the collection." },
+  "toast": {
+    "moveSuccess": "Moved.",
+    "undoAction": "Undo",
+    "undoMoveError": "Couldn't undo the move.",
+    "deleteSuccess": "Deleted.",
+    "undoDeleteError": "Couldn't undo the delete.",
+    "unlinkSuccess": "Removed from the collection.",
+    "undoUnlinkError": "Couldn't undo removing from the collection.",
+    "collectionDeleteSuccess": "Collection deleted.",
+    "undoCollectionDeleteError": "Couldn't undo deleting the collection.",
+    "collectionMergeSuccess": "Collection merged.",
+    "undoCollectionMergeError": "Couldn't undo merging the collection."
+  },
   "myPage": {
     "title": "My Page",
-    "settings": "Settings",
     "signOutConfirmTitle": "Sign out?",
     "signOutConfirmMessage": "You'll need to sign in again to continue.",
     "deleteAccountErrorFallback": "Couldn't delete your account. Please try again.",
@@ -392,9 +405,9 @@
   },
   "settings": {
     "language": "Language",
-    "quickSaveOnShare": "Save instantly on share",
-    "quickSaveOnShareOnDescription": "Sharing a link from YouTube, Instagram, and other apps saves it to Juple right away without opening the app.",
-    "quickSaveOnShareOffDescription": "After sharing, Juple opens so you can review the link details and choose a collection before saving.",
+    "quickSaveOnShare": "Quick Save",
+    "quickSaveOnShareOnDescription": "Links you share to Juple from other apps are saved right away, without a review screen.",
+    "quickSaveOnShareOffDescription": "Links you share to Juple open a review screen where you check the details and choose a collection before saving.",
     "trash": "Recently Deleted",
     "collectionLock": "Collection lock",
     "collectionLockDescription": "Set a password for your collections.",
@@ -536,7 +549,10 @@
     "limitNotice": "You can view up to your {{count}} most recent deletions.",
     "restoreConfirmTitle": "Restore this link?",
     "restoreConfirmMessage": "The deleted link will be restored.",
-    "restoreConfirmAction": "Restore"
+    "restoreConfirmAction": "Restore",
+    "openLink": "Open link",
+    "moreA11y": "More actions",
+    "emptyA11y": "Empty Recently Deleted"
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
@@ -611,7 +627,7 @@
     "addSelectedFriends": "Add {{count}}",
     "alreadyMember": "Already in",
     "alreadyAdded": "Added",
-    "allUsersTitle": "Public collection",
+    "allUsersTitle": "Public collection settings",
     "belowPublicPermission": "You can’t give a permission lower than the collection’s public permission.",
     "permissionLabel": "Permission",
     "publicOn": "ON",
@@ -638,7 +654,7 @@
     "inviteTitle": "Invite friends",
     "inviteTabFriends": "Friends",
     "inviteTabId": "ID",
-    "statusTitle": "Sharing status",
+    "statusTitle": "Participants",
     "statusTabMembers": "Shared {{count}}",
     "statusTabPending": "Pending {{count}}",
     "permissionMismatch": "Someone is shared with a permission lower than this public permission, so it can’t be applied.",
@@ -648,7 +664,9 @@
     "raiseRolesConfirm": "Change together",
     "reviewMembers": "View people",
     "selectedCount": "{{count}} selected",
-    "addPersonToInviteList": "Add {{name}} to the invite list"
+    "addPersonToInviteList": "Add {{name}} to the invite list",
+    "publicInfo": "Anyone who knows the collection’s link can access it.\nYou can set a common permission for people who access it, and give directly invited people a higher permission separately.\nPermissions can also be changed in the participants list.",
+    "publicInfoA11y": "About public collections"
   },
   "linkShare": {
     "description": "Pass on the public collection link. Recipients don’t become participants of this collection.",
@@ -662,9 +680,9 @@
     "removeRecipientA11y": "Remove {{name}}"
   },
   "submissions": {
-    "empty": "No links are waiting for approval.",
-    "myEmpty": "None of my links are waiting for approval.",
-    "myLoadError": "Couldn't load my pending links.",
+    "empty": "No received approval requests.",
+    "myEmpty": "No sent approval requests.",
+    "myLoadError": "Couldn't load sent approval requests.",
     "myStatus": "Waiting for approval",
     "loadError": "Couldn’t load the links waiting for approval.",
     "approve": "Approve",
@@ -677,7 +695,20 @@
     "unavailable": "This request can no longer be approved.",
     "viaPublicLink": "Suggested via public link",
     "approveA11y": "Approve {{title}}",
-    "rejectA11y": "Decline {{title}}"
+    "rejectA11y": "Decline {{title}}",
+    "mySheetTitle": "Sent approval requests",
+    "ownerSheetTitle": "Received approval requests",
+    "cancelRequest": "Cancel request",
+    "cancelRequestA11y": "Cancel approval request for {{title}}",
+    "cancelRequestConfirm": "Cancel this approval request?",
+    "cancelRequestConfirmMessage": "The link will also disappear from the Collection owner's approval list.",
+    "keepRequest": "Keep request",
+    "alreadyProcessed": "This request has already been handled.",
+    "alreadyCancelledOrProcessed": "This request was already cancelled or handled.",
+    "cancelFailed": "Couldn't cancel the request. Please try again.",
+    "sharedCollectionShort": "Shared Collection",
+    "approveConfirmTitle": "Approve this link request?",
+    "approveConfirmMessage": "Approving adds this link to the Collection."
   },
   "friends": {
     "title": "Friends",
@@ -694,7 +725,7 @@
     "loadFallback": "Couldn't load friends.",
     "empty": "No friends yet.",
     "searchEmpty": "No friends match your search.",
-    "note": "My note",
+    "note": "Memo",
     "noteInvalid": "Use up to 200 characters on a single line.",
     "remove": "Remove friend",
     "removeConfirmTitle": "Remove this friend?",
@@ -707,13 +738,14 @@
     "incomingEmpty": "No friend requests received.",
     "outgoingEmpty": "No friend requests sent.",
     "requestPending": "Request pending",
-    "noteHelper": "Only you can see this",
     "lookupHint": "Find a friend by their Juple ID.",
     "incomingFromThem": "This person has sent you a friend request.",
     "viewIncoming": "View received requests",
     "acceptA11y": "Accept friend request from {{name}}",
     "declineA11y": "Decline friend request from {{name}}",
-    "cancelA11y": "Cancel friend request to {{name}}"
+    "cancelA11y": "Cancel friend request to {{name}}",
+    "personTitle": "User info",
+    "you": "You"
   },
   "notifications": {
     "title": "Notifications",
@@ -727,5 +759,13 @@
     "bellUnreadA11y": "Notifications, {{count}} unread",
     "bannerAnnouncement": "New notification: {{title}}. {{body}}",
     "bannerHint": "Tap to open. Swipe up to dismiss."
+  },
+  "contact": {
+    "title": "Contact us",
+    "description": "If you have any questions about Juple, email us.",
+    "sendEmail": "Send email",
+    "subject": "Juple inquiry",
+    "noMailApp": "Couldn't open a mail app. Please email {{email}} directly.",
+    "copyEmail": "Copy email address"
   }
 }

@@ -5,11 +5,12 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { CopyIconButton } from '../components/CopyIconButton';
 import { UserAvatar } from '../components/UserAvatar';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { FRIEND_NOTE_MAX_STORAGE_LENGTH, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
-import { atJupleId, friendPrimaryLabel } from './friendIdentity';
+import { atJupleId } from './friendIdentity';
 
 interface FriendDetailModalProps {
   readonly friend: Friend | null;
@@ -87,7 +88,7 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
         dismissible={!isBusy && !isRemoveConfirmVisible}
         onClose={onClose}
         testID="friend-detail"
-        title={friendPrimaryLabel(friend)}
+        title={t('friends.title')}
         visible
       >
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -100,17 +101,19 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
               size={72}
             />
             {hasNickname ? <Text numberOfLines={2} style={styles.name}>{friend.displayName}</Text> : null}
-            <Text numberOfLines={1} style={[hasNickname ? styles.jupleId : styles.name, ltrTextStyle]} testID="friend-detail-juple-id">
-              {atJupleId(friend.jupleId)}
-            </Text>
+            {/* The Juple ID with its copy button right beside it. Without a nickname the ID is the name. */}
+            <View style={styles.idRow}>
+              <Text numberOfLines={1} style={[hasNickname ? styles.jupleId : styles.nameLine, styles.idText, ltrTextStyle]} testID="friend-detail-juple-id">
+                {atJupleId(friend.jupleId)}
+              </Text>
+              <CopyIconButton accessibilityLabel={t('profile.copyJupleId')} testID="friend-detail-copy-id" text={atJupleId(friend.jupleId)} />
+            </View>
           </View>
 
           <View style={styles.divider} />
 
           <Text style={styles.sectionTitle}>{t('friends.note')}</Text>
-          <Text style={styles.helper} testID="friend-note-helper">{t('friends.noteHelper')}</Text>
           <TextInput
-            accessibilityHint={t('friends.noteHelper')}
             accessibilityLabel={t('friends.note')}
             editable={!isBusy}
             maxLength={FRIEND_NOTE_MAX_STORAGE_LENGTH}
@@ -166,12 +169,14 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
 }
 
 const styles = StyleSheet.create({
-  identity: { alignItems: 'center', gap: spacing.xs, paddingTop: spacing.xs },
+  identity: { alignItems: 'center', gap: 0, paddingTop: spacing.xs },
   name: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center' },
   jupleId: { color: colors.textSecondary, fontSize: 14 },
+  nameLine: { color: colors.textPrimary, fontSize: 18, fontWeight: '700' },
+  idRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'center', maxWidth: '100%' },
+  idText: { flexShrink: 1 },
   divider: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginVertical: spacing.lg },
   sectionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
-  helper: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   // Inside a modal's ScrollView: a plain full-width field (flex: 1 would collapse it in a column).
   noteInput: {
     backgroundColor: colors.surface,

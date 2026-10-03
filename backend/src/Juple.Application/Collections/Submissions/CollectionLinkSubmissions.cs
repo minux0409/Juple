@@ -43,10 +43,32 @@ public sealed record MyCollectionLinkSubmissionDto(
 /// </summary>
 public sealed record MyCollectionLinkSubmissionPage(IReadOnlyList<MyCollectionLinkSubmissionDto> Items, long? NextCursor, int TotalCount = 0);
 
+/// <summary>
+/// One of the caller's OWN waiting proposals in the list across every Collection they have one in: the
+/// proposal as MyCollectionLinkSubmissionDto plus, ONLY for a Collection the caller is a member of, its id and
+/// name ("waiting in 위시리스트"). For a proposal made through a public link as a non-member - or whose link
+/// was since revoked, or whose author left - CollectionId and CollectionName are null: it is shown as the
+/// caller's own request (status, cancel) and nothing about the Collection is revealed merely because it exists.
+/// </summary>
+public sealed record MyCollectionLinkSubmissionWithCollectionDto(
+    long SubmissionId,
+    long? CollectionId,
+    string? CollectionName,
+    string Url,
+    string? Title,
+    string? PreviewImageUrl,
+    DateTimeOffset SubmittedAtUtc);
+
+/// <summary>Newest first; NextCursor = the last row's submissionId (null on the last page); TotalCount = all the caller's own waiting proposals in their member Collections.</summary>
+public sealed record MyCollectionLinkSubmissionAcrossPage(IReadOnlyList<MyCollectionLinkSubmissionWithCollectionDto> Items, long? NextCursor, int TotalCount);
+
 public sealed record CollectionLinkSubmissionPage(IReadOnlyList<CollectionLinkSubmissionDto> Items, long? NextCursor);
 
 /// <summary>The approved proposal, for the notifications that follow it.</summary>
 public sealed record ApprovedCollectionLinkSubmission(long CollectionId, long OwnerUserId, long SubmittedByUserId, bool ViaPublicShare);
+
+/// <summary>A proposal its own submitter withdrew: which Collection it waited in and whose it is (the Owner, who is told only by a refresh).</summary>
+public sealed record CancelledCollectionLinkSubmission(long CollectionId, long OwnerUserId);
 
 public sealed class CollectionLinkSubmissionNotFoundException : Exception;
 
@@ -81,12 +103,19 @@ public interface ICollectionLinkSubmissionStore
     Task<MyCollectionLinkSubmissionPage> ListMineAsync(long collectionId, long userId, long? beforeSubmissionId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// How many of userId's own proposals wait in ALL the Collections of their shared list (those they
-    /// are a member of and that still exist) - one set-based count, never one per Collection and never a
-    /// page of rows. A proposal made through a public link as a non-member is not in it: that Collection
-    /// is not in their list.
+    /// How many of userId's own proposals still wait, in ALL the Collections that exist - one set-based
+    /// count, never one per Collection and never a page of rows. Proposals made through a public link as a
+    /// non-member count too (and stay counted after the link is revoked): they are the caller's own
+    /// requests and must stay findable and cancellable.
     /// </summary>
     Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// userId's own waiting proposals across ALL the Collections they are a member of (the same set
+    /// CountMineInSharedCollectionsAsync counts), newest first (cursor = the last row's id), each with its
+    /// Collection's name - one joined, paged query plus one count, never one query per Collection.
+    /// </summary>
+    Task<MyCollectionLinkSubmissionAcrossPage> ListMineAcrossCollectionsAsync(long userId, long? beforeSubmissionId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// In one transaction under the Collection's row lock: the proposal becomes an ordinary link of
@@ -98,6 +127,20 @@ public interface ICollectionLinkSubmissionStore
     /// </summary>
     Task<ApprovedCollectionLinkSubmission> ApproveAsync(long collectionId, long submissionId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The SUBMITTER withdraws their own still-waiting proposal - the one operation behind every
+    /// cancel route (member and public link). In one transaction under the Collection's row lock (the
+    /// same lock approve takes, so cancel and approve are strictly ordered): the proposal is deleted with
+    /// a conditional predicate (Id AND SubmittedByUserId = userId - never anyone else's, never an
+    /// already approved/rejected one, which no longer exists) and exactly the Owner's notification
+    /// made for THIS proposal (Type CollectionLinkSubmissionReceived, SubjectId = the proposal id) is
+    /// deleted with it, its Push deliveries cascading. Null when there is nothing of the caller's to
+    /// cancel (unknown, someone else's, already answered, deleted Collection, or - with
+    /// requiredCollectionId - in another Collection). No membership is created or changed and nothing
+    /// is added to the Collection.
+    /// </summary>
+    Task<CancelledCollectionLinkSubmission?> CancelMineAsync(long userId, long submissionId, long? requiredCollectionId, CancellationToken cancellationToken = default);
+
     /// <summary>Deletes the proposal and returns who proposed it; null when it was not waiting (already approved or rejected).</summary>
     Task<long?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default);
 }
@@ -106,6 +149,18 @@ public interface ICollectionLinkSubmissionService
 {
     /// <summary>The caller's own waiting proposals across their shared Collections (the 공유 컬렉션 tab's number).</summary>
     Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>The caller's own waiting proposals across their member Collections (the Collections screen's 내 승인 대기 popup). Only the caller's own rows - there is no way to ask for anyone else's.</summary>
+    Task<MyCollectionLinkSubmissionAcrossPage> ListMineAcrossCollectionsAsync(long userId, long? cursor, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cancels the caller's OWN waiting proposal (never a user id from the client): it leaves the Owner's
+    /// queue, counts and Inbox, and nothing is sent to anyone as a result - this is not a rejection.
+    /// CollectionLinkSubmissionNotFoundException (404, non-disclosing) for anything that is not the
+    /// caller's own still-waiting proposal. With requiredCollectionId (the public route) it must be in
+    /// that Collection.
+    /// </summary>
+    Task CancelMineAsync(long userId, long submissionId, long? requiredCollectionId, CancellationToken cancellationToken = default);
 
     /// <summary>The caller's own waiting proposals in this Collection (SubmitLink - i.e. a 승인 후 추가 member), behind the same content gate as the links.</summary>
     Task<MyCollectionLinkSubmissionPage> ListMineAsync(long userId, long collectionId, long? cursor, int limit, string? unlockToken, CancellationToken cancellationToken = default);
@@ -147,6 +202,28 @@ public sealed class CollectionLinkSubmissionService(
 
     public Task<int> CountMineInSharedCollectionsAsync(long userId, CancellationToken cancellationToken = default) =>
         store.CountMineInSharedCollectionsAsync(userId, cancellationToken);
+
+    public Task<MyCollectionLinkSubmissionAcrossPage> ListMineAcrossCollectionsAsync(
+        long userId,
+        long? cursor,
+        int limit,
+        CancellationToken cancellationToken = default) =>
+        store.ListMineAcrossCollectionsAsync(userId, cursor, Math.Clamp(limit, 1, MaxPageSize), cancellationToken);
+
+    public async Task CancelMineAsync(long userId, long submissionId, long? requiredCollectionId, CancellationToken cancellationToken = default)
+    {
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
+        var cancelled = await store.CancelMineAsync(userId, submissionId, requiredCollectionId, cancellationToken)
+            ?? throw new CollectionLinkSubmissionNotFoundException();
+        if (notifications is not null)
+        {
+            // Only a data-only refresh signal for the Collection (open Owner queue / counts / banners
+            // re-check themselves) - no result notification: the requester withdrew it, it was not rejected.
+            await notifications.CollectionsChangedAsync(userId, [cancelled.CollectionId], cancellationToken);
+        }
+
+        await outbox.CommitAsync(cancellationToken);
+    }
 
     public async Task<MyCollectionLinkSubmissionPage> ListMineAsync(
         long userId,

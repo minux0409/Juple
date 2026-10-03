@@ -25,6 +25,21 @@ export async function addLinkToPublicCollection(
 }
 
 /**
+ * Cancels MY OWN still-waiting proposal made through this public link (a non-member): the same
+ * operation as a member's cancel, scoped to the link. 404 for anything that is not mine and waiting here.
+ */
+export async function cancelMyPublicSubmission(
+  request: AuthenticatedApiRequest,
+  publicId: string,
+  submissionId: number,
+): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/public-shares/${encodeURIComponent(publicId)}/submissions/mine/${submissionId}`,
+  });
+}
+
+/**
  * The signed-in viewer's OWN links still waiting for the Owner through this public link (승인 후 추가),
  * newest first, with how many wait in all. A non-member has no Collection id and no Collection API
  * access - this is keyed by the link only, answers about the caller alone (never other submitters,

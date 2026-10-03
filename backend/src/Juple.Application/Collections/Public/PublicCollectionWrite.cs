@@ -91,6 +91,20 @@ public interface IPublicCollectionWriteService
         int limit,
         string? unlockToken,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A SIGNED-IN user withdraws their OWN still-waiting proposal - the very operation a member's cancel uses
+    /// (ICollectionLinkSubmissionService.CancelMineAsync), which depends only on the proposal being the
+    /// caller's own and still waiting: NOT on this link being active (a revoked link must not trap a pending
+    /// request), on its share password, or on any membership. publicId is kept for the public page's route and
+    /// is not consulted. CollectionLinkSubmissionNotFoundException for anything that is not the caller's own
+    /// waiting proposal. No membership is created; nothing of the Collection is revealed.
+    /// </summary>
+    Task CancelMyProposalAsync(
+        long userId,
+        string publicId,
+        long submissionId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class PublicCollectionWriteService(
@@ -99,9 +113,18 @@ public sealed class PublicCollectionWriteService(
     ICollectionUnlockTokenProtector unlockTokenProtector,
     TimeProvider timeProvider,
     ISocialNotificationPublisher? notifications = null,
-    ICollectionLinkSubmissionStore? submissions = null) : IPublicCollectionWriteService
+    ICollectionLinkSubmissionStore? submissions = null,
+    ICollectionLinkSubmissionService? submissionService = null) : IPublicCollectionWriteService
 {
     public const int MaxProposalPageSize = 50;
+
+    public Task CancelMyProposalAsync(
+        long userId,
+        string publicId,
+        long submissionId,
+        CancellationToken cancellationToken = default) =>
+        (submissionService ?? throw new InvalidOperationException("The submission service is not configured."))
+            .CancelMineAsync(userId, submissionId, null, cancellationToken);
 
     public async Task<MyCollectionLinkSubmissionPage?> ListMyProposalsAsync(
         long userId,

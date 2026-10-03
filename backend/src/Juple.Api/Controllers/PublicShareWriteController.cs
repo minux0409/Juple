@@ -65,6 +65,36 @@ public sealed class PublicShareWriteController(
     }
 
     /// <summary>
+    /// A signed-in user withdraws THEIR OWN still-waiting proposal (the same operation as the member route -
+    /// it does not depend on this link still being active, so a revoked link never traps a pending request).
+    /// 204; 404 (non-disclosing) for anything that is not the caller's own waiting proposal.
+    /// </summary>
+    [HttpDelete("submissions/mine/{submissionId:long}")]
+    public async Task<IActionResult> CancelMyProposalAsync(
+        string publicId,
+        long submissionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            await writeService.CancelMyProposalAsync(currentUser.UserId, publicId, submissionId, cancellationToken);
+            return NoContent();
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionLinkSubmissionNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
     /// 204 added (idempotent). 202 { submitted: true } when the link takes proposals (승인 후 추가) - it
     /// waits for the Owner; 409 linkAlreadyInCollection / linkAlreadyPending for a link already there
     /// or already waiting. 404 unknown/revoked link or an Item that is not the caller's.

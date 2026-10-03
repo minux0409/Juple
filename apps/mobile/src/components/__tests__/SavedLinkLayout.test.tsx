@@ -13,7 +13,7 @@ const item: ItemHistoryEntry = {
   representativeImage: null, previewImageUrl: null, coverImage: null,
 };
 const adder: ItemAdderDisplay = {
-  kind: 'person', jupleId: 'K7MP4Q8N', displayName: '피카츄', imageUrl: null, imageVersion: null, isCollectionOwner: false, accessibilityLabel: '피카츄님이 추가한 링크',
+  kind: 'person', jupleId: 'K7MP4Q8N', displayName: '피카츄', imageUrl: null, imageVersion: null, isCollectionOwner: false, isMe: false, accessibilityLabel: '피카츄님이 추가한 링크',
 };
 const chips = <ReactionChips inline onAdd={jest.fn()} onToggle={jest.fn()} reactions={{ reactions: [{ key: 'heart', count: 2 }], myReaction: null }} testID="chips" />;
 

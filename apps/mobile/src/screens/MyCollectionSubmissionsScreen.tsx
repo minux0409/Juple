@@ -2,25 +2,24 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text } from 'react-native';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { getMyCollectionSubmissions, type MyCollectionLinkSubmission, type MyCollectionLinkSubmissionPage } from '../collections/api/collectionsApi';
-import { getMyPublicSubmissions } from '../collections/api/publicShareWriteApi';
+import type { MyCollectionLinkSubmission, MyCollectionLinkSubmissionPage } from '../collections/api/collectionsApi';
+import { cancelMyPublicSubmission, getMyPublicSubmissions } from '../collections/api/publicShareWriteApi';
+import { PendingSubmissionCard } from '../collections/PendingSubmissionCard';
+import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { useCancelSubmission } from '../collections/useCancelSubmission';
 import { ApiError } from '../api/ApiError';
 import { contentGateOfError } from '../collections/useCollectionItems';
-import { formatSavedLinkTimestamp } from '../components/SavedLinkMetaRow';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
-import { GlobeIcon } from '../icons/GlobeIcon';
-import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { colors, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MyCollectionSubmissions'>;
 
-const THUMBNAIL_SIZE = 56;
 
 /**
- * 내 승인 대기 - the links I proposed to this Collection (승인 후 추가) that its Owner has not answered
+ * 내 승인 대기 - the links I proposed through a public link (승인 후 추가) that the Collection's Owner has not answered
  * yet, newest first. View only: the title/preview and site of each as I proposed it, when, and that it
  * is waiting. It is the submitter's own list - never the Owner's approval queue, never anyone else's
  * proposals - and a link leaves it as soon as the Owner approves or declines it (the result itself
@@ -28,17 +27,12 @@ const THUMBNAIL_SIZE = 56;
  */
 export function MyCollectionSubmissionsScreen({ route }: Props) {
   const authenticatedRequest = useAuthenticatedApi();
-  // Reached from a Collection I am a member of (its id), or from a public link I proposed through as a
-  // non-member (the link's id - I have no Collection access): the same list, a different door.
-  const params = route.params;
-  const collectionId = 'collectionId' in params ? params.collectionId : null;
-  const publicId = 'publicId' in params ? params.publicId : null;
+  // Reached only from a public link I proposed through as a non-member (the link's id - I have no
+  // Collection access). A member's own waiting links are a popup (ApprovalSubmissionSheet) instead.
+  const { publicId } = route.params;
   const fetchPage = useCallback(
-    (cursor?: number | null): Promise<MyCollectionLinkSubmissionPage> =>
-      publicId !== null
-        ? getMyPublicSubmissions(authenticatedRequest, publicId, cursor)
-        : getMyCollectionSubmissions(authenticatedRequest, collectionId as number, cursor),
-    [authenticatedRequest, collectionId, publicId],
+    (cursor?: number | null): Promise<MyCollectionLinkSubmissionPage> => getMyPublicSubmissions(authenticatedRequest, publicId, cursor),
+    [authenticatedRequest, publicId],
   );
   const { t } = useTranslation();
   const [items, setItems] = useState<readonly MyCollectionLinkSubmission[]>([]);
@@ -72,7 +66,7 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
       // The link was switched off, or is protected and not unlocked here: nothing to show, said safely.
       const isUnavailable = caughtError instanceof ApiError && (caughtError.kind === 'notFound' || caughtError.kind === 'forbidden');
       setLoadError(
-        publicId !== null && isUnavailable
+        isUnavailable
           ? t('sharedCollection.unavailableMessage')
           : contentGateOfError(caughtError) === 'lock' ? t('collections.lockedMessage') : t('submissions.myLoadError'),
       );
@@ -82,13 +76,19 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
         setIsRefreshing(false);
       }
     }
-  }, [fetchPage, publicId, t]);
+  }, [fetchPage, t]);
 
   useFocusEffect(
     useCallback(() => {
       load(false).catch(() => undefined);
     }, [load]),
   );
+
+  // 요청 취소 for my own waiting proposal through this link - the same shared behavior as the member popup.
+  const cancellation = useCancelSubmission({
+    cancel: row => cancelMyPublicSubmission(authenticatedRequest, publicId, row.submissionId),
+    onGone: row => setItems(previous => previous.filter(entry => entry.submissionId !== row.submissionId)),
+  });
 
   const loadMore = async () => {
     if (nextCursor === null || isLoadingMoreRef.current) {
@@ -106,36 +106,16 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
     }
   };
 
-  const renderItem = ({ item }: { item: MyCollectionLinkSubmission }) => {
-    const hostname = getHostnameFromUrl(item.url) ?? item.url;
-    const title = item.title?.trim() ? item.title : hostname;
-    return (
-      <View
-        accessibilityLabel={`${title}, ${t('submissions.myStatus')}`}
-        accessible
-        style={styles.row}
-        testID={`my-submission-${item.submissionId}`}
-      >
-        {item.previewImageUrl ? (
-          <Image source={{ uri: item.previewImageUrl }} style={styles.thumbnail} />
-        ) : (
-          <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-            <GlobeIcon color={colors.textSecondary} size={22} />
-          </View>
-        )}
-        <View style={styles.rowText}>
-          <Text numberOfLines={2} style={styles.title}>{title}</Text>
-          <Text numberOfLines={1} style={[styles.meta, ltrTextStyle]}>{hostname}</Text>
-          <View style={styles.statusRow}>
-            <View style={styles.statusChip}>
-              <Text numberOfLines={1} style={styles.statusLabel}>{t('submissions.myStatus')}</Text>
-            </View>
-            <Text numberOfLines={1} style={styles.time}>{formatSavedLinkTimestamp(item.submittedAtUtc, 'dateTime')}</Text>
-          </View>
-        </View>
-      </View>
+  // The same compact card as the member popup (open the link / cancel the request as icons at its end).
+  const renderItem = ({ item }: { item: MyCollectionLinkSubmission }) =>
+    cancellation.swipeToCancel(
+      { submissionId: item.submissionId, title: item.title, url: item.url },
+      <PendingSubmissionCard
+        row={item}
+        trailing={cancellation.renderOpenAction({ submissionId: item.submissionId, title: item.title, url: item.url })}
+        variant="mine"
+      />,
     );
-  };
 
   return (
     <StackScreenSafeArea style={styles.screen}>
@@ -150,6 +130,7 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
             <Text style={loadError ? styles.error : styles.empty} testID="my-submissions-empty">{loadError ?? t('submissions.myEmpty')}</Text>
           )
         }
+        onScrollBeginDrag={closeOpenRow}
         onEndReached={() => {
           loadMore().catch(() => undefined);
         }}
@@ -157,6 +138,7 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
         renderItem={renderItem}
         testID="my-submissions-list"
       />
+      {cancellation.dialogs}
     </StackScreenSafeArea>
   );
 }
@@ -167,22 +149,4 @@ const styles = StyleSheet.create({
   loading: { marginTop: spacing.xl },
   empty: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   error: { color: colors.danger, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
-  row: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  thumbnail: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, height: THUMBNAIL_SIZE, width: THUMBNAIL_SIZE },
-  thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  rowText: { flex: 1, gap: 2, minWidth: 0 },
-  title: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  meta: { color: colors.textSecondary, fontSize: 12 },
-  statusRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', marginTop: 2, rowGap: spacing.xs },
-  statusChip: { backgroundColor: colors.brandSoft, borderRadius: radii.md, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  statusLabel: { color: colors.brand, fontSize: 11, fontWeight: '700' },
-  time: { color: colors.textSecondary, flexShrink: 1, fontSize: 12 },
 });

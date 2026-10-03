@@ -28,6 +28,13 @@ export interface BannerQueue {
   current(): NotificationBanner | null;
   /** The banner on screen is gone (timeout, swipe, tap): the next one, if any, takes its place. */
   dismissCurrent(): void;
+  /** Every banner still to be seen: the one on screen first, then those waiting. */
+  all(): readonly NotificationBanner[];
+  /**
+   * That ONE notification's banner is withdrawn (the thing it announced no longer exists): the one on screen
+   * is replaced by the next, or the waiting one is dropped. Nothing else is touched. False when none was there.
+   */
+  removeNotification(notificationId: number): boolean;
   /** Signed out: nothing more is shown. */
   clear(): void;
   pendingCount(): number;
@@ -71,6 +78,21 @@ export function createBannerQueue(limit: number = BANNER_QUEUE_LIMIT, recentKeyL
       return true;
     },
     current: () => shown,
+    all: () => (shown === null ? [] : [shown, ...waiting]),
+    removeNotification(notificationId) {
+      if (shown?.notificationId === notificationId) {
+        shown = waiting.shift() ?? null;
+        emit();
+        return true;
+      }
+      const index = waiting.findIndex(banner => banner.notificationId === notificationId);
+      if (index < 0) {
+        return false;
+      }
+      waiting.splice(index, 1);
+      emit();
+      return true;
+    },
     dismissCurrent() {
       if (shown === null) {
         return;

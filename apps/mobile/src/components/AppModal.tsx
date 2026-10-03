@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { KeyboardAvoidingView, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloseIcon } from '../icons/CloseIcon';
+import { KeyboardSafeView } from './KeyboardSafeView';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 export const APP_MODAL_BACKDROP = 'rgba(0, 0, 0, 0.35)';
@@ -27,8 +28,8 @@ interface AppModalProps {
  * viewport at once - including under the status and navigation bars (statusBarTranslucent /
  * navigationBarTranslucent), and only fades, never slides up with the content. The card sits inside
  * the real safe-area insets, so neither its content nor its footer can end up behind the system
- * navigation bar, gesture area or home indicator, and it moves up with the keyboard (edge-to-edge
- * Android no longer resizes the window for it; "padding" is zero wherever the window does resize).
+ * navigation bar, gesture area or home indicator, and it moves up with the keyboard (see
+ * KeyboardSafeView - the one keyboard-avoidance pattern).
  */
 export function AppModal({ visible, title, onClose, dismissible = true, size = 'compact', footer, children, testID }: AppModalProps) {
   const { t } = useTranslation();
@@ -52,8 +53,7 @@ export function AppModal({ visible, title, onClose, dismissible = true, size = '
           style={StyleSheet.absoluteFill}
           testID={testID ? `${testID}-backdrop-press` : undefined}
         />
-        <KeyboardAvoidingView
-          behavior="padding"
+        <KeyboardSafeView
           pointerEvents="box-none"
           style={[
             styles.frame,
@@ -83,7 +83,7 @@ export function AppModal({ visible, title, onClose, dismissible = true, size = '
             <View style={[styles.body, size === 'large' && styles.bodyLarge]}>{children}</View>
             {footer ? <View style={styles.footer}>{footer}</View> : null}
           </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafeView>
       </View>
     </Modal>
   );

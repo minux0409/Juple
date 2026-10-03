@@ -1244,6 +1244,42 @@ describe('CollectionDetailsScreen', () => {
       expect(getCollectionItems).toHaveBeenLastCalledWith(expect.anything(), 1, expect.objectContaining({ sort: 'dateDesc', limit: 25, cursor: undefined, fromUtc: expect.any(String) }));
     });
 
+    it('이름순 flips ↑ (A→Z) ↔ ↓ (Z→A) on a second press - title-less links stay last in both - with the direction in its accessibility label', async () => {
+      const links = [
+        makeItemEntry({ itemId: 1, title: 'banana', addedAtUtc: new Date().toISOString() }),
+        makeItemEntry({ itemId: 2, title: 'Cherry', addedAtUtc: new Date().toISOString() }),
+        makeItemEntry({ itemId: 3, title: 'apple', addedAtUtc: new Date().toISOString() }),
+        makeItemEntry({ itemId: 4, title: null, url: 'https://zzz.example/x', addedAtUtc: new Date().toISOString() }),
+      ];
+      serveCollection(links);
+      const renderer = await renderScreen();
+      const titlesShown = () => (findItemList(renderer).props.data as { title: string | null }[]).map(entry => entry.title);
+
+      await act(async () => {
+        sortChip(renderer, 'name').props.onPress();
+      });
+      await flush();
+      expect(sortChipLabel(renderer, 'name')).toBe(`${i18n.t('collections.sortName')} ↑`);
+      expect(sortChip(renderer, 'name').props.accessibilityLabel).toBe(i18n.t('collections.sortNameAscA11y'));
+      expect(titlesShown()).toEqual(['apple', 'banana', 'Cherry', null]);
+
+      await act(async () => {
+        sortChip(renderer, 'name').props.onPress();
+      });
+      await flush();
+      expect(sortChipLabel(renderer, 'name')).toBe(`${i18n.t('collections.sortName')} ↓`);
+      expect(sortChip(renderer, 'name').props.accessibilityLabel).toBe(i18n.t('collections.sortNameDescA11y'));
+      expect(titlesShown()).toEqual(['Cherry', 'banana', 'apple', null]);
+
+      // 시간순 is a separate chip: pressing it leaves 이름순 and starts at ↓ newest again.
+      await act(async () => {
+        sortChip(renderer, 'date').props.onPress();
+      });
+      await flush();
+      expect(sortChip(renderer, 'date').props.accessibilityState).toEqual({ selected: true });
+      expect(sortChip(renderer, 'name').props.accessibilityState).toEqual({ selected: false });
+    });
+
     it('이름순 of a Collection with more links than can be name-ordered as a whole is refused with the reason - it stays on 시간순', async () => {
       jest.mocked(getCollection).mockResolvedValue(makeCollection({ itemCount: NAME_ORDER_MAX_LINKS + 1 }));
       serveCollection(manyLinks(60));

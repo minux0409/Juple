@@ -54,8 +54,7 @@
     "newLinkReview": "Yeni Bağlantıyı İncele",
     "trash": "Son Silinenler",
     "collectionSharedItem": "Paylaşılan bağlantı",
-    "collectionSubmissions": "Onay bekleyen bağlantılar",
-    "myCollectionSubmissions": "Onay bekleyenlerim",
+    "myCollectionSubmissions": "Gönderilen onay istekleri",
     "collectionShare": "Paylaş",
     "collectionLockSettings": "Koleksiyon kilidi"
   },
@@ -92,7 +91,8 @@
     "retry": "Tekrar dene",
     "deleteConfirmTitle": "Öğeyi sil",
     "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
-    "errorDeleteFallback": "Öğe silinemedi."
+    "errorDeleteFallback": "Öğe silinemedi.",
+    "searchMinHint": "En az 2 karakter girin."
   },
   "collections": {
     "attentionA11y": "{{name}}, ilgilenilmesi gereken {{count}} öğe",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Tüm seçimi kaldır",
     "copySelectUpTo": "En fazla {{max}} seç",
     "detailItemCount": "Toplam {{count}}",
-    "myPendingSubmissions": "Bekleyenlerim {{count}}",
-    "myPendingSubmissionsA11y": "Onay bekleyen {{count}} bağlantımı göster",
-    "myPendingA11y": "Onay bekleyenlerim: {{count}}",
+    "myPendingSubmissions": "Gönderilen onay istekleri {{count}}",
+    "myPendingSubmissionsA11y": "Gönderilen onay istekleri: {{count}} adet gör",
+    "myPendingA11y": "Gönderilen onay istekleri: {{count}}",
     "favoritesTitle": "Favoriler",
     "allCollectionsTitle": "Tüm koleksiyonlar",
     "addFavorite": "Favorilere ekle",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Koleksiyonu kaydet",
     "errorColorUpdateFallback": "Renk güncellenemedi.",
     "favoritesEmpty": "Favori yok.",
-    "allCollectionsEmpty": "Koleksiyon yok.", "manageAction": "Koleksiyonu yönet", "itemManageAction": "Diğer bağlantı işlemleri", "addToOther": "Başka koleksiyona çoğalt", "moveToOther": "Başka koleksiyona taşı", "mergeWithOther": "Başka koleksiyonla birleştir", "targetPickerTitle": "Koleksiyon seç", "moveTitle": "Bağlantıyı taşı", "moveAction": "Taşı", "moveConfirmMessage": "Bu bağlantı \"{{target}}\" koleksiyonuna taşınsın mı?", "moveError": "Bağlantı taşınamadı.", "mergeTitle": "Koleksiyonları birleştir", "mergeAction": "Birleştir", "mergeConfirmMessage": "\"{{source}}\", \"{{target}}\" ile birleştirilsin mi? Bağlantılar birleştirilecek ve bu koleksiyon silinecek.", "mergeError": "Koleksiyon birleştirilemedi.", "errorTargetLoadFallback": "Koleksiyonlar yüklenemedi.",
+    "allCollectionsEmpty": "Koleksiyon yok.",
+    "manageAction": "Koleksiyonu yönet",
+    "itemManageAction": "Diğer bağlantı işlemleri",
+    "addToOther": "Başka koleksiyona çoğalt",
+    "moveToOther": "Başka koleksiyona taşı",
+    "mergeWithOther": "Başka koleksiyonla birleştir",
+    "targetPickerTitle": "Koleksiyon seç",
+    "moveTitle": "Bağlantıyı taşı",
+    "moveAction": "Taşı",
+    "moveConfirmMessage": "Bu bağlantı \"{{target}}\" koleksiyonuna taşınsın mı?",
+    "moveError": "Bağlantı taşınamadı.",
+    "mergeTitle": "Koleksiyonları birleştir",
+    "mergeAction": "Birleştir",
+    "mergeConfirmMessage": "\"{{source}}\", \"{{target}}\" ile birleştirilsin mi? Bağlantılar birleştirilecek ve bu koleksiyon silinecek.",
+    "mergeError": "Koleksiyon birleştirilemedi.",
+    "errorTargetLoadFallback": "Koleksiyonlar yüklenemedi.",
     "myCategoriesTab": "Koleksiyonlarım",
     "sharedCategoriesTab": "Paylaşılanlar",
     "sharedEmpty": "Henüz paylaşılan koleksiyon yok.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "Seçtiğin koleksiyonda bu bağlantı zaten onay bekliyor.",
     "saveOutcomeAlreadyInCollection": "Seçtiğin koleksiyonda bu bağlantı zaten var.",
     "roleSubmitter": "Onayla eklenir",
-    "pendingSubmissions": "Bekleyen {{count}}",
-    "pendingSubmissionsA11y": "Onay bekleyen {{count}} bağlantıyı gör",
+    "pendingSubmissions": "Alınan onay istekleri {{count}}",
+    "pendingSubmissionsA11y": "Alınan onay istekleri: {{count}} adet gör",
     "removeFromSharedOwnerOnly": "Sizinle paylaşılan bir koleksiyondan bağlantıları yalnızca sahibi kaldırabilir.",
     "removeFromCollection": "Koleksiyondan kaldır",
     "iconPhotoChoose": "Fotoğraf seç",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Erişim şifresi",
     "sharePasswordWrong": "Şifre doğru değil.",
     "sharePasswordContactOwner": "Erişim şifresini koleksiyonu paylaşan kişiye sor.",
-    "sharePasswordRequiredForAction": "Önce koleksiyonu aç ve erişim şifresini gir."
+    "sharePasswordRequiredForAction": "Önce koleksiyonu aç ve erişim şifresini gir.",
+    "sortNameAscA11y": "Ad, A'dan Z'ye",
+    "sortNameDescA11y": "Ad, Z'den A'ya"
   },
-  "toast": { "moveSuccess": "Taşındı.", "undoAction": "Geri al", "undoMoveError": "Taşıma geri alınamadı.", "deleteSuccess": "Silindi.", "undoDeleteError": "Silme geri alınamadı.", "unlinkSuccess": "Koleksiyondan kaldırıldı.", "undoUnlinkError": "Koleksiyondan kaldırma geri alınamadı.", "collectionDeleteSuccess": "Koleksiyon silindi.", "undoCollectionDeleteError": "Koleksiyon silme geri alınamadı.", "collectionMergeSuccess": "Koleksiyon birleştirildi.", "undoCollectionMergeError": "Koleksiyon birleştirme geri alınamadı." },
+  "toast": {
+    "moveSuccess": "Taşındı.",
+    "undoAction": "Geri al",
+    "undoMoveError": "Taşıma geri alınamadı.",
+    "deleteSuccess": "Silindi.",
+    "undoDeleteError": "Silme geri alınamadı.",
+    "unlinkSuccess": "Koleksiyondan kaldırıldı.",
+    "undoUnlinkError": "Koleksiyondan kaldırma geri alınamadı.",
+    "collectionDeleteSuccess": "Koleksiyon silindi.",
+    "undoCollectionDeleteError": "Koleksiyon silme geri alınamadı.",
+    "collectionMergeSuccess": "Koleksiyon birleştirildi.",
+    "undoCollectionMergeError": "Koleksiyon birleştirme geri alınamadı."
+  },
   "myPage": {
     "title": "Sayfam",
-    "settings": "Ayarlar",
     "signOutConfirmTitle": "Oturum kapatılsın mı?",
     "signOutConfirmMessage": "Devam etmek için tekrar oturum açmanız gerekecek.",
     "deleteAccountErrorFallback": "Hesabınız silinemedi. Lütfen tekrar deneyin.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Dil",
-    "quickSaveOnShare": "Paylaşırken anında kaydet",
-    "quickSaveOnShareOnDescription": "YouTube, Instagram ve diğer uygulamalardan bir bağlantı paylaşmak, uygulamayı açmadan onu hemen Juple'a kaydeder.",
-    "quickSaveOnShareOffDescription": "Paylaşımdan sonra, kaydetmeden önce bağlantı ayrıntılarını incelemeniz ve bir koleksiyon seçmeniz için Juple açılır.",
+    "quickSaveOnShare": "Hızlı kaydet",
+    "quickSaveOnShareOnDescription": "Diğer uygulamalardan Juple'a paylaştığınız bağlantılar, inceleme ekranı olmadan hemen kaydedilir.",
+    "quickSaveOnShareOffDescription": "Juple'a paylaştığınız bağlantılar bir inceleme ekranı açar; ayrıntıları kontrol edip kaydetmeden önce bir koleksiyon seçersiniz.",
     "trash": "Son Silinenler",
     "collectionLock": "Koleksiyon kilidi",
     "collectionLockDescription": "Koleksiyonların için bir şifre belirle.",
@@ -521,7 +549,10 @@
     "limitNotice": "En son {{count}} silme kaydınızı görüntüleyebilirsiniz.",
     "restoreConfirmTitle": "Geri yüklensin mi?",
     "restoreConfirmMessage": "Silinen bağlantı geri yüklenecek.",
-    "restoreConfirmAction": "Geri yükle"
+    "restoreConfirmAction": "Geri yükle",
+    "openLink": "Bağlantıyı aç",
+    "moreA11y": "Diğer işlemler",
+    "emptyA11y": "Son silinenleri boşalt"
   },
   "collaboration": {
     "jupleIdLabel": "Juple ID",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "{{count}} kişi ekle",
     "alreadyMember": "Zaten katılımcı",
     "alreadyAdded": "Eklendi",
-    "allUsersTitle": "Herkese açık koleksiyon",
+    "allUsersTitle": "Herkese açık koleksiyon ayarları",
     "belowPublicPermission": "Koleksiyonun herkese açık izninden daha düşük bir izin verilemez.",
     "permissionLabel": "İzin",
     "publicOn": "AÇIK",
@@ -623,7 +654,7 @@
     "inviteTitle": "Arkadaş davet et",
     "inviteTabFriends": "Arkadaşlar",
     "inviteTabId": "ID",
-    "statusTitle": "Paylaşım durumu",
+    "statusTitle": "Katılımcılar",
     "statusTabMembers": "Paylaşılan {{count}}",
     "statusTabPending": "Bekleyen {{count}}",
     "permissionMismatch": "Bu herkese açık izinden daha düşük izne sahip biri olduğu için uygulanamıyor.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Birlikte değiştir",
     "reviewMembers": "Kişileri gör",
     "selectedCount": "{{count}} kişi seçildi",
-    "addPersonToInviteList": "{{name}} kişisini davet listesine ekle"
+    "addPersonToInviteList": "{{name}} kişisini davet listesine ekle",
+    "publicInfo": "Koleksiyonun bağlantısını bilen herkes koleksiyona erişebilir.\nErişen kullanıcılar için ortak bir izin belirleyebilir, doğrudan davet ettiğiniz kullanıcılara ayrıca daha yüksek bir izin verebilirsiniz.\nİzinler katılımcı listesinden de değiştirilebilir.",
+    "publicInfoA11y": "Herkese açık koleksiyon hakkında"
   },
   "linkShare": {
     "description": "Herkese açık koleksiyon bağlantısını iletin. Alıcılar bu koleksiyonun katılımcısı olmaz.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "{{name}} kişisini çıkar"
   },
   "submissions": {
-    "empty": "Onay bekleyen bağlantı yok.",
-    "myEmpty": "Onay bekleyen bağlantım yok.",
-    "myLoadError": "Bekleyen bağlantılarım yüklenemedi.",
+    "empty": "Alınan onay istekleri: yok",
+    "myEmpty": "Gönderilen onay istekleri: yok",
+    "myLoadError": "Gönderilen istekler yüklenemedi.",
     "myStatus": "Onay bekliyor",
     "loadError": "Onay bekleyen liste yüklenemedi.",
     "approve": "Onayla",
@@ -662,7 +695,20 @@
     "unavailable": "Bu istek artık onaylanamaz.",
     "viaPublicLink": "Herkese açık bağlantıyla önerildi",
     "approveA11y": "{{title}} onayla",
-    "rejectA11y": "{{title}} reddet"
+    "rejectA11y": "{{title}} reddet",
+    "mySheetTitle": "Gönderilen onay istekleri",
+    "ownerSheetTitle": "Alınan onay istekleri",
+    "cancelRequest": "İsteği iptal et",
+    "cancelRequestA11y": "{{title}} için onay isteğini iptal et",
+    "cancelRequestConfirm": "Onay isteği iptal edilsin mi?",
+    "cancelRequestConfirmMessage": "Bağlantı, koleksiyon sahibinin onay listesinden de kaybolur.",
+    "keepRequest": "İsteği koru",
+    "alreadyProcessed": "Bu istek zaten işleme alındı.",
+    "alreadyCancelledOrProcessed": "Bu istek zaten iptal edilmiş veya işleme alınmış.",
+    "cancelFailed": "İstek iptal edilemedi. Lütfen tekrar deneyin.",
+    "sharedCollectionShort": "Paylaşılan koleksiyon",
+    "approveConfirmTitle": "Bu bağlantı isteği onaylansın mı?",
+    "approveConfirmMessage": "Onaylarsanız bu bağlantı koleksiyona eklenir."
   },
   "friends": {
     "title": "Arkadaşlar",
@@ -679,7 +725,7 @@
     "loadFallback": "Arkadaşlar yüklenemedi.",
     "empty": "Henüz arkadaş yok.",
     "searchEmpty": "Eşleşen arkadaş yok.",
-    "note": "Notum",
+    "note": "Not",
     "noteInvalid": "Tek satırda en fazla 200 karakter kullanın.",
     "remove": "Arkadaşı kaldır",
     "removeConfirmTitle": "Bu arkadaş kaldırılsın mı?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Gelen arkadaşlık isteği yok.",
     "outgoingEmpty": "Gönderilen arkadaşlık isteği yok.",
     "requestPending": "İstek beklemede",
-    "noteHelper": "Yalnızca siz görebilirsiniz",
     "lookupHint": "Juple kimliğiyle arkadaş bulun.",
     "incomingFromThem": "Bu kişi size arkadaşlık isteği gönderdi.",
     "viewIncoming": "Gelen istekleri görüntüle",
     "acceptA11y": "{{name}} adlı kişinin arkadaşlık isteğini kabul et",
     "declineA11y": "{{name}} adlı kişinin arkadaşlık isteğini reddet",
-    "cancelA11y": "{{name}} adlı kişiye gönderilen arkadaşlık isteğini iptal et"
+    "cancelA11y": "{{name}} adlı kişiye gönderilen arkadaşlık isteğini iptal et",
+    "personTitle": "Kullanıcı bilgisi",
+    "you": "Sen"
   },
   "notifications": {
     "title": "Bildirimler",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Bildirimler, {{count}} okunmamış",
     "bannerAnnouncement": "Yeni bildirim: {{title}}. {{body}}",
     "bannerHint": "Açmak için dokunun. Kapatmak için yukarı kaydırın."
+  },
+  "contact": {
+    "title": "Bize ulaşın",
+    "description": "Juple hakkında sorularınız varsa bize e-posta gönderin.",
+    "sendEmail": "E-posta gönder",
+    "subject": "Juple hakkında soru",
+    "noMailApp": "Bir e-posta uygulaması açılamadı. Lütfen doğrudan {{email}} adresine yazın.",
+    "copyEmail": "E-posta adresini kopyala"
   }
 }

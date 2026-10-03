@@ -13,6 +13,8 @@ export type ItemAdderDisplay =
       readonly imageUrl: string | null;
       readonly imageVersion: string | null;
       readonly isCollectionOwner: boolean;
+      /** The signed-in user themselves (the adder is "me"). */
+      readonly isMe: boolean;
       readonly accessibilityLabel: string;
     }
   | { readonly kind: 'publicLink'; readonly label: string; readonly accessibilityLabel: string };
@@ -47,6 +49,7 @@ export function describeItemAdder(adder: CollectionItemAdder | null | undefined,
     imageUrl: adder.profileImageUrl ?? null,
     imageVersion: adder.profileImageVersion ?? null,
     isCollectionOwner,
+    isMe: adder.kind === 'me',
     accessibilityLabel,
   };
 }

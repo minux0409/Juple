@@ -54,8 +54,7 @@
     "newLinkReview": "مراجعة رابط جديد",
     "trash": "المحذوفة مؤخرًا",
     "collectionSharedItem": "رابط مُشارَك",
-    "collectionSubmissions": "روابط بانتظار الموافقة",
-    "myCollectionSubmissions": "موافقاتي المعلّقة",
+    "myCollectionSubmissions": "طلبات الموافقة المرسلة",
     "collectionShare": "مشاركة",
     "collectionLockSettings": "قفل المجموعات"
   },
@@ -92,7 +91,8 @@
     "retry": "إعادة المحاولة",
     "deleteConfirmTitle": "حذف العنصر",
     "deleteConfirmMessage": "هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.",
-    "errorDeleteFallback": "تعذّر حذف العنصر."
+    "errorDeleteFallback": "تعذّر حذف العنصر.",
+    "searchMinHint": "أدخل حرفين على الأقل."
   },
   "collections": {
     "attentionA11y": "{{name}}، عناصر تحتاج إلى انتباه: {{count}}",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "إلغاء كل التحديد",
     "copySelectUpTo": "تحديد حتى {{max}}",
     "detailItemCount": "الإجمالي: {{count}}",
-    "myPendingSubmissions": "طلباتي المعلّقة {{count}}",
-    "myPendingSubmissionsA11y": "عرض روابطي الـ {{count}} التي تنتظر الموافقة",
-    "myPendingA11y": "موافقاتي المعلّقة: {{count}}",
+    "myPendingSubmissions": "طلبات الموافقة المرسلة {{count}}",
+    "myPendingSubmissionsA11y": "عرض {{count}}: طلبات الموافقة المرسلة",
+    "myPendingA11y": "طلبات الموافقة المرسلة: {{count}}",
     "favoritesTitle": "المفضّلة",
     "allCollectionsTitle": "جميع المجموعات",
     "addFavorite": "إضافة إلى المفضّلة",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "حفظ المجموعة",
     "errorColorUpdateFallback": "تعذّر تحديث اللون.",
     "favoritesEmpty": "لا توجد عناصر مفضلة.",
-    "allCollectionsEmpty": "لا توجد مجموعات.", "manageAction": "إدارة المجموعة", "itemManageAction": "المزيد من إجراءات الرابط", "addToOther": "استنساخ إلى مجموعة أخرى", "moveToOther": "نقل إلى مجموعة أخرى", "mergeWithOther": "دمج مع مجموعة أخرى", "targetPickerTitle": "اختر مجموعة", "moveTitle": "نقل الرابط", "moveAction": "نقل", "moveConfirmMessage": "هل تريد نقل هذا الرابط إلى \"{{target}}\"؟", "moveError": "تعذّر نقل الرابط.", "mergeTitle": "دمج المجموعات", "mergeAction": "دمج", "mergeConfirmMessage": "هل تريد دمج \"{{source}}\" في \"{{target}}\"؟ ستُدمج الروابط وستُحذف هذه المجموعة.", "mergeError": "تعذّر دمج المجموعة.", "errorTargetLoadFallback": "تعذّر تحميل المجموعات.",
+    "allCollectionsEmpty": "لا توجد مجموعات.",
+    "manageAction": "إدارة المجموعة",
+    "itemManageAction": "المزيد من إجراءات الرابط",
+    "addToOther": "استنساخ إلى مجموعة أخرى",
+    "moveToOther": "نقل إلى مجموعة أخرى",
+    "mergeWithOther": "دمج مع مجموعة أخرى",
+    "targetPickerTitle": "اختر مجموعة",
+    "moveTitle": "نقل الرابط",
+    "moveAction": "نقل",
+    "moveConfirmMessage": "هل تريد نقل هذا الرابط إلى \"{{target}}\"؟",
+    "moveError": "تعذّر نقل الرابط.",
+    "mergeTitle": "دمج المجموعات",
+    "mergeAction": "دمج",
+    "mergeConfirmMessage": "هل تريد دمج \"{{source}}\" في \"{{target}}\"؟ ستُدمج الروابط وستُحذف هذه المجموعة.",
+    "mergeError": "تعذّر دمج المجموعة.",
+    "errorTargetLoadFallback": "تعذّر تحميل المجموعات.",
     "myCategoriesTab": "مجموعاتي",
     "sharedCategoriesTab": "المُشارَكة",
     "sharedEmpty": "لا توجد مجموعات مُشارَكة بعد.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "المجموعة التي اخترتها فيها هذا الرابط بانتظار الموافقة بالفعل.",
     "saveOutcomeAlreadyInCollection": "المجموعة التي اخترتها فيها هذا الرابط بالفعل.",
     "roleSubmitter": "يُضاف بعد الموافقة",
-    "pendingSubmissions": "بانتظار الموافقة {{count}}",
-    "pendingSubmissionsA11y": "عرض {{count}} من الروابط بانتظار الموافقة",
+    "pendingSubmissions": "طلبات الموافقة الواردة {{count}}",
+    "pendingSubmissionsA11y": "عرض {{count}}: طلبات الموافقة الواردة",
     "removeFromSharedOwnerOnly": "يمكن للمالك فقط إزالة الروابط من مجموعة تمت مشاركتها معك.",
     "removeFromCollection": "إزالة من المجموعة",
     "iconPhotoChoose": "اختيار صورة",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "كلمة مرور الوصول",
     "sharePasswordWrong": "كلمة المرور غير صحيحة.",
     "sharePasswordContactOwner": "اطلب كلمة مرور الوصول من الشخص الذي شارك هذه المجموعة.",
-    "sharePasswordRequiredForAction": "افتح المجموعة أولًا وأدخل كلمة مرور الوصول."
+    "sharePasswordRequiredForAction": "افتح المجموعة أولًا وأدخل كلمة مرور الوصول.",
+    "sortNameAscA11y": "الاسم، تصاعديًا",
+    "sortNameDescA11y": "الاسم، تنازليًا"
   },
-  "toast": { "moveSuccess": "تم النقل.", "undoAction": "تراجع", "undoMoveError": "تعذّر التراجع عن النقل.", "deleteSuccess": "تم الحذف.", "undoDeleteError": "تعذّر التراجع عن الحذف.", "unlinkSuccess": "أُزيل من المجموعة.", "undoUnlinkError": "تعذّر التراجع عن الإزالة من المجموعة.", "collectionDeleteSuccess": "تم حذف المجموعة.", "undoCollectionDeleteError": "تعذّر التراجع عن حذف المجموعة.", "collectionMergeSuccess": "تم دمج المجموعة.", "undoCollectionMergeError": "تعذّر التراجع عن دمج المجموعة." },
+  "toast": {
+    "moveSuccess": "تم النقل.",
+    "undoAction": "تراجع",
+    "undoMoveError": "تعذّر التراجع عن النقل.",
+    "deleteSuccess": "تم الحذف.",
+    "undoDeleteError": "تعذّر التراجع عن الحذف.",
+    "unlinkSuccess": "أُزيل من المجموعة.",
+    "undoUnlinkError": "تعذّر التراجع عن الإزالة من المجموعة.",
+    "collectionDeleteSuccess": "تم حذف المجموعة.",
+    "undoCollectionDeleteError": "تعذّر التراجع عن حذف المجموعة.",
+    "collectionMergeSuccess": "تم دمج المجموعة.",
+    "undoCollectionMergeError": "تعذّر التراجع عن دمج المجموعة."
+  },
   "myPage": {
     "title": "صفحتي",
-    "settings": "الإعدادات",
     "signOutConfirmTitle": "هل تريد تسجيل الخروج؟",
     "signOutConfirmMessage": "ستحتاج إلى تسجيل الدخول مرة أخرى للمتابعة.",
     "deleteAccountErrorFallback": "تعذّر حذف حسابك. يُرجى المحاولة مرة أخرى.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "اللغة",
-    "quickSaveOnShare": "الحفظ فورًا عند المشاركة",
-    "quickSaveOnShareOnDescription": "عند مشاركة رابط من YouTube أو Instagram أو تطبيقات أخرى إلى Juple، يتم حفظه فورًا دون فتح التطبيق.",
-    "quickSaveOnShareOffDescription": "بعد المشاركة، يفتح Juple لمراجعة تفاصيل الرابط واختيار مجموعة قبل الحفظ.",
+    "quickSaveOnShare": "حفظ سريع",
+    "quickSaveOnShareOnDescription": "تُحفَظ الروابط التي تشاركها إلى Juple من تطبيقات أخرى فورًا دون شاشة مراجعة.",
+    "quickSaveOnShareOffDescription": "تفتح الروابط التي تشاركها إلى Juple شاشة مراجعة لتتحقق من التفاصيل وتختار مجموعة قبل الحفظ.",
     "trash": "المحذوفة مؤخرًا",
     "collectionLock": "قفل المجموعات",
     "collectionLockDescription": "عيّن كلمة مرور لمجموعاتك.",
@@ -521,7 +549,10 @@
     "limitNotice": "يمكنك عرض آخر {{count}} عنصرًا محذوفًا.",
     "restoreConfirmTitle": "هل تريد الاستعادة؟",
     "restoreConfirmMessage": "سيتم استعادة الرابط المحذوف.",
-    "restoreConfirmAction": "استعادة"
+    "restoreConfirmAction": "استعادة",
+    "openLink": "فتح الرابط",
+    "moreA11y": "المزيد من الإجراءات",
+    "emptyA11y": "إفراغ المحذوفة مؤخرًا"
   },
   "collaboration": {
     "jupleIdLabel": "معرّف Juple",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "إضافة {{count}}",
     "alreadyMember": "مشارك بالفعل",
     "alreadyAdded": "مضاف",
-    "allUsersTitle": "مجموعة عامة",
+    "allUsersTitle": "إعدادات المجموعة العامة",
     "belowPublicPermission": "لا يمكن منح إذن أقل من إذن المشاركة العامة للمجموعة.",
     "permissionLabel": "الإذن",
     "publicOn": "تشغيل",
@@ -623,7 +654,7 @@
     "inviteTitle": "دعوة الأصدقاء",
     "inviteTabFriends": "الأصدقاء",
     "inviteTabId": "المعرّف",
-    "statusTitle": "حالة المشاركة",
+    "statusTitle": "المشاركون",
     "statusTabMembers": "مُشارَكة {{count}}",
     "statusTabPending": "قيد الانتظار {{count}}",
     "permissionMismatch": "لدى أحدهم إذن أقل من هذا الإذن العام، لذا لا يمكن تطبيقه.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "تغيير معًا",
     "reviewMembers": "عرض الأشخاص",
     "selectedCount": "تم اختيار {{count}}",
-    "addPersonToInviteList": "إضافة {{name}} إلى قائمة الدعوات"
+    "addPersonToInviteList": "إضافة {{name}} إلى قائمة الدعوات",
+    "publicInfo": "يمكن لأي شخص يعرف رابط المجموعة الوصول إليها.\nيمكنك تعيين إذن موحّد للمستخدمين الذين يصلون إليها، ومنح المدعوين مباشرةً إذنًا أعلى بشكل منفصل.\nيمكن أيضًا تعديل الأذونات من قائمة المشاركين.",
+    "publicInfoA11y": "حول المجموعة العامة"
   },
   "linkShare": {
     "description": "مرّر رابط المجموعة العامة. لا يصبح المستلمون مشاركين في هذه المجموعة.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "إزالة {{name}}"
   },
   "submissions": {
-    "empty": "لا توجد روابط بانتظار الموافقة.",
-    "myEmpty": "لا توجد روابط لي بانتظار الموافقة.",
-    "myLoadError": "تعذّر تحميل روابطي المعلّقة.",
+    "empty": "طلبات الموافقة الواردة: لا شيء",
+    "myEmpty": "طلبات الموافقة المرسلة: لا شيء",
+    "myLoadError": "تعذّر تحميل الطلبات المرسلة.",
     "myStatus": "بانتظار الموافقة",
     "loadError": "تعذّر تحميل الروابط بانتظار الموافقة.",
     "approve": "موافقة",
@@ -662,7 +695,20 @@
     "unavailable": "لم يعد بالإمكان الموافقة على هذا الطلب.",
     "viaPublicLink": "مقترح عبر الرابط العام",
     "approveA11y": "الموافقة على {{title}}",
-    "rejectA11y": "رفض {{title}}"
+    "rejectA11y": "رفض {{title}}",
+    "mySheetTitle": "طلبات الموافقة المرسلة",
+    "ownerSheetTitle": "طلبات الموافقة الواردة",
+    "cancelRequest": "إلغاء الطلب",
+    "cancelRequestA11y": "إلغاء طلب الموافقة على {{title}}",
+    "cancelRequestConfirm": "هل تريد إلغاء طلب الموافقة؟",
+    "cancelRequestConfirmMessage": "سيختفي الرابط أيضًا من قائمة الموافقات لدى مالك المجموعة.",
+    "keepRequest": "إبقاء الطلب",
+    "alreadyProcessed": "تمت معالجة هذا الطلب بالفعل.",
+    "alreadyCancelledOrProcessed": "تم إلغاء هذا الطلب أو معالجته بالفعل.",
+    "cancelFailed": "تعذّر إلغاء الطلب. حاول مرة أخرى.",
+    "sharedCollectionShort": "مجموعة مشتركة",
+    "approveConfirmTitle": "هل تريد الموافقة على طلب هذا الرابط؟",
+    "approveConfirmMessage": "ستتم إضافة هذا الرابط إلى المجموعة عند الموافقة."
   },
   "friends": {
     "title": "الأصدقاء",
@@ -679,7 +725,7 @@
     "loadFallback": "تعذّر تحميل الأصدقاء.",
     "empty": "لا يوجد أصدقاء بعد.",
     "searchEmpty": "لا يوجد أصدقاء مطابقون.",
-    "note": "ملاحظتي",
+    "note": "ملاحظة",
     "noteInvalid": "استخدم 200 حرف كحد أقصى في سطر واحد.",
     "remove": "إزالة الصديق",
     "removeConfirmTitle": "إزالة هذا الصديق؟",
@@ -692,13 +738,14 @@
     "incomingEmpty": "لا توجد طلبات صداقة مستلمة.",
     "outgoingEmpty": "لا توجد طلبات صداقة مرسلة.",
     "requestPending": "الطلب قيد الانتظار",
-    "noteHelper": "مرئي لك فقط",
     "lookupHint": "ابحث عن صديق باستخدام معرّف Juple.",
     "incomingFromThem": "أرسل إليك هذا الشخص طلب صداقة.",
     "viewIncoming": "عرض الطلبات المستلمة",
     "acceptA11y": "قبول طلب الصداقة من {{name}}",
     "declineA11y": "رفض طلب الصداقة من {{name}}",
-    "cancelA11y": "إلغاء طلب الصداقة المرسل إلى {{name}}"
+    "cancelA11y": "إلغاء طلب الصداقة المرسل إلى {{name}}",
+    "personTitle": "معلومات المستخدم",
+    "you": "أنت"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "الإشعارات، غير المقروءة: {{count}}",
     "bannerAnnouncement": "إشعار جديد: {{title}}. {{body}}",
     "bannerHint": "انقر للفتح. اسحب لأعلى للإغلاق."
+  },
+  "contact": {
+    "title": "اتصل بنا",
+    "description": "إذا كانت لديك أي استفسارات حول Juple، يُرجى مراسلتنا عبر البريد الإلكتروني.",
+    "sendEmail": "إرسال بريد إلكتروني",
+    "subject": "استفسار عن Juple",
+    "noMailApp": "تعذّر فتح تطبيق البريد. يُرجى مراسلة {{email}} مباشرةً.",
+    "copyEmail": "نسخ عنوان البريد الإلكتروني"
   }
 }

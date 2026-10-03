@@ -4,6 +4,7 @@ import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import type { Collection } from './api/collectionsApi';
 import { contentGateOf, isSharedWithMe } from './collectionAccess';
 import { CollectionUnlockPanel } from './CollectionUnlockPanel';
+import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 interface CollectionUnlockDialogProps {
   /** The locked Collection to ask the password for; null = closed. */
@@ -23,7 +24,7 @@ export function CollectionUnlockDialog({ collection, onGranted, onCancel }: Coll
   const { t } = useTranslation();
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={collection !== null}>
-      <View style={styles.overlay}>
+      <KeyboardSafeView style={styles.overlay}>
         {collection ? (
           <View style={styles.container} testID="collection-unlock-dialog">
             <Text numberOfLines={2} style={styles.name}>{collection.name}</Text>
@@ -39,7 +40,7 @@ export function CollectionUnlockDialog({ collection, onGranted, onCancel }: Coll
             </Pressable>
           </View>
         ) : null}
-      </View>
+      </KeyboardSafeView>
     </Modal>
   );
 }

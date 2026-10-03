@@ -54,8 +54,7 @@
     "newLinkReview": "Tinjau Tautan Baru",
     "trash": "Baru Dihapus",
     "collectionSharedItem": "Tautan dibagikan",
-    "collectionSubmissions": "Tautan menunggu persetujuan",
-    "myCollectionSubmissions": "Persetujuan saya yang tertunda",
+    "myCollectionSubmissions": "Permintaan persetujuan terkirim",
     "collectionShare": "Bagikan",
     "collectionLockSettings": "Kunci koleksi"
   },
@@ -92,7 +91,8 @@
     "retry": "Coba lagi",
     "deleteConfirmTitle": "Hapus item",
     "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
-    "errorDeleteFallback": "Tidak dapat menghapus item."
+    "errorDeleteFallback": "Tidak dapat menghapus item.",
+    "searchMinHint": "Masukkan minimal 2 karakter."
   },
   "collections": {
     "attentionA11y": "{{name}}, {{count}} item perlu perhatian",
@@ -137,9 +137,9 @@
     "copyClearAllA11y": "Batalkan semua pilihan",
     "copySelectUpTo": "Pilih hingga {{max}}",
     "detailItemCount": "Total {{count}}",
-    "myPendingSubmissions": "Menunggu persetujuan saya {{count}}",
-    "myPendingSubmissionsA11y": "Lihat {{count}} tautan saya yang menunggu persetujuan",
-    "myPendingA11y": "Persetujuan saya yang tertunda: {{count}}",
+    "myPendingSubmissions": "Permintaan persetujuan terkirim {{count}}",
+    "myPendingSubmissionsA11y": "Lihat {{count}}: Permintaan persetujuan terkirim",
+    "myPendingA11y": "Permintaan persetujuan terkirim: {{count}}",
     "favoritesTitle": "Favorit",
     "allCollectionsTitle": "Semua koleksi",
     "addFavorite": "Tambahkan ke favorit",
@@ -211,7 +211,22 @@
     "createConfirmA11y": "Simpan koleksi",
     "errorColorUpdateFallback": "Gagal memperbarui warna.",
     "favoritesEmpty": "Tidak ada favorit.",
-    "allCollectionsEmpty": "Tidak ada koleksi.", "manageAction": "Kelola koleksi", "itemManageAction": "Tindakan link lainnya", "addToOther": "Duplikat ke koleksi lain", "moveToOther": "Pindahkan ke koleksi lain", "mergeWithOther": "Gabungkan dengan koleksi lain", "targetPickerTitle": "Pilih koleksi", "moveTitle": "Pindahkan link", "moveAction": "Pindahkan", "moveConfirmMessage": "Pindahkan link ini ke \"{{target}}\"?", "moveError": "Tidak dapat memindahkan link.", "mergeTitle": "Gabungkan koleksi", "mergeAction": "Gabungkan", "mergeConfirmMessage": "Gabungkan \"{{source}}\" ke \"{{target}}\"? Link akan digabungkan dan koleksi ini akan dihapus.", "mergeError": "Tidak dapat menggabungkan koleksi.", "errorTargetLoadFallback": "Tidak dapat memuat koleksi.",
+    "allCollectionsEmpty": "Tidak ada koleksi.",
+    "manageAction": "Kelola koleksi",
+    "itemManageAction": "Tindakan link lainnya",
+    "addToOther": "Duplikat ke koleksi lain",
+    "moveToOther": "Pindahkan ke koleksi lain",
+    "mergeWithOther": "Gabungkan dengan koleksi lain",
+    "targetPickerTitle": "Pilih koleksi",
+    "moveTitle": "Pindahkan link",
+    "moveAction": "Pindahkan",
+    "moveConfirmMessage": "Pindahkan link ini ke \"{{target}}\"?",
+    "moveError": "Tidak dapat memindahkan link.",
+    "mergeTitle": "Gabungkan koleksi",
+    "mergeAction": "Gabungkan",
+    "mergeConfirmMessage": "Gabungkan \"{{source}}\" ke \"{{target}}\"? Link akan digabungkan dan koleksi ini akan dihapus.",
+    "mergeError": "Tidak dapat menggabungkan koleksi.",
+    "errorTargetLoadFallback": "Tidak dapat memuat koleksi.",
     "myCategoriesTab": "Koleksi saya",
     "sharedCategoriesTab": "Dibagikan",
     "sharedEmpty": "Belum ada koleksi yang dibagikan.",
@@ -264,8 +279,8 @@
     "saveOutcomeAlreadyPending": "Di koleksi yang kamu pilih, tautan ini sudah menunggu persetujuan.",
     "saveOutcomeAlreadyInCollection": "Koleksi yang kamu pilih sudah berisi tautan ini.",
     "roleSubmitter": "Perlu persetujuan",
-    "pendingSubmissions": "Menunggu {{count}}",
-    "pendingSubmissionsA11y": "Lihat {{count}} tautan yang menunggu persetujuan",
+    "pendingSubmissions": "Permintaan persetujuan diterima {{count}}",
+    "pendingSubmissionsA11y": "Lihat {{count}}: Permintaan persetujuan diterima",
     "removeFromSharedOwnerOnly": "Hanya pemilik yang dapat menghapus tautan dari koleksi yang dibagikan dengan Anda.",
     "removeFromCollection": "Hapus dari koleksi",
     "iconPhotoChoose": "Pilih foto",
@@ -311,12 +326,25 @@
     "sharePasswordLabel": "Kata sandi akses",
     "sharePasswordWrong": "Kata sandi tidak benar.",
     "sharePasswordContactOwner": "Tanyakan kata sandi akses kepada orang yang membagikan koleksi ini.",
-    "sharePasswordRequiredForAction": "Buka koleksi dan masukkan kata sandi aksesnya terlebih dahulu."
+    "sharePasswordRequiredForAction": "Buka koleksi dan masukkan kata sandi aksesnya terlebih dahulu.",
+    "sortNameAscA11y": "Nama, A ke Z",
+    "sortNameDescA11y": "Nama, Z ke A"
   },
-  "toast": { "moveSuccess": "Dipindahkan.", "undoAction": "Urungkan", "undoMoveError": "Tidak dapat mengurungkan pemindahan.", "deleteSuccess": "Dihapus.", "undoDeleteError": "Tidak dapat mengurungkan penghapusan.", "unlinkSuccess": "Dihapus dari koleksi.", "undoUnlinkError": "Tidak dapat mengurungkan penghapusan dari koleksi.", "collectionDeleteSuccess": "Koleksi dihapus.", "undoCollectionDeleteError": "Tidak dapat mengurungkan penghapusan koleksi.", "collectionMergeSuccess": "Koleksi digabungkan.", "undoCollectionMergeError": "Tidak dapat mengurungkan penggabungan koleksi." },
+  "toast": {
+    "moveSuccess": "Dipindahkan.",
+    "undoAction": "Urungkan",
+    "undoMoveError": "Tidak dapat mengurungkan pemindahan.",
+    "deleteSuccess": "Dihapus.",
+    "undoDeleteError": "Tidak dapat mengurungkan penghapusan.",
+    "unlinkSuccess": "Dihapus dari koleksi.",
+    "undoUnlinkError": "Tidak dapat mengurungkan penghapusan dari koleksi.",
+    "collectionDeleteSuccess": "Koleksi dihapus.",
+    "undoCollectionDeleteError": "Tidak dapat mengurungkan penghapusan koleksi.",
+    "collectionMergeSuccess": "Koleksi digabungkan.",
+    "undoCollectionMergeError": "Tidak dapat mengurungkan penggabungan koleksi."
+  },
   "myPage": {
     "title": "Halaman Saya",
-    "settings": "Pengaturan",
     "signOutConfirmTitle": "Keluar?",
     "signOutConfirmMessage": "Anda perlu masuk lagi untuk melanjutkan.",
     "deleteAccountErrorFallback": "Tidak dapat menghapus akun Anda. Silakan coba lagi.",
@@ -377,9 +405,9 @@
   },
   "settings": {
     "language": "Bahasa",
-    "quickSaveOnShare": "Simpan instan saat berbagi",
-    "quickSaveOnShareOnDescription": "Membagikan tautan dari YouTube, Instagram, dan aplikasi lain akan langsung menyimpannya ke Juple tanpa membuka aplikasi.",
-    "quickSaveOnShareOffDescription": "Setelah berbagi, Juple akan terbuka agar Anda dapat meninjau detail tautan dan memilih koleksi sebelum menyimpan.",
+    "quickSaveOnShare": "Simpan cepat",
+    "quickSaveOnShareOnDescription": "Tautan yang Anda bagikan ke Juple dari aplikasi lain langsung disimpan, tanpa layar peninjauan.",
+    "quickSaveOnShareOffDescription": "Tautan yang Anda bagikan ke Juple membuka layar peninjauan untuk memeriksa detail dan memilih koleksi sebelum menyimpan.",
     "trash": "Baru Dihapus",
     "collectionLock": "Kunci koleksi",
     "collectionLockDescription": "Atur kata sandi untuk koleksi Anda.",
@@ -521,7 +549,10 @@
     "limitNotice": "Anda dapat melihat hingga {{count}} riwayat penghapusan terbaru.",
     "restoreConfirmTitle": "Pulihkan?",
     "restoreConfirmMessage": "Tautan yang dihapus akan dipulihkan.",
-    "restoreConfirmAction": "Pulihkan"
+    "restoreConfirmAction": "Pulihkan",
+    "openLink": "Buka tautan",
+    "moreA11y": "Tindakan lainnya",
+    "emptyA11y": "Kosongkan Baru Dihapus"
   },
   "collaboration": {
     "jupleIdLabel": "ID Juple",
@@ -596,7 +627,7 @@
     "addSelectedFriends": "Tambah {{count}}",
     "alreadyMember": "Sudah bergabung",
     "alreadyAdded": "Ditambahkan",
-    "allUsersTitle": "Koleksi publik",
+    "allUsersTitle": "Pengaturan koleksi publik",
     "belowPublicPermission": "Anda tidak dapat memberi izin yang lebih rendah dari izin publik koleksi.",
     "permissionLabel": "Izin",
     "publicOn": "AKTIF",
@@ -623,7 +654,7 @@
     "inviteTitle": "Undang teman",
     "inviteTabFriends": "Teman",
     "inviteTabId": "ID",
-    "statusTitle": "Status berbagi",
+    "statusTitle": "Peserta",
     "statusTabMembers": "Dibagikan {{count}}",
     "statusTabPending": "Tertunda {{count}}",
     "permissionMismatch": "Ada pengguna dengan izin lebih rendah dari izin publik ini, jadi izin ini tidak dapat diterapkan.",
@@ -633,7 +664,9 @@
     "raiseRolesConfirm": "Ubah bersamaan",
     "reviewMembers": "Lihat orang",
     "selectedCount": "{{count}} dipilih",
-    "addPersonToInviteList": "Tambahkan {{name}} ke daftar undangan"
+    "addPersonToInviteList": "Tambahkan {{name}} ke daftar undangan",
+    "publicInfo": "Siapa pun yang mengetahui tautan koleksi dapat mengaksesnya.\nAnda dapat menetapkan izin umum untuk pengguna yang mengakses, dan memberi izin yang lebih tinggi secara terpisah kepada pengguna yang diundang langsung.\nIzin juga dapat diubah di daftar peserta.",
+    "publicInfoA11y": "Tentang koleksi publik"
   },
   "linkShare": {
     "description": "Teruskan tautan koleksi publik. Penerima tidak menjadi peserta koleksi ini.",
@@ -647,9 +680,9 @@
     "removeRecipientA11y": "Hapus {{name}}"
   },
   "submissions": {
-    "empty": "Tidak ada tautan yang menunggu persetujuan.",
-    "myEmpty": "Tidak ada tautan saya yang menunggu persetujuan.",
-    "myLoadError": "Tidak dapat memuat tautan saya yang tertunda.",
+    "empty": "Permintaan persetujuan diterima: tidak ada",
+    "myEmpty": "Permintaan persetujuan terkirim: tidak ada",
+    "myLoadError": "Tidak dapat memuat permintaan terkirim.",
     "myStatus": "Menunggu persetujuan",
     "loadError": "Tidak dapat memuat daftar yang menunggu persetujuan.",
     "approve": "Setujui",
@@ -662,7 +695,20 @@
     "unavailable": "Permintaan ini tidak dapat disetujui lagi.",
     "viaPublicLink": "Diusulkan lewat tautan publik",
     "approveA11y": "Setujui {{title}}",
-    "rejectA11y": "Tolak {{title}}"
+    "rejectA11y": "Tolak {{title}}",
+    "mySheetTitle": "Permintaan persetujuan terkirim",
+    "ownerSheetTitle": "Permintaan persetujuan diterima",
+    "cancelRequest": "Batalkan permintaan",
+    "cancelRequestA11y": "Batalkan permintaan persetujuan untuk {{title}}",
+    "cancelRequestConfirm": "Batalkan permintaan persetujuan?",
+    "cancelRequestConfirmMessage": "Tautan juga akan hilang dari daftar persetujuan pemilik koleksi.",
+    "keepRequest": "Pertahankan permintaan",
+    "alreadyProcessed": "Permintaan ini sudah diproses.",
+    "alreadyCancelledOrProcessed": "Permintaan ini sudah dibatalkan atau diproses.",
+    "cancelFailed": "Tidak dapat membatalkan permintaan. Coba lagi.",
+    "sharedCollectionShort": "Koleksi bersama",
+    "approveConfirmTitle": "Setujui permintaan tautan ini?",
+    "approveConfirmMessage": "Dengan menyetujui, tautan ini ditambahkan ke koleksi."
   },
   "friends": {
     "title": "Teman",
@@ -679,7 +725,7 @@
     "loadFallback": "Tidak dapat memuat teman.",
     "empty": "Belum ada teman.",
     "searchEmpty": "Tidak ada teman yang cocok.",
-    "note": "Catatan saya",
+    "note": "Catatan",
     "noteInvalid": "Gunakan maksimal 200 karakter dalam satu baris.",
     "remove": "Hapus teman",
     "removeConfirmTitle": "Hapus teman ini?",
@@ -692,13 +738,14 @@
     "incomingEmpty": "Tidak ada permintaan pertemanan yang diterima.",
     "outgoingEmpty": "Tidak ada permintaan pertemanan yang dikirim.",
     "requestPending": "Permintaan tertunda",
-    "noteHelper": "Hanya Anda yang dapat melihat",
     "lookupHint": "Temukan teman dengan Juple ID mereka.",
     "incomingFromThem": "Orang ini telah mengirimi Anda permintaan pertemanan.",
     "viewIncoming": "Lihat permintaan yang diterima",
     "acceptA11y": "Terima permintaan pertemanan dari {{name}}",
     "declineA11y": "Tolak permintaan pertemanan dari {{name}}",
-    "cancelA11y": "Batalkan permintaan pertemanan ke {{name}}"
+    "cancelA11y": "Batalkan permintaan pertemanan ke {{name}}",
+    "personTitle": "Info pengguna",
+    "you": "Anda"
   },
   "notifications": {
     "title": "Notifikasi",
@@ -712,5 +759,13 @@
     "bellUnreadA11y": "Notifikasi, {{count}} belum dibaca",
     "bannerAnnouncement": "Notifikasi baru: {{title}}. {{body}}",
     "bannerHint": "Ketuk untuk membuka. Geser ke atas untuk menutup."
+  },
+  "contact": {
+    "title": "Hubungi kami",
+    "description": "Jika Anda memiliki pertanyaan tentang Juple, kirimi kami email.",
+    "sendEmail": "Kirim email",
+    "subject": "Pertanyaan Juple",
+    "noMailApp": "Tidak dapat membuka aplikasi email. Silakan kirim email langsung ke {{email}}.",
+    "copyEmail": "Salin alamat email"
   }
 }
