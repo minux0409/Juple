@@ -2,6 +2,7 @@ import { AppRegistry } from 'react-native';
 import NativeIncomingShare from './specs/NativeIncomingShare';
 import { notifyAutoSaveSettled } from './autoSaveInFlight';
 import { resolveIncomingShare } from './resolveIncomingShare';
+import { COLLECTION_SHARE_URL_NOT_SAVABLE_CODE, parseCollectionShareUrl } from './collectionShareUrl';
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
 import { ApiError } from '../api/ApiError';
@@ -61,6 +62,10 @@ type AttemptOutcome =
  */
 function classifySaveFailure(error: unknown): AttemptOutcome {
   if (error instanceof ApiError) {
+    // The server's Collection-share-link invariant: nothing to retry or give up on - the app opens the Collection.
+    if (error.kind === 'badRequest' && error.code === COLLECTION_SHARE_URL_NOT_SAVABLE_CODE) {
+      return 'reviewRequired';
+    }
     switch (error.kind) {
       case 'unauthorized':
         return 'authenticationRequired';
@@ -159,7 +164,9 @@ async function incomingShareHeadlessTask(
       titleSource: resolvedShare.titleSource,
     });
   }
-  if (resolvedShare.kind !== 'exactUrl') {
+  // A Juple Collection share link is never saved as a link: left pending, the app's IncomingShareRouter opens
+  // the Collection (the same "needs the app" outcome as text that is not one exact URL).
+  if (resolvedShare.kind !== 'exactUrl' || parseCollectionShareUrl(resolvedShare.text) !== null) {
     await reportOutcome(pendingShareId, 'reviewRequired');
     return;
   }

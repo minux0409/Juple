@@ -292,8 +292,8 @@
     "lockContactOwner": "Koleksi ini memerlukan kata sandi kunci yang ditetapkan pemiliknya.",
     "lockRemoveConfirmTitle": "Hapus kunci?",
     "lockRemoveConfirmMessage": "Masukkan kata sandi kunci untuk membuka kunci koleksi.",
-    "shareRequests": "Permintaan berbagi",
-    "shareRequestCount": "Permintaan berbagi: {{count}}",
+    "shareRequests": "Undangan diterima",
+    "shareRequestCount": "Undangan diterima: {{count}}",
     "roleViewer": "Hanya baca",
     "lockConfirmTitle": "Kunci koleksi ini?",
     "lockConfirmMessage": "Lindungi koleksi ini di akun Anda dengan kata sandi kunci.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Tanyakan kata sandi akses kepada orang yang membagikan koleksi ini.",
     "sharePasswordRequiredForAction": "Buka koleksi dan masukkan kata sandi aksesnya terlebih dahulu.",
     "sortNameAscA11y": "Nama, A ke Z",
-    "sortNameDescA11y": "Nama, Z ke A"
+    "sortNameDescA11y": "Nama, Z ke A",
+    "pickerCollectionUnavailable": "Koleksi ini tidak lagi tersedia.",
+    "leaveAction": "Keluar dari koleksi",
+    "leaveConfirmTitle": "Keluar dari koleksi?",
+    "leaveConfirmMessage": "Jika keluar, koleksi ini akan dihapus dari daftarmu.",
+    "leaveConfirmButton": "Keluar",
+    "leaveError": "Tidak dapat keluar dari koleksi. Coba lagi nanti."
   },
   "toast": {
     "moveSuccess": "Dipindahkan.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Anda memiliki tautan yang sedang dikerjakan",
     "activeDraftConflictMessage": "Simpan tautan yang sedang Anda kerjakan sebelum memeriksa tautan baru?",
     "saveDraftAndContinue": "Simpan dan lanjutkan",
-    "discardDraftAndContinue": "Buang dan lanjutkan"
+    "discardDraftAndContinue": "Buang dan lanjutkan",
+    "newCollectionChip": "Koleksi baru",
+    "newCollectionA11y": "Buat koleksi baru",
+    "saveDialogTitle": "Simpan tautan",
+    "addMemo": "Tambah catatan",
+    "collectionLinkNotSavable": "Tautan koleksi Juple tidak dapat disimpan sebagai tautan biasa. Buka sebagai koleksi."
   },
   "sharedCollection": {
     "itemsEmpty": "Koleksi bersama ini belum memiliki tautan yang disimpan.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Undangan ini sudah tidak berlaku.",
     "invitationResponseFallback": "Tidak dapat menanggapi undangan.",
     "invitationsLoadFallback": "Tidak dapat memuat undangan.",
-    "invitationsEmpty": "Tidak ada permintaan berbagi.",
+    "invitationsEmpty": "Belum ada undangan diterima.",
     "invitationAccepted": "Ditambahkan ke koleksi yang dibagikan.",
     "accept": "Terima",
     "decline": "Tolak",
@@ -745,7 +756,10 @@
     "declineA11y": "Tolak permintaan pertemanan dari {{name}}",
     "cancelA11y": "Batalkan permintaan pertemanan ke {{name}}",
     "personTitle": "Info pengguna",
-    "you": "Anda"
+    "you": "Anda",
+    "requestCancelledByRequester": "Pengirim membatalkan permintaan pertemanan ini.",
+    "requestNoLongerPending": "Permintaan pertemanan ini sudah diproses.",
+    "requestDialogTitle": "Permintaan pertemanan"
   },
   "notifications": {
     "title": "Notifikasi",
@@ -758,7 +772,16 @@
     "bellA11y": "Notifikasi",
     "bellUnreadA11y": "Notifikasi, {{count}} belum dibaca",
     "bannerAnnouncement": "Notifikasi baru: {{title}}. {{body}}",
-    "bannerHint": "Ketuk untuk membuka. Geser ke atas untuk menutup."
+    "bannerHint": "Ketuk untuk membuka. Geser ke atas untuk menutup.",
+    "groupToday": "Hari ini",
+    "groupYesterday": "Kemarin",
+    "groupLast7Days": "7 hari terakhir",
+    "groupLast30Days": "30 hari terakhir",
+    "groupOlder": "Sebelumnya",
+    "daysAgo": "{{count}} hr",
+    "deleteA11y": "Hapus notifikasi",
+    "deleteFailed": "Gagal menghapus notifikasi.",
+    "loadErrorTitle": "Gagal memuat notifikasi"
   },
   "contact": {
     "title": "Hubungi kami",
@@ -767,5 +790,24 @@
     "subject": "Pertanyaan Juple",
     "noMailApp": "Tidak dapat membuka aplikasi email. Silakan kirim email langsung ke {{email}}.",
     "copyEmail": "Salin alamat email"
+  },
+  "importantState": {
+    "offlineTitle": "Tidak dapat terhubung",
+    "loadFailedTitle": "Gagal memuat",
+    "retry": "Coba lagi",
+    "offlineMessage": "Periksa koneksi internetmu lalu coba lagi."
+  },
+  "calendar": {
+    "previousMonthA11y": "Bulan sebelumnya",
+    "nextMonthA11y": "Bulan berikutnya",
+    "today": "Hari ini",
+    "dayCountA11y": "{{count}} tautan",
+    "monthLoadError": "Gagal memuat kalender.",
+    "dayLoadError": "Gagal memuat tautan hari ini.",
+    "dayEmpty": "Tidak ada tautan yang disimpan pada hari ini.",
+    "collectionDayEmpty": "Tidak ada tautan yang ditambahkan pada hari ini.",
+    "pickDate": "Pilih tanggal",
+    "selectedDateLabel": "Tanggal: {{date}}",
+    "clearDateA11y": "Hapus filter tanggal"
   }
 }

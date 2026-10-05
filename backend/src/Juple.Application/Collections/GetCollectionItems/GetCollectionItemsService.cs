@@ -44,6 +44,21 @@ public sealed class GetCollectionItemsService(
         return await EnrichAsync(userId, collectionId, page, representativeImages, coverImages, cancellationToken);
     }
 
+    public Task<CollectionItemPage> GetByDateAsync(
+        long userId,
+        long collectionId,
+        string timeZoneId,
+        DateOnly date,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        string? unlockToken = null,
+        CancellationToken cancellationToken = default)
+    {
+        var range = Juple.Application.Inbox.GetDailyInbox.DailyInboxDateRangeCalculator.Calculate(date, timeZoneId);
+        return GetRangeAsync(userId, collectionId, range.FromUtc, range.ToUtc, cursor, limit, sort, unlockToken, cancellationToken);
+    }
+
     private async Task<CollectionItemPage> EnrichAsync(
         long userId,
         long collectionId,

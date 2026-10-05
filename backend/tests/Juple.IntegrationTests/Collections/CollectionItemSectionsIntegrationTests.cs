@@ -116,6 +116,36 @@ public sealed class CollectionItemSectionsIntegrationTests : IAsyncLifetime
 
     private GetCollectionItemsService Items() => new(_access, _collections, new NoImages());
 
+    private GetCollectionItemCalendarService Calendar() => new(_access, _collections);
+
+    [Fact]
+    public async Task TheCalendar_IsPerLocalDayCounts_OfWhenLinksWereAddedHere_AgreeingWithTheSections()
+    {
+        var september = await Calendar().GetAsync(_owner, _bigId, Seoul, 2026, 9);
+
+        var days = september.Days.ToDictionary(day => day.Date, day => day.Count);
+        Assert.Equal(10, days["2026-09-30"]);
+        Assert.Equal(20, days["2026-09-29"]); // local midnight belongs to the day it starts
+        Assert.Equal(30, days["2026-09-27"] + days["2026-09-28"]);
+        Assert.All(september.Days, day => Assert.True(day.Count > 0));
+        Assert.Equal(10 + 20 + 30 + 140, september.Days.Sum(day => day.Count));
+
+        // Trash and other Collections' links never count; the tied 30 are all on their day.
+        var august = (await Calendar().GetAsync(_owner, _bigId, Seoul, 2026, 8)).Days.ToDictionary(day => day.Date, day => day.Count);
+        Assert.Equal(500, august.Values.Sum());
+        Assert.True(august["2026-08-15"] >= 30);
+        Assert.Equal(25, (await Calendar().GetAsync(_owner, _otherId, Seoul, 2026, 8)).Days.Sum(day => day.Count));
+        Assert.Equal(1, (await Calendar().GetAsync(_owner, _smallId, Seoul, 2026, 9)).Days.Sum(day => day.Count));
+    }
+
+    [Fact]
+    public async Task TheCalendar_KeepsTheListsGates_AndRejectsAnInvalidMonth()
+    {
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => Calendar().GetAsync(_stranger, _bigId, Seoul, 2026, 9));
+        await Assert.ThrowsAsync<Juple.Application.Items.GetItemHistoryCalendar.InvalidCalendarMonthException>(
+            () => Calendar().GetAsync(_owner, _bigId, Seoul, 2026, 14));
+    }
+
     [Fact]
     public async Task TheSummary_IsExactCountsPerSection_WithoutAnyLinkData()
     {

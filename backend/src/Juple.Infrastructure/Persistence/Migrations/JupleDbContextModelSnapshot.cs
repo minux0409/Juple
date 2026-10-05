@@ -1107,7 +1107,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Id")
                         .HasDatabaseName("IX_Notifications_Inbox")
-                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12)");
+                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14)");
 
                     b.HasIndex("Type", "RepeatPurchaseId", "DueDate")
                         .IsUnique()
@@ -1119,13 +1119,13 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Type", "CollectionId")
                         .HasDatabaseName("IX_Notifications_Unread")
-                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12)");
+                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14)");
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("UserId", "Type", "CollectionId"), new[] { "ReadAtUtc" });
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)");
                         });
                 });
 
@@ -1208,6 +1208,9 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.Property<int?>("ItemCount")
                         .HasColumnType("int");
 
+                    b.Property<long?>("ItemId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset?>("LastAttemptAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -1266,7 +1269,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_NotificationEvents_Status_Valid", "[Status] IN (0, 1, 2)");
 
-                            t.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)");
+                            t.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)");
                         });
                 });
 

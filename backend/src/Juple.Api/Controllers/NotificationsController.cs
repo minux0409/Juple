@@ -59,6 +59,17 @@ public sealed class NotificationsController(
             result => Ok(result),
             cancellationToken);
 
+    /// <summary>
+    /// Removes one of the caller's own notifications (the swipe-delete). 404 for anyone else's id or one that
+    /// is already gone. What the notification was about is untouched; the result carries the new unread count.
+    /// </summary>
+    [HttpDelete("{notificationId:long}")]
+    public Task<IActionResult> DeleteAsync(long notificationId, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => inboxService.DeleteAsync(userId, notificationId, cancellationToken),
+            result => Ok(result),
+            cancellationToken);
+
     [HttpPost("read-all")]
     public Task<IActionResult> MarkAllReadAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(

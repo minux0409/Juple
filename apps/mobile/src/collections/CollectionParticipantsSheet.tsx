@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
+import { ImportantState } from '../components/ImportantState';
 import { UserAvatar } from '../components/UserAvatar';
 import { usePersonProfile } from '../friends/PersonProfileModal';
 import { OwnerCrown } from './OwnerCrown';
@@ -143,14 +144,16 @@ export function CollectionParticipantsSheet({
               </>
             ) : null}
             {viewMode === 'list' ? data?.participants.map(participant => (
-              <View key={participant.jupleId} style={styles.row} testID={`participants-sheet-${participant.jupleId}`}>
-                <Pressable
-                  accessibilityLabel={`${personLabel(participant)}, ${t('friends.personTitle')}`}
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => openProfile({ jupleId: participant.jupleId, displayName: participant.displayName, profileImageUrl: participant.profileImageUrl, profileImageVersion: participant.profileImageVersion, isSelf: participant.isMe })}
-                  testID={`participants-sheet-avatar-${participant.jupleId}`}
-                >
+              // The WHOLE row opens the person - no need to hit the small avatar.
+              <Pressable
+                accessibilityLabel={`${personLabel(participant)}, ${t('friends.personTitle')}`}
+                accessibilityRole="button"
+                key={participant.jupleId}
+                onPress={() => openProfile({ jupleId: participant.jupleId, displayName: participant.displayName, profileImageUrl: participant.profileImageUrl, profileImageVersion: participant.profileImageVersion, isSelf: participant.isMe })}
+                style={styles.row}
+                testID={`participants-sheet-${participant.jupleId}`}
+              >
+                <View testID={`participants-sheet-avatar-${participant.jupleId}`}>
                   <UserAvatar
                     displayName={participant.displayName}
                     imageUrl={participant.profileImageUrl}
@@ -158,7 +161,7 @@ export function CollectionParticipantsSheet({
                     jupleId={participant.jupleId}
                     size={32}
                   />
-                </Pressable>
+                </View>
                 <View style={styles.rowText}>
                   <View style={styles.nameRow}>
                     {participant.role === 'owner' ? <OwnerCrown /> : null}
@@ -171,20 +174,21 @@ export function CollectionParticipantsSheet({
                     {formatJupleId(participant.jupleId)}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             )) : null}
             {viewMode === 'list' && canManage && data && data.pendingInvitations.length > 0 ? (
               <>
                 <Text style={styles.sectionTitle}>{t('collaboration.pendingCollaborationTitle')}</Text>
                 {data.pendingInvitations.map(invitation => (
-                  <View key={invitation.invitationId} style={styles.row} testID={`participants-sheet-pending-${invitation.invitationId}`}>
-                    <Pressable
-                      accessibilityLabel={`${personLabel(invitation)}, ${t('friends.personTitle')}`}
-                      accessibilityRole="button"
-                      hitSlop={6}
-                      onPress={() => openProfile({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion })}
-                      testID={`participants-sheet-pending-avatar-${invitation.invitationId}`}
-                    >
+                  <Pressable
+                    accessibilityLabel={`${personLabel(invitation)}, ${t('friends.personTitle')}`}
+                    accessibilityRole="button"
+                    key={invitation.invitationId}
+                    onPress={() => openProfile({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion })}
+                    style={styles.row}
+                    testID={`participants-sheet-pending-${invitation.invitationId}`}
+                  >
+                    <View testID={`participants-sheet-pending-avatar-${invitation.invitationId}`}>
                       <UserAvatar
                         displayName={invitation.displayName}
                         imageUrl={invitation.profileImageUrl}
@@ -192,17 +196,17 @@ export function CollectionParticipantsSheet({
                         jupleId={invitation.jupleId}
                         size={32}
                       />
-                    </Pressable>
+                    </View>
                     <View style={styles.rowText}>
                       <Text numberOfLines={1} style={styles.name}>{personLabel(invitation)}</Text>
                       <Text style={styles.role}>{t(participantRoleLabelKey(invitationRoleOf(invitation.role)))}</Text>
                     </View>
-                  </View>
+                  </Pressable>
                 ))}
               </>
             ) : null}
           </ScrollView>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error && !data ? <ImportantState compact message={error} onRetry={load} testID="participants-sheet-error" /> : error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
             <Text style={styles.closeLabel}>{t('common.close')}</Text>
           </Pressable>

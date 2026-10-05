@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
+import { useMessageDialog } from '../components/useMessageDialog';
+import { AppModal } from '../components/AppModal';
 import { useAppToast } from '../components/AppToast';
 import { UserAvatar } from '../components/UserAvatar';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -50,7 +51,7 @@ interface ReceivedInvitationsSheetProps {
 }
 
 /**
- * 공유 요청 (opened from Categories > 공유 카테고리): collaboration invitations other Owners sent to
+ * 받은 초대 요청 (opened from Collections > 공유 컬렉션): collaboration invitations other Owners sent to
  * the signed-in user. Accepting makes them a Contributor - the Category then appears under 공유
  * 카테고리; only the invited account can see or answer these. Invitations this user SENT are a
  * different thing, managed on each Category's Share screen.
@@ -64,17 +65,16 @@ export function ReceivedInvitationsSheet({
   onStale,
 }: ReceivedInvitationsSheetProps) {
   const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
   const { showNotificationToast } = useAppToast();
   const [busyInvitationId, setBusyInvitationId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // An invitation that is no longer open (withdrawn meanwhile...) is an operation's result: a centered message, never an inline red line.
+  const { showMessage, messageDialog } = useMessageDialog();
 
   const respond = async (invitation: ReceivedCollectionInvitation, accept: boolean) => {
     if (busyInvitationId !== null) {
       return;
     }
     setBusyInvitationId(invitation.invitationId);
-    setError(null);
     try {
       if (accept) {
         await acceptCollectionInvitation(authenticatedRequest, invitation.invitationId);
@@ -84,7 +84,7 @@ export function ReceivedInvitationsSheet({
       }
       onResponded(invitation.invitationId, accept);
     } catch (caughtError) {
-      setError(getResponseErrorMessage(caughtError, t));
+      showMessage(getResponseErrorMessage(caughtError, t));
       onStale();
     } finally {
       setBusyInvitationId(null);
@@ -92,16 +92,9 @@ export function ReceivedInvitationsSheet({
   };
 
   return (
-    <Modal animationType="slide" onRequestClose={onClose} transparent visible={visible}>
-      <View style={styles.overlay}>
-        <Pressable
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          onPress={onClose}
-          style={StyleSheet.absoluteFill}
-        />
-        <View accessibilityViewIsModal style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]} testID="share-requests-sheet">
-          <Text style={styles.title}>{t('collections.shareRequests')}</Text>
+    // A centered popup (fade, no dim sheet sliding up from the bottom): a short list of requests.
+    <AppModal dismissible={busyInvitationId === null} onClose={onClose} testID="share-requests-sheet" title={t('collections.shareRequests')} visible={visible}>
+      <View>
           <ScrollView style={styles.list}>
             {invitations.length === 0 ? <Text style={styles.empty}>{t('collaboration.invitationsEmpty')}</Text> : null}
             {invitations.map(invitation => {
@@ -157,30 +150,14 @@ export function ReceivedInvitationsSheet({
               );
             })}
           </ScrollView>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
-            <Text style={styles.closeLabel}>{t('common.close')}</Text>
-          </Pressable>
-        </View>
+          {messageDialog}
       </View>
-    </Modal>
+    </AppModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { backgroundColor: 'rgba(0,0,0,0.4)', flex: 1, justifyContent: 'flex-end' },
-  sheet: {
-    alignSelf: 'center',
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    maxHeight: '80%',
-    maxWidth: 640,
-    padding: spacing.lg,
-    width: '100%',
-  },
-  title: { color: colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: spacing.sm },
-  list: { flexGrow: 0 },
+  list: { flexGrow: 0, maxHeight: 420 },
   empty: { color: colors.textSecondary, fontSize: 14, paddingVertical: spacing.lg, textAlign: 'center' },
   card: { backgroundColor: colors.background, borderRadius: radii.lg, marginTop: spacing.sm, padding: spacing.md },
   header: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
@@ -210,7 +187,4 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
   },
   acceptLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
-  close: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, minHeight: minTouchTarget, justifyContent: 'center' },
-  closeLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
 });

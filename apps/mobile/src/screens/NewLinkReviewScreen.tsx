@@ -22,6 +22,9 @@ import { SourceRow } from '../components/SourceRow';
 import { EditIcon } from '../icons/EditIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
+import { QuickCollectionChips, useQuickCollectionOptions } from '../collections/QuickCollectionChips';
+import { contentGateOf } from '../collections/collectionAccess';
+import { COLLECTION_SHARE_URL_NOT_SAVABLE_CODE, parseCollectionShareUrl, publicIdFromServerVerifiedShareUrl } from '../share/collectionShareUrl';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { uploadItemImage, type ItemImageAsset } from '../images/api/imagesApi';
@@ -137,6 +140,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [pendingConflictShare, setPendingConflictShare] = useState<PendingShare | null>(null);
   const [title, setTitle] = useState(route.params.initialTitle ?? '');
   const [memo, setMemo] = useState('');
+  // The compact save dialog keeps the memo folded until asked for (or until it has text).
+  const [isMemoOpen, setIsMemoOpen] = useState(false);
   // Full Collection objects (not just ids) - CategoryField needs each one's name to render the
   // compact summary row, matching ItemDetailsScreen's own selectedCategories exactly (this round's
   // explicit "같은 선택 방식... 그대로 사용" requirement, which extends this screen from its old
@@ -436,6 +441,13 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       return;
     }
 
+    // A pasted/edited Juple Collection share link is never saved as an ordinary link - it opens the Collection.
+    const sharedCollectionId = parseCollectionShareUrl(trimmedUrl);
+    if (sharedCollectionId !== null) {
+      navigation.replace('SharedCollection', { publicId: sharedCollectionId });
+      return;
+    }
+
     // Stable across a retry of this exact url (so saveInboxEntry replays the already-created Item
     // instead of creating a duplicate - see clientRequestIdRef's own remarks), regenerated only if
     // the url itself changed since the last attempt.
@@ -532,6 +544,17 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         onSuccess();
       }
     } catch (caughtError) {
+      // The server's own invariant (an older navigation state, a race, a build that does not know the public host):
+      // a Collection share link is never saved - open the Collection when its id is in the URL, else say why.
+      if (caughtError instanceof ApiError && caughtError.kind === 'badRequest' && caughtError.code === COLLECTION_SHARE_URL_NOT_SAVABLE_CODE) {
+        const sharedPublicId = publicIdFromServerVerifiedShareUrl(trimmedUrl);
+        if (sharedPublicId !== null) {
+          navigation.replace('SharedCollection', { publicId: sharedPublicId });
+        } else {
+          showMessage(t('item.collectionLinkNotSavable'));
+        }
+        return;
+      }
       showMessage(getSaveErrorMessage(caughtError, t));
     } finally {
       setIsSaving(false);
@@ -587,6 +610,9 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     setSelectedCollections(previous => [...previous, created]),
   );
   const selectedCollectionIds = new Set(selectedCollections.map(option => option.id));
+  // One-tap shortcuts: favorites and recent Collections. A Collection that is locked / share-password protected
+  // needs its password prompt, which lives in the full picker - so tapping one opens the picker instead.
+  const quickCollections = useQuickCollectionOptions(authenticatedRequest);
   const toggleCategory = (option: Collection) => {
     setSelectedCollections(previous =>
       previous.some(existing => existing.id === option.id)
@@ -596,8 +622,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={styles.screen}>
-      <KeyboardSafeView>
+    <KeyboardSafeView style={styles.screen} testID="new-link-review">
+      {/* A compact full-screen editor (the header is the navigator's): the scroll area, then a sticky Save. */}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/*
           Field order (제목, URL, 카테고리, 메모, 사진) matches ItemDetailsScreen's exactly - this
@@ -667,6 +693,23 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           )}
         </ContentPreviewCard>
 
+        <QuickCollectionChips
+          disabled={isSaving}
+          favoriteIds={quickCollections.favoriteIds}
+          onCreate={() => {
+            categoryPicker.open();
+            categoryPicker.openCreateDialog();
+          }}
+          onToggle={option => {
+            if (contentGateOf(option) !== null) {
+              categoryPicker.open();
+              return;
+            }
+            toggleCategory(option);
+          }}
+          options={quickCollections.options}
+          selectedIds={selectedCollectionIds}
+        />
         <CategoryField
           error={categoryPicker.error}
           isLoading={false}
@@ -674,15 +717,23 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           selectedCollections={selectedCollections}
         />
 
-        <Text style={styles.label}>{t('item.memo')}</Text>
-        <TextInput
-          editable={!isSaving}
-          multiline
-          onChangeText={setMemo}
-          placeholder={t('item.memoPlaceholder')}
-          style={styles.memoInput}
-          value={memo}
-        />
+        {isMemoOpen || memo.length > 0 ? (
+          <>
+            <Text style={styles.label}>{t('item.memo')}</Text>
+            <TextInput
+              editable={!isSaving}
+              multiline
+              onChangeText={setMemo}
+              placeholder={t('item.memoPlaceholder')}
+              style={styles.memoInput}
+              value={memo}
+            />
+          </>
+        ) : (
+          <Pressable accessibilityRole="button" onPress={() => setIsMemoOpen(true)} style={styles.addMemoButton} testID="new-link-review-add-memo">
+            <Text style={styles.addMemoLabel}>{t('item.addMemo')}</Text>
+          </Pressable>
+        )}
 
         {/* 대표 사진: the photo picked here, else the link's automatic preview (which can only be
             replaced, not removed). */}
@@ -710,7 +761,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
           <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
         </Pressable>
       </View>
-      </KeyboardSafeView>
 
       {isResolvingMetadataTitle ? (
         <View pointerEvents="auto" style={styles.metadataLoadingOverlay}>
@@ -736,6 +786,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         onToggle={option => categoryPicker.requestToggle(option, () => toggleCategory(option))}
         onUnlockCancel={categoryPicker.cancelUnlock}
         onUnlockGranted={categoryPicker.onUnlockGranted}
+        onUnlockStateChanged={categoryPicker.onUnlockStateChanged}
         selectedIds={selectedCollectionIds}
         unlockTarget={categoryPicker.unlockTarget}
         visible={categoryPicker.isVisible}
@@ -759,19 +810,18 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       />
       {/* Last, so a failed "저장 후 계속" says why above the still-open conflict dialog. */}
       {messageDialog}
-    </View>
+    </KeyboardSafeView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
+  screen: { backgroundColor: colors.background, flex: 1 },
+  addMemoButton: { alignItems: 'center', alignSelf: 'flex-start', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget },
+  addMemoLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
   content: {
     flexGrow: 1,
-    padding: spacing.xl,
-    paddingTop: spacing.lg,
+    padding: spacing.lg,
+    paddingTop: spacing.sm,
   },
   label: {
     fontSize: 13,
@@ -807,7 +857,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: colors.textPrimary,
     fontSize: 15,
-    minHeight: 100,
+    // A bounded area: tall enough for a few lines, never so tall it pushes Save off a short screen.
+    maxHeight: 140,
+    minHeight: 88,
     paddingHorizontal: spacing.md + 2,
     paddingVertical: spacing.md,
     textAlignVertical: 'top',
@@ -859,8 +911,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopColor: colors.inputBorder,
     borderTopWidth: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   saveButton: {
     alignItems: 'center',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -41,12 +42,7 @@ export function CommentList({ comments, totalCount, status, hasPrevious, isLoadi
         <View style={styles.state} testID="comments-loading"><ActivityIndicator size="small" /></View>
       ) : null}
       {status === 'error' && comments.length === 0 ? (
-        <View style={styles.state} testID="comments-error">
-          <Text style={styles.stateText}>{t('comments.loadError')}</Text>
-          <Pressable accessibilityRole="button" onPress={onRetry} style={styles.textAction} testID="comments-retry">
-            <Text style={styles.actionLabel}>{t('comments.retry')}</Text>
-          </Pressable>
-        </View>
+        <LoadFailureState compact message={t('comments.loadError')} onRetry={onRetry} retryLabel={t('comments.retry')} testID="comments-error" />
       ) : null}
       {status === 'ready' && comments.length === 0 ? (
         <Text style={styles.stateText} testID="comments-empty">{t('comments.empty')}</Text>

@@ -313,7 +313,7 @@ describe('CollectionDetailsScreen - Viewer (보기 전용)', () => {
     }
     // [★] [🔔] [⋯]: their own 새 링크 알림 is the bell; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.leaveAction')]);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
     expect(menu.findAllByType(BellIcon)).toHaveLength(0);
     expect(menu.findAllByType(CopyIcon)).toHaveLength(1);
@@ -529,10 +529,10 @@ describe('CollectionDetailsScreen - shared with me: 새 링크 알림 and 내 �
     jest.mocked(getCollectionItems).mockRejectedValue(new ApiError('forbidden', 403, 'sharePasswordRequired'));
     const renderer = await renderScreen();
 
-    // Nothing to copy yet, so no ⋯ at all - their own bell is still there.
+    // Nothing to copy yet, so the ⋯ holds only 컬렉션에서 나가기 (a member can always leave) - their own bell is still there.
     const top = header(renderer);
-    expect(top.root.findAll(node => node.props.testID === 'collection-details-more')).toHaveLength(0);
-    expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications']);
+    expect(headerButtonIds(top)).toEqual(['collection-details-favorite', 'collection-details-notifications', 'collection-details-more']);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.leaveAction')]);
   });
 });
 
@@ -1179,7 +1179,7 @@ describe('CollectionDetailsScreen - Contributor', () => {
     }
     // Their own bell in the header; the ⋯ holds only copying into their own Collection.
     expect(headerButtonIds(top)).toContain('collection-details-notifications');
-    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine')]);
+    expect(await recipientMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine'), i18n.t('collections.leaveAction')]);
     expect(hasLabel(top, i18n.t('collections.addFavorite'))).toBe(true);
     expect(top.root.findAllByType(Switch)).toHaveLength(0);
     // Share management is never even queried for a Contributor.
@@ -1399,7 +1399,9 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
       .map((action: { label: string }) => action.label);
 
   it.each(['contributor', 'viewer'] as const)('as a %s: another member\'s link offers only the copy, through my own-Collection picker and the shared copy API', async role => {
-    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' }));
+    // The destination's access is re-read when it is picked: the source Collection is the one in this role, my own is mine.
+    jest.mocked(getCollection).mockImplementation(async (_request, id) =>
+      (id === myCollection.id ? myCollection : makeCollection({ accessRole: role, ownerJupleId: 'K7MP4Q8N' })));
     jest.mocked(getCollectionItems).mockResolvedValue({ items: [myLinkHere, othersLink], nextCursor: null });
     jest.mocked(copyCollectionItems).mockResolvedValue({ copiedCount: 1, skippedCount: 0, unavailableCount: 0 });
     jest.mocked(getCollections).mockResolvedValue({ items: [myCollection], nextCursor: null });

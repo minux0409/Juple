@@ -292,8 +292,8 @@
     "lockContactOwner": "此合集需要擁有者設定的鎖定密碼。",
     "lockRemoveConfirmTitle": "解除鎖定？",
     "lockRemoveConfirmMessage": "輸入鎖定密碼即可解除鎖定。",
-    "shareRequests": "共享邀請",
-    "shareRequestCount": "共享邀請 {{count}} 個",
+    "shareRequests": "收到的邀請",
+    "shareRequestCount": "收到的邀請 {{count}} 則",
     "roleViewer": "唯讀",
     "lockConfirmTitle": "要鎖定此合集嗎？",
     "lockConfirmMessage": "在你的帳戶中以鎖定密碼保護此合集。",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "請向共享此收藏集的人索取存取密碼。",
     "sharePasswordRequiredForAction": "請先開啟收藏集並輸入存取密碼。",
     "sortNameAscA11y": "依名稱，升序",
-    "sortNameDescA11y": "依名稱，降序"
+    "sortNameDescA11y": "依名稱，降序",
+    "pickerCollectionUnavailable": "該合集已無法使用。",
+    "leaveAction": "退出收藏集",
+    "leaveConfirmTitle": "要退出此收藏集嗎？",
+    "leaveConfirmMessage": "退出後，此收藏集將從你的列表中移除。",
+    "leaveConfirmButton": "退出",
+    "leaveError": "無法退出收藏集，請稍後重試。"
   },
   "toast": {
     "moveSuccess": "已移動。",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "您有正在編輯的連結",
     "activeDraftConflictMessage": "是否先儲存目前正在編輯的連結,再查看新連結?",
     "saveDraftAndContinue": "儲存並繼續",
-    "discardDraftAndContinue": "捨棄並繼續"
+    "discardDraftAndContinue": "捨棄並繼續",
+    "newCollectionChip": "新增合集",
+    "newCollectionA11y": "建立新合集",
+    "saveDialogTitle": "儲存連結",
+    "addMemo": "新增備註",
+    "collectionLinkNotSavable": "Juple 合集分享連結無法儲存為一般連結，請以合集開啟。"
   },
   "sharedCollection": {
     "itemsEmpty": "這個共用合集中還沒有儲存的連結。",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "此邀請已失效。",
     "invitationResponseFallback": "無法回覆邀請。",
     "invitationsLoadFallback": "無法載入邀請。",
-    "invitationsEmpty": "沒有分享請求。",
+    "invitationsEmpty": "沒有收到的邀請。",
     "invitationAccepted": "已新增到共享合集。",
     "accept": "接受",
     "decline": "拒絕",
@@ -745,7 +756,10 @@
     "declineA11y": "拒絕 {{name}} 的好友請求",
     "cancelA11y": "取消傳給 {{name}} 的好友請求",
     "personTitle": "使用者資訊",
-    "you": "你"
+    "you": "你",
+    "requestCancelledByRequester": "對方已取消該好友邀請。",
+    "requestNoLongerPending": "該好友邀請已處理。",
+    "requestDialogTitle": "好友邀請"
   },
   "notifications": {
     "title": "通知",
@@ -758,7 +772,16 @@
     "bellA11y": "通知",
     "bellUnreadA11y": "通知，{{count}} 則未讀",
     "bannerAnnouncement": "新通知：{{title}}。{{body}}",
-    "bannerHint": "輕觸以開啟，向上滑動以關閉。"
+    "bannerHint": "輕觸以開啟，向上滑動以關閉。",
+    "groupToday": "今天",
+    "groupYesterday": "昨天",
+    "groupLast7Days": "最近 7 天",
+    "groupLast30Days": "最近 30 天",
+    "groupOlder": "更早",
+    "daysAgo": "{{count}}天",
+    "deleteA11y": "刪除通知",
+    "deleteFailed": "無法刪除通知。",
+    "loadErrorTitle": "無法載入通知"
   },
   "contact": {
     "title": "聯絡我們",
@@ -767,5 +790,24 @@
     "subject": "Juple 諮詢",
     "noMailApp": "無法開啟郵件應用程式。請直接寄信至 {{email}}。",
     "copyEmail": "複製電子郵件地址"
+  },
+  "importantState": {
+    "offlineTitle": "無法連線",
+    "loadFailedTitle": "載入失敗",
+    "retry": "重試",
+    "offlineMessage": "請檢查網路連線後重試。"
+  },
+  "calendar": {
+    "previousMonthA11y": "上個月",
+    "nextMonthA11y": "下個月",
+    "today": "今天",
+    "dayCountA11y": "{{count}} 個連結",
+    "monthLoadError": "無法載入日曆。",
+    "dayLoadError": "無法載入當天的連結。",
+    "dayEmpty": "當天沒有儲存的連結。",
+    "collectionDayEmpty": "當天沒有新增的連結。",
+    "pickDate": "選擇日期",
+    "selectedDateLabel": "日期：{{date}}",
+    "clearDateA11y": "清除日期篩選"
   }
 }

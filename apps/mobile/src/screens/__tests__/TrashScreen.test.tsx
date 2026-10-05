@@ -614,10 +614,10 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     const del = renderer.root.find(node => node.props.testID === 'trash-delete-1' && typeof node.props.onPress === 'function');
     expect(restore.props.accessibilityLabel).toBe(i18n.t('trash.restoreA11y'));
     expect(del.props.accessibilityLabel).toBe(i18n.t('trash.permanentDeleteA11y'));
-    // The List's visible destructive label is the very same wording the Grid shows.
-    expect(del.findAllByType(Text).map(node => node.props.children)).toEqual([i18n.t('trash.permanentDeleteA11y')]);
-    // The List's visible destructive label is the very same wording the Grid shows.
-    expect(del.findAllByType(Text).map(node => node.props.children)).toEqual([i18n.t('trash.permanentDeleteA11y')]);
+    // Swipe panes are icon-only everywhere (List and Grid); the full wording stays in the accessibility label.
+    expect(del.findAllByType(Text)).toHaveLength(0);
+    // Swipe panes are icon-only everywhere (List and Grid); the full wording stays in the accessibility label.
+    expect(del.findAllByType(Text)).toHaveLength(0);
 
     await act(async () => {
       restore.props.onPress();
@@ -650,14 +650,12 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
     expect(permanentlyDeleteItem).not.toHaveBeenCalled();
     const restore = renderer.root.find(node => node.props.testID === 'trash-restore-1' && typeof node.props.onPress === 'function');
     const del = renderer.root.find(node => node.props.testID === 'trash-delete-1' && typeof node.props.onPress === 'function');
-    // Icon + visible label in the narrow tile: the destructive one says 영구 삭제 exactly as in the List.
-    expect(restore.findAllByType(Text).map(node => node.props.children)).toEqual([i18n.t('trash.restoreConfirmAction')]);
-    expect(del.findAllByType(Text).map(node => node.props.children)).toEqual([i18n.t('trash.permanentDeleteA11y')]);
+    // Icon only in the narrow tile too - no visible text; the accessibility labels carry the wording.
+    expect(restore.findAllByType(Text)).toHaveLength(0);
+    expect(del.findAllByType(Text)).toHaveLength(0);
     expect(i18n.getFixedT('ko')('trash.permanentDeleteA11y')).toBe('영구 삭제');
-    expect(del.findAllByType(Text).map(node => node.props.children)).not.toContain(i18n.t('common.delete'));
     expect(restore.findAllByType(RestoreIcon)).toHaveLength(1);
     expect(del.findAllByType(TrashIcon)).toHaveLength(1);
-    expect(restore.findAllByType(Text)[0].props.numberOfLines).toBe(1);
     expect(restore.props.accessibilityLabel).toBe(i18n.t('trash.restoreA11y'));
     expect(del.props.accessibilityLabel).toBe(i18n.t('trash.permanentDeleteA11y'));
     expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('trash-more-'))).toHaveLength(0);

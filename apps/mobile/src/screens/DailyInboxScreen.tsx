@@ -20,6 +20,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -31,7 +32,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
-import { CheckIcon } from '../icons/CheckIcon';
+import { SearchIcon } from '../icons/SearchIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import {
   deleteItem,
@@ -44,6 +45,7 @@ import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
+import { parseCollectionShareUrl } from '../share/collectionShareUrl';
 import { extractFirstHttpUrl } from '../share/sharedTextParser';
 import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
@@ -145,7 +147,8 @@ export function DailyInboxScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // A failed LOAD of what Home lists (a centered state, offline or load failed) - never the result of an action (those are dialogs).
+  const [error, setError] = useState<{ readonly cause: unknown; readonly message: string } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
   // Delete confirmation is a declarative ConfirmDialog keyed off this - null means closed, an id
@@ -227,7 +230,7 @@ export function DailyInboxScreen() {
           return;
         }
         // Failure keeps whatever Home already shows - only the error text changes.
-        setError(getInboxErrorMessage(caughtError, false, t));
+        setError({ cause: caughtError, message: getInboxErrorMessage(caughtError, false, t) });
       } finally {
         if (loadRequestIdRef.current === requestId) {
           hasLoadedOnceRef.current = true;
@@ -262,7 +265,7 @@ export function DailyInboxScreen() {
         setNextCursor(page.nextCursor);
       } catch (caughtError) {
         if (loadRequestIdRef.current === requestId) {
-          setError(getInboxErrorMessage(caughtError, false, t));
+          setError({ cause: caughtError, message: getInboxErrorMessage(caughtError, false, t) });
         }
       } finally {
         loadingMoreRef.current = false;
@@ -333,6 +336,17 @@ export function DailyInboxScreen() {
       return;
     }
 
+    // A Juple Collection share link is never saved as an ordinary link: it opens the Collection (its public page,
+    // where it can be joined / copied) instead.
+    const sharedCollectionId = parseCollectionShareUrl(normalizedUrl);
+    if (sharedCollectionId !== null) {
+      isNavigatingToReviewRef.current = true;
+      setSaveError(null);
+      setUrl('');
+      navigation.navigate('SharedCollection', { publicId: sharedCollectionId });
+      return;
+    }
+
     isNavigatingToReviewRef.current = true;
     setSaveError(null);
     setUrl('');
@@ -357,7 +371,6 @@ export function DailyInboxScreen() {
     }
 
     setActionInFlightItemId(itemId);
-    setError(null);
     try {
       await deleteItem(authenticatedRequest, itemId);
       const deletedItem = itemsRef.current.find(item => item.id === itemId);
@@ -374,7 +387,7 @@ export function DailyInboxScreen() {
         } });
       }
     } catch (caughtError) {
-      setError(getDeleteErrorMessage(caughtError, t));
+      setSaveError(getDeleteErrorMessage(caughtError, t));
     } finally {
       setActionInFlightItemId(null);
     }
@@ -386,11 +399,10 @@ export function DailyInboxScreen() {
     }
 
     setActionInFlightItemId(item.id);
-    setError(null);
     try {
       await shareItem(item.url, item.title);
     } catch {
-      setError(getShareErrorMessage(t));
+      setSaveError(getShareErrorMessage(t));
     } finally {
       setActionInFlightItemId(null);
     }
@@ -496,6 +508,7 @@ export function DailyInboxScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
+                multiline
                 onChangeText={setUrl}
                 placeholder={t('inbox.urlPlaceholder')}
                 style={[styles.input, url && ltrTextStyle]}
@@ -508,10 +521,13 @@ export function DailyInboxScreen() {
                 onPress={openReview}
                 style={[styles.saveIconButton, !url.trim() ? styles.disabledButton : null]}
               >
-                <CheckIcon color={colors.brand} size={20} />
+                <SearchIcon color={colors.brand} size={20} />
               </Pressable>
             </View>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error && items.length > 0 ? (
+              // Rows are shown (a refresh or the next page failed): the failure sits above them, with a retry.
+              <LoadFailureState compact error={error.cause} message={error.message} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />
+            ) : null}
             <View style={styles.recentHeaderRow}>
               {/* Title and count only - the controls are on the sort row below, as in a Collection. */}
               <ScreenTitleGlyph icon={ClockIcon} />
@@ -540,7 +556,9 @@ export function DailyInboxScreen() {
           </View>
         }
         ListEmptyComponent={
-          (isLoading || isAssemblingOrder) && !error ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
+          error ? (
+            <LoadFailureState error={error.cause} message={error.message} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
+          ) : (isLoading || isAssemblingOrder) ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
         renderItem={({ item }) => viewMode === 'grid' ? (
           <SavedLinkGridCell
@@ -557,9 +575,7 @@ export function DailyInboxScreen() {
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null || isRefreshing}
             onDelete={() => confirmDelete(item.id)}
-            onPress={() => {
-              navigation.navigate('ItemDetails', { itemId: item.id });
-            }}
+            onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
             onShare={() => runShare(item)}
           >
             <SavedLinkRow
@@ -648,6 +664,10 @@ const styles = StyleSheet.create({
     paddingEnd: minTouchTarget + spacing.xs,
     paddingStart: spacing.xl + spacing.xs,
     paddingVertical: spacing.md,
+    // A long URL wraps (the card grows) instead of scrolling sideways; the action stays centered.
+    maxHeight: 160,
+    minHeight: minTouchTarget + spacing.md,
+    textAlignVertical: 'center',
     ...cardShadow,
   },
   // Overlays the input's own trailing edge (mirrors inputIconContainer's leading-edge overlay
@@ -657,8 +677,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     bottom: 0,
     end: 0,
-    height: minTouchTarget,
+    // No fixed height: top + bottom stretch the button over the WHOLE card, so its icon stays vertically
+    // centered however tall a long, wrapped URL makes the input.
     justifyContent: 'center',
+    minHeight: minTouchTarget,
     position: 'absolute',
     top: 0,
     width: minTouchTarget,

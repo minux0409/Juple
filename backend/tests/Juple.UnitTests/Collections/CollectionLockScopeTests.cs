@@ -253,9 +253,9 @@ public sealed class CollectionLockScopeTests
             return Task.CompletedTask;
         }
 
-        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default)
+        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, bool accepted, CancellationToken cancellationToken = default)
         {
-            Events.Add($"friend-answered:{answererUserId}->{requesterUserId}:{friendshipId}");
+            Events.Add($"friend-answered:{answererUserId}->{requesterUserId}:{friendshipId}:{accepted}");
             return Task.CompletedTask;
         }
 
@@ -313,7 +313,7 @@ public sealed class CollectionLockScopeTests
             return Task.CompletedTask;
         }
 
-        public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, bool approved, CancellationToken cancellationToken = default)
+        public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, long itemId, bool approved, CancellationToken cancellationToken = default)
         {
             Events.Add($"submission-{(approved ? "approved" : "rejected")}:{submitterUserId}:{collectionId}:{submissionId}");
             return Task.CompletedTask;

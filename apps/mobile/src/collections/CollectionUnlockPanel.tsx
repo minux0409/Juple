@@ -10,6 +10,7 @@ import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { unlockCollection } from './api/collectionsApi';
 import { unlockSharePassword } from './api/sharePasswordApi';
 import { rememberCollectionUnlock } from './collectionUnlockGrants';
+import { isUnlockStateChangedError } from './freshCollectionAccess';
 
 export function getUnlockErrorMessage(error: unknown, t: TFunction, kind: 'lock' | 'sharePassword' = 'lock'): string {
   if (error instanceof ApiError) {
@@ -36,6 +37,12 @@ interface CollectionUnlockPanelProps {
    */
   readonly onGranted?: (unlockToken: string, expiresAtUtc: string) => void;
   /**
+   * The server says the password this panel asks for no longer exists (the lock was removed / the share password
+   * switched off meanwhile) - not a wrong password. Resolves true when the caller took it from here (re-read the
+   * Collection and goes on); false/absent: this panel just asks the content to be checked again (onUnlocked).
+   */
+  readonly onStateChanged?: () => Promise<boolean>;
+  /**
    * The server-reported role. A member is told the Owner's lock password is needed; the Owner
    * manages (and can reset) theirs in Settings > 컬렉션 잠금.
    */
@@ -53,7 +60,7 @@ interface CollectionUnlockPanelProps {
  * requested again after the Owner's lock password is verified server-side and a short-lived grant is
  * stored in memory (see collectionUnlockGrants). The password is never stored or logged anywhere.
  */
-export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isOwner = true, kind = 'lock' }: CollectionUnlockPanelProps) {
+export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, onStateChanged, isOwner = true, kind = 'lock' }: CollectionUnlockPanelProps) {
   const isSharePassword = kind === 'sharePassword';
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
@@ -79,6 +86,18 @@ export function CollectionUnlockPanel({ collectionId, onUnlocked, onGranted, isO
       setPassword('');
       onUnlocked();
     } catch (caughtError) {
+      if (isUnlockStateChangedError(caughtError)) {
+        // A race with the Owner (the password is gone), not a failure: continue from the server's current state.
+        setPassword('');
+        if (onStateChanged) {
+          if (await onStateChanged()) {
+            return;
+          }
+        } else {
+          onUnlocked();
+          return;
+        }
+      }
       setError(getUnlockErrorMessage(caughtError, t, kind));
     } finally {
       setIsSubmitting(false);

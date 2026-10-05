@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import { getNotifications, markAllNotificationsRead, NOTIFICATIONS_PAGE_SIZE, type AppNotification } from './notificationsApi';
+import { ApiError } from '../api/ApiError';
+import { deleteNotification, getNotifications, markAllNotificationsRead, NOTIFICATIONS_PAGE_SIZE, type AppNotification } from './notificationsApi';
 import { refreshUnreadCount, setUnreadCount } from './notificationState';
 
 export interface NotificationInboxState {
@@ -104,6 +105,29 @@ export function useNotificationInbox(request: AuthenticatedApiRequest, locale: s
     setItems(previous => previous.map(item => (item.id === notificationId && item.readAtUtc === null ? { ...item, readAtUtc: nowUtc } : item)));
   }, []);
 
+  /**
+   * Swipe-delete: the row leaves at once; a failure other than "already gone" puts the truth back
+   * (a re-read) and is reported to the caller, so a row never silently reappears or stays wrong.
+   */
+  const removeRow = useCallback(
+    async (notificationId: number): Promise<boolean> => {
+      setItems(previous => previous.filter(item => item.id !== notificationId));
+      try {
+        const result = await deleteNotification(request, notificationId);
+        setUnreadCount(result.unreadCount);
+        return true;
+      } catch (error) {
+        if (error instanceof ApiError && error.kind === 'notFound') {
+          refreshUnreadCount(request).catch(() => undefined);
+          return true;
+        }
+        reload('refresh').catch(() => undefined);
+        return false;
+      }
+    },
+    [reload, request],
+  );
+
   /** 모두 읽음: every row and the bell at once; on failure the truth is re-read instead of kept wrong. */
   const markAllRead = useCallback(async () => {
     const nowUtc = new Date().toISOString();
@@ -128,5 +152,5 @@ export function useNotificationInbox(request: AuthenticatedApiRequest, locale: s
     hasUnread: items.some(item => item.readAtUtc === null),
   };
 
-  return { state, reload, loadMore, markRowRead, markAllRead };
+  return { state, reload, loadMore, markRowRead, markAllRead, removeRow };
 }

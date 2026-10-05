@@ -10,6 +10,7 @@ import {
 } from '../collections/api/collectionLockPasswordApi';
 import { clearCollectionUnlockGrants } from '../collections/collectionUnlockGrants';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { CollectionLockPasswordDialog, type CollectionLockPasswordDialogMode } from '../settings/CollectionLockPasswordDialog';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
@@ -33,7 +34,7 @@ export function CollectionLockSettingsScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [status, setStatus] = useState<CollectionLockPasswordStatus | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{ readonly cause: unknown } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [signInPurpose, setSignInPurpose] = useState<SignInPurpose | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -46,10 +47,10 @@ export function CollectionLockSettingsScreen() {
     setLoadError(null);
     try {
       setStatus(await getCollectionLockPasswordStatus(authenticatedRequest));
-    } catch {
-      setLoadError(t('settings.collectionLockLoadFallback'));
+    } catch (caughtError) {
+      setLoadError({ cause: caughtError });
     }
-  }, [authenticatedRequest, t]);
+  }, [authenticatedRequest]);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,7 +101,7 @@ export function CollectionLockSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.help}>{t('settings.collectionLockDescription')}</Text>
         {status === null && !loadError ? <ActivityIndicator style={styles.loading} /> : null}
-        {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
+        {loadError ? <LoadFailureState error={loadError.cause} message={t('settings.collectionLockLoadFallback')} onRetry={() => { load(); }} testID="lock-settings-load-error" /> : null}
         {status !== null ? (
           <View style={styles.card}>
             <View style={styles.statusRow}>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { navigationRef } from '../navigation/navigationRef';
 import { getActiveNewLinkReviewDraft } from './activeNewLinkReviewDraft';
+import { parseCollectionShareUrl } from './collectionShareUrl';
 import { normalizeShareTextForComparison, resolveIncomingShare } from './resolveIncomingShare';
 import { useIncomingShare } from './useIncomingShare';
 
@@ -41,6 +42,16 @@ export function IncomingShareRouter(): null {
     // The same shared resolver Quick Save ON's headless save uses (see resolveIncomingShare/
     // incomingShareHeadlessTask) - ON and OFF must never resolve a share's URL/title differently.
     const resolvedShare = resolveIncomingShare(pendingShare);
+
+    // A Juple Collection share link is not a link to save: open the Collection and consume the share (never a
+    // NewLinkReview, never a conflict dialog over an open draft).
+    const sharedCollectionId = resolvedShare.kind === 'exactUrl' ? parseCollectionShareUrl(resolvedShare.text) : null;
+    if (sharedCollectionId !== null) {
+      lastHandledShareIdRef.current = pendingShare.id;
+      navigationRef.navigate('SharedCollection', { publicId: sharedCollectionId });
+      acknowledgePendingShare(pendingShare.id).catch(() => undefined);
+      return;
+    }
 
     const activeDraft = getActiveNewLinkReviewDraft();
     if (activeDraft) {

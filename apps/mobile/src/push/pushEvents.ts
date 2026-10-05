@@ -10,6 +10,8 @@ export type SocialPushEventType =
   | 'collectionInvitationAnswered'
   | 'collectionContentChanged'
   | 'friendRequestAnswered'
+  | 'friendRequestAccepted'
+  | 'friendRequestRejected'
   | 'collectionItemsAdded'
   | 'collectionLinkShared'
   | 'collectionItemReaction'
@@ -34,6 +36,8 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
   'collectionInvitationAnswered',
   'collectionContentChanged',
   'friendRequestAnswered',
+  'friendRequestAccepted',
+  'friendRequestRejected',
   'collectionItemsAdded',
   'collectionLinkShared',
   'collectionItemReaction',

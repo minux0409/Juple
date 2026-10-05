@@ -244,6 +244,8 @@ public sealed class NotificationInboxTests
         NotificationType.CollectionLinkSubmissionReceived,
         NotificationType.CollectionLinkSubmissionApproved,
         NotificationType.CollectionLinkSubmissionRejected,
+        NotificationType.FriendRequestAccepted,
+        NotificationType.FriendRequestRejected,
     };
 
     /// <summary>Every Push carries the recipient's own notification id - the app's canonical reference - plus the legacy routing ids.</summary>
@@ -294,6 +296,9 @@ public sealed class NotificationInboxTests
 
         public Task<int> CountUnreadAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(records.Count(record => record.ReadAtUtc is null));
+
+        public Task<bool> DeleteAsync(long userId, long notificationId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(records.Any(record => record.Id == notificationId));
 
         public Task<bool> MarkReadAsync(long userId, long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult(records.Any(record => record.Id == notificationId));

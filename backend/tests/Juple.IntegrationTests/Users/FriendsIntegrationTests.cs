@@ -129,6 +129,124 @@ public sealed class FriendsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Cancel_RemovesTheRequestFromBothPendingLists()
+    {
+        var request = await _friends.SendRequestAsync(_alice, await JupleIdOfAsync(_bob));
+        Assert.Single(await _friends.ListRequestsAsync(_alice));
+        Assert.Single(await _friends.ListRequestsAsync(_bob));
+
+        await _friends.CancelAsync(_alice, request.RequestId);
+
+        Assert.Empty(await _friends.ListRequestsAsync(_alice));
+        Assert.Empty(await _friends.ListRequestsAsync(_bob));
+        Assert.Empty((await _friends.ListFriendsAsync(_bob, null, null, 50)).Items);
+    }
+
+    [Fact]
+    public async Task StaleAcceptAfterCancel_IsRejectedAsNoLongerPending_AndCreatesNoFriendship()
+    {
+        var request = await _friends.SendRequestAsync(_alice, await JupleIdOfAsync(_bob));
+        await _friends.CancelAsync(_alice, request.RequestId);
+
+        var stale = await Assert.ThrowsAsync<FriendNotFoundException>(() => _friends.AcceptAsync(_bob, request.RequestId));
+
+        Assert.Equal(FriendNotFoundException.RequestNoLongerPending, stale.Code);
+        Assert.Equal(0, await PairRowsAsync(_alice, _bob));
+        Assert.Empty((await _friends.ListFriendsAsync(_alice, null, null, 50)).Items);
+        Assert.Empty((await _friends.ListFriendsAsync(_bob, null, null, 50)).Items);
+    }
+
+    [Fact]
+    public async Task StaleDeclineAfterCancel_IsRejectedAsNoLongerPending()
+    {
+        var request = await _friends.SendRequestAsync(_alice, await JupleIdOfAsync(_bob));
+        await _friends.CancelAsync(_alice, request.RequestId);
+
+        var stale = await Assert.ThrowsAsync<FriendNotFoundException>(() => _friends.DeclineAsync(_bob, request.RequestId));
+
+        Assert.Equal(FriendNotFoundException.RequestNoLongerPending, stale.Code);
+    }
+
+    [Fact]
+    public async Task StaleCancelAfterAccept_DoesNotUndoTheFriendship()
+    {
+        var request = await _friends.SendRequestAsync(_alice, await JupleIdOfAsync(_bob));
+        await _friends.AcceptAsync(_bob, request.RequestId);
+
+        var stale = await Assert.ThrowsAsync<FriendNotFoundException>(() => _friends.CancelAsync(_alice, request.RequestId));
+
+        Assert.Equal(FriendNotFoundException.RequestNoLongerPending, stale.Code);
+        Assert.Equal(1, await PairRowsAsync(_alice, _bob));
+        Assert.Single((await _friends.ListFriendsAsync(_alice, null, null, 50)).Items);
+    }
+
+    [Fact]
+    public async Task CancelAndAccept_Racing_LetExactlyOneTerminalActionWin()
+    {
+        for (var round = 0; round < 8; round++)
+        {
+            var request = await _friends.SendRequestAsync(_alice, await JupleIdOfAsync(_bob));
+            await using var cancelDb = NewContext();
+            await using var acceptDb = NewContext();
+            var cancelService = new FriendService(new UserDirectoryStore(cancelDb), new FriendStore(cancelDb), TimeProvider.System);
+            var acceptService = new FriendService(new UserDirectoryStore(acceptDb), new FriendStore(acceptDb), TimeProvider.System);
+
+            var cancel = Capture(() => cancelService.CancelAsync(_alice, request.RequestId));
+            var accept = Capture(() => acceptService.AcceptAsync(_bob, request.RequestId));
+            var outcomes = await Task.WhenAll(cancel, accept);
+
+            // Exactly one of the two won; the loser got the "no longer pending" answer.
+            Assert.Equal(1, outcomes.Count(outcome => outcome is null));
+            Assert.All(outcomes.Where(outcome => outcome is not null), outcome =>
+                Assert.Equal(FriendNotFoundException.RequestNoLongerPending, Assert.IsType<FriendNotFoundException>(outcome).Code));
+            var rows = await PairRowsAsync(_alice, _bob);
+            if (outcomes[0] is null)
+            {
+                Assert.Equal(0, rows); // cancel won: no friendship
+            }
+            else
+            {
+                Assert.Equal(1, rows); // accept won: they are friends, the cancel changed nothing
+                Assert.Single((await _friends.ListFriendsAsync(_alice, null, null, 50)).Items);
+                await _friends.RemoveFriendAsync(_alice, (await _friends.ListFriendsAsync(_alice, null, null, 50)).Items[0].FriendshipId);
+            }
+
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    [Fact]
+    public async Task Cancel_RemovesTheRecipientsInboxNotificationOfThatRequest()
+    {
+        var publisher = new Juple.Infrastructure.Notifications.SocialNotificationPublisher(
+            _db, TimeProvider.System, Microsoft.Extensions.Logging.Abstractions.NullLogger<Juple.Infrastructure.Notifications.SocialNotificationPublisher>.Instance);
+        var friends = new FriendService(new UserDirectoryStore(_db), new FriendStore(_db), TimeProvider.System, publisher);
+        var request = await friends.SendRequestAsync(_alice, await JupleIdOfAsync(_bob));
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        Assert.True(await _db.Notifications.AnyAsync(entry => entry.UserId == _bob && entry.SubjectId == request.RequestId));
+
+        await friends.CancelAsync(_alice, request.RequestId);
+
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.UserId == _bob && entry.SubjectId == request.RequestId));
+    }
+
+    private JupleDbContext NewContext() => new(new DbContextOptionsBuilder<JupleDbContext>()
+        .UseSqlServer(Environment.GetEnvironmentVariable("ConnectionStrings__JupleDatabase")).Options);
+
+    private static async Task<Exception?> Capture(Func<Task> action)
+    {
+        try
+        {
+            await action();
+            return null;
+        }
+        catch (Exception exception)
+        {
+            return exception;
+        }
+    }
+
+    [Fact]
     public async Task PrivateNotes_AreSeenOnlyByTheirAuthor_AndGoWithTheFriendship()
     {
         var friendship = await BefriendAsync(_alice, _bob);

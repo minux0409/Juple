@@ -2,6 +2,7 @@
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
+using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
@@ -289,6 +290,31 @@ public sealed class CollectionCollaborationStore(
         await dbContext.CollectionItems
             .Where(membership => membership.CollectionId == collectionId && membership.AddedByUserId == collaboratorUserId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        // The links they proposed as a member (승인 후 추가) and are still waiting for approval go with
+        // their member-made links: a removed person must not have a request the Owner could still approve
+        // (it would add their link to a Collection they cannot see) and the same rule holds if they are
+        // invited again - they start clean, and their count, list and the Owner's queue always agree.
+        // A proposal made through the public link as a non-member is the person's own request and
+        // stays (it never depended on membership). The Owner's notifications about them go too.
+        var withdrawnSubmissionIds = await dbContext.CollectionLinkSubmissions
+            .Where(submission => submission.CollectionId == collectionId
+                && submission.SubmittedByUserId == collaboratorUserId
+                && !submission.ViaPublicShare)
+            .Select(submission => submission.Id)
+            .ToListAsync(cancellationToken);
+        if (withdrawnSubmissionIds.Count > 0)
+        {
+            await dbContext.CollectionLinkSubmissions
+                .Where(submission => withdrawnSubmissionIds.Contains(submission.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.Notifications
+                .Where(notification => notification.Type == NotificationType.CollectionLinkSubmissionReceived
+                    && notification.CollectionId == collectionId
+                    && notification.SubjectId != null
+                    && withdrawnSubmissionIds.Contains(notification.SubjectId.Value))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
         // Their emoji reactions on this Collection's links - they can no longer see it.
         await dbContext.CollectionItemReactions

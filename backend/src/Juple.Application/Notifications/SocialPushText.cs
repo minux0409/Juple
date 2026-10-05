@@ -186,6 +186,30 @@ public static class SocialPushText
             "लिंक मंज़ूर नहीं हुआ", "\"{1}\" में भेजा गया आपका लिंक मंज़ूर नहीं हुआ।"),
     };
 
+    /// <summary>FriendRequestAccepted / FriendRequestRejected: {0} = who answered the recipient's request.</summary>
+    private sealed record FriendAnswerTexts(string AcceptedTitle, string AcceptedBody, string RejectedTitle, string RejectedBody);
+
+    private static readonly Dictionary<string, FriendAnswerTexts> FriendAnswerByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new("친구 요청 수락", "{0}님이 친구 요청을 수락했어요.", "친구 요청 거절", "{0}님이 친구 요청을 거절했어요."),
+        ["en"] = new("Friend request accepted", "{0} accepted your friend request.", "Friend request declined", "{0} declined your friend request."),
+        ["ja"] = new("友達申請が承認されました", "{0}さんが友達申請を承認しました。", "友達申請が断られました", "{0}さんが友達申請を断りました。"),
+        ["zh-Hans"] = new("好友申请已通过", "{0} 接受了你的好友申请。", "好友申请被拒绝", "{0} 拒绝了你的好友申请。"),
+        ["zh-Hant"] = new("好友邀請已接受", "{0} 接受了你的好友邀請。", "好友邀請被拒絕", "{0} 拒絕了你的好友邀請。"),
+        ["es"] = new("Solicitud aceptada", "{0} aceptó tu solicitud de amistad.", "Solicitud rechazada", "{0} rechazó tu solicitud de amistad."),
+        ["fr"] = new("Demande acceptée", "{0} a accepté votre demande d’ami.", "Demande refusée", "{0} a refusé votre demande d’ami."),
+        ["de"] = new("Anfrage angenommen", "{0} hat deine Freundschaftsanfrage angenommen.", "Anfrage abgelehnt", "{0} hat deine Freundschaftsanfrage abgelehnt."),
+        ["it"] = new("Richiesta accettata", "{0} ha accettato la tua richiesta di amicizia.", "Richiesta rifiutata", "{0} ha rifiutato la tua richiesta di amicizia."),
+        ["pt-BR"] = new("Pedido aceito", "{0} aceitou seu pedido de amizade.", "Pedido recusado", "{0} recusou seu pedido de amizade."),
+        ["vi"] = new("Đã chấp nhận lời mời", "{0} đã chấp nhận lời mời kết bạn của bạn.", "Lời mời bị từ chối", "{0} đã từ chối lời mời kết bạn của bạn."),
+        ["th"] = new("คำขอเป็นเพื่อนได้รับการยอมรับ", "{0} ยอมรับคำขอเป็นเพื่อนของคุณแล้ว", "คำขอเป็นเพื่อนถูกปฏิเสธ", "{0} ปฏิเสธคำขอเป็นเพื่อนของคุณ"),
+        ["id"] = new("Permintaan diterima", "{0} menerima permintaan pertemanan Anda.", "Permintaan ditolak", "{0} menolak permintaan pertemanan Anda."),
+        ["ru"] = new("Заявка принята", "{0} принимает вашу заявку в друзья.", "Заявка отклонена", "{0} отклоняет вашу заявку в друзья."),
+        ["tr"] = new("İstek kabul edildi", "{0} arkadaşlık isteğinizi kabul etti.", "İstek reddedildi", "{0} arkadaşlık isteğinizi reddetti."),
+        ["ar"] = new("تم قبول الطلب", "قبل {0} طلب صداقتك.", "تم رفض الطلب", "رفض {0} طلب صداقتك."),
+        ["hi"] = new("अनुरोध स्वीकार हुआ", "{0} ने आपका मित्र अनुरोध स्वीकार कर लिया है।", "अनुरोध अस्वीकार हुआ", "{0} ने आपका मित्र अनुरोध अस्वीकार कर दिया है।"),
+    };
+
     private static readonly Dictionary<string, Texts> ByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ko"] = new("친구 신청", "{0}님이 친구 신청을 보냈어요.", "컬렉션 공유", "{0}님이 '{1}' 컬렉션을 공유했어요."),
@@ -252,8 +276,16 @@ public static class SocialPushText
             return (title, string.Format(CultureInfo.InvariantCulture, body, actorName, Shorten(collectionName)));
         }
 
+        if (type is NotificationType.FriendRequestAccepted or NotificationType.FriendRequestRejected)
+        {
+            var answer = Resolve(FriendAnswerByLocale, locale);
+            return type == NotificationType.FriendRequestAccepted
+                ? (answer.AcceptedTitle, string.Format(CultureInfo.InvariantCulture, answer.AcceptedBody, actorName))
+                : (answer.RejectedTitle, string.Format(CultureInfo.InvariantCulture, answer.RejectedBody, actorName));
+        }
+
         var texts = Resolve(ByLocale, locale);
-        return type == NotificationType.CollectionInvitationReceived
+        return type ==NotificationType.CollectionInvitationReceived
             ? (texts.InviteTitle, string.Format(CultureInfo.InvariantCulture, texts.InviteBody, actorName, collectionName))
             : (texts.FriendTitle, string.Format(CultureInfo.InvariantCulture, texts.FriendBody, actorName));
     }

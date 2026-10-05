@@ -292,8 +292,8 @@
     "lockContactOwner": "Für diese Sammlung ist das Sperrpasswort des Eigentümers erforderlich.",
     "lockRemoveConfirmTitle": "Sperre aufheben?",
     "lockRemoveConfirmMessage": "Gib dein Sperrpasswort ein, um die Sperre aufzuheben.",
-    "shareRequests": "Freigabeanfragen",
-    "shareRequestCount": "Freigabeanfragen: {{count}}",
+    "shareRequests": "Erhaltene Einladungen",
+    "shareRequestCount": "Erhaltene Einladungen: {{count}}",
     "roleViewer": "Nur lesen",
     "lockConfirmTitle": "Diese Sammlung sperren?",
     "lockConfirmMessage": "Schütze diese Sammlung in deinem Konto mit deinem Sperrpasswort.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Frag die Person, die diese Sammlung geteilt hat, nach dem Zugangspasswort.",
     "sharePasswordRequiredForAction": "Öffne zuerst die Sammlung und gib ihr Zugangspasswort ein.",
     "sortNameAscA11y": "Name, A bis Z",
-    "sortNameDescA11y": "Name, Z bis A"
+    "sortNameDescA11y": "Name, Z bis A",
+    "pickerCollectionUnavailable": "Diese Sammlung ist nicht mehr verfügbar.",
+    "leaveAction": "Sammlung verlassen",
+    "leaveConfirmTitle": "Sammlung verlassen?",
+    "leaveConfirmMessage": "Wenn du sie verlässt, wird diese Sammlung aus deiner Liste entfernt.",
+    "leaveConfirmButton": "Verlassen",
+    "leaveError": "Die Sammlung konnte nicht verlassen werden. Bitte versuche es später erneut."
   },
   "toast": {
     "moveSuccess": "Verschoben.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Du hast einen Link in Bearbeitung",
     "activeDraftConflictMessage": "Möchtest du den aktuell bearbeiteten Link speichern, bevor du den neuen Link ansiehst?",
     "saveDraftAndContinue": "Speichern und fortfahren",
-    "discardDraftAndContinue": "Verwerfen und fortfahren"
+    "discardDraftAndContinue": "Verwerfen und fortfahren",
+    "newCollectionChip": "Neue Sammlung",
+    "newCollectionA11y": "Neue Sammlung erstellen",
+    "saveDialogTitle": "Link speichern",
+    "addMemo": "Notiz hinzufügen",
+    "collectionLinkNotSavable": "Ein Juple-Sammlungslink kann nicht als normaler Link gespeichert werden. Öffne ihn stattdessen als Sammlung."
   },
   "sharedCollection": {
     "itemsEmpty": "In dieser geteilten Sammlung sind noch keine Links gespeichert.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Diese Einladung ist nicht mehr gültig.",
     "invitationResponseFallback": "Auf die Einladung konnte nicht geantwortet werden.",
     "invitationsLoadFallback": "Einladungen konnten nicht geladen werden.",
-    "invitationsEmpty": "Keine Freigabeanfragen.",
+    "invitationsEmpty": "Keine Einladungen erhalten.",
     "invitationAccepted": "Zu deinen geteilten Sammlungen hinzugefügt.",
     "accept": "Annehmen",
     "decline": "Ablehnen",
@@ -745,7 +756,10 @@
     "declineA11y": "Freundschaftsanfrage von {{name}} ablehnen",
     "cancelA11y": "Freundschaftsanfrage an {{name}} zurückziehen",
     "personTitle": "Nutzerinfo",
-    "you": "Du"
+    "you": "Du",
+    "requestCancelledByRequester": "Der Absender hat diese Freundschaftsanfrage zurückgezogen.",
+    "requestNoLongerPending": "Diese Freundschaftsanfrage wurde bereits bearbeitet.",
+    "requestDialogTitle": "Freundschaftsanfrage"
   },
   "notifications": {
     "title": "Benachrichtigungen",
@@ -758,7 +772,16 @@
     "bellA11y": "Benachrichtigungen",
     "bellUnreadA11y": "Benachrichtigungen, {{count}} ungelesen",
     "bannerAnnouncement": "Neue Benachrichtigung: {{title}}. {{body}}",
-    "bannerHint": "Zum Öffnen tippen. Zum Schließen nach oben wischen."
+    "bannerHint": "Zum Öffnen tippen. Zum Schließen nach oben wischen.",
+    "groupToday": "Heute",
+    "groupYesterday": "Gestern",
+    "groupLast7Days": "Letzte 7 Tage",
+    "groupLast30Days": "Letzte 30 Tage",
+    "groupOlder": "Älter",
+    "daysAgo": "{{count}} T",
+    "deleteA11y": "Benachrichtigung löschen",
+    "deleteFailed": "Die Benachrichtigung konnte nicht gelöscht werden.",
+    "loadErrorTitle": "Benachrichtigungen konnten nicht geladen werden"
   },
   "contact": {
     "title": "Kontakt",
@@ -767,5 +790,24 @@
     "subject": "Juple-Anfrage",
     "noMailApp": "Es konnte keine E-Mail-App geöffnet werden. Bitte schreiben Sie direkt an {{email}}.",
     "copyEmail": "E-Mail-Adresse kopieren"
+  },
+  "importantState": {
+    "offlineTitle": "Keine Verbindung",
+    "loadFailedTitle": "Laden fehlgeschlagen",
+    "retry": "Erneut versuchen",
+    "offlineMessage": "Prüfe deine Internetverbindung und versuche es erneut."
+  },
+  "calendar": {
+    "previousMonthA11y": "Vorheriger Monat",
+    "nextMonthA11y": "Nächster Monat",
+    "today": "Heute",
+    "dayCountA11y": "{{count}} Links",
+    "monthLoadError": "Der Kalender konnte nicht geladen werden.",
+    "dayLoadError": "Die Links dieses Tages konnten nicht geladen werden.",
+    "dayEmpty": "An diesem Tag wurden keine Links gespeichert.",
+    "collectionDayEmpty": "An diesem Tag wurden keine Links hinzugefügt.",
+    "pickDate": "Datum wählen",
+    "selectedDateLabel": "Datum: {{date}}",
+    "clearDateA11y": "Datumsfilter entfernen"
   }
 }

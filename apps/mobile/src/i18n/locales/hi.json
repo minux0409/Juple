@@ -292,8 +292,8 @@
     "lockContactOwner": "इस संग्रह के लिए स्वामी द्वारा सेट किया गया लॉक पासवर्ड चाहिए।",
     "lockRemoveConfirmTitle": "लॉक हटाएँ?",
     "lockRemoveConfirmMessage": "संग्रह अनलॉक करने के लिए अपना लॉक पासवर्ड डालें।",
-    "shareRequests": "साझा करने के अनुरोध",
-    "shareRequestCount": "साझा करने के अनुरोध: {{count}}",
+    "shareRequests": "प्राप्त निमंत्रण",
+    "shareRequestCount": "प्राप्त निमंत्रण: {{count}}",
     "roleViewer": "केवल पढ़ने के लिए",
     "lockConfirmTitle": "इस संग्रह को लॉक करें?",
     "lockConfirmMessage": "अपने खाते में इस कलेक्शन को लॉक पासवर्ड से सुरक्षित रखें।",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "एक्सेस पासवर्ड के लिए उस व्यक्ति से पूछें जिसने यह कलेक्शन शेयर किया।",
     "sharePasswordRequiredForAction": "पहले कलेक्शन खोलें और उसका एक्सेस पासवर्ड डालें।",
     "sortNameAscA11y": "नाम, A से Z",
-    "sortNameDescA11y": "नाम, Z से A"
+    "sortNameDescA11y": "नाम, Z से A",
+    "pickerCollectionUnavailable": "यह संग्रह अब उपलब्ध नहीं है।",
+    "leaveAction": "कलेक्शन छोड़ें",
+    "leaveConfirmTitle": "कलेक्शन छोड़ें?",
+    "leaveConfirmMessage": "छोड़ने पर यह कलेक्शन आपकी सूची से हट जाएगा।",
+    "leaveConfirmButton": "छोड़ें",
+    "leaveError": "कलेक्शन छोड़ा नहीं जा सका। कृपया बाद में पुनः प्रयास करें।"
   },
   "toast": {
     "moveSuccess": "स्थानांतरित किया गया।",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "आपके पास एक लिंक प्रगति पर है",
     "activeDraftConflictMessage": "नए लिंक को देखने से पहले क्या आप अभी बन रहे लिंक को सेव करना चाहेंगे?",
     "saveDraftAndContinue": "सेव करें और जारी रखें",
-    "discardDraftAndContinue": "छोड़ें और जारी रखें"
+    "discardDraftAndContinue": "छोड़ें और जारी रखें",
+    "newCollectionChip": "नया संग्रह",
+    "newCollectionA11y": "नया संग्रह बनाएँ",
+    "saveDialogTitle": "लिंक सहेजें",
+    "addMemo": "मेमो जोड़ें",
+    "collectionLinkNotSavable": "Juple संग्रह लिंक को सामान्य लिंक के रूप में सहेजा नहीं जा सकता। इसे संग्रह के रूप में खोलें।"
   },
   "sharedCollection": {
     "itemsEmpty": "इस साझा संग्रह में अभी तक कोई सेव किया गया लिंक नहीं है।",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "यह निमंत्रण अब मान्य नहीं है।",
     "invitationResponseFallback": "निमंत्रण का जवाब नहीं दिया जा सका।",
     "invitationsLoadFallback": "निमंत्रण लोड नहीं हो सके।",
-    "invitationsEmpty": "कोई साझा अनुरोध नहीं।",
+    "invitationsEmpty": "कोई निमंत्रण प्राप्त नहीं हुआ।",
     "invitationAccepted": "आपके साझा संग्रहों में जोड़ दिया गया।",
     "accept": "स्वीकार करें",
     "decline": "अस्वीकार करें",
@@ -745,7 +756,10 @@
     "declineA11y": "{{name}} का दोस्ती अनुरोध अस्वीकार करें",
     "cancelA11y": "{{name}} को भेजा दोस्ती अनुरोध रद्द करें",
     "personTitle": "उपयोगकर्ता की जानकारी",
-    "you": "आप"
+    "you": "आप",
+    "requestCancelledByRequester": "भेजने वाले ने यह मित्र अनुरोध रद्द कर दिया है।",
+    "requestNoLongerPending": "इस मित्र अनुरोध पर पहले ही कार्रवाई हो चुकी है।",
+    "requestDialogTitle": "मित्र अनुरोध"
   },
   "notifications": {
     "title": "सूचनाएं",
@@ -758,7 +772,16 @@
     "bellA11y": "सूचनाएं",
     "bellUnreadA11y": "सूचनाएं, {{count}} अपठित",
     "bannerAnnouncement": "नई सूचना: {{title}}। {{body}}",
-    "bannerHint": "खोलने के लिए टैप करें। बंद करने के लिए ऊपर स्वाइप करें।"
+    "bannerHint": "खोलने के लिए टैप करें। बंद करने के लिए ऊपर स्वाइप करें।",
+    "groupToday": "आज",
+    "groupYesterday": "कल",
+    "groupLast7Days": "पिछले 7 दिन",
+    "groupLast30Days": "पिछले 30 दिन",
+    "groupOlder": "पहले के",
+    "daysAgo": "{{count}} दिन",
+    "deleteA11y": "सूचना हटाएँ",
+    "deleteFailed": "सूचना हटाई नहीं जा सकी।",
+    "loadErrorTitle": "सूचनाएँ लोड नहीं हो सकीं"
   },
   "contact": {
     "title": "संपर्क करें",
@@ -767,5 +790,24 @@
     "subject": "Juple पूछताछ",
     "noMailApp": "मेल ऐप नहीं खुल सका। कृपया सीधे {{email}} पर ईमेल करें।",
     "copyEmail": "ईमेल पता कॉपी करें"
+  },
+  "importantState": {
+    "offlineTitle": "कनेक्ट नहीं हो सका",
+    "loadFailedTitle": "लोड नहीं हो सका",
+    "retry": "फिर कोशिश करें",
+    "offlineMessage": "अपना इंटरनेट कनेक्शन जाँचें और पुनः प्रयास करें।"
+  },
+  "calendar": {
+    "previousMonthA11y": "पिछला महीना",
+    "nextMonthA11y": "अगला महीना",
+    "today": "आज",
+    "dayCountA11y": "{{count}} लिंक",
+    "monthLoadError": "कैलेंडर लोड नहीं हो सका।",
+    "dayLoadError": "इस दिन के लिंक लोड नहीं हो सके।",
+    "dayEmpty": "इस दिन कोई लिंक सहेजा नहीं गया।",
+    "collectionDayEmpty": "इस दिन कोई लिंक जोड़ा नहीं गया।",
+    "pickDate": "तारीख चुनें",
+    "selectedDateLabel": "तारीख: {{date}}",
+    "clearDateA11y": "तारीख फ़िल्टर हटाएँ"
   }
 }

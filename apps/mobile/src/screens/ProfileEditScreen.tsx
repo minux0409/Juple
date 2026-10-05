@@ -20,6 +20,7 @@ import { formatJupleId } from '../collections/api/collaborationApi';
 import { pickCollectionIconImage } from '../collections/collectionIconImage';
 import { ActionMenuDialog, type ActionMenuDialogAction } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { UserAvatar } from '../components/UserAvatar';
 import { CheckIcon } from '../icons/CheckIcon';
@@ -63,7 +64,8 @@ export function ProfileEditScreen() {
   const authenticatedRequest = useAuthenticatedApi();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{ readonly cause: unknown } | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [nickname, setNickname] = useState('');
   const [photoChange, setPhotoChange] = useState<PhotoChange>(KEEP);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export function ProfileEditScreen() {
 
   useEffect(() => {
     let isMounted = true;
+    setLoadError(null);
     getMyProfile(authenticatedRequest)
       .then(loaded => {
         if (isMounted) {
@@ -85,15 +88,15 @@ export function ProfileEditScreen() {
           setNickname(loaded.displayName ?? '');
         }
       })
-      .catch(() => {
+      .catch(caughtError => {
         if (isMounted) {
-          setLoadError(t('profile.loadFallback'));
+          setLoadError({ cause: caughtError });
         }
       });
     return () => {
       isMounted = false;
     };
-  }, [authenticatedRequest, t]);
+  }, [authenticatedRequest, reloadToken]);
 
   useEffect(() => {
     if (!isCopied) {
@@ -243,7 +246,7 @@ export function ProfileEditScreen() {
     return (
       <StackScreenSafeArea style={styles.safeArea}>
         <View style={styles.centered}>
-          {loadError ? <Text style={styles.error}>{loadError}</Text> : <ActivityIndicator />}
+          {loadError ? <LoadFailureState error={loadError.cause} message={t('profile.loadFallback')} onRetry={() => setReloadToken(previous => previous + 1)} testID="profile-load-error" /> : <ActivityIndicator />}
         </View>
       </StackScreenSafeArea>
     );

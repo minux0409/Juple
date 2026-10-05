@@ -12,6 +12,7 @@ import {
 } from './api/collectionsApi';
 import { applyCollectionIconImageChange, KEEP_ICON_IMAGE, type CollectionIconImageChange } from './collectionIconImage';
 import { contentGateOf } from './collectionAccess';
+import { resolveFreshCollectionAccess, withFreshCollection } from './freshCollectionAccess';
 import type { CollectionColorValue } from './collectionColors';
 import type { CollectionIconKey } from './collectionIcons';
 import { sortCollectionsByName } from './sortCollectionItems';
@@ -64,6 +65,8 @@ export interface UseCollectionDestinationPickerResult {
   readonly toggle: (collection: Collection) => void;
   readonly unlockTarget: Collection | null;
   readonly onUnlockGranted: (unlockToken: string) => void;
+  /** The prompt hit a state that no longer exists (the password was removed meanwhile): re-read, then go on. True when handled. */
+  readonly onUnlockStateChanged: () => Promise<boolean>;
   readonly cancelUnlock: () => void;
   readonly isSubmitting: boolean;
   readonly submit: () => void;
@@ -137,6 +140,8 @@ export function useCollectionDestinationPicker(
   const [unlockTarget, setUnlockTarget] = useState<Collection | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
+  // Collections whose current state is being read right now: a second tap on one is the same tap.
+  const resolvingIdsRef = useRef(new Set<number>());
   const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -277,11 +282,58 @@ export function useCollectionDestinationPicker(
       });
       return;
     }
-    if (contentGateOf(collection) !== null && !grantsRef.current.has(collection.id)) {
-      setUnlockTarget(collection);
+    if (resolvingIdsRef.current.has(collection.id)) {
       return;
     }
-    select(collection.id);
+    // Whether it asks for a password is read from the server NOW, not trusted from the list loaded earlier.
+    resolvingIdsRef.current.add(collection.id);
+    resolveFreshCollectionAccess(authenticatedRequest, collection)
+      .then(result => {
+        if (result.status === 'unavailable') {
+          setCollections(previous => previous.filter(entry => entry.id !== collection.id));
+          setError(t('collections.pickerCollectionUnavailable'));
+          return;
+        }
+        const current = result.status === 'ok' ? result.collection : collection;
+        if (result.status === 'ok') {
+          setCollections(previous => withFreshCollection(previous, current));
+        }
+        const gate = result.status === 'ok' ? result.gate : contentGateOf(collection);
+        if (gate !== null && !grantsRef.current.has(collection.id)) {
+          setUnlockTarget(current);
+          return;
+        }
+        select(collection.id);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        resolvingIdsRef.current.delete(collection.id);
+      });
+  };
+
+  const onUnlockStateChanged = async (): Promise<boolean> => {
+    const target = unlockTarget;
+    if (!target) {
+      return true;
+    }
+    const result = await resolveFreshCollectionAccess(authenticatedRequest, target);
+    if (result.status === 'unknown') {
+      return false;
+    }
+    if (result.status === 'unavailable') {
+      setUnlockTarget(null);
+      setCollections(previous => previous.filter(entry => entry.id !== target.id));
+      setError(t('collections.pickerCollectionUnavailable'));
+      return true;
+    }
+    setCollections(previous => withFreshCollection(previous, result.collection));
+    if (result.gate === null) {
+      setUnlockTarget(null);
+      select(target.id);
+      return true;
+    }
+    setUnlockTarget(result.collection);
+    return true;
   };
 
   const onUnlockGranted = (unlockToken: string) => {
@@ -397,6 +449,7 @@ export function useCollectionDestinationPicker(
     toggle,
     unlockTarget,
     onUnlockGranted,
+    onUnlockStateChanged,
     cancelUnlock,
     isSubmitting,
     submit,

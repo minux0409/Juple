@@ -553,6 +553,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         DateTimeOffset toUtc,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchPattern = null,
         CancellationToken cancellationToken = default)
     {
         // Same shape as GetHistoryAsync, plus the [fromUtc, toUtc) date-range predicate - unbounded
@@ -563,6 +564,14 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             .Where(item =>
                 item.UserId == userId && item.DeletedAtUtc == null
                 && item.SavedAtUtc >= fromUtc && item.SavedAtUtc < toUtc);
+
+        if (searchPattern is not null)
+        {
+            itemsQuery = itemsQuery.Where(item =>
+                EF.Functions.Like(item.Url, searchPattern, ItemSearchPattern.EscapeCharacter)
+                || (item.Title != null && EF.Functions.Like(item.Title, searchPattern, ItemSearchPattern.EscapeCharacter))
+                || (item.Memo != null && EF.Functions.Like(item.Memo, searchPattern, ItemSearchPattern.EscapeCharacter)));
+        }
 
         if (cursor is not null)
         {

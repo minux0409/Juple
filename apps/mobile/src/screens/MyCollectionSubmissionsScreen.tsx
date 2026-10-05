@@ -11,6 +11,7 @@ import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { useCancelSubmission } from '../collections/useCancelSubmission';
 import { ApiError } from '../api/ApiError';
 import { contentGateOfError } from '../collections/useCollectionItems';
+import { ImportantState } from '../components/ImportantState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, spacing } from '../theme/tokens';
@@ -111,6 +112,7 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
     cancellation.swipeToCancel(
       { submissionId: item.submissionId, title: item.title, url: item.url },
       <PendingSubmissionCard
+        embedded
         row={item}
         trailing={cancellation.renderOpenAction({ submissionId: item.submissionId, title: item.title, url: item.url })}
         variant="mine"
@@ -127,7 +129,11 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
           isLoading ? (
             <ActivityIndicator style={styles.loading} />
           ) : (
-            <Text style={loadError ? styles.error : styles.empty} testID="my-submissions-empty">{loadError ?? t('submissions.myEmpty')}</Text>
+            loadError ? (
+              <ImportantState message={loadError} onRetry={() => { load(false).catch(() => undefined); }} testID="my-submissions-empty" />
+            ) : (
+              <Text style={styles.empty} testID="my-submissions-empty">{t('submissions.myEmpty')}</Text>
+            )
           )
         }
         onScrollBeginDrag={closeOpenRow}

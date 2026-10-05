@@ -6,7 +6,9 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { formatBadgeCount } from '../components/badgeCount';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useMessageDialog } from '../components/useMessageDialog';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { useActionAfterMenu } from '../components/useActionAfterMenu';
@@ -16,6 +18,7 @@ import { useViewModePreference, type ViewMode } from '../settings/viewModePrefer
 import { UserAvatar } from '../components/UserAvatar';
 import { AddFriendModal, getFriendRequestErrorMessage } from '../friends/AddFriendModal';
 import { FriendDetailModal } from '../friends/FriendDetailModal';
+import { usePersonProfile } from '../friends/PersonProfileModal';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { getFriendSearchEmptyState } from '../friends/friendSearchEmptyState';
 import { atJupleId, friendPrimaryLabel } from '../friends/friendIdentity';
@@ -74,15 +77,20 @@ export function FriendsScreen() {
   const [isLoadingFriends, setIsLoadingFriends] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [friendsError, setFriendsError] = useState(false);
+  // What the last failed load threw - only to tell "no connection" from "the server failed" in the state shown.
+  const [friendsFailure, setFriendsFailure] = useState<unknown>(null);
   const [search, setSearch] = useState('');
   const loadIdRef = useRef(0);
 
   const [requests, setRequests] = useState<readonly FriendRequest[]>([]);
   const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
   const [requestsError, setRequestsError] = useState(false);
+  const [requestsFailure, setRequestsFailure] = useState<unknown>(null);
   const [busyRequestIds, setBusyRequestIds] = useState<ReadonlySet<number>>(() => new Set());
   const busyRequestIdsRef = useRef<Set<number>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
+  // An operation's result (a request that is no longer open, ...) is a centered message, never an inline red line.
+  const { showMessage, messageDialog } = useMessageDialog();
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selected, setSelected] = useState<Friend | null>(null);
@@ -91,6 +99,8 @@ export function FriendsScreen() {
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   const [isAddOpen, setIsAddOpen] = useState(false);
+  // A request row's person (the whole identity area is the tap target): the same person/friend info as everywhere.
+  const { openProfile, profileModal } = usePersonProfile();
 
   const openAdd = useCallback(() => setIsAddOpen(true), []);
   const renderHeaderRight = useCallback(() => <FriendsAddHeaderButton onPress={openAdd} />, [openAdd]);
@@ -110,9 +120,10 @@ export function FriendsScreen() {
           setHasLoadedFriends(true);
           setFriendsError(false);
         }
-      } catch {
+      } catch (caughtError) {
         if (loadId === loadIdRef.current) {
           setFriendsError(true);
+          setFriendsFailure(caughtError);
         }
       } finally {
         if (loadId === loadIdRef.current) {
@@ -141,8 +152,9 @@ export function FriendsScreen() {
       if (anAnswered) {
         loadFriends(searchRef.current);
       }
-    } catch {
+    } catch (caughtError) {
       setRequestsError(true);
+      setRequestsFailure(caughtError);
     }
   }, [authenticatedRequest, loadFriends]);
 
@@ -162,7 +174,7 @@ export function FriendsScreen() {
     if (event === null) {
       loadFriends(searchRef.current);
     }
-  }, ['friendRequest', 'friendRequestAnswered']);
+  }, ['friendRequest', 'friendRequestAnswered', 'friendRequestAccepted', 'friendRequestRejected']);
 
   // Push can lag (the dispatch Job runs once a minute) or not arrive at all (notifications off).
   // So while this screen is open and I have a sent request waiting for an answer, re-check just
@@ -213,7 +225,7 @@ export function FriendsScreen() {
   };
 
   /** One request's action: that row alone is busy (a second tap on it is ignored); every other row stays usable. */
-  const runRequestAction = async (requestId: number, action: () => Promise<void>) => {
+  const runRequestAction = async (requestId: number, intent: 'answer' | 'cancel', action: () => Promise<void>) => {
     if (busyRequestIdsRef.current.has(requestId)) {
       return;
     }
@@ -223,8 +235,9 @@ export function FriendsScreen() {
     try {
       await action();
     } catch (caughtError) {
-      setActionError(getFriendRequestErrorMessage(caughtError, t));
-      // Whatever the server now knows (e.g. they cancelled it meanwhile) replaces the stale row.
+      showMessage(getFriendRequestErrorMessage(caughtError, t, intent), { title: t('friends.requestDialogTitle') });
+      // Whatever the server now knows (e.g. they cancelled it meanwhile) replaces the stale row at once.
+      dropRequest(requestId);
       loadRequests();
     } finally {
       busyRequestIdsRef.current.delete(requestId);
@@ -240,7 +253,7 @@ export function FriendsScreen() {
   };
 
   const accept = (request: FriendRequest) =>
-    runRequestAction(request.requestId, async () => {
+    runRequestAction(request.requestId, 'answer', async () => {
       const friend = await acceptFriendRequest(authenticatedRequest, request.requestId);
       dropRequest(request.requestId);
       // In 친구 at once (unless a search is narrowing the list - clearing it reloads anyway).
@@ -250,13 +263,13 @@ export function FriendsScreen() {
     });
 
   const decline = (request: FriendRequest) =>
-    runRequestAction(request.requestId, async () => {
+    runRequestAction(request.requestId, 'answer', async () => {
       await declineFriendRequest(authenticatedRequest, request.requestId);
       dropRequest(request.requestId);
     });
 
   const cancel = (request: FriendRequest) =>
-    runRequestAction(request.requestId, async () => {
+    runRequestAction(request.requestId, 'cancel', async () => {
       await cancelFriendRequest(authenticatedRequest, request.requestId);
       dropRequest(request.requestId);
     });
@@ -277,13 +290,8 @@ export function FriendsScreen() {
   const refreshControl = <RefreshControl onRefresh={refresh} refreshing={isRefreshing} />;
   const banner = actionError ? <Text accessibilityLiveRegion="polite" style={styles.banner} testID="friends-action-error">{actionError}</Text> : null;
 
-  const retryBlock = (onRetry: () => void, testID: string) => (
-    <View style={styles.stateBlock} testID={testID}>
-      <Text style={styles.stateText}>{t('friends.loadFallback')}</Text>
-      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.secondaryButton} testID={`${testID}-retry`}>
-        <Text style={styles.secondaryLabel}>{t('history.retry')}</Text>
-      </Pressable>
-    </View>
+  const retryBlock = (onRetry: () => void, testID: string, failure: unknown) => (
+    <LoadFailureState error={failure} message={t('friends.loadFallback')} onRetry={onRetry} retryLabel={t('history.retry')} testID={testID} />
   );
 
   const friendsList = (
@@ -296,7 +304,7 @@ export function FriendsScreen() {
       keyExtractor={friend => friend.friendshipId.toString()}
       ListEmptyComponent={
         !hasLoadedFriends ? (
-          friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-error') : <ActivityIndicator style={styles.loading} testID="friends-loading" />
+          friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-error', friendsFailure) : <ActivityIndicator style={styles.loading} testID="friends-loading" />
         ) : getFriendSearchEmptyState({ query: search, totalCount: friends.length, filteredCount: friends.length }) === 'noResults' ? (
           <Text style={styles.stateText}>{t('friends.searchEmpty')}</Text>
         ) : (
@@ -332,7 +340,7 @@ export function FriendsScreen() {
             <ViewModeToggle onChange={changeViewMode} value={viewMode} />
           </View>
           {banner}
-          {hasLoadedFriends && friendsError ? <Text style={styles.banner} testID="friends-stale">{t('friends.loadFallback')}</Text> : null}
+          {hasLoadedFriends && friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-stale', friendsFailure) : null}
         </View>
       }
       onEndReached={loadMore}
@@ -358,7 +366,7 @@ export function FriendsScreen() {
       keyExtractor={request => request.requestId.toString()}
       ListEmptyComponent={
         !hasLoadedRequests ? (
-          requestsError ? retryBlock(loadRequests, `friends-${direction}-error`) : <ActivityIndicator style={styles.loading} testID={`friends-${direction}-loading`} />
+          requestsError ? retryBlock(loadRequests, `friends-${direction}-error`, requestsFailure) : <ActivityIndicator style={styles.loading} testID={`friends-${direction}-loading`} />
         ) : (
           <View style={styles.stateBlock} testID={`friends-${direction}-empty`}>
             <Text style={styles.stateTitle}>{t(direction === 'incoming' ? 'friends.incomingEmpty' : 'friends.outgoingEmpty')}</Text>
@@ -368,7 +376,7 @@ export function FriendsScreen() {
       ListHeaderComponent={
         <View>
           {banner}
-          {hasLoadedRequests && requestsError ? <Text style={styles.banner} testID="friends-requests-stale">{t('friends.loadFallback')}</Text> : null}
+          {hasLoadedRequests && requestsError ? retryBlock(loadRequests, 'friends-requests-stale', requestsFailure) : null}
         </View>
       }
       refreshControl={refreshControl}
@@ -378,6 +386,7 @@ export function FriendsScreen() {
           onAccept={() => accept(item)}
           onCancel={() => cancel(item)}
           onDecline={() => decline(item)}
+          onOpenPerson={() => openProfile({ jupleId: item.jupleId, displayName: item.displayName, profileImageUrl: item.profileImageUrl, profileImageVersion: item.profileImageVersion })}
           request={item}
         />
       )}
@@ -463,6 +472,7 @@ export function FriendsScreen() {
         title={menuFriend ? friendPrimaryLabel(menuFriend) : undefined}
         visible={menuFriend !== null}
       />
+      {messageDialog}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('friends.remove')}
@@ -478,6 +488,7 @@ export function FriendsScreen() {
         title={t('friends.removeConfirmTitle')}
         visible={pendingRemoval !== null}
       />
+      {profileModal}
       <AddFriendModal
         friends={friends}
         onClose={() => setIsAddOpen(false)}
@@ -600,8 +611,9 @@ function FriendRow({ friend, layout, onPress, onLongPress, onSwipeDelete }: {
  * A request: who, then its actions on their own line below - so on a narrow screen the buttons
  * never squeeze the name. Received: [거절] [수락]; sent: 요청 대기 중 and [요청 취소].
  */
-function RequestRow({ request, isBusy, onAccept, onDecline, onCancel }: {
+function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPerson }: {
   readonly request: FriendRequest;
+  readonly onOpenPerson: () => void;
   readonly isBusy: boolean;
   readonly onAccept: () => void;
   readonly onDecline: () => void;
@@ -613,7 +625,7 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel }: {
   const isIncoming = request.direction === 'incoming';
   return (
     <View style={styles.requestRow} testID={`friends-${request.direction}-${request.requestId}`}>
-      <View style={styles.requestIdentity}>
+      <Pressable accessibilityLabel={`${name}, ${t('friends.personTitle')}`} accessibilityRole="button" onPress={onOpenPerson} style={styles.requestIdentity} testID={`friends-${request.direction}-person-${request.requestId}`}>
         <UserAvatar displayName={request.displayName} imageUrl={request.profileImageUrl} imageVersion={request.profileImageVersion} jupleId={request.jupleId} size={44} />
         <View style={styles.rowText}>
           <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle]}>{name}</Text>
@@ -621,7 +633,7 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel }: {
           {!isIncoming ? <Text numberOfLines={1} style={styles.pending}>{t('friends.requestPending')}</Text> : null}
         </View>
         {isBusy ? <ActivityIndicator size="small" testID={`friends-request-busy-${request.requestId}`} /> : null}
-      </View>
+      </Pressable>
       <View style={styles.requestActions}>
         {isIncoming ? (
           <>

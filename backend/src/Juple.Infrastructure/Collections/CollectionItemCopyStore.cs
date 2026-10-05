@@ -1,5 +1,6 @@
 using Juple.Application.Collections;
 using Juple.Application.Collections.CopyItems;
+using Juple.Application.Collections.Public;
 using Juple.Domain.Collections;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
@@ -8,7 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Collections;
 
-public sealed class CollectionItemCopyStore(JupleDbContext dbContext) : ICollectionItemCopyStore
+public sealed class CollectionItemCopyStore(
+    JupleDbContext dbContext,
+    ICollectionShareUrlDetector? collectionShareUrlDetector = null) : ICollectionItemCopyStore
 {
     // Same spacing CollectionStore uses, so later manual reorders still find room between rows.
     private const int SortOrderGap = 4096;
@@ -40,6 +43,7 @@ public sealed class CollectionItemCopyStore(JupleDbContext dbContext) : ICollect
                 select new { item.Id, item.UserId, item.Url, item.Title, item.PreviewImageUrl })
             .ToListAsync(cancellationToken);
         var unavailable = itemIds.Count - sources.Count;
+
         if (rejectCallerOwnedItems && sources.Any(source => source.UserId == userId))
         {
             throw new InvalidCollectionException("itemIds", "Your own links are replicated or moved, not copied.");
@@ -70,6 +74,14 @@ public sealed class CollectionItemCopyStore(JupleDbContext dbContext) : ICollect
             {
                 // The caller's own link (they added it to the shared Collection) - reused as itself.
                 toAdd.Add((source.Id, null));
+                continue;
+            }
+
+            // The invariant of POST /inbox holds here too: a Collection share URL (a legacy row from before the rule)
+            // is never turned into a new saved link by a copy - it is skipped like an unavailable link.
+            if (collectionShareUrlDetector?.FindPublicId(source.Url) is not null)
+            {
+                unavailable++;
                 continue;
             }
 

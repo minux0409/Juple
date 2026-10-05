@@ -292,8 +292,8 @@
     "lockContactOwner": "คอลเลกชันนี้ต้องใช้รหัสผ่านล็อกที่เจ้าของตั้งไว้",
     "lockRemoveConfirmTitle": "ปลดล็อกหรือไม่",
     "lockRemoveConfirmMessage": "ป้อนรหัสผ่านล็อกเพื่อปลดล็อกคอลเลกชัน",
-    "shareRequests": "คำขอแชร์",
-    "shareRequestCount": "คำขอแชร์ {{count}} รายการ",
+    "shareRequests": "คำเชิญที่ได้รับ",
+    "shareRequestCount": "คำเชิญที่ได้รับ {{count}} รายการ",
     "roleViewer": "อ่านอย่างเดียว",
     "lockConfirmTitle": "ล็อกคอลเลกชันนี้ไหม",
     "lockConfirmMessage": "ปกป้องคอลเลกชันนี้ในบัญชีของคุณด้วยรหัสผ่านล็อก",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "ขอรหัสผ่านการเข้าถึงจากผู้ที่แชร์คอลเลกชันนี้",
     "sharePasswordRequiredForAction": "เปิดคอลเลกชันและใส่รหัสผ่านการเข้าถึงก่อน",
     "sortNameAscA11y": "ชื่อ เรียงจาก ก ถึง ฮ",
-    "sortNameDescA11y": "ชื่อ เรียงจาก ฮ ถึง ก"
+    "sortNameDescA11y": "ชื่อ เรียงจาก ฮ ถึง ก",
+    "pickerCollectionUnavailable": "คอลเลกชันนี้ไม่พร้อมใช้งานอีกต่อไป",
+    "leaveAction": "ออกจากคอลเลกชัน",
+    "leaveConfirmTitle": "ออกจากคอลเลกชันไหม?",
+    "leaveConfirmMessage": "หากออก คอลเลกชันนี้จะถูกนำออกจากรายการของคุณ",
+    "leaveConfirmButton": "ออก",
+    "leaveError": "ออกจากคอลเลกชันไม่ได้ โปรดลองอีกครั้งภายหลัง"
   },
   "toast": {
     "moveSuccess": "ย้ายแล้ว",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "คุณมีลิงก์ที่กำลังดำเนินการอยู่",
     "activeDraftConflictMessage": "ต้องการบันทึกลิงก์ที่กำลังแก้ไขอยู่ก่อนตรวจสอบลิงก์ใหม่หรือไม่?",
     "saveDraftAndContinue": "บันทึกแล้วดำเนินการต่อ",
-    "discardDraftAndContinue": "ละทิ้งแล้วดำเนินการต่อ"
+    "discardDraftAndContinue": "ละทิ้งแล้วดำเนินการต่อ",
+    "newCollectionChip": "คอลเลกชันใหม่",
+    "newCollectionA11y": "สร้างคอลเลกชันใหม่",
+    "saveDialogTitle": "บันทึกลิงก์",
+    "addMemo": "เพิ่มบันทึก",
+    "collectionLinkNotSavable": "ลิงก์คอลเลกชันของ Juple ไม่สามารถบันทึกเป็นลิงก์ทั่วไปได้ โปรดเปิดเป็นคอลเลกชันแทน"
   },
   "sharedCollection": {
     "itemsEmpty": "คอลเลกชันที่แชร์นี้ยังไม่มีลิงก์ที่บันทึกไว้",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "คำเชิญนี้ใช้ไม่ได้แล้ว",
     "invitationResponseFallback": "ไม่สามารถตอบกลับคำเชิญได้",
     "invitationsLoadFallback": "ไม่สามารถโหลดคำเชิญได้",
-    "invitationsEmpty": "ไม่มีคำขอแชร์",
+    "invitationsEmpty": "ไม่มีคำเชิญที่ได้รับ",
     "invitationAccepted": "เพิ่มในคอลเลกชันที่แชร์แล้ว",
     "accept": "ยอมรับ",
     "decline": "ปฏิเสธ",
@@ -745,7 +756,10 @@
     "declineA11y": "ปฏิเสธคำขอเป็นเพื่อนจาก {{name}}",
     "cancelA11y": "ยกเลิกคำขอเป็นเพื่อนที่ส่งถึง {{name}}",
     "personTitle": "ข้อมูลผู้ใช้",
-    "you": "คุณ"
+    "you": "คุณ",
+    "requestCancelledByRequester": "ผู้ส่งยกเลิกคำขอเป็นเพื่อนนี้แล้ว",
+    "requestNoLongerPending": "คำขอเป็นเพื่อนนี้ได้รับการจัดการแล้ว",
+    "requestDialogTitle": "คำขอเป็นเพื่อน"
   },
   "notifications": {
     "title": "การแจ้งเตือน",
@@ -758,7 +772,16 @@
     "bellA11y": "การแจ้งเตือน",
     "bellUnreadA11y": "การแจ้งเตือน ยังไม่ได้อ่าน {{count}} รายการ",
     "bannerAnnouncement": "การแจ้งเตือนใหม่: {{title}} {{body}}",
-    "bannerHint": "แตะเพื่อเปิด ปัดขึ้นเพื่อปิด"
+    "bannerHint": "แตะเพื่อเปิด ปัดขึ้นเพื่อปิด",
+    "groupToday": "วันนี้",
+    "groupYesterday": "เมื่อวาน",
+    "groupLast7Days": "7 วันที่ผ่านมา",
+    "groupLast30Days": "30 วันที่ผ่านมา",
+    "groupOlder": "ก่อนหน้านี้",
+    "daysAgo": "{{count}} วัน",
+    "deleteA11y": "ลบการแจ้งเตือน",
+    "deleteFailed": "ลบการแจ้งเตือนไม่สำเร็จ",
+    "loadErrorTitle": "โหลดการแจ้งเตือนไม่สำเร็จ"
   },
   "contact": {
     "title": "ติดต่อเรา",
@@ -767,5 +790,24 @@
     "subject": "สอบถามเกี่ยวกับ Juple",
     "noMailApp": "ไม่สามารถเปิดแอปอีเมลได้ โปรดส่งอีเมลถึง {{email}} โดยตรง",
     "copyEmail": "คัดลอกที่อยู่อีเมล"
+  },
+  "importantState": {
+    "offlineTitle": "เชื่อมต่อไม่ได้",
+    "loadFailedTitle": "โหลดไม่สำเร็จ",
+    "retry": "ลองอีกครั้ง",
+    "offlineMessage": "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง"
+  },
+  "calendar": {
+    "previousMonthA11y": "เดือนก่อนหน้า",
+    "nextMonthA11y": "เดือนถัดไป",
+    "today": "วันนี้",
+    "dayCountA11y": "{{count}} ลิงก์",
+    "monthLoadError": "โหลดปฏิทินไม่สำเร็จ",
+    "dayLoadError": "โหลดลิงก์ของวันนี้ไม่สำเร็จ",
+    "dayEmpty": "ไม่มีลิงก์ที่บันทึกในวันนี้",
+    "collectionDayEmpty": "ไม่มีลิงก์ที่เพิ่มในวันนี้",
+    "pickDate": "เลือกวันที่",
+    "selectedDateLabel": "วันที่: {{date}}",
+    "clearDateA11y": "ล้างตัวกรองวันที่"
   }
 }

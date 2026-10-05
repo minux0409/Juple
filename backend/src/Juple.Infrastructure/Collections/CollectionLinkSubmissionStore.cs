@@ -278,7 +278,7 @@ public sealed class CollectionLinkSubmissionStore(
             throw new CollectionCollaborationConflictException(conflict);
         }
 
-        return new ApprovedCollectionLinkSubmission(collectionId, ownerUserId, submission.SubmittedByUserId, submission.ViaPublicShare);
+        return new ApprovedCollectionLinkSubmission(collectionId, ownerUserId, submission.SubmittedByUserId, submission.ViaPublicShare, submission.ItemId);
     }
 
     public async Task<CancelledCollectionLinkSubmission?> CancelMineAsync(
@@ -329,13 +329,13 @@ public sealed class CollectionLinkSubmissionStore(
         return new CancelledCollectionLinkSubmission(collectionId.Value, ownerUserId.Value);
     }
 
-    public async Task<long?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default)
+    public async Task<RejectedCollectionLinkSubmission?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default)
     {
-        var submitterUserId = await dbContext.CollectionLinkSubmissions.AsNoTracking()
+        var rejected = await dbContext.CollectionLinkSubmissions.AsNoTracking()
             .Where(entry => entry.Id == submissionId && entry.CollectionId == collectionId)
-            .Select(entry => (long?)entry.SubmittedByUserId)
+            .Select(entry => new RejectedCollectionLinkSubmission(entry.SubmittedByUserId, entry.ItemId))
             .FirstOrDefaultAsync(cancellationToken);
-        if (submitterUserId is null)
+        if (rejected is null)
         {
             return null;
         }
@@ -345,7 +345,7 @@ public sealed class CollectionLinkSubmissionStore(
         var deleted = await dbContext.CollectionLinkSubmissions
             .Where(entry => entry.Id == submissionId && entry.CollectionId == collectionId)
             .ExecuteDeleteAsync(cancellationToken);
-        return deleted > 0 ? submitterUserId : null;
+        return deleted > 0 ? rejected : null;
     }
 
     /// <summary>The same link = the same exact URL among the Collection's live links (the rule copying uses).</summary>

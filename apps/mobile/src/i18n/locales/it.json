@@ -292,8 +292,8 @@
     "lockContactOwner": "Questa raccolta richiede la password di blocco impostata dal proprietario.",
     "lockRemoveConfirmTitle": "Rimuovere il blocco?",
     "lockRemoveConfirmMessage": "Inserisci la password di blocco per sbloccare la raccolta.",
-    "shareRequests": "Richieste di condivisione",
-    "shareRequestCount": "Richieste di condivisione: {{count}}",
+    "shareRequests": "Inviti ricevuti",
+    "shareRequestCount": "Inviti ricevuti: {{count}}",
     "roleViewer": "Sola lettura",
     "lockConfirmTitle": "Bloccare questa raccolta?",
     "lockConfirmMessage": "Proteggi questa raccolta nel tuo account con la password di blocco.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Chiedi la password di accesso a chi ha condiviso questa raccolta.",
     "sharePasswordRequiredForAction": "Apri prima la raccolta e inserisci la password di accesso.",
     "sortNameAscA11y": "Nome, dalla A alla Z",
-    "sortNameDescA11y": "Nome, dalla Z alla A"
+    "sortNameDescA11y": "Nome, dalla Z alla A",
+    "pickerCollectionUnavailable": "Questa raccolta non è più disponibile.",
+    "leaveAction": "Esci dalla raccolta",
+    "leaveConfirmTitle": "Uscire dalla raccolta?",
+    "leaveConfirmMessage": "Se esci, questa raccolta verrà rimossa dal tuo elenco.",
+    "leaveConfirmButton": "Esci",
+    "leaveError": "Impossibile uscire dalla raccolta. Riprova più tardi."
   },
   "toast": {
     "moveSuccess": "Spostato.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Hai un link in corso",
     "activeDraftConflictMessage": "Vuoi salvare il link su cui stai lavorando prima di visualizzare il nuovo link?",
     "saveDraftAndContinue": "Salva e continua",
-    "discardDraftAndContinue": "Scarta e continua"
+    "discardDraftAndContinue": "Scarta e continua",
+    "newCollectionChip": "Nuova raccolta",
+    "newCollectionA11y": "Crea una nuova raccolta",
+    "saveDialogTitle": "Salva link",
+    "addMemo": "Aggiungi una nota",
+    "collectionLinkNotSavable": "Un link di raccolta Juple non può essere salvato come link normale. Aprilo come raccolta."
   },
   "sharedCollection": {
     "itemsEmpty": "Questa raccolta condivisa non ha ancora link salvati.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Questo invito non è più valido.",
     "invitationResponseFallback": "Impossibile rispondere all'invito.",
     "invitationsLoadFallback": "Impossibile caricare gli inviti.",
-    "invitationsEmpty": "Nessuna richiesta di condivisione.",
+    "invitationsEmpty": "Nessun invito ricevuto.",
     "invitationAccepted": "Aggiunta alle raccolte condivise.",
     "accept": "Accetta",
     "decline": "Rifiuta",
@@ -745,7 +756,10 @@
     "declineA11y": "Rifiuta la richiesta di amicizia di {{name}}",
     "cancelA11y": "Annulla la richiesta di amicizia a {{name}}",
     "personTitle": "Info utente",
-    "you": "Tu"
+    "you": "Tu",
+    "requestCancelledByRequester": "Il mittente ha annullato questa richiesta di amicizia.",
+    "requestNoLongerPending": "Questa richiesta di amicizia è già stata gestita.",
+    "requestDialogTitle": "Richiesta di amicizia"
   },
   "notifications": {
     "title": "Notifiche",
@@ -758,7 +772,16 @@
     "bellA11y": "Notifiche",
     "bellUnreadA11y": "Notifiche, {{count}} non lette",
     "bannerAnnouncement": "Nuova notifica: {{title}}. {{body}}",
-    "bannerHint": "Tocca per aprire. Scorri verso l’alto per chiudere."
+    "bannerHint": "Tocca per aprire. Scorri verso l’alto per chiudere.",
+    "groupToday": "Oggi",
+    "groupYesterday": "Ieri",
+    "groupLast7Days": "Ultimi 7 giorni",
+    "groupLast30Days": "Ultimi 30 giorni",
+    "groupOlder": "Meno recenti",
+    "daysAgo": "{{count}} g",
+    "deleteA11y": "Elimina notifica",
+    "deleteFailed": "Impossibile eliminare la notifica.",
+    "loadErrorTitle": "Impossibile caricare le notifiche"
   },
   "contact": {
     "title": "Contattaci",
@@ -767,5 +790,24 @@
     "subject": "Richiesta su Juple",
     "noMailApp": "Impossibile aprire un'app di posta. Scrivi direttamente a {{email}}.",
     "copyEmail": "Copia indirizzo email"
+  },
+  "importantState": {
+    "offlineTitle": "Impossibile connettersi",
+    "loadFailedTitle": "Impossibile caricare",
+    "retry": "Riprova",
+    "offlineMessage": "Controlla la connessione a internet e riprova."
+  },
+  "calendar": {
+    "previousMonthA11y": "Mese precedente",
+    "nextMonthA11y": "Mese successivo",
+    "today": "Oggi",
+    "dayCountA11y": "{{count}} link",
+    "monthLoadError": "Impossibile caricare il calendario.",
+    "dayLoadError": "Impossibile caricare i link di questo giorno.",
+    "dayEmpty": "Nessun link salvato in questo giorno.",
+    "collectionDayEmpty": "Nessun link aggiunto in questo giorno.",
+    "pickDate": "Scegli una data",
+    "selectedDateLabel": "Data: {{date}}",
+    "clearDateA11y": "Rimuovi il filtro data"
   }
 }

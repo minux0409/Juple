@@ -292,8 +292,8 @@
     "lockContactOwner": "Esta colección requiere la contraseña de bloqueo que definió su propietario.",
     "lockRemoveConfirmTitle": "¿Quitar el bloqueo?",
     "lockRemoveConfirmMessage": "Introduce tu contraseña de bloqueo para desbloquear la colección.",
-    "shareRequests": "Solicitudes para compartir",
-    "shareRequestCount": "Solicitudes para compartir: {{count}}",
+    "shareRequests": "Invitaciones recibidas",
+    "shareRequestCount": "Invitaciones recibidas: {{count}}",
     "roleViewer": "Solo lectura",
     "lockConfirmTitle": "¿Bloquear esta colección?",
     "lockConfirmMessage": "Protege esta colección en tu cuenta con tu contraseña de bloqueo.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Pide la contraseña de acceso a quien compartió esta colección.",
     "sharePasswordRequiredForAction": "Primero abre la colección e introduce su contraseña de acceso.",
     "sortNameAscA11y": "Nombre, de A a Z",
-    "sortNameDescA11y": "Nombre, de Z a A"
+    "sortNameDescA11y": "Nombre, de Z a A",
+    "pickerCollectionUnavailable": "Esta colección ya no está disponible.",
+    "leaveAction": "Salir de la colección",
+    "leaveConfirmTitle": "¿Salir de la colección?",
+    "leaveConfirmMessage": "Si sales, esta colección se quitará de tu lista.",
+    "leaveConfirmButton": "Salir",
+    "leaveError": "No se pudo salir de la colección. Inténtalo de nuevo más tarde."
   },
   "toast": {
     "moveSuccess": "Movido.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Tienes un enlace en progreso",
     "activeDraftConflictMessage": "¿Quieres guardar el enlace en el que estás trabajando antes de ver el nuevo enlace?",
     "saveDraftAndContinue": "Guardar y continuar",
-    "discardDraftAndContinue": "Descartar y continuar"
+    "discardDraftAndContinue": "Descartar y continuar",
+    "newCollectionChip": "Nueva colección",
+    "newCollectionA11y": "Crear una colección nueva",
+    "saveDialogTitle": "Guardar enlace",
+    "addMemo": "Añadir una nota",
+    "collectionLinkNotSavable": "Un enlace de colección de Juple no se puede guardar como enlace normal. Ábrelo como colección."
   },
   "sharedCollection": {
     "itemsEmpty": "Esta colección compartida aún no tiene enlaces guardados.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Esta invitación ya no es válida.",
     "invitationResponseFallback": "No se pudo responder a la invitación.",
     "invitationsLoadFallback": "No se pudieron cargar las invitaciones.",
-    "invitationsEmpty": "No hay solicitudes para compartir.",
+    "invitationsEmpty": "No has recibido invitaciones.",
     "invitationAccepted": "Añadida a tus colecciones compartidas.",
     "accept": "Aceptar",
     "decline": "Rechazar",
@@ -745,7 +756,10 @@
     "declineA11y": "Rechazar la solicitud de amistad de {{name}}",
     "cancelA11y": "Cancelar la solicitud de amistad a {{name}}",
     "personTitle": "Información del usuario",
-    "you": "Tú"
+    "you": "Tú",
+    "requestCancelledByRequester": "El remitente canceló esta solicitud de amistad.",
+    "requestNoLongerPending": "Esta solicitud de amistad ya se gestionó.",
+    "requestDialogTitle": "Solicitud de amistad"
   },
   "notifications": {
     "title": "Notificaciones",
@@ -758,7 +772,16 @@
     "bellA11y": "Notificaciones",
     "bellUnreadA11y": "Notificaciones, {{count}} sin leer",
     "bannerAnnouncement": "Nueva notificación: {{title}}. {{body}}",
-    "bannerHint": "Toca para abrir. Desliza hacia arriba para cerrar."
+    "bannerHint": "Toca para abrir. Desliza hacia arriba para cerrar.",
+    "groupToday": "Hoy",
+    "groupYesterday": "Ayer",
+    "groupLast7Days": "Últimos 7 días",
+    "groupLast30Days": "Últimos 30 días",
+    "groupOlder": "Anteriores",
+    "daysAgo": "{{count}} d",
+    "deleteA11y": "Eliminar notificación",
+    "deleteFailed": "No se pudo eliminar la notificación.",
+    "loadErrorTitle": "No se pudieron cargar las notificaciones"
   },
   "contact": {
     "title": "Contáctanos",
@@ -767,5 +790,24 @@
     "subject": "Consulta sobre Juple",
     "noMailApp": "No se pudo abrir una app de correo. Escribe directamente a {{email}}.",
     "copyEmail": "Copiar dirección de correo"
+  },
+  "importantState": {
+    "offlineTitle": "No se puede conectar",
+    "loadFailedTitle": "No se pudo cargar",
+    "retry": "Reintentar",
+    "offlineMessage": "Comprueba tu conexión a internet e inténtalo de nuevo."
+  },
+  "calendar": {
+    "previousMonthA11y": "Mes anterior",
+    "nextMonthA11y": "Mes siguiente",
+    "today": "Hoy",
+    "dayCountA11y": "{{count}} enlaces",
+    "monthLoadError": "No se pudo cargar el calendario.",
+    "dayLoadError": "No se pudieron cargar los enlaces de este día.",
+    "dayEmpty": "No hay enlaces guardados este día.",
+    "collectionDayEmpty": "No se añadieron enlaces este día.",
+    "pickDate": "Elegir fecha",
+    "selectedDateLabel": "Fecha: {{date}}",
+    "clearDateA11y": "Quitar el filtro de fecha"
   }
 }

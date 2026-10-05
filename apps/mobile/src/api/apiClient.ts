@@ -160,7 +160,8 @@ export async function requestApi<T>({
   }
 
   if (response.status === 404) {
-    throw new ApiError('notFound', response.status);
+    // e.g. "requestNoLongerPending" (a friend request that was withdrawn/answered meanwhile).
+    throw new ApiError('notFound', response.status, await readProblemCode(response));
   }
 
   if (response.status === 409) {

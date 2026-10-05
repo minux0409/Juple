@@ -49,6 +49,12 @@ interface PendingSubmissionCardProps {
    * approve), separated from the content by a hairline. The information itself is not interactive.
    */
   readonly actionStrip?: ReactNode;
+  /**
+   * Inside a SwipeableItemRow: the card is a square, edge-to-edge rectangle and the swipe frame supplies the rounded
+   * clip - so the red action revealed behind it is one continuous underlay of this same row (no rounded card floating
+   * over a differently shaped red box, no gap at the corners).
+   */
+  readonly embedded?: boolean;
 }
 
 /**
@@ -65,7 +71,7 @@ interface PendingSubmissionCardProps {
  * private name), and nothing in a list scoped to one Collection. The Owner's card shows who proposed it
  * (a public-link proposer only as that, never by name) instead, with the action strip below.
  */
-export function PendingSubmissionCard({ row, variant, trailing, actionStrip }: PendingSubmissionCardProps) {
+export function PendingSubmissionCard({ row, variant, trailing, actionStrip, embedded = false }: PendingSubmissionCardProps) {
   const { t } = useTranslation();
   const hostname = getHostnameFromUrl(row.url) ?? row.url;
   const title = row.title?.trim() ? row.title : hostname;
@@ -74,7 +80,7 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip }: P
   const ContextIcon = row.collectionName ? FolderIcon : ShareIcon;
 
   return (
-    <View style={styles.card} testID={variant === 'owner' ? `submission-${row.submissionId}` : `my-submission-${row.submissionId}`}>
+    <View style={[styles.card, embedded && styles.cardEmbedded]} testID={variant === 'owner' ? `submission-${row.submissionId}` : `my-submission-${row.submissionId}`}>
       <View style={styles.top}>
         <View
           accessibilityLabel={variant === 'mine' ? [title, contextName, time].filter(Boolean).join(', ') : undefined}
@@ -174,6 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     padding: CARD_PADDING,
   },
+  cardEmbedded: { borderRadius: 0 },
   top: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   info: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm + 2, minWidth: 0 },
   thumbnail: {

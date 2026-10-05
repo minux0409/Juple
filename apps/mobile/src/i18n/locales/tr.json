@@ -292,8 +292,8 @@
     "lockContactOwner": "Bu koleksiyon, sahibinin belirlediği kilit şifresini gerektirir.",
     "lockRemoveConfirmTitle": "Kilit kaldırılsın mı?",
     "lockRemoveConfirmMessage": "Kilidi kaldırmak için kilit şifrenizi girin.",
-    "shareRequests": "Paylaşım istekleri",
-    "shareRequestCount": "Paylaşım istekleri: {{count}}",
+    "shareRequests": "Alınan davetler",
+    "shareRequestCount": "Alınan davetler: {{count}}",
     "roleViewer": "Salt okunur",
     "lockConfirmTitle": "Bu koleksiyon kilitlensin mi?",
     "lockConfirmMessage": "Bu koleksiyonu hesabında kilit şifrenle koru.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Erişim şifresini koleksiyonu paylaşan kişiye sor.",
     "sharePasswordRequiredForAction": "Önce koleksiyonu aç ve erişim şifresini gir.",
     "sortNameAscA11y": "Ad, A'dan Z'ye",
-    "sortNameDescA11y": "Ad, Z'den A'ya"
+    "sortNameDescA11y": "Ad, Z'den A'ya",
+    "pickerCollectionUnavailable": "Bu koleksiyon artık kullanılamıyor.",
+    "leaveAction": "Koleksiyondan ayrıl",
+    "leaveConfirmTitle": "Koleksiyondan ayrılmak istiyor musun?",
+    "leaveConfirmMessage": "Ayrılırsan bu koleksiyon listenden kaldırılır.",
+    "leaveConfirmButton": "Ayrıl",
+    "leaveError": "Koleksiyondan ayrılamadı. Lütfen daha sonra tekrar dene."
   },
   "toast": {
     "moveSuccess": "Taşındı.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Üzerinde çalıştığınız bir bağlantı var",
     "activeDraftConflictMessage": "Yeni bağlantıya geçmeden önce üzerinde çalıştığınız bağlantıyı kaydetmek ister misiniz?",
     "saveDraftAndContinue": "Kaydet ve devam et",
-    "discardDraftAndContinue": "Vazgeç ve devam et"
+    "discardDraftAndContinue": "Vazgeç ve devam et",
+    "newCollectionChip": "Yeni koleksiyon",
+    "newCollectionA11y": "Yeni koleksiyon oluştur",
+    "saveDialogTitle": "Bağlantıyı kaydet",
+    "addMemo": "Not ekle",
+    "collectionLinkNotSavable": "Juple koleksiyon bağlantısı normal bağlantı olarak kaydedilemez. Koleksiyon olarak açın."
   },
   "sharedCollection": {
     "itemsEmpty": "Bu paylaşılan koleksiyonda henüz kaydedilmiş bağlantı yok.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Bu davet artık geçerli değil.",
     "invitationResponseFallback": "Davete yanıt verilemedi.",
     "invitationsLoadFallback": "Davetler yüklenemedi.",
-    "invitationsEmpty": "Paylaşım isteği yok.",
+    "invitationsEmpty": "Alınan davet yok.",
     "invitationAccepted": "Paylaşılan koleksiyonlarınıza eklendi.",
     "accept": "Kabul et",
     "decline": "Reddet",
@@ -745,7 +756,10 @@
     "declineA11y": "{{name}} adlı kişinin arkadaşlık isteğini reddet",
     "cancelA11y": "{{name}} adlı kişiye gönderilen arkadaşlık isteğini iptal et",
     "personTitle": "Kullanıcı bilgisi",
-    "you": "Sen"
+    "you": "Sen",
+    "requestCancelledByRequester": "Gönderen bu arkadaşlık isteğini iptal etti.",
+    "requestNoLongerPending": "Bu arkadaşlık isteği zaten işleme alınmış.",
+    "requestDialogTitle": "Arkadaşlık isteği"
   },
   "notifications": {
     "title": "Bildirimler",
@@ -758,7 +772,16 @@
     "bellA11y": "Bildirimler",
     "bellUnreadA11y": "Bildirimler, {{count}} okunmamış",
     "bannerAnnouncement": "Yeni bildirim: {{title}}. {{body}}",
-    "bannerHint": "Açmak için dokunun. Kapatmak için yukarı kaydırın."
+    "bannerHint": "Açmak için dokunun. Kapatmak için yukarı kaydırın.",
+    "groupToday": "Bugün",
+    "groupYesterday": "Dün",
+    "groupLast7Days": "Son 7 gün",
+    "groupLast30Days": "Son 30 gün",
+    "groupOlder": "Daha eski",
+    "daysAgo": "{{count}} g",
+    "deleteA11y": "Bildirimi sil",
+    "deleteFailed": "Bildirim silinemedi.",
+    "loadErrorTitle": "Bildirimler yüklenemedi"
   },
   "contact": {
     "title": "Bize ulaşın",
@@ -767,5 +790,24 @@
     "subject": "Juple hakkında soru",
     "noMailApp": "Bir e-posta uygulaması açılamadı. Lütfen doğrudan {{email}} adresine yazın.",
     "copyEmail": "E-posta adresini kopyala"
+  },
+  "importantState": {
+    "offlineTitle": "Bağlanılamıyor",
+    "loadFailedTitle": "Yüklenemedi",
+    "retry": "Tekrar dene",
+    "offlineMessage": "İnternet bağlantını kontrol edip tekrar dene."
+  },
+  "calendar": {
+    "previousMonthA11y": "Önceki ay",
+    "nextMonthA11y": "Sonraki ay",
+    "today": "Bugün",
+    "dayCountA11y": "{{count}} bağlantı",
+    "monthLoadError": "Takvim yüklenemedi.",
+    "dayLoadError": "Bu günün bağlantıları yüklenemedi.",
+    "dayEmpty": "Bu gün kaydedilen bağlantı yok.",
+    "collectionDayEmpty": "Bu gün eklenen bağlantı yok.",
+    "pickDate": "Tarih seç",
+    "selectedDateLabel": "Tarih: {{date}}",
+    "clearDateA11y": "Tarih filtresini kaldır"
   }
 }

@@ -65,7 +65,10 @@ public sealed record MyCollectionLinkSubmissionAcrossPage(IReadOnlyList<MyCollec
 public sealed record CollectionLinkSubmissionPage(IReadOnlyList<CollectionLinkSubmissionDto> Items, long? NextCursor);
 
 /// <summary>The approved proposal, for the notifications that follow it.</summary>
-public sealed record ApprovedCollectionLinkSubmission(long CollectionId, long OwnerUserId, long SubmittedByUserId, bool ViaPublicShare);
+public sealed record ApprovedCollectionLinkSubmission(long CollectionId, long OwnerUserId, long SubmittedByUserId, bool ViaPublicShare, long ItemId = 0);
+
+/// <summary>The proposal a decline removed: who proposed it and which of their links it was (for the result's notification).</summary>
+public sealed record RejectedCollectionLinkSubmission(long SubmittedByUserId, long ItemId);
 
 /// <summary>A proposal its own submitter withdrew: which Collection it waited in and whose it is (the Owner, who is told only by a refresh).</summary>
 public sealed record CancelledCollectionLinkSubmission(long CollectionId, long OwnerUserId);
@@ -141,8 +144,8 @@ public interface ICollectionLinkSubmissionStore
     /// </summary>
     Task<CancelledCollectionLinkSubmission?> CancelMineAsync(long userId, long submissionId, long? requiredCollectionId, CancellationToken cancellationToken = default);
 
-    /// <summary>Deletes the proposal and returns who proposed it; null when it was not waiting (already approved or rejected).</summary>
-    Task<long?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default);
+    /// <summary>Deletes the proposal and returns who proposed it (and which link); null when it was not waiting (already approved or rejected).</summary>
+    Task<RejectedCollectionLinkSubmission?> RejectAsync(long collectionId, long submissionId, CancellationToken cancellationToken = default);
 }
 
 public interface ICollectionLinkSubmissionService
@@ -235,8 +238,27 @@ public sealed class CollectionLinkSubmissionService(
     {
         // The caller is always the filter - there is no way to ask for anyone else's proposals - and the
         // Owner (who has no proposals of their own, they add directly) and Contributors/Viewers are refused.
-        await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.SubmitLink, unlockToken, cancellationToken);
-        return await store.ListMineAsync(collectionId, userId, cursor, Math.Clamp(limit, 1, MaxPageSize), cancellationToken);
+        var pageSize = Math.Clamp(limit, 1, MaxPageSize);
+        try
+        {
+            await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.SubmitLink, unlockToken, cancellationToken);
+        }
+        catch (CollectionForbiddenException)
+        {
+            // A request belongs to its requester, not to their current role: a member whose role changed
+            // after proposing still sees - and can cancel - what they have waiting (the card's count counts
+            // it), while a member with nothing waiting is refused exactly as before.
+            await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.View, unlockToken, cancellationToken);
+            var own = await store.ListMineAsync(collectionId, userId, cursor, pageSize, cancellationToken);
+            if (own.TotalCount == 0)
+            {
+                throw;
+            }
+
+            return own;
+        }
+
+        return await store.ListMineAsync(collectionId, userId, cursor, pageSize, cancellationToken);
     }
 
     public async Task ApproveAsync(
@@ -267,7 +289,7 @@ public sealed class CollectionLinkSubmissionService(
             await notifications.CollectionLinkApprovedAsync(
                 approved.OwnerUserId, approved.SubmittedByUserId, collectionId, hideActor: approved.ViaPublicShare, cancellationToken);
             await notifications.CollectionLinkSubmissionAnsweredAsync(
-                approved.SubmittedByUserId, collectionId, submissionId, approved: true, cancellationToken);
+                approved.SubmittedByUserId, collectionId, submissionId, approved.ItemId, approved: true, cancellationToken);
         }
 
         await outbox.CommitAsync(cancellationToken);
@@ -283,9 +305,10 @@ public sealed class CollectionLinkSubmissionService(
         await accessService.RequireUnlockedAsync(userId, collectionId, CollectionPermission.ReviewSubmissions, unlockToken, cancellationToken);
         await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         // Rejecting twice declines once: only the call that actually removed the proposal tells its proposer.
-        if (await store.RejectAsync(collectionId, submissionId, cancellationToken) is { } submitterUserId && notifications is not null)
+        if (await store.RejectAsync(collectionId, submissionId, cancellationToken) is { } rejected && notifications is not null)
         {
-            await notifications.CollectionLinkSubmissionAnsweredAsync(submitterUserId, collectionId, submissionId, approved: false, cancellationToken);
+            await notifications.CollectionLinkSubmissionAnsweredAsync(
+                rejected.SubmittedByUserId, collectionId, submissionId, rejected.ItemId, approved: false, cancellationToken);
         }
 
         await outbox.CommitAsync(cancellationToken);

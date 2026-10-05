@@ -1,4 +1,5 @@
 using Juple.Api.Authentication;
+using Juple.Application.Collections.Public;
 using Juple.Application.Identity;
 using Juple.Application.Inbox;
 using Juple.Application.Inbox.SaveInboxEntry;
@@ -40,6 +41,19 @@ public sealed class InboxController : ControllerBase
             {
                 [exception.Field] = [exception.Message],
             }));
+        }
+        catch (CollectionShareUrlNotSavableException exception)
+        {
+            // A stable code (and the Collection's public id, which the caller already holds in the URL it sent) so a
+            // client can open the Collection instead of showing a generic error.
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "A Juple Collection share link cannot be saved as a link.",
+            };
+            problem.Extensions["code"] = CollectionShareUrlNotSavableException.Code;
+            problem.Extensions["publicId"] = exception.PublicId;
+            return new ObjectResult(problem) { StatusCode = StatusCodes.Status400BadRequest };
         }
         catch (CurrentJupleUserNotFoundException)
         {

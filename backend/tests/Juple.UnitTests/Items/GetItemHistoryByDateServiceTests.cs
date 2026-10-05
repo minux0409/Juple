@@ -157,6 +157,28 @@ public sealed class GetItemHistoryByDateServiceTests
         Assert.Equal(new RepresentativeImageDto(12, coverUrl), result.Items[0].CoverImage);
     }
 
+    [Fact]
+    public async Task GetAsync_WithASearchTerm_AppliesTheSameEscapedContainsPatternInsideTheDay()
+    {
+        var store = new FakeItemHistoryQueryStore();
+        var service = new GetItemHistoryByDateService(store, new FakeItemImageStorage());
+
+        await service.GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30), cursor: null, limit: 50, searchTerm: "50%_off");
+
+        Assert.Equal(Juple.Application.Inbox.GetDailyInbox.DailyInboxDateRangeCalculator.Calculate(new DateOnly(2026, 8, 30), "Asia/Seoul").FromUtc, store.DateRangeFromUtc);
+        Assert.Equal(@"%50\%\_off%", store.DateRangeSearchPattern); // wildcards of the user's text match literally
+    }
+
+    [Fact]
+    public async Task GetAsync_WithoutASearchTerm_AppliesNoSearch()
+    {
+        var store = new FakeItemHistoryQueryStore();
+
+        await new GetItemHistoryByDateService(store, new FakeItemImageStorage()).GetAsync(17, "Asia/Seoul", new DateOnly(2026, 8, 30), cursor: null, limit: 50);
+
+        Assert.Null(store.DateRangeSearchPattern);
+    }
+
     private sealed class FakeItemHistoryQueryStore : IItemHistoryQueryStore
     {
         public long? DateRangeUserId { get; private set; }
@@ -168,6 +190,8 @@ public sealed class GetItemHistoryByDateServiceTests
         public ItemHistoryPageCursor? DateRangeCursor { get; private set; }
 
         public int? DateRangeLimit { get; private set; }
+
+        public string? DateRangeSearchPattern { get; private set; }
 
         public IReadOnlyList<ItemHistoryEntryDto> DateRangeItems { get; init; } = [];
 
@@ -193,8 +217,10 @@ public sealed class GetItemHistoryByDateServiceTests
             DateTimeOffset toUtc,
             ItemHistoryPageCursor? cursor,
             int limit,
+            string? searchPattern = null,
             CancellationToken cancellationToken = default)
         {
+            DateRangeSearchPattern = searchPattern;
             DateRangeUserId = userId;
             DateRangeFromUtc = fromUtc;
             DateRangeToUtc = toUtc;

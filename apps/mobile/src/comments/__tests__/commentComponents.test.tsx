@@ -213,7 +213,7 @@ describe('CommentList', () => {
 
     const failed = list({ status: 'error', onRetry });
     expect(texts(failed)).toContain('댓글을 불러오지 못했어요.');
-    act(() => byId(failed, 'comments-retry').props.onPress());
+    act(() => byId(failed, 'comments-error-retry').props.onPress());
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 

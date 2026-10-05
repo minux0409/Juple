@@ -169,7 +169,7 @@ export function RootStack() {
             <Stack.Screen
               component={CollectionDetailsScreen}
               name="CollectionDetails"
-              options={{ title: t('nav.collectionDetails') }}
+              options={{ title: t('nav.collectionDetails'), ...headerTitleWithIcon(screenIcons.collectionDetails, t('nav.collectionDetails')) }}
             />
             <Stack.Screen
               component={CollectionShareScreen}
@@ -189,7 +189,7 @@ export function RootStack() {
             <Stack.Screen
               component={NotificationsScreen}
               name="Notifications"
-              options={{ title: t('notifications.title') }}
+              options={{ title: t('notifications.title'), ...headerTitleWithIcon(screenIcons.notifications, t('notifications.title')) }}
             />
             <Stack.Screen
               component={CollectionSharedItemScreen}
@@ -199,7 +199,8 @@ export function RootStack() {
             <Stack.Screen
               component={NewLinkReviewScreen}
               name="NewLinkReview"
-              options={{ title: t('nav.newLinkReview') }}
+              // A dedicated compact full-screen editor (no modal, no bottom sheet): header, compact preview, quick Collections, sticky Save.
+              options={{ title: t('item.saveDialogTitle') }}
             />
             <Stack.Screen
               component={LanguageSettingsScreen}
@@ -213,7 +214,7 @@ export function RootStack() {
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
             <Stack.Screen component={ContactScreen} name="Contact" options={{ title: t('contact.title'), ...headerTitleWithIcon(screenIcons.contact, t('contact.title')) }} />
-            <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit') }} />
+            <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
             <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
             <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle') }} />
           </Stack.Group>

@@ -21,6 +21,16 @@ public interface ICollectionCollaborationService
 
     Task RemoveCollaboratorAsync(long userId, long collectionId, string? jupleId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The caller leaves a Collection they are an accepted member of - through the SAME removal as an Owner removing
+    /// them (ICollectionCollaborationStore.RemoveCollaboratorAsync: their links there, reactions, favorite mark,
+    /// still-waiting proposals and the Owner's notifications about them, then the membership), so the two can never
+    /// disagree. Needs no content grant (leaving never requires the password). The Owner cannot leave
+    /// (CollectionForbiddenException); a stranger, a public-link visitor or a pending invitee is not a member
+    /// (CollectionNotFoundException).
+    /// </summary>
+    Task LeaveAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
+
     // Owner-only (ManageCollaborators): 읽기 (Viewer) <-> 쓰기 (Contributor).
     Task ChangeInvitationRoleAsync(
         long userId,

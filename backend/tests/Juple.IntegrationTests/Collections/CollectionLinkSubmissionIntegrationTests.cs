@@ -685,6 +685,142 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         }
     }
 
+    // ---------- leave / remove / rejoin: one rule on both sides ----------
+
+    [Fact]
+    public async Task RemovingAMember_WithdrawsTheirMemberProposals_OnBothSides_AndRejoiningStartsClean()
+    {
+        var first = await NewItemAsync(_submitter, "https://example.test/rejoin-1");
+        var second = await NewItemAsync(_submitter, "https://example.test/rejoin-2");
+        await Add().AddAsync(_submitter, _sharedId, first);
+        await Add().AddAsync(_submitter, _sharedId, second);
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        Assert.Equal(2, (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items.Count);
+        Assert.Equal(2, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_submitter));
+        Assert.Equal(2, (await ReceivedSubjectsAsync()).Count);
+
+        await _collaboration.RemoveCollaboratorAsync(_owner, _sharedId, await JupleIdOfAsync(_submitter));
+        _db.ChangeTracker.Clear();
+
+        // Requester side: nothing dangling - no count, no list rows. Owner side: nothing left to approve, nothing left in the Inbox.
+        Assert.Equal(0, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_submitter));
+        Assert.Empty((await new CollectionLinkSubmissionStore(_db).ListMineAcrossCollectionsAsync(_submitter, null, 50)).Items);
+        Assert.Empty((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+        Assert.Empty(await ReceivedSubjectsAsync());
+        Assert.Equal(0, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
+
+        // Rejoining (same or another role) is a fresh start, and the same links can be proposed again.
+        await InviteAndAcceptAsync(_submitter, CollectionCollaboratorRole.Submitter);
+        Assert.Empty((await Review().ListMineAsync(_submitter, _sharedId, null, 50, null)).Items);
+        Assert.Equal(0, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await Add().AddAsync(_submitter, _sharedId, first));
+        _db.ChangeTracker.Clear();
+        Assert.Single((await Review().ListMineAsync(_submitter, _sharedId, null, 50, null)).Items);
+        Assert.Single((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+        Assert.Equal(1, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+    }
+
+    [Fact]
+    public async Task RemovingAMember_KeepsAProposalMadeThroughThePublicLink_ItIsTheirOwnRequestAsANonMember()
+    {
+        await RaiseEveryoneAsync(CollectionCollaboratorRole.Submitter);
+        var share = await _shares.EnableAsync(_owner, _sharedId, CollectionSharePermission.Submit);
+        var viaLink = await NewItemAsync(_submitter, "https://example.test/via-link");
+        var asMember = await NewItemAsync(_submitter, "https://example.test/as-member");
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await PublicAdd().AddItemAsync(_submitter, share.PublicId, viaLink, null));
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await Add().AddAsync(_submitter, _sharedId, asMember));
+
+        await _collaboration.RemoveCollaboratorAsync(_owner, _sharedId, await JupleIdOfAsync(_submitter));
+        _db.ChangeTracker.Clear();
+
+        var mine = await new CollectionLinkSubmissionStore(_db).ListMineAcrossCollectionsAsync(_submitter, null, 50);
+        var kept = Assert.Single(mine.Items);
+        Assert.Equal("https://example.test/via-link", kept.Url);
+        Assert.Null(kept.CollectionId); // no longer a member: nothing about the Collection is revealed
+        Assert.Equal(1, mine.TotalCount);
+        Assert.Single((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+    }
+
+    [Fact]
+    public async Task AMemberWhoseRoleChangedAfterProposing_StillSeesAndCancelsTheirOwnWaitingProposals()
+    {
+        var item = await NewItemAsync(_submitter, "https://example.test/role-change");
+        await Add().AddAsync(_submitter, _sharedId, item);
+        await _collaboration.ChangeCollaboratorRoleAsync(_owner, _sharedId, await JupleIdOfAsync(_submitter), CollectionCollaboratorRole.Viewer);
+        _db.ChangeTracker.Clear();
+
+        // The card's number and the popup's list agree: the request is theirs, whatever their role now is.
+        Assert.Equal(1, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+        var page = await Review().ListMineAsync(_submitter, _sharedId, null, 50, null);
+        var own = Assert.Single(page.Items);
+        Assert.Equal(1, page.TotalCount);
+
+        // A member with nothing waiting is still refused exactly as before.
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => Review().ListMineAsync(_viewer, _sharedId, null, 50, null));
+        await Review().CancelMineAsync(_submitter, own.SubmissionId, null);
+        Assert.Empty((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+    }
+
+    // ---------- 컬렉션에서 나가기: the same removal as the Owner removing the member ----------
+
+    [Fact]
+    public async Task LeavingYourself_IsExactlyAnOwnerRemoval_LinksProposalsAndNotificationsGo_AndRejoiningStartsClean()
+    {
+        var added = await NewItemAsync(_contributor, "https://example.test/leave-added");
+        var proposed = await NewItemAsync(_submitter, "https://example.test/leave-proposed");
+        await Add().AddAsync(_contributor, _sharedId, added);
+        await Add().AddAsync(_submitter, _sharedId, proposed);
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        Assert.True(await LinkedAsync(added));
+        Assert.Single(await ReceivedSubjectsAsync());
+
+        // The submitter leaves on their own.
+        await _collaboration.LeaveAsync(_submitter, _sharedId);
+        _db.ChangeTracker.Clear();
+
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.CollectionId == _sharedId && entry.UserId == _submitter));
+        Assert.Equal(0, await new CollectionLinkSubmissionStore(_db).CountMineInSharedCollectionsAsync(_submitter)); // requester side
+        Assert.Empty((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);                          // owner side
+        Assert.Empty(await ReceivedSubjectsAsync());                                                                // owner's Inbox
+        Assert.Equal(0, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
+        // No longer a member: the Collection is gone for them.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collections.GetAsync(_submitter, _sharedId));
+        // Another member's links are untouched.
+        Assert.True(await LinkedAsync(added));
+
+        // A contributor who leaves takes exactly the links they added.
+        await _collaboration.LeaveAsync(_contributor, _sharedId);
+        _db.ChangeTracker.Clear();
+        Assert.False(await LinkedAsync(added));
+        Assert.True(await _db.Items.AnyAsync(item => item.Id == added)); // their Item itself is theirs and stays
+
+        // Rejoining starts clean.
+        await InviteAndAcceptAsync(_submitter, CollectionCollaboratorRole.Submitter);
+        Assert.Equal(0, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+    }
+
+    [Fact]
+    public async Task LeavingYourself_IsRefusedForTheOwner_AndIsNotFoundForAnyoneWhoIsNotAMember()
+    {
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => _collaboration.LeaveAsync(_owner, _sharedId));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collaboration.LeaveAsync(_outsider, _sharedId)); // a stranger / public visitor
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collaboration.LeaveAsync(_pending, _sharedId));   // only invited, never accepted
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collaboration.LeaveAsync(_viewer, long.MaxValue));
+
+        // Nothing changed: the Owner still owns it, the pending invitation still waits.
+        Assert.True(await _db.Collections.AnyAsync(collection => collection.Id == _sharedId && collection.UserId == _owner));
+        Assert.True(await _db.CollectionInvitations.AnyAsync(entry => entry.CollectionId == _sharedId && entry.InvitedUserId == _pending));
+    }
+
+    [Fact]
+    public async Task LeavingYourself_NeedsNoPassword_AndAViewerLeavesToo()
+    {
+        await _collaboration.LeaveAsync(_viewer, _sharedId);
+        _db.ChangeTracker.Clear();
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.CollectionId == _sharedId && entry.UserId == _viewer));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collaboration.LeaveAsync(_viewer, _sharedId)); // already gone
+    }
+
     private async Task<List<long>> ReceivedSubjectsInAsync(long collectionId) =>
         await _db.Notifications.AsNoTracking()
             .Where(entry => entry.Type == NotificationType.CollectionLinkSubmissionReceived && entry.CollectionId == collectionId)

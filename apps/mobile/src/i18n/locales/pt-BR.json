@@ -292,8 +292,8 @@
     "lockContactOwner": "Esta coleção exige a senha de bloqueio definida pelo proprietário.",
     "lockRemoveConfirmTitle": "Remover o bloqueio?",
     "lockRemoveConfirmMessage": "Digite sua senha de bloqueio para desbloquear a coleção.",
-    "shareRequests": "Pedidos de compartilhamento",
-    "shareRequestCount": "Pedidos de compartilhamento: {{count}}",
+    "shareRequests": "Convites recebidos",
+    "shareRequestCount": "Convites recebidos: {{count}}",
     "roleViewer": "Somente leitura",
     "lockConfirmTitle": "Bloquear esta coleção?",
     "lockConfirmMessage": "Proteja esta coleção na sua conta com a senha de bloqueio.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Peça a senha de acesso a quem compartilhou esta coleção.",
     "sharePasswordRequiredForAction": "Abra a coleção e digite a senha de acesso primeiro.",
     "sortNameAscA11y": "Nome, de A a Z",
-    "sortNameDescA11y": "Nome, de Z a A"
+    "sortNameDescA11y": "Nome, de Z a A",
+    "pickerCollectionUnavailable": "Esta coleção não está mais disponível.",
+    "leaveAction": "Sair da coleção",
+    "leaveConfirmTitle": "Sair da coleção?",
+    "leaveConfirmMessage": "Se você sair, esta coleção será removida da sua lista.",
+    "leaveConfirmButton": "Sair",
+    "leaveError": "Não foi possível sair da coleção. Tente novamente mais tarde."
   },
   "toast": {
     "moveSuccess": "Movido.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Você tem um link em andamento",
     "activeDraftConflictMessage": "Deseja salvar o link em que está trabalhando antes de conferir o novo link?",
     "saveDraftAndContinue": "Salvar e continuar",
-    "discardDraftAndContinue": "Descartar e continuar"
+    "discardDraftAndContinue": "Descartar e continuar",
+    "newCollectionChip": "Nova coleção",
+    "newCollectionA11y": "Criar uma nova coleção",
+    "saveDialogTitle": "Salvar link",
+    "addMemo": "Adicionar uma nota",
+    "collectionLinkNotSavable": "Um link de coleção do Juple não pode ser salvo como link comum. Abra-o como coleção."
   },
   "sharedCollection": {
     "itemsEmpty": "Esta coleção compartilhada ainda não tem links salvos.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Este convite não é mais válido.",
     "invitationResponseFallback": "Não foi possível responder ao convite.",
     "invitationsLoadFallback": "Não foi possível carregar os convites.",
-    "invitationsEmpty": "Nenhuma solicitação de compartilhamento.",
+    "invitationsEmpty": "Nenhum convite recebido.",
     "invitationAccepted": "Adicionada às suas coleções compartilhadas.",
     "accept": "Aceitar",
     "decline": "Recusar",
@@ -745,7 +756,10 @@
     "declineA11y": "Recusar o pedido de amizade de {{name}}",
     "cancelA11y": "Cancelar o pedido de amizade para {{name}}",
     "personTitle": "Informações do usuário",
-    "you": "Você"
+    "you": "Você",
+    "requestCancelledByRequester": "O remetente cancelou este pedido de amizade.",
+    "requestNoLongerPending": "Este pedido de amizade já foi tratado.",
+    "requestDialogTitle": "Pedido de amizade"
   },
   "notifications": {
     "title": "Notificações",
@@ -758,7 +772,16 @@
     "bellA11y": "Notificações",
     "bellUnreadA11y": "Notificações, {{count}} não lidas",
     "bannerAnnouncement": "Nova notificação: {{title}}. {{body}}",
-    "bannerHint": "Toque para abrir. Deslize para cima para fechar."
+    "bannerHint": "Toque para abrir. Deslize para cima para fechar.",
+    "groupToday": "Hoje",
+    "groupYesterday": "Ontem",
+    "groupLast7Days": "Últimos 7 dias",
+    "groupLast30Days": "Últimos 30 dias",
+    "groupOlder": "Anteriores",
+    "daysAgo": "{{count}} d",
+    "deleteA11y": "Excluir notificação",
+    "deleteFailed": "Não foi possível excluir a notificação.",
+    "loadErrorTitle": "Não foi possível carregar as notificações"
   },
   "contact": {
     "title": "Fale conosco",
@@ -767,5 +790,24 @@
     "subject": "Dúvida sobre a Juple",
     "noMailApp": "Não foi possível abrir um app de e-mail. Envie diretamente para {{email}}.",
     "copyEmail": "Copiar endereço de e-mail"
+  },
+  "importantState": {
+    "offlineTitle": "Não foi possível conectar",
+    "loadFailedTitle": "Não foi possível carregar",
+    "retry": "Tentar novamente",
+    "offlineMessage": "Verifique sua conexão com a internet e tente novamente."
+  },
+  "calendar": {
+    "previousMonthA11y": "Mês anterior",
+    "nextMonthA11y": "Próximo mês",
+    "today": "Hoje",
+    "dayCountA11y": "{{count}} links",
+    "monthLoadError": "Não foi possível carregar o calendário.",
+    "dayLoadError": "Não foi possível carregar os links deste dia.",
+    "dayEmpty": "Nenhum link salvo neste dia.",
+    "collectionDayEmpty": "Nenhum link adicionado neste dia.",
+    "pickDate": "Escolher data",
+    "selectedDateLabel": "Data: {{date}}",
+    "clearDateA11y": "Remover filtro de data"
   }
 }

@@ -292,8 +292,8 @@
     "lockContactOwner": "Для этой коллекции нужен пароль блокировки, заданный владельцем.",
     "lockRemoveConfirmTitle": "Снять блокировку?",
     "lockRemoveConfirmMessage": "Введите пароль блокировки, чтобы снять блокировку.",
-    "shareRequests": "Запросы на совместный доступ",
-    "shareRequestCount": "Запросы на совместный доступ: {{count}}",
+    "shareRequests": "Полученные приглашения",
+    "shareRequestCount": "Полученные приглашения: {{count}}",
     "roleViewer": "Только чтение",
     "lockConfirmTitle": "Заблокировать эту коллекцию?",
     "lockConfirmMessage": "Защитите эту коллекцию в своём аккаунте паролем блокировки.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Спросите пароль доступа у того, кто поделился этой коллекцией.",
     "sharePasswordRequiredForAction": "Сначала откройте коллекцию и введите пароль доступа.",
     "sortNameAscA11y": "По названию, от А до Я",
-    "sortNameDescA11y": "По названию, от Я до А"
+    "sortNameDescA11y": "По названию, от Я до А",
+    "pickerCollectionUnavailable": "Эта коллекция больше недоступна.",
+    "leaveAction": "Выйти из коллекции",
+    "leaveConfirmTitle": "Выйти из коллекции?",
+    "leaveConfirmMessage": "Если вы выйдете, эта коллекция исчезнет из вашего списка.",
+    "leaveConfirmButton": "Выйти",
+    "leaveError": "Не удалось выйти из коллекции. Повторите попытку позже."
   },
   "toast": {
     "moveSuccess": "Перемещено.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "У вас есть незавершённая ссылка",
     "activeDraftConflictMessage": "Сохранить ссылку, над которой вы сейчас работаете, прежде чем открыть новую?",
     "saveDraftAndContinue": "Сохранить и продолжить",
-    "discardDraftAndContinue": "Отменить и продолжить"
+    "discardDraftAndContinue": "Отменить и продолжить",
+    "newCollectionChip": "Новая коллекция",
+    "newCollectionA11y": "Создать новую коллекцию",
+    "saveDialogTitle": "Сохранить ссылку",
+    "addMemo": "Добавить заметку",
+    "collectionLinkNotSavable": "Ссылку на коллекцию Juple нельзя сохранить как обычную ссылку. Откройте её как коллекцию."
   },
   "sharedCollection": {
     "itemsEmpty": "В этой общей коллекции пока нет сохранённых ссылок.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Это приглашение больше не действительно.",
     "invitationResponseFallback": "Не удалось ответить на приглашение.",
     "invitationsLoadFallback": "Не удалось загрузить приглашения.",
-    "invitationsEmpty": "Нет запросов на доступ.",
+    "invitationsEmpty": "Нет полученных приглашений.",
     "invitationAccepted": "Добавлено в общие коллекции.",
     "accept": "Принять",
     "decline": "Отклонить",
@@ -745,7 +756,10 @@
     "declineA11y": "Отклонить заявку в друзья от {{name}}",
     "cancelA11y": "Отменить заявку в друзья для {{name}}",
     "personTitle": "Информация о пользователе",
-    "you": "Вы"
+    "you": "Вы",
+    "requestCancelledByRequester": "Отправитель отменил эту заявку в друзья.",
+    "requestNoLongerPending": "Эта заявка в друзья уже обработана.",
+    "requestDialogTitle": "Запрос в друзья"
   },
   "notifications": {
     "title": "Уведомления",
@@ -758,7 +772,16 @@
     "bellA11y": "Уведомления",
     "bellUnreadA11y": "Уведомления, непрочитанных: {{count}}",
     "bannerAnnouncement": "Новое уведомление: {{title}}. {{body}}",
-    "bannerHint": "Нажмите, чтобы открыть. Смахните вверх, чтобы закрыть."
+    "bannerHint": "Нажмите, чтобы открыть. Смахните вверх, чтобы закрыть.",
+    "groupToday": "Сегодня",
+    "groupYesterday": "Вчера",
+    "groupLast7Days": "Последние 7 дней",
+    "groupLast30Days": "Последние 30 дней",
+    "groupOlder": "Ранее",
+    "daysAgo": "{{count}} дн.",
+    "deleteA11y": "Удалить уведомление",
+    "deleteFailed": "Не удалось удалить уведомление.",
+    "loadErrorTitle": "Не удалось загрузить уведомления"
   },
   "contact": {
     "title": "Связаться с нами",
@@ -767,5 +790,24 @@
     "subject": "Вопрос о Juple",
     "noMailApp": "Не удалось открыть почтовое приложение. Напишите напрямую на {{email}}.",
     "copyEmail": "Скопировать адрес почты"
+  },
+  "importantState": {
+    "offlineTitle": "Нет соединения",
+    "loadFailedTitle": "Не удалось загрузить",
+    "retry": "Повторить",
+    "offlineMessage": "Проверьте подключение к интернету и повторите попытку."
+  },
+  "calendar": {
+    "previousMonthA11y": "Предыдущий месяц",
+    "nextMonthA11y": "Следующий месяц",
+    "today": "Сегодня",
+    "dayCountA11y": "Ссылок: {{count}}",
+    "monthLoadError": "Не удалось загрузить календарь.",
+    "dayLoadError": "Не удалось загрузить ссылки за этот день.",
+    "dayEmpty": "В этот день ссылки не сохранялись.",
+    "collectionDayEmpty": "В этот день ссылки не добавлялись.",
+    "pickDate": "Выбрать дату",
+    "selectedDateLabel": "Дата: {{date}}",
+    "clearDateA11y": "Сбросить фильтр по дате"
   }
 }

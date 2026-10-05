@@ -207,6 +207,15 @@ export async function removeCollaborator(
   });
 }
 
+/** A non-owner member leaves a Collection themselves (the server rejects the Owner). */
+export async function leaveCollection(request: AuthenticatedApiRequest, collectionId: number): Promise<void> {
+  await request<void>({
+    method: 'DELETE',
+    path: `/api/v1/collections/${collectionId}/collaborators/me`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+}
+
 export async function getReceivedCollectionInvitations(
   request: AuthenticatedApiRequest,
 ): Promise<readonly ReceivedCollectionInvitation[]> {

@@ -6,7 +6,7 @@ import type { NotificationTargetWire } from './notificationsApi';
  * background or foreground), the in-app banner and a Notifications screen row all end in
  * navigateToNotificationTarget below, never in a switch of their own.
  *
- *  친구 신청 → Friends (received requests first)
+ *  친구 신청 → Friends (received requests first); 친구 요청 수락/거절 결과 → Friends
  *  컬렉션 공유 (초대) → Collections › 공유 컬렉션 › 공유 요청 while it waits; the Collection once joined
  *  새 링크 / 승인 결과 → that Collection (a non-member proposer: its public link page while it is on)
  *  반응 / 댓글 → my link inside that Collection (댓글: scrolled to the comments) - opened THROUGH the
@@ -17,6 +17,7 @@ import type { NotificationTargetWire } from './notificationsApi';
  */
 export type NotificationTarget =
   | { readonly kind: 'friendRequests' }
+  | { readonly kind: 'friends' }
   | { readonly kind: 'collectionInvitations' }
   | { readonly kind: 'collection'; readonly collectionId: number }
   | { readonly kind: 'collectionItem'; readonly collectionId: number; readonly itemId: number; readonly focus: 'comments' | null }
@@ -43,6 +44,8 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
   switch (wire?.kind) {
     case 'friendRequests':
       return { kind: 'friendRequests' };
+    case 'friends':
+      return { kind: 'friends' };
     case 'collectionInvitations':
       return { kind: 'collectionInvitations' };
     case 'collection':
@@ -86,6 +89,9 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
   switch (event.type) {
     case 'friendRequest':
       return { kind: 'friendRequests' };
+    case 'friendRequestAccepted':
+    case 'friendRequestRejected':
+      return { kind: 'friends' };
     case 'collectionInvitation':
       return { kind: 'collectionInvitations' };
     case 'collectionItemsAdded':
@@ -119,6 +125,7 @@ export type NotificationNavigationAction =
 export function navigationActionFor(target: NotificationTarget, nowMs: number = Date.now()): NotificationNavigationAction | null {
   switch (target.kind) {
     case 'friendRequests':
+    case 'friends':
       return { name: 'Friends' };
     case 'collectionInvitations':
       return { name: 'MainTabs', params: { screen: 'Collections', params: { filter: 'shared', openShareRequests: true, refreshToken: nowMs } } };

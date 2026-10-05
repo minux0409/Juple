@@ -16,6 +16,8 @@ const NOW = 1_700_000_000_000;
 describe('notification targets', () => {
   const table: ReadonlyArray<readonly [string, unknown, NotificationTarget, unknown]> = [
     ['friendRequest', { kind: 'friendRequests' }, { kind: 'friendRequests' }, { name: 'Friends' }],
+    // The answer to my own request (accepted / declined): the Friends screen, where a new friend now is.
+    ['friendRequestAccepted / friendRequestRejected', { kind: 'friends' }, { kind: 'friends' }, { name: 'Friends' }],
     [
       'collectionInvitation (waiting)',
       { kind: 'collectionInvitations', collectionId: 3 },
@@ -84,6 +86,8 @@ describe('notification targets', () => {
 
   it('an older Push (no notificationId) still routes by its Type and ids - coarser, never wrong', () => {
     expect(legacyPushTarget({ type: 'friendRequest' })).toEqual({ kind: 'friendRequests' });
+    expect(legacyPushTarget({ type: 'friendRequestAccepted' })).toEqual({ kind: 'friends' });
+    expect(legacyPushTarget({ type: 'friendRequestRejected' })).toEqual({ kind: 'friends' });
     expect(legacyPushTarget({ type: 'collectionInvitation', collectionId: '3' })).toEqual({ kind: 'collectionInvitations' });
     expect(legacyPushTarget({ type: 'collectionItemComment', collectionId: '7' })).toEqual({ kind: 'collection', collectionId: 7 });
     expect(legacyPushTarget({ type: 'collectionLinkSubmission', collectionId: '9' })).toEqual({ kind: 'collectionSubmissions', collectionId: 9 });

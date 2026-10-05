@@ -56,6 +56,8 @@ interface CategoryPickerModalProps {
   /** A locked Collection the user touched: its password prompt is shown over this sheet. */
   readonly unlockTarget?: Collection | null;
   readonly onUnlockGranted?: (unlockToken: string) => void;
+  /** The password prompt hit a state that no longer exists (the password was removed meanwhile) - see freshCollectionAccess. */
+  readonly onUnlockStateChanged?: () => Promise<boolean>;
   readonly onUnlockCancel?: () => void;
   /** Defaults to 컬렉션 선택. */
   readonly title?: string;
@@ -109,6 +111,7 @@ export function CategoryPickerModal({
   onCreateCollection = async () => false,
   unlockTarget = null,
   onUnlockGranted = () => undefined,
+  onUnlockStateChanged,
   onUnlockCancel = () => undefined,
   title,
   viewModeKey = 'categoryPickerViewMode',
@@ -278,7 +281,7 @@ export function CategoryPickerModal({
         </Animated.View>
       </View>
 
-      <CollectionUnlockDialog collection={unlockTarget} onCancel={onUnlockCancel} onGranted={onUnlockGranted} />
+      <CollectionUnlockDialog collection={unlockTarget} onCancel={onUnlockCancel} onGranted={onUnlockGranted} onStateChanged={onUnlockStateChanged} />
 
       {isCreateDialogVisible ? (
         <CategoryEditorDialog

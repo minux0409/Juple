@@ -156,6 +156,11 @@ export interface ItemHistoryByDate {
 
 export interface GetItemHistoryByDateOptions {
   readonly limit?: number;
+  /**
+   * The Archive's text search INSIDE this day (2-100 characters after trimming; title, link / site or own memo): the day
+   * and the text are two conditions of ONE server query, never a client-side filter of a bigger result.
+   */
+  readonly q?: string;
   /** Opaque value from a previous ItemHistoryByDate.nextCursor; never parsed or modified. */
   readonly cursor?: string;
 }
@@ -174,6 +179,9 @@ export async function getItemHistoryByDate(
   options: GetItemHistoryByDateOptions = {},
 ): Promise<ItemHistoryByDate> {
   const query = new URLSearchParams({ date });
+  if (options.q) {
+    query.set('q', options.q);
+  }
   if (options.limit !== undefined) {
     query.set('limit', String(options.limit));
   }

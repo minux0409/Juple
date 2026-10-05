@@ -1,5 +1,7 @@
 import { ScreenTitle, type ScreenTitleIcon } from '../components/ScreenTitle';
 import { ArchiveIcon } from '../icons/ArchiveIcon';
+import { BellIcon } from '../icons/BellIcon';
+import { EditIcon } from '../icons/EditIcon';
 import { FolderIcon } from '../icons/FolderIcon';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { HomeIcon } from '../icons/HomeIcon';
@@ -17,6 +19,9 @@ export const screenIcons = {
   home: HomeIcon,
   archive: ArchiveIcon,
   collections: FolderIcon,
+  collectionDetails: FolderIcon,
+  notifications: BellIcon,
+  profileEdit: EditIcon,
   myPage: UserIcon,
   friends: PeopleIcon,
   collectionLock: LockIcon,

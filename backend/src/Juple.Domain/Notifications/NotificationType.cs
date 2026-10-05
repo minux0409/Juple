@@ -63,4 +63,10 @@ public enum NotificationType : byte
 
     /// <summary>Visible: the Owner declined the recipient's proposal (CollectionId, SubjectId = the proposal id). Never who declined.</summary>
     CollectionLinkSubmissionRejected = 12,
+
+    /// <summary>Visible: a friend request the recipient sent was accepted (SubjectId = the Friendship id, ActorUserId = who accepted).</summary>
+    FriendRequestAccepted = 13,
+
+    /// <summary>Visible: a friend request the recipient sent was declined (SubjectId = the former request's id, ActorUserId = who declined). A cancel by the requester never produces this.</summary>
+    FriendRequestRejected = 14,
 }

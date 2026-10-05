@@ -5,6 +5,7 @@ import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { formatJupleId, personLabel } from '../collections/api/collaborationApi';
 import { AppModal } from '../components/AppModal';
 import { getFriendSearchEmptyState } from './friendSearchEmptyState';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -38,7 +39,8 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
   const [friends, setFriends] = useState<readonly Friend[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ readonly cause: unknown } | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [selected, setSelected] = useState<ReadonlyMap<string, Friend>>(new Map());
   const loadIdRef = useRef(0);
 
@@ -64,9 +66,9 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
             setNextCursor(page.nextCursor);
           }
         })
-        .catch(() => {
+        .catch(caughtError => {
           if (loadId === loadIdRef.current) {
-            setError(t('friends.loadFallback'));
+            setError({ cause: caughtError });
           }
         })
         .finally(() => {
@@ -76,7 +78,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
         });
     }, search ? SEARCH_DEBOUNCE_MS : 0);
     return () => clearTimeout(timer);
-  }, [authenticatedRequest, search, t, visible]);
+  }, [authenticatedRequest, reloadToken, search, visible]);
 
   const loadMore = () => {
     if (!nextCursor || isLoading) {
@@ -144,13 +146,14 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
         testID="friend-picker-search"
         value={search}
       />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
       <FlatList
         data={friends}
         initialNumToRender={20}
         keyboardShouldPersistTaps="handled"
         keyExtractor={friend => friend.friendshipId.toString()}
-        ListEmptyComponent={isLoading ? <ActivityIndicator style={styles.loading} /> : emptyState === 'none' ? undefined : (
+        ListEmptyComponent={isLoading ? <ActivityIndicator style={styles.loading} /> : error ? (
+          <LoadFailureState compact error={error.cause} message={t('friends.loadFallback')} onRetry={() => setReloadToken(previous => previous + 1)} retryLabel={t('history.retry')} testID="friend-picker-error" />
+        ) : emptyState === 'none' ? undefined : (
           <Text style={styles.empty} testID="friend-picker-empty">{t(emptyState === 'noResults' ? 'friends.searchEmpty' : 'friends.empty')}</Text>
         )}
         onEndReached={loadMore}
@@ -226,7 +229,6 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.lg },
   empty: { color: colors.textSecondary, fontSize: 14, paddingVertical: spacing.lg, textAlign: 'center' },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
   secondary: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: minTouchTarget },
   secondaryLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   primary: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, flex: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.sm },

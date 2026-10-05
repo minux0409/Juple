@@ -50,6 +50,7 @@ import { CategoryPickerModal } from '../collections/CategoryPickerModal';
 import { formatReplicateResultMessage, useCollectionDestinationPicker, type PickedDestination } from '../collections/useCollectionDestinationPicker';
 import { formatCopyResultMessage } from '../collections/copyResultMessage';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
+import { LogoutIcon } from '../icons/LogoutIcon';
 import { isCollaborative, isCollectionLocked, isSharedWithMe } from '../collections/collectionAccess';
 import { describeItemAdder, shouldShowItemAdders } from '../collections/itemAdder';
 import { CollectionLockDialog, type CollectionLockDialogMode } from '../collections/CollectionLockDialog';
@@ -57,7 +58,7 @@ import { beginCollectionVisit, forgetCollectionUnlock, getCollectionUnlockToken 
 import { markCollectionNewLinksRead } from '../notifications/notificationsApi';
 import { emitCollectionNewLinksRead, setUnreadCount } from '../notifications/notificationState';
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
-import { getCollectionParticipants, type CollectionParticipants } from '../collections/api/collaborationApi';
+import { getCollectionParticipants, leaveCollection, type CollectionParticipants } from '../collections/api/collaborationApi';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
@@ -71,6 +72,11 @@ import { resolveCollectionIconKey, type CollectionIconKey } from '../collections
 import { contentGateOfError, getCollectionItemsErrorMessage, isCollectionLockedError, NAME_ORDER_MAX_LINKS, useCollectionItems } from '../collections/useCollectionItems';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { LoadFailureState } from '../components/LoadFailureState';
+import { ImportantState } from '../components/ImportantState';
+import { getCollectionCalendar } from '../calendar/calendarApi';
+import { DateFilterBar } from '../calendar/DateFilterBar';
+import { CALENDAR_DAY_PAGE_SIZE, useCalendarBrowse } from '../calendar/useCalendarBrowse';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -293,15 +299,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [isDeletingCollection, setIsDeletingCollection] = useState(false);
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  const [isLeaveConfirmVisible, setIsLeaveConfirmVisible] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // Mirrors DailyInboxScreen/DateHistoryScreen's SwipeableItemRow usage: one shared in-flight id
   // disables every row's swipe actions while any single row's share/remove is running.
   const [itemActionInFlightId, setItemActionInFlightId] = useState<number | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
-  const [shareError, setShareError] = useState<string | null>(null);
 
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
-  const [favoriteToggleError, setFavoriteToggleError] = useState<string | null>(null);
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
   const [isOwnerApprovalSheetVisible, setIsOwnerApprovalSheetVisible] = useState(false);
@@ -417,6 +422,46 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
   const dated = useDateSectionPages(dateSource, isDateSectionExpanded, { enabled: isDateOrder, resetKey: pageSort });
 
+  // The date is a FILTER (a query condition), not a view: the picker shows a month of per-day counts (never link data);
+  // a chosen day then replaces the list with that day's links (paged, in the current List / Grid), by when each was
+  // added here - through the same items endpoint, the day sent AS A DATE so the server's one time zone rule applies.
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
+  const isDateFiltered = dateFilter !== null;
+  const loadCalendarMonth = useCallback(
+    (ref: { readonly year: number; readonly month: number }) =>
+      getCollectionCalendar(authenticatedRequest, collectionId, ref.year, ref.month, getCollectionUnlockToken(collectionId)),
+    [authenticatedRequest, collectionId],
+  );
+  const loadCalendarDay = useCallback(
+    // The tapped day goes to the server AS A DATE: the same time zone rule that counted it resolves its interval.
+    (date: string, cursor: string | undefined) =>
+      getCollectionItems(authenticatedRequest, collectionId, {
+        limit: CALENDAR_DAY_PAGE_SIZE,
+        cursor,
+        sort: 'dateDesc',
+        date,
+        unlockToken: getCollectionUnlockToken(collectionId),
+      }),
+    [authenticatedRequest, collectionId],
+  );
+  const calendar = useCalendarBrowse<CollectionItemEntry>({
+    enabled: isDatePickerOpen,
+    idOf: item => item.itemId,
+    loadDay: loadCalendarDay,
+    loadMonth: loadCalendarMonth,
+    resetKey: String(collectionId),
+  });
+  const chooseDate = (date: string) => {
+    setDateFilter(date);
+    calendar.selectDate(date);
+    setIsDatePickerOpen(false);
+  };
+  const clearDate = () => {
+    setDateFilter(null);
+    calendar.selectDate(null);
+  };
+
   const isLoading = isDateOrder ? dated.isLoading : nameOrdered.isLoading;
   const isRefreshing = isDateOrder ? dated.isRefreshing : nameOrdered.isRefreshing;
   const error = isDateOrder ? dated.error : nameOrdered.error;
@@ -427,6 +472,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const removeLocally = (itemId: number) => {
     dated.removeItem(itemId);
     nameOrdered.removeLocally(itemId);
+    calendar.removeItem(itemId);
   };
   // Every link currently loaded, whichever way the Collection is shown.
   const items = useMemo(
@@ -467,7 +513,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   }, [dated.sections, ensureDateSectionLoaded, expandedDateKeys, isDateOrder]);
   const dateRows = useMemo(
-    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), viewMode, item => item.itemId) : []),
+    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), viewMode === 'grid' ? 'grid' : 'list', item => item.itemId) : []),
     [dateSections, dated.pages, expandedDateKeys, isDateOrder, viewMode],
   );
   const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(dated.pages, dated.loadMore);
@@ -552,10 +598,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       return;
     }
     refresh();
+    if (isDatePickerOpen || isDateFiltered) {
+      calendar.refresh().catch(() => undefined);
+    }
     refreshInFlightRef.current = loadCollection().finally(() => {
       refreshInFlightRef.current = null;
     });
-  }, [loadCollection, refresh]);
+  }, [calendar, isDateFiltered, isDatePickerOpen, loadCollection, refresh]);
 
   // A Push about this open Collection (a proposal, a decision, new links...) refreshes the same state.
   useLiveRefresh(
@@ -988,6 +1037,23 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
 
+  // A member (not the Owner) leaves: the Collection leaves my list, so close it and land on Collections, refreshed.
+  const leaveCollectionAction = async () => {
+    if (isLeaving) {
+      return;
+    }
+    setIsLeaving(true);
+    try {
+      await leaveCollection(authenticatedRequest, collectionId);
+      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+      navigation.popTo('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
+    } catch {
+      setNotice(t('collections.leaveError'));
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
   const confirmDeleteCollection = () => {
     if (isDeletingCollection) {
       return;
@@ -1001,7 +1067,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
 
     setItemActionInFlightId(itemId);
-    setRemoveError(null);
     try {
       await removeItemFromCollection(authenticatedRequest, collectionId, itemId);
       removeLocally(itemId);
@@ -1020,7 +1085,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         showNotificationToast(t('toast.unlinkSuccess'));
       }
     } catch (caughtError) {
-      setRemoveError(getRemoveItemErrorMessage(caughtError, t));
+      setNotice(getRemoveItemErrorMessage(caughtError, t));
     } finally {
       setItemActionInFlightId(null);
     }
@@ -1033,11 +1098,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
 
     setItemActionInFlightId(item.itemId);
-    setShareError(null);
     try {
       await shareItem(item.url, item.title);
     } catch {
-      setShareError(getShareErrorMessage(t));
+      setNotice(getShareErrorMessage(t));
     } finally {
       setItemActionInFlightId(null);
     }
@@ -1050,7 +1114,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const desiredIsFavorite = !collection.isFavorite;
 
     setIsTogglingFavorite(true);
-    setFavoriteToggleError(null);
     setCollection(previous => (previous ? { ...previous, isFavorite: desiredIsFavorite } : previous));
     try {
       const updated = await setCollectionFavorite(authenticatedRequest, collectionId, desiredIsFavorite);
@@ -1059,7 +1122,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     } catch (caughtError) {
       // Roll back the optimistic flip - never trust it once the request has failed.
       setCollection(previous => (previous ? { ...previous, isFavorite: !desiredIsFavorite } : previous));
-      setFavoriteToggleError(getFavoriteToggleErrorMessage(caughtError, t));
+      setNotice(getFavoriteToggleErrorMessage(caughtError, t));
     } finally {
       setIsTogglingFavorite(false);
     }
@@ -1285,7 +1348,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   if (!collection) {
     return (
       <StackScreenSafeArea style={styles.loadingContainer}>
-        {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
+        {collectionError ? <ImportantState message={collectionError} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
       </StackScreenSafeArea>
     );
   }
@@ -1455,6 +1518,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             setSelectAllForCopyCount(null);
             setSelectedItemIds(new Set());
           }) }]),
+        // An active member can always leave on their own (the Owner cannot - they delete instead).
+        { label: t('collections.leaveAction'), destructive: true, icon: LogoutIcon, onPress: closeCollectionMenuThen(() => setIsLeaveConfirmVisible(true)) },
       ];
 
   const listHeader = (
@@ -1571,8 +1636,28 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {/* View mode (List/Grid) and sort are two independent, separately-persisted
           preferences (see useViewModePreference/useSortPreference) - switching one never
           resets the other, this round's explicit requirement. */}
+      {isContentLocked ? null : (
+        <View style={styles.dateFilterBlock}>
+          <DateFilterBar
+            canGoNext={calendar.canGoNext}
+            counts={calendar.counts}
+            isOpen={isDatePickerOpen}
+            month={calendar.month}
+            onClear={clearDate}
+            onNextMonth={calendar.goToNextMonth}
+            onPreviousMonth={calendar.goToPreviousMonth}
+            onRetryMonth={() => { calendar.retryMonth().catch(() => undefined); }}
+            onSelectDate={chooseDate}
+            onToggleOpen={() => setIsDatePickerOpen(previous => !previous)}
+            selectedDate={dateFilter}
+            status={calendar.monthStatus}
+            testIDPrefix="collection-date-filter"
+            today={calendar.today}
+          />
+        </View>
+      )}
       <View style={styles.sortRow}>
-        <LinkSortChips
+        {isDateFiltered ? null : <LinkSortChips
           dateLabel={t('collections.sortDate')}
           dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
           dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
@@ -1583,7 +1668,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           onPressName={pressNameSort}
           sort={effectiveSort}
           testIDPrefix="collection-sort"
-        />
+        />}
         <View style={styles.sortRowSpacer} />
         <ViewModeToggle onChange={changeViewMode} value={viewMode} />
       </View>
@@ -1600,12 +1685,10 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testID="collection-details-my-pending"
         />
       ) : null}
-      {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-
-      {collectionError ? <Text style={styles.error}>{collectionError}</Text> : null}
-      {removeError ? <Text style={styles.error}>{removeError}</Text> : null}
-      {shareError ? <Text style={styles.error}>{shareError}</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {/* A failed LOAD (the Collection's refresh, or its links) is a centered state with a retry; the result of an action
+          (favorite, remove, share) is the common message dialog below - never an inline red line. */}
+      {collectionError ? <LoadFailureState compact message={collectionError} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-refresh-error" /> : null}
+      {error ? <LoadFailureState compact message={error} onRetry={() => { refresh(); }} testID="collection-details-items-error" /> : null}
     </View>
   );
 
@@ -1672,10 +1755,49 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     <StackScreenSafeArea style={styles.safeArea}>
       {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
       <KeyboardSafeView enabled={isContentLocked}>
-      {isDateOrder && !isContentLocked ? (
+      {isDateFiltered && !isContentLocked ? (
+        // Date filter: only the chosen day's links, in the current List / Grid, paged on demand.
+        <FlatList
+          // Its own list instance: the date-ordered list below has onViewableItemsChanged, this one does not, and a
+          // FlatList cannot gain or lose that prop on the fly (and a column count cannot change on the fly either).
+          key={`date-filter-${viewMode}`}
+          contentContainerStyle={styles.content}
+          style={styles.list}
+          data={calendar.dayItems}
+          keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
+          numColumns={viewMode === 'grid' ? 2 : 1}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={
+            calendar.dayStatus === 'loading' || calendar.dayStatus === 'idle' ? (
+              <ActivityIndicator style={styles.calendarStatusText} testID="collection-calendar-loading" />
+            ) : calendar.dayStatus === 'error' ? (
+              <ImportantState compact message={t('calendar.dayLoadError')} onRetry={() => { calendar.retryDay().catch(() => undefined); }} testID="collection-calendar-day-error" />
+            ) : (
+              <Text style={styles.calendarStatusText} testID="collection-calendar-empty">{t('calendar.collectionDayEmpty')}</Text>
+            )
+          }
+          ListFooterComponent={
+            calendar.isLoadingMoreDay ? (
+              <ActivityIndicator style={styles.calendarStatusText} testID="collection-calendar-loading-more" />
+            ) : calendar.dayLoadMoreFailed ? (
+              <ImportantState compact message={t('calendar.dayLoadError')} onRetry={() => { calendar.loadMoreDay().catch(() => undefined); }} testID="collection-calendar-more-error" />
+            ) : undefined
+          }
+          onEndReached={() => { calendar.loadMoreDay().catch(() => undefined); }}
+          onEndReachedThreshold={0.5}
+          onScrollBeginDrag={closeOpenRow}
+          renderItem={({ item }) => renderCollectionItem(item)}
+        />
+      ) : isDateOrder && !isContentLocked ? (
         // One virtualized list: headers, the loaded rows of expanded dates (in image view one list
         // row per pair of tiles), skeletons while a page is on its way, and a retry row.
         <FlatList
+          key="date-list"
           contentContainerStyle={styles.content}
           style={styles.list}
           data={dateRows}
@@ -1800,6 +1922,18 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       />
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
+        confirmLabel={t('collections.leaveConfirmButton')}
+        message={t('collections.leaveConfirmMessage')}
+        onCancel={() => setIsLeaveConfirmVisible(false)}
+        onConfirm={() => {
+          setIsLeaveConfirmVisible(false);
+          leaveCollectionAction();
+        }}
+        title={t('collections.leaveConfirmTitle')}
+        visible={isLeaveConfirmVisible}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
         confirmLabel={t('collections.removeFromCollection')}
         message={t('collections.unlinkConfirmMessage')}
         onCancel={() => setPendingUnlinkItemId(null)}
@@ -1918,6 +2052,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         onToggle={destinationPicker.toggle}
         onUnlockCancel={destinationPicker.cancelUnlock}
         onUnlockGranted={destinationPicker.onUnlockGranted}
+        onUnlockStateChanged={destinationPicker.onUnlockStateChanged}
         selectedIds={destinationPicker.selectedIds}
         sort={{ value: destinationPicker.sort, onChange: destinationPicker.changeSort }}
         submit={{
@@ -2159,6 +2294,8 @@ const styles = StyleSheet.create({
   skeletonRow: { overflow: 'hidden' },
   sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
   sortRowSpacer: { flex: 1 },
+  dateFilterBlock: { marginTop: LINK_CONTROLS_TOP_GAP },
+  calendarStatusText: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   disabledButton: {
     opacity: 0.5,
   },

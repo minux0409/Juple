@@ -9,6 +9,7 @@ import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LinkSortChips } from '../components/LinkSortChips';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -73,7 +74,7 @@ export function TrashScreen() {
 
   const [items, setItems] = useState<readonly ItemTrashEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{ readonly cause: unknown; readonly message: string } | null>(null);
 
   const { viewMode, changeViewMode } = useViewModePreference('trashViewMode');
   const { sortOption, setSortOption } = useSortPreference('trashLinkSort');
@@ -105,7 +106,7 @@ export function TrashScreen() {
       const fetched = await getTrashItems(authenticatedRequest);
       setItems(fetched);
     } catch (caughtError) {
-      setLoadError(getLoadErrorMessage(caughtError, t));
+      setLoadError({ cause: caughtError, message: getLoadErrorMessage(caughtError, t) });
     } finally {
       setIsLoading(false);
     }
@@ -264,7 +265,9 @@ export function TrashScreen() {
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator style={styles.loading} />
-          ) : loadError ? undefined : (
+          ) : loadError ? (
+            <LoadFailureState error={loadError.cause} message={loadError.message} onRetry={() => { load(); }} testID="trash-load-error" />
+          ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.empty}>{t('trash.empty')}</Text>
             </View>
@@ -344,7 +347,6 @@ export function TrashScreen() {
         onDismiss={onMenuDismiss}
         visible={actionItem !== null}
       />
-      {loadError ? <Text style={styles.loadErrorText}>{loadError}</Text> : null}
 
       {errorMessage !== null ? (
         <ConfirmDialog
@@ -474,10 +476,4 @@ const styles = StyleSheet.create({
   },
   controlsSpacer: { flex: 1 },
   gridCard: { flexGrow: 1 },
-  loadErrorText: {
-    color: colors.danger,
-    fontSize: 14,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.sm,
-  },
 });

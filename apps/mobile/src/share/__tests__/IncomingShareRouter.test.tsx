@@ -4,6 +4,9 @@ import { useIncomingShare } from '../useIncomingShare';
 import { getActiveNewLinkReviewDraft } from '../activeNewLinkReviewDraft';
 import { navigationRef } from '../../navigation/navigationRef';
 
+// A build with the Dev public web host: a Collection share link on it is a Collection, never a saved link.
+jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev.juple.co.kr' } }));
+
 jest.mock('../useIncomingShare', () => ({
   useIncomingShare: jest.fn(),
 }));
@@ -50,6 +53,20 @@ async function render() {
 describe('IncomingShareRouter', () => {
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('a Juple Collection share link opens the Collection - never NewLinkReview, never an open-draft conflict - and consumes the share', async () => {
+    const share = makePendingShare({ id: 'share-collection', text: '컬렉션 공유\nhttps://dev.juple.co.kr/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    mockPendingShare(share);
+    jest.mocked(getActiveNewLinkReviewDraft).mockReturnValue({ getNormalizedUrl: () => 'https://other.test/', onConflictingShare: jest.fn() } as never);
+    const { acknowledgePendingShare } = jest.mocked(useIncomingShare)();
+
+    await render();
+
+    expect(navigationRef.navigate).toHaveBeenCalledTimes(1);
+    expect(navigationRef.navigate).toHaveBeenCalledWith('SharedCollection', { publicId: 'AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    expect(acknowledgePendingShare).toHaveBeenCalledWith('share-collection');
+    jest.mocked(getActiveNewLinkReviewDraft).mockReturnValue(null);
   });
 
   it('does not navigate when there is no pending share', async () => {

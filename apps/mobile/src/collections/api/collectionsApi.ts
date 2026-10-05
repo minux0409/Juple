@@ -422,6 +422,12 @@ export interface GetCollectionItemsOptions {
    */
   readonly fromUtc?: string;
   readonly toUtc?: string | null;
+  /**
+   * ONE local calendar day, "YYYY-MM-DD" (the calendar view): the SERVER turns it into the day's interval in the
+   * user's stored time zone - the same rule as the month counts - so the client never builds UTC bounds for it.
+   * Exclusive with fromUtc/toUtc; implies newest-added first unless a date sort is given.
+   */
+  readonly date?: string;
 }
 
 /**
@@ -468,6 +474,9 @@ export async function getCollectionItems(
   }
   if (options.toUtc) {
     query.set('toUtc', options.toUtc);
+  }
+  if (options.date) {
+    query.set('date', options.date);
   }
   const queryString = query.toString();
 

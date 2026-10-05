@@ -253,7 +253,7 @@ describe('CollectionParticipantsSheet - List / Grid', () => {
     };
 
     // List avatar.
-    await tap('participants-sheet-avatar-CNTRB234');
+    await tap('participants-sheet-CNTRB234'); // the whole row opens the person
     expect(renderer.root.findAll(node => node.props.testID === 'person-profile-send').length).toBeGreaterThan(0);
     expect(removeCollaborator).not.toHaveBeenCalled();
 

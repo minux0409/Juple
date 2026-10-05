@@ -846,6 +846,26 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(inviteCollaborator).toHaveBeenCalledWith(expect.anything(), 5, 'NAMD2345', 'contributor');
     });
 
+    it('shows the selected person (avatar, name, @ID) above 권한 in the ID flow and in the invite list, from already-loaded data', async () => {
+      const renderer = await renderScreen();
+      await openIdTab(renderer);
+      await act(async () => {
+        byId(renderer, 'id-invite-input').props.onChangeText('NAMD-2345');
+      });
+      await press(renderer, 'id-invite-find');
+
+      const found = byId(renderer, 'id-invite-person');
+      const summary = renderer.root.find(node => typeof node.type === 'string' && String(node.props.testID).startsWith('invite-selected-person-') && found.findAll(inner => inner === node).length > 0);
+      expect(texts(summary)).toEqual(expect.arrayContaining(['이상해씨', 'NAMD-2345']));
+      expect(summary.findAllByType(UserAvatar)).toHaveLength(1);
+      const ids = found.findAll(node => typeof node.type === 'string' && typeof node.props.testID === 'string').map(node => String(node.props.testID));
+      expect(ids.findIndex(id => id.startsWith('invite-selected-person-'))).toBeLessThan(ids.indexOf('id-invite-permission'));
+
+      await press(renderer, 'id-invite-add');
+      const draft = byId(renderer, 'draft-NAMD2345');
+      expect(draft.findAllByType(UserAvatar)).toHaveLength(1);
+    });
+
     it('the result shows who with "+" on one line, then 권한 over their choice; "+" adds them and clears the field', async () => {
       const renderer = await renderScreen();
       for (const jupleId of ['AAAA2345', 'BBBB2345', 'CCCC2345']) {
@@ -1336,7 +1356,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         jest.mocked(sendFriendRequest).mockResolvedValue({ requestId: 1, jupleId: 'RDER2345', direction: 'outgoing', createdAtUtc: '' } as never);
         const renderer = await renderScreen();
 
-        await press(renderer, 'participant-avatar-RDER2345');
+        await press(renderer, 'participant-RDER2345'); // the whole row opens the person
         expect(renderer.root.findAllByType(Modal).some(modal => modal.props.visible && modal.findAll(node => node.props.accessibilityLabel === i18n.t('collaboration.remove')).length > 0)).toBe(false);
         expect(removeCollaborator).not.toHaveBeenCalled();
         expect(exists(renderer, 'person-profile')).toBe(true);
@@ -1352,7 +1372,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         jest.mocked(getFriends).mockResolvedValue({ items: [friend('RDER2345', '피카츄', '내 친구')], nextCursor: null });
         const renderer = await renderScreen();
 
-        await press(renderer, 'participant-avatar-RDER2345');
+        await press(renderer, 'participant-RDER2345'); // the whole row opens the person
         expect(exists(renderer, 'friend-detail')).toBe(true);
         expect(exists(renderer, 'person-profile-send')).toBe(false);
         expect(removeCollaborator).not.toHaveBeenCalled();
@@ -1362,7 +1382,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         jest.mocked(getCollectionParticipants).mockResolvedValue(withWriter);
         const renderer = await renderScreen();
 
-        await press(renderer, 'participant-avatar-WNER2345');
+        await press(renderer, 'participant-WNER2345'); // the whole row opens the person
         expect(exists(renderer, 'person-profile-status-self')).toBe(true);
         expect(exists(renderer, 'person-profile-send')).toBe(false);
         expect(getFriends).not.toHaveBeenCalled();

@@ -1,3 +1,6 @@
+// A build with the Dev public web host: a Collection share link on it is a Collection, never a saved link.
+jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev.juple.co.kr' } }));
+
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, TextInput } from 'react-native';
@@ -403,6 +406,37 @@ describe('DailyInboxScreen direct URL entry', () => {
       initialTitle: null,
       preselectedCollectionId: null,
     });
+  });
+
+  it('a Juple Collection share link is never saved or reviewed as a link: it opens the Collection', async () => {
+    const renderer = await renderScreen();
+    const urlInput = renderer.root.findByType(TextInput);
+    await act(async () => {
+      urlInput.props.onChangeText('이 컬렉션 보세요 https://dev.juple.co.kr/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123?utm_source=kakao');
+    });
+
+    await act(async () => {
+      pressHomeSaveButton(renderer);
+    });
+
+    expect(saveInboxEntry).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('SharedCollection', { publicId: 'AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    expect(mockNavigate).not.toHaveBeenCalledWith('NewLinkReview', expect.anything());
+  });
+
+  it('a normal page on the public host, or a lookalike host, is still an ordinary link to review', async () => {
+    for (const url of ['https://dev.juple.co.kr/about', 'https://dev.juple.co.kr.evil.test/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123']) {
+      mockNavigate.mockClear();
+      const renderer = await renderScreen();
+      await act(async () => {
+        renderer.root.findByType(TextInput).props.onChangeText(url);
+      });
+      await act(async () => {
+        pressHomeSaveButton(renderer);
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('NewLinkReview', { url, initialTitle: null, preselectedCollectionId: null });
+    }
   });
 
   it('does not navigate for an empty/whitespace-only URL', async () => {

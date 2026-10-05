@@ -1,4 +1,5 @@
 using Juple.Application.Notifications;
+using Juple.Domain.Friends;
 using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -158,7 +159,8 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
     /// <summary>The ids each type cannot do without - anything else is an event no retry can process.</summary>
     public static bool IsWellFormed(NotificationEvent notificationEvent) => notificationEvent.Type switch
     {
-        NotificationType.FriendRequestReceived or NotificationType.FriendRequestAnswered or NotificationType.CollectionInvitationReceived
+        NotificationType.FriendRequestReceived or NotificationType.FriendRequestAnswered or NotificationType.FriendRequestAccepted
+            or NotificationType.FriendRequestRejected or NotificationType.CollectionInvitationReceived
             => notificationEvent.RecipientUserId is not null && notificationEvent.SubjectId is not null,
         NotificationType.CollectionInvitationAnswered => notificationEvent.ActorUserId is not null && notificationEvent.SubjectId is not null,
         NotificationType.CollectionContentChanged => notificationEvent.CollectionId is not null || notificationEvent.SubjectId is not null,
@@ -304,10 +306,26 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
         switch (notificationEvent.Type)
         {
             case NotificationType.FriendRequestReceived when notificationEvent.RecipientUserId is { } recipient && notificationEvent.SubjectId is { } friendshipId:
-                return Notification.Social(recipient, notificationEvent.Type, actor, null, friendshipId, $"friend-request:{friendshipId}", createdAtUtc);
+                // Only while it still waits: a request its sender cancelled (or that was answered) before this
+                // event was processed never reaches the recipient's Inbox - the cancel could not delete a row
+                // that did not exist yet.
+                return await dbContext.Friendships.AsNoTracking().AnyAsync(
+                        friendship => friendship.Id == friendshipId
+                            && friendship.Status == FriendshipStatus.Pending
+                            && friendship.RequestedByUserId == actor,
+                        cancellationToken)
+                    ? Notification.Social(recipient, notificationEvent.Type, actor, null, friendshipId, $"friend-request:{friendshipId}", createdAtUtc)
+                    : null;
 
             case NotificationType.FriendRequestAnswered when notificationEvent.RecipientUserId is { } recipient && notificationEvent.SubjectId is { } friendshipId:
                 return Notification.Social(recipient, notificationEvent.Type, actor, null, friendshipId, $"friend-request-answered:{friendshipId}", createdAtUtc);
+
+            // The requester is told once per answered request (the key is the request's own id + the answer).
+            case NotificationType.FriendRequestAccepted or NotificationType.FriendRequestRejected
+                when notificationEvent.RecipientUserId is { } recipient && notificationEvent.SubjectId is { } friendshipId:
+                return Notification.Social(
+                    recipient, notificationEvent.Type, actor, null, friendshipId,
+                    $"friend-request-{(notificationEvent.Type == NotificationType.FriendRequestAccepted ? "accepted" : "rejected")}:{friendshipId}", createdAtUtc);
 
             case NotificationType.CollectionInvitationReceived when notificationEvent.RecipientUserId is { } recipient && notificationEvent.SubjectId is { } invitationId:
                 return Notification.Social(
@@ -371,7 +389,8 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
                 when notificationEvent.RecipientUserId is { } recipient && notificationEvent.SubjectId is { } submissionId:
                 var answer = notificationEvent.Type == NotificationType.CollectionLinkSubmissionApproved ? "approved" : "rejected";
                 return Notification.Social(
-                    recipient, notificationEvent.Type, null, notificationEvent.CollectionId, submissionId, $"collection-submission-{answer}:{submissionId}", createdAtUtc);
+                    recipient, notificationEvent.Type, null, notificationEvent.CollectionId, submissionId, $"collection-submission-{answer}:{submissionId}", createdAtUtc,
+                    itemId: notificationEvent.ItemId);
 
             default:
                 // Unreachable for a well-formed event (IsWellFormed is checked first).

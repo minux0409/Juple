@@ -292,8 +292,8 @@
     "lockContactOwner": "تتطلب هذه المجموعة كلمة مرور القفل التي عيّنها مالكها.",
     "lockRemoveConfirmTitle": "إزالة القفل؟",
     "lockRemoveConfirmMessage": "أدخل كلمة مرور القفل لإلغاء قفل المجموعة.",
-    "shareRequests": "طلبات المشاركة",
-    "shareRequestCount": "طلبات المشاركة: {{count}}",
+    "shareRequests": "الدعوات المستلمة",
+    "shareRequestCount": "الدعوات المستلمة: {{count}}",
     "roleViewer": "للقراءة فقط",
     "lockConfirmTitle": "هل تريد قفل هذه المجموعة؟",
     "lockConfirmMessage": "احمِ هذه المجموعة في حسابك بكلمة مرور القفل.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "اطلب كلمة مرور الوصول من الشخص الذي شارك هذه المجموعة.",
     "sharePasswordRequiredForAction": "افتح المجموعة أولًا وأدخل كلمة مرور الوصول.",
     "sortNameAscA11y": "الاسم، تصاعديًا",
-    "sortNameDescA11y": "الاسم، تنازليًا"
+    "sortNameDescA11y": "الاسم، تنازليًا",
+    "pickerCollectionUnavailable": "لم تعد هذه المجموعة متاحة.",
+    "leaveAction": "مغادرة المجموعة",
+    "leaveConfirmTitle": "هل تريد مغادرة المجموعة؟",
+    "leaveConfirmMessage": "عند المغادرة ستتم إزالة هذه المجموعة من قائمتك.",
+    "leaveConfirmButton": "مغادرة",
+    "leaveError": "تعذّرت مغادرة المجموعة. حاول مرة أخرى لاحقًا."
   },
   "toast": {
     "moveSuccess": "تم النقل.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "لديك رابط قيد الإنشاء",
     "activeDraftConflictMessage": "هل تريد حفظ الرابط الذي تعمل عليه حاليًا قبل الاطلاع على الرابط الجديد؟",
     "saveDraftAndContinue": "حفظ والمتابعة",
-    "discardDraftAndContinue": "تجاهل والمتابعة"
+    "discardDraftAndContinue": "تجاهل والمتابعة",
+    "newCollectionChip": "مجموعة جديدة",
+    "newCollectionA11y": "إنشاء مجموعة جديدة",
+    "saveDialogTitle": "حفظ الرابط",
+    "addMemo": "إضافة ملاحظة",
+    "collectionLinkNotSavable": "لا يمكن حفظ رابط مجموعة Juple كرابط عادي. افتحه كمجموعة بدلًا من ذلك."
   },
   "sharedCollection": {
     "itemsEmpty": "لا توجد روابط محفوظة في هذه المجموعة المشتركة بعد.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "لم تعد هذه الدعوة صالحة.",
     "invitationResponseFallback": "تعذّر الرد على الدعوة.",
     "invitationsLoadFallback": "تعذّر تحميل الدعوات.",
-    "invitationsEmpty": "لا توجد طلبات مشاركة.",
+    "invitationsEmpty": "لا توجد دعوات مستلمة.",
     "invitationAccepted": "أُضيفت إلى المجموعات المُشارَكة.",
     "accept": "قبول",
     "decline": "رفض",
@@ -745,7 +756,10 @@
     "declineA11y": "رفض طلب الصداقة من {{name}}",
     "cancelA11y": "إلغاء طلب الصداقة المرسل إلى {{name}}",
     "personTitle": "معلومات المستخدم",
-    "you": "أنت"
+    "you": "أنت",
+    "requestCancelledByRequester": "ألغى المرسِل طلب الصداقة هذا.",
+    "requestNoLongerPending": "تمت معالجة طلب الصداقة هذا بالفعل.",
+    "requestDialogTitle": "طلب صداقة"
   },
   "notifications": {
     "title": "الإشعارات",
@@ -758,7 +772,16 @@
     "bellA11y": "الإشعارات",
     "bellUnreadA11y": "الإشعارات، غير المقروءة: {{count}}",
     "bannerAnnouncement": "إشعار جديد: {{title}}. {{body}}",
-    "bannerHint": "انقر للفتح. اسحب لأعلى للإغلاق."
+    "bannerHint": "انقر للفتح. اسحب لأعلى للإغلاق.",
+    "groupToday": "اليوم",
+    "groupYesterday": "أمس",
+    "groupLast7Days": "آخر 7 أيام",
+    "groupLast30Days": "آخر 30 يومًا",
+    "groupOlder": "أقدم",
+    "daysAgo": "{{count}} ي",
+    "deleteA11y": "حذف الإشعار",
+    "deleteFailed": "تعذّر حذف الإشعار.",
+    "loadErrorTitle": "تعذّر تحميل الإشعارات"
   },
   "contact": {
     "title": "اتصل بنا",
@@ -767,5 +790,24 @@
     "subject": "استفسار عن Juple",
     "noMailApp": "تعذّر فتح تطبيق البريد. يُرجى مراسلة {{email}} مباشرةً.",
     "copyEmail": "نسخ عنوان البريد الإلكتروني"
+  },
+  "importantState": {
+    "offlineTitle": "تعذّر الاتصال",
+    "loadFailedTitle": "تعذّر التحميل",
+    "retry": "إعادة المحاولة",
+    "offlineMessage": "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى."
+  },
+  "calendar": {
+    "previousMonthA11y": "الشهر السابق",
+    "nextMonthA11y": "الشهر التالي",
+    "today": "اليوم",
+    "dayCountA11y": "{{count}} روابط",
+    "monthLoadError": "تعذّر تحميل التقويم.",
+    "dayLoadError": "تعذّر تحميل روابط هذا اليوم.",
+    "dayEmpty": "لا توجد روابط محفوظة في هذا اليوم.",
+    "collectionDayEmpty": "لا توجد روابط مضافة في هذا اليوم.",
+    "pickDate": "اختر تاريخًا",
+    "selectedDateLabel": "التاريخ: {{date}}",
+    "clearDateA11y": "إزالة مرشح التاريخ"
   }
 }

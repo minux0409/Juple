@@ -27,7 +27,11 @@ public static class NotificationEventKeys
 
     public static string FriendRequestReceived(long friendshipId) => $"ev-friend-request:{friendshipId}";
 
-    public static string FriendRequestAnswered(long friendshipId) => $"ev-friend-request-answered:{friendshipId}";
+    public static string FriendRequestAnswered(long friendshipId, bool accepted) =>
+        $"ev-friend-request-{(accepted ? "accepted" : "rejected")}:{friendshipId}";
+
+    /// <summary>The refresh signal for a cancelled request - one per request (a request is cancelled at most once).</summary>
+    public static string FriendRequestCancelled(long friendshipId) => $"ev-friend-request-cancelled:{friendshipId}";
 
     public static string CollectionInvitationReceived(long invitationId) => $"ev-collection-invitation:{invitationId}";
 

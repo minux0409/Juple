@@ -235,6 +235,6 @@ describe('usePersonProfile - the relationship is resolved BEFORE exactly one mod
     });
     expect(has('person-profile-error')).toBe(true);
     expect(has('person-profile-send')).toBe(false);
-    expect(has('person-profile-retry')).toBe(true);
+    expect(has('person-profile-error-retry')).toBe(true);
   });
 });

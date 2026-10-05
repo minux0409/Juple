@@ -204,6 +204,9 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                     return IsLive(notification.CollectionId);
                 // Refresh signal about the recipient's own (now answered) request - nothing to re-check.
                 case NotificationType.FriendRequestAnswered:
+                // The result of the recipient's own request: it stays true (a later unfriend does not unsay it).
+                case NotificationType.FriendRequestAccepted:
+                case NotificationType.FriendRequestRejected:
                     return true;
                 default:
                     return false;

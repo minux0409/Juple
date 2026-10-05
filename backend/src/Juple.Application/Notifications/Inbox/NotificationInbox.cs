@@ -1,3 +1,4 @@
+using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Notifications;
 
@@ -23,10 +24,12 @@ public static class NotificationInboxPolicy
         NotificationType.CollectionLinkSubmissionReceived,
         NotificationType.CollectionLinkSubmissionApproved,
         NotificationType.CollectionLinkSubmissionRejected,
+        NotificationType.FriendRequestAccepted,
+        NotificationType.FriendRequestRejected,
     ];
 
     /// <summary>The same set as SQL - the filtered indexes' predicate must match it exactly.</summary>
-    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12)";
+    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14)";
 
     public const int DefaultPageSize = 30;
     public const int MaxPageSize = 100;
@@ -36,6 +39,8 @@ public static class NotificationInboxPolicy
     /// <summary>Only these name who caused them. A proposal and its result never do (nor does the row store anyone).</summary>
     public static bool ShowsActor(NotificationType type) =>
         type is NotificationType.FriendRequestReceived
+            or NotificationType.FriendRequestAccepted
+            or NotificationType.FriendRequestRejected
             or NotificationType.CollectionInvitationReceived
             or NotificationType.CollectionItemsAdded
             or NotificationType.CollectionLinkShared
@@ -45,6 +50,8 @@ public static class NotificationInboxPolicy
     /// <summary>These cannot be worded without the actor's name - with the actor gone, the row is unavailable.</summary>
     public static bool RequiresActor(NotificationType type) =>
         type is NotificationType.FriendRequestReceived
+            or NotificationType.FriendRequestAccepted
+            or NotificationType.FriendRequestRejected
             or NotificationType.CollectionInvitationReceived
             or NotificationType.CollectionLinkShared
             or NotificationType.CollectionItemReactionReceived
@@ -62,6 +69,11 @@ public static class NotificationInboxPolicy
         {
             case NotificationType.FriendRequestReceived:
                 return record.Actor is null ? NotificationTargetDto.Unavailable : new NotificationTargetDto(NotificationTargetKinds.FriendRequests);
+
+            case NotificationType.FriendRequestAccepted:
+            case NotificationType.FriendRequestRejected:
+                // The answer to the recipient's own request: the Friends screen (a new friend shows there).
+                return record.Actor is null ? NotificationTargetDto.Unavailable : new NotificationTargetDto(NotificationTargetKinds.Friends);
 
             case NotificationType.CollectionInvitationReceived:
                 if (record.InvitationPending && record.CollectionLive)
@@ -126,6 +138,7 @@ public static class NotificationInboxPolicy
 public static class NotificationTargetKinds
 {
     public const string FriendRequests = "friendRequests";
+    public const string Friends = "friends";
     public const string CollectionInvitations = "collectionInvitations";
     public const string Collection = "collection";
     public const string CollectionItem = "collectionItem";
@@ -161,7 +174,12 @@ public sealed record NotificationActorDto(string JupleId, string? DisplayName, s
 /// One Inbox row. Title/Body are the same sentence the Push used (SocialPushText), in the requested
 /// app language - null when the target is Unavailable, so a row about something the recipient can
 /// no longer open never names it (the client shows its own generic line instead). Never carries a
-/// comment's text, a memo, a link's URL, an email or a token.
+/// comment's text, a memo, an email or a token.
+/// PreviewImageUrl: the thumbnail of the RECIPIENT'S OWN link the row is about (a reaction/comment on it,
+/// or the result of the proposal of it) - the link's already-stored preview image, set-based, never a
+/// fetch per row; null for everything else (and for an Unavailable row).
+/// CollectionImageUrl/Version: the Collection's icon photo, only where the recipient may see the
+/// Collection by name (they belong to it) - the client falls back to its folder icon without one.
 /// </summary>
 public sealed record NotificationDto(
     long Id,
@@ -172,7 +190,10 @@ public sealed record NotificationDto(
     string? CollectionName,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? ReadAtUtc,
-    NotificationTargetDto Target);
+    NotificationTargetDto Target,
+    string? PreviewImageUrl = null,
+    string? CollectionImageUrl = null,
+    string? CollectionImageVersion = null);
 
 public sealed record NotificationPageDto(IReadOnlyList<NotificationDto> Items, long? NextCursor, int UnreadCount);
 
@@ -201,7 +222,10 @@ public sealed record NotificationInboxRecord(
     bool RecipientBelongs,
     string? PublicShareId,
     bool LinkStillOwn,
-    bool InvitationPending);
+    bool InvitationPending,
+    string? PreviewImageUrl = null,
+    string? CollectionIconBlobName = null,
+    long CollectionOwnerUserId = 0);
 
 public interface INotificationInboxStore
 {
@@ -212,6 +236,12 @@ public interface INotificationInboxStore
     Task<NotificationInboxRecord?> GetAsync(long userId, long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
     Task<int> CountUnreadAsync(long userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes one of the recipient's own Inbox rows (its Push delivery rows go with it - cascade). Idempotent
+    /// in effect: false only when there is no such row of theirs (anyone else's id, a non-Inbox Type, gone).
+    /// </summary>
+    Task<bool> DeleteAsync(long userId, long notificationId, CancellationToken cancellationToken = default);
 
     /// <summary>Idempotent. False only when it is not one of the recipient's own Inbox rows.</summary>
     Task<bool> MarkReadAsync(long userId, long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
@@ -244,6 +274,12 @@ public interface INotificationInboxService
 
     Task<NotificationReadResultDto> MarkAllReadAsync(long userId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Deletes one of the caller's own Inbox rows and returns what is still unread (for the bell).
+    /// NotificationNotFoundException for anything else - exactly like read.
+    /// </summary>
+    Task<NotificationReadResultDto> DeleteAsync(long userId, long notificationId, CancellationToken cancellationToken = default);
+
     /// <summary>Opening a Collection: its unread 새 링크 notifications are read. Its 승인 대기 count is a task, not a notification - untouched.</summary>
     Task<NotificationReadResultDto> MarkCollectionNewLinksReadAsync(long userId, long collectionId, CancellationToken cancellationToken = default);
 
@@ -254,7 +290,8 @@ public interface INotificationInboxService
 public sealed class NotificationInboxService(
     INotificationInboxStore store,
     TimeProvider timeProvider,
-    IUserProfileImageStorage? profileImageStorage = null) : INotificationInboxService
+    IUserProfileImageStorage? profileImageStorage = null,
+    ICollectionIconImageStorage? collectionIconStorage = null) : INotificationInboxService
 {
     /// <summary>A locale tag as the app sends it ("ko", "pt-BR", "zh-Hans"); anything else falls back to English.</summary>
     private const int MaxLocaleLength = 35;
@@ -299,6 +336,16 @@ public sealed class NotificationInboxService(
         return new NotificationReadResultDto(1, await store.CountUnreadAsync(userId, cancellationToken));
     }
 
+    public async Task<NotificationReadResultDto> DeleteAsync(long userId, long notificationId, CancellationToken cancellationToken = default)
+    {
+        if (!await store.DeleteAsync(userId, notificationId, cancellationToken))
+        {
+            throw new NotificationNotFoundException();
+        }
+
+        return new NotificationReadResultDto(0, await store.CountUnreadAsync(userId, cancellationToken));
+    }
+
     public async Task<NotificationReadResultDto> MarkAllReadAsync(long userId, CancellationToken cancellationToken = default)
     {
         var marked = await store.MarkAllReadAsync(userId, timeProvider.GetUtcNow(), cancellationToken);
@@ -339,6 +386,23 @@ public sealed class NotificationInboxService(
             actorDtos[actor.UserId] = new NotificationActorDto(actor.PublicCode, actor.DisplayName, image.Url, image.Version);
         }
 
+        // One signing step per distinct Collection photo on the page (local signing - no query, no per-row work).
+        var collectionImages = new Dictionary<string, (string Url, string Version)>(StringComparer.Ordinal);
+        if (collectionIconStorage is not null)
+        {
+            foreach (var record in records.Where(record => record.CollectionIconBlobName is not null
+                && targets[record.Id].Kind != NotificationTargetKinds.Unavailable
+                && !collectionImages.ContainsKey(record.CollectionIconBlobName!)))
+            {
+                var url = await collectionIconStorage.CreateCollectionIconReadUrlAsync(
+                    record.CollectionOwnerUserId, record.CollectionIconBlobName!, cancellationToken);
+                if (url is not null)
+                {
+                    collectionImages[record.CollectionIconBlobName!] = (url.ToString(), CollectionIconImageVersion.From(record.CollectionIconBlobName!));
+                }
+            }
+        }
+
         return records.Select(record =>
         {
             var target = targets[record.Id];
@@ -354,8 +418,12 @@ public sealed class NotificationInboxService(
             var (title, body) = SocialPushText.For(
                 record.Type, language, actorName, record.CollectionName ?? string.Empty,
                 record.ItemCount ?? 1, viaPublicLink: record.ActorHidden);
+            var collectionImage = record.CollectionIconBlobName is { } blobName && collectionImages.TryGetValue(blobName, out var signed)
+                ? signed
+                : ((string Url, string Version)?)null;
             return new NotificationDto(
-                record.Id, wireType, title, body, actor, record.CollectionName, record.CreatedAtUtc, record.ReadAtUtc, target);
+                record.Id, wireType, title, body, actor, record.CollectionName, record.CreatedAtUtc, record.ReadAtUtc, target,
+                record.PreviewImageUrl, collectionImage?.Url, collectionImage?.Version);
         }).ToList();
     }
 

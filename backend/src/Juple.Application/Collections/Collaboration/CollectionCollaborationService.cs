@@ -103,6 +103,25 @@ public sealed class CollectionCollaborationService(
         await collaborationStore.RemoveCollaboratorAsync(collectionId, collaboratorUserId, cancellationToken);
     }
 
+    public async Task LeaveAsync(long userId, long collectionId, CancellationToken cancellationToken = default)
+    {
+        var access = await accessService.RequireAsync(userId, collectionId, CollectionPermission.View, cancellationToken);
+        if (access.IsOwner)
+        {
+            throw new CollectionForbiddenException();
+        }
+
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
+        await collaborationStore.RemoveCollaboratorAsync(collectionId, userId, cancellationToken);
+        if (notifications is not null)
+        {
+            // The Owner's (and the other members') open screens re-read their counts / lists.
+            await notifications.CollectionsChangedAsync(userId, [collectionId], cancellationToken);
+        }
+
+        await outbox.CommitAsync(cancellationToken);
+    }
+
     public async Task ChangeInvitationRoleAsync(
         long userId,
         long collectionId,

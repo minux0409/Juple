@@ -128,9 +128,11 @@ public sealed class FriendsController(
         {
             return NotFound();
         }
-        catch (FriendNotFoundException)
+        catch (FriendNotFoundException exception)
         {
-            return NotFound();
+            return exception.Code is null
+                ? NotFound()
+                : CollectionProblems.Create(StatusCodes.Status404NotFound, "The friend request is no longer pending.", exception.Code);
         }
         catch (FriendRequestConflictException exception)
         {

@@ -38,11 +38,26 @@ public static class FriendRequestDirections
 
 public sealed record FriendPage(IReadOnlyList<FriendDto> Items, long? NextCursor);
 
-/// <summary>The accepted friendship as the caller sees it, plus the requester's internal id for the answered-request notification.</summary>
-public sealed record AcceptedFriendRequest(FriendDto Friend, long RequesterUserId);
+/// <summary>
+/// The accepted friendship as the caller sees it, plus the requester's internal id for the answered-request
+/// notification. NewlyAccepted: THIS call made the transition (false for an idempotent replay, which never
+/// notifies anyone again).
+/// </summary>
+public sealed record AcceptedFriendRequest(FriendDto Friend, long RequesterUserId, bool NewlyAccepted = true);
 
-/// <summary>No such friendship/request for this caller (also for anyone else's) - 404, never a hint that it exists.</summary>
-public sealed class FriendNotFoundException : Exception;
+/// <summary>
+/// No such friendship/request for this caller (also for anyone else's) - 404, never a hint that it exists.
+/// Code: RequestNoLongerPending when the caller tried to answer (or cancel) a request that is not an open
+/// request of theirs any more - withdrawn by its sender, already answered, or never theirs. The server
+/// words nothing more precise on purpose: a withdrawn request leaves no row to tell it apart from an
+/// unknown id, and the answer must be identical for both (nothing is disclosed about other people's ids).
+/// </summary>
+public sealed class FriendNotFoundException(string? code = null) : Exception(code)
+{
+    public const string RequestNoLongerPending = "requestNoLongerPending";
+
+    public string? Code { get; } = code;
+}
 
 /// <summary>409 with a stable code: alreadyFriends, requestPending, incomingRequestExists.</summary>
 public sealed class FriendRequestConflictException(string code) : Exception(code)
@@ -72,7 +87,7 @@ public interface IFriendStore
     Task<IReadOnlyList<FriendRequestDto>> ListRequestsAsync(long userId, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Accepts a pending request addressed to userId; anything else is FriendNotFoundException.
+    /// Accepts a pending request addressed to userId; anything else is FriendNotFoundException (RequestNoLongerPending).
     /// Also returns who sent the request (an internal id - never leaves the Application layer).
     /// </summary>
     Task<AcceptedFriendRequest> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
@@ -156,38 +171,51 @@ public sealed class FriendService(
         friendStore.ListRequestsAsync(userId, MaxRequestsListed, cancellationToken);
 
     /// <summary>
-    /// The requester's open Friends screen learns at once (data-only Push) that the request left
-    /// 보낸 친구 신청 and became a friend. An idempotent replay enqueues nothing new (same dedup key).
+    /// The requester is told (Inbox + Push, which also refreshes an open Friends screen) that the request
+    /// was accepted. Only the call that made the transition notifies; an idempotent replay does not.
     /// </summary>
     public async Task<FriendDto> AcceptAsync(long userId, long requestId, CancellationToken cancellationToken = default)
     {
         await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var accepted = await friendStore.AcceptAsync(userId, requestId, timeProvider.GetUtcNow(), cancellationToken);
-        if (notifications is not null)
+        if (notifications is not null && accepted.NewlyAccepted)
         {
-            await notifications.FriendRequestAnsweredAsync(userId, accepted.RequesterUserId, requestId, cancellationToken);
+            await notifications.FriendRequestAnsweredAsync(userId, accepted.RequesterUserId, requestId, accepted: true, cancellationToken);
         }
 
         await outbox.CommitAsync(cancellationToken);
         return accepted.Friend;
     }
 
-    /// <summary>Like AcceptAsync: the requester's 보낸 친구 신청 drops it without waiting for their next visit.</summary>
+    /// <summary>Like AcceptAsync, for a decline. Only a decline tells the requester - a cancel by the requester never does.</summary>
     public async Task DeclineAsync(long userId, long requestId, CancellationToken cancellationToken = default)
     {
         await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
         var requesterUserId = await friendStore.DeleteRequestAsync(userId, requestId, asRecipient: true, cancellationToken);
         if (notifications is not null)
         {
-            await notifications.FriendRequestAnsweredAsync(userId, requesterUserId, requestId, cancellationToken);
+            await notifications.FriendRequestAnsweredAsync(userId, requesterUserId, requestId, accepted: false, cancellationToken);
         }
 
         await outbox.CommitAsync(cancellationToken);
     }
 
-    /// <summary>The recipient is not told - a cancelled request simply disappears on their next refresh.</summary>
-    public Task CancelAsync(long userId, long requestId, CancellationToken cancellationToken = default) =>
-        friendStore.DeleteRequestAsync(userId, requestId, asRecipient: false, cancellationToken);
+    /// <summary>
+    /// The recipient gets NO notification of a cancel - but their open Friends screen is told (a data-only refresh
+    /// signal, see ISocialNotificationPublisher.FriendRequestCancelledAsync) so the stale request leaves it at once.
+    /// If they answer it before that, the request is gone and they get FriendNotFoundException(RequestNoLongerPending).
+    /// </summary>
+    public async Task CancelAsync(long userId, long requestId, CancellationToken cancellationToken = default)
+    {
+        await using var outbox = await NotificationOutbox.BeginAsync(notifications, cancellationToken);
+        var recipientUserId = await friendStore.DeleteRequestAsync(userId, requestId, asRecipient: false, cancellationToken);
+        if (notifications is not null)
+        {
+            await notifications.FriendRequestCancelledAsync(userId, recipientUserId, requestId, cancellationToken);
+        }
+
+        await outbox.CommitAsync(cancellationToken);
+    }
 
     public Task RemoveFriendAsync(long userId, long friendshipId, CancellationToken cancellationToken = default) =>
         friendStore.RemoveFriendAsync(userId, friendshipId, cancellationToken);

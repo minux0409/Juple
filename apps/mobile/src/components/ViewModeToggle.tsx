@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { ViewMode } from '../settings/viewModePreference';
-import { colors, radii, spacing } from '../theme/tokens';
+import { colors, radii } from '../theme/tokens';
 
 interface ViewModeToggleProps {
   readonly value: ViewMode;
@@ -15,7 +15,7 @@ function GridGlyph({ selected }: { readonly selected: boolean }) {
   return <View style={styles.gridGlyph}>{[0, 1, 2, 3].map(index => <View key={index} style={[styles.gridDot, selected && styles.glyphSelected]} />)}</View>;
 }
 
-/** Compact Explorer-style presentation switch, shared by link/category screens and pickers. */
+/** Compact Explorer-style presentation switch (List / Grid), shared by link/category screens and pickers. Calendar is a date FILTER, never a view (see DateFilterBar). */
 export function ViewModeToggle({ value, onChange }: ViewModeToggleProps) {
   return <View style={styles.container}>
     <Pressable accessibilityLabel="List view" accessibilityRole="button" accessibilityState={{ selected: value === 'list' }} onPress={() => onChange('list')} style={[styles.button, value === 'list' && styles.buttonSelected]}>

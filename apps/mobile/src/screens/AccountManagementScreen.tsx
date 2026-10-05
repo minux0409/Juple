@@ -1,12 +1,13 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getMyProfile, resolveSignInMethod, type SignInMethod, type UserProfile } from '../api/profileApi';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { reauthenticateSameAccount } from '../auth/reauthentication';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -40,12 +41,12 @@ export function AccountManagementScreen() {
   const { userEmail } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{ readonly cause: unknown } | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
+  const loadProfile = useCallback(() => {
       let isMounted = true;
       setLoadError(null);
       getMyProfile(authenticatedRequest)
@@ -54,16 +55,19 @@ export function AccountManagementScreen() {
             setProfile(loaded);
           }
         })
-        .catch(() => {
+        .catch(caughtError => {
           if (isMounted) {
-            setLoadError(t('profile.loadFallback'));
+            setLoadError({ cause: caughtError });
           }
         });
       return () => {
         isMounted = false;
       };
-    }, [authenticatedRequest, t]),
-  );
+    }, [authenticatedRequest]);
+
+  useFocusEffect(loadProfile);
+  // 다시 시도: the same load again (the focus load above covers the first one).
+  useEffect(() => (reloadToken > 0 ? loadProfile() : undefined), [loadProfile, reloadToken]);
 
   const method = resolveSignInMethod(profile);
 
@@ -91,7 +95,7 @@ export function AccountManagementScreen() {
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
         {profile === null && !loadError ? <ActivityIndicator style={styles.loading} /> : null}
-        {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
+        {loadError ? <LoadFailureState error={loadError.cause} message={t('profile.loadFallback')} onRetry={() => setReloadToken(previous => previous + 1)} testID="account-load-error" /> : null}
         {profile ? (
           <View style={styles.card}>
             <View style={styles.row} testID="account-sign-in-method">

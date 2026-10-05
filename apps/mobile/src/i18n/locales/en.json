@@ -292,8 +292,8 @@
     "lockContactOwner": "This collection needs the lock password set by its owner.",
     "lockRemoveConfirmTitle": "Remove the lock?",
     "lockRemoveConfirmMessage": "Enter your lock password to unlock this collection.",
-    "shareRequests": "Share requests",
-    "shareRequestCount": "Share requests: {{count}}",
+    "shareRequests": "Received invitations",
+    "shareRequestCount": "Received invitations: {{count}}",
     "roleViewer": "Read-only",
     "lockConfirmTitle": "Lock this collection?",
     "lockConfirmMessage": "Protect this collection in your account with your lock password.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Ask the person who shared this collection for the access password.",
     "sharePasswordRequiredForAction": "Open the collection and enter its access password first.",
     "sortNameAscA11y": "Name, A to Z",
-    "sortNameDescA11y": "Name, Z to A"
+    "sortNameDescA11y": "Name, Z to A",
+    "pickerCollectionUnavailable": "This collection is no longer available.",
+    "leaveAction": "Leave collection",
+    "leaveConfirmTitle": "Leave this collection?",
+    "leaveConfirmMessage": "If you leave, this collection is removed from your list.",
+    "leaveConfirmButton": "Leave",
+    "leaveError": "Could not leave the collection. Please try again later."
   },
   "toast": {
     "moveSuccess": "Moved.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "You have a link in progress",
     "activeDraftConflictMessage": "Save the link you're currently working on before checking the new one?",
     "saveDraftAndContinue": "Save and continue",
-    "discardDraftAndContinue": "Discard and continue"
+    "discardDraftAndContinue": "Discard and continue",
+    "newCollectionChip": "New collection",
+    "newCollectionA11y": "Create a new collection",
+    "saveDialogTitle": "Save link",
+    "addMemo": "Add a memo",
+    "collectionLinkNotSavable": "A Juple collection link can’t be saved as a regular link. Open it as a collection instead."
   },
   "sharedCollection": {
     "itemsEmpty": "This shared collection has no saved links yet.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "This invitation is no longer valid.",
     "invitationResponseFallback": "Couldn't respond to the invitation.",
     "invitationsLoadFallback": "Couldn't load invitations.",
-    "invitationsEmpty": "No share requests.",
+    "invitationsEmpty": "No invitations received.",
     "invitationAccepted": "Added to your shared collections.",
     "accept": "Accept",
     "decline": "Decline",
@@ -745,7 +756,10 @@
     "declineA11y": "Decline friend request from {{name}}",
     "cancelA11y": "Cancel friend request to {{name}}",
     "personTitle": "User info",
-    "you": "You"
+    "you": "You",
+    "requestCancelledByRequester": "The sender cancelled this friend request.",
+    "requestNoLongerPending": "This friend request was already handled.",
+    "requestDialogTitle": "Friend request"
   },
   "notifications": {
     "title": "Notifications",
@@ -758,7 +772,16 @@
     "bellA11y": "Notifications",
     "bellUnreadA11y": "Notifications, {{count}} unread",
     "bannerAnnouncement": "New notification: {{title}}. {{body}}",
-    "bannerHint": "Tap to open. Swipe up to dismiss."
+    "bannerHint": "Tap to open. Swipe up to dismiss.",
+    "groupToday": "Today",
+    "groupYesterday": "Yesterday",
+    "groupLast7Days": "Last 7 days",
+    "groupLast30Days": "Last 30 days",
+    "groupOlder": "Earlier",
+    "daysAgo": "{{count}}d",
+    "deleteA11y": "Delete notification",
+    "deleteFailed": "Couldn’t delete the notification.",
+    "loadErrorTitle": "Couldn’t load notifications"
   },
   "contact": {
     "title": "Contact us",
@@ -767,5 +790,24 @@
     "subject": "Juple inquiry",
     "noMailApp": "Couldn't open a mail app. Please email {{email}} directly.",
     "copyEmail": "Copy email address"
+  },
+  "importantState": {
+    "offlineTitle": "Can’t connect",
+    "loadFailedTitle": "Couldn’t load",
+    "retry": "Try again",
+    "offlineMessage": "Check your internet connection and try again."
+  },
+  "calendar": {
+    "previousMonthA11y": "Previous month",
+    "nextMonthA11y": "Next month",
+    "today": "Today",
+    "dayCountA11y": "{{count}} links",
+    "monthLoadError": "Couldn’t load the calendar.",
+    "dayLoadError": "Couldn’t load this day’s links.",
+    "dayEmpty": "No links saved on this day.",
+    "collectionDayEmpty": "No links added on this day.",
+    "pickDate": "Select a date",
+    "selectedDateLabel": "Date: {{date}}",
+    "clearDateA11y": "Clear the date filter"
   }
 }

@@ -84,7 +84,7 @@ export function MyPageScreen() {
         }
       })
       .catch(() => undefined);
-  }, ['friendRequest']);
+  }, ['friendRequest', 'friendRequestAnswered']);
 
   const onToggleQuickSave = async (nextEnabled: boolean) => {
     if (isTogglingQuickSave) {
@@ -136,13 +136,14 @@ export function MyPageScreen() {
             </Text>
           </View>
           <Pressable
+            accessibilityLabel={t('profile.edit')}
             accessibilityRole="button"
             disabled={!jupleId}
             onPress={() => navigation.navigate('ProfileEdit')}
             style={styles.editButton}
             testID="my-profile-edit"
           >
-            <Text numberOfLines={2} style={styles.editButtonLabel}>{t('profile.edit')}</Text>
+            <screenIcons.profileEdit color={colors.textPrimary} size={20} />
           </Pressable>
         </View>
 
@@ -310,13 +311,10 @@ const styles = StyleSheet.create({
     borderColor: colors.inputBorder,
     borderRadius: radii.md,
     borderWidth: 1,
-    flexShrink: 1,
     justifyContent: 'center',
-    maxWidth: '40%',
     minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
+    minWidth: minTouchTarget,
   },
-  editButtonLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   countBadge: {
     alignItems: 'center',
     backgroundColor: colors.brand,

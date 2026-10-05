@@ -669,7 +669,8 @@ public sealed class CollectionsController(
         [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null,
         [FromQuery] string? sort = null,
         [FromQuery] DateTimeOffset? fromUtc = null,
-        [FromQuery] DateTimeOffset? toUtc = null)
+        [FromQuery] DateTimeOffset? toUtc = null,
+        [FromQuery] string? date = null)
     {
         if (!CollectionsQueryParameters.TryParseItemSort(sort, out var resolvedSort))
         {
@@ -677,6 +678,29 @@ public sealed class CollectionsController(
             {
                 ["sort"] = ["sort must be \"dateDesc\" or \"dateAsc\"."],
             }));
+        }
+
+        // date (YYYY-MM-DD): one local calendar day in the caller's stored time zone - the calendar view's day. The
+        // server resolves it with the same helper as the month counts; it cannot be combined with fromUtc/toUtc.
+        DateOnly? localDate = null;
+        if (date is not null)
+        {
+            if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate)
+                || fromUtc is not null
+                || toUtc is not null)
+            {
+                return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["date"] = ["date must use the YYYY-MM-DD format and cannot be combined with fromUtc/toUtc."],
+                }));
+            }
+
+            localDate = parsedDate;
+            // A day is shown newest-added first unless the caller asked for the other date order.
+            if (resolvedSort == CollectionItemSort.Manual)
+            {
+                resolvedSort = CollectionItemSort.DateDesc;
+            }
         }
 
         var isWindowed = fromUtc is not null || toUtc is not null;
@@ -720,7 +744,10 @@ public sealed class CollectionsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var page = isWindowed
+            var page = localDate is { } day
+                ? await getCollectionItemsService.GetByDateAsync(
+                    currentUser.UserId, id, currentUser.TimeZoneId, day, typedCursor, resolvedLimit, resolvedSort, unlockToken, cancellationToken)
+                : isWindowed
                 ? await getCollectionItemsService.GetRangeAsync(
                     currentUser.UserId,
                     id,
@@ -778,6 +805,53 @@ public sealed class CollectionsController(
             var sections = await getCollectionItemSectionsService.GetAsync(
                 currentUser.UserId, id, currentUser.TimeZoneId, unlockToken, cancellationToken);
             return Ok(new CollectionItemSectionsResponse(sections));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionSharePasswordRequiredException)
+        {
+            return CollectionProblems.SharePasswordRequired();
+        }
+        catch (CollectionLockedException)
+        {
+            return CollectionProblems.CollectionLocked();
+        }
+    }
+
+    /// <summary>
+    /// The Collection's calendar view: for one month (year, month), the local days on which links were
+    /// added with their exact counts - counts only, the same access and lock gates as the item list.
+    /// A day's links come from GET {id}/items?sort=dateDesc&amp;fromUtc&amp;toUtc.
+    /// </summary>
+    [HttpGet("{id:long}/items/calendar")]
+    public async Task<IActionResult> GetItemCalendarAsync(
+        long id,
+        [FromQuery] int year,
+        [FromQuery] int month,
+        [FromServices] IGetCollectionItemCalendarService calendarService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            return Ok(await calendarService.GetAsync(currentUser.UserId, id, currentUser.TimeZoneId, year, month, unlockToken, cancellationToken));
+        }
+        catch (Juple.Application.Items.GetItemHistoryCalendar.InvalidCalendarMonthException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -1116,6 +1190,20 @@ public sealed class CollectionsController(
         {
             ["role"] = ["role must be \"contributor\" or \"viewer\"."],
         }));
+
+    /// <summary>
+    /// 컬렉션에서 나가기: the caller (an accepted member, not the Owner) leaves the Collection - the same removal as when
+    /// the Owner removes them (see ICollectionCollaborationService.LeaveAsync). 204; 403 for the Owner; 404 for anyone
+    /// who is not a member (a stranger, a public-link visitor, a pending invitee). A literal "me" - never a Juple ID.
+    /// </summary>
+    [HttpDelete("{id:long}/collaborators/me")]
+    public Task<IActionResult> LeaveAsync(
+        long id,
+        [FromServices] ICollectionCollaborationService collaborationService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => collaborationService.LeaveAsync(userId, id, cancellationToken),
+            cancellationToken);
 
     /// <summary>
     /// Removes a Contributor (addressed by Juple ID - never an internal id) and exactly the links

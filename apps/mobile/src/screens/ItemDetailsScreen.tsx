@@ -57,6 +57,7 @@ import {
 } from '../items/api/itemsApi';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -272,6 +273,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // The one 대표 사진: the user's own photo, else the link's automatic preview (see representativePhoto.ts).
   const representativePhoto = resolveRepresentativePhoto(item?.previewImageUrl ?? null, images, item?.coverImage?.id ?? null);
 
+  const [loadFailure, setLoadFailure] = useState<unknown>(null);
   const loadDetails = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -284,6 +286,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       setBaselineMemo(details.memo ?? '');
     } catch (caughtError) {
       setError(getLoadErrorMessage(caughtError, t));
+      setLoadFailure(caughtError);
     } finally {
       setIsLoading(false);
     }
@@ -703,7 +706,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   if (!item) {
     return (
       <View style={styles.loadingContainer}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <LoadFailureState error={loadFailure} message={error} onRetry={() => { loadDetails(); }} testID="item-details-load-error" /> : null}
       </View>
     );
   }
@@ -881,6 +884,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         }}
         onUnlockCancel={categoryPicker.cancelUnlock}
         onUnlockGranted={categoryPicker.onUnlockGranted}
+        onUnlockStateChanged={categoryPicker.onUnlockStateChanged}
         selectedIds={selectedCategoryIds}
         unlockTarget={categoryPicker.unlockTarget}
         visible={categoryPicker.isVisible}

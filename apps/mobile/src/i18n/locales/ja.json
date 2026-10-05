@@ -292,8 +292,8 @@
     "lockContactOwner": "このコレクションには、オーナーが設定したロックパスワードが必要です。",
     "lockRemoveConfirmTitle": "ロックを解除しますか？",
     "lockRemoveConfirmMessage": "ロックパスワードを入力するとロックが解除されます。",
-    "shareRequests": "共有リクエスト",
-    "shareRequestCount": "共有リクエスト {{count}}件",
+    "shareRequests": "受け取った招待",
+    "shareRequestCount": "受け取った招待 {{count}}件",
     "roleViewer": "読み取り専用",
     "lockConfirmTitle": "このコレクションをロックしますか？",
     "lockConfirmMessage": "アカウントでこのコレクションをロックパスワードで保護します。",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "アクセスパスワードはコレクションを共有した人に尋ねてください。",
     "sharePasswordRequiredForAction": "先にコレクションを開いてアクセスパスワードを入力してください。",
     "sortNameAscA11y": "名前順、昇順",
-    "sortNameDescA11y": "名前順、降順"
+    "sortNameDescA11y": "名前順、降順",
+    "pickerCollectionUnavailable": "このコレクションは利用できなくなりました。",
+    "leaveAction": "コレクションから退出",
+    "leaveConfirmTitle": "コレクションから退出しますか？",
+    "leaveConfirmMessage": "退出すると、このコレクションはあなたのリストから削除されます。",
+    "leaveConfirmButton": "退出",
+    "leaveError": "コレクションから退出できませんでした。しばらくしてからもう一度お試しください。"
   },
   "toast": {
     "moveSuccess": "移動しました。",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "作成中のリンクがあります",
     "activeDraftConflictMessage": "現在作成中のリンクを保存してから新しいリンクを確認しますか?",
     "saveDraftAndContinue": "保存して続行",
-    "discardDraftAndContinue": "破棄して続行"
+    "discardDraftAndContinue": "破棄して続行",
+    "newCollectionChip": "新しいコレクション",
+    "newCollectionA11y": "新しいコレクションを作成",
+    "saveDialogTitle": "リンクを保存",
+    "addMemo": "メモを追加",
+    "collectionLinkNotSavable": "Jupleのコレクション共有リンクは通常のリンクとして保存できません。コレクションとして開いてください。"
   },
   "sharedCollection": {
     "itemsEmpty": "この共有コレクションにはまだ保存されたリンクがありません。",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "この招待はもう無効です。",
     "invitationResponseFallback": "招待に応答できませんでした。",
     "invitationsLoadFallback": "招待を読み込めませんでした。",
-    "invitationsEmpty": "共有リクエストはありません。",
+    "invitationsEmpty": "受け取った招待はありません。",
     "invitationAccepted": "共有コレクションに追加しました。",
     "accept": "承諾",
     "decline": "拒否",
@@ -745,7 +756,10 @@
     "declineA11y": "{{name}}さんの友だちリクエストを拒否",
     "cancelA11y": "{{name}}さんへの友だちリクエストを取り消す",
     "personTitle": "ユーザー情報",
-    "you": "あなた"
+    "you": "あなた",
+    "requestCancelledByRequester": "申請者が友達申請を取り消しました。",
+    "requestNoLongerPending": "この友達申請はすでに処理されています。",
+    "requestDialogTitle": "友達リクエスト"
   },
   "notifications": {
     "title": "通知",
@@ -758,7 +772,16 @@
     "bellA11y": "通知",
     "bellUnreadA11y": "通知、未読 {{count}} 件",
     "bannerAnnouncement": "新しい通知: {{title}}。{{body}}",
-    "bannerHint": "タップして開きます。上にスワイプで閉じます。"
+    "bannerHint": "タップして開きます。上にスワイプで閉じます。",
+    "groupToday": "今日",
+    "groupYesterday": "昨日",
+    "groupLast7Days": "過去7日間",
+    "groupLast30Days": "過去30日間",
+    "groupOlder": "以前",
+    "daysAgo": "{{count}}日",
+    "deleteA11y": "通知を削除",
+    "deleteFailed": "通知を削除できませんでした。",
+    "loadErrorTitle": "通知を読み込めませんでした"
   },
   "contact": {
     "title": "お問い合わせ",
@@ -767,5 +790,24 @@
     "subject": "Juple のお問い合わせ",
     "noMailApp": "メールアプリを開けませんでした。{{email}} へ直接メールをお送りください。",
     "copyEmail": "メールアドレスをコピー"
+  },
+  "importantState": {
+    "offlineTitle": "接続できません",
+    "loadFailedTitle": "読み込めませんでした",
+    "retry": "もう一度試す",
+    "offlineMessage": "インターネット接続を確認してから、もう一度お試しください。"
+  },
+  "calendar": {
+    "previousMonthA11y": "前の月",
+    "nextMonthA11y": "次の月",
+    "today": "今日",
+    "dayCountA11y": "リンク{{count}}件",
+    "monthLoadError": "カレンダーを読み込めませんでした。",
+    "dayLoadError": "この日のリンクを読み込めませんでした。",
+    "dayEmpty": "この日に保存したリンクはありません。",
+    "collectionDayEmpty": "この日に追加されたリンクはありません。",
+    "pickDate": "日付を選択",
+    "selectedDateLabel": "日付: {{date}}",
+    "clearDateA11y": "日付フィルターを解除"
   }
 }

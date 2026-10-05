@@ -5,7 +5,6 @@ import {
   PanResponder,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
@@ -27,7 +26,7 @@ function clamp(value: number, min: number, max: number): number {
 
 export interface SwipeableStartAction {
   readonly label: string;
-  /** compact only: the visible label (default: `label`); accessibility keeps `label`. */
+  /** @deprecated Swipe actions are icon-only everywhere; the accessibility label is `label`. */
   readonly shortLabel?: string;
   readonly icon: ComponentType<{ readonly color?: string; readonly size?: number }>;
   readonly onPress: () => void;
@@ -55,7 +54,7 @@ interface SwipeableItemRowProps {
    * on the revealed action does.
    */
   readonly startAction?: SwipeableStartAction;
-  /** The revealed delete action shows only its icon (its accessibility label is still deleteLabel). */
+  /** @deprecated Every revealed action is icon-only now (accessibility labels stay); kept so callers need no change. */
   readonly deleteIconOnly?: boolean;
   /** Narrow tiles (Grid): a slimmer pane with the icon stacked over a short one-line label. */
   readonly compact?: boolean;
@@ -113,7 +112,6 @@ export function SwipeableItemRow({
   onPress,
   onDelete,
   deleteLabel,
-  deleteIconOnly = false,
   compact = false,
   deleteTestID,
   contentAccessible = true,
@@ -230,8 +228,7 @@ export function SwipeableItemRow({
               style={[styles.actionButton, styles.shareAction, startAction.backgroundColor ? { backgroundColor: startAction.backgroundColor } : null]}
               testID={startAction.testID}
             >
-              <startAction.icon color={colors.surface} size={compact ? 20 : 18} />
-              <Text numberOfLines={compact ? 1 : 2} style={styles.actionLabel}>{compact ? (startAction.shortLabel ?? startAction.label) : startAction.label}</Text>
+              <startAction.icon color={colors.surface} size={22} />
             </Pressable>
           </View>
           ) : onShare ? (
@@ -246,8 +243,7 @@ export function SwipeableItemRow({
               }}
               style={[styles.actionButton, styles.shareAction]}
             >
-              <ShareIcon color={colors.surface} size={18} />
-              <Text style={styles.actionLabel}>{t('common.share')}</Text>
+              <ShareIcon color={colors.surface} size={22} />
             </Pressable>
           </View>
           ) : null}
@@ -264,8 +260,7 @@ export function SwipeableItemRow({
               style={[styles.actionButton, styles.deleteAction]}
               testID={deleteTestID}
             >
-              <TrashIcon color={colors.surface} size={deleteIconOnly ? 22 : compact ? 20 : 18} />
-              {deleteIconOnly ? null : <Text numberOfLines={compact ? 1 : 2} style={styles.actionLabel}>{deleteActionLabel}</Text>}
+              <TrashIcon color={colors.surface} size={22} />
             </Pressable>
           </View>
           ) : null}
@@ -354,12 +349,5 @@ const styles = StyleSheet.create({
   },
   deleteAction: {
     backgroundColor: colors.danger,
-  },
-  actionLabel: {
-    color: colors.surface,
-    fontSize: 12,
-    fontWeight: '600',
-    paddingHorizontal: spacing.xs,
-    textAlign: 'center',
   },
 });

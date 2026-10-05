@@ -9,6 +9,7 @@ import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
  */
 export type NotificationTargetKindWire =
   | 'friendRequests'
+  | 'friends'
   | 'collectionInvitations'
   | 'collection'
   | 'collectionItem'
@@ -43,6 +44,11 @@ export interface AppNotification {
   readonly createdAtUtc: string;
   readonly readAtUtc: string | null;
   readonly target: NotificationTargetWire;
+  /** The thumbnail of MY OWN link this row is about (a reaction/comment on it, or the result of its proposal) - already stored, never fetched per row. */
+  readonly previewImageUrl?: string | null;
+  /** The Collection's icon photo, only where I may see the Collection by name - the folder glyph otherwise. */
+  readonly collectionImageUrl?: string | null;
+  readonly collectionImageVersion?: string | null;
 }
 
 export interface NotificationsPage {
@@ -92,6 +98,11 @@ export async function getUnreadNotificationCount(request: AuthenticatedApiReques
 /** Idempotent. Rejects with ApiError notFound when it is not the caller's own notification. */
 export async function markNotificationRead(request: AuthenticatedApiRequest, notificationId: number): Promise<NotificationReadResult> {
   return readResult(await request<NotificationReadResult>({ method: 'POST', path: `/api/v1/notifications/${notificationId}/read` }));
+}
+
+/** Removes one of MY OWN notifications (swipe-delete). Rejects with ApiError notFound when it is not mine or already gone. */
+export async function deleteNotification(request: AuthenticatedApiRequest, notificationId: number): Promise<NotificationReadResult> {
+  return readResult(await request<NotificationReadResult>({ method: 'DELETE', path: `/api/v1/notifications/${notificationId}` }));
 }
 
 export async function markAllNotificationsRead(request: AuthenticatedApiRequest): Promise<NotificationReadResult> {

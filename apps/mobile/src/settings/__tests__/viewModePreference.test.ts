@@ -15,3 +15,42 @@ describe('view mode preference storage contract', () => {
     }
   });
 });
+
+describe('useViewModePreference - the retired calendar view mode', () => {
+  const React = require('react');
+  const ReactTestRenderer = require('react-test-renderer');
+  const { useViewModePreference } = require('../viewModePreference');
+
+  const mountWithStored = async (stored: string | null) => {
+    jest.mocked(AsyncStorage.getItem).mockResolvedValue(stored);
+    jest.mocked(AsyncStorage.setItem).mockClear();
+    jest.mocked(AsyncStorage.setItem).mockResolvedValue(undefined);
+    let seen = '';
+    function Probe() {
+      seen = useViewModePreference('historyViewMode').viewMode;
+      return null;
+    }
+    await ReactTestRenderer.act(async () => {
+      ReactTestRenderer.create(React.createElement(Probe));
+    });
+    return () => seen;
+  };
+
+  it('falls back to List for a saved "calendar" and rewrites it so it never comes back', async () => {
+    const mode = await mountWithStored('calendar');
+    expect(mode()).toBe('list');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('juple.historyViewMode', 'list');
+  });
+
+  it('keeps a saved List / Grid as it is, without writing anything', async () => {
+    expect((await mountWithStored('grid'))()).toBe('grid');
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+    expect((await mountWithStored('list'))()).toBe('list');
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('stays on List when nothing is saved', async () => {
+    expect((await mountWithStored(null))()).toBe('list');
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+});

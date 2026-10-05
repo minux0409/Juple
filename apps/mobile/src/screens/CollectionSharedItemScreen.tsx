@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '../api/ApiError';
@@ -13,6 +13,7 @@ import { contentGateOfError } from '../collections/useCollectionItems';
 import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { ItemAdderBadge } from '../components/ItemAdderBadge';
 import { usePersonProfile } from '../friends/PersonProfileModal';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
@@ -39,15 +40,15 @@ export function CollectionSharedItemScreen({ route }: Props) {
   const authenticatedRequest = useAuthenticatedApi();
   const [item, setItem] = useState<SharedCollectionItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ readonly cause: unknown; readonly message: string; readonly canRetry: boolean } | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [openError, setOpenError] = useState<string | null>(null);
   // Reactions and comments of this link IN this Collection - the one shared implementation (the owner's
   // ItemDetails uses the same). A link opened here is always one of a Collection the caller belongs to.
   const { openProfile, profileModal } = usePersonProfile();
   const collaboration = useItemCollaboration({ collectionId, itemId, isCollectionOwner, row: item, enabled: true });
 
-  useFocusEffect(
-    useCallback(() => {
+  const loadItem = useCallback(() => {
       let isActive = true;
       setIsLoading(true);
       setError(null);
@@ -63,11 +64,11 @@ export function CollectionSharedItemScreen({ route }: Props) {
           }
           const gate = contentGateOfError(caughtError);
           if (gate) {
-            setError(t(gate === 'sharePassword' ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage'));
+            setError({ cause: caughtError, message: t(gate === 'sharePassword' ? 'collections.sharePasswordLockedMessage' : 'collections.lockedMessage'), canRetry: false });
           } else if (caughtError instanceof ApiError && caughtError.kind === 'notFound') {
-            setError(t('collections.sharedItemNotFound'));
+            setError({ cause: caughtError, message: t('collections.sharedItemNotFound'), canRetry: false });
           } else {
-            setError(t('collections.sharedItemLoadFallback'));
+            setError({ cause: caughtError, message: t('collections.sharedItemLoadFallback'), canRetry: true });
           }
         })
         .finally(() => {
@@ -78,8 +79,11 @@ export function CollectionSharedItemScreen({ route }: Props) {
       return () => {
         isActive = false;
       };
-    }, [authenticatedRequest, collectionId, itemId, t]),
-  );
+    }, [authenticatedRequest, collectionId, itemId, t]);
+
+  useFocusEffect(loadItem);
+  // 다시 시도: the same load again (the focus load above covers the first one).
+  useEffect(() => (reloadToken > 0 ? loadItem() : undefined), [loadItem, reloadToken]);
 
   const openLink = async () => {
     if (!item) {
@@ -104,7 +108,9 @@ export function CollectionSharedItemScreen({ route }: Props) {
   if (!item) {
     return (
       <StackScreenSafeArea style={styles.center}>
-        <Text style={styles.error}>{error}</Text>
+        {error ? (
+          <LoadFailureState error={error.cause} message={error.message} onRetry={error.canRetry ? () => setReloadToken(previous => previous + 1) : undefined} testID="shared-item-load-error" />
+        ) : null}
       </StackScreenSafeArea>
     );
   }

@@ -35,6 +35,7 @@ import {
 } from '../collections/api/collaborationApi';
 import { OwnerCrown } from '../collections/CollectionParticipantsSheet';
 import { SearchIconButton } from '../components/SearchIconButton';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
 import {
   enableCollectionShare,
@@ -120,6 +121,9 @@ function publicPermissionLabelKey(permission: PublicSharePermission): string {
 interface InviteDraft {
   readonly jupleId: string;
   readonly displayName: string | null;
+  /** From data already loaded (the friend list / the ID lookup) - the summary above the permission never fetches. */
+  readonly profileImageUrl?: string | null;
+  readonly profileImageVersion?: string | null;
   readonly role: InvitationRole;
   readonly status: 'ready' | 'sending' | 'error';
   readonly message: string | null;
@@ -457,7 +461,7 @@ export function CollectionShareScreen({ route }: Props) {
   const [share, setShare] = useState<CollectionShare | null>(null);
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<{ readonly cause: unknown; readonly message: string; readonly canRetry: boolean } | null>(null);
 
   const [isManagingShare, setIsManagingShare] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
@@ -530,11 +534,8 @@ export function CollectionShareScreen({ route }: Props) {
       setShare(loadedShare);
       setParticipants(loadedParticipants);
     } catch (caughtError) {
-      setLoadError(
-        caughtError instanceof ApiError && (caughtError.kind === 'forbidden' || caughtError.kind === 'notFound')
-          ? t('collaboration.ownerOnly')
-          : t('collaboration.loadFallback'),
-      );
+      const isOwnerOnly = caughtError instanceof ApiError && (caughtError.kind === 'forbidden' || caughtError.kind === 'notFound');
+      setLoadError({ cause: caughtError, message: isOwnerOnly ? t('collaboration.ownerOnly') : t('collaboration.loadFallback'), canRetry: !isOwnerOnly });
     } finally {
       setIsLoading(false);
     }
@@ -747,6 +748,8 @@ export function CollectionShareScreen({ route }: Props) {
         .map<InviteDraft>(friend => ({
           jupleId: friend.jupleId,
           displayName: friend.displayName,
+          profileImageUrl: friend.profileImageUrl,
+          profileImageVersion: friend.profileImageVersion,
           role: minimumRole ?? 'viewer',
           status: 'ready',
           message: null,
@@ -790,7 +793,7 @@ export function CollectionShareScreen({ route }: Props) {
     }
     setDrafts(previous => [
       ...previous,
-      { jupleId: person.jupleId, displayName: person.displayName ?? null, role: raiseToMinimum(idRole, minimumRole), status: 'ready', message: null },
+      { jupleId: person.jupleId, displayName: person.displayName ?? null, profileImageUrl: person.profileImageUrl, profileImageVersion: person.profileImageVersion, role: raiseToMinimum(idRole, minimumRole), status: 'ready', message: null },
     ]);
     setIdInput('');
     setIdRole('viewer');
@@ -936,19 +939,27 @@ export function CollectionShareScreen({ route }: Props) {
     </View>
   );
 
-  const { openProfile, profileModal } = usePersonProfile();
-  /** A person's avatar: tapping it inspects them (profile / friend) - never a management action. */
-  const avatarButton = (person: PersonProfileTarget & { readonly displayName?: string | null }, testID: string) => (
-    <Pressable
-      accessibilityLabel={`${personLabel(person)}, ${t('friends.personTitle')}`}
-      accessibilityRole="button"
-      hitSlop={4}
-      onPress={() => openProfile(person)}
-      testID={testID}
-    >
+  /** The person a permission is being chosen for: [avatar] Display Name @JupleID, shown right above 권한. */
+  const selectedPersonSummary = (person: { readonly jupleId: string; readonly displayName?: string | null; readonly profileImageUrl?: string | null; readonly profileImageVersion?: string | null }) => (
+    <View style={styles.selectedPerson} testID={`invite-selected-person-${person.jupleId}`}>
       <UserAvatar displayName={person.displayName} imageUrl={person.profileImageUrl} imageVersion={person.profileImageVersion} jupleId={person.jupleId} size={STATUS_AVATAR_SIZE} />
-    </Pressable>
+      {personText(person)}
+    </View>
   );
+
+  const { openProfile, profileModal } = usePersonProfile();
+  /** A person's avatar - decoration only: the WHOLE row (see personRowProps) opens the profile / friend info, never a management action. */
+  const avatarButton = (person: PersonProfileTarget & { readonly displayName?: string | null }, testID: string) => (
+    <View testID={testID}>
+      <UserAvatar displayName={person.displayName} imageUrl={person.profileImageUrl} imageVersion={person.profileImageVersion} jupleId={person.jupleId} size={STATUS_AVATAR_SIZE} />
+    </View>
+  );
+  /** Row-level tap: opens the person. The explicit ⋯ button inside is its own Pressable, so it never also triggers this. */
+  const personRowProps = (person: PersonProfileTarget & { readonly displayName?: string | null }) => ({
+    accessibilityLabel: `${personLabel(person)}, ${t('friends.personTitle')}`,
+    accessibilityRole: 'button' as const,
+    onPress: () => openProfile(person),
+  });
 
   const moreButton = (label: string, onPress: () => void, testID: string) => (
     <Pressable
@@ -969,7 +980,9 @@ export function CollectionShareScreen({ route }: Props) {
       <KeyboardSafeView style={styles.flex}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
         {isLoading && !participants ? <ActivityIndicator style={styles.loading} /> : null}
-        {loadError ? <Text style={styles.error}>{loadError}</Text> : null}
+        {loadError ? (
+          <LoadFailureState error={loadError.cause} message={loadError.message} onRetry={loadError.canRetry ? () => { load(); } : undefined} testID="share-load-error" />
+        ) : null}
 
         {participants ? (
           <View ref={contentRef} testID="share-unified">
@@ -1117,7 +1130,7 @@ export function CollectionShareScreen({ route }: Props) {
                     // person already in the list below.
                     <View style={styles.personRow} testID="id-invite-person">
                       <View style={styles.rowLine}>
-                        <View style={styles.personRowText}>{personText(idLookup.person)}</View>
+                        <View style={styles.personRowText}>{selectedPersonSummary(idLookup.person)}</View>
                         <Pressable
                           accessibilityLabel={t('shareSheet.addPersonToInviteList', { name: personLabel(idLookup.person) })}
                           accessibilityRole="button"
@@ -1174,7 +1187,7 @@ export function CollectionShareScreen({ route }: Props) {
                         {/* Who and their × on one line; then 권한 over that person's own choice, full
                             width - the same stacked shape on every screen width. */}
                         <View style={styles.rowLine}>
-                          {personText(draft)}
+                          <View style={styles.personRowText}>{selectedPersonSummary(draft)}</View>
                           {removeButton}
                         </View>
                         <View style={styles.field} testID={`draft-permission-${draft.jupleId}`}>
@@ -1238,7 +1251,12 @@ export function CollectionShareScreen({ route }: Props) {
                     const kind = memberRoleOf(member.role);
                     const label = member.isMe ? t('collections.participantMe', { name: personLabel(member) }) : personLabel(member);
                     return (
-                      <View key={member.jupleId} style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]} testID={`participant-${member.jupleId}`}>
+                      <Pressable
+                        {...personRowProps({ jupleId: member.jupleId, displayName: member.displayName, profileImageUrl: member.profileImageUrl, profileImageVersion: member.profileImageVersion, isSelf: member.isMe })}
+                        key={member.jupleId}
+                        style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]}
+                        testID={`participant-${member.jupleId}`}
+                      >
                         {avatarButton({ jupleId: member.jupleId, displayName: member.displayName, profileImageUrl: member.profileImageUrl, profileImageVersion: member.profileImageVersion, isSelf: member.isMe }, `participant-avatar-${member.jupleId}`)}
                         {kind === 'owner' ? <OwnerCrown /> : null}
                         {personText(member, label)}
@@ -1247,7 +1265,7 @@ export function CollectionShareScreen({ route }: Props) {
                           ? moreButton(personLabel(member), () =>
                               setManaged({ kind: 'member', jupleId: member.jupleId, label: personLabel(member), role: kind }), `member-actions-${member.jupleId}`)
                           : null}
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -1259,7 +1277,12 @@ export function CollectionShareScreen({ route }: Props) {
                     pendingInvitations.map((invitation, index) => {
                       const role = invitationRoleOf(invitation.role);
                       return (
-                        <View key={invitation.invitationId} style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]} testID={`pending-${invitation.invitationId}`}>
+                        <Pressable
+                          {...personRowProps({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion })}
+                          key={invitation.invitationId}
+                          style={[styles.listRow, styles.listRowMain, index > 0 && styles.listRowDivider]}
+                          testID={`pending-${invitation.invitationId}`}
+                        >
                           {avatarButton({ jupleId: invitation.jupleId, displayName: invitation.displayName, profileImageUrl: invitation.profileImageUrl, profileImageVersion: invitation.profileImageVersion }, `pending-avatar-${invitation.invitationId}`)}
                           <View style={styles.personText}>
                             <Text numberOfLines={1} style={styles.personName}>{personLabel(invitation)}</Text>
@@ -1270,7 +1293,7 @@ export function CollectionShareScreen({ route }: Props) {
                           <RoleBadge kind={role} testID={`pending-role-${invitation.invitationId}`} />
                           {moreButton(personLabel(invitation), () =>
                             setManaged({ kind: 'pending', invitationId: invitation.invitationId, label: personLabel(invitation), role }), `pending-actions-${invitation.invitationId}`)}
-                        </View>
+                        </Pressable>
                       );
                     })
                   )}
@@ -1484,6 +1507,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   personRowText: { flex: 1, minWidth: 0 },
+  selectedPerson: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minWidth: 0 },
   inlineAction: { alignSelf: 'flex-start', justifyContent: 'center', minHeight: minTouchTarget },
   inlineActionLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
   listRow: { gap: spacing.xs, paddingVertical: spacing.xs + 2 },

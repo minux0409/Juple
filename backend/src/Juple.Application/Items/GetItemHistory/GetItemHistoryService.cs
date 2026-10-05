@@ -31,7 +31,7 @@ public sealed class GetItemHistoryService(
         CancellationToken cancellationToken = default)
     {
         var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetByDateRangeAsync(
-            userId, fromUtc, toUtc, cursor, limit, cancellationToken);
+            userId, fromUtc, toUtc, cursor, limit, cancellationToken: cancellationToken);
         return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
     }
 

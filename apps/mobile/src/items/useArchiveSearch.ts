@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { getItemHistory, type ItemHistoryEntry } from './api/itemsApi';
+import { getItemHistory, getItemHistoryByDate, type ItemHistoryEntry } from './api/itemsApi';
 
 /** Shorter terms are not searched (a 1-character contains search matches nearly everything; the server refuses them too). */
 export const ARCHIVE_SEARCH_MIN_LENGTH = 2;
@@ -14,14 +14,17 @@ export function normalizeArchiveQuery(raw: string): string | null {
 }
 
 export interface ArchiveSearchState {
-  /** A search is active (the typed text is long enough) - results, not the date accordion, are shown. */
+  /**
+   * A filter is active - the typed text is long enough and/or a date is selected - so flat results, not the date
+   * accordion, are shown. Text and date combine (both apply); neither is ever filtered on the device.
+   */
   readonly isSearching: boolean;
   readonly items: readonly ItemHistoryEntry[];
   /** The first page of the current term is on its way (the screen keeps showing what it had until then). */
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly error: boolean;
-  /** The term the shown items belong to. */
+  /** The filter (text + date) the shown items belong to. */
   readonly settledTerm: string | null;
   readonly loadMore: () => void;
   readonly refresh: () => void;
@@ -31,12 +34,17 @@ export interface ArchiveSearchState {
 /**
  * Searches the user's whole archive on the server (never only the rows already loaded): the typed text
  * is trimmed, debounced, and each request carries a sequence number, so a slow answer for an older
- * term can never overwrite the newer one. Clearing the text (or going under the minimum) cancels any
+ * filter can never overwrite the newer one. Clearing the text (or going under the minimum) AND the date cancels any
  * pending request and returns to the normal Archive at once. Results page by cursor, newest first.
+ *
+ * date ("YYYY-MM-DD", a local calendar day) is a second condition of the same query: with it the server resolves the
+ * day in the user's stored time zone (the rule that counted it in the calendar) and applies the text inside it.
  */
-export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
+export function useArchiveSearch(rawQuery: string, date: string | null = null): ArchiveSearchState {
   const request = useAuthenticatedApi();
-  const term = normalizeArchiveQuery(rawQuery);
+  const text = normalizeArchiveQuery(rawQuery);
+  // One identity for "this filter" (also what settledTerm reports): the text, the day, or both.
+  const term = text === null && date === null ? null : `${date ?? ''}|${text ?? ''}`;
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [settledTerm, setSettledTerm] = useState<string | null>(null);
@@ -48,13 +56,26 @@ export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
   const termRef = useRef(term);
   termRef.current = term;
 
+  const textRef = useRef(text);
+  textRef.current = text;
+  const dateRef = useRef(date);
+  dateRef.current = date;
+
+  const fetchPage = useCallback(
+    (cursor: string | undefined) =>
+      dateRef.current !== null
+        ? getItemHistoryByDate(request, dateRef.current, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: textRef.current ?? undefined, cursor })
+        : getItemHistory(request, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: textRef.current ?? undefined, cursor }),
+    [request],
+  );
+
   const run = useCallback(
     async (searchTerm: string) => {
       const sequence = ++sequenceRef.current;
       setIsLoading(true);
       setError(false);
       try {
-        const page = await getItemHistory(request, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: searchTerm });
+        const page = await fetchPage(undefined);
         if (sequence !== sequenceRef.current) {
           return;
         }
@@ -74,7 +95,7 @@ export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
         }
       }
     },
-    [request],
+    [fetchPage],
   );
 
   useEffect(() => {
@@ -90,11 +111,12 @@ export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
     }
     // Debounced: one request after the typing pauses, not one per keystroke.
     setIsLoading(true);
+    // Typing is debounced; picking a day is one deliberate tap - no wait.
     const timer = setTimeout(() => {
       run(term).catch(() => undefined);
-    }, ARCHIVE_SEARCH_DEBOUNCE_MS);
+    }, text === null ? 0 : ARCHIVE_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [run, term]);
+  }, [run, term, text]);
 
   const loadMore = useCallback(() => {
     const current = termRef.current;
@@ -104,7 +126,7 @@ export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
     const sequence = sequenceRef.current;
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
-    getItemHistory(request, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: current, cursor: nextCursor })
+    fetchPage(nextCursor)
       .then(page => {
         if (sequence !== sequenceRef.current) {
           return;
@@ -117,7 +139,7 @@ export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
       });
-  }, [isLoading, nextCursor, request, settledTerm]);
+  }, [fetchPage, isLoading, nextCursor, settledTerm]);
 
   const refresh = useCallback(() => {
     if (termRef.current) {

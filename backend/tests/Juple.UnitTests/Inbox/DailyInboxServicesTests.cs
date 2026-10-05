@@ -14,7 +14,7 @@ public sealed class DailyInboxServicesTests
     {
         var metadata = new SaveMetadataResolver();
         var store = new FakeInboxEntryStore(beforeSave: () => Assert.Equal(url, metadata.LastUrl));
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), metadata);
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), metadata, NoCollectionShareUrls.Instance);
 
         await service.SaveAsync(17, new SaveInboxEntryCommand($"  {url}  "));
 
@@ -34,7 +34,7 @@ public sealed class DailyInboxServicesTests
     [InlineData("content://example.com")]
     public async Task SaveAsync_WhenUrlIsNotHttpOrHttps_RejectsRequest(string url)
     {
-        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider(), new SaveMetadataResolver(shouldFetch: false));
+        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider(), new SaveMetadataResolver(shouldFetch: false), NoCollectionShareUrls.Instance);
 
         var exception = await Assert.ThrowsAsync<InvalidInboxRequestException>(
             () => service.SaveAsync(17, new SaveInboxEntryCommand(url)));
@@ -47,7 +47,7 @@ public sealed class DailyInboxServicesTests
     {
         const string url = "https://shop.example/item?id=1&variant=500ml";
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         await service.SaveAsync(17, new SaveInboxEntryCommand(url));
 
@@ -59,7 +59,7 @@ public sealed class DailyInboxServicesTests
     {
         var url = "https://a.co/" + new string('a', 4083);
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         await service.SaveAsync(17, new SaveInboxEntryCommand(url));
 
@@ -70,7 +70,7 @@ public sealed class DailyInboxServicesTests
     public async Task SaveAsync_WhenUrlExceeds4096Characters_RejectsRequest()
     {
         var url = "https://a.co/" + new string('a', 4084);
-        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(new FakeInboxEntryStore(), new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         var exception = await Assert.ThrowsAsync<InvalidInboxRequestException>(
             () => service.SaveAsync(17, new SaveInboxEntryCommand(url)));
@@ -83,7 +83,7 @@ public sealed class DailyInboxServicesTests
     {
         const string url = "https://shop.example/item";
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         var first = await service.SaveAsync(17, new SaveInboxEntryCommand(url));
         var second = await service.SaveAsync(17, new SaveInboxEntryCommand(url));
@@ -97,7 +97,7 @@ public sealed class DailyInboxServicesTests
     public async Task SaveAsync_WhenClientRequestIdIsNew_ReturnsCreatedTrue()
     {
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         var result = await service.SaveAsync(
             17,
@@ -112,7 +112,7 @@ public sealed class DailyInboxServicesTests
         const string url = "https://shop.example/item";
         var clientRequestId = Guid.NewGuid();
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         var first = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
         var replay = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
@@ -127,7 +127,7 @@ public sealed class DailyInboxServicesTests
     {
         var clientRequestId = Guid.NewGuid();
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         await service.SaveAsync(
             17, new SaveInboxEntryCommand("https://shop.example/item-a", clientRequestId));
@@ -143,7 +143,7 @@ public sealed class DailyInboxServicesTests
         const string url = "https://shop.example/item";
         var clientRequestId = Guid.NewGuid();
         var store = new FakeInboxEntryStore();
-        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver());
+        var service = new InboxEntrySaveService(store, new FixedTimeProvider(), new SaveMetadataResolver(), NoCollectionShareUrls.Instance);
 
         var userOneResult = await service.SaveAsync(17, new SaveInboxEntryCommand(url, clientRequestId));
         var userTwoResult = await service.SaveAsync(23, new SaveInboxEntryCommand(url, clientRequestId));
@@ -223,4 +223,12 @@ public sealed class DailyInboxServicesTests
         public override DateTimeOffset GetUtcNow() =>
             utcNow ?? new DateTimeOffset(2026, 8, 29, 0, 0, 0, TimeSpan.Zero);
     }
+}
+
+/// <summary>No deployment host configured: nothing is a Collection share link.</summary>
+internal sealed class NoCollectionShareUrls : Juple.Application.Collections.Public.ICollectionShareUrlDetector
+{
+    public static readonly NoCollectionShareUrls Instance = new();
+
+    public string? FindPublicId(string? url) => null;
 }

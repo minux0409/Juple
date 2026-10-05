@@ -49,10 +49,20 @@ public sealed class SocialNotificationPublisher(
             NotificationType.FriendRequestReceived, requesterUserId, recipientUserId, null, friendshipId, null, false, null,
             NotificationEventKeys.FriendRequestReceived(friendshipId), Now()), cancellationToken);
 
-    public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default) =>
+    public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, bool accepted, CancellationToken cancellationToken = default) =>
         RecordAsync(new NotificationEvent(
-            NotificationType.FriendRequestAnswered, answererUserId, requesterUserId, null, friendshipId, null, false, null,
-            NotificationEventKeys.FriendRequestAnswered(friendshipId), Now()), cancellationToken);
+            accepted ? NotificationType.FriendRequestAccepted : NotificationType.FriendRequestRejected,
+            answererUserId, requesterUserId, null, friendshipId, null, false, null,
+            NotificationEventKeys.FriendRequestAnswered(friendshipId, accepted), Now()), cancellationToken);
+
+    /// <summary>
+    /// The data-only refresh signal (NotificationType.FriendRequestAnswered - the type that is never shown): the
+    /// recipient's open Friends screen reloads its requests. Nothing about the requester is stored beyond the id.
+    /// </summary>
+    public Task FriendRequestCancelledAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default) =>
+        RecordAsync(new NotificationEvent(
+            NotificationType.FriendRequestAnswered, requesterUserId, recipientUserId, null, friendshipId, null, true, null,
+            NotificationEventKeys.FriendRequestCancelled(friendshipId), Now()), cancellationToken);
 
     public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default) =>
         RecordAsync(new NotificationEvent(
@@ -108,12 +118,12 @@ public sealed class SocialNotificationPublisher(
         RecordAsync(new NotificationEvent(
             NotificationType.CollectionLinkSubmissionReceived, submitterUserId, null, collectionId, itemId, null, true, null, null, Now()), cancellationToken);
 
-    public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, bool approved, CancellationToken cancellationToken = default)
+    public Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, long itemId, bool approved, CancellationToken cancellationToken = default)
     {
         var type = approved ? NotificationType.CollectionLinkSubmissionApproved : NotificationType.CollectionLinkSubmissionRejected;
         return RecordAsync(new NotificationEvent(
             type, null, submitterUserId, collectionId, submissionId, null, true, null,
-            NotificationEventKeys.CollectionLinkSubmissionAnswered(submissionId, approved), Now()), cancellationToken);
+            NotificationEventKeys.CollectionLinkSubmissionAnswered(submissionId, approved), Now(), itemId), cancellationToken);
     }
 
     private Task RecordCollaborationAsync(NotificationType type, long actorUserId, long collectionId, long itemId, CancellationToken cancellationToken)

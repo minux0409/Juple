@@ -508,6 +508,23 @@ describe('FriendsScreen - 받은 요청', () => {
     expect(exists(renderer, 'friends-incoming-empty')).toBe(true);
   });
 
+  it('a request the sender already cancelled shows a centered message, removes the stale row and refetches', async () => {
+    jest.mocked(acceptFriendRequest).mockRejectedValue(new ApiError('notFound', 404, 'requestNoLongerPending'));
+    const renderer = await renderScreen();
+    await openTab(renderer, 'incoming');
+
+    // The server no longer has the request when it is refetched.
+    jest.mocked(getFriendRequests).mockResolvedValue([outgoingTogepi]);
+
+    await press(renderer, 'friends-accept-1');
+
+    const dialog = renderer.root.findAllByType(ConfirmDialog).find(candidate => candidate.props.visible)!;
+    expect(dialog.props.title).toBe(i18n.t('friends.requestDialogTitle'));
+    expect(dialog.props.message).toBe(i18n.t('friends.requestCancelledByRequester'));
+    expect(exists(renderer, 'friends-action-error')).toBe(false);
+    expect(exists(renderer, 'friends-incoming-1')).toBe(false);
+  });
+
   it('puts the actions on their own line, each at least a touch target tall', async () => {
     const renderer = await renderScreen();
     await openTab(renderer, 'incoming');
@@ -767,7 +784,8 @@ describe('FriendsScreen - 친구 추가', () => {
       answer({ requestId: 30, jupleId: 'NEWF2345', displayName: '이상해씨', direction: 'outgoing', createdAtUtc: '' });
     });
 
-    expect(texts(byId(renderer, 'friends-add-message'))).toEqual(['친구 요청을 보냈어요.']);
+    // Only the relationship state remains - the redundant "친구 요청을 보냈어요." sentence is gone.
+    expect(exists(renderer, 'friends-add-message')).toBe(false);
     expect(texts(byId(renderer, 'friends-add-status-pending'))).toEqual(['요청 대기 중']);
     expect(byId(renderer, 'friends-tab-outgoing-count').props.children).toBe('2');
     await act(async () => {

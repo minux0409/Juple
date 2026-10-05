@@ -292,8 +292,8 @@
     "lockContactOwner": "Bộ sưu tập này cần mật khẩu khóa do chủ sở hữu đặt.",
     "lockRemoveConfirmTitle": "Gỡ khóa?",
     "lockRemoveConfirmMessage": "Nhập mật khẩu khóa để mở khóa bộ sưu tập.",
-    "shareRequests": "Yêu cầu chia sẻ",
-    "shareRequestCount": "Yêu cầu chia sẻ: {{count}}",
+    "shareRequests": "Lời mời đã nhận",
+    "shareRequestCount": "Lời mời đã nhận: {{count}}",
     "roleViewer": "Chỉ đọc",
     "lockConfirmTitle": "Khóa bộ sưu tập này?",
     "lockConfirmMessage": "Bảo vệ bộ sưu tập này trong tài khoản của bạn bằng mật khẩu khóa.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "Hãy hỏi người đã chia sẻ bộ sưu tập này để lấy mật khẩu truy cập.",
     "sharePasswordRequiredForAction": "Hãy mở bộ sưu tập và nhập mật khẩu truy cập trước.",
     "sortNameAscA11y": "Tên, A đến Z",
-    "sortNameDescA11y": "Tên, Z đến A"
+    "sortNameDescA11y": "Tên, Z đến A",
+    "pickerCollectionUnavailable": "Bộ sưu tập này không còn khả dụng.",
+    "leaveAction": "Rời khỏi bộ sưu tập",
+    "leaveConfirmTitle": "Rời khỏi bộ sưu tập?",
+    "leaveConfirmMessage": "Nếu rời đi, bộ sưu tập này sẽ bị xóa khỏi danh sách của bạn.",
+    "leaveConfirmButton": "Rời khỏi",
+    "leaveError": "Không thể rời khỏi bộ sưu tập. Vui lòng thử lại sau."
   },
   "toast": {
     "moveSuccess": "Đã chuyển.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "Bạn có một liên kết đang thực hiện",
     "activeDraftConflictMessage": "Bạn có muốn lưu liên kết đang chỉnh sửa trước khi xem liên kết mới không?",
     "saveDraftAndContinue": "Lưu và tiếp tục",
-    "discardDraftAndContinue": "Bỏ qua và tiếp tục"
+    "discardDraftAndContinue": "Bỏ qua và tiếp tục",
+    "newCollectionChip": "Bộ sưu tập mới",
+    "newCollectionA11y": "Tạo bộ sưu tập mới",
+    "saveDialogTitle": "Lưu liên kết",
+    "addMemo": "Thêm ghi chú",
+    "collectionLinkNotSavable": "Liên kết bộ sưu tập Juple không thể lưu như liên kết thường. Hãy mở nó như một bộ sưu tập."
   },
   "sharedCollection": {
     "itemsEmpty": "Bộ sưu tập được chia sẻ này chưa có liên kết nào được lưu.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "Lời mời này không còn hợp lệ.",
     "invitationResponseFallback": "Không thể phản hồi lời mời.",
     "invitationsLoadFallback": "Không thể tải lời mời.",
-    "invitationsEmpty": "Không có yêu cầu chia sẻ nào.",
+    "invitationsEmpty": "Chưa nhận được lời mời nào.",
     "invitationAccepted": "Đã thêm vào bộ sưu tập được chia sẻ.",
     "accept": "Chấp nhận",
     "decline": "Từ chối",
@@ -745,7 +756,10 @@
     "declineA11y": "Từ chối lời mời kết bạn của {{name}}",
     "cancelA11y": "Hủy lời mời kết bạn gửi {{name}}",
     "personTitle": "Thông tin người dùng",
-    "you": "Bạn"
+    "you": "Bạn",
+    "requestCancelledByRequester": "Người gửi đã hủy lời mời kết bạn này.",
+    "requestNoLongerPending": "Lời mời kết bạn này đã được xử lý.",
+    "requestDialogTitle": "Lời mời kết bạn"
   },
   "notifications": {
     "title": "Thông báo",
@@ -758,7 +772,16 @@
     "bellA11y": "Thông báo",
     "bellUnreadA11y": "Thông báo, {{count}} chưa đọc",
     "bannerAnnouncement": "Thông báo mới: {{title}}. {{body}}",
-    "bannerHint": "Nhấn để mở. Vuốt lên để đóng."
+    "bannerHint": "Nhấn để mở. Vuốt lên để đóng.",
+    "groupToday": "Hôm nay",
+    "groupYesterday": "Hôm qua",
+    "groupLast7Days": "7 ngày qua",
+    "groupLast30Days": "30 ngày qua",
+    "groupOlder": "Cũ hơn",
+    "daysAgo": "{{count}} ngày",
+    "deleteA11y": "Xóa thông báo",
+    "deleteFailed": "Không thể xóa thông báo.",
+    "loadErrorTitle": "Không thể tải thông báo"
   },
   "contact": {
     "title": "Liên hệ",
@@ -767,5 +790,24 @@
     "subject": "Câu hỏi về Juple",
     "noMailApp": "Không thể mở ứng dụng email. Vui lòng gửi email trực tiếp đến {{email}}.",
     "copyEmail": "Sao chép địa chỉ email"
+  },
+  "importantState": {
+    "offlineTitle": "Không thể kết nối",
+    "loadFailedTitle": "Không thể tải",
+    "retry": "Thử lại",
+    "offlineMessage": "Hãy kiểm tra kết nối internet rồi thử lại."
+  },
+  "calendar": {
+    "previousMonthA11y": "Tháng trước",
+    "nextMonthA11y": "Tháng sau",
+    "today": "Hôm nay",
+    "dayCountA11y": "{{count}} liên kết",
+    "monthLoadError": "Không thể tải lịch.",
+    "dayLoadError": "Không thể tải liên kết của ngày này.",
+    "dayEmpty": "Không có liên kết nào được lưu vào ngày này.",
+    "collectionDayEmpty": "Không có liên kết nào được thêm vào ngày này.",
+    "pickDate": "Chọn ngày",
+    "selectedDateLabel": "Ngày: {{date}}",
+    "clearDateA11y": "Bỏ lọc theo ngày"
   }
 }

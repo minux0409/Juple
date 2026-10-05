@@ -8,6 +8,9 @@ import { fetchInstagramOpenGraphCandidate } from '../../urlMetadata/instagramOpe
 import { ApiError } from '../../api/ApiError';
 import { onAutoSaveSettled } from '../autoSaveInFlight';
 
+// A build with the Dev public web host: a Collection share link on it is a Collection, never a saved link.
+jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev.juple.co.kr' } }));
+
 jest.mock('../specs/NativeIncomingShare', () => ({
   __esModule: true,
   default: {
@@ -66,6 +69,29 @@ describe('incomingShareHeadlessTask', () => {
     jest.clearAllMocks();
     jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
     jest.mocked(setItemPreviewImage).mockResolvedValue(undefined);
+  });
+
+  it('never saves a Juple Collection share link as a link: it is left pending so the app can open the Collection', async () => {
+    const pendingShare = makePendingShare({ text: 'https://dev.juple.co.kr/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(saveInboxEntry).not.toHaveBeenCalled();
+    expect(resolveUrlMetadata).not.toHaveBeenCalled();
+    expect(NativeIncomingShare!.acknowledgePendingShare).not.toHaveBeenCalled();
+    expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
+  });
+
+  it('the server\'s Collection-share-link guard is a "needs the app" outcome - never retried, never given up on', async () => {
+    const pendingShare = makePendingShare({ text: 'https://unknown-build-host.test/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('badRequest', 400, 'collectionShareUrlNotSavableAsLink'));
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
+    expect(NativeIncomingShare!.acknowledgePendingShare).not.toHaveBeenCalled();
   });
 
   it('saves the URL as-is, falls back to URL metadata, and acknowledges the pending share - no title from metadata either', async () => {

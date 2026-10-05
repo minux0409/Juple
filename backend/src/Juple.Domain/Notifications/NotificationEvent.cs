@@ -54,7 +54,8 @@ public sealed class NotificationEvent
         bool hideActor,
         long? skipUserId,
         string? dedupKey,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        long? itemId = null)
     {
         Type = type;
         ActorUserId = actorUserId;
@@ -64,6 +65,7 @@ public sealed class NotificationEvent
         ItemCount = itemCount;
         HideActor = hideActor;
         SkipUserId = skipUserId;
+        ItemId = itemId;
         DedupKey = dedupKey;
         CreatedAtUtc = createdAtUtc;
         Status = NotificationEventStatus.Pending;
@@ -89,6 +91,12 @@ public sealed class NotificationEvent
 
     /// <summary>Added through the public link: the actor is never named to the recipients.</summary>
     public bool HideActor { get; private set; }
+
+    /// <summary>
+    /// The link a proposal's result (approved / declined) is about - the proposal row is gone by then, so
+    /// the result's thumbnail needs it here. A plain id, no FK (the event must never block deleting the Item).
+    /// </summary>
+    public long? ItemId { get; private set; }
 
     /// <summary>One more person not to tell (the Owner who approved a proposal).</summary>
     public long? SkipUserId { get; private set; }

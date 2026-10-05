@@ -292,8 +292,8 @@
     "lockContactOwner": "此合集需要所有者设置的锁定密码。",
     "lockRemoveConfirmTitle": "解除锁定？",
     "lockRemoveConfirmMessage": "输入锁定密码即可解除锁定。",
-    "shareRequests": "共享请求",
-    "shareRequestCount": "共享请求 {{count}} 个",
+    "shareRequests": "收到的邀请",
+    "shareRequestCount": "收到的邀请 {{count}} 条",
     "roleViewer": "只读",
     "lockConfirmTitle": "要锁定此合集吗？",
     "lockConfirmMessage": "在你的账户中用锁定密码保护此合集。",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "请向共享此收藏集的人索取访问密码。",
     "sharePasswordRequiredForAction": "请先打开收藏集并输入访问密码。",
     "sortNameAscA11y": "按名称，升序",
-    "sortNameDescA11y": "按名称，降序"
+    "sortNameDescA11y": "按名称，降序",
+    "pickerCollectionUnavailable": "该合集已不可用。",
+    "leaveAction": "退出收藏集",
+    "leaveConfirmTitle": "要退出此收藏集吗？",
+    "leaveConfirmMessage": "退出后，此收藏集将从你的列表中移除。",
+    "leaveConfirmButton": "退出",
+    "leaveError": "无法退出收藏集，请稍后重试。"
   },
   "toast": {
     "moveSuccess": "已移动。",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "您有正在编辑的链接",
     "activeDraftConflictMessage": "是否先保存当前正在编辑的链接,再查看新链接?",
     "saveDraftAndContinue": "保存并继续",
-    "discardDraftAndContinue": "放弃并继续"
+    "discardDraftAndContinue": "放弃并继续",
+    "newCollectionChip": "新建合集",
+    "newCollectionA11y": "创建新合集",
+    "saveDialogTitle": "保存链接",
+    "addMemo": "添加备注",
+    "collectionLinkNotSavable": "Juple 合集分享链接不能保存为普通链接，请作为合集打开。"
   },
   "sharedCollection": {
     "itemsEmpty": "这个共享合集中还没有保存的链接。",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "此邀请已失效。",
     "invitationResponseFallback": "无法回复邀请。",
     "invitationsLoadFallback": "无法加载邀请。",
-    "invitationsEmpty": "没有共享请求。",
+    "invitationsEmpty": "没有收到的邀请。",
     "invitationAccepted": "已添加到共享合集。",
     "accept": "接受",
     "decline": "拒绝",
@@ -745,7 +756,10 @@
     "declineA11y": "拒绝 {{name}} 的好友请求",
     "cancelA11y": "取消发给 {{name}} 的好友请求",
     "personTitle": "用户信息",
-    "you": "你"
+    "you": "你",
+    "requestCancelledByRequester": "对方已取消该好友申请。",
+    "requestNoLongerPending": "该好友申请已处理。",
+    "requestDialogTitle": "好友请求"
   },
   "notifications": {
     "title": "通知",
@@ -758,7 +772,16 @@
     "bellA11y": "通知",
     "bellUnreadA11y": "通知，{{count}} 条未读",
     "bannerAnnouncement": "新通知：{{title}}。{{body}}",
-    "bannerHint": "点按打开，向上滑动关闭。"
+    "bannerHint": "点按打开，向上滑动关闭。",
+    "groupToday": "今天",
+    "groupYesterday": "昨天",
+    "groupLast7Days": "最近 7 天",
+    "groupLast30Days": "最近 30 天",
+    "groupOlder": "更早",
+    "daysAgo": "{{count}}天",
+    "deleteA11y": "删除通知",
+    "deleteFailed": "无法删除通知。",
+    "loadErrorTitle": "无法加载通知"
   },
   "contact": {
     "title": "联系我们",
@@ -767,5 +790,24 @@
     "subject": "Juple 咨询",
     "noMailApp": "无法打开邮件应用。请直接发送邮件至 {{email}}。",
     "copyEmail": "复制邮箱地址"
+  },
+  "importantState": {
+    "offlineTitle": "无法连接",
+    "loadFailedTitle": "加载失败",
+    "retry": "重试",
+    "offlineMessage": "请检查网络连接后重试。"
+  },
+  "calendar": {
+    "previousMonthA11y": "上个月",
+    "nextMonthA11y": "下个月",
+    "today": "今天",
+    "dayCountA11y": "{{count}} 个链接",
+    "monthLoadError": "无法加载日历。",
+    "dayLoadError": "无法加载当天的链接。",
+    "dayEmpty": "当天没有保存的链接。",
+    "collectionDayEmpty": "当天没有添加的链接。",
+    "pickDate": "选择日期",
+    "selectedDateLabel": "日期：{{date}}",
+    "clearDateA11y": "清除日期筛选"
   }
 }

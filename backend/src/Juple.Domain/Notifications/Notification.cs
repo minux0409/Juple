@@ -56,8 +56,9 @@ public sealed class Notification
         long? subjectId,
         string dedupKey,
         DateTimeOffset createdAtUtc,
-        int? itemCount = null) =>
-        new(userId, type, null, null, null, null, createdAtUtc)
+        int? itemCount = null,
+        long? itemId = null) =>
+        new(userId, type, null, itemId, null, null, createdAtUtc)
         {
             ActorUserId = actorUserId,
             CollectionId = collectionId,

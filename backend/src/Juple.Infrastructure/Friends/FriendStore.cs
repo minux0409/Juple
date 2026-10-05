@@ -1,6 +1,7 @@
 using Juple.Application.Friends;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Friends;
+using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
 using Microsoft.EntityFrameworkCore;
@@ -91,35 +92,46 @@ public sealed class FriendStore(
 
     public async Task<AcceptedFriendRequest> AcceptAsync(long userId, long requestId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
+        // A cancelled/declined request has no row any more - for the recipient that is exactly "no longer
+        // pending", whatever the reason (the same answer for an id that never was theirs).
         var friendship = await dbContext.Friendships.FirstOrDefaultAsync(entry => entry.Id == requestId, cancellationToken);
         if (friendship is null || !friendship.Involves(userId))
         {
-            throw new FriendNotFoundException();
+            throw new FriendNotFoundException(FriendNotFoundException.RequestNoLongerPending);
         }
 
+        var newlyAccepted = false;
         if (friendship.Status == FriendshipStatus.Pending)
         {
             if (!friendship.IsIncomingRequestFor(userId))
             {
                 // Only the recipient answers a request - the requester can only cancel it.
-                throw new FriendNotFoundException();
+                throw new FriendNotFoundException(FriendNotFoundException.RequestNoLongerPending);
             }
 
             friendship.Accept(nowUtc);
             try
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
+                newlyAccepted = true;
             }
             catch (DbUpdateConcurrencyException)
             {
-                // Cancelled/declined concurrently.
-                throw new FriendNotFoundException();
+                // Cancelled/declined concurrently: the conditional UPDATE (RowVersion) matched nothing, so
+                // exactly one terminal action won - and no friendship results from this one.
+                dbContext.ChangeTracker.Clear();
+                throw new FriendNotFoundException(FriendNotFoundException.RequestNoLongerPending);
             }
         }
+        else if (friendship.RequestedByUserId == userId)
+        {
+            // An accepted friendship is not "my incoming request": only the recipient's retry is a replay.
+            throw new FriendNotFoundException(FriendNotFoundException.RequestNoLongerPending);
+        }
 
-        // Accepting an already-accepted friendship is an idempotent replay.
-        var friend = await GetFriendAsync(userId, friendship.Id, cancellationToken) ?? throw new FriendNotFoundException();
-        return new AcceptedFriendRequest(friend, friendship.RequestedByUserId);
+        // Accepting an already-accepted friendship is an idempotent replay (and notifies nobody again).
+        var friend = await GetFriendAsync(userId, friendship.Id, cancellationToken) ?? throw new FriendNotFoundException(FriendNotFoundException.RequestNoLongerPending);
+        return new AcceptedFriendRequest(friend, friendship.RequestedByUserId, newlyAccepted);
     }
 
     public async Task<long> DeleteRequestAsync(long userId, long requestId, bool asRecipient, CancellationToken cancellationToken = default)
@@ -137,7 +149,16 @@ public sealed class FriendStore(
         var deleted = pair is null ? 0 : await request.ExecuteDeleteAsync(cancellationToken);
         if (deleted == 0)
         {
-            throw new FriendNotFoundException();
+            throw new FriendNotFoundException(FriendNotFoundException.RequestNoLongerPending);
+        }
+
+        if (!asRecipient)
+        {
+            // A withdrawn request leaves no "X sent you a friend request" in the recipient's Inbox
+            // (exactly this request's notification - SubjectId is the request's own id).
+            await dbContext.Notifications
+                .Where(notification => notification.Type == NotificationType.FriendRequestReceived && notification.SubjectId == requestId)
+                .ExecuteDeleteAsync(cancellationToken);
         }
 
         return pair!.UserLowId == userId ? pair.UserHighId : pair.UserLowId;

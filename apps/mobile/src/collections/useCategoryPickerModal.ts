@@ -6,6 +6,7 @@ import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, KEEP_ICON_IMAGE, type CollectionIconImageChange } from './collectionIconImage';
 import { canAddItemsTo, contentGateOf } from './collectionAccess';
+import { resolveFreshCollectionAccess, withFreshCollection } from './freshCollectionAccess';
 import type { CollectionColorValue } from './collectionColors';
 import type { CollectionIconKey } from './collectionIcons';
 
@@ -72,11 +73,18 @@ export interface UseCategoryPickerModalResult {
    * Selecting OR deselecting a locked Collection changes its content, so it needs the password:
    * runs `toggle` at once for an unlocked Collection (or one already unlocked in this picker
    * session), otherwise asks for the password first and runs it only after a correct one.
+   * Whether it is locked is read from the server at THIS moment (see freshCollectionAccess) - never trusted from
+   * the list loaded when the picker opened: a password switched off or on elsewhere is honored on the next tap.
    */
   readonly requestToggle: (collection: Collection, toggle: () => void) => void;
   /** The locked Collection whose password is being asked for, if any. */
   readonly unlockTarget: Collection | null;
   readonly onUnlockGranted: (unlockToken: string) => void;
+  /**
+   * The password prompt's attempt hit a state that no longer exists (the lock / share password was removed meanwhile):
+   * the Collection is read again and the action goes on from the truth. True when handled.
+   */
+  readonly onUnlockStateChanged: () => Promise<boolean>;
   readonly cancelUnlock: () => void;
   /** The grant this picker obtained for a Collection - sent with that Collection's save request. */
   readonly unlockTokenFor: (collectionId: number) => string | null;
@@ -122,6 +130,11 @@ export function useCategoryPickerModal(
   const stagedUnlockTokensRef = useRef(new Map<number, string>());
   const [unlockTarget, setUnlockTarget] = useState<Collection | null>(null);
   const pendingToggleRef = useRef<(() => void) | null>(null);
+  // The same set as sessionUnlockedIds, readable from an async continuation without a stale closure.
+  const sessionUnlockedRef = useRef<ReadonlySet<number>>(sessionUnlockedIds);
+  sessionUnlockedRef.current = sessionUnlockedIds;
+  // Collections whose current state is being read right now: a second tap on one is the same tap, never a second action.
+  const resolvingIdsRef = useRef(new Set<number>());
 
   const open = async () => {
     setIsVisible(true);
@@ -164,12 +177,64 @@ export function useCategoryPickerModal(
   };
 
   const requestToggle = (collection: Collection, toggle: () => void) => {
-    if (contentGateOf(collection) === null || sessionUnlockedIds.has(collection.id)) {
-      toggle();
+    if (resolvingIdsRef.current.has(collection.id)) {
       return;
     }
-    pendingToggleRef.current = toggle;
-    setUnlockTarget(collection);
+    resolvingIdsRef.current.add(collection.id);
+    resolveFreshCollectionAccess(authenticatedRequest, collection)
+      .then(result => {
+        if (result.status === 'unavailable') {
+          setCollectionPool(previous => previous.filter(option => option.id !== collection.id));
+          setError(t('collections.pickerCollectionUnavailable'));
+          return;
+        }
+        // The server's card when it answered; the cached one only when it could not be reached.
+        const current = result.status === 'ok' ? result.collection : collection;
+        if (result.status === 'ok') {
+          setCollectionPool(previous => withFreshCollection(previous, current));
+        }
+        const gate = result.status === 'ok' ? result.gate : contentGateOf(collection);
+        if (gate === null || sessionUnlockedRef.current.has(collection.id)) {
+          toggle();
+          return;
+        }
+        pendingToggleRef.current = toggle;
+        setUnlockTarget(current);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        resolvingIdsRef.current.delete(collection.id);
+      });
+  };
+
+  const onUnlockStateChanged = async (): Promise<boolean> => {
+    const target = unlockTarget;
+    if (!target) {
+      return true;
+    }
+    const result = await resolveFreshCollectionAccess(authenticatedRequest, target);
+    if (result.status === 'unknown') {
+      return false;
+    }
+    if (result.status === 'unavailable') {
+      pendingToggleRef.current = null;
+      setUnlockTarget(null);
+      setCollectionPool(previous => previous.filter(option => option.id !== target.id));
+      setError(t('collections.pickerCollectionUnavailable'));
+      return true;
+    }
+    setCollectionPool(previous => withFreshCollection(previous, result.collection));
+    if (result.gate === null) {
+      // Nothing is asked for any more: the action the person tapped simply goes on.
+      const toggle = pendingToggleRef.current;
+      pendingToggleRef.current = null;
+      setUnlockTarget(null);
+      toggle?.();
+      return true;
+    }
+    // Still (or now differently) protected: the prompt continues with the CURRENT kind of password.
+    setUnlockTarget(result.collection);
+    return true;
   };
 
   const onUnlockGranted = (unlockToken: string) => {
@@ -302,6 +367,7 @@ export function useCategoryPickerModal(
     requestToggle,
     unlockTarget,
     onUnlockGranted,
+    onUnlockStateChanged,
     cancelUnlock,
     unlockTokenFor,
   };

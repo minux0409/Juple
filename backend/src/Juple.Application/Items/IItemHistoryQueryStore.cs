@@ -30,6 +30,8 @@ public interface IItemHistoryQueryStore
     /// window, computed by the caller via DailyInboxDateRangeCalculator. Cursor-paginated using the
     /// exact same keyset cursor/ordering as GetHistoryAsync (SavedAtUtc DESC, Id DESC) - a day's
     /// worth of Items is unbounded, so this must never return the whole date range in one response.
+    /// With searchPattern the SAME search as GetHistoryAsync (title, link or memo contain the term) is applied inside
+    /// the day - the Archive's text search and its date filter are two conditions of one query, never a client-side filter.
     /// </summary>
     Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(
         long userId,
@@ -37,6 +39,7 @@ public interface IItemHistoryQueryStore
         DateTimeOffset toUtc,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchPattern = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

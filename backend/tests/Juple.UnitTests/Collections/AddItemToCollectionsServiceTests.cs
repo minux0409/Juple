@@ -274,7 +274,7 @@ public sealed class AddItemToCollectionsServiceTests
     {
         public Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, bool accepted, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default) => Task.CompletedTask;
 

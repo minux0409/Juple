@@ -33,6 +33,22 @@ public interface IGetCollectionItemsService
         string? unlockToken = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The links added on ONE local calendar day (YYYY-MM-DD) in the caller's stored time zone: the same
+    /// [start, next start) interval as GET items/calendar's count for that day, computed by the one shared helper
+    /// (DailyInboxDateRangeCalculator) - the client never builds UTC bounds itself. Same gates, order and cursor as GetRangeAsync.
+    /// </summary>
+    Task<CollectionItemPage> GetByDateAsync(
+        long userId,
+        long collectionId,
+        string timeZoneId,
+        DateOnly date,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        string? unlockToken = null,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Same gates; one link as the read-only shared view (null when not in this Collection).</summary>
     Task<SharedCollectionItemDto?> GetItemAsync(
         long userId,

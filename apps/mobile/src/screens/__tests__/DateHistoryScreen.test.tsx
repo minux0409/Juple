@@ -19,6 +19,7 @@ beforeAll(async () => {
 import {
   deleteItem,
   getItemHistory,
+  getItemHistoryByDate,
   getItemHistorySections,
   restoreItem,
   type GetItemHistoryOptions,
@@ -34,6 +35,7 @@ import { DateSectionHeader } from '../../components/DateAccordion';
 import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../../components/SavedLinkRow';
 import { SearchField } from '../../components/SearchField';
+import { DateFilterBar } from '../../calendar/DateFilterBar';
 import { ARCHIVE_SEARCH_DEBOUNCE_MS } from '../../items/useArchiveSearch';
 import { TextInput } from 'react-native';
 
@@ -62,6 +64,7 @@ jest.mock('../../items/api/itemsApi', () => ({
   ...jest.requireActual('../../items/api/itemsApi'),
   getItemHistorySections: jest.fn(),
   getItemHistory: jest.fn(),
+  getItemHistoryByDate: jest.fn(),
   deleteItem: jest.fn(),
   restoreItem: jest.fn(),
 }));
@@ -986,5 +989,58 @@ describe('DateHistoryScreen - search the whole archive', () => {
 
     await typeSearch(renderer, '');
     expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+  });
+
+  describe('date filter', () => {
+    const dateFilterOf = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderPart(getList(renderer).props.ListHeaderComponent).root.findByType(DateFilterBar);
+    const byDateCalls = () => jest.mocked(getItemHistoryByDate).mock.calls;
+
+    it('a chosen date asks the server for that DATE alone - the canonical day rule - and lists the day flat; X returns to every date', async () => {
+      installSearch(itemsFor(1, 3));
+      jest.mocked(getItemHistoryByDate).mockResolvedValue({ date: '2026-09-23', items: itemsFor(700, 2, 'Day'), nextCursor: null });
+      const renderer = await renderScreen();
+
+      const selectDate = dateFilterOf(renderer).props.onSelectDate;
+      await act(async () => {
+        selectDate('2026-09-23');
+      });
+      await flush();
+
+      expect(byDateCalls()).toHaveLength(1);
+      expect(byDateCalls()[0][1]).toBe('2026-09-23');
+      // Only the date (and paging) - no UTC bounds, no time zone arithmetic on the device.
+      expect(byDateCalls()[0][2]).not.toHaveProperty('fromUtc');
+      expect(byDateCalls()[0][2]).not.toHaveProperty('toUtc');
+      expect(byDateCalls()[0][2]?.q).toBeUndefined();
+      expect(searchRowsOf(renderer).map(row => row.item!.id)).toEqual([700, 701]);
+      expect(dateFilterOf(renderer).props.selectedDate).toBe('2026-09-23');
+
+      const clearDate = dateFilterOf(renderer).props.onClear;
+      await act(async () => {
+        clearDate();
+      });
+      expect(dateFilterOf(renderer).props.selectedDate).toBeNull();
+      expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+    });
+
+    it('text and date combine in ONE server query (never filtered on the device)', async () => {
+      installSearch(itemsFor(1, 3));
+      jest.mocked(getItemHistoryByDate).mockResolvedValue({ date: '2026-09-23', items: itemsFor(710, 1, 'Quokka'), nextCursor: null });
+      const renderer = await renderScreen();
+
+      await typeSearch(renderer, 'quokka');
+      await flush();
+      const selectDate = dateFilterOf(renderer).props.onSelectDate;
+      await act(async () => {
+        selectDate('2026-09-23');
+      });
+      await flush();
+
+      const combined = byDateCalls().filter(call => call[2]?.q === 'quokka');
+      expect(combined.length).toBeGreaterThan(0);
+      expect(combined[combined.length - 1][1]).toBe('2026-09-23');
+      expect(searchRowsOf(renderer).map(row => row.item!.id)).toEqual([710]);
+    });
   });
 });

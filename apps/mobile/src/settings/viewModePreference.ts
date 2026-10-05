@@ -30,6 +30,10 @@ export function useViewModePreference(key: ViewModePreferenceKey, defaultValue: 
     void AsyncStorage.getItem(storageKey(key)).then(value => {
       if (active && (value === 'list' || value === 'grid')) {
         setViewMode(value);
+      } else if (value !== null && value !== undefined) {
+        // A value this build does not know - the retired 'calendar' view mode of an earlier Round 36 build (the date
+        // is a filter now): fall back to List, and rewrite it so it never comes back.
+        void AsyncStorage.setItem(storageKey(key), 'list').catch(() => undefined);
       }
     }).catch(() => undefined);
     return () => { active = false; };

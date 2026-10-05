@@ -33,6 +33,7 @@ import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsShee
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
 import { CountBadge } from '../components/CountBadge';
+import { ImportantState } from '../components/ImportantState';
 import { subscribeCollectionNewLinksRead } from '../notifications/notificationState';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
@@ -47,6 +48,7 @@ import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from '../collections/
 import { CollectionNameLabel } from '../collections/CollectionNameLabel';
 import { PendingActionRow } from '../components/PendingActionRow';
 import { ChevronIcon } from '../icons/ChevronIcon';
+import { PeopleIcon } from '../icons/PeopleIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { StarIcon } from '../icons/StarIcon';
 import type { MainTabParamList } from '../navigation/MainTabs';
@@ -657,6 +659,7 @@ export function CollectionsScreen() {
                 style={styles.shareRequestsRow}
                 testID="collections-share-requests"
               >
+                <PeopleIcon color={colors.brand} size={20} />
                 <Text numberOfLines={2} style={styles.shareRequestsLabel}>{t('collections.shareRequests')}</Text>
                 <View style={styles.shareRequestsBadge}>
                   <Text style={styles.shareRequestsBadgeText} testID="collections-share-requests-count">
@@ -673,12 +676,15 @@ export function CollectionsScreen() {
             ) : null}
 
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            {/* With cards already on screen a failed refresh stays a small inline note; with none it is the centered state below. */}
+            {error && activeList.items.length > 0 ? <Text style={styles.error}>{error}</Text> : null}
           </View>
         }
         ListEmptyComponent={
           isActiveInitialLoading ? (
             renderSkeletons(viewMode === 'grid' ? FIRST_PAGE_SKELETON_GRID_ROWS : FIRST_PAGE_SKELETON_LIST_ROWS, 'collections-first-page-loading')
+          ) : error ? (
+            <ImportantState message={error} onRetry={() => load(filter, 'initial')} testID="collections-list-error" />
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.empty}>{t(FILTER_EMPTY_KEYS[filter])}</Text>

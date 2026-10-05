@@ -85,7 +85,12 @@ public sealed class NotificationOutboxSemanticsIntegrationTests : IAsyncLifetime
     public async Task Idempotency_TheSameOperationRecordedTwice_IsOneEventAndOneNotification_EvenAfterRetentionDeletedIt()
     {
         var publisher = Publisher(TimeProvider.System);
-        const long friendshipId = 987_654_321;
+        // The request must still be waiting for its notification to be made (a cancelled one never reaches the Inbox).
+        var request = Juple.Domain.Friends.Friendship.Request(_member, _owner, DateTimeOffset.UtcNow);
+        _db.Friendships.Add(request);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        var friendshipId = request.Id;
 
         await publisher.FriendRequestReceivedAsync(_member, _owner, friendshipId);
         await publisher.FriendRequestReceivedAsync(_member, _owner, friendshipId); // a retried request

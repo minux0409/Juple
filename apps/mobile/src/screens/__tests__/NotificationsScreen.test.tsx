@@ -1,19 +1,22 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Text } from 'react-native';
+import { SectionList, Text } from 'react-native';
 import i18n from '../../i18n';
 import { UserAvatar } from '../../components/UserAvatar';
+import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { navigationRef } from '../../navigation/navigationRef';
 import { NotificationBellButton } from '../../notifications/NotificationBellButton';
 import { getUnreadCount, resetNotificationState, setUnreadCount } from '../../notifications/notificationState';
 import { NotificationTypeIcon } from '../../notifications/NotificationTypeIcon';
 import {
   getNotifications,
+  deleteNotification,
   markAllNotificationsRead,
   markNotificationRead,
   type AppNotification,
   type NotificationsPage,
 } from '../../notifications/notificationsApi';
 import { emitSocialPushEvent } from '../../push/pushEvents';
+import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { NotificationsScreen } from '../NotificationsScreen';
 
 const mockNavigation = { setOptions: jest.fn(), navigate: jest.fn() };
@@ -35,6 +38,7 @@ jest.mock('../../notifications/notificationsApi', () => ({
   getNotification: jest.fn(),
   markNotificationRead: jest.fn(),
   markAllNotificationsRead: jest.fn(),
+  deleteNotification: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -84,6 +88,9 @@ async function render() {
 /** Host nodes only - one per rendered element (composite wrappers would match the same testID again). */
 const byTestId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string');
+/** Every row the list holds, in order (the sections are flattened). */
+const rowIds = (renderer: ReactTestRenderer.ReactTestRenderer): number[] =>
+  renderer.root.findByType(SectionList).props.sections.flatMap((section: { data: AppNotification[] }) => section.data).map((item: AppNotification) => item.id);
 /** The pressable element itself (its composite carries onPress). */
 const pressable = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
@@ -103,11 +110,13 @@ describe('NotificationsScreen', () => {
     ]));
     const renderer = await render();
 
-    expect(renderer.root.findByType(FlatList).props.data.map((item: AppNotification) => item.id)).toEqual([3, 2, 1, 0]);
+    expect(rowIds(renderer)).toEqual([3, 2, 1, 0]);
     expect(byTestId(renderer, 'notification-unread-3')).toHaveLength(1);
     expect(byTestId(renderer, 'notification-unread-2')).toHaveLength(0);
     expect(renderer.root.findAllByType(UserAvatar)).toHaveLength(2);
-    expect(renderer.root.findAllByType(NotificationTypeIcon).map(icon => icon.props.type)).toEqual(['collectionLinkSubmission', 'collectionItemReaction']);
+    // An approval request shows its Collection (photo / folder), never who proposed; a row without a person gets the neutral type icon.
+    expect(renderer.root.findAllByType(CategoryIconTile)).toHaveLength(1);
+    expect(renderer.root.findAllByType(NotificationTypeIcon).map(icon => icon.props.type)).toEqual(['collectionItemReaction']);
     const texts = renderer.root.findAllByType(Text).map(text => text.props.children);
     expect(texts).toContain('이 알림의 항목을 더 이상 볼 수 없어요.');
     expect(getUnreadCount()).toBe(3);
@@ -117,7 +126,7 @@ describe('NotificationsScreen', () => {
     const request = (id: number) => row(id, { type: 'collectionLinkSubmission', actor: null, body: `request ${id}`, target: { kind: 'collectionSubmissions', collectionId: 4 } });
     jest.mocked(getNotifications).mockResolvedValueOnce(page([request(2), request(1), row(0)]));
     const renderer = await render();
-    expect(renderer.root.findByType(FlatList).props.data.map((item: AppNotification) => item.id)).toEqual([2, 1, 0]);
+    expect(rowIds(renderer)).toEqual([2, 1, 0]);
     expect(getUnreadCount()).toBe(3);
 
     // The requester cancelled request 2: the server deleted its row.
@@ -126,7 +135,7 @@ describe('NotificationsScreen', () => {
       emitSocialPushEvent({ type: 'collectionContentChanged', collectionId: 4 });
     });
 
-    expect(renderer.root.findByType(FlatList).props.data.map((item: AppNotification) => item.id)).toEqual([1, 0]);
+    expect(rowIds(renderer)).toEqual([1, 0]);
     expect(getUnreadCount()).toBe(2);
   });
 
@@ -184,19 +193,19 @@ describe('NotificationsScreen', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce(page([row(8), row(7)], null));
     const renderer = await render();
-    const list = () => renderer.root.findByType(FlatList);
+    const list = () => renderer.root.findByType(SectionList);
 
     await act(async () => {
       list().props.onEndReached();
     });
-    expect(list().props.data).toHaveLength(2);
+    expect(rowIds(renderer)).toHaveLength(2);
     const retry = byTestId(renderer, 'notifications-load-more-retry');
     expect(retry).toHaveLength(1);
 
     await act(async () => {
       pressable(renderer, 'notifications-load-more-retry').props.onPress();
     });
-    expect(list().props.data.map((item: AppNotification) => item.id)).toEqual([9, 8, 7]);
+    expect(rowIds(renderer)).toEqual([9, 8, 7]);
     expect(jest.mocked(getNotifications).mock.calls[2][1]).toEqual(expect.objectContaining({ cursor: '8', limit: 30 }));
   });
 
@@ -213,10 +222,54 @@ describe('NotificationsScreen', () => {
     const renderer = await render();
 
     await act(async () => {
-      pressable(renderer, 'notifications-retry').props.onPress();
+      pressable(renderer, 'notifications-error-retry').props.onPress();
     });
 
-    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(1);
+    expect(rowIds(renderer)).toHaveLength(1);
+  });
+
+  it('groups rows by the device\'s local calendar, newest group first, and keeps the rows\' own order', async () => {
+    const now = new Date();
+    const at = (daysBack: number, hour = 12) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBack, hour).toISOString();
+    jest.mocked(getNotifications).mockResolvedValue(page([
+      row(6, { createdAtUtc: new Date(now.getTime() - 1000).toISOString() }),
+      row(5, { createdAtUtc: at(1) }),
+      row(4, { createdAtUtc: at(3) }),
+      row(3, { createdAtUtc: at(20) }),
+      row(2, { createdAtUtc: at(90) }),
+    ]));
+    const renderer = await render();
+
+    const sections = renderer.root.findByType(SectionList).props.sections as { key: string; data: AppNotification[] }[];
+    expect(sections.map(section => [section.key, section.data.map(item => item.id)])).toEqual([
+      ['today', [6]], ['yesterday', [5]], ['last7Days', [4]], ['last30Days', [3]], ['older', [2]],
+    ]);
+    expect(byTestId(renderer, 'notifications-group-today')).toHaveLength(1);
+    expect((renderer.root.findByType(SectionList).props.sections as { title: string }[]).map(section => section.title)).toEqual(['오늘', '어제', '최근 7일', '최근 30일', '이전 알림']);
+  });
+
+  it('shows the thumbnail of my own link only for the types that are about one, and swipe-delete removes just that row', async () => {
+    jest.mocked(getNotifications).mockResolvedValue(page([
+      row(3, { previewImageUrl: 'https://img.test/a.jpg' }),
+      row(2, { type: 'collectionLinkSubmissionApproved', actor: null, previewImageUrl: 'https://img.test/b.jpg', target: { kind: 'collection', collectionId: 4 } }),
+      row(1, { type: 'collectionItemsAdded', previewImageUrl: 'https://img.test/c.jpg' }),
+    ]));
+    jest.mocked(deleteNotification).mockResolvedValue({ markedCount: 0, unreadCount: 2 });
+    const renderer = await render();
+
+    expect(byTestId(renderer, 'notification-preview-3')).toHaveLength(1);
+    expect(byTestId(renderer, 'notification-preview-2')).toHaveLength(1);
+    expect(byTestId(renderer, 'notification-preview-1')).toHaveLength(0);
+
+    // The revealed delete pane is icon-only; its accessibility label carries the wording.
+    const swipeable = renderer.root.findAllByType(SwipeableItemRow).find(node => node.props.testID === 'notification-row-3')!;
+    expect(swipeable.props.deleteLabel).toBe(i18n.t('notifications.deleteA11y'));
+    await act(async () => {
+      swipeable.props.onDelete();
+    });
+    expect(deleteNotification).toHaveBeenCalledWith(expect.anything(), 3);
+    expect(rowIds(renderer)).toEqual([2, 1]);
+    expect(getUnreadCount()).toBe(2);
   });
 });
 

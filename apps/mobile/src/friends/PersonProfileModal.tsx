@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { AppModal } from '../components/AppModal';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { UserAvatar } from '../components/UserAvatar';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { FriendDetailModal } from './FriendDetailModal';
@@ -168,12 +169,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
         {relationship === 'pending' ? <Text style={styles.status} testID="person-profile-status-pending">{t('friends.requestPending')}</Text> : null}
         {relationship === 'incoming' ? <Text style={styles.status} testID="person-profile-status-incoming">{t('friends.incomingFromThem')}</Text> : null}
         {relationship === 'unknown' ? (
-          <>
-            <Text style={styles.status} testID="person-profile-error">{t('friends.loadFallback')}</Text>
-            <Pressable accessibilityRole="button" onPress={onRetry} style={styles.secondaryButton} testID="person-profile-retry">
-              <Text style={styles.secondaryLabel}>{t('history.retry')}</Text>
-            </Pressable>
-          </>
+          <LoadFailureState compact message={t('friends.loadFallback')} onRetry={onRetry} retryLabel={t('history.retry')} testID="person-profile-error" />
         ) : null}
         {message ? <Text accessibilityLiveRegion="polite" style={styles.message} testID="person-profile-message">{message}</Text> : null}
       </View>

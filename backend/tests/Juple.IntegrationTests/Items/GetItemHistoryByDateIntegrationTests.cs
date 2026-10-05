@@ -60,6 +60,29 @@ public sealed class GetItemHistoryByDateIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetByDateRangeAsync_WithASearchPattern_AppliesDayAndTextAsOneQuery_PagedAndOwned()
+    {
+        var store = new ItemStore(_dbContext);
+        var fromUtc = new DateTimeOffset(2026, 8, 29, 15, 0, 0, TimeSpan.Zero);
+        var toUtc = fromUtc.AddDays(1);
+        var matchIn = await SaveAsync(store, "https://shop.example/quokka-in-day", fromUtc.AddHours(1));
+        await SaveAsync(store, "https://shop.example/other-in-day", fromUtc.AddHours(2));
+        await SaveAsync(store, "https://shop.example/quokka-outside-the-day", toUtc.AddHours(1));
+        await store.SaveAsync(_otherUserId, "https://shop.example/quokka-someone-else", null, fromUtc.AddHours(3));
+        _dbContext.ChangeTracker.Clear();
+
+        var (page, _, _) = await store.GetByDateRangeAsync(
+            _userId, fromUtc, toUtc, cursor: null, limit: 50, searchPattern: ItemSearchPattern.ToContainsPattern("quokka"));
+
+        // Only my link of that day that matches the text: the text never widens the day, the day never widens the text.
+        Assert.Equal(matchIn, Assert.Single(page.Items).Id);
+        Assert.Null(page.NextCursor);
+
+        var all = await store.GetByDateRangeAsync(_userId, fromUtc, toUtc, cursor: null, limit: 50);
+        Assert.Equal(2, all.Page.Items.Count);
+    }
+
+    [Fact]
     public async Task GetByDateRangeAsync_ExcludesDeletedItems()
     {
         var store = new ItemStore(_dbContext);

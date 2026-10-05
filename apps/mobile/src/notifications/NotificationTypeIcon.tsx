@@ -32,6 +32,8 @@ export function NotificationTypeIcon({ type, size = 40 }: { readonly type: strin
 function renderGlyph(type: string | null, size: number, color: string) {
   switch (type) {
     case 'friendRequest':
+    case 'friendRequestAccepted':
+    case 'friendRequestRejected':
     case 'collectionInvitation':
       return <PeopleIcon color={color} size={size} />;
     case 'collectionItemsAdded':

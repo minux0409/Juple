@@ -52,6 +52,12 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
             .Where(IsInboxRow)
             .CountAsync(cancellationToken);
 
+    public async Task<bool> DeleteAsync(long userId, long notificationId, CancellationToken cancellationToken = default) =>
+        await dbContext.Notifications
+            .Where(notification => notification.Id == notificationId && notification.UserId == userId)
+            .Where(IsInboxRow)
+            .ExecuteDeleteAsync(cancellationToken) > 0;
+
     public async Task<bool> MarkReadAsync(long userId, long notificationId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {
         var marked = await dbContext.Notifications
@@ -95,7 +101,8 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
             notification.ItemCount,
             notification.ActorUserId,
             notification.CollectionId,
-            notification.SubjectId));
+            notification.SubjectId,
+            notification.ItemId));
 
     private async Task<IReadOnlyList<NotificationInboxRecord>> WithFactsAsync(
         long userId, IReadOnlyList<InboxRow> rows, DateTimeOffset nowUtc, CancellationToken cancellationToken)
@@ -116,7 +123,7 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
             ? []
             : await dbContext.Collections.AsNoTracking()
                 .Where(collection => collectionIds.Contains(collection.Id) && collection.DeletedAtUtc == null)
-                .Select(collection => new { collection.Id, collection.Name, collection.UserId })
+                .Select(collection => new { collection.Id, collection.Name, collection.UserId, collection.IconImageBlobName })
                 .ToDictionaryAsync(collection => collection.Id, cancellationToken);
         var liveIds = collections.Keys.ToList();
         var memberOf = liveIds.Count == 0
@@ -171,6 +178,25 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
                 .Select(entry => (entry.CollectionId, entry.ItemId))
                 .ToHashSet();
 
+        // The thumbnail of the recipient's OWN link a row is about - the stored preview image, one query for
+        // the page: the Item a reaction/comment is on (its SubjectId) or a proposal's result is about (ItemId).
+        var previewItemIds = rows
+            .Select(row => row.Type is NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived
+                ? row.SubjectId
+                : row.Type is NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected
+                    ? row.ItemId
+                    : null)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+        var previews = previewItemIds.Count == 0
+            ? []
+            : await dbContext.Items.AsNoTracking()
+                .Where(item => previewItemIds.Contains(item.Id) && item.UserId == userId && item.DeletedAtUtc == null && item.PreviewImageUrl != null)
+                .Select(item => new { item.Id, item.PreviewImageUrl })
+                .ToDictionaryAsync(item => item.Id, item => item.PreviewImageUrl!, cancellationToken);
+
         var invitationIds = SubjectsOf(NotificationType.CollectionInvitationReceived);
         var pendingInvitations = invitationIds.Count == 0
             ? []
@@ -213,8 +239,18 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
                     && row.Type is NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived
                     && row.SubjectId is { } itemId
                     && ownLinks.Contains((row.CollectionId!.Value, itemId)),
-                InvitationPending: invitationPending);
+                InvitationPending: invitationPending,
+                PreviewImageUrl: PreviewItemId(row) is { } previewItemId ? previews.GetValueOrDefault(previewItemId) : null,
+                CollectionIconBlobName: nameVisible ? collections[row.CollectionId!.Value].IconImageBlobName : null,
+                CollectionOwnerUserId: nameVisible ? collections[row.CollectionId!.Value].UserId : 0);
         }).ToList();
+
+        static long? PreviewItemId(InboxRow row) =>
+            row.Type is NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived
+                ? row.SubjectId
+                : row.Type is NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected
+                    ? row.ItemId
+                    : null;
     }
 
     private sealed record InboxRow(
@@ -225,5 +261,6 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
         int? ItemCount,
         long? ActorUserId,
         long? CollectionId,
-        long? SubjectId);
+        long? SubjectId,
+        long? ItemId);
 }

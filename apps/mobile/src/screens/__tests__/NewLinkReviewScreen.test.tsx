@@ -1334,6 +1334,10 @@ describe('NewLinkReviewScreen', () => {
     const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
     jest.mocked(saveInboxEntry).mockRejectedValue(new Error('network down'));
     const { renderer, navigation } = await renderScreen();
+    // The compact save dialog keeps the memo folded until asked for.
+    await act(async () => {
+      renderer.root.find(node => node.props.testID === 'new-link-review-add-memo' && typeof node.props.onPress === 'function').props.onPress();
+    });
     const memoInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
     await act(async () => {
       memoInput.props.onChangeText('draft memo');
@@ -1355,6 +1359,31 @@ describe('NewLinkReviewScreen', () => {
     expect(renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!.props.value).toBe('draft memo');
     expect(navigation.goBack).not.toHaveBeenCalled();
     dismissSpy.mockRestore();
+  });
+
+  it('the server\'s Collection-share-link guard opens the Collection instead of saving or failing generically', async () => {
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('badRequest', 400, 'collectionShareUrlNotSavableAsLink'));
+    const { renderer, navigation } = await renderScreen({ url: 'https://some-host.test/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123?utm_source=x', initialTitle: null });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    expect(navigation.replace).toHaveBeenCalledWith('SharedCollection', { publicId: 'AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    expect(updateItemDetails).not.toHaveBeenCalled();
+    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeUndefined();
+  });
+
+  it('the same guard without a recoverable public id says why, in its own words - not the generic save error', async () => {
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('badRequest', 400, 'collectionShareUrlNotSavableAsLink'));
+    const { renderer, navigation } = await renderScreen({ url: 'https://example.com/not-a-collection-path', initialTitle: null });
+
+    await act(async () => {
+      await pressSaveButton(renderer);
+    });
+
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.message).toBe(i18n.t('item.collectionLinkNotSavable'));
   });
 
   it('uses the same shared category picker row ItemDetailsScreen uses - not the old horizontal chip list', async () => {

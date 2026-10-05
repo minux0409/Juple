@@ -6,6 +6,7 @@ import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { useAppToast } from '../components/AppToast';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ImportantState } from '../components/ImportantState';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { CheckIcon } from '../icons/CheckIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
@@ -414,7 +415,11 @@ export function ApprovalSubmissionSheet({
           ItemSeparatorComponent={Separator}
           keyExtractor={row => String(row.submissionId)}
           ListEmptyComponent={
-            <Text style={isError ? styles.error : styles.empty} testID="approval-sheet-empty">{message ?? t(emptyKey)}</Text>
+            isError && message ? (
+              <ImportantState compact message={message} onRetry={() => { load().catch(() => undefined); }} testID="approval-sheet-empty" />
+            ) : (
+              <Text style={styles.empty} testID="approval-sheet-empty">{message ?? t(emptyKey)}</Text>
+            )
           }
           onEndReached={() => {
             loadMore().catch(() => undefined);
@@ -429,6 +434,7 @@ export function ApprovalSubmissionSheet({
               cancellation.swipeToCancel(
                 { submissionId: item.submissionId, title: item.title, url: item.url },
                 <PendingSubmissionCard
+                  embedded
                   row={item}
                   trailing={cancellation.renderOpenAction({ submissionId: item.submissionId, title: item.title, url: item.url })}
                   variant={variant}

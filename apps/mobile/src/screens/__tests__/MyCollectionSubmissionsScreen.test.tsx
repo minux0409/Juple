@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Text } from 'react-native';
+import { FlatList, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { MyCollectionSubmissionsScreen } from '../MyCollectionSubmissionsScreen';
 import type { MyCollectionLinkSubmission } from '../../collections/api/collectionsApi';
@@ -63,6 +63,19 @@ describe('MyCollectionSubmissionsScreen (a public-link submitter\'s 내 승인 �
     expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('submission-approve'))).toHaveLength(0);
     expect(texts(renderer).some(text => text === '11' || text === '12')).toBe(false);
     expect(renderer.root.findByProps({ testID: 'my-submission-info-11' }).props.accessibilityLabel).toContain('My idea');
+  });
+
+  it('the swipe row is one continuous surface: the card inside is square and edge-to-edge, the swipe frame supplies the rounded clip', async () => {
+    jest.mocked(getMyPublicSubmissions).mockResolvedValue({ items: [mine(11, 'My idea')], nextCursor: null, totalCount: 1 });
+    const renderer = await renderScreen();
+
+    const swipe = renderer.root.findAllByType(SwipeableItemRow).find(row => row.props.deleteTestID === 'submission-cancel-11')!;
+    expect(swipe.props.deleteIconOnly).toBe(true);
+    const frame = StyleSheet.flatten(swipe.props.containerStyle);
+    expect(frame.borderRadius).toBeGreaterThan(0);
+    const card = swipe.find(node => typeof node.type === 'string' && node.props.testID === 'my-submission-11');
+    // No rounded card floating inside the frame: nothing but the frame rounds the row, so the red underlay has no gap.
+    expect(StyleSheet.flatten(card.props.style).borderRadius).toBe(0);
   });
 
   it('요청 취소 through the public link: confirmed first, then only MY proposal through THIS link is cancelled and only its row leaves', async () => {

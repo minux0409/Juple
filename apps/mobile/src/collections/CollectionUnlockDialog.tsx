@@ -12,6 +12,8 @@ interface CollectionUnlockDialogProps {
   /** Receives the grant - it is handed to the caller only, never stored for anything else. */
   readonly onGranted: (unlockToken: string) => void;
   readonly onCancel: () => void;
+  /** The attempt hit a state that no longer exists (the lock / password was removed): the caller re-reads and goes on. */
+  readonly onStateChanged?: () => Promise<boolean>;
 }
 
 /**
@@ -20,7 +22,7 @@ interface CollectionUnlockDialogProps {
  * a correct password resolves with a grant for the caller; a wrong one keeps the prompt open with
  * the reason, and cancelling changes nothing.
  */
-export function CollectionUnlockDialog({ collection, onGranted, onCancel }: CollectionUnlockDialogProps) {
+export function CollectionUnlockDialog({ collection, onGranted, onCancel, onStateChanged }: CollectionUnlockDialogProps) {
   const { t } = useTranslation();
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={collection !== null}>
@@ -29,7 +31,10 @@ export function CollectionUnlockDialog({ collection, onGranted, onCancel }: Coll
           <View style={styles.container} testID="collection-unlock-dialog">
             <Text numberOfLines={2} style={styles.name}>{collection.name}</Text>
             <CollectionUnlockPanel
+              // A new prompt when the KIND of password changes under it (lock <-> share password): no leftover text.
+              key={`${collection.id}-${contentGateOf(collection) ?? 'lock'}`}
               collectionId={collection.id}
+              onStateChanged={onStateChanged}
               isOwner={!isSharedWithMe(collection)}
               kind={contentGateOf(collection) ?? 'lock'}
               onGranted={onGranted}

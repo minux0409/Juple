@@ -19,6 +19,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ImportantState } from '../components/ImportantState';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -27,7 +28,10 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchField } from '../components/SearchField';
 import { savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
-import { useArchiveSearch } from '../items/useArchiveSearch';
+import { normalizeArchiveQuery, useArchiveSearch } from '../items/useArchiveSearch';
+import { getHistoryCalendar } from '../calendar/calendarApi';
+import { DateFilterBar } from '../calendar/DateFilterBar';
+import { useCalendarBrowse } from '../calendar/useCalendarBrowse';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
@@ -117,7 +121,31 @@ export function DateHistoryScreen() {
 
   // 보관함 search: the whole archive on the server (see useArchiveSearch). Empty/short text = the normal accordion.
   const [searchText, setSearchText] = useState('');
-  const search = useArchiveSearch(searchText);
+  // The date is a FILTER (a query condition), not a view: it combines with the typed text in ONE server query, and the
+  // results below follow the current List / Grid.
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const search = useArchiveSearch(searchText, dateFilter);
+
+  // The month's per-day counts (never link data) for the date picker: loaded only while the picker is open.
+  const loadCalendarMonth = useCallback(
+    (ref: { readonly year: number; readonly month: number }) => getHistoryCalendar(authenticatedRequest, ref.year, ref.month),
+    [authenticatedRequest],
+  );
+  const calendar = useCalendarBrowse<ItemHistoryEntry>({
+    enabled: isDatePickerOpen,
+    idOf: item => item.id,
+    loadMonth: loadCalendarMonth,
+  });
+  const chooseDate = (date: string) => {
+    setDateFilter(date);
+    calendar.selectDate(date);
+    setIsDatePickerOpen(false);
+  };
+  const clearDate = () => {
+    setDateFilter(null);
+    calendar.selectDate(null);
+  };
 
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -163,7 +191,8 @@ export function DateHistoryScreen() {
       await deleteItem(authenticatedRequest, itemId);
       removeItem(itemId);
       search.removeItem(itemId);
-      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => { await restoreItem(authenticatedRequest, itemId); refresh(); search.refresh(); } });
+      calendar.removeItem(itemId); // the picker's day counts follow
+      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => { await restoreItem(authenticatedRequest, itemId); refresh(); search.refresh(); if (isDatePickerOpen) { calendar.refresh().catch(() => undefined); } } });
     } catch (caughtError) {
       setActionError(getHistoryDeleteErrorMessage(caughtError, t));
     } finally {
@@ -192,7 +221,7 @@ export function DateHistoryScreen() {
   };
 
   const rows = useMemo(
-    () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode),
+    () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode === 'grid' ? 'grid' : 'list'),
     [sections, pages, expandedKeys, viewMode],
   );
 
@@ -264,10 +293,10 @@ export function DateHistoryScreen() {
       case 'searchStatus':
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
+        ) : row.status === 'error' ? (
+          <ImportantState message={dateFilter !== null && normalizeArchiveQuery(searchText) === null ? t('calendar.dayLoadError') : t('history.searchError')} onRetry={() => search.refresh()} testID="history-search-error" />
         ) : (
-          <Text style={[styles.searchStatusText, row.status === 'error' && styles.error]} testID={`history-search-${row.status}`}>
-            {row.status === 'error' ? t('history.searchError') : t('history.searchEmpty')}
-          </Text>
+          <Text style={styles.searchStatusText} testID={`history-search-${row.status}`}>{dateFilter !== null && normalizeArchiveQuery(searchText) === null ? t('calendar.dayEmpty') : t('history.searchEmpty')}</Text>
         );
     }
   };
@@ -293,9 +322,7 @@ export function DateHistoryScreen() {
             containerStyle={[dateAccordionStyles.row, row.isLast && dateAccordionStyles.rowLast]}
             disabled={actionInFlightItemId !== null}
             onDelete={() => confirmDelete(item.id)}
-            onPress={() => {
-              navigation.navigate('ItemDetails', { itemId: item.id });
-            }}
+            onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
             onShare={() => runShare(item)}
           >
             {/* Same effective-thumbnail rule as Home (see DailyInboxScreen). */}
@@ -386,8 +413,24 @@ export function DateHistoryScreen() {
             {searchText.trim().length === 1 ? (
               <Text accessibilityLiveRegion="polite" style={styles.searchHint} testID="history-search-hint">{t('history.searchMinHint')}</Text>
             ) : null}
-            {error && !search.isSearching ? <Text style={styles.error}>{error}</Text> : null}
+            {error && !search.isSearching ? <ImportantState compact message={error} onRetry={() => refresh()} testID="history-sections-error" /> : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+            <DateFilterBar
+              canGoNext={calendar.canGoNext}
+              counts={calendar.counts}
+              isOpen={isDatePickerOpen}
+              month={calendar.month}
+              onClear={clearDate}
+              onNextMonth={calendar.goToNextMonth}
+              onPreviousMonth={calendar.goToPreviousMonth}
+              onRetryMonth={() => { calendar.retryMonth().catch(() => undefined); }}
+              onSelectDate={chooseDate}
+              onToggleOpen={() => setIsDatePickerOpen(previous => !previous)}
+              selectedDate={dateFilter}
+              status={calendar.monthStatus}
+              testIDPrefix="history-date-filter"
+              today={calendar.today}
+            />
           </View>
         }
         maxToRenderPerBatch={10}

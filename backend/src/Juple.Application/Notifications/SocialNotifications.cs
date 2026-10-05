@@ -32,10 +32,19 @@ public interface ISocialNotificationPublisher
     Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Tells the requester (data-only) that their request was accepted or declined, so an open
-    /// Friends screen drops it from 보낸 친구 신청 - and lists the new friend if accepted - at once.
+    /// Tells the requester - with a visible notification that is also a signal for an open Friends
+    /// screen - that their request was accepted or declined. Recorded only by the call that actually
+    /// answered it (never for a cancel by the requester, never for an idempotent replay).
     /// </summary>
-    Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default);
+    Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, bool accepted, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// A friend request changed without a result for the other person (the requester CANCELLED it): tells the
+    /// recipient's open Friends screen - data-only, never an Inbox row or a tray notification - so the stale
+    /// request leaves 받은 요청 at once instead of at their next visit. Not a notification: pure state invalidation.
+    /// </summary>
+    Task FriendRequestCancelledAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
 
     Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default);
 
@@ -92,7 +101,7 @@ public interface ISocialNotificationPublisher
     /// proposed through the public link and is no member. A result, not a new-link alert, so the
     /// Collection's 새 링크 알림 setting does not apply. Never who decided.
     /// </summary>
-    Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, bool approved, CancellationToken cancellationToken = default) =>
+    Task CollectionLinkSubmissionAnsweredAsync(long submitterUserId, long collectionId, long submissionId, long itemId, bool approved, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 }
 
@@ -189,7 +198,7 @@ public static class SocialNotificationPolicy
     public static bool IsDataOnly(NotificationType type) =>
         type is NotificationType.CollectionInvitationAnswered
             or NotificationType.CollectionContentChanged
-            or NotificationType.FriendRequestAnswered;
+            or NotificationType.FriendRequestAnswered; // legacy: only rows recorded before 13/14 existed
 
     public static TimeSpan MaxAge(NotificationType type) => IsDataOnly(type) ? DataOnlyMaxAge : VisibleMaxAge;
 
@@ -201,6 +210,8 @@ public static class SocialNotificationPolicy
         NotificationType.CollectionInvitationAnswered => "collectionInvitationAnswered",
         NotificationType.CollectionContentChanged => "collectionContentChanged",
         NotificationType.FriendRequestAnswered => "friendRequestAnswered",
+        NotificationType.FriendRequestAccepted => "friendRequestAccepted",
+        NotificationType.FriendRequestRejected => "friendRequestRejected",
         NotificationType.CollectionItemsAdded => "collectionItemsAdded",
         NotificationType.CollectionLinkShared => "collectionLinkShared",
         NotificationType.CollectionItemReactionReceived => "collectionItemReaction",

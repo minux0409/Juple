@@ -424,6 +424,90 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
         }
     }
 
+    [Fact]
+    public async Task Delete_RemovesOnlyTheCallersOwnInboxRow_AndReportsWhatIsStillUnread()
+    {
+        var mine = await NotifyAsync(_member, NotificationType.CollectionItemsAdded, _owner);
+        var keep = await NotifyAsync(_member, NotificationType.CollectionItemsAdded, _owner);
+        var theirs = await NotifyAsync(_owner, NotificationType.CollectionItemsAdded, _member);
+        var refresh = await NotifyAsync(_member, NotificationType.CollectionContentChanged, _owner);
+
+        // Anyone else's id, a data-only row and a missing id are the same plain not-found.
+        await Assert.ThrowsAsync<NotificationNotFoundException>(() => Service().DeleteAsync(_owner, mine));
+        await Assert.ThrowsAsync<NotificationNotFoundException>(() => Service().DeleteAsync(_member, refresh));
+        await Assert.ThrowsAsync<NotificationNotFoundException>(() => Service().DeleteAsync(_member, long.MaxValue));
+        Assert.True(await _db.Notifications.AnyAsync(entry => entry.Id == mine));
+
+        var result = await Service().DeleteAsync(_member, mine);
+
+        Assert.Equal(1, result.UnreadCount);
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.Id == mine));
+        Assert.True(await _db.Notifications.AnyAsync(entry => entry.Id == keep));
+        Assert.True(await _db.Notifications.AnyAsync(entry => entry.Id == theirs));
+        await Assert.ThrowsAsync<NotificationNotFoundException>(() => Service().DeleteAsync(_member, mine)); // already gone
+    }
+
+    [Fact]
+    public async Task RowsAboutMyOwnLinks_CarryThatLinksStoredPreviewImage_FromOneSetQuery_NeverSomeoneElses()
+    {
+        var mine = await NewItemAsync(_member, "https://example.test/mine");
+        var theirs = await NewItemAsync(_owner, "https://example.test/theirs");
+        await _db.Items.Where(entry => entry.Id == mine).ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.PreviewImageUrl, "https://img.example.test/mine.jpg"));
+        await _db.Items.Where(entry => entry.Id == theirs).ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.PreviewImageUrl, "https://img.example.test/theirs.jpg"));
+        _db.ChangeTracker.Clear();
+        await _db.CollectionItems.AddAsync(new CollectionItem(_collectionId, mine, _member, DateTimeOffset.UtcNow, 0));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var reaction = await NotifyAsync(_member, NotificationType.CollectionItemReactionReceived, _owner, subjectId: mine);
+        var approved = await NotifyWithItemAsync(_member, NotificationType.CollectionLinkSubmissionApproved, mine);
+        var forged = await NotifyWithItemAsync(_member, NotificationType.CollectionLinkSubmissionRejected, theirs); // an Item that is not the recipient's
+        var plain = await NotifyAsync(_member, NotificationType.CollectionItemsAdded, _owner);
+
+        var counter = new CommandCounter();
+        await using var db = NewContext(counter);
+        var page = await Service(db).ListAsync(_member, null, 30, "ko");
+
+        Assert.Equal("https://img.example.test/mine.jpg", page.Items.Single(row => row.Id == reaction).PreviewImageUrl);
+        Assert.Equal("https://img.example.test/mine.jpg", page.Items.Single(row => row.Id == approved).PreviewImageUrl);
+        Assert.Null(page.Items.Single(row => row.Id == forged).PreviewImageUrl);
+        Assert.Null(page.Items.Single(row => row.Id == plain).PreviewImageUrl);
+        Assert.InRange(counter.Count, 1, 9); // still a fixed number of set queries - one more for the previews, never one per row
+    }
+
+    [Fact]
+    public async Task FriendRequestAnswers_ShowTheAnswerersAvatarData_AndOpenTheFriendsScreen()
+    {
+        var accepted = await NotifyAsync(_member, NotificationType.FriendRequestAccepted, _owner);
+        var rejected = await NotifyAsync(_member, NotificationType.FriendRequestRejected, _owner);
+        var orphan = await NotifyAsync(_member, NotificationType.FriendRequestAccepted, long.MaxValue); // the answerer is gone
+
+        var page = await Service().ListAsync(_member, null, 30, "ko");
+
+        var acceptedRow = page.Items.Single(row => row.Id == accepted);
+        Assert.Equal("friendRequestAccepted", acceptedRow.Type);
+        Assert.Equal("친구 요청 수락", acceptedRow.Title);
+        Assert.Equal("Owner님이 친구 요청을 수락했어요.", acceptedRow.Body);
+        Assert.NotNull(acceptedRow.Actor);
+        Assert.Equal(NotificationTargetKinds.Friends, acceptedRow.Target.Kind);
+        Assert.Equal("Owner님이 친구 요청을 거절했어요.", page.Items.Single(row => row.Id == rejected).Body);
+        // Without the person there is nothing to word the row with: unavailable, no name.
+        var orphanRow = page.Items.Single(row => row.Id == orphan);
+        Assert.Equal(NotificationTargetKinds.Unavailable, orphanRow.Target.Kind);
+        Assert.Null(orphanRow.Body);
+        Assert.Equal(3, page.UnreadCount); // the orphan row is still an unread Inbox row
+    }
+
+    private async Task<long> NotifyWithItemAsync(long recipient, NotificationType type, long itemId)
+    {
+        var notification = Notification.Social(
+            recipient, type, null, _collectionId, 1, $"inbox-test:{Guid.NewGuid():N}:{++_keys}", DateTimeOffset.UtcNow, itemId: itemId);
+        _db.Notifications.Add(notification);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        return notification.Id;
+    }
+
     private NotificationInboxService Service(JupleDbContext? db = null) =>
         new(new NotificationInboxStore(db ?? _db), TimeProvider.System);
 

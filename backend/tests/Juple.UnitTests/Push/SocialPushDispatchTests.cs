@@ -332,6 +332,35 @@ public sealed class SocialPushDispatchTests
     }
 
     [Fact]
+    public void FriendRequestResults_AreVisible_NameTheAnswerer_InEveryAppLanguage_AndAreNotDataOnly()
+    {
+        Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.FriendRequestAccepted));
+        Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.FriendRequestRejected));
+        Assert.Equal("friendRequestAccepted", SocialNotificationPolicy.WireType(NotificationType.FriendRequestAccepted));
+        Assert.Equal("friendRequestRejected", SocialNotificationPolicy.WireType(NotificationType.FriendRequestRejected));
+        Assert.Equal(("친구 요청 수락", "Pda님이 친구 요청을 수락했어요."), SocialPushText.For(NotificationType.FriendRequestAccepted, "ko", "Pda", string.Empty));
+        Assert.Equal(("친구 요청 거절", "Pda님이 친구 요청을 거절했어요."), SocialPushText.For(NotificationType.FriendRequestRejected, "ko", "Pda", string.Empty));
+
+        foreach (var locale in new[] { "ko", "en", "ja", "zh-Hans", "zh-Hant", "es", "fr", "de", "it", "pt-BR", "vi", "th", "id", "ru", "tr", "ar", "hi" })
+        {
+            var accepted = SocialPushText.For(NotificationType.FriendRequestAccepted, locale, "SENDER", string.Empty);
+            var rejected = SocialPushText.For(NotificationType.FriendRequestRejected, locale, "SENDER", string.Empty);
+            Assert.Contains("SENDER", accepted.Body);
+            Assert.Contains("SENDER", rejected.Body);
+            Assert.NotEqual(accepted.Body, rejected.Body);
+            Assert.NotEqual(accepted.Title, rejected.Title);
+            Assert.NotEqual(accepted.Title, SocialPushText.For(NotificationType.FriendRequestReceived, locale, "A", "B").Title);
+        }
+
+        // The payload carries no collection id (the answer is about a person) and the badge count.
+        var payload = DispatchPendingPushNotificationsService.BuildPayload(
+            Notification.Social(5, NotificationType.FriendRequestAccepted, 9, null, 77, "k", Now),
+            new PushDispatchContext(true, "Pda", null, 2), "ko");
+        Assert.False(payload.Data.ContainsKey("collectionId"));
+        Assert.Equal("Pda님이 친구 요청을 수락했어요.", payload.Body);
+    }
+
+    [Fact]
     public void NewLinks_AreVisible_NameTheAdder_CountBulkAdds_AndHideAPublicLinkAdder()
     {
         Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.CollectionItemsAdded));

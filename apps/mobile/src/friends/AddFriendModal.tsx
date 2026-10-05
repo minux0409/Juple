@@ -24,8 +24,23 @@ function getLookupErrorMessage(error: unknown, t: TFunction): string {
   return t('collaboration.lookupFallback');
 }
 
-export function getFriendRequestErrorMessage(error: unknown, t: TFunction): string {
+/** The server's own verdict that an accept/decline/cancel hit a request that is not open any more. */
+export const FRIEND_REQUEST_NO_LONGER_PENDING = 'requestNoLongerPending';
+
+/**
+ * intent says what the caller was doing: answering someone else's request (accept/decline - the sender
+ * most likely withdrew it) or cancelling their own (it was answered meanwhile). Only the server's
+ * "no longer pending" code is read as that - a plain not-found is still "no such Juple ID".
+ */
+export function getFriendRequestErrorMessage(
+  error: unknown,
+  t: TFunction,
+  intent: 'send' | 'answer' | 'cancel' = 'send',
+): string {
   if (error instanceof ApiError) {
+    if (error.kind === 'notFound' && error.code === FRIEND_REQUEST_NO_LONGER_PENDING) {
+      return intent === 'cancel' ? t('friends.requestNoLongerPending') : t('friends.requestCancelledByRequester');
+    }
     if (error.kind === 'conflict') {
       switch (error.code) {
         case 'alreadyFriends':
@@ -135,8 +150,8 @@ export function AddFriendModal({ visible, onClose, friends, requests, onRequestS
     setIsSending(true);
     setMessage(null);
     try {
+      // The result card then reads just "요청 대기 중" (the relationship) - no second sentence saying the same.
       onRequestSent(await sendFriendRequest(authenticatedRequest, found.jupleId));
-      setMessage(t('friends.requestSent'));
     } catch (caughtError) {
       setMessage(getFriendRequestErrorMessage(caughtError, t));
       if (caughtError instanceof ApiError && caughtError.kind === 'conflict') {
@@ -265,7 +280,7 @@ const styles = StyleSheet.create({
   personText: { flex: 1, minWidth: 0 },
   name: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  status: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  status: { alignSelf: 'stretch', color: colors.textSecondary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,

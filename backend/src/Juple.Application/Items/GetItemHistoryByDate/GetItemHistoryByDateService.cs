@@ -23,11 +23,13 @@ public sealed class GetItemHistoryByDateService(
         DateOnly date,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchTerm = null,
         CancellationToken cancellationToken = default)
     {
         var range = DailyInboxDateRangeCalculator.Calculate(date, timeZoneId);
         var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetByDateRangeAsync(
-            userId, range.FromUtc, range.ToUtc, cursor, limit, cancellationToken);
+            userId, range.FromUtc, range.ToUtc, cursor, limit,
+            searchTerm is null ? null : ItemSearchPattern.ToContainsPattern(searchTerm), cancellationToken);
 
         var enrichedItems = new List<ItemHistoryEntryDto>(page.Items.Count);
         foreach (var item in page.Items)

@@ -200,6 +200,39 @@ public sealed class ItemsController(
     }
 
     /// <summary>
+    /// The Archive calendar: for one month (year, month), the days that have links with their exact
+    /// counts - in the caller's stored time zone, Trash excluded, one statement, no link data. Tapping a
+    /// day then reads GET history/date for it.
+    /// </summary>
+    [HttpGet("history/calendar")]
+    public async Task<IActionResult> GetHistoryCalendarAsync(
+        [FromQuery] int year,
+        [FromQuery] int month,
+        [FromServices] Juple.Application.Items.GetItemHistoryCalendar.IGetItemHistoryCalendarService calendarService,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var currentUser = await currentUserAccessor.GetRequiredAsync(
+                externalIdentityAccessor.GetRequired(), cancellationToken);
+            return Ok(await calendarService.GetAsync(currentUser.UserId, currentUser.TimeZoneId, year, month, cancellationToken));
+        }
+        catch (Juple.Application.Items.GetItemHistoryCalendar.InvalidCalendarMonthException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                [exception.Field] = [exception.Message],
+            }));
+        }
+        catch (CurrentJupleUserNotFoundException)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Juple user bootstrap is required.");
+        }
+    }
+
+    /// <summary>
     /// Items the user saved (SavedAtUtc) on a single local calendar date - powers Home
     /// ("오늘 저장한 링크"). date is required because Home always asks for a specific day; the
     /// local-date-to-UTC-range conversion uses DailyInboxDateRangeCalculator + currentUser.TimeZoneId.
@@ -212,8 +245,24 @@ public sealed class ItemsController(
         [FromQuery] string? date,
         [FromQuery] int? limit,
         [FromQuery] string? cursor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] string? q = null)
     {
+        // Optional q (2-100 characters after trimming): the Archive's text search INSIDE this day - the day and the text
+        // are two conditions of one bounded, paged query (never a client-side filter of a bigger result).
+        string? searchTerm = null;
+        if (q is not null)
+        {
+            searchTerm = ItemSearchPattern.Normalize(q);
+            if (searchTerm is null)
+            {
+                return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["q"] = [$"q must be {ItemSearchPattern.MinLength}-{ItemSearchPattern.MaxLength} characters."],
+                }));
+            }
+        }
+
         if (!TryParseDate(date, out var parsedDate))
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
@@ -246,7 +295,7 @@ public sealed class ItemsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var result = await getItemHistoryByDateService.GetAsync(
-                currentUser.UserId, currentUser.TimeZoneId, parsedDate, typedCursor, resolvedLimit, cancellationToken);
+                currentUser.UserId, currentUser.TimeZoneId, parsedDate, typedCursor, resolvedLimit, searchTerm, cancellationToken);
 
             return Ok(new ItemHistoryByDateResponse(
                 result.Date,

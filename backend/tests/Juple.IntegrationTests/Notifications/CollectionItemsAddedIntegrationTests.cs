@@ -596,8 +596,8 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
         public Task FriendRequestReceivedAsync(long requesterUserId, long recipientUserId, long friendshipId, CancellationToken cancellationToken = default) =>
             inner.FriendRequestReceivedAsync(requesterUserId, recipientUserId, friendshipId, cancellationToken);
 
-        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, CancellationToken cancellationToken = default) =>
-            inner.FriendRequestAnsweredAsync(answererUserId, requesterUserId, friendshipId, cancellationToken);
+        public Task FriendRequestAnsweredAsync(long answererUserId, long requesterUserId, long friendshipId, bool accepted, CancellationToken cancellationToken = default) =>
+            inner.FriendRequestAnsweredAsync(answererUserId, requesterUserId, friendshipId, accepted, cancellationToken);
 
         public Task CollectionInvitationReceivedAsync(long ownerUserId, long invitedUserId, long collectionId, long invitationId, CancellationToken cancellationToken = default) =>
             inner.CollectionInvitationReceivedAsync(ownerUserId, invitedUserId, collectionId, invitationId, cancellationToken);

@@ -292,8 +292,8 @@
     "lockContactOwner": "이 컬렉션은 소유자가 설정한 잠금 비밀번호가 필요합니다.",
     "lockRemoveConfirmTitle": "잠금을 해제할까요?",
     "lockRemoveConfirmMessage": "잠금 비밀번호를 입력하면 잠금이 해제돼요.",
-    "shareRequests": "공유 요청",
-    "shareRequestCount": "공유 요청 {{count}}건",
+    "shareRequests": "받은 초대 요청",
+    "shareRequestCount": "받은 초대 요청 {{count}}건",
     "roleViewer": "읽기 전용",
     "lockConfirmTitle": "이 컬렉션을 잠글까요?",
     "lockConfirmMessage": "내 계정에서 이 컬렉션을 잠금 비밀번호로 보호해요.",
@@ -328,7 +328,13 @@
     "sharePasswordContactOwner": "접근 비밀번호는 컬렉션을 공유한 사람에게 물어보세요.",
     "sharePasswordRequiredForAction": "먼저 컬렉션을 열고 접근 비밀번호를 입력해 주세요.",
     "sortNameAscA11y": "이름순, 가나다 순",
-    "sortNameDescA11y": "이름순, 가나다 역순"
+    "sortNameDescA11y": "이름순, 가나다 역순",
+    "pickerCollectionUnavailable": "이 컬렉션은 더 이상 사용할 수 없어요.",
+    "leaveAction": "컬렉션에서 나가기",
+    "leaveConfirmTitle": "컬렉션에서 나갈까요?",
+    "leaveConfirmMessage": "나가면 이 컬렉션이 내 목록에서 제거됩니다.",
+    "leaveConfirmButton": "나가기",
+    "leaveError": "컬렉션에서 나가지 못했어요. 잠시 후 다시 시도해 주세요."
   },
   "toast": {
     "moveSuccess": "이동했습니다.",
@@ -494,7 +500,12 @@
     "activeDraftConflictTitle": "작성 중인 링크가 있습니다.",
     "activeDraftConflictMessage": "현재 작성 중인 링크를 저장한 후 새 링크를 확인하시겠습니까?",
     "saveDraftAndContinue": "저장 후 계속",
-    "discardDraftAndContinue": "버리고 계속"
+    "discardDraftAndContinue": "버리고 계속",
+    "newCollectionChip": "새 컬렉션",
+    "newCollectionA11y": "새 컬렉션 만들기",
+    "saveDialogTitle": "링크 저장",
+    "addMemo": "메모 추가",
+    "collectionLinkNotSavable": "Juple 컬렉션 공유 링크는 일반 링크로 저장할 수 없어요. 컬렉션에서 열어 주세요."
   },
   "sharedCollection": {
     "itemsEmpty": "이 공유 컬렉션에 저장된 링크가 아직 없습니다.",
@@ -578,7 +589,7 @@
     "invitationNoLongerValid": "더 이상 유효하지 않은 초대입니다.",
     "invitationResponseFallback": "초대에 응답하지 못했습니다.",
     "invitationsLoadFallback": "초대를 불러오지 못했습니다.",
-    "invitationsEmpty": "받은 공유 요청이 없습니다.",
+    "invitationsEmpty": "받은 초대 요청이 없어요.",
     "invitationAccepted": "공유 컬렉션에 추가되었습니다.",
     "accept": "수락",
     "decline": "거절",
@@ -745,7 +756,10 @@
     "declineA11y": "{{name}} 님의 친구 요청 거절",
     "cancelA11y": "{{name}} 님에게 보낸 친구 요청 취소",
     "personTitle": "사용자 정보",
-    "you": "나"
+    "you": "나",
+    "requestCancelledByRequester": "요청자가 친구 요청을 취소했어요.",
+    "requestNoLongerPending": "이미 처리된 친구 요청이에요.",
+    "requestDialogTitle": "친구 요청"
   },
   "notifications": {
     "title": "알림",
@@ -758,7 +772,16 @@
     "bellA11y": "알림",
     "bellUnreadA11y": "알림, 읽지 않은 알림 {{count}}개",
     "bannerAnnouncement": "새 알림: {{title}}. {{body}}",
-    "bannerHint": "열려면 누르세요. 위로 밀면 닫혀요."
+    "bannerHint": "열려면 누르세요. 위로 밀면 닫혀요.",
+    "groupToday": "오늘",
+    "groupYesterday": "어제",
+    "groupLast7Days": "최근 7일",
+    "groupLast30Days": "최근 30일",
+    "groupOlder": "이전 알림",
+    "daysAgo": "{{count}}일",
+    "deleteA11y": "알림 삭제",
+    "deleteFailed": "알림을 삭제하지 못했어요.",
+    "loadErrorTitle": "알림을 불러오지 못했어요"
   },
   "contact": {
     "title": "문의하기",
@@ -767,5 +790,24 @@
     "subject": "Juple 문의",
     "noMailApp": "메일 앱을 열 수 없어요. {{email}}(으)로 직접 보내 주세요.",
     "copyEmail": "이메일 주소 복사"
+  },
+  "importantState": {
+    "offlineTitle": "연결할 수 없어요",
+    "loadFailedTitle": "불러오지 못했어요",
+    "retry": "다시 시도",
+    "offlineMessage": "인터넷 연결을 확인한 뒤 다시 시도해 주세요."
+  },
+  "calendar": {
+    "previousMonthA11y": "이전 달",
+    "nextMonthA11y": "다음 달",
+    "today": "오늘",
+    "dayCountA11y": "링크 {{count}}개",
+    "monthLoadError": "달력을 불러오지 못했어요.",
+    "dayLoadError": "이 날의 링크를 불러오지 못했어요.",
+    "dayEmpty": "이 날 저장한 링크가 없어요.",
+    "collectionDayEmpty": "이 날 추가된 링크가 없어요.",
+    "pickDate": "날짜 선택",
+    "selectedDateLabel": "날짜: {{date}}",
+    "clearDateA11y": "날짜 필터 해제"
   }
 }

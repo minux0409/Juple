@@ -111,8 +111,11 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AnsweringAFriendRequest_TellsTheRequester_DataOnly_WithoutAnyId()
+    public async Task AnsweringAFriendRequest_TellsTheRequester_WithAVisibleResult_ExactlyOncePerAnswer()
     {
+        var userProfiles = new UserProfileService(new UserProfileStore(_db), TimeProvider.System);
+        await userProfiles.SetDisplayNameAsync(_member, "이상해씨");
+        await userProfiles.SetDisplayNameAsync(_stranger, "꼬부기");
         await RegisterDeviceAsync(_owner, "ko");
         var accepted = await _friends.SendRequestAsync(_owner, await JupleIdOfAsync(_member));
         await _friends.AcceptAsync(_member, accepted.RequestId);
@@ -123,17 +126,66 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
         await _friends.CancelAsync(_stranger, cancelled.RequestId); // the requester cancelling tells nobody
 
         await Dispatcher().RunOnceAsync();
+        await Dispatcher().RunOnceAsync(); // never sent a second time
 
-        var sent = _sender.SentTo(_owner);
+        // The requester's own cancel sends the RECIPIENT (the owner) only a data-only refresh signal - never a visible one.
+        var sent = _sender.SentTo(_owner).Where(message => message.Payload.Title is not null).ToList();
         Assert.Equal(2, sent.Count);
-        Assert.All(sent, message =>
-        {
-            Assert.Equal("friendRequestAnswered", message.Payload.Type);
-            Assert.Null(message.Payload.Title); // data-only: refreshes the Friends screen, no tray notification
-            Assert.Empty(message.Payload.Data);
-        });
-        Assert.Equal(1, await _db.Notifications.CountAsync(entry => entry.DedupKey == $"friend-request-answered:{accepted.RequestId}"));
-        Assert.False(await _db.Notifications.AnyAsync(entry => entry.DedupKey == $"friend-request-answered:{cancelled.RequestId}"));
+        var acceptedPush = Assert.Single(sent, message => message.Payload.Type == "friendRequestAccepted");
+        Assert.Equal("친구 요청 수락", acceptedPush.Payload.Title);
+        Assert.Equal("이상해씨님이 친구 요청을 수락했어요.", acceptedPush.Payload.Body);
+        var rejectedPush = Assert.Single(sent, message => message.Payload.Type == "friendRequestRejected");
+        Assert.Equal("친구 요청 거절", rejectedPush.Payload.Title);
+        Assert.Equal("꼬부기님이 친구 요청을 거절했어요.", rejectedPush.Payload.Body);
+        Assert.Equal(1, await _db.Notifications.CountAsync(entry => entry.DedupKey == $"friend-request-accepted:{accepted.RequestId}"));
+        Assert.Equal(1, await _db.Notifications.CountAsync(entry => entry.DedupKey == $"friend-request-rejected:{declined.RequestId}"));
+        // A cancel is never an Inbox row or a result notification: only the invisible refresh signal exists for it.
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.UserId == _owner && entry.SubjectId == cancelled.RequestId
+            && entry.Type != NotificationType.FriendRequestAnswered));
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.UserId == _stranger && entry.SubjectId == cancelled.RequestId
+            && (entry.Type == NotificationType.FriendRequestAccepted || entry.Type == NotificationType.FriendRequestRejected)));
+    }
+
+    [Fact]
+    public async Task ACancelledFriendRequest_TellsTheRecipientsOpenScreen_WithAnInvisibleSignal_ExactlyOnce()
+    {
+        await RegisterDeviceAsync(_member, "ko");
+        await RegisterDeviceAsync(_owner, "ko");
+        var request = await _friends.SendRequestAsync(_owner, await JupleIdOfAsync(_member));
+        await Dispatcher().RunOnceAsync(); // the request itself reaches the recipient as usual
+        _sender.Clear();
+
+        await _friends.CancelAsync(_owner, request.RequestId);
+        await Dispatcher().RunOnceAsync();
+        await Dispatcher().RunOnceAsync(); // never twice
+
+        var signal = Assert.Single(_sender.SentTo(_member));
+        Assert.Equal("friendRequestAnswered", signal.Payload.Type);
+        Assert.Null(signal.Payload.Title); // data-only: no tray notification, nothing in the Inbox
+        Assert.Null(signal.Payload.Body);
+        Assert.Empty(signal.Payload.Data); // no ids, no names
+        Assert.Empty(_sender.SentTo(_owner)); // the requester who cancelled is not told
+        Assert.False(await _db.Notifications.AnyAsync(entry => entry.UserId == _member && entry.Type == NotificationType.FriendRequestReceived && entry.SubjectId == request.RequestId));
+
+        // A stale accept still gets the stable code - and nothing else is sent.
+        await Assert.ThrowsAsync<FriendNotFoundException>(() => _friends.AcceptAsync(_member, request.RequestId));
+        await Dispatcher().RunOnceAsync();
+        Assert.Single(_sender.SentTo(_member));
+    }
+
+    [Fact]
+    public async Task ARequesterWhoAcceptsTheirOwnAcceptedFriendship_NeverNotifiesAnyone()
+    {
+        var request = await _friends.SendRequestAsync(_owner, await JupleIdOfAsync(_member));
+        await _friends.AcceptAsync(_member, request.RequestId);
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        var before = await _db.Notifications.CountAsync(entry => entry.SubjectId == request.RequestId);
+
+        // The requester is not the recipient: no replay, and no new notification either.
+        await Assert.ThrowsAsync<FriendNotFoundException>(() => _friends.AcceptAsync(_owner, request.RequestId));
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+
+        Assert.Equal(before, await _db.Notifications.CountAsync(entry => entry.SubjectId == request.RequestId));
     }
 
     [Fact]
@@ -314,6 +366,8 @@ public sealed class SocialPushNotificationsIntegrationTests : IAsyncLifetime
         private readonly List<(long UserId, PushNotificationPayload Payload)> _sent = [];
 
         public string? FailWith { get; set; }
+
+        public void Clear() => _sent.Clear();
 
         public IReadOnlyList<(long UserId, PushNotificationPayload Payload)> SentTo(long userId) =>
             _sent.Where(sent => sent.UserId == userId).ToList();

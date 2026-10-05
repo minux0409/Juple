@@ -8,5 +8,6 @@ public interface IGetItemHistoryByDateService
         DateOnly date,
         ItemHistoryPageCursor? cursor,
         int limit,
+        string? searchTerm = null,
         CancellationToken cancellationToken = default);
 }
