@@ -81,14 +81,12 @@
     "searchPlaceholder": "Cerca link",
     "searchClear": "Cancella ricerca",
     "searchEmpty": "Nessun risultato.",
-    "searchError": "Ricerca non riuscita.",
     "empty": "Non hai ancora salvato alcun link.",
     "errorLoadFallback": "Impossibile caricare la cronologia.",
     "today": "Oggi",
     "yesterday": "Ieri",
     "thisWeek": "Questa settimana",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Riprova",
     "deleteConfirmTitle": "Elimina elemento",
     "deleteConfirmMessage": "Eliminare questo elemento? L'operazione non può essere annullata.",
     "errorDeleteFallback": "Impossibile eliminare l'elemento.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Impossibile aggiornare lo stato di condivisione.",
     "errorListFallback": "Impossibile caricare le tue raccolte.",
     "errorItemsLoadFallback": "Impossibile caricare gli elementi di questa raccolta.",
-    "errorDetailLoadFallback": "Impossibile caricare questa raccolta.",
     "errorNotFound": "Questa raccolta è già stata eliminata o non è stato possibile trovarla.",
     "errorCreateFallback": "Impossibile creare la raccolta.",
     "errorRenameFallback": "Impossibile rinominare la raccolta.",
@@ -417,7 +414,6 @@
     "trash": "Eliminati di recente",
     "collectionLock": "Blocco raccolte",
     "collectionLockDescription": "Imposta una password per le tue raccolte.",
-    "collectionLockLoadFallback": "Impossibile caricare le impostazioni di blocco.",
     "collectionLockStatusLabel": "Stato",
     "collectionLockConfigured": "Impostata",
     "collectionLockNotConfigured": "Non impostata",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "Questo link è bloccato.",
     "fallbackInstagramPost": "Post di Instagram",
     "fallbackInstagramReel": "Reel di Instagram",
     "titleLabel": "Titolo",
@@ -470,6 +467,7 @@
     "share": "Condividi",
     "memo": "Nota",
     "memoPlaceholder": "Inserisci una nota",
+    "savedAtLabel": "Salvato il",
     "uploading": "Caricamento...",
     "representativePhoto": "Foto principale",
     "editRepresentativePhoto": "Modifica foto principale",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Impossibile eliminare l'elemento.",
     "errorImagePickerPermission": "È richiesto l'accesso alla libreria foto.",
     "errorImagePickerFallback": "Impossibile selezionare la foto.",
-    "resolvingMetadataOverlay": "Caricamento informazioni del link…",
     "metadataResolutionFailedHint": "Impossibile caricare le informazioni del link. Puoi inserirle tu stesso e salvare.",
     "activeDraftConflictTitle": "Hai un link in corso",
     "activeDraftConflictMessage": "Vuoi salvare il link su cui stai lavorando prima di visualizzare il nuovo link?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "Nuova raccolta",
     "newCollectionA11y": "Crea una nuova raccolta",
     "saveDialogTitle": "Salva link",
-    "addMemo": "Aggiungi una nota",
     "collectionLinkNotSavable": "Un link di raccolta Juple non può essere salvato come link normale. Aprilo come raccolta."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Eliminare questo commento?",
     "loadPrevious": "Mostra commenti precedenti",
     "loadError": "Impossibile caricare i commenti.",
-    "retry": "Riprova",
     "sendError": "Impossibile inviare il commento.",
     "deleteError": "Impossibile eliminare il commento.",
     "justNow": "Adesso",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "Richieste di approvazione ricevute: nessuna",
     "myEmpty": "Richieste di approvazione inviate: nessuna",
-    "myLoadError": "Impossibile caricare le richieste inviate.",
     "myStatus": "In attesa di approvazione",
-    "loadError": "Impossibile caricare i link in attesa.",
     "approve": "Approva",
     "reject": "Rifiuta",
     "rejectConfirmTitle": "Rifiutare questa richiesta di link?",
@@ -727,13 +720,11 @@
     "search": "Cerca amici",
     "sendRequest": "Invia richiesta di amicizia",
     "requestSent": "Richiesta di amicizia inviata.",
-    "cancelRequest": "Annulla richiesta",
     "alreadyFriends": "Siete già amici.",
     "requestAlreadyPending": "Hai già inviato una richiesta.",
     "incomingRequestExists": "Questa persona ti ha già inviato una richiesta: puoi accettarla in Richieste di amicizia ricevute.",
     "cannotAddSelf": "Non puoi aggiungere te stesso.",
     "actionFallback": "Impossibile completare l'azione.",
-    "loadFallback": "Impossibile caricare gli amici.",
     "empty": "Ancora nessun amico.",
     "searchEmpty": "Nessun amico corrisponde.",
     "note": "Nota",
@@ -754,6 +745,8 @@
     "viewIncoming": "Vedi richieste ricevute",
     "acceptA11y": "Accetta la richiesta di amicizia di {{name}}",
     "declineA11y": "Rifiuta la richiesta di amicizia di {{name}}",
+    "declineConfirmTitle": "Rifiutare questa richiesta di amicizia?",
+    "declineConfirmMessage": "Questa richiesta di amicizia verrà rifiutata.",
     "cancelA11y": "Annulla la richiesta di amicizia a {{name}}",
     "personTitle": "Info utente",
     "you": "Tu",
@@ -766,7 +759,6 @@
     "markAllRead": "Segna tutto come letto",
     "empty": "Ancora nessuna notifica.",
     "unavailable": "Il contenuto di questa notifica non è più disponibile.",
-    "loadError": "Impossibile caricare le notifiche.",
     "retry": "Riprova",
     "unreadA11y": "Non letta",
     "bellA11y": "Notifiche",
@@ -780,8 +772,7 @@
     "groupOlder": "Meno recenti",
     "daysAgo": "{{count}} g",
     "deleteA11y": "Elimina notifica",
-    "deleteFailed": "Impossibile eliminare la notifica.",
-    "loadErrorTitle": "Impossibile caricare le notifiche"
+    "deleteFailed": "Impossibile eliminare la notifica."
   },
   "contact": {
     "title": "Contattaci",
@@ -792,22 +783,8 @@
     "copyEmail": "Copia indirizzo email"
   },
   "importantState": {
-    "offlineTitle": "Impossibile connettersi",
     "loadFailedTitle": "Impossibile caricare",
-    "retry": "Riprova",
-    "offlineMessage": "Controlla la connessione a internet e riprova."
-  },
-  "calendar": {
-    "previousMonthA11y": "Mese precedente",
-    "nextMonthA11y": "Mese successivo",
-    "today": "Oggi",
-    "dayCountA11y": "{{count}} link",
-    "monthLoadError": "Impossibile caricare il calendario.",
-    "dayLoadError": "Impossibile caricare i link di questo giorno.",
-    "dayEmpty": "Nessun link salvato in questo giorno.",
-    "collectionDayEmpty": "Nessun link aggiunto in questo giorno.",
-    "pickDate": "Scegli una data",
-    "selectedDateLabel": "Data: {{date}}",
-    "clearDateA11y": "Rimuovi il filtro data"
+    "loadFailedMessage": "Impossibile caricare i dati.",
+    "retry": "Riprova"
   }
 }

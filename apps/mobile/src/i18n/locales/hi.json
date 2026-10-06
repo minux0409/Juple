@@ -81,14 +81,12 @@
     "searchPlaceholder": "लिंक खोजें",
     "searchClear": "खोज साफ़ करें",
     "searchEmpty": "कोई परिणाम नहीं।",
-    "searchError": "खोज नहीं हो सकी।",
     "empty": "अभी तक कोई लिंक सेव नहीं किया गया है।",
     "errorLoadFallback": "आपका इतिहास लोड नहीं हो सका।",
     "today": "आज",
     "yesterday": "कल",
     "thisWeek": "इस सप्ताह",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "फिर से प्रयास करें",
     "deleteConfirmTitle": "आइटम हटाएं",
     "deleteConfirmMessage": "क्या इस आइटम को हटाना है? यह वापस नहीं किया जा सकता।",
     "errorDeleteFallback": "आइटम हटाया नहीं जा सका।",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "शेयरिंग स्थिति अपडेट नहीं हो सकी।",
     "errorListFallback": "आपके संग्रह लोड नहीं हो सके।",
     "errorItemsLoadFallback": "इस संग्रह के आइटम लोड नहीं हो सके।",
-    "errorDetailLoadFallback": "यह संग्रह लोड नहीं हो सका।",
     "errorNotFound": "यह संग्रह पहले ही हटाया जा चुका है या नहीं मिल सका।",
     "errorCreateFallback": "संग्रह नहीं बनाया जा सका।",
     "errorRenameFallback": "संग्रह का नाम नहीं बदला जा सका।",
@@ -417,7 +414,6 @@
     "trash": "हाल ही में हटाए गए",
     "collectionLock": "संग्रह लॉक",
     "collectionLockDescription": "अपने कलेक्शन के लिए पासवर्ड सेट करें।",
-    "collectionLockLoadFallback": "लॉक सेटिंग लोड नहीं हो सकीं।",
     "collectionLockStatusLabel": "स्थिति",
     "collectionLockConfigured": "सेट है",
     "collectionLockNotConfigured": "सेट नहीं है",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "यह लिंक लॉक है।",
     "fallbackInstagramPost": "Instagram पोस्ट",
     "fallbackInstagramReel": "Instagram रील",
     "titleLabel": "शीर्षक",
@@ -470,6 +467,7 @@
     "share": "शेयर करें",
     "memo": "नोट",
     "memoPlaceholder": "एक नोट दर्ज करें",
+    "savedAtLabel": "सहेजा गया",
     "uploading": "अपलोड हो रहा है...",
     "representativePhoto": "मुख्य फ़ोटो",
     "editRepresentativePhoto": "मुख्य फ़ोटो संपादित करें",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "आइटम हटाया नहीं जा सका।",
     "errorImagePickerPermission": "फ़ोटो लाइब्रेरी एक्सेस की अनुमति आवश्यक है।",
     "errorImagePickerFallback": "फ़ोटो चुनी नहीं जा सकी।",
-    "resolvingMetadataOverlay": "लिंक जानकारी लोड हो रही है...",
     "metadataResolutionFailedHint": "लिंक जानकारी लोड नहीं हो सकी। आप इसे स्वयं दर्ज करके सहेज सकते हैं।",
     "activeDraftConflictTitle": "आपके पास एक लिंक प्रगति पर है",
     "activeDraftConflictMessage": "नए लिंक को देखने से पहले क्या आप अभी बन रहे लिंक को सेव करना चाहेंगे?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "नया संग्रह",
     "newCollectionA11y": "नया संग्रह बनाएँ",
     "saveDialogTitle": "लिंक सहेजें",
-    "addMemo": "मेमो जोड़ें",
     "collectionLinkNotSavable": "Juple संग्रह लिंक को सामान्य लिंक के रूप में सहेजा नहीं जा सकता। इसे संग्रह के रूप में खोलें।"
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "क्या यह टिप्पणी हटानी है?",
     "loadPrevious": "पिछली टिप्पणियाँ देखें",
     "loadError": "टिप्पणियाँ लोड नहीं हो सकीं।",
-    "retry": "फिर कोशिश करें",
     "sendError": "टिप्पणी भेजी नहीं जा सकी।",
     "deleteError": "टिप्पणी हटाई नहीं जा सकी।",
     "justNow": "अभी",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "प्राप्त अनुमोदन अनुरोध: कोई नहीं",
     "myEmpty": "भेजे गए अनुमोदन अनुरोध: कोई नहीं",
-    "myLoadError": "भेजे गए अनुरोध लोड नहीं हो सके।",
     "myStatus": "अनुमोदन की प्रतीक्षा में",
-    "loadError": "प्रतीक्षा सूची लोड नहीं हो सकी।",
     "approve": "मंज़ूर करें",
     "reject": "अस्वीकार करें",
     "rejectConfirmTitle": "यह लिंक अनुरोध अस्वीकार करें?",
@@ -727,13 +720,11 @@
     "search": "मित्र खोजें",
     "sendRequest": "मित्र अनुरोध भेजें",
     "requestSent": "मित्र अनुरोध भेजा गया।",
-    "cancelRequest": "अनुरोध रद्द करें",
     "alreadyFriends": "आप पहले से मित्र हैं।",
     "requestAlreadyPending": "आप पहले ही अनुरोध भेज चुके हैं।",
     "incomingRequestExists": "इस व्यक्ति ने आपको पहले ही अनुरोध भेजा है - आप इसे प्राप्त मित्र अनुरोध में स्वीकार कर सकते हैं।",
     "cannotAddSelf": "आप स्वयं को नहीं जोड़ सकते।",
     "actionFallback": "यह कार्रवाई पूरी नहीं हो सकी।",
-    "loadFallback": "मित्र लोड नहीं हो सके।",
     "empty": "अभी कोई मित्र नहीं।",
     "searchEmpty": "कोई मेल खाता मित्र नहीं।",
     "note": "नोट",
@@ -754,6 +745,8 @@
     "viewIncoming": "प्राप्त अनुरोध देखें",
     "acceptA11y": "{{name}} का दोस्ती अनुरोध स्वीकार करें",
     "declineA11y": "{{name}} का दोस्ती अनुरोध अस्वीकार करें",
+    "declineConfirmTitle": "यह मित्र अनुरोध अस्वीकार करें?",
+    "declineConfirmMessage": "यह मित्र अनुरोध अस्वीकार कर दिया जाएगा।",
     "cancelA11y": "{{name}} को भेजा दोस्ती अनुरोध रद्द करें",
     "personTitle": "उपयोगकर्ता की जानकारी",
     "you": "आप",
@@ -766,7 +759,6 @@
     "markAllRead": "सभी को पढ़ा हुआ करें",
     "empty": "अभी कोई सूचना नहीं है।",
     "unavailable": "इस सूचना की सामग्री अब उपलब्ध नहीं है।",
-    "loadError": "सूचनाएं लोड नहीं हो सकीं।",
     "retry": "फिर से कोशिश करें",
     "unreadA11y": "अपठित",
     "bellA11y": "सूचनाएं",
@@ -780,8 +772,7 @@
     "groupOlder": "पहले के",
     "daysAgo": "{{count}} दिन",
     "deleteA11y": "सूचना हटाएँ",
-    "deleteFailed": "सूचना हटाई नहीं जा सकी।",
-    "loadErrorTitle": "सूचनाएँ लोड नहीं हो सकीं"
+    "deleteFailed": "सूचना हटाई नहीं जा सकी।"
   },
   "contact": {
     "title": "संपर्क करें",
@@ -792,22 +783,8 @@
     "copyEmail": "ईमेल पता कॉपी करें"
   },
   "importantState": {
-    "offlineTitle": "कनेक्ट नहीं हो सका",
     "loadFailedTitle": "लोड नहीं हो सका",
-    "retry": "फिर कोशिश करें",
-    "offlineMessage": "अपना इंटरनेट कनेक्शन जाँचें और पुनः प्रयास करें।"
-  },
-  "calendar": {
-    "previousMonthA11y": "पिछला महीना",
-    "nextMonthA11y": "अगला महीना",
-    "today": "आज",
-    "dayCountA11y": "{{count}} लिंक",
-    "monthLoadError": "कैलेंडर लोड नहीं हो सका।",
-    "dayLoadError": "इस दिन के लिंक लोड नहीं हो सके।",
-    "dayEmpty": "इस दिन कोई लिंक सहेजा नहीं गया।",
-    "collectionDayEmpty": "इस दिन कोई लिंक जोड़ा नहीं गया।",
-    "pickDate": "तारीख चुनें",
-    "selectedDateLabel": "तारीख: {{date}}",
-    "clearDateA11y": "तारीख फ़िल्टर हटाएँ"
+    "loadFailedMessage": "रिकॉर्ड लोड नहीं हो सके।",
+    "retry": "फिर कोशिश करें"
   }
 }

@@ -81,14 +81,12 @@
     "searchPlaceholder": "Links suchen",
     "searchClear": "Suche löschen",
     "searchEmpty": "Keine Ergebnisse.",
-    "searchError": "Die Suche ist fehlgeschlagen.",
     "empty": "Es wurden noch keine Links gespeichert.",
     "errorLoadFallback": "Der Verlauf konnte nicht geladen werden.",
     "today": "Heute",
     "yesterday": "Gestern",
     "thisWeek": "Diese Woche",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Erneut versuchen",
     "deleteConfirmTitle": "Eintrag löschen",
     "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Der Freigabestatus konnte nicht aktualisiert werden.",
     "errorListFallback": "Ihre Sammlungen konnten nicht geladen werden.",
     "errorItemsLoadFallback": "Die Einträge dieser Sammlung konnten nicht geladen werden.",
-    "errorDetailLoadFallback": "Diese Sammlung konnte nicht geladen werden.",
     "errorNotFound": "Diese Sammlung wurde bereits gelöscht oder konnte nicht gefunden werden.",
     "errorCreateFallback": "Die Sammlung konnte nicht erstellt werden.",
     "errorRenameFallback": "Die Sammlung konnte nicht umbenannt werden.",
@@ -417,7 +414,6 @@
     "trash": "Kürzlich gelöscht",
     "collectionLock": "Sammlungssperre",
     "collectionLockDescription": "Lege ein Passwort für deine Sammlungen fest.",
-    "collectionLockLoadFallback": "Sperreinstellungen konnten nicht geladen werden.",
     "collectionLockStatusLabel": "Status",
     "collectionLockConfigured": "Festgelegt",
     "collectionLockNotConfigured": "Nicht festgelegt",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "Dieser Link ist gesperrt.",
     "fallbackInstagramPost": "Instagram-Beitrag",
     "fallbackInstagramReel": "Instagram-Reel",
     "titleLabel": "Titel",
@@ -470,6 +467,7 @@
     "share": "Teilen",
     "memo": "Notiz",
     "memoPlaceholder": "Notiz eingeben",
+    "savedAtLabel": "Gespeichert",
     "uploading": "Wird hochgeladen...",
     "representativePhoto": "Titelfoto",
     "editRepresentativePhoto": "Titelfoto bearbeiten",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Der Eintrag konnte nicht gelöscht werden.",
     "errorImagePickerPermission": "Zugriff auf die Fotomediathek ist erforderlich.",
     "errorImagePickerFallback": "Das Foto konnte nicht ausgewählt werden.",
-    "resolvingMetadataOverlay": "Linkinformationen werden geladen …",
     "metadataResolutionFailedHint": "Linkinformationen konnten nicht geladen werden. Du kannst sie selbst eingeben und speichern.",
     "activeDraftConflictTitle": "Du hast einen Link in Bearbeitung",
     "activeDraftConflictMessage": "Möchtest du den aktuell bearbeiteten Link speichern, bevor du den neuen Link ansiehst?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "Neue Sammlung",
     "newCollectionA11y": "Neue Sammlung erstellen",
     "saveDialogTitle": "Link speichern",
-    "addMemo": "Notiz hinzufügen",
     "collectionLinkNotSavable": "Ein Juple-Sammlungslink kann nicht als normaler Link gespeichert werden. Öffne ihn stattdessen als Sammlung."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Diesen Kommentar löschen?",
     "loadPrevious": "Frühere Kommentare anzeigen",
     "loadError": "Die Kommentare konnten nicht geladen werden.",
-    "retry": "Erneut versuchen",
     "sendError": "Der Kommentar konnte nicht gesendet werden.",
     "deleteError": "Der Kommentar konnte nicht gelöscht werden.",
     "justNow": "Gerade eben",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "Erhaltene Freigabeanfragen: keine",
     "myEmpty": "Gesendete Freigabeanfragen: keine",
-    "myLoadError": "Gesendete Anfragen konnten nicht geladen werden.",
     "myStatus": "Wartet auf Freigabe",
-    "loadError": "Die ausstehenden Links konnten nicht geladen werden.",
     "approve": "Freigeben",
     "reject": "Ablehnen",
     "rejectConfirmTitle": "Diese Link-Anfrage ablehnen?",
@@ -727,13 +720,11 @@
     "search": "Freunde suchen",
     "sendRequest": "Freundschaftsanfrage senden",
     "requestSent": "Freundschaftsanfrage gesendet.",
-    "cancelRequest": "Anfrage zurückziehen",
     "alreadyFriends": "Ihr seid bereits befreundet.",
     "requestAlreadyPending": "Du hast bereits eine Anfrage gesendet.",
     "incomingRequestExists": "Diese Person hat dir bereits eine Anfrage gesendet – du kannst sie unter „Erhaltene Freundschaftsanfragen“ annehmen.",
     "cannotAddSelf": "Du kannst dich nicht selbst hinzufügen.",
     "actionFallback": "Aktion konnte nicht abgeschlossen werden.",
-    "loadFallback": "Freunde konnten nicht geladen werden.",
     "empty": "Noch keine Freunde.",
     "searchEmpty": "Keine passenden Freunde.",
     "note": "Notiz",
@@ -754,6 +745,8 @@
     "viewIncoming": "Erhaltene Anfragen ansehen",
     "acceptA11y": "Freundschaftsanfrage von {{name}} annehmen",
     "declineA11y": "Freundschaftsanfrage von {{name}} ablehnen",
+    "declineConfirmTitle": "Diese Freundschaftsanfrage ablehnen?",
+    "declineConfirmMessage": "Diese Freundschaftsanfrage wird abgelehnt.",
     "cancelA11y": "Freundschaftsanfrage an {{name}} zurückziehen",
     "personTitle": "Nutzerinfo",
     "you": "Du",
@@ -766,7 +759,6 @@
     "markAllRead": "Alle als gelesen markieren",
     "empty": "Noch keine Benachrichtigungen.",
     "unavailable": "Der Inhalt dieser Benachrichtigung ist nicht mehr verfügbar.",
-    "loadError": "Benachrichtigungen konnten nicht geladen werden.",
     "retry": "Erneut versuchen",
     "unreadA11y": "Ungelesen",
     "bellA11y": "Benachrichtigungen",
@@ -780,8 +772,7 @@
     "groupOlder": "Älter",
     "daysAgo": "{{count}} T",
     "deleteA11y": "Benachrichtigung löschen",
-    "deleteFailed": "Die Benachrichtigung konnte nicht gelöscht werden.",
-    "loadErrorTitle": "Benachrichtigungen konnten nicht geladen werden"
+    "deleteFailed": "Die Benachrichtigung konnte nicht gelöscht werden."
   },
   "contact": {
     "title": "Kontakt",
@@ -792,22 +783,8 @@
     "copyEmail": "E-Mail-Adresse kopieren"
   },
   "importantState": {
-    "offlineTitle": "Keine Verbindung",
     "loadFailedTitle": "Laden fehlgeschlagen",
-    "retry": "Erneut versuchen",
-    "offlineMessage": "Prüfe deine Internetverbindung und versuche es erneut."
-  },
-  "calendar": {
-    "previousMonthA11y": "Vorheriger Monat",
-    "nextMonthA11y": "Nächster Monat",
-    "today": "Heute",
-    "dayCountA11y": "{{count}} Links",
-    "monthLoadError": "Der Kalender konnte nicht geladen werden.",
-    "dayLoadError": "Die Links dieses Tages konnten nicht geladen werden.",
-    "dayEmpty": "An diesem Tag wurden keine Links gespeichert.",
-    "collectionDayEmpty": "An diesem Tag wurden keine Links hinzugefügt.",
-    "pickDate": "Datum wählen",
-    "selectedDateLabel": "Datum: {{date}}",
-    "clearDateA11y": "Datumsfilter entfernen"
+    "loadFailedMessage": "Die Einträge konnten nicht geladen werden.",
+    "retry": "Erneut versuchen"
   }
 }

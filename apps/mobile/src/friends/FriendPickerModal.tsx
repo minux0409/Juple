@@ -152,7 +152,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
         keyboardShouldPersistTaps="handled"
         keyExtractor={friend => friend.friendshipId.toString()}
         ListEmptyComponent={isLoading ? <ActivityIndicator style={styles.loading} /> : error ? (
-          <LoadFailureState compact error={error.cause} message={t('friends.loadFallback')} onRetry={() => setReloadToken(previous => previous + 1)} retryLabel={t('history.retry')} testID="friend-picker-error" />
+          <LoadFailureState compact error={error.cause} onRetry={() => setReloadToken(previous => previous + 1)} testID="friend-picker-error" />
         ) : emptyState === 'none' ? undefined : (
           <Text style={styles.empty} testID="friend-picker-empty">{t(emptyState === 'noResults' ? 'friends.searchEmpty' : 'friends.empty')}</Text>
         )}

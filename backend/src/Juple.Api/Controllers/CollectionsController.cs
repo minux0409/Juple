@@ -28,11 +28,11 @@ using Juple.Application.Collections.SetCollectionIconImage;
 using Juple.Application.Collections.SharePassword;
 using Juple.Application.Collections.Submissions;
 using Juple.Application.Images;
+using Juple.Application.Items;
 using Juple.Application.Collections.TransferCollectionItem;
 using Juple.Application.Collections.UndoMergeCollections;
 using Juple.Application.Collections.UndoTransferCollectionItem;
 using Juple.Application.Identity;
-using Juple.Application.Items;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -659,6 +659,9 @@ public sealed class CollectionsController(
     /// is only valid with the `sort` that issued it (400 otherwise) - changing the order starts over.
     /// Optional fromUtc/toUtc (date orders only): just the links added within [fromUtc, toUtc) - one
     /// section from GET {id}/items/sections, paged on its own; omitted, the whole Collection, unchanged.
+    /// Optional q (2-100 characters after trimming): the Collection Details link search - only this
+    /// Collection's links (same access/lock gates) whose title or link contains the term, in a date order
+    /// (newest added first unless dateAsc is asked), paged with the same cursor. Never anyone's memo.
     /// </summary>
     [HttpGet("{id:long}/items")]
     public async Task<IActionResult> GetItemsAsync(
@@ -670,7 +673,7 @@ public sealed class CollectionsController(
         [FromQuery] string? sort = null,
         [FromQuery] DateTimeOffset? fromUtc = null,
         [FromQuery] DateTimeOffset? toUtc = null,
-        [FromQuery] string? date = null)
+        [FromQuery] string? q = null)
     {
         if (!CollectionsQueryParameters.TryParseItemSort(sort, out var resolvedSort))
         {
@@ -680,23 +683,19 @@ public sealed class CollectionsController(
             }));
         }
 
-        // date (YYYY-MM-DD): one local calendar day in the caller's stored time zone - the calendar view's day. The
-        // server resolves it with the same helper as the month counts; it cannot be combined with fromUtc/toUtc.
-        DateOnly? localDate = null;
-        if (date is not null)
+        string? searchTerm = null;
+        if (q is not null)
         {
-            if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate)
-                || fromUtc is not null
-                || toUtc is not null)
+            searchTerm = ItemSearchPattern.Normalize(q);
+            if (searchTerm is null || fromUtc is not null || toUtc is not null)
             {
                 return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
                 {
-                    ["date"] = ["date must use the YYYY-MM-DD format and cannot be combined with fromUtc/toUtc."],
+                    ["q"] = [$"q must be {ItemSearchPattern.MinLength}-{ItemSearchPattern.MaxLength} characters and cannot be combined with fromUtc/toUtc."],
                 }));
             }
 
-            localDate = parsedDate;
-            // A day is shown newest-added first unless the caller asked for the other date order.
+            // Results are shown newest-added first unless the caller asked for the other date order.
             if (resolvedSort == CollectionItemSort.Manual)
             {
                 resolvedSort = CollectionItemSort.DateDesc;
@@ -744,9 +743,9 @@ public sealed class CollectionsController(
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var page = localDate is { } day
-                ? await getCollectionItemsService.GetByDateAsync(
-                    currentUser.UserId, id, currentUser.TimeZoneId, day, typedCursor, resolvedLimit, resolvedSort, unlockToken, cancellationToken)
+            var page = searchTerm is not null
+                ? await getCollectionItemsService.SearchAsync(
+                    currentUser.UserId, id, searchTerm, typedCursor, resolvedLimit, resolvedSort, unlockToken, cancellationToken)
                 : isWindowed
                 ? await getCollectionItemsService.GetRangeAsync(
                     currentUser.UserId,
@@ -805,53 +804,6 @@ public sealed class CollectionsController(
             var sections = await getCollectionItemSectionsService.GetAsync(
                 currentUser.UserId, id, currentUser.TimeZoneId, unlockToken, cancellationToken);
             return Ok(new CollectionItemSectionsResponse(sections));
-        }
-        catch (CurrentJupleUserNotFoundException)
-        {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Juple user bootstrap is required.");
-        }
-        catch (CollectionNotFoundException)
-        {
-            return NotFound();
-        }
-        catch (CollectionSharePasswordRequiredException)
-        {
-            return CollectionProblems.SharePasswordRequired();
-        }
-        catch (CollectionLockedException)
-        {
-            return CollectionProblems.CollectionLocked();
-        }
-    }
-
-    /// <summary>
-    /// The Collection's calendar view: for one month (year, month), the local days on which links were
-    /// added with their exact counts - counts only, the same access and lock gates as the item list.
-    /// A day's links come from GET {id}/items?sort=dateDesc&amp;fromUtc&amp;toUtc.
-    /// </summary>
-    [HttpGet("{id:long}/items/calendar")]
-    public async Task<IActionResult> GetItemCalendarAsync(
-        long id,
-        [FromQuery] int year,
-        [FromQuery] int month,
-        [FromServices] IGetCollectionItemCalendarService calendarService,
-        CancellationToken cancellationToken,
-        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null)
-    {
-        try
-        {
-            var currentUser = await currentUserAccessor.GetRequiredAsync(
-                externalIdentityAccessor.GetRequired(), cancellationToken);
-            return Ok(await calendarService.GetAsync(currentUser.UserId, id, currentUser.TimeZoneId, year, month, unlockToken, cancellationToken));
-        }
-        catch (Juple.Application.Items.GetItemHistoryCalendar.InvalidCalendarMonthException exception)
-        {
-            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
-            {
-                [exception.Field] = [exception.Message],
-            }));
         }
         catch (CurrentJupleUserNotFoundException)
         {

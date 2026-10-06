@@ -1,11 +1,10 @@
 using Juple.Application.Inbox.GetDailyInbox;
-using Juple.Application.Items.GetItemHistoryCalendar;
 
 namespace Juple.UnitTests.Inbox;
 
 /// <summary>
-/// One canonical rule for "a calendar day": the month counts, Archive's by-date list and a Collection's by-date list
-/// all use DailyInboxDateRangeCalculator on the user's stored time zone, as [start of the day, start of the next day).
+/// One canonical rule for "a calendar day" (GET items/history/date): DailyInboxDateRangeCalculator on the user's stored
+/// time zone, as [start of the day, start of the next day).
 /// </summary>
 public sealed class CalendarDayRangeTests
 {
@@ -65,8 +64,9 @@ public sealed class CalendarDayRangeTests
     {
         foreach (var (zone, year, month) in new[] { ("America/New_York", 2026, 3), ("America/New_York", 2026, 11), ("Europe/Berlin", 2026, 10), ("Australia/Sydney", 2026, 10), ("Asia/Seoul", 2026, 10) })
         {
-            var days = CalendarMonthRanges.Days(year, month, zone);
-            Assert.Equal(DateTime.DaysInMonth(year, month), days.Count);
+            var days = Enumerable.Range(1, DateTime.DaysInMonth(year, month))
+                .Select(day => DailyInboxDateRangeCalculator.Calculate(new DateOnly(year, month, day), zone))
+                .ToList();
             for (var index = 1; index < days.Count; index++)
             {
                 Assert.Equal(days[index - 1].ToUtc, days[index].FromUtc);
@@ -97,15 +97,5 @@ public sealed class CalendarDayRangeTests
 
         Assert.Equal(new DateTimeOffset(2020, 11, 1, 0, 0, 0, TimeSpan.FromHours(-4)).ToUniversalTime(), day.FromUtc); // the CDT midnight, the earlier instant
         Assert.Equal(TimeSpan.FromHours(25), next.FromUtc - day.FromUtc);
-    }
-
-    [Theory]
-    [InlineData(1999, 12)]
-    [InlineData(2101, 1)]
-    [InlineData(2026, 0)]
-    [InlineData(2026, 13)]
-    public void AnInvalidMonth_IsRejected(int year, int month)
-    {
-        Assert.Throws<InvalidCalendarMonthException>(() => CalendarMonthRanges.Days(year, month, "Asia/Seoul"));
     }
 }

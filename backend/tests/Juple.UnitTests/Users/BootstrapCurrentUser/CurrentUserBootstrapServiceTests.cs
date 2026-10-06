@@ -16,10 +16,12 @@ public sealed class CurrentUserBootstrapServiceTests
         var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Plus };
         var service = CreateService(store);
 
-        var plan = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var result = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", " Asia/Seoul "));
 
         Assert.Empty(store.CreatedUsers);
-        Assert.Equal(UserPlan.Plus, plan);
+        Assert.Equal(UserPlan.Plus, result.Plan);
+        // The stored (validated, trimmed) zone - what the server's date filters use - comes back.
+        Assert.Equal("Asia/Seoul", result.TimeZoneId);
     }
 
     [Fact]
@@ -54,7 +56,9 @@ public sealed class CurrentUserBootstrapServiceTests
         var store = new FakeProvisioningStore();
         var service = CreateService(store);
 
-        var plan = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var result = await service.BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+        var plan = result.Plan;
+        Assert.Equal("Asia/Seoul", result.TimeZoneId);
 
         var data = Assert.Single(store.CreatedUsers);
         Assert.Equal(ExternalIdentity, data.ExternalIdentity);

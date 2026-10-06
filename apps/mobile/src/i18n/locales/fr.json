@@ -81,14 +81,12 @@
     "searchPlaceholder": "Rechercher des liens",
     "searchClear": "Effacer la recherche",
     "searchEmpty": "Aucun résultat.",
-    "searchError": "La recherche a échoué.",
     "empty": "Aucun lien enregistré pour le moment.",
     "errorLoadFallback": "Impossible de charger votre historique.",
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "thisWeek": "Cette semaine",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Réessayer",
     "deleteConfirmTitle": "Supprimer l'élément",
     "deleteConfirmMessage": "Supprimer cet élément ? Cette action est irréversible.",
     "errorDeleteFallback": "Impossible de supprimer l'élément.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Impossible de mettre à jour le statut de partage.",
     "errorListFallback": "Impossible de charger vos collections.",
     "errorItemsLoadFallback": "Impossible de charger les éléments de cette collection.",
-    "errorDetailLoadFallback": "Impossible de charger cette collection.",
     "errorNotFound": "Cette collection a déjà été supprimée ou est introuvable.",
     "errorCreateFallback": "Impossible de créer la collection.",
     "errorRenameFallback": "Impossible de renommer la collection.",
@@ -417,7 +414,6 @@
     "trash": "Supprimés récemment",
     "collectionLock": "Verrouillage des collections",
     "collectionLockDescription": "Définissez un mot de passe pour vos collections.",
-    "collectionLockLoadFallback": "Impossible de charger les paramètres de verrouillage.",
     "collectionLockStatusLabel": "État",
     "collectionLockConfigured": "Défini",
     "collectionLockNotConfigured": "Non défini",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "Ce lien est verrouillé.",
     "fallbackInstagramPost": "Publication Instagram",
     "fallbackInstagramReel": "Reel Instagram",
     "titleLabel": "Titre",
@@ -470,6 +467,7 @@
     "share": "Partager",
     "memo": "Note",
     "memoPlaceholder": "Saisissez une note",
+    "savedAtLabel": "Enregistré le",
     "uploading": "Téléversement...",
     "representativePhoto": "Photo principale",
     "editRepresentativePhoto": "Modifier la photo principale",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Impossible de supprimer l'élément.",
     "errorImagePickerPermission": "L'accès à la photothèque est requis.",
     "errorImagePickerFallback": "Impossible de sélectionner la photo.",
-    "resolvingMetadataOverlay": "Chargement des informations du lien…",
     "metadataResolutionFailedHint": "Impossible de charger les informations du lien. Vous pouvez les saisir vous-même et enregistrer.",
     "activeDraftConflictTitle": "Vous avez un lien en cours",
     "activeDraftConflictMessage": "Voulez-vous enregistrer le lien en cours avant de consulter le nouveau lien ?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "Nouvelle collection",
     "newCollectionA11y": "Créer une nouvelle collection",
     "saveDialogTitle": "Enregistrer le lien",
-    "addMemo": "Ajouter une note",
     "collectionLinkNotSavable": "Un lien de collection Juple ne peut pas être enregistré comme lien ordinaire. Ouvrez-le comme collection."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Supprimer ce commentaire ?",
     "loadPrevious": "Voir les commentaires précédents",
     "loadError": "Impossible de charger les commentaires.",
-    "retry": "Réessayer",
     "sendError": "Impossible d’envoyer le commentaire.",
     "deleteError": "Impossible de supprimer le commentaire.",
     "justNow": "À l’instant",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "Demandes d’approbation reçues : aucune",
     "myEmpty": "Demandes d’approbation envoyées : aucune",
-    "myLoadError": "Impossible de charger les demandes envoyées.",
     "myStatus": "En attente d’approbation",
-    "loadError": "Impossible de charger les liens en attente.",
     "approve": "Approuver",
     "reject": "Refuser",
     "rejectConfirmTitle": "Refuser cette demande de lien ?",
@@ -727,13 +720,11 @@
     "search": "Rechercher des amis",
     "sendRequest": "Envoyer une demande d'ami",
     "requestSent": "Demande d'ami envoyée.",
-    "cancelRequest": "Annuler la demande",
     "alreadyFriends": "Vous êtes déjà amis.",
     "requestAlreadyPending": "Vous avez déjà envoyé une demande.",
     "incomingRequestExists": "Cette personne vous a déjà envoyé une demande : vous pouvez l’accepter dans Demandes d’ami reçues.",
     "cannotAddSelf": "Vous ne pouvez pas vous ajouter vous-même.",
     "actionFallback": "Impossible d'effectuer cette action.",
-    "loadFallback": "Impossible de charger les amis.",
     "empty": "Pas encore d'amis.",
     "searchEmpty": "Aucun ami ne correspond.",
     "note": "Note",
@@ -754,6 +745,8 @@
     "viewIncoming": "Voir les demandes reçues",
     "acceptA11y": "Accepter la demande d'ami de {{name}}",
     "declineA11y": "Refuser la demande d'ami de {{name}}",
+    "declineConfirmTitle": "Refuser cette demande d'ami ?",
+    "declineConfirmMessage": "Cette demande d'ami sera refusée.",
     "cancelA11y": "Annuler la demande d'ami envoyée à {{name}}",
     "personTitle": "Infos sur l'utilisateur",
     "you": "Vous",
@@ -766,7 +759,6 @@
     "markAllRead": "Tout marquer comme lu",
     "empty": "Aucune notification pour le moment.",
     "unavailable": "Le contenu de cette notification n'est plus disponible.",
-    "loadError": "Impossible de charger les notifications.",
     "retry": "Réessayer",
     "unreadA11y": "Non lue",
     "bellA11y": "Notifications",
@@ -780,8 +772,7 @@
     "groupOlder": "Plus ancien",
     "daysAgo": "{{count}} j",
     "deleteA11y": "Supprimer la notification",
-    "deleteFailed": "Impossible de supprimer la notification.",
-    "loadErrorTitle": "Impossible de charger les notifications"
+    "deleteFailed": "Impossible de supprimer la notification."
   },
   "contact": {
     "title": "Nous contacter",
@@ -792,22 +783,8 @@
     "copyEmail": "Copier l’adresse e-mail"
   },
   "importantState": {
-    "offlineTitle": "Connexion impossible",
     "loadFailedTitle": "Chargement impossible",
-    "retry": "Réessayer",
-    "offlineMessage": "Vérifiez votre connexion internet et réessayez."
-  },
-  "calendar": {
-    "previousMonthA11y": "Mois précédent",
-    "nextMonthA11y": "Mois suivant",
-    "today": "Aujourd’hui",
-    "dayCountA11y": "{{count}} liens",
-    "monthLoadError": "Impossible de charger le calendrier.",
-    "dayLoadError": "Impossible de charger les liens de ce jour.",
-    "dayEmpty": "Aucun lien enregistré ce jour-là.",
-    "collectionDayEmpty": "Aucun lien ajouté ce jour-là.",
-    "pickDate": "Choisir une date",
-    "selectedDateLabel": "Date : {{date}}",
-    "clearDateA11y": "Retirer le filtre de date"
+    "loadFailedMessage": "Impossible de charger les données.",
+    "retry": "Réessayer"
   }
 }

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
+import type { LoadFailureInfo } from '../components/LoadFailureState';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { useSortPreference } from '../settings/sortPreference';
@@ -57,7 +58,12 @@ export interface UseCollectionDestinationPickerResult {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly loadMore: () => void;
+  /** An action's error, or a note about the list (e.g. too many for name order) - never a failure to load it. */
   readonly error: string | null;
+  /** The Collection list could not be loaded (first page, or a next page): shown as such, with a retry. */
+  readonly loadFailure: LoadFailureInfo | null;
+  /** Retries what failed: the first load when nothing is listed yet, else the next page. */
+  readonly retryLoad: () => void;
   readonly sort: DestinationPickerSort;
   readonly changeSort: (next: DestinationPickerSort) => void;
   readonly disabledIds: ReadonlySet<number>;
@@ -84,8 +90,9 @@ export interface UseCollectionDestinationPickerResult {
   ) => Promise<boolean>;
 }
 
-function listErrorMessage(error: unknown, t: TFunction): string {
-  return error instanceof ApiError && error.kind === 'unauthorized' ? t('errors.unauthorized') : t('collections.errorTargetLoadFallback');
+/** A failed LIST load: signed out is a definite state with its own sentence; anything else is the standard load failure. */
+function listLoadFailure(error: unknown, t: TFunction): LoadFailureInfo {
+  return { cause: error, notice: error instanceof ApiError && error.kind === 'unauthorized' ? t('errors.unauthorized') : null };
 }
 
 function createErrorMessage(error: unknown, t: TFunction): string {
@@ -132,6 +139,7 @@ export function useCollectionDestinationPicker(
   const loadingMoreRef = useRef(false);
   const loadGenerationRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<LoadFailureInfo | null>(null);
   const [disabledIds, setDisabledIds] = useState<ReadonlySet<number>>(new Set());
   const fixedDisabledIdsRef = useRef<readonly number[]>([]);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<number>>(new Set());
@@ -165,6 +173,7 @@ export function useCollectionDestinationPicker(
     const generation = ++loadGenerationRef.current;
     setIsLoading(true);
     setError(null);
+    setLoadFailure(null);
     try {
       if (order === 'title') {
         const all = await loadAll({});
@@ -190,7 +199,7 @@ export function useCollectionDestinationPicker(
       }
     } catch (caughtError) {
       if (generation === loadGenerationRef.current) {
-        setError(listErrorMessage(caughtError, t));
+        setLoadFailure(listLoadFailure(caughtError, t));
       }
     } finally {
       if (generation === loadGenerationRef.current) {
@@ -246,6 +255,7 @@ export function useCollectionDestinationPicker(
     }
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
+    setLoadFailure(null);
     const generation = loadGenerationRef.current;
     getCollections(authenticatedRequest, { limit: PAGE_LIMIT, cursor: nextCursor })
       .then(page => {
@@ -258,7 +268,7 @@ export function useCollectionDestinationPicker(
         });
         setNextCursor(page.nextCursor);
       })
-      .catch(caughtError => setError(listErrorMessage(caughtError, t)))
+      .catch(caughtError => setLoadFailure(listLoadFailure(caughtError, t)))
       .finally(() => {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
@@ -442,6 +452,14 @@ export function useCollectionDestinationPicker(
     isLoadingMore,
     loadMore,
     error,
+    loadFailure,
+    retryLoad: () => {
+      if (collections.length === 0) {
+        loadList(sort).catch(() => undefined);
+      } else {
+        loadMore();
+      }
+    },
     sort,
     changeSort,
     disabledIds,

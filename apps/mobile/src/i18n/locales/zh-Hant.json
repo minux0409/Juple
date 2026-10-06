@@ -81,14 +81,12 @@
     "searchPlaceholder": "搜尋連結",
     "searchClear": "清除搜尋",
     "searchEmpty": "沒有結果。",
-    "searchError": "無法搜尋。",
     "empty": "還沒有儲存任何連結。",
     "errorLoadFallback": "無法載入紀錄。",
     "today": "今天",
     "yesterday": "昨天",
     "thisWeek": "本週",
     "sectionHeader": "{{label}} ‧ {{count}}",
-    "retry": "重試",
     "deleteConfirmTitle": "刪除項目",
     "deleteConfirmMessage": "確定要刪除此項目嗎？刪除後無法復原。",
     "errorDeleteFallback": "無法刪除該項目。",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "無法更新分享狀態。",
     "errorListFallback": "無法載入合集清單。",
     "errorItemsLoadFallback": "無法載入合集中的項目。",
-    "errorDetailLoadFallback": "無法載入此合集。",
     "errorNotFound": "此合集已被刪除或找不到。",
     "errorCreateFallback": "無法建立合集。",
     "errorRenameFallback": "無法重新命名合集。",
@@ -417,7 +414,6 @@
     "trash": "刪除記錄",
     "collectionLock": "合集鎖定",
     "collectionLockDescription": "為你的合集設定密碼。",
-    "collectionLockLoadFallback": "無法載入鎖定設定。",
     "collectionLockStatusLabel": "狀態",
     "collectionLockConfigured": "已設定",
     "collectionLockNotConfigured": "未設定",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "此連結已鎖定。",
     "fallbackInstagramPost": "Instagram 貼文",
     "fallbackInstagramReel": "Instagram Reels",
     "titleLabel": "標題",
@@ -470,6 +467,7 @@
     "share": "分享",
     "memo": "備註",
     "memoPlaceholder": "請輸入備註",
+    "savedAtLabel": "儲存日期",
     "uploading": "上傳中...",
     "representativePhoto": "代表照片",
     "editRepresentativePhoto": "編輯代表照片",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "無法刪除該項目。",
     "errorImagePickerPermission": "需要照片庫的存取權限。",
     "errorImagePickerFallback": "無法選取照片。",
-    "resolvingMetadataOverlay": "正在載入連結資訊…",
     "metadataResolutionFailedHint": "無法載入連結資訊。您可以自行輸入後儲存。",
     "activeDraftConflictTitle": "您有正在編輯的連結",
     "activeDraftConflictMessage": "是否先儲存目前正在編輯的連結,再查看新連結?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "新增合集",
     "newCollectionA11y": "建立新合集",
     "saveDialogTitle": "儲存連結",
-    "addMemo": "新增備註",
     "collectionLinkNotSavable": "Juple 合集分享連結無法儲存為一般連結，請以合集開啟。"
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "要刪除這則留言嗎？",
     "loadPrevious": "查看更早的留言",
     "loadError": "無法載入留言。",
-    "retry": "重試",
     "sendError": "無法傳送留言。",
     "deleteError": "無法刪除留言。",
     "justNow": "剛剛",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "沒有收到的審核請求。",
     "myEmpty": "沒有已傳送的審核請求。",
-    "myLoadError": "無法載入已傳送的請求。",
     "myStatus": "等待審核",
-    "loadError": "無法載入待審核清單。",
     "approve": "核准",
     "reject": "拒絕",
     "rejectConfirmTitle": "要拒絕此連結請求嗎？",
@@ -727,13 +720,11 @@
     "search": "搜尋好友",
     "sendRequest": "傳送好友邀請",
     "requestSent": "已傳送好友邀請。",
-    "cancelRequest": "取消邀請",
     "alreadyFriends": "你們已經是好友。",
     "requestAlreadyPending": "你已傳送過邀請。",
     "incomingRequestExists": "此使用者已向你傳送邀請，可在「收到的好友邀請」中接受。",
     "cannotAddSelf": "無法新增自己。",
     "actionFallback": "無法完成此操作。",
-    "loadFallback": "無法載入好友。",
     "empty": "還沒有好友。",
     "searchEmpty": "沒有符合的好友。",
     "note": "備註",
@@ -754,6 +745,8 @@
     "viewIncoming": "查看收到的請求",
     "acceptA11y": "接受 {{name}} 的好友請求",
     "declineA11y": "拒絕 {{name}} 的好友請求",
+    "declineConfirmTitle": "要拒絕好友邀請嗎？",
+    "declineConfirmMessage": "將拒絕此好友邀請。",
     "cancelA11y": "取消傳給 {{name}} 的好友請求",
     "personTitle": "使用者資訊",
     "you": "你",
@@ -766,7 +759,6 @@
     "markAllRead": "全部標為已讀",
     "empty": "還沒有通知。",
     "unavailable": "此通知的內容已無法查看。",
-    "loadError": "無法載入通知。",
     "retry": "重試",
     "unreadA11y": "未讀",
     "bellA11y": "通知",
@@ -780,8 +772,7 @@
     "groupOlder": "更早",
     "daysAgo": "{{count}}天",
     "deleteA11y": "刪除通知",
-    "deleteFailed": "無法刪除通知。",
-    "loadErrorTitle": "無法載入通知"
+    "deleteFailed": "無法刪除通知。"
   },
   "contact": {
     "title": "聯絡我們",
@@ -792,22 +783,8 @@
     "copyEmail": "複製電子郵件地址"
   },
   "importantState": {
-    "offlineTitle": "無法連線",
     "loadFailedTitle": "載入失敗",
-    "retry": "重試",
-    "offlineMessage": "請檢查網路連線後重試。"
-  },
-  "calendar": {
-    "previousMonthA11y": "上個月",
-    "nextMonthA11y": "下個月",
-    "today": "今天",
-    "dayCountA11y": "{{count}} 個連結",
-    "monthLoadError": "無法載入日曆。",
-    "dayLoadError": "無法載入當天的連結。",
-    "dayEmpty": "當天沒有儲存的連結。",
-    "collectionDayEmpty": "當天沒有新增的連結。",
-    "pickDate": "選擇日期",
-    "selectedDateLabel": "日期：{{date}}",
-    "clearDateA11y": "清除日期篩選"
+    "loadFailedMessage": "無法載入記錄。",
+    "retry": "重試"
   }
 }

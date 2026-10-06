@@ -981,7 +981,7 @@ export function CollectionShareScreen({ route }: Props) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
         {isLoading && !participants ? <ActivityIndicator style={styles.loading} /> : null}
         {loadError ? (
-          <LoadFailureState error={loadError.cause} message={loadError.message} onRetry={loadError.canRetry ? () => { load(); } : undefined} testID="share-load-error" />
+          <LoadFailureState error={loadError.cause} notice={loadError.canRetry ? null : loadError.message} onRetry={loadError.canRetry ? () => { load(); } : undefined} testID="share-load-error" />
         ) : null}
 
         {participants ? (
@@ -1141,8 +1141,8 @@ export function CollectionShareScreen({ route }: Props) {
                           <PlusIcon color={colors.surface} size={20} strokeWidth={2.25} />
                         </Pressable>
                       </View>
+                      {/* No visible 권한 label: the segments say what this is, and the group is announced with the person's name. */}
                       <View style={styles.field} testID="id-invite-permission">
-                        <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
                         <RoleToggle
                           label={personLabel(idLookup.person)}
                           minimum={minimumRole}
@@ -1184,14 +1184,13 @@ export function CollectionShareScreen({ route }: Props) {
                     );
                     return (
                       <View key={draft.jupleId} style={[styles.draftRow, index > 0 && styles.listRowDivider]} testID={`draft-${draft.jupleId}`}>
-                        {/* Who and their × on one line; then 권한 over that person's own choice, full
-                            width - the same stacked shape on every screen width. */}
+                        {/* Who and their × on one line; then that person's own permission choice right under it, full
+                            width (no visible 권한 label) - the same stacked shape on every screen width. */}
                         <View style={styles.rowLine}>
                           <View style={styles.personRowText}>{selectedPersonSummary(draft)}</View>
                           {removeButton}
                         </View>
                         <View style={styles.field} testID={`draft-permission-${draft.jupleId}`}>
-                          <Text style={styles.fieldLabel}>{t('shareSheet.permissionLabel')}</Text>
                           <RoleToggle
                             disabled={draft.status === 'sending'}
                             label={personLabel(draft)}
@@ -1415,7 +1414,6 @@ const styles = StyleSheet.create({
   },
   // A small label right on top of its control (권한 over a permission choice).
   field: { gap: spacing.xs },
-  fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   // [ON/OFF] [switch] at the end of a card header: a tight pair, so the title keeps its one line
   // even at 360dp. A long translation of the state shortens itself rather than push the switch out.
   // [share] [OFF | ON]: never shrinks (the title wraps instead) and keeps a wide gap between its two controls.

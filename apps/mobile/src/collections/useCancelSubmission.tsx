@@ -151,7 +151,9 @@ export function useCancelSubmission({ cancel, onGone }: UseCancelSubmissionOptio
 
 const styles = StyleSheet.create({
   // The card's own frame (radius) clips the revealed red action; the card inside keeps its approved geometry.
-  swipeFrame: { borderRadius: radii.md },
+  // The row's whole outer shape: rounded corners, the card's hairline border and its surface, clipped together
+  // (SwipeableItemRow keeps overflow hidden) - the embedded card inside draws no border/radius of its own.
+  swipeFrame: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth },
   // Icon-only, a full 44dp touch target each; the red of the trash is the only emphasis (no filled or outlined box).
   iconButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
 });

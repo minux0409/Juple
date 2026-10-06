@@ -109,7 +109,7 @@ export function CollectionSharedItemScreen({ route }: Props) {
     return (
       <StackScreenSafeArea style={styles.center}>
         {error ? (
-          <LoadFailureState error={error.cause} message={error.message} onRetry={error.canRetry ? () => setReloadToken(previous => previous + 1) : undefined} testID="shared-item-load-error" />
+          <LoadFailureState error={error.cause} notice={error.canRetry ? null : error.message} onRetry={error.canRetry ? () => setReloadToken(previous => previous + 1) : undefined} testID="shared-item-load-error" />
         ) : null}
       </StackScreenSafeArea>
     );

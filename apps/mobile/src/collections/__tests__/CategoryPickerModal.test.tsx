@@ -244,3 +244,52 @@ describe('CategoryPickerModal - the optional 복제 mode (defaults unchanged)', 
     expect(renderer.root.findAll(node => node.props.testID === 'category-picker-selected-count').length).toBeGreaterThan(0);
   });
 });
+
+describe('CategoryPickerModal - the Collection list could not be loaded', () => {
+  const hostTexts = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root
+      .findAll(node => node.props.testID === testID && typeof node.type === 'string')
+      .flatMap(node => node.findAll(child => typeof child.type === 'string' && typeof child.props.children === 'string').map(child => child.props.children as string));
+
+  it('nothing listed yet: a centered load-failure state INSIDE the open sheet, with the standard words and a retry', () => {
+    const onRetryLoad = jest.fn();
+    const renderer = render(
+      <CategoryPickerModal
+        {...baseProps}
+        collectionPool={[]}
+        loadFailure={{ cause: new Error('offline'), notice: null }}
+        onRetryLoad={onRetryLoad}
+        onToggle={jest.fn()}
+        selectedIds={new Set()}
+      />,
+    );
+
+    expect(hostTexts(renderer, 'category-picker-load-failure')).toEqual([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage'), i18n.t('importantState.retry')]);
+    // Never the old small red sentence.
+    expect(renderer.root.findAll(node => node.props.testID === 'category-picker-error')).toHaveLength(0);
+    act(() => renderer.root.findAll(node => node.props.testID === 'category-picker-load-failure-retry' && typeof node.props.onPress === 'function')[0].props.onPress());
+    expect(onRetryLoad).toHaveBeenCalledTimes(1);
+  });
+
+  it('some already listed (a next page failed): they stay usable, with a compact non-blocking retry row', () => {
+    const onRetryLoad = jest.fn();
+    const onToggle = jest.fn();
+    const renderer = render(
+      <CategoryPickerModal
+        {...baseProps}
+        collectionPool={[makeCollection({ id: 1, name: 'Groceries' })]}
+        loadFailure={{ cause: new Error('offline'), notice: null }}
+        onRetryLoad={onRetryLoad}
+        onToggle={onToggle}
+        selectedIds={new Set()}
+      />,
+    );
+
+    expect(renderer.root.findAll(node => node.props.testID === 'category-picker-load-failure')).toHaveLength(0);
+    act(() => renderer.root.findByProps({ accessibilityLabel: 'Groceries' }).props.onPress());
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(hostTexts(renderer, 'category-picker-more-failure')).toEqual([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.retry')]);
+    act(() => renderer.root.findAll(node => node.props.testID === 'category-picker-more-failure-retry' && typeof node.props.onPress === 'function')[0].props.onPress());
+    expect(onRetryLoad).toHaveBeenCalledTimes(1);
+  });
+});

@@ -764,7 +764,7 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
     // ---------- 컬렉션에서 나가기: the same removal as the Owner removing the member ----------
 
     [Fact]
-    public async Task LeavingYourself_IsExactlyAnOwnerRemoval_LinksProposalsAndNotificationsGo_AndRejoiningStartsClean()
+    public async Task LeavingYourself_IsExactlyAnOwnerRemoval_ProposalsAndNotificationsGo_LinksStay_AndRejoiningStartsClean()
     {
         var added = await NewItemAsync(_contributor, "https://example.test/leave-added");
         var proposed = await NewItemAsync(_submitter, "https://example.test/leave-proposed");
@@ -788,15 +788,95 @@ public sealed class CollectionLinkSubmissionIntegrationTests : IAsyncLifetime
         // Another member's links are untouched.
         Assert.True(await LinkedAsync(added));
 
-        // A contributor who leaves takes exactly the links they added.
+        // A contributor who leaves: the membership ends, the links they added are the Collection's content and stay.
         await _collaboration.LeaveAsync(_contributor, _sharedId);
         _db.ChangeTracker.Clear();
-        Assert.False(await LinkedAsync(added));
+        Assert.True(await LinkedAsync(added));
         Assert.True(await _db.Items.AnyAsync(item => item.Id == added)); // their Item itself is theirs and stays
 
         // Rejoining starts clean.
         await InviteAndAcceptAsync(_submitter, CollectionCollaboratorRole.Submitter);
         Assert.Equal(0, (await _collections.GetAsync(_submitter, _sharedId)).MyPendingSubmissionCount);
+    }
+
+    // ---------- MEMBERSHIP lifecycle != CONTENT lifecycle: leaving / being removed keeps the confirmed links ----------
+
+    [Fact]
+    public async Task A_E_F_AContributorsDirectLinks_StayAfterTheyLeave_WithTheCountAndAccessForEveryoneStillThere()
+    {
+        var first = await NewItemAsync(_contributor, "https://example.test/keep-direct-1");
+        var second = await NewItemAsync(_contributor, "https://example.test/keep-direct-2");
+        await Add().AddAsync(_contributor, _sharedId, first);
+        await Add().AddAsync(_contributor, _sharedId, second);
+        var countBefore = await LinkCountAsync();
+        Assert.Equal(countBefore, (await _collections.GetAsync(_owner, _sharedId)).ItemCount);
+
+        await _collaboration.LeaveAsync(_contributor, _sharedId);
+        _db.ChangeTracker.Clear();
+
+        // A + E: both links are still in the Collection, and the count everyone sees did not change.
+        Assert.True(await LinkedAsync(first));
+        Assert.True(await LinkedAsync(second));
+        Assert.Equal(countBefore, await LinkCountAsync());
+        Assert.Equal(countBefore, (await _collections.GetAsync(_owner, _sharedId)).ItemCount);
+        Assert.Equal(countBefore, (await _collections.GetAsync(_viewer, _sharedId)).ItemCount);
+        // Attribution is kept as data (never rewritten as the Owner's add).
+        Assert.True(await _db.CollectionItems.AsNoTracking().AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == first && entry.AddedByUserId == _contributor));
+
+        // F: the remaining members still open them - in the list and as a link's own view - without the former member's identity.
+        foreach (var member in new[] { _owner, _viewer })
+        {
+            var page = (await _collections.GetItemsAsync(member, _sharedId, null, 100)).Page;
+            var retained = page.Items.Single(entry => entry.ItemId == first);
+            Assert.Null(retained.AddedBy);
+            Assert.NotNull(await _collections.GetSharedItemAsync(member, _sharedId, second));
+        }
+
+        // The former member no longer sees the Collection at all.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _collections.GetAsync(_contributor, _sharedId));
+    }
+
+    [Fact]
+    public async Task B_C_AnApprovedProposal_StaysAfterTheProposerLeaves_WhileTheirStillWaitingOneGoes()
+    {
+        var approved = await NewItemAsync(_submitter, "https://example.test/keep-approved");
+        var waiting = await NewItemAsync(_submitter, "https://example.test/drop-waiting");
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await Add().AddAsync(_submitter, _sharedId, approved));
+        var toApprove = (await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items.Single(entry => entry.Url.EndsWith("/keep-approved", StringComparison.Ordinal));
+        await Review().ApproveAsync(_owner, _sharedId, toApprove.SubmissionId, null);
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await Add().AddAsync(_submitter, _sharedId, waiting));
+        await Juple.IntegrationTests.TestSupport.NotificationPipelineTestKit.MaterializeOutboxAsync(_db);
+        _db.ChangeTracker.Clear();
+        Assert.True(await LinkedAsync(approved));
+        var countBefore = await LinkCountAsync();
+
+        await _collaboration.LeaveAsync(_submitter, _sharedId);
+        _db.ChangeTracker.Clear();
+
+        // B: the approved link became the Collection's content - it stays, and so does the count.
+        Assert.True(await LinkedAsync(approved));
+        Assert.Equal(countBefore, (await _collections.GetAsync(_owner, _sharedId)).ItemCount);
+        // C: the still-waiting proposal (and the Owner's notification about it) goes with the membership.
+        Assert.False(await LinkedAsync(waiting));
+        Assert.Empty((await Review().ListAsync(_owner, _sharedId, null, 50, null)).Items);
+        Assert.Equal(0, (await _collections.GetAsync(_owner, _sharedId)).PendingSubmissionCount);
+        Assert.Empty(await ReceivedSubjectsAsync());
+    }
+
+    [Fact]
+    public async Task D_TheOwnerRemovingAContributor_KeepsTheirConfirmedLinks_ExactlyLikeLeaving()
+    {
+        var direct = await NewItemAsync(_contributor, "https://example.test/owner-removes-direct");
+        await Add().AddAsync(_contributor, _sharedId, direct);
+        var countBefore = await LinkCountAsync();
+
+        await _collaboration.RemoveCollaboratorAsync(_owner, _sharedId, await JupleIdOfAsync(_contributor));
+        _db.ChangeTracker.Clear();
+
+        Assert.True(await LinkedAsync(direct));
+        Assert.Equal(countBefore, await LinkCountAsync());
+        Assert.False(await _db.CollectionCollaborators.AnyAsync(entry => entry.CollectionId == _sharedId && entry.UserId == _contributor));
+        Assert.Contains((await _collections.GetItemsAsync(_viewer, _sharedId, null, 100)).Page.Items, entry => entry.ItemId == direct);
     }
 
     [Fact]

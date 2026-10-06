@@ -81,14 +81,12 @@
     "searchPlaceholder": "Search links",
     "searchClear": "Clear search",
     "searchEmpty": "No results.",
-    "searchError": "Couldn't search.",
     "empty": "No links saved yet.",
     "errorLoadFallback": "Couldn't load your history.",
     "today": "Today",
     "yesterday": "Yesterday",
     "thisWeek": "This week",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Try again",
     "deleteConfirmTitle": "Delete item",
     "deleteConfirmMessage": "Delete this item? This can't be undone.",
     "errorDeleteFallback": "Couldn't delete the item.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Couldn't update the share status.",
     "errorListFallback": "Couldn't load your collections.",
     "errorItemsLoadFallback": "Couldn't load items in this collection.",
-    "errorDetailLoadFallback": "Couldn't load this collection.",
     "errorNotFound": "This collection was already deleted or couldn't be found.",
     "errorCreateFallback": "Couldn't create the collection.",
     "errorRenameFallback": "Couldn't rename the collection.",
@@ -417,7 +414,6 @@
     "trash": "Recently Deleted",
     "collectionLock": "Collection lock",
     "collectionLockDescription": "Set a password for your collections.",
-    "collectionLockLoadFallback": "Couldn't load your lock settings.",
     "collectionLockStatusLabel": "Status",
     "collectionLockConfigured": "Set",
     "collectionLockNotConfigured": "Not set",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "This link is locked.",
     "fallbackInstagramPost": "Instagram post",
     "fallbackInstagramReel": "Instagram reel",
     "titleLabel": "Title",
@@ -470,6 +467,7 @@
     "share": "Share",
     "memo": "Memo",
     "memoPlaceholder": "Enter a memo",
+    "savedAtLabel": "Saved",
     "uploading": "Uploading...",
     "representativePhoto": "Cover photo",
     "editRepresentativePhoto": "Edit cover photo",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Couldn't delete the item.",
     "errorImagePickerPermission": "Photo library access is required.",
     "errorImagePickerFallback": "Couldn't select the photo.",
-    "resolvingMetadataOverlay": "Loading link info...",
     "metadataResolutionFailedHint": "We couldn't load link info. You can enter it yourself and save.",
     "activeDraftConflictTitle": "You have a link in progress",
     "activeDraftConflictMessage": "Save the link you're currently working on before checking the new one?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "New collection",
     "newCollectionA11y": "Create a new collection",
     "saveDialogTitle": "Save link",
-    "addMemo": "Add a memo",
     "collectionLinkNotSavable": "A Juple collection link can’t be saved as a regular link. Open it as a collection instead."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Delete this comment?",
     "loadPrevious": "View earlier comments",
     "loadError": "Couldn’t load the comments.",
-    "retry": "Try again",
     "sendError": "Couldn’t send the comment.",
     "deleteError": "Couldn’t delete the comment.",
     "justNow": "Just now",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "No received approval requests.",
     "myEmpty": "No sent approval requests.",
-    "myLoadError": "Couldn't load sent approval requests.",
     "myStatus": "Waiting for approval",
-    "loadError": "Couldn’t load the links waiting for approval.",
     "approve": "Approve",
     "reject": "Decline",
     "rejectConfirmTitle": "Decline this link request?",
@@ -727,13 +720,11 @@
     "search": "Search friends",
     "sendRequest": "Send friend request",
     "requestSent": "Friend request sent.",
-    "cancelRequest": "Cancel request",
     "alreadyFriends": "You're already friends.",
     "requestAlreadyPending": "You've already sent a request.",
     "incomingRequestExists": "This person has already sent you a request - you can accept it under Received.",
     "cannotAddSelf": "You can't add yourself.",
     "actionFallback": "Couldn't complete that action.",
-    "loadFallback": "Couldn't load friends.",
     "empty": "No friends yet.",
     "searchEmpty": "No friends match your search.",
     "note": "Memo",
@@ -754,6 +745,8 @@
     "viewIncoming": "View received requests",
     "acceptA11y": "Accept friend request from {{name}}",
     "declineA11y": "Decline friend request from {{name}}",
+    "declineConfirmTitle": "Decline this friend request?",
+    "declineConfirmMessage": "This friend request will be declined.",
     "cancelA11y": "Cancel friend request to {{name}}",
     "personTitle": "User info",
     "you": "You",
@@ -766,7 +759,6 @@
     "markAllRead": "Mark all read",
     "empty": "No notifications yet.",
     "unavailable": "This notification's content is no longer available.",
-    "loadError": "Couldn't load notifications.",
     "retry": "Try again",
     "unreadA11y": "Unread",
     "bellA11y": "Notifications",
@@ -780,8 +772,7 @@
     "groupOlder": "Earlier",
     "daysAgo": "{{count}}d",
     "deleteA11y": "Delete notification",
-    "deleteFailed": "Couldn’t delete the notification.",
-    "loadErrorTitle": "Couldn’t load notifications"
+    "deleteFailed": "Couldn’t delete the notification."
   },
   "contact": {
     "title": "Contact us",
@@ -792,22 +783,8 @@
     "copyEmail": "Copy email address"
   },
   "importantState": {
-    "offlineTitle": "Can’t connect",
     "loadFailedTitle": "Couldn’t load",
-    "retry": "Try again",
-    "offlineMessage": "Check your internet connection and try again."
-  },
-  "calendar": {
-    "previousMonthA11y": "Previous month",
-    "nextMonthA11y": "Next month",
-    "today": "Today",
-    "dayCountA11y": "{{count}} links",
-    "monthLoadError": "Couldn’t load the calendar.",
-    "dayLoadError": "Couldn’t load this day’s links.",
-    "dayEmpty": "No links saved on this day.",
-    "collectionDayEmpty": "No links added on this day.",
-    "pickDate": "Select a date",
-    "selectedDateLabel": "Date: {{date}}",
-    "clearDateA11y": "Clear the date filter"
+    "loadFailedMessage": "Your records could not be loaded.",
+    "retry": "Try again"
   }
 }

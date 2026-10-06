@@ -73,10 +73,9 @@ import { contentGateOfError, getCollectionItemsErrorMessage, isCollectionLockedE
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LoadFailureState } from '../components/LoadFailureState';
-import { ImportantState } from '../components/ImportantState';
-import { getCollectionCalendar } from '../calendar/calendarApi';
-import { DateFilterBar } from '../calendar/DateFilterBar';
-import { CALENDAR_DAY_PAGE_SIZE, useCalendarBrowse } from '../calendar/useCalendarBrowse';
+import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
+import { SearchField } from '../components/SearchField';
+import { useCollectionSearch } from '../collections/useCollectionSearch';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -135,7 +134,8 @@ import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
-function getCollectionLoadErrorMessage(error: unknown, t: TFunction): string {
+/** A definitive answer about the Collection itself (gone, signed out) - null for an ordinary failure to load (the standard text). */
+function getCollectionLoadNotice(error: unknown, t: TFunction): string | null {
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
       return t('collections.errorNotFound');
@@ -144,7 +144,7 @@ function getCollectionLoadErrorMessage(error: unknown, t: TFunction): string {
       return t('errors.unauthorized');
     }
   }
-  return t('collections.errorDetailLoadFallback');
+  return null;
 }
 
 /** A target Collection that needs its lock (or, shared with me, its share password) opened first. */
@@ -287,7 +287,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
-  const [collectionError, setCollectionError] = useState<string | null>(null);
+  const [collectionError, setCollectionError] = useState<{ readonly cause: unknown; readonly notice: string | null } | null>(null);
 
   // Editing name/icon/color is a centered CategoryEditorDialog now (this round's Category UX
   // rework), not an inline expand-below form - a single editError surfaces whichever step of
@@ -368,17 +368,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // state.
   const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
   const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
+  const [searchText, setSearchText] = useState('');
   // 이름순 needs the whole Collection (see NAME_ORDER_MAX_LINKS): a larger one - known up front
   // from its link count, or found while loading - stays on 시간순 instead of a partial name order.
   const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
   const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
-  const effectiveSort = isNameSort(sortOption) && isNameOrderUnavailable ? 'newest' : sortOption;
+  // Search pages are ordered by the server's date cursor. Show that order in the controls,
+  // including when the saved full-list preference was name order.
+  const effectiveSort = isNameSort(sortOption) && (isNameOrderUnavailable || searchText.trim().length >= 2) ? 'newest' : sortOption;
   // 시간순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
   // expanded section's links from the server a page at a time (see useDateSectionPages). 이름순
   // loads the whole Collection first and sorts it here (see NAME_ORDER_MAX_LINKS).
   const dateSortDirection = isNameSort(effectiveSort) ? null : effectiveSort;
   const isDateOrder = dateSortDirection !== null;
   const pageSort = dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc';
+  const search = useCollectionSearch(collectionId, searchText, pageSort);
+  const refreshSearch = search.refresh;
 
   const nameOrdered = useCollectionItems(collectionId, 'whole', !isDateOrder);
 
@@ -422,46 +427,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   );
   const dated = useDateSectionPages(dateSource, isDateSectionExpanded, { enabled: isDateOrder, resetKey: pageSort });
 
-  // The date is a FILTER (a query condition), not a view: the picker shows a month of per-day counts (never link data);
-  // a chosen day then replaces the list with that day's links (paged, in the current List / Grid), by when each was
-  // added here - through the same items endpoint, the day sent AS A DATE so the server's one time zone rule applies.
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const [dateFilter, setDateFilter] = useState<string | null>(null);
-  const isDateFiltered = dateFilter !== null;
-  const loadCalendarMonth = useCallback(
-    (ref: { readonly year: number; readonly month: number }) =>
-      getCollectionCalendar(authenticatedRequest, collectionId, ref.year, ref.month, getCollectionUnlockToken(collectionId)),
-    [authenticatedRequest, collectionId],
-  );
-  const loadCalendarDay = useCallback(
-    // The tapped day goes to the server AS A DATE: the same time zone rule that counted it resolves its interval.
-    (date: string, cursor: string | undefined) =>
-      getCollectionItems(authenticatedRequest, collectionId, {
-        limit: CALENDAR_DAY_PAGE_SIZE,
-        cursor,
-        sort: 'dateDesc',
-        date,
-        unlockToken: getCollectionUnlockToken(collectionId),
-      }),
-    [authenticatedRequest, collectionId],
-  );
-  const calendar = useCalendarBrowse<CollectionItemEntry>({
-    enabled: isDatePickerOpen,
-    idOf: item => item.itemId,
-    loadDay: loadCalendarDay,
-    loadMonth: loadCalendarMonth,
-    resetKey: String(collectionId),
-  });
-  const chooseDate = (date: string) => {
-    setDateFilter(date);
-    calendar.selectDate(date);
-    setIsDatePickerOpen(false);
-  };
-  const clearDate = () => {
-    setDateFilter(null);
-    calendar.selectDate(null);
-  };
-
   const isLoading = isDateOrder ? dated.isLoading : nameOrdered.isLoading;
   const isRefreshing = isDateOrder ? dated.isRefreshing : nameOrdered.isRefreshing;
   const error = isDateOrder ? dated.error : nameOrdered.error;
@@ -472,7 +437,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const removeLocally = (itemId: number) => {
     dated.removeItem(itemId);
     nameOrdered.removeLocally(itemId);
-    calendar.removeItem(itemId);
+    search.removeItem(itemId);
   };
   // Every link currently loaded, whichever way the Collection is shown.
   const items = useMemo(
@@ -579,7 +544,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       }
     } catch (caughtError) {
       if (loadId === collectionLoadIdRef.current) {
-        setCollectionError(getCollectionLoadErrorMessage(caughtError, t));
+        setCollectionError({ cause: caughtError, notice: getCollectionLoadNotice(caughtError, t) });
       }
     } finally {
       if (loadId === collectionLoadIdRef.current) {
@@ -598,13 +563,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       return;
     }
     refresh();
-    if (isDatePickerOpen || isDateFiltered) {
-      calendar.refresh().catch(() => undefined);
-    }
+    refreshSearch();
     refreshInFlightRef.current = loadCollection().finally(() => {
       refreshInFlightRef.current = null;
     });
-  }, [calendar, isDateFiltered, isDatePickerOpen, loadCollection, refresh]);
+  }, [loadCollection, refresh, refreshSearch]);
 
   // A Push about this open Collection (a proposal, a decision, new links...) refreshes the same state.
   useLiveRefresh(
@@ -1348,7 +1311,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   if (!collection) {
     return (
       <StackScreenSafeArea style={styles.loadingContainer}>
-        {collectionError ? <ImportantState message={collectionError} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
+        {collectionError ? <LoadFailureState error={collectionError.cause} notice={collectionError.notice} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-error" /> : null}
       </StackScreenSafeArea>
     );
   }
@@ -1636,28 +1599,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       {/* View mode (List/Grid) and sort are two independent, separately-persisted
           preferences (see useViewModePreference/useSortPreference) - switching one never
           resets the other, this round's explicit requirement. */}
-      {isContentLocked ? null : (
-        <View style={styles.dateFilterBlock}>
-          <DateFilterBar
-            canGoNext={calendar.canGoNext}
-            counts={calendar.counts}
-            isOpen={isDatePickerOpen}
-            month={calendar.month}
-            onClear={clearDate}
-            onNextMonth={calendar.goToNextMonth}
-            onPreviousMonth={calendar.goToPreviousMonth}
-            onRetryMonth={() => { calendar.retryMonth().catch(() => undefined); }}
-            onSelectDate={chooseDate}
-            onToggleOpen={() => setIsDatePickerOpen(previous => !previous)}
-            selectedDate={dateFilter}
-            status={calendar.monthStatus}
-            testIDPrefix="collection-date-filter"
-            today={calendar.today}
-          />
-        </View>
-      )}
       <View style={styles.sortRow}>
-        {isDateFiltered ? null : <LinkSortChips
+        <LinkSortChips
           dateLabel={t('collections.sortDate')}
           dateNewestA11yLabel={t('collections.sortDateNewestA11y')}
           dateOldestA11yLabel={t('collections.sortDateOldestA11y')}
@@ -1668,10 +1611,24 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           onPressName={pressNameSort}
           sort={effectiveSort}
           testIDPrefix="collection-sort"
-        />}
+        />
         <View style={styles.sortRowSpacer} />
         <ViewModeToggle onChange={changeViewMode} value={viewMode} />
       </View>
+      {/* [시간순] [이름순] ... [List/Grid], then 링크 검색 right above the links - the server-backed search of this Collection. */}
+      {isContentLocked ? null : (
+        <View style={styles.searchBox}>
+          <SearchField
+            accessibilityHint={t('history.searchMinHint')}
+            clearLabel={t('history.searchClear')}
+            onChangeText={setSearchText}
+            placeholder={t('history.searchPlaceholder')}
+            testID="collection-search"
+            value={searchText}
+          />
+          {searchText.trim().length === 1 ? <Text style={styles.searchHint}>{t('history.searchMinHint')}</Text> : null}
+        </View>
+      )}
       {/* A submitter's 내 승인 대기: MY OWN proposed links that the Owner has not answered yet - a long
           action row of the same family as the Owner's 승인 대기 (same size, shape and shadow, neutral
           color), directly under the sort / List-Grid controls and right before the first link. Separate
@@ -1687,8 +1644,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       ) : null}
       {/* A failed LOAD (the Collection's refresh, or its links) is a centered state with a retry; the result of an action
           (favorite, remove, share) is the common message dialog below - never an inline red line. */}
-      {collectionError ? <LoadFailureState compact message={collectionError} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-refresh-error" /> : null}
-      {error ? <LoadFailureState compact message={error} onRetry={() => { refresh(); }} testID="collection-details-items-error" /> : null}
+      {collectionError ? <LoadFailureState compact error={collectionError.cause} notice={collectionError.notice} onRetry={() => { loadCollection().catch(() => undefined); }} testID="collection-details-refresh-error" /> : null}
+      {error ? <LoadFailureState compact onRetry={() => { refresh(); }} testID="collection-details-items-error" /> : null}
     </View>
   );
 
@@ -1735,7 +1692,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       case 'error':
         return (
           <DateSectionErrorRow
-            message={row.message}
             onRetry={() => {
               const page = dated.pages.get(row.section.key);
               if (page && page.items.length > 0) {
@@ -1755,40 +1711,28 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     <StackScreenSafeArea style={styles.safeArea}>
       {/* Only the password prompt of a locked Collection takes text here - it must stay above the keyboard. */}
       <KeyboardSafeView enabled={isContentLocked}>
-      {isDateFiltered && !isContentLocked ? (
-        // Date filter: only the chosen day's links, in the current List / Grid, paged on demand.
+      {search.isSearching && !isContentLocked ? (
         <FlatList
-          // Its own list instance: the date-ordered list below has onViewableItemsChanged, this one does not, and a
-          // FlatList cannot gain or lose that prop on the fly (and a column count cannot change on the fly either).
-          key={`date-filter-${viewMode}`}
+          key={`collection-search-${viewMode}`}
           contentContainerStyle={styles.content}
           style={styles.list}
-          data={calendar.dayItems}
-          keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
+          data={search.items}
+          keyExtractor={item => item.itemId.toString()}
           numColumns={viewMode === 'grid' ? 2 : 1}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews={Platform.OS === 'android'}
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
-          ListEmptyComponent={
-            calendar.dayStatus === 'loading' || calendar.dayStatus === 'idle' ? (
-              <ActivityIndicator style={styles.calendarStatusText} testID="collection-calendar-loading" />
-            ) : calendar.dayStatus === 'error' ? (
-              <ImportantState compact message={t('calendar.dayLoadError')} onRetry={() => { calendar.retryDay().catch(() => undefined); }} testID="collection-calendar-day-error" />
-            ) : (
-              <Text style={styles.calendarStatusText} testID="collection-calendar-empty">{t('calendar.collectionDayEmpty')}</Text>
-            )
-          }
-          ListFooterComponent={
-            calendar.isLoadingMoreDay ? (
-              <ActivityIndicator style={styles.calendarStatusText} testID="collection-calendar-loading-more" />
-            ) : calendar.dayLoadMoreFailed ? (
-              <ImportantState compact message={t('calendar.dayLoadError')} onRetry={() => { calendar.loadMoreDay().catch(() => undefined); }} testID="collection-calendar-more-error" />
-            ) : undefined
-          }
-          onEndReached={() => { calendar.loadMoreDay().catch(() => undefined); }}
+          ListEmptyComponent={search.isLoading ? (
+            <ActivityIndicator style={styles.searchStatus} testID="collection-search-loading" />
+          ) : search.error ? (
+            <LoadFailureState error={search.error} onRetry={search.refresh} testID="collection-search-error" />
+          ) : search.settledTerm !== null ? (
+            <CenteredEmptyState message={t('history.searchEmpty')} />
+          ) : undefined}
+          ListFooterComponent={search.items.length > 0 && search.error ? (
+            <RefreshFailureNotice onRetry={search.loadMore} testID="collection-search-more-error" />
+          ) : search.isLoadingMore ? <ActivityIndicator style={styles.searchStatus} /> : undefined}
+          onEndReached={search.loadMore}
           onEndReachedThreshold={0.5}
           onScrollBeginDrag={closeOpenRow}
           renderItem={({ item }) => renderCollectionItem(item)}
@@ -2040,6 +1984,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         createLabel={t('collections.addTile')}
         disabledIds={destinationPicker.disabledIds}
         error={destinationPicker.error}
+        loadFailure={destinationPicker.loadFailure}
+        onRetryLoad={destinationPicker.retryLoad}
         isCreateDialogVisible={destinationPicker.isCreateDialogVisible}
         isCreatingCollection={destinationPicker.isCreating}
         isLoadingMore={destinationPicker.isLoadingMore}
@@ -2293,9 +2239,10 @@ const styles = StyleSheet.create({
   selectionPrimaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   skeletonRow: { overflow: 'hidden' },
   sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
+  searchBox: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
+  searchHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
+  searchStatus: { marginTop: spacing.xl },
   sortRowSpacer: { flex: 1 },
-  dateFilterBlock: { marginTop: LINK_CONTROLS_TOP_GAP },
-  calendarStatusText: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   disabledButton: {
     opacity: 0.5,
   },

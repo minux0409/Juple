@@ -1,8 +1,9 @@
 ﻿import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Linking,
   ScrollView,
   type ScrollViewInstance,
@@ -11,6 +12,7 @@ import {
   TextInput,
   Pressable,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -38,9 +40,13 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
-import { ContentPreviewCard } from '../components/ContentPreviewCard';
 import { SourceRow } from '../components/SourceRow';
+import { formatSavedLinkTimestamp } from '../components/SavedLinkMetaRow';
+import { CloseIcon } from '../icons/CloseIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
+import { LinkIcon } from '../icons/LinkIcon';
+import { SiteIcon } from '../icons/SiteIcon';
+import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import {
   deleteItemImage,
   getItemImages,
@@ -54,10 +60,12 @@ import {
   getItemDetails,
   updateItemDetails,
   type ItemDetails,
+  type ItemReadContext,
 } from '../items/api/itemsApi';
+import { takeItemOpenGrant } from '../items/itemOpenGrant';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
-import { LoadFailureState } from '../components/LoadFailureState';
+import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
@@ -145,14 +153,15 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { showNotificationToast } = useAppToast();
-  const { itemId, collectionContext, initialFocus } = route.params;
+  const { itemId, collectionContext, initialFocus, openContext } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
+  // Opened from a Home/Archive card gated by a Collection: every read of this link goes IN that Collection's context
+  // with this opening's grant, taken once from the in-memory hand-off and kept only while this popup is open (closing it
+  // drops it - the next tap asks for the password again). Never a context-free read of a gated link.
+  const [readContext] = useState<ItemReadContext | null>(() =>
+    openContext ? { collectionId: openContext.collectionId, unlockToken: takeItemOpenGrant(openContext.grantKey, openContext.collectionId) } : null);
   const insets = useSafeAreaInsets();
-  // The fixed bottom action bar's height isn't a fixed constant (button text can wrap under long
-  // translations/font scaling), so it's measured via onLayout (see the bottomBar View below)
-  // rather than guessed - a Toast's bottomOffset needs this exact value to sit above the bar
-  // instead of overlapping it.
-  const [bottomBarHeight, setBottomBarHeight] = useState(0);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   // The Collection's reactions and comments on this link - only when it was opened from a Collection that
   // has other people in it, and only IN that Collection. The server's view of the link in that Collection
   // (its counts and my reaction) is read once; the collaboration is its own state from then on, so reacting
@@ -188,7 +197,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // proposed the link to 승인 후 추가 Collections) - the shared message dialog, never a red line that
   // can be missed or hidden under the keyboard. Drafts are never touched by it.
   const { showMessage, messageDialog } = useMessageDialog();
-  useToastBottomAnchor(bottomBarHeight);
+  // The popup floats in the middle of the screen: a toast keeps to the bottom edge, clear of the navigation bar.
+  useToastBottomAnchor(insets.bottom);
 
   // Opened from a comment notification: the comments are brought into view once - after they are
   // actually laid out (their position is measured, never guessed), so the screen never jumps early.
@@ -278,19 +288,20 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const details = await getItemDetails(authenticatedRequest, itemId);
+      const details = await getItemDetails(authenticatedRequest, itemId, readContext);
       setItem(details);
       setTitle(details.title ?? '');
       setMemo(details.memo ?? '');
       setBaselineTitle(details.title ?? '');
       setBaselineMemo(details.memo ?? '');
     } catch (caughtError) {
-      setError(getLoadErrorMessage(caughtError, t));
+      // In a locked Collection's context without a (still) valid grant: said as such - nothing of the link is shown.
+      setError(contentGateOfError(caughtError) !== null ? t('collections.lockRequiredForAction') : getLoadErrorMessage(caughtError, t));
       setLoadFailure(caughtError);
     } finally {
       setIsLoading(false);
     }
-  }, [authenticatedRequest, itemId, t]);
+  }, [authenticatedRequest, itemId, readContext, t]);
 
   useEffect(() => {
     loadDetails();
@@ -300,14 +311,14 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsLoadingImages(true);
     setImagesError(null);
     try {
-      const fetchedImages = await getItemImages(authenticatedRequest, itemId);
+      const fetchedImages = await getItemImages(authenticatedRequest, itemId, readContext);
       setImages(fetchedImages);
     } catch (caughtError) {
       setImagesError(getImageListErrorMessage(caughtError, t));
     } finally {
       setIsLoadingImages(false);
     }
-  }, [authenticatedRequest, itemId, t]);
+  }, [authenticatedRequest, itemId, readContext, t]);
 
   useEffect(() => {
     loadImages();
@@ -695,128 +706,168 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  if (isLoading && !item) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator />
+  // A centered popup over the screen it was opened from (the route is a transparent modal - see RootStack): a little
+  // narrower than the screen, never wider than a comfortable reading width, never taller than ~85% of the window.
+  // Long content scrolls INSIDE it; the popup itself never becomes a full screen.
+  const close = () => navigation.goBack();
+  const popupWidth = Math.min(windowWidth - spacing.lg * 2, POPUP_MAX_WIDTH);
+  const popupMaxHeight = (windowHeight - insets.top - insets.bottom) * POPUP_MAX_HEIGHT_RATIO;
+
+  const renderPopup = (body: ReactNode, footer?: ReactNode) => (
+    <KeyboardSafeView style={styles.overlay}>
+      {/* The dimmed backdrop: tapping outside closes, like the system back button (unsaved edits are asked about first). */}
+      <Pressable accessibilityElementsHidden importantForAccessibility="no" onPress={close} style={StyleSheet.absoluteFill} testID="item-details-backdrop" />
+      <View accessibilityViewIsModal style={[styles.popup, { maxHeight: popupMaxHeight, width: popupWidth }]} testID="item-details-popup">
+        <View style={styles.header}>
+          <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{t('nav.itemDetails')}</Text>
+          <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={4} onPress={close} style={styles.closeButton} testID="item-details-close">
+            <CloseIcon color={colors.textSecondary} size={20} />
+          </Pressable>
+        </View>
+        {body}
+        {footer}
       </View>
+    </KeyboardSafeView>
+  );
+
+  if (isLoading && !item) {
+    return renderPopup(
+      <View style={styles.statusBody}>
+        <ActivityIndicator testID="item-details-loading" />
+      </View>,
     );
   }
 
   if (!item) {
-    return (
-      <View style={styles.loadingContainer}>
-        {error ? <LoadFailureState error={loadFailure} message={error} onRetry={() => { loadDetails(); }} testID="item-details-load-error" /> : null}
-      </View>
+    return renderPopup(
+      <View style={styles.statusBody}>
+        {error ? <LoadFailureState compact error={loadFailure} notice={isDefinitiveLoadError(loadFailure) ? error : null} onRetry={() => { loadDetails(); }} testID="item-details-load-error" /> : null}
+      </View>,
     );
   }
 
+  const thumbnailUrl = representativePhotoUrl(representativePhoto);
+  const site = resolveSiteInfo(item.url);
+
   return (
-    <View style={styles.screen}>
-      {/* Keeps whatever is being typed (the memo, the comment field) above the keyboard - edge-to-edge Android does not resize the window itself. */}
-      <KeyboardSafeView style={styles.keyboardAvoider}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef}>
-        <ContentPreviewCard
-          onChangeTitle={text => {
-            setTitle(text);
-          }}
-          previewImageUrl={representativePhotoUrl(representativePhoto)}
-          titleAccessibilityLabel={t('item.titleLabel')}
-          titlePlaceholder={t('item.titlePlaceholder')}
-          titleValue={title}
-        >
-          <SourceRow
-            trailing={
-              <Pressable
-                accessibilityLabel={t('item.goToUrlA11y')}
-                accessibilityRole="button"
-                onPress={openOriginalUrl}
-                style={styles.iconButton}
-              >
-                <ExternalLinkIcon color={colors.brand} size={20} />
-              </Pressable>
-            }
-            url={item.url}
-          />
-        </ContentPreviewCard>
-
-        <CategoryField
-          disabled={isSaving}
-          error={itemCollectionsError}
-          isLoading={isLoadingItemCollections}
-          onPress={categoryPicker.open}
-          selectedCollections={selectedCategories}
-        />
-
-        <Text style={styles.label}>{t('item.memo')}</Text>
-        <TextInput
-          multiline
-          onChangeText={text => {
-            setMemo(text);
-          }}
-          placeholder={t('item.memoPlaceholder')}
-          style={styles.memoInput}
-          value={memo}
-        />
-
-        {isLoadingImages ? (
-          <ActivityIndicator style={styles.imagesLoading} />
-        ) : (
-          <RepresentativePhotoField
-            isBusy={isPhotoBusy}
-            isRemovable={representativePhoto?.kind === 'uploaded'}
-            onChoose={pickAndUploadImage}
-            onRemove={removePhoto}
-            photoUrl={representativePhotoUrl(representativePhoto)}
-          />
-        )}
-
-        {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {collaboration.reactions}
-        {collaboration.comments ? (
-          <View
-            onLayout={event => {
-              commentsYRef.current = event.nativeEvent.layout.y;
-              scrollToCommentsIfPending();
-            }}
-            testID="item-comments-section"
-          >
-            {collaboration.comments}
+    <>
+      {renderPopup(
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef} style={styles.body} testID="item-details-scroll">
+          {/* The link: a compact thumbnail beside its (editable) title, the site, and opening it. */}
+          <View style={styles.linkHeader}>
+            {thumbnailUrl ? (
+              <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} testID="item-details-thumbnail" />
+            ) : (
+              <View style={[styles.thumbnail, styles.thumbnailFallback]} testID="item-details-thumbnail-fallback">
+                {site.id ? <SiteIcon siteId={site.id} size={34} /> : <LinkIcon color={colors.brand} size={30} />}
+              </View>
+            )}
+            <View style={styles.linkText}>
+              <TextInput
+                accessibilityLabel={t('item.titleLabel')}
+                multiline
+                onChangeText={setTitle}
+                placeholder={t('item.titlePlaceholder')}
+                placeholderTextColor={colors.textSecondary}
+                scrollEnabled
+                style={styles.titleInput}
+                testID="item-details-title"
+                value={title}
+              />
+              <SourceRow
+                trailing={
+                  <Pressable accessibilityLabel={t('item.goToUrlA11y')} accessibilityRole="button" onPress={openOriginalUrl} style={styles.iconButton} testID="item-details-open-url">
+                    <ExternalLinkIcon color={colors.brand} size={20} />
+                  </Pressable>
+                }
+                url={item.url}
+              />
+            </View>
           </View>
-        ) : null}
-        {collaboration.composer}
-      </ScrollView>
 
-      <View
-        onLayout={event => setBottomBarHeight(event.nativeEvent.layout.height)}
-        style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
-          disabled={isItemActionInFlight}
-          onPress={onDeletePress}
-          style={[styles.deleteActionButton, isItemActionInFlight && styles.disabledButton]}
-          testID="item-details-delete"
-        >
-          <Text numberOfLines={2} style={styles.deleteActionLabel}>
-            {isDeletingItem ? t('common.deleting') : collectionContext ? t('collections.removeFromCollection') : t('common.delete')}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !isDirty || isSaving || isDeleted, busy: isSaving }}
-          disabled={!isDirty || isSaving || isDeleted}
-          onPress={save}
-          style={[styles.saveActionButton, (!isDirty || isSaving || isDeleted) && styles.disabledButton]}
-        >
-          <Text style={styles.saveActionLabel}>
-            {isSaving ? t('common.saving') : t('common.save')}
-          </Text>
-        </Pressable>
-      </View>
-      </KeyboardSafeView>
+          <View style={styles.section}>
+            <CategoryField
+              disabled={isSaving}
+              error={itemCollectionsError}
+              isLoading={isLoadingItemCollections}
+              onPress={categoryPicker.open}
+              selectedCollections={selectedCategories}
+            />
+          </View>
+
+          <Text style={styles.label}>{t('item.memo')}</Text>
+          <TextInput
+            accessibilityLabel={t('item.memo')}
+            multiline
+            onChangeText={setMemo}
+            placeholder={t('item.memoPlaceholder')}
+            placeholderTextColor={colors.textSecondary}
+            scrollEnabled
+            style={styles.memoInput}
+            testID="item-details-memo"
+            value={memo}
+          />
+
+          <View style={styles.metaRow}>
+            <Text style={styles.metaLabel}>{t('item.savedAtLabel')}</Text>
+            <Text numberOfLines={1} style={styles.metaValue} testID="item-details-saved-at">{formatSavedLinkTimestamp(item.savedAtUtc, 'dateTime')}</Text>
+          </View>
+
+          {isLoadingImages ? (
+            <ActivityIndicator style={styles.imagesLoading} />
+          ) : (
+            <RepresentativePhotoField
+              isBusy={isPhotoBusy}
+              isRemovable={representativePhoto?.kind === 'uploaded'}
+              onChoose={pickAndUploadImage}
+              onRemove={removePhoto}
+              photoUrl={thumbnailUrl}
+            />
+          )}
+
+          {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {collaboration.reactions}
+          {collaboration.comments ? (
+            <View
+              onLayout={event => {
+                commentsYRef.current = event.nativeEvent.layout.y;
+                scrollToCommentsIfPending();
+              }}
+              testID="item-comments-section"
+            >
+              {collaboration.comments}
+            </View>
+          ) : null}
+          {collaboration.composer}
+        </ScrollView>,
+        <View style={styles.footer}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
+            disabled={isItemActionInFlight}
+            onPress={onDeletePress}
+            style={[styles.deleteActionButton, isItemActionInFlight && styles.disabledButton]}
+            testID="item-details-delete"
+          >
+            <Text numberOfLines={2} style={styles.deleteActionLabel}>
+              {isDeletingItem ? t('common.deleting') : collectionContext ? t('collections.removeFromCollection') : t('common.delete')}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isDirty || isSaving || isDeleted, busy: isSaving }}
+            disabled={!isDirty || isSaving || isDeleted}
+            onPress={save}
+            style={[styles.saveActionButton, (!isDirty || isSaving || isDeleted) && styles.disabledButton]}
+            testID="item-details-save"
+          >
+            <Text numberOfLines={1} style={styles.saveActionLabel}>
+              {isSaving ? t('common.saving') : t('common.save')}
+            </Text>
+          </Pressable>
+        </View>,
+      )}
 
       {messageDialog}
       <ConfirmDialog
@@ -843,8 +894,6 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         title={t('collections.unlinkConfirmTitle')}
         visible={isRemoveFromCollectionConfirmVisible}
       />
-
-
       <ConfirmDialog
         cancelLabel={t('item.continueEditing')}
         confirmLabel={t('item.leave')}
@@ -863,6 +912,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         collectionPool={categoryPicker.collectionPool}
         createError={categoryPicker.createError}
         error={categoryPicker.error}
+        loadFailure={categoryPicker.loadFailure}
+        onRetryLoad={categoryPicker.retryLoad}
         isCreateDialogVisible={categoryPicker.isCreateDialogVisible}
         isCreatingCollection={categoryPicker.isCreatingCollection}
         isLoadingMore={categoryPicker.isLoadingMore}
@@ -889,73 +940,76 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         unlockTarget={categoryPicker.unlockTarget}
         visible={categoryPicker.isVisible}
       />
-    </View>
+    </>
   );
 }
 
+const POPUP_MAX_WIDTH = 560;
+const POPUP_MAX_HEIGHT_RATIO = 0.85;
+const THUMBNAIL_SIZE = 104;
+const TITLE_LINE_HEIGHT = 20;
+
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
+  overlay: { alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center' },
+  popup: { backgroundColor: colors.surface, borderRadius: radii.lg + 4, overflow: 'hidden' },
+  header: {
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    borderBottomColor: colors.inputBorder,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    paddingStart: spacing.lg,
+    paddingEnd: spacing.xs,
   },
-  keyboardAvoider: { flex: 1 },
-  screen: {
-    backgroundColor: colors.background,
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: spacing.md,
-  },
-  label: {
-    fontSize: 13,
+  headerTitle: { color: colors.textPrimary, flex: 1, fontSize: 17, fontWeight: '700' },
+  closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
+  statusBody: { alignItems: 'center', justifyContent: 'center', minHeight: 160, padding: spacing.lg },
+  // Shrinks to what the content needs, scrolls when that is more than the popup allows.
+  body: { flexGrow: 0, flexShrink: 1 },
+  content: { padding: spacing.lg, paddingBottom: spacing.md },
+  linkHeader: { flexDirection: 'row', gap: spacing.md },
+  thumbnail: { borderRadius: radii.md + 4, height: THUMBNAIL_SIZE, width: THUMBNAIL_SIZE },
+  thumbnailFallback: { alignItems: 'center', backgroundColor: colors.surfaceMuted, justifyContent: 'center' },
+  linkText: { flex: 1, minWidth: 0 },
+  // At most three lines here (then it scrolls inside the field) - a long title never pushes everything else away.
+  titleInput: {
+    color: colors.textPrimary,
+    fontSize: 16,
     fontWeight: '700',
-    color: colors.textSecondary,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs + 2,
+    lineHeight: TITLE_LINE_HEIGHT,
+    maxHeight: TITLE_LINE_HEIGHT * 3 + spacing.sm,
+    padding: 0,
+    paddingVertical: spacing.xs,
+    textAlignVertical: 'top',
   },
-  // Icon-only, no border/background box - shared by every secondary row action on this screen
-  // (URL open / category edit / photo add) so all three share the same visual alignment and touch
-  // target (see this round's "URL open / category edit / photo add ... must share the same visual
-  // alignment, touch target, and icon-only treatment"). The Pressable itself is the full min touch
-  // target even though the icon drawn inside it is visually compact (size=20).
-  iconButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
-  },
+  section: { marginTop: spacing.md },
+  label: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.xs + 2, marginTop: spacing.md },
+  // Icon-only, the full touch target around a compact icon (same treatment as the other row actions).
+  iconButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
   memoInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderColor: colors.inputBorder,
     borderRadius: radii.md + 4,
     borderWidth: 1,
     color: colors.textPrimary,
     fontSize: 15,
-    minHeight: 120,
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.md,
+    maxHeight: 160,
+    minHeight: 72,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
     textAlignVertical: 'top',
   },
-  error: {
-    color: colors.danger,
-    fontSize: 14,
-    marginTop: 16,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  bottomBar: {
-    backgroundColor: colors.surface,
+  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
+  metaLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  metaValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14 },
+  error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
+  disabledButton: { opacity: 0.5 },
+  footer: {
     borderTopColor: colors.inputBorder,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
   },
   deleteActionButton: {
     alignItems: 'center',
@@ -966,13 +1020,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: minTouchTarget,
   },
-  deleteActionLabel: {
-    color: colors.danger,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingHorizontal: spacing.xs,
-    textAlign: 'center',
-  },
+  deleteActionLabel: { color: colors.danger, fontSize: 15, fontWeight: '700', paddingHorizontal: spacing.xs, textAlign: 'center' },
   saveActionButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
@@ -981,12 +1029,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: minTouchTarget,
   },
-  saveActionLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  imagesLoading: {
-    marginVertical: spacing.sm,
-  },
+  saveActionLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
+  imagesLoading: { marginVertical: spacing.sm },
 });

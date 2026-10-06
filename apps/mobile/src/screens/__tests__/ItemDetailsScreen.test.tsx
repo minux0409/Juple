@@ -1,10 +1,13 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Linking, Text, TextInput, ScrollView } from 'react-native';
+import { Linking, StyleSheet, Text, TextInput, ScrollView } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { ContentPreviewCard } from '../../components/ContentPreviewCard';
+import { CategoryField } from '../../collections/CategoryField';
+import { RepresentativePhotoField } from '../../images/RepresentativePhotoField';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
+import { clearItemOpenGrant, handOffItemOpenGrant } from '../../items/itemOpenGrant';
 import { ItemDetailsScreen } from '../ItemDetailsScreen';
 import { AppToastProvider } from '../../components/AppToast';
 import {
@@ -85,6 +88,13 @@ jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
 }));
 
+// Every renderer this file creates, unmounted after its test (see the afterEach below).
+const mounted: ReactTestRenderer.ReactTestRenderer[] = [];
+function track(renderer: ReactTestRenderer.ReactTestRenderer) {
+  mounted.push(renderer);
+  return renderer;
+}
+
 const route ={ key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1 } } as never;
 const navigation = { goBack: jest.fn() } as never;
 
@@ -156,11 +166,11 @@ function latestPreventRemoveIsDirty(): boolean {
 async function renderScreen() {
   let renderer!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    renderer = ReactTestRenderer.create(
+    renderer = track(ReactTestRenderer.create(
       <AppToastProvider>
         <ItemDetailsScreen navigation={navigation} route={route} />
       </AppToastProvider>,
-    );
+    ));
   });
   return renderer;
 }
@@ -192,14 +202,74 @@ describe('ItemDetailsScreen', () => {
   });
 
   afterEach(() => {
+    act(() => {
+      mounted.splice(0).forEach(renderer => renderer.unmount());
+    });
     jest.clearAllMocks();
   });
 
-  describe('unified content preview card (shared with NewLinkReviewScreen)', () => {
-    it('renders the title/source using the shared ContentPreviewCard component, not a separately structured form', async () => {
-      const renderer = await renderScreen();
+  describe('a compact centered popup - never a full-screen page', () => {
+    const byId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string');
 
-      expect(renderer.root.findAllByType(ContentPreviewCard)).toHaveLength(1);
+    it('is a centered card over a dim backdrop: 상세 + X, screen width minus the margins (capped), at most ~85% tall', async () => {
+      const renderer = await renderScreen();
+      const popup = byId(renderer, 'item-details-popup')[0];
+      const style = StyleSheet.flatten(popup.props.style);
+      // The test window is 750 x 1334 (react-native's jest setup).
+      expect(style.width).toBe(560);
+      expect(style.maxHeight).toBeCloseTo(1334 * 0.85, 0);
+      expect(style.borderRadius).toBeGreaterThan(0);
+      const overlay = StyleSheet.flatten(renderer.root.findAllByType(KeyboardSafeView)[0].props.style);
+      expect(overlay).toMatchObject({ alignItems: 'center', justifyContent: 'center' });
+      expect(overlay.backgroundColor).toMatch(/^rgba\(0, 0, 0/);
+      expect(renderer.root.findAll(node => node.props.children === '상세').length).toBeGreaterThan(0);
+    });
+
+    it('X, a tap on the backdrop (and the system back button, which pops the route) close it', async () => {
+      const renderer = await renderScreen();
+      const press = (testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0].props.onPress();
+      await act(async () => { press('item-details-close'); });
+      await act(async () => { press('item-details-backdrop'); });
+      expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows a compact ~104dp thumbnail beside the title - never the old full-width hero image', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ previewImageUrl: 'https://example.com/p.jpg' }));
+      const renderer = await renderScreen();
+      const thumbnail = byId(renderer, 'item-details-thumbnail')[0];
+      expect(thumbnail.props.source).toEqual({ uri: 'https://example.com/p.jpg' });
+      const size = StyleSheet.flatten(thumbnail.props.style);
+      expect(size.width).toBeGreaterThanOrEqual(100);
+      expect(size.width).toBeLessThanOrEqual(120);
+      expect(size.height).toBe(size.width);
+      expect(size.borderRadius).toBeGreaterThan(0);
+    });
+
+    it('a long title is held to about three lines in the header (it scrolls inside its field)', async () => {
+      const renderer = await renderScreen();
+      const titleStyle = StyleSheet.flatten(byId(renderer, 'item-details-title')[0].props.style);
+      expect(titleStyle.maxHeight).toBeLessThanOrEqual(titleStyle.lineHeight * 3 + 12);
+    });
+
+    it('long content scrolls INSIDE the popup', async () => {
+      const renderer = await renderScreen();
+      const scroll = renderer.root.findAllByType(ScrollView).find(node => node.props.testID === 'item-details-scroll')!;
+      expect(scroll).toBeTruthy();
+      expect(StyleSheet.flatten(scroll.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+      // The popup holds it (bounded by maxHeight), not the screen.
+      const popup = byId(renderer, 'item-details-popup')[0];
+      expect(popup.findAllByType(ScrollView)).toContain(scroll);
+    });
+
+    it('keeps every major action reachable: open link, Collections, memo, saved date, photo, delete, save', async () => {
+      const renderer = await renderScreen();
+      expect(byId(renderer, 'item-details-open-url')).toHaveLength(1);
+      expect(renderer.root.findAllByType(CategoryField)).toHaveLength(1);
+      expect(byId(renderer, 'item-details-memo')).toHaveLength(1);
+      expect(byId(renderer, 'item-details-saved-at')).toHaveLength(1);
+      expect(renderer.root.findAllByType(RepresentativePhotoField)).toHaveLength(1);
+      expect(byId(renderer, 'item-details-delete')).toHaveLength(1);
+      expect(byId(renderer, 'item-details-save')).toHaveLength(1);
     });
   });
 
@@ -334,14 +404,14 @@ describe('ItemDetailsScreen', () => {
       });
       // Only the photo field is busy - the rest of the screen stays as it is.
       expect(has(renderer, 'representative-photo-busy')).toBe(true);
-      expect(renderer.root.findAllByType(ContentPreviewCard)).toHaveLength(1);
+      expect(renderer.root.findAll(node => node.props.testID === 'item-details-popup')).not.toHaveLength(0);
 
       await act(async () => {
         finishUpload(makeImage({ id: 9, readUrl: 'https://blob.example/9.jpg' }));
       });
 
       expect(shownPhoto(renderer)).toBe('https://blob.example/9.jpg');
-      expect(renderer.root.findByType(ContentPreviewCard).props.previewImageUrl).toBe('https://blob.example/9.jpg');
+      expect(renderer.root.findAllByType(Image).find(node => node.props.testID === 'item-details-thumbnail')?.props.source).toEqual({ uri: 'https://blob.example/9.jpg' });
       expect(has(renderer, 'representative-photo-busy')).toBe(false);
       expect(getItemDetails).toHaveBeenCalledTimes(1);
       expect(getItemImages).toHaveBeenCalledTimes(1);
@@ -934,11 +1004,11 @@ describe('ItemDetailsScreen', () => {
       } as never;
       let renderer!: ReactTestRenderer.ReactTestRenderer;
       await act(async () => {
-        renderer = ReactTestRenderer.create(
+        renderer = track(ReactTestRenderer.create(
           <AppToastProvider>
             <ItemDetailsScreen navigation={navigation} route={collectionRoute} />
           </AppToastProvider>,
-        );
+        ));
       });
       return renderer;
     }
@@ -1027,11 +1097,11 @@ describe('ItemDetailsScreen', () => {
       const contextRoute = { key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1, collectionContext } } as never;
       let renderer!: ReactTestRenderer.ReactTestRenderer;
       await act(async () => {
-        renderer = ReactTestRenderer.create(
+        renderer = track(ReactTestRenderer.create(
           <AppToastProvider>
             <ItemDetailsScreen navigation={navigation} route={contextRoute} />
           </AppToastProvider>,
-        );
+        ));
       });
       return renderer;
     }
@@ -1068,11 +1138,11 @@ describe('ItemDetailsScreen', () => {
       const contextRoute = { key: 'ItemDetails', name: 'ItemDetails', params: { itemId: 1, collectionContext: collaborative, initialFocus: 'comments' } } as never;
       let renderer!: ReactTestRenderer.ReactTestRenderer;
       await act(async () => {
-        renderer = ReactTestRenderer.create(
+        renderer = track(ReactTestRenderer.create(
           <AppToastProvider>
             <ItemDetailsScreen navigation={navigation} route={contextRoute} />
           </AppToastProvider>,
-        );
+        ));
       });
       // The form's own ScrollView (the Jest preset's mock gives it a scrollTo spy).
       const form = renderer.root.findAll(node => node.type === ScrollView && node.props.keyboardShouldPersistTaps === 'handled')[0];
@@ -1375,4 +1445,66 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
+});
+
+describe('ItemDetailsScreen - opened in a locked Collection context (Home/Archive)', () => {
+  const contextRoute = (grantKey: string | null) =>
+    ({ key: 'ItemDetails-ctx', name: 'ItemDetails', params: { itemId: 1, openContext: { collectionId: 4, grantKey } } }) as never;
+
+  async function renderInContext(grantKey: string | null) {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = track(ReactTestRenderer.create(
+        <AppToastProvider>
+          <ItemDetailsScreen navigation={navigation} route={contextRoute(grantKey)} />
+        </AppToastProvider>,
+      ));
+    });
+    return renderer;
+  }
+
+  beforeEach(() => {
+    jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails());
+    jest.mocked(getItemImages).mockResolvedValue([]);
+    jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
+  });
+
+  afterEach(() => {
+    act(() => {
+      mounted.splice(0).forEach(renderer => renderer.unmount());
+    });
+    clearItemOpenGrant();
+    jest.clearAllMocks();
+  });
+
+  it('reads the link and its photos IN that Collection\'s context with this opening\'s grant - and still renders the centered popup', async () => {
+    const key = handOffItemOpenGrant(4, 'grant-4');
+    const renderer = await renderInContext(key);
+
+    expect(getItemDetails).toHaveBeenCalledWith(expect.anything(), 1, { collectionId: 4, unlockToken: 'grant-4' });
+    expect(getItemImages).toHaveBeenCalledWith(expect.anything(), 1, { collectionId: 4, unlockToken: 'grant-4' });
+    expect(renderer.root.findAll(node => node.props.testID === 'item-details-popup').length).toBeGreaterThan(0);
+  });
+
+  it('takes the grant once: closed and opened again with the same key, it has none (the server then asks for the password)', async () => {
+    const key = handOffItemOpenGrant(4, 'grant-4');
+    await renderInContext(key);
+    act(() => {
+      mounted.splice(0).forEach(renderer => renderer.unmount());
+    });
+    jest.mocked(getItemDetails).mockClear();
+
+    await renderInContext(key);
+    expect(getItemDetails).toHaveBeenCalledWith(expect.anything(), 1, { collectionId: 4, unlockToken: null });
+  });
+
+  it('refused by the server (locked, no valid grant): says so, and nothing of the link is shown', async () => {
+    jest.mocked(getItemDetails).mockRejectedValue(new ApiError('forbidden', 403, 'collectionLocked'));
+    const renderer = await renderInContext(null);
+
+    const texts = renderer.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string').map(node => node.props.children as string);
+    expect(texts).toContain(i18n.t('collections.lockRequiredForAction'));
+    expect(texts).not.toContain('Original title');
+    expect(renderer.root.findAll(node => node.props.testID === 'item-details-title')).toHaveLength(0);
+  });
 });

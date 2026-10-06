@@ -40,6 +40,21 @@ public interface ICollectionItemStore
         throw new NotSupportedException();
 
     /// <summary>
+    /// GetItemsAsync limited to links whose title or URL matches searchPattern (a LIKE pattern from
+    /// ItemSearchPattern.ToContainsPattern) - the Collection Details link search. Same access check, rows,
+    /// order and keyset cursor; never matched against a memo. Defaulted like GetItemsInRangeAsync.
+    /// </summary>
+    Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> SearchItemsAsync(
+        long userId,
+        long collectionId,
+        string searchPattern,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException();
+
+    /// <summary>
     /// The AddedAtUtc of the Collection's oldest active link added before beforeUtc (null: none).
     /// Same access check as GetItemsAsync. Defaulted like GetItemsInRangeAsync.
     /// </summary>

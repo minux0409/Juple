@@ -92,3 +92,17 @@ Firebase credential은 worker와 이 Job에만 있다. 친구 신청/공유 초�
 - 금액은 숫자만 저장하지 않고 `Amount`와 `CurrencyCode`를 함께 관리한다.
 - DB schema 변경은 EF Core Migration으로 추적한다.
 - API는 versioning 가능한 계약을 고려한다.
+
+## 알려진 아키텍처 후속 과제
+
+### 컬렉션 확정 콘텐츠의 수명 독립 (Collection confirmed-content lifetime independence)
+
+- 현재(Round 36): 멤버가 나가거나(self-leave) Owner가 멤버를 제거해도 그 멤버가 추가한 확정 링크(직접 추가, 승인된 제안)는 컬렉션에 남는다. 제거되는 것은 멤버십, 아직 대기 중인 제안과 그에 대한 Owner 알림, 그 멤버의 반응, 즐겨찾기 표시다. 댓글은 남는다.
+- 남은 문제: 컬렉션 링크(`collections.CollectionItems`)는 기여자 개인의 Item을 참조한다. 그래서 전 멤버가 나중에 자기 Item을 삭제하면 그 링크도 컬렉션에서 사라진다 - 확정 콘텐츠의 수명이 여전히 기여자 개인 Item의 수명에 묶여 있다.
+- 향후 제품 결정이 필요하다: 컬렉션 콘텐츠가 기여자 Item과 독립된 자체 durable entry/snapshot을 가져야 하는지. 이번 단계에서는 schema/model을 바꾸지 않는다.
+
+## Home and Archive Collection lock context
+
+An `Item` belongs to one user, while `CollectionItem` is a many-to-many membership carrying `AddedByUserId`. A personal Home or Archive card uses only active Collection memberships added by that Item's owner and still accessible to that user. If several such memberships exist, a gated Collection takes precedence, followed by newest `AddedAtUtc` and membership ID. A membership added by someone else does not mask the personal card.
+
+The history query chooses that context in SQL. For a gated context it returns the Item ID, saved time, Collection ID, and gate kind, with URL empty and title, memo, preview, and image fields null. Search excludes those gated Items so a hidden title, URL, or memo cannot be discovered by a query. A gated card is opened IN its Collection context: `GET /api/v1/items/{id}?collectionId=` (and `GET /api/v1/items/{id}/images?collectionId=`) first applies that Collection's current content gate - the lock for its Owner (no Owner bypass), the share password for a member - with the `X-Juple-Collection-Unlock` grant for that same Collection, and requires the Item to be the caller's own and in that Collection; only then is anything read. The context is per Collection, never a global Item lock: the same Item in another, unlocked Collection, and a read without a context, are unaffected. On tap, the mobile client reads current Collection access first; while the Collection is locked every open asks for the password, and the grant it returns is handed to the Item Details popup in memory for that one opening only (never stored, never reused from a Collection Details visit), so closing the popup and tapping the card again asks again.

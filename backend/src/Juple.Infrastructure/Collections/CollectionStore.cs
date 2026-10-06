@@ -654,7 +654,17 @@ public sealed class CollectionStore(
         int limit,
         CollectionItemSort sort = CollectionItemSort.Manual,
         CancellationToken cancellationToken = default) =>
-        GetItemsPageAsync(userId, collectionId, window: null, cursor, limit, sort, cancellationToken);
+        GetItemsPageAsync(userId, collectionId, window: null, cursor, limit, sort, searchPattern: null, cancellationToken);
+
+    public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> SearchItemsAsync(
+        long userId,
+        long collectionId,
+        string searchPattern,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CollectionItemSort sort,
+        CancellationToken cancellationToken = default) =>
+        GetItemsPageAsync(userId, collectionId, window: null, cursor, limit, sort, searchPattern, cancellationToken);
 
     public Task<(CollectionItemPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetItemsInRangeAsync(
         long userId,
@@ -665,7 +675,7 @@ public sealed class CollectionStore(
         int limit,
         CollectionItemSort sort,
         CancellationToken cancellationToken = default) =>
-        GetItemsPageAsync(userId, collectionId, (fromUtc, toUtc), cursor, limit, sort, cancellationToken);
+        GetItemsPageAsync(userId, collectionId, (fromUtc, toUtc), cursor, limit, sort, searchPattern: null, cancellationToken);
 
     public async Task<DateTimeOffset?> GetOldestAddedAtUtcAsync(
         long userId,
@@ -748,6 +758,7 @@ public sealed class CollectionStore(
         CollectionItemPageCursor? cursor,
         int limit,
         CollectionItemSort sort,
+        string? searchPattern,
         CancellationToken cancellationToken)
     {
         if (cursor is not null && cursor.Sort != sort)
@@ -793,10 +804,19 @@ public sealed class CollectionStore(
         // above) is what grants seeing its links. Private fields are selected only for the viewer's
         // own Items: another member's Memo and uploaded/cover image blob names never leave the
         // database (the conditional is evaluated in SQL, not filtered afterwards).
+        var activeItems = dbContext.Items.AsNoTracking().Where(item => item.DeletedAtUtc == null);
+        if (searchPattern is not null)
+        {
+            // The link search: title or link only - the fields every viewer of the Collection already sees on the card.
+            // Never the memo (another member's is private; matching it would reveal it through which links come back).
+            activeItems = activeItems.Where(item =>
+                EF.Functions.Like(item.Url, searchPattern, ItemSearchPattern.EscapeCharacter)
+                || (item.Title != null && EF.Functions.Like(item.Title, searchPattern, ItemSearchPattern.EscapeCharacter)));
+        }
+
         var pagedQuery =
             from membership in membershipQuery
-            join item in dbContext.Items.AsNoTracking()
-                .Where(item => item.DeletedAtUtc == null)
+            join item in activeItems
                 on membership.ItemId equals item.Id
             select new
             {

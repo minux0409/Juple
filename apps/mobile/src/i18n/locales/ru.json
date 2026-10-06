@@ -81,14 +81,12 @@
     "searchPlaceholder": "Поиск ссылок",
     "searchClear": "Очистить поиск",
     "searchEmpty": "Ничего не найдено.",
-    "searchError": "Не удалось выполнить поиск.",
     "empty": "Вы ещё не сохранили ни одной ссылки.",
     "errorLoadFallback": "Не удалось загрузить историю.",
     "today": "Сегодня",
     "yesterday": "Вчера",
     "thisWeek": "На этой неделе",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Повторить",
     "deleteConfirmTitle": "Удалить элемент",
     "deleteConfirmMessage": "Удалить этот элемент? Это действие нельзя отменить.",
     "errorDeleteFallback": "Не удалось удалить элемент.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Не удалось обновить статус доступа.",
     "errorListFallback": "Не удалось загрузить ваши коллекции.",
     "errorItemsLoadFallback": "Не удалось загрузить элементы этой коллекции.",
-    "errorDetailLoadFallback": "Не удалось загрузить эту коллекцию.",
     "errorNotFound": "Эта коллекция уже удалена или не найдена.",
     "errorCreateFallback": "Не удалось создать коллекцию.",
     "errorRenameFallback": "Не удалось переименовать коллекцию.",
@@ -417,7 +414,6 @@
     "trash": "Недавно удалённые",
     "collectionLock": "Блокировка коллекций",
     "collectionLockDescription": "Задайте пароль для своих коллекций.",
-    "collectionLockLoadFallback": "Не удалось загрузить настройки блокировки.",
     "collectionLockStatusLabel": "Статус",
     "collectionLockConfigured": "Задан",
     "collectionLockNotConfigured": "Не задан",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "Эта ссылка заблокирована.",
     "fallbackInstagramPost": "Публикация в Instagram",
     "fallbackInstagramReel": "Reels в Instagram",
     "titleLabel": "Заголовок",
@@ -470,6 +467,7 @@
     "share": "Поделиться",
     "memo": "Заметка",
     "memoPlaceholder": "Введите заметку",
+    "savedAtLabel": "Сохранено",
     "uploading": "Загрузка...",
     "representativePhoto": "Главное фото",
     "editRepresentativePhoto": "Изменить главное фото",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Не удалось удалить элемент.",
     "errorImagePickerPermission": "Требуется доступ к галерее фото.",
     "errorImagePickerFallback": "Не удалось выбрать фото.",
-    "resolvingMetadataOverlay": "Загрузка информации о ссылке…",
     "metadataResolutionFailedHint": "Не удалось загрузить информацию о ссылке. Вы можете ввести её вручную и сохранить.",
     "activeDraftConflictTitle": "У вас есть незавершённая ссылка",
     "activeDraftConflictMessage": "Сохранить ссылку, над которой вы сейчас работаете, прежде чем открыть новую?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "Новая коллекция",
     "newCollectionA11y": "Создать новую коллекцию",
     "saveDialogTitle": "Сохранить ссылку",
-    "addMemo": "Добавить заметку",
     "collectionLinkNotSavable": "Ссылку на коллекцию Juple нельзя сохранить как обычную ссылку. Откройте её как коллекцию."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Удалить этот комментарий?",
     "loadPrevious": "Показать прежние комментарии",
     "loadError": "Не удалось загрузить комментарии.",
-    "retry": "Повторить",
     "sendError": "Не удалось отправить комментарий.",
     "deleteError": "Не удалось удалить комментарий.",
     "justNow": "Только что",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "Полученные запросы на одобрение: нет",
     "myEmpty": "Отправленные запросы на одобрение: нет",
-    "myLoadError": "Не удалось загрузить отправленные запросы.",
     "myStatus": "Ожидает одобрения",
-    "loadError": "Не удалось загрузить ссылки на одобрении.",
     "approve": "Одобрить",
     "reject": "Отклонить",
     "rejectConfirmTitle": "Отклонить этот запрос ссылки?",
@@ -727,13 +720,11 @@
     "search": "Поиск друзей",
     "sendRequest": "Отправить запрос в друзья",
     "requestSent": "Запрос отправлен.",
-    "cancelRequest": "Отменить запрос",
     "alreadyFriends": "Вы уже друзья.",
     "requestAlreadyPending": "Вы уже отправили запрос.",
     "incomingRequestExists": "Этот человек уже отправил вам запрос — примите его во входящих запросах в друзья.",
     "cannotAddSelf": "Нельзя добавить самого себя.",
     "actionFallback": "Не удалось выполнить действие.",
-    "loadFallback": "Не удалось загрузить друзей.",
     "empty": "Пока нет друзей.",
     "searchEmpty": "Ничего не найдено.",
     "note": "Заметка",
@@ -754,6 +745,8 @@
     "viewIncoming": "Открыть входящие заявки",
     "acceptA11y": "Принять заявку в друзья от {{name}}",
     "declineA11y": "Отклонить заявку в друзья от {{name}}",
+    "declineConfirmTitle": "Отклонить эту заявку в друзья?",
+    "declineConfirmMessage": "Эта заявка в друзья будет отклонена.",
     "cancelA11y": "Отменить заявку в друзья для {{name}}",
     "personTitle": "Информация о пользователе",
     "you": "Вы",
@@ -766,7 +759,6 @@
     "markAllRead": "Прочитать все",
     "empty": "Уведомлений пока нет.",
     "unavailable": "Содержимое этого уведомления больше недоступно.",
-    "loadError": "Не удалось загрузить уведомления.",
     "retry": "Повторить",
     "unreadA11y": "Не прочитано",
     "bellA11y": "Уведомления",
@@ -780,8 +772,7 @@
     "groupOlder": "Ранее",
     "daysAgo": "{{count}} дн.",
     "deleteA11y": "Удалить уведомление",
-    "deleteFailed": "Не удалось удалить уведомление.",
-    "loadErrorTitle": "Не удалось загрузить уведомления"
+    "deleteFailed": "Не удалось удалить уведомление."
   },
   "contact": {
     "title": "Связаться с нами",
@@ -792,22 +783,8 @@
     "copyEmail": "Скопировать адрес почты"
   },
   "importantState": {
-    "offlineTitle": "Нет соединения",
     "loadFailedTitle": "Не удалось загрузить",
-    "retry": "Повторить",
-    "offlineMessage": "Проверьте подключение к интернету и повторите попытку."
-  },
-  "calendar": {
-    "previousMonthA11y": "Предыдущий месяц",
-    "nextMonthA11y": "Следующий месяц",
-    "today": "Сегодня",
-    "dayCountA11y": "Ссылок: {{count}}",
-    "monthLoadError": "Не удалось загрузить календарь.",
-    "dayLoadError": "Не удалось загрузить ссылки за этот день.",
-    "dayEmpty": "В этот день ссылки не сохранялись.",
-    "collectionDayEmpty": "В этот день ссылки не добавлялись.",
-    "pickDate": "Выбрать дату",
-    "selectedDateLabel": "Дата: {{date}}",
-    "clearDateA11y": "Сбросить фильтр по дате"
+    "loadFailedMessage": "Не удалось загрузить данные.",
+    "retry": "Повторить"
   }
 }

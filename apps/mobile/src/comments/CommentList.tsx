@@ -42,7 +42,7 @@ export function CommentList({ comments, totalCount, status, hasPrevious, isLoadi
         <View style={styles.state} testID="comments-loading"><ActivityIndicator size="small" /></View>
       ) : null}
       {status === 'error' && comments.length === 0 ? (
-        <LoadFailureState compact message={t('comments.loadError')} onRetry={onRetry} retryLabel={t('comments.retry')} testID="comments-error" />
+        <LoadFailureState compact onRetry={onRetry} testID="comments-error" />
       ) : null}
       {status === 'ready' && comments.length === 0 ? (
         <Text style={styles.stateText} testID="comments-empty">{t('comments.empty')}</Text>

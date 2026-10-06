@@ -81,14 +81,12 @@
     "searchPlaceholder": "Bağlantı ara",
     "searchClear": "Aramayı temizle",
     "searchEmpty": "Sonuç yok.",
-    "searchError": "Arama yapılamadı.",
     "empty": "Henüz kaydedilmiş bir bağlantı yok.",
     "errorLoadFallback": "Geçmişiniz yüklenemedi.",
     "today": "Bugün",
     "yesterday": "Dün",
     "thisWeek": "Bu hafta",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Tekrar dene",
     "deleteConfirmTitle": "Öğeyi sil",
     "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
     "errorDeleteFallback": "Öğe silinemedi.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Paylaşım durumu güncellenemedi.",
     "errorListFallback": "Koleksiyonlarınız yüklenemedi.",
     "errorItemsLoadFallback": "Bu koleksiyondaki öğeler yüklenemedi.",
-    "errorDetailLoadFallback": "Bu koleksiyon yüklenemedi.",
     "errorNotFound": "Bu koleksiyon zaten silinmiş veya bulunamadı.",
     "errorCreateFallback": "Koleksiyon oluşturulamadı.",
     "errorRenameFallback": "Koleksiyon adı değiştirilemedi.",
@@ -417,7 +414,6 @@
     "trash": "Son Silinenler",
     "collectionLock": "Koleksiyon kilidi",
     "collectionLockDescription": "Koleksiyonların için bir şifre belirle.",
-    "collectionLockLoadFallback": "Kilit ayarları yüklenemedi.",
     "collectionLockStatusLabel": "Durum",
     "collectionLockConfigured": "Ayarlandı",
     "collectionLockNotConfigured": "Ayarlanmadı",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "Bu bağlantı kilitli.",
     "fallbackInstagramPost": "Instagram gönderisi",
     "fallbackInstagramReel": "Instagram Reels videosu",
     "titleLabel": "Başlık",
@@ -470,6 +467,7 @@
     "share": "Paylaş",
     "memo": "Not",
     "memoPlaceholder": "Bir not girin",
+    "savedAtLabel": "Kaydedilme",
     "uploading": "Yükleniyor...",
     "representativePhoto": "Kapak fotoğrafı",
     "editRepresentativePhoto": "Kapak fotoğrafını düzenle",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Öğe silinemedi.",
     "errorImagePickerPermission": "Fotoğraf kitaplığına erişim izni gerekiyor.",
     "errorImagePickerFallback": "Fotoğraf seçilemedi.",
-    "resolvingMetadataOverlay": "Bağlantı bilgileri yükleniyor...",
     "metadataResolutionFailedHint": "Bağlantı bilgileri yüklenemedi. Kendiniz girip kaydedebilirsiniz.",
     "activeDraftConflictTitle": "Üzerinde çalıştığınız bir bağlantı var",
     "activeDraftConflictMessage": "Yeni bağlantıya geçmeden önce üzerinde çalıştığınız bağlantıyı kaydetmek ister misiniz?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "Yeni koleksiyon",
     "newCollectionA11y": "Yeni koleksiyon oluştur",
     "saveDialogTitle": "Bağlantıyı kaydet",
-    "addMemo": "Not ekle",
     "collectionLinkNotSavable": "Juple koleksiyon bağlantısı normal bağlantı olarak kaydedilemez. Koleksiyon olarak açın."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Bu yorum silinsin mi?",
     "loadPrevious": "Önceki yorumları göster",
     "loadError": "Yorumlar yüklenemedi.",
-    "retry": "Tekrar dene",
     "sendError": "Yorum gönderilemedi.",
     "deleteError": "Yorum silinemedi.",
     "justNow": "Az önce",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "Alınan onay istekleri: yok",
     "myEmpty": "Gönderilen onay istekleri: yok",
-    "myLoadError": "Gönderilen istekler yüklenemedi.",
     "myStatus": "Onay bekliyor",
-    "loadError": "Onay bekleyen liste yüklenemedi.",
     "approve": "Onayla",
     "reject": "Reddet",
     "rejectConfirmTitle": "Bu bağlantı isteği reddedilsin mi?",
@@ -727,13 +720,11 @@
     "search": "Arkadaş ara",
     "sendRequest": "Arkadaşlık isteği gönder",
     "requestSent": "Arkadaşlık isteği gönderildi.",
-    "cancelRequest": "İsteği iptal et",
     "alreadyFriends": "Zaten arkadaşsınız.",
     "requestAlreadyPending": "Zaten bir istek gönderdiniz.",
     "incomingRequestExists": "Bu kişi size zaten istek gönderdi; Alınan arkadaşlık istekleri bölümünden kabul edebilirsiniz.",
     "cannotAddSelf": "Kendinizi ekleyemezsiniz.",
     "actionFallback": "İşlem tamamlanamadı.",
-    "loadFallback": "Arkadaşlar yüklenemedi.",
     "empty": "Henüz arkadaş yok.",
     "searchEmpty": "Eşleşen arkadaş yok.",
     "note": "Not",
@@ -754,6 +745,8 @@
     "viewIncoming": "Gelen istekleri görüntüle",
     "acceptA11y": "{{name}} adlı kişinin arkadaşlık isteğini kabul et",
     "declineA11y": "{{name}} adlı kişinin arkadaşlık isteğini reddet",
+    "declineConfirmTitle": "Bu arkadaşlık isteği reddedilsin mi?",
+    "declineConfirmMessage": "Bu arkadaşlık isteği reddedilecek.",
     "cancelA11y": "{{name}} adlı kişiye gönderilen arkadaşlık isteğini iptal et",
     "personTitle": "Kullanıcı bilgisi",
     "you": "Sen",
@@ -766,7 +759,6 @@
     "markAllRead": "Tümünü okundu işaretle",
     "empty": "Henüz bildirim yok.",
     "unavailable": "Bu bildirimin içeriği artık kullanılamıyor.",
-    "loadError": "Bildirimler yüklenemedi.",
     "retry": "Tekrar dene",
     "unreadA11y": "Okunmadı",
     "bellA11y": "Bildirimler",
@@ -780,8 +772,7 @@
     "groupOlder": "Daha eski",
     "daysAgo": "{{count}} g",
     "deleteA11y": "Bildirimi sil",
-    "deleteFailed": "Bildirim silinemedi.",
-    "loadErrorTitle": "Bildirimler yüklenemedi"
+    "deleteFailed": "Bildirim silinemedi."
   },
   "contact": {
     "title": "Bize ulaşın",
@@ -792,22 +783,8 @@
     "copyEmail": "E-posta adresini kopyala"
   },
   "importantState": {
-    "offlineTitle": "Bağlanılamıyor",
     "loadFailedTitle": "Yüklenemedi",
-    "retry": "Tekrar dene",
-    "offlineMessage": "İnternet bağlantını kontrol edip tekrar dene."
-  },
-  "calendar": {
-    "previousMonthA11y": "Önceki ay",
-    "nextMonthA11y": "Sonraki ay",
-    "today": "Bugün",
-    "dayCountA11y": "{{count}} bağlantı",
-    "monthLoadError": "Takvim yüklenemedi.",
-    "dayLoadError": "Bu günün bağlantıları yüklenemedi.",
-    "dayEmpty": "Bu gün kaydedilen bağlantı yok.",
-    "collectionDayEmpty": "Bu gün eklenen bağlantı yok.",
-    "pickDate": "Tarih seç",
-    "selectedDateLabel": "Tarih: {{date}}",
-    "clearDateA11y": "Tarih filtresini kaldır"
+    "loadFailedMessage": "Kayıtlar yüklenemedi.",
+    "retry": "Tekrar dene"
   }
 }

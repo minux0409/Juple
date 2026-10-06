@@ -81,14 +81,12 @@
     "searchPlaceholder": "ค้นหาลิงก์",
     "searchClear": "ล้างการค้นหา",
     "searchEmpty": "ไม่พบผลลัพธ์",
-    "searchError": "ไม่สามารถค้นหาได้",
     "empty": "ยังไม่มีลิงก์ที่บันทึกไว้",
     "errorLoadFallback": "ไม่สามารถโหลดประวัติของคุณได้",
     "today": "วันนี้",
     "yesterday": "เมื่อวาน",
     "thisWeek": "สัปดาห์นี้",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "ลองอีกครั้ง",
     "deleteConfirmTitle": "ลบรายการ",
     "deleteConfirmMessage": "ลบรายการนี้หรือไม่? ไม่สามารถย้อนกลับได้หลังจากลบแล้ว",
     "errorDeleteFallback": "ไม่สามารถลบรายการได้",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "ไม่สามารถอัปเดตสถานะการแชร์ได้",
     "errorListFallback": "ไม่สามารถโหลดรายการคอลเลกชันของคุณได้",
     "errorItemsLoadFallback": "ไม่สามารถโหลดรายการในคอลเลกชันนี้ได้",
-    "errorDetailLoadFallback": "ไม่สามารถโหลดคอลเลกชันนี้ได้",
     "errorNotFound": "คอลเลกชันนี้ถูกลบไปแล้วหรือไม่พบ",
     "errorCreateFallback": "ไม่สามารถสร้างคอลเลกชันได้",
     "errorRenameFallback": "ไม่สามารถเปลี่ยนชื่อคอลเลกชันได้",
@@ -417,7 +414,6 @@
     "trash": "ลบล่าสุด",
     "collectionLock": "ล็อกคอลเลกชัน",
     "collectionLockDescription": "ตั้งรหัสผ่านสำหรับคอลเลกชันของคุณ",
-    "collectionLockLoadFallback": "โหลดการตั้งค่าการล็อกไม่ได้",
     "collectionLockStatusLabel": "สถานะ",
     "collectionLockConfigured": "ตั้งแล้ว",
     "collectionLockNotConfigured": "ยังไม่ได้ตั้ง",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "ลิงก์นี้ถูกล็อก",
     "fallbackInstagramPost": "โพสต์ Instagram",
     "fallbackInstagramReel": "Reels Instagram",
     "titleLabel": "ชื่อเรื่อง",
@@ -470,6 +467,7 @@
     "share": "แชร์",
     "memo": "บันทึกช่วยจำ",
     "memoPlaceholder": "กรอกบันทึกช่วยจำ",
+    "savedAtLabel": "วันที่บันทึก",
     "uploading": "กำลังอัปโหลด...",
     "representativePhoto": "รูปหลัก",
     "editRepresentativePhoto": "แก้ไขรูปหลัก",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "ไม่สามารถลบรายการนี้ได้",
     "errorImagePickerPermission": "ต้องได้รับสิทธิ์เข้าถึงคลังรูปภาพ",
     "errorImagePickerFallback": "ไม่สามารถเลือกรูปภาพได้",
-    "resolvingMetadataOverlay": "กำลังโหลดข้อมูลลิงก์...",
     "metadataResolutionFailedHint": "โหลดข้อมูลลิงก์ไม่สำเร็จ คุณสามารถกรอกข้อมูลเองแล้วบันทึกได้",
     "activeDraftConflictTitle": "คุณมีลิงก์ที่กำลังดำเนินการอยู่",
     "activeDraftConflictMessage": "ต้องการบันทึกลิงก์ที่กำลังแก้ไขอยู่ก่อนตรวจสอบลิงก์ใหม่หรือไม่?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "คอลเลกชันใหม่",
     "newCollectionA11y": "สร้างคอลเลกชันใหม่",
     "saveDialogTitle": "บันทึกลิงก์",
-    "addMemo": "เพิ่มบันทึก",
     "collectionLinkNotSavable": "ลิงก์คอลเลกชันของ Juple ไม่สามารถบันทึกเป็นลิงก์ทั่วไปได้ โปรดเปิดเป็นคอลเลกชันแทน"
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "ลบความคิดเห็นนี้ไหม",
     "loadPrevious": "ดูความคิดเห็นก่อนหน้า",
     "loadError": "โหลดความคิดเห็นไม่ได้",
-    "retry": "ลองอีกครั้ง",
     "sendError": "ส่งความคิดเห็นไม่ได้",
     "deleteError": "ลบความคิดเห็นไม่ได้",
     "justNow": "เมื่อสักครู่",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "ไม่มีคำขออนุมัติที่ได้รับ",
     "myEmpty": "ไม่มีคำขออนุมัติที่ส่ง",
-    "myLoadError": "ไม่สามารถโหลดคำขอที่ส่งได้",
     "myStatus": "รออนุมัติ",
-    "loadError": "โหลดรายการที่รออนุมัติไม่ได้",
     "approve": "อนุมัติ",
     "reject": "ปฏิเสธ",
     "rejectConfirmTitle": "ปฏิเสธคำขอลิงก์นี้ไหม",
@@ -727,13 +720,11 @@
     "search": "ค้นหาเพื่อน",
     "sendRequest": "ส่งคำขอเป็นเพื่อน",
     "requestSent": "ส่งคำขอเป็นเพื่อนแล้ว",
-    "cancelRequest": "ยกเลิกคำขอ",
     "alreadyFriends": "เป็นเพื่อนกันอยู่แล้ว",
     "requestAlreadyPending": "คุณส่งคำขอไปแล้ว",
     "incomingRequestExists": "บุคคลนี้ส่งคำขอถึงคุณแล้ว คุณยอมรับได้ในคำขอเป็นเพื่อนที่ได้รับ",
     "cannotAddSelf": "เพิ่มตัวเองไม่ได้",
     "actionFallback": "ดำเนินการไม่สำเร็จ",
-    "loadFallback": "โหลดรายชื่อเพื่อนไม่ได้",
     "empty": "ยังไม่มีเพื่อน",
     "searchEmpty": "ไม่พบเพื่อนที่ตรงกัน",
     "note": "บันทึก",
@@ -754,6 +745,8 @@
     "viewIncoming": "ดูคำขอที่ได้รับ",
     "acceptA11y": "ยอมรับคำขอเป็นเพื่อนจาก {{name}}",
     "declineA11y": "ปฏิเสธคำขอเป็นเพื่อนจาก {{name}}",
+    "declineConfirmTitle": "ปฏิเสธคำขอเป็นเพื่อนนี้ไหม",
+    "declineConfirmMessage": "คำขอเป็นเพื่อนนี้จะถูกปฏิเสธ",
     "cancelA11y": "ยกเลิกคำขอเป็นเพื่อนที่ส่งถึง {{name}}",
     "personTitle": "ข้อมูลผู้ใช้",
     "you": "คุณ",
@@ -766,7 +759,6 @@
     "markAllRead": "อ่านทั้งหมดแล้ว",
     "empty": "ยังไม่มีการแจ้งเตือน",
     "unavailable": "ไม่สามารถดูเนื้อหาของการแจ้งเตือนนี้ได้อีกแล้ว",
-    "loadError": "โหลดการแจ้งเตือนไม่ได้",
     "retry": "ลองอีกครั้ง",
     "unreadA11y": "ยังไม่ได้อ่าน",
     "bellA11y": "การแจ้งเตือน",
@@ -780,8 +772,7 @@
     "groupOlder": "ก่อนหน้านี้",
     "daysAgo": "{{count}} วัน",
     "deleteA11y": "ลบการแจ้งเตือน",
-    "deleteFailed": "ลบการแจ้งเตือนไม่สำเร็จ",
-    "loadErrorTitle": "โหลดการแจ้งเตือนไม่สำเร็จ"
+    "deleteFailed": "ลบการแจ้งเตือนไม่สำเร็จ"
   },
   "contact": {
     "title": "ติดต่อเรา",
@@ -792,22 +783,8 @@
     "copyEmail": "คัดลอกที่อยู่อีเมล"
   },
   "importantState": {
-    "offlineTitle": "เชื่อมต่อไม่ได้",
     "loadFailedTitle": "โหลดไม่สำเร็จ",
-    "retry": "ลองอีกครั้ง",
-    "offlineMessage": "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง"
-  },
-  "calendar": {
-    "previousMonthA11y": "เดือนก่อนหน้า",
-    "nextMonthA11y": "เดือนถัดไป",
-    "today": "วันนี้",
-    "dayCountA11y": "{{count}} ลิงก์",
-    "monthLoadError": "โหลดปฏิทินไม่สำเร็จ",
-    "dayLoadError": "โหลดลิงก์ของวันนี้ไม่สำเร็จ",
-    "dayEmpty": "ไม่มีลิงก์ที่บันทึกในวันนี้",
-    "collectionDayEmpty": "ไม่มีลิงก์ที่เพิ่มในวันนี้",
-    "pickDate": "เลือกวันที่",
-    "selectedDateLabel": "วันที่: {{date}}",
-    "clearDateA11y": "ล้างตัวกรองวันที่"
+    "loadFailedMessage": "ไม่สามารถโหลดข้อมูลได้",
+    "retry": "ลองอีกครั้ง"
   }
 }

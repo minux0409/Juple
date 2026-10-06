@@ -2,6 +2,7 @@ using Juple.Application.Images;
 using Juple.Application.Inbox;
 using Juple.Application.Items;
 using Juple.Application.Items.InstagramMetadataCandidate;
+using Juple.Domain.Collections;
 using Juple.Domain.Items;
 using Juple.Infrastructure.Persistence;
 using Juple.Infrastructure.Persistence.SqlServer;
@@ -57,6 +58,15 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             return new InstagramMetadataCandidateResult(current.Title, current.PreviewImageUrl, Applied: false);
         }
     }
+
+    public Task<bool> IsInCollectionAsync(long userId, long itemId, long collectionId, CancellationToken cancellationToken = default) =>
+        dbContext.CollectionItems
+            .AsNoTracking()
+            .AnyAsync(
+                membership => membership.CollectionId == collectionId
+                    && membership.ItemId == itemId
+                    && dbContext.Items.Any(item => item.Id == itemId && item.UserId == userId),
+                cancellationToken);
 
     public async Task<InboxEntrySaveResult> SaveAsync(
         long userId,
@@ -484,6 +494,20 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 EF.Functions.Like(item.Url, searchPattern, ItemSearchPattern.EscapeCharacter)
                 || (item.Title != null && EF.Functions.Like(item.Title, searchPattern, ItemSearchPattern.EscapeCharacter))
                 || (item.Memo != null && EF.Functions.Like(item.Memo, searchPattern, ItemSearchPattern.EscapeCharacter)));
+            // A locked card must not be discoverable by matching its hidden title, URL or memo.
+            itemsQuery = itemsQuery.Where(item => !(
+                from membership in dbContext.CollectionItems
+                join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+                where membership.ItemId == item.Id && membership.AddedByUserId == userId
+                    && collection.DeletedAtUtc == null
+                    && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                        member.CollectionId == collection.Id && member.UserId == userId))
+                    && (collection.UserId == userId
+                        ? collection.IsLocked
+                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                            && (password.Mode == CollectionSharePasswordMode.PerCollection
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                select membership.Id).Any());
         }
 
         if (cursor is not null)
@@ -504,6 +528,27 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Memo,
                 item.SavedAtUtc,
                 item.PreviewImageUrl,
+                CollectionContext = (
+                    from membership in dbContext.CollectionItems
+                    join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+                    where membership.ItemId == item.Id && membership.AddedByUserId == userId
+                        && collection.DeletedAtUtc == null
+                        && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                            member.CollectionId == collection.Id && member.UserId == userId))
+                    orderby (collection.UserId == userId
+                        ? collection.IsLocked
+                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                            && (password.Mode == CollectionSharePasswordMode.PerCollection
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))) descending,
+                        membership.AddedAtUtc descending, membership.Id descending
+                    select new {
+                        CollectionId = collection.Id,
+                        IsOwner = collection.UserId == userId,
+                        collection.IsLocked,
+                        SharePasswordMode = dbContext.CollectionSharePasswords
+                            .Where(password => password.CollectionId == collection.Id)
+                            .Select(password => (CollectionSharePasswordMode?)password.Mode).FirstOrDefault(),
+                    }).FirstOrDefault(),
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
@@ -526,9 +571,22 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         var coverImages = new Dictionary<long, ItemRepresentativeImageRef>();
         foreach (var row in pageRows)
         {
+            var gate = row.CollectionContext is { } context
+                ? context.IsOwner && context.IsLocked || !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock && context.IsLocked
+                    ? "lock"
+                    : !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.PerCollection ? "sharePassword" : null
+                : null;
+            if (gate is not null)
+            {
+                items.Add(new ItemHistoryEntryDto(row.Id, "", null, null, row.SavedAtUtc,
+                    RepresentativeImage: null, PreviewImageUrl: null, CoverImage: null,
+                    IsCollectionLocked: true, CollectionId: row.CollectionContext!.CollectionId, CollectionGate: gate));
+                continue;
+            }
             items.Add(new ItemHistoryEntryDto(
                 row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
-                RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null));
+                RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null,
+                CollectionId: row.CollectionContext?.CollectionId));
             if (row.RepresentativeImage is not null)
             {
                 representativeImages[row.Id] =
@@ -571,6 +629,19 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 EF.Functions.Like(item.Url, searchPattern, ItemSearchPattern.EscapeCharacter)
                 || (item.Title != null && EF.Functions.Like(item.Title, searchPattern, ItemSearchPattern.EscapeCharacter))
                 || (item.Memo != null && EF.Functions.Like(item.Memo, searchPattern, ItemSearchPattern.EscapeCharacter)));
+            itemsQuery = itemsQuery.Where(item => !(
+                from membership in dbContext.CollectionItems
+                join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+                where membership.ItemId == item.Id && membership.AddedByUserId == userId
+                    && collection.DeletedAtUtc == null
+                    && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                        member.CollectionId == collection.Id && member.UserId == userId))
+                    && (collection.UserId == userId
+                        ? collection.IsLocked
+                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                            && (password.Mode == CollectionSharePasswordMode.PerCollection
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                select membership.Id).Any());
         }
 
         if (cursor is not null)
@@ -591,6 +662,27 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 item.Memo,
                 item.SavedAtUtc,
                 item.PreviewImageUrl,
+                CollectionContext = (
+                    from membership in dbContext.CollectionItems
+                    join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+                    where membership.ItemId == item.Id && membership.AddedByUserId == userId
+                        && collection.DeletedAtUtc == null
+                        && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                            member.CollectionId == collection.Id && member.UserId == userId))
+                    orderby (collection.UserId == userId
+                        ? collection.IsLocked
+                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                            && (password.Mode == CollectionSharePasswordMode.PerCollection
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked)))) descending,
+                        membership.AddedAtUtc descending, membership.Id descending
+                    select new {
+                        CollectionId = collection.Id,
+                        IsOwner = collection.UserId == userId,
+                        collection.IsLocked,
+                        SharePasswordMode = dbContext.CollectionSharePasswords
+                            .Where(password => password.CollectionId == collection.Id)
+                            .Select(password => (CollectionSharePasswordMode?)password.Mode).FirstOrDefault(),
+                    }).FirstOrDefault(),
                 RepresentativeImage = dbContext.ItemImages
                     .Where(image => image.ItemId == item.Id)
                     .OrderBy(image => image.SortOrder)
@@ -613,9 +705,22 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         var coverImages = new Dictionary<long, ItemRepresentativeImageRef>();
         foreach (var row in pageRows)
         {
+            var gate = row.CollectionContext is { } context
+                ? context.IsOwner && context.IsLocked || !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.LegacyCommonLock && context.IsLocked
+                    ? "lock"
+                    : !context.IsOwner && context.SharePasswordMode == CollectionSharePasswordMode.PerCollection ? "sharePassword" : null
+                : null;
+            if (gate is not null)
+            {
+                items.Add(new ItemHistoryEntryDto(row.Id, "", null, null, row.SavedAtUtc,
+                    RepresentativeImage: null, PreviewImageUrl: null, CoverImage: null,
+                    IsCollectionLocked: true, CollectionId: row.CollectionContext!.CollectionId, CollectionGate: gate));
+                continue;
+            }
             items.Add(new ItemHistoryEntryDto(
                 row.Id, row.Url, row.Title, row.Memo, row.SavedAtUtc,
-                RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null));
+                RepresentativeImage: null, PreviewImageUrl: row.PreviewImageUrl, CoverImage: null,
+                CollectionId: row.CollectionContext?.CollectionId));
             if (row.RepresentativeImage is not null)
             {
                 representativeImages[row.Id] =

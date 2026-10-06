@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { BottomSheetModal } from '../components/BottomSheetModal';
 import { ImportantState } from '../components/ImportantState';
+import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { UserAvatar } from '../components/UserAvatar';
 import { usePersonProfile } from '../friends/PersonProfileModal';
 import { OwnerCrown } from './OwnerCrown';
@@ -206,7 +207,8 @@ export function CollectionParticipantsSheet({
               </>
             ) : null}
           </ScrollView>
-          {error && !data ? <ImportantState compact message={error} onRetry={load} testID="participants-sheet-error" /> : error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* Nothing to show yet: the centered failure state. Already showing people: they stay, with a compact retry row. */}
+          {error && !data ? <ImportantState compact onRetry={load} testID="participants-sheet-error" /> : error ? <RefreshFailureNotice onRetry={load} testID="participants-sheet-refresh-failure" /> : null}
           <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
             <Text style={styles.closeLabel}>{t('common.close')}</Text>
           </Pressable>
@@ -229,7 +231,6 @@ const styles = StyleSheet.create({
   role: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   jupleId: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: spacing.md },
-  error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
   close: { alignItems: 'center', borderTopColor: colors.divider, borderTopWidth: 1, marginTop: spacing.sm, minHeight: minTouchTarget, justifyContent: 'center' },
   closeLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
 });

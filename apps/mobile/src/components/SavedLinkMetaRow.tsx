@@ -52,6 +52,8 @@ interface SavedLinkMetaRowProps {
    * adder places such content itself.
    */
   readonly adderTrailing?: ReactNode;
+  /** False: the time only - for a locked link, whose site must not show (see SavedLinkRow / SavedLinkGridCard). */
+  readonly showSiteIcon?: boolean;
 }
 
 /**
@@ -63,15 +65,17 @@ interface SavedLinkMetaRowProps {
 /** The adder avatar's diameter - the height of the 12pt text line it replaces, so cards keep their height. */
 const ADDER_AVATAR_SIZE = 16;
 
-export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy, adderTrailing }: SavedLinkMetaRowProps) {
+export function SavedLinkMetaRow({ savedAtUtc, url, dateDisplayMode, style, addedBy, adderTrailing, showSiteIcon = true }: SavedLinkMetaRowProps) {
   const timeRow = (
     <View style={[styles.metaRow, addedBy ? null : style]}>
       <Text numberOfLines={1} style={styles.time}>
         {formatSavedLinkTimestamp(savedAtUtc, dateDisplayMode)}
       </Text>
-      <View style={styles.icon}>
-        <SiteIcon siteId={resolveSiteInfo(url).id} size={15} />
-      </View>
+      {showSiteIcon ? (
+        <View style={styles.icon}>
+          <SiteIcon siteId={resolveSiteInfo(url).id} size={15} />
+        </View>
+      ) : null}
     </View>
   );
   if (!addedBy) {

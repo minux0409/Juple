@@ -389,3 +389,40 @@ describe('CollectionParticipantsSheet - first visible frames', () => {
     expect(sheetNodes(renderer)).toHaveLength(1);
   });
 });
+
+describe('CollectionParticipantsSheet - a failed reload', () => {
+  const owner = { participants: [{ jupleId: 'WNER2345', displayName: '피카츄', role: 'owner' as const, isMe: false }], pendingInvitations: [], canManage: false };
+  const byTestIdHost = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string');
+
+  it('people already shown stay, with a compact non-blocking retry row - never a red line, never a blank sheet', async () => {
+    jest.mocked(getCollectionParticipants).mockRejectedValueOnce(new Error('offline')).mockResolvedValue(owner);
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} initialData={owner} onClose={jest.fn()} visible />,
+      );
+    });
+
+    expect(renderer.root.findAllByProps({ testID: 'participants-sheet-WNER2345' }).length).toBeGreaterThan(0);
+    expect(byTestIdHost(renderer, 'participants-sheet-refresh-failure')).toHaveLength(1);
+    expect(byTestIdHost(renderer, 'participants-sheet-error')).toHaveLength(0);
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'participants-sheet-refresh-failure-retry' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(byTestIdHost(renderer, 'participants-sheet-refresh-failure')).toHaveLength(0);
+  });
+
+  it('nothing to show yet: the centered load-failure state', async () => {
+    jest.mocked(getCollectionParticipants).mockRejectedValueOnce(new Error('offline'));
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} onClose={jest.fn()} visible />,
+      );
+    });
+
+    expect(byTestIdHost(renderer, 'participants-sheet-error')).toHaveLength(1);
+    expect(byTestIdHost(renderer, 'participants-sheet-refresh-failure')).toHaveLength(0);
+  });
+});

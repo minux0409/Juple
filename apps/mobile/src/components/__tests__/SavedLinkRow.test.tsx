@@ -4,6 +4,11 @@ import { SavedLinkRow } from '../SavedLinkRow';
 import { GlobeIcon } from '../../icons/GlobeIcon';
 import { YouTubeIcon } from '../../icons/YouTubeIcon';
 import type { ItemHistoryEntry } from '../../items/api/itemsApi';
+import { StyleSheet } from 'react-native';
+import { SavedLinkGridCard } from '../SavedLinkGridCard';
+import { LockIcon } from '../../icons/LockIcon';
+import { SiteIcon } from '../../icons/SiteIcon';
+import i18n from '../../i18n';
 
 function makeItem(overrides: Partial<ItemHistoryEntry> = {}): ItemHistoryEntry {
   return {
@@ -38,6 +43,49 @@ async function render(
 }
 
 describe('SavedLinkRow', () => {
+  describe('a link of a locked Collection (server-redacted)', () => {
+    // Even if a client got unredacted fields by mistake, none of them may show.
+    const leaky = () => makeItem({ isCollectionLocked: true, collectionId: 4, url: 'https://www.youtube.com/watch?v=secret', title: 'Private title', memo: 'Private memo', previewImageUrl: 'https://secret.example/photo' });
+    const texts = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderer.root.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string').map(node => node.props.children as string);
+
+    it('List: the normal row - a lock in the 60dp thumbnail slot, the locked sentence as its title, only the time', async () => {
+      const renderer = await render(leaky());
+      const row = renderer.root.findByProps({ testID: 'saved-link-locked' });
+      const normal = await render(makeItem({ title: 'Open', previewImageUrl: 'https://example.com/p.png' }), false, true);
+
+      // The same row box as an ordinary link.
+      expect(StyleSheet.flatten(row.props.style)).toEqual(StyleSheet.flatten(normal.root.findAll(node => node.props.style && StyleSheet.flatten(node.props.style)?.flexDirection === 'row')[0].props.style));
+      const slot = StyleSheet.flatten(renderer.root.findByProps({ testID: 'saved-link-locked-thumbnail' }).props.style);
+      expect(slot).toMatchObject({ width: 60, height: 60, borderRadius: 14, marginEnd: 12 });
+      expect(renderer.root.findAllByType(LockIcon)).toHaveLength(1);
+      expect(texts(renderer)).toContain(i18n.t('item.lockedLinkPlaceholder'));
+      // Nothing of the link: no image, title, memo, URL or site icon.
+      expect(renderer.root.findAllByType(Image)).toHaveLength(0);
+      expect(renderer.root.findAllByType(SiteIcon)).toHaveLength(0);
+      expect(texts(renderer).some(text => /Private|secret|youtube/i.test(text))).toBe(false);
+    });
+
+    it('Grid: the normal card - the square image area holds the lock, the title area the locked sentence', async () => {
+      let renderer!: ReactTestRenderer.ReactTestRenderer;
+      let normal!: ReactTestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = ReactTestRenderer.create(<SavedLinkGridCard isActionInFlight={false} item={leaky()} />);
+        normal = ReactTestRenderer.create(<SavedLinkGridCard isActionInFlight={false} item={makeItem({ title: 'Open' })} />);
+      });
+      const card = renderer.root.findByProps({ testID: 'saved-link-locked' });
+      const normalCard = normal.root.findAll(node => typeof node.type === 'string')[0];
+      expect(StyleSheet.flatten(card.props.style)).toEqual(StyleSheet.flatten(normalCard.props.style));
+      expect(StyleSheet.flatten(renderer.root.findByProps({ testID: 'saved-link-locked-thumbnail' }).props.style)).toMatchObject({ aspectRatio: 1 });
+      // The title keeps the same reserved two-line height as any card, so the grid never turns ragged.
+      const title = (r: ReactTestRenderer.ReactTestRenderer) => r.root.findAll(node => typeof node.type === 'string' && node.props.numberOfLines === 2)[0];
+      expect(StyleSheet.flatten(title(renderer).props.style).minHeight).toBe(StyleSheet.flatten(title(normal).props.style).minHeight);
+      expect(texts(renderer)).toContain(i18n.t('item.lockedLinkPlaceholder'));
+      expect(renderer.root.findAllByType(Image)).toHaveLength(0);
+      expect(renderer.root.findAllByType(SiteIcon)).toHaveLength(0);
+      expect(texts(renderer).some(text => /Private|secret|youtube/i.test(text))).toBe(false);
+    });
+  });
   it('shows the title as primary text when the item has one', async () => {
     const item = makeItem({ title: 'My saved article', url: 'https://example.com/a' });
     const renderer = await render(item);

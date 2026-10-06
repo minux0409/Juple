@@ -81,14 +81,12 @@
     "searchPlaceholder": "링크 검색",
     "searchClear": "검색어 지우기",
     "searchEmpty": "검색 결과가 없어요.",
-    "searchError": "검색하지 못했어요.",
     "empty": "저장한 링크가 아직 없습니다.",
     "errorLoadFallback": "기록을 불러올 수 없습니다.",
     "today": "오늘",
     "yesterday": "어제",
     "thisWeek": "이번 주",
     "sectionHeader": "{{label}} · {{count}}개",
-    "retry": "다시 시도",
     "deleteConfirmTitle": "항목 삭제",
     "deleteConfirmMessage": "이 항목을 삭제할까요? 삭제 후 되돌릴 수 없습니다.",
     "errorDeleteFallback": "항목을 삭제할 수 없습니다.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "공유 상태를 변경할 수 없습니다.",
     "errorListFallback": "컬렉션 목록을 불러올 수 없습니다.",
     "errorItemsLoadFallback": "컬렉션 항목을 불러올 수 없습니다.",
-    "errorDetailLoadFallback": "컬렉션을 불러올 수 없습니다.",
     "errorNotFound": "이미 삭제되었거나 찾을 수 없는 컬렉션입니다.",
     "errorCreateFallback": "컬렉션을 생성할 수 없습니다.",
     "errorRenameFallback": "컬렉션 이름을 변경할 수 없습니다.",
@@ -417,7 +414,6 @@
     "trash": "삭제 이력",
     "collectionLock": "컬렉션 잠금",
     "collectionLockDescription": "컬렉션의 비밀번호를 설정하세요.",
-    "collectionLockLoadFallback": "잠금 설정을 불러오지 못했어요.",
     "collectionLockStatusLabel": "상태",
     "collectionLockConfigured": "설정됨",
     "collectionLockNotConfigured": "설정 안 됨",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "잠금 상태의 링크입니다.",
     "fallbackInstagramPost": "Instagram 게시물",
     "fallbackInstagramReel": "Instagram 릴스",
     "titleLabel": "제목",
@@ -470,6 +467,7 @@
     "share": "공유하기",
     "memo": "메모",
     "memoPlaceholder": "메모를 입력해 주세요",
+    "savedAtLabel": "저장일",
     "uploading": "업로드 중...",
     "representativePhoto": "대표 사진",
     "editRepresentativePhoto": "대표 사진 편집",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "항목을 삭제할 수 없습니다.",
     "errorImagePickerPermission": "사진 보관함 접근 권한이 필요합니다.",
     "errorImagePickerFallback": "사진을 선택할 수 없습니다.",
-    "resolvingMetadataOverlay": "링크 정보를 불러오는 중...",
     "metadataResolutionFailedHint": "링크 정보를 불러오지 못했어요. 직접 입력해서 저장할 수 있어요.",
     "activeDraftConflictTitle": "작성 중인 링크가 있습니다.",
     "activeDraftConflictMessage": "현재 작성 중인 링크를 저장한 후 새 링크를 확인하시겠습니까?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "새 컬렉션",
     "newCollectionA11y": "새 컬렉션 만들기",
     "saveDialogTitle": "링크 저장",
-    "addMemo": "메모 추가",
     "collectionLinkNotSavable": "Juple 컬렉션 공유 링크는 일반 링크로 저장할 수 없어요. 컬렉션에서 열어 주세요."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "댓글을 삭제할까요?",
     "loadPrevious": "이전 댓글 보기",
     "loadError": "댓글을 불러오지 못했어요.",
-    "retry": "다시 시도",
     "sendError": "댓글을 보내지 못했어요.",
     "deleteError": "댓글을 삭제하지 못했어요.",
     "justNow": "방금 전",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "받은 승인 요청이 없어요.",
     "myEmpty": "보낸 승인 요청이 없어요.",
-    "myLoadError": "보낸 승인 요청 목록을 불러오지 못했어요.",
     "myStatus": "승인 대기 중",
-    "loadError": "받은 승인 요청 목록을 불러오지 못했어요.",
     "approve": "승인",
     "reject": "거절",
     "rejectConfirmTitle": "이 링크 요청을 거절할까요?",
@@ -727,13 +720,11 @@
     "search": "친구 검색",
     "sendRequest": "친구 요청 보내기",
     "requestSent": "친구 요청을 보냈어요.",
-    "cancelRequest": "요청 취소",
     "alreadyFriends": "이미 친구예요.",
     "requestAlreadyPending": "이미 친구 요청을 보냈어요.",
     "incomingRequestExists": "이 사용자에게 받은 친구 요청이 있어요. 받은 요청에서 수락할 수 있어요.",
     "cannotAddSelf": "자기 자신은 추가할 수 없어요.",
     "actionFallback": "요청을 처리하지 못했어요.",
-    "loadFallback": "친구 목록을 불러오지 못했어요.",
     "empty": "아직 친구가 없어요.",
     "searchEmpty": "검색 결과가 없어요.",
     "note": "메모",
@@ -754,6 +745,8 @@
     "viewIncoming": "받은 요청 보기",
     "acceptA11y": "{{name}} 님의 친구 요청 수락",
     "declineA11y": "{{name}} 님의 친구 요청 거절",
+    "declineConfirmTitle": "친구 요청을 거절할까요?",
+    "declineConfirmMessage": "이 친구 요청을 거절합니다.",
     "cancelA11y": "{{name}} 님에게 보낸 친구 요청 취소",
     "personTitle": "사용자 정보",
     "you": "나",
@@ -766,7 +759,6 @@
     "markAllRead": "모두 읽음",
     "empty": "아직 알림이 없어요.",
     "unavailable": "이 알림의 항목을 더 이상 볼 수 없어요.",
-    "loadError": "알림을 불러오지 못했어요.",
     "retry": "다시 시도",
     "unreadA11y": "읽지 않음",
     "bellA11y": "알림",
@@ -780,8 +772,7 @@
     "groupOlder": "이전 알림",
     "daysAgo": "{{count}}일",
     "deleteA11y": "알림 삭제",
-    "deleteFailed": "알림을 삭제하지 못했어요.",
-    "loadErrorTitle": "알림을 불러오지 못했어요"
+    "deleteFailed": "알림을 삭제하지 못했어요."
   },
   "contact": {
     "title": "문의하기",
@@ -792,22 +783,8 @@
     "copyEmail": "이메일 주소 복사"
   },
   "importantState": {
-    "offlineTitle": "연결할 수 없어요",
     "loadFailedTitle": "불러오지 못했어요",
-    "retry": "다시 시도",
-    "offlineMessage": "인터넷 연결을 확인한 뒤 다시 시도해 주세요."
-  },
-  "calendar": {
-    "previousMonthA11y": "이전 달",
-    "nextMonthA11y": "다음 달",
-    "today": "오늘",
-    "dayCountA11y": "링크 {{count}}개",
-    "monthLoadError": "달력을 불러오지 못했어요.",
-    "dayLoadError": "이 날의 링크를 불러오지 못했어요.",
-    "dayEmpty": "이 날 저장한 링크가 없어요.",
-    "collectionDayEmpty": "이 날 추가된 링크가 없어요.",
-    "pickDate": "날짜 선택",
-    "selectedDateLabel": "날짜: {{date}}",
-    "clearDateA11y": "날짜 필터 해제"
+    "loadFailedMessage": "기록을 불러올 수 없습니다.",
+    "retry": "다시 시도"
   }
 }

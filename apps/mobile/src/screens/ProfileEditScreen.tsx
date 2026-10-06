@@ -246,7 +246,7 @@ export function ProfileEditScreen() {
     return (
       <StackScreenSafeArea style={styles.safeArea}>
         <View style={styles.centered}>
-          {loadError ? <LoadFailureState error={loadError.cause} message={t('profile.loadFallback')} onRetry={() => setReloadToken(previous => previous + 1)} testID="profile-load-error" /> : <ActivityIndicator />}
+          {loadError ? <LoadFailureState error={loadError.cause} onRetry={() => setReloadToken(previous => previous + 1)} testID="profile-load-error" /> : <ActivityIndicator />}
         </View>
       </StackScreenSafeArea>
     );

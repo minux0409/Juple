@@ -15,4 +15,7 @@ public interface IItemDetailQueryStore
         long userId,
         long itemId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>True when the Item is this user's own and has a membership in that Collection (see ItemCollectionContextGate).</summary>
+    Task<bool> IsInCollectionAsync(long userId, long itemId, long collectionId, CancellationToken cancellationToken = default);
 }

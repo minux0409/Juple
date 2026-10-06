@@ -7,6 +7,7 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { formatBadgeCount } from '../components/badgeCount';
 import { LoadFailureState } from '../components/LoadFailureState';
+import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useMessageDialog } from '../components/useMessageDialog';
 import { savedLinkLayout } from '../components/savedLinkLayout';
@@ -32,6 +33,8 @@ import {
   type Friend,
   type FriendRequest,
 } from '../friends/api/friendsApi';
+import { CheckIcon } from '../icons/CheckIcon';
+import { CloseIcon } from '../icons/CloseIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { PlusIcon } from '../icons/PlusIcon';
 import { TrashIcon } from '../icons/TrashIcon';
@@ -88,7 +91,8 @@ export function FriendsScreen() {
   const [requestsFailure, setRequestsFailure] = useState<unknown>(null);
   const [busyRequestIds, setBusyRequestIds] = useState<ReadonlySet<number>>(() => new Set());
   const busyRequestIdsRef = useRef<Set<number>>(new Set());
-  const [actionError, setActionError] = useState<string | null>(null);
+  // A next page of friends failed while the loaded ones stay on screen: a non-blocking retry row under them.
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
   // An operation's result (a request that is no longer open, ...) is a centered message, never an inline red line.
   const { showMessage, messageDialog } = useMessageDialog();
 
@@ -97,6 +101,8 @@ export function FriendsScreen() {
   // A long press (or the swipe) on a friend: the compact action popup, and the delete confirmation it leads to.
   const [menuFriend, setMenuFriend] = useState<Friend | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<Friend | null>(null);
+  // A received request whose X was tapped: rejecting only happens after the confirmation's 거절.
+  const [pendingDecline, setPendingDecline] = useState<FriendRequest | null>(null);
   const { afterMenuCloses, onMenuDismiss } = useActionAfterMenu();
   const [isAddOpen, setIsAddOpen] = useState(false);
   // A request row's person (the whole identity area is the tap target): the same person/friend info as everywhere.
@@ -204,6 +210,7 @@ export function FriendsScreen() {
     }
     const loadId = loadIdRef.current;
     setIsLoadingMore(true);
+    setLoadMoreFailed(false);
     getFriends(authenticatedRequest, { query: search.trim() || undefined, cursor: nextCursor, limit: PAGE_LIMIT })
       .then(page => {
         if (loadId === loadIdRef.current) {
@@ -211,7 +218,11 @@ export function FriendsScreen() {
           setNextCursor(page.nextCursor);
         }
       })
-      .catch(() => setActionError(t('friends.loadFallback')))
+      .catch(() => {
+        if (loadId === loadIdRef.current) {
+          setLoadMoreFailed(true);
+        }
+      })
       .finally(() => setIsLoadingMore(false));
   };
 
@@ -231,7 +242,6 @@ export function FriendsScreen() {
     }
     busyRequestIdsRef.current.add(requestId);
     setBusyRequestIds(new Set(busyRequestIdsRef.current));
-    setActionError(null);
     try {
       await action();
     } catch (caughtError) {
@@ -275,12 +285,12 @@ export function FriendsScreen() {
     });
 
   const removeFromList = async (friend: Friend) => {
-    setActionError(null);
     try {
       await removeFriend(authenticatedRequest, friend.friendshipId);
       setFriends(previous => previous.filter(existing => existing.friendshipId !== friend.friendshipId));
     } catch {
-      setActionError(t('friends.actionFallback'));
+      // An action's result that needs attention: the shared message dialog, never a red line.
+      showMessage(t('friends.actionFallback'));
     }
   };
 
@@ -288,10 +298,8 @@ export function FriendsScreen() {
   const outgoing = requests.filter(request => request.direction === 'outgoing');
 
   const refreshControl = <RefreshControl onRefresh={refresh} refreshing={isRefreshing} />;
-  const banner = actionError ? <Text accessibilityLiveRegion="polite" style={styles.banner} testID="friends-action-error">{actionError}</Text> : null;
-
   const retryBlock = (onRetry: () => void, testID: string, failure: unknown) => (
-    <LoadFailureState error={failure} message={t('friends.loadFallback')} onRetry={onRetry} retryLabel={t('history.retry')} testID={testID} />
+    <LoadFailureState error={failure} onRetry={onRetry} testID={testID} />
   );
 
   const friendsList = (
@@ -317,7 +325,13 @@ export function FriendsScreen() {
           </View>
         )
       }
-      ListFooterComponent={isLoadingMore ? <ActivityIndicator style={styles.loading} /> : undefined}
+      ListFooterComponent={
+        isLoadingMore ? (
+          <ActivityIndicator style={styles.loading} />
+        ) : loadMoreFailed ? (
+          <RefreshFailureNotice onRetry={loadMore} testID="friends-more-failure" />
+        ) : undefined
+      }
       ListHeaderComponent={
         <View>
           {/* [search] on the start side, the List/Grid switch pinned to the end edge. */}
@@ -339,8 +353,8 @@ export function FriendsScreen() {
             </View>
             <ViewModeToggle onChange={changeViewMode} value={viewMode} />
           </View>
-          {banner}
-          {hasLoadedFriends && friendsError ? retryBlock(() => loadFriends(searchRef.current), 'friends-stale', friendsFailure) : null}
+          {/* Friends are already listed and a refresh failed: keep them, with a compact retry row (not a full failure state). */}
+          {hasLoadedFriends && friendsError ? <RefreshFailureNotice onRetry={() => loadFriends(searchRef.current)} testID="friends-stale" /> : null}
         </View>
       }
       onEndReached={loadMore}
@@ -375,8 +389,7 @@ export function FriendsScreen() {
       }
       ListHeaderComponent={
         <View>
-          {banner}
-          {hasLoadedRequests && requestsError ? retryBlock(loadRequests, 'friends-requests-stale', requestsFailure) : null}
+          {hasLoadedRequests && requestsError ? <RefreshFailureNotice onRetry={loadRequests} testID="friends-requests-stale" /> : null}
         </View>
       }
       refreshControl={refreshControl}
@@ -385,7 +398,7 @@ export function FriendsScreen() {
           isBusy={busyRequestIds.has(item.requestId)}
           onAccept={() => accept(item)}
           onCancel={() => cancel(item)}
-          onDecline={() => decline(item)}
+          onDecline={() => setPendingDecline(item)}
           onOpenPerson={() => openProfile({ jupleId: item.jupleId, displayName: item.displayName, profileImageUrl: item.profileImageUrl, profileImageVersion: item.profileImageVersion })}
           request={item}
         />
@@ -487,6 +500,22 @@ export function FriendsScreen() {
         }}
         title={t('friends.removeConfirmTitle')}
         visible={pendingRemoval !== null}
+      />
+      <ConfirmDialog
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('collaboration.decline')}
+        destructive
+        message={t('friends.declineConfirmMessage')}
+        onCancel={() => setPendingDecline(null)}
+        onConfirm={() => {
+          const request = pendingDecline;
+          setPendingDecline(null);
+          if (request) {
+            decline(request).catch(() => undefined);
+          }
+        }}
+        title={t('friends.declineConfirmTitle')}
+        visible={pendingDecline !== null}
       />
       {profileModal}
       <AddFriendModal
@@ -608,8 +637,9 @@ function FriendRow({ friend, layout, onPress, onLongPress, onSwipeDelete }: {
 }
 
 /**
- * A request: who, then its actions on their own line below - so on a narrow screen the buttons
- * never squeeze the name. Received: [거절] [수락]; sent: 요청 대기 중 and [요청 취소].
+ * A request, as one Juple card (surface, subtle border, rounded - the same family as a friend card; no divider lines).
+ * Received: who, @Juple ID and 받은 요청, then compact icon-only [거절] [수락] at the end of the same row. Sent: who,
+ * @Juple ID and 요청 대기 중, with an icon-only trash at the end (요청 취소). Every action keeps a 44dp target.
  */
 function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPerson }: {
   readonly request: FriendRequest;
@@ -624,56 +654,57 @@ function RequestRow({ request, isBusy, onAccept, onDecline, onCancel, onOpenPers
   const name = friendPrimaryLabel(request);
   const isIncoming = request.direction === 'incoming';
   return (
-    <View style={styles.requestRow} testID={`friends-${request.direction}-${request.requestId}`}>
+    <View style={styles.requestCard} testID={`friends-${request.direction}-${request.requestId}`}>
       <Pressable accessibilityLabel={`${name}, ${t('friends.personTitle')}`} accessibilityRole="button" onPress={onOpenPerson} style={styles.requestIdentity} testID={`friends-${request.direction}-person-${request.requestId}`}>
         <UserAvatar displayName={request.displayName} imageUrl={request.profileImageUrl} imageVersion={request.profileImageVersion} jupleId={request.jupleId} size={44} />
         <View style={styles.rowText}>
           <Text numberOfLines={1} style={[styles.name, !hasNickname && ltrTextStyle]}>{name}</Text>
           {hasNickname ? <Text numberOfLines={1} style={[styles.meta, ltrTextStyle]}>{atJupleId(request.jupleId)}</Text> : null}
-          {!isIncoming ? <Text numberOfLines={1} style={styles.pending}>{t('friends.requestPending')}</Text> : null}
+          <Text numberOfLines={1} style={styles.pending} testID={`friends-${request.direction}-status-${request.requestId}`}>
+            {isIncoming ? t('friends.tabIncoming') : t('friends.requestPending')}
+          </Text>
         </View>
         {isBusy ? <ActivityIndicator size="small" testID={`friends-request-busy-${request.requestId}`} /> : null}
       </Pressable>
-      <View style={styles.requestActions}>
-        {isIncoming ? (
-          <>
-            <Pressable
-              accessibilityLabel={t('friends.declineA11y', { name })}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isBusy }}
-              disabled={isBusy}
-              onPress={onDecline}
-              style={[styles.secondaryButton, styles.actionButton, isBusy && styles.disabled]}
-              testID={`friends-decline-${request.requestId}`}
-            >
-              <Text numberOfLines={2} style={styles.secondaryLabel}>{t('collaboration.decline')}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityLabel={t('friends.acceptA11y', { name })}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isBusy }}
-              disabled={isBusy}
-              onPress={onAccept}
-              style={[styles.primaryButton, styles.actionButton, isBusy && styles.disabled]}
-              testID={`friends-accept-${request.requestId}`}
-            >
-              <Text numberOfLines={2} style={styles.primaryLabel}>{t('collaboration.accept')}</Text>
-            </Pressable>
-          </>
-        ) : (
+      {isIncoming ? (
+        <View style={styles.requestActions}>
           <Pressable
-            accessibilityLabel={t('friends.cancelA11y', { name })}
+            accessibilityLabel={t('friends.declineA11y', { name })}
             accessibilityRole="button"
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
-            onPress={onCancel}
-            style={[styles.secondaryButton, styles.actionButton, isBusy && styles.disabled]}
-            testID={`friends-cancel-${request.requestId}`}
+            onPress={onDecline}
+            style={[styles.iconAction, styles.declineAction, isBusy && styles.disabled]}
+            testID={`friends-decline-${request.requestId}`}
           >
-            <Text numberOfLines={2} style={styles.secondaryLabel}>{t('friends.cancelRequest')}</Text>
+            <CloseIcon color={colors.textPrimary} size={20} />
           </Pressable>
-        )}
-      </View>
+          <Pressable
+            accessibilityLabel={t('friends.acceptA11y', { name })}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isBusy }}
+            disabled={isBusy}
+            onPress={onAccept}
+            style={[styles.iconAction, styles.acceptAction, isBusy && styles.disabled]}
+            testID={`friends-accept-${request.requestId}`}
+          >
+            <CheckIcon color={colors.surface} size={20} />
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          accessibilityLabel={t('friends.cancelA11y', { name })}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isBusy }}
+          disabled={isBusy}
+          hitSlop={4}
+          onPress={onCancel}
+          style={[styles.iconAction, isBusy && styles.disabled]}
+          testID={`friends-cancel-${request.requestId}`}
+        >
+          <TrashIcon color={colors.danger} size={20} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -728,7 +759,6 @@ const styles = StyleSheet.create({
     paddingEnd: spacing.md,
     paddingStart: spacing.md + 18 + spacing.sm,
   },
-  banner: { color: colors.danger, fontSize: 13, marginBottom: spacing.xs, marginTop: spacing.xs },
   // Rows are set apart by a hairline, not boxed cards.
   row: {
     alignItems: 'center',
@@ -751,19 +781,28 @@ const styles = StyleSheet.create({
   meta: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   note: { color: colors.textSecondary, fontSize: 12, lineHeight: NOTE_LINE_HEIGHT, marginTop: 2, opacity: 0.85 },
   pending: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 },
-  requestRow: {
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  // A request card: the friend card's surface (white, subtle hairline border, rounded), ~8dp apart, clipped to its shape.
+  requestCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
     gap: spacing.sm,
-    paddingVertical: spacing.md,
+    marginBottom: FRIEND_CARD_GAP,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  requestIdentity: { alignItems: 'center', flexDirection: 'row', gap: spacing.md },
-  requestActions: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'flex-end' },
-  actionButton: { flexBasis: 0, flexGrow: 1, maxWidth: 200 },
+  // The identity takes the room (and shrinks for a long name); the actions keep their 44dp targets at the end.
+  requestIdentity: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.md, minWidth: 0 },
+  requestActions: { flexDirection: 'row', flexShrink: 0, gap: spacing.xs },
+  iconAction: { alignItems: 'center', borderRadius: minTouchTarget / 2, height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
+  declineAction: { borderColor: colors.border, borderWidth: 1 },
+  acceptAction: { backgroundColor: colors.brand },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.md, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  secondaryButton: { alignItems: 'center', borderColor: colors.border, borderRadius: radii.md, borderWidth: 1, justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
-  secondaryLabel: { color: colors.textPrimary, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   disabled: { opacity: 0.45 },
   loading: { paddingVertical: spacing.xl },
   stateBlock: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.xl * 2 },

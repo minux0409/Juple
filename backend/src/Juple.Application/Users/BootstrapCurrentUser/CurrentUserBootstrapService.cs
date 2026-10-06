@@ -11,7 +11,7 @@ public sealed class CurrentUserBootstrapService(
     private const int PreferredLocaleMaxLength = 35;
     private const int TimeZoneIdMaxLength = 100;
 
-    public async Task<UserPlan> BootstrapAsync(
+    public async Task<CurrentUserBootstrapResult> BootstrapAsync(
         ExternalIdentityPrincipal externalIdentity,
         BootstrapCurrentUserCommand command,
         CancellationToken cancellationToken = default)
@@ -30,14 +30,16 @@ public sealed class CurrentUserBootstrapService(
         // User actually needs a valid locale.
         var existingPlan = await provisioningStore.TrySyncTimeZoneAndGetPlanAsync(
             externalIdentity, timeZoneId, utcNow, cancellationToken);
+        // A successful sync stores exactly this validated value (a failed write fails the bootstrap), so it is the
+        // canonical zone from here on.
         if (existingPlan is { } plan)
         {
-            return plan;
+            return new CurrentUserBootstrapResult(plan, timeZoneId);
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
 
-        return await provisioningStore.CreateAsync(
+        var createdPlan = await provisioningStore.CreateAsync(
             new CurrentUserBootstrapData(
                 externalIdentity,
                 preferredLocale,
@@ -45,6 +47,7 @@ public sealed class CurrentUserBootstrapService(
                 DefaultCurrencyCode: null,
                 utcNow),
             cancellationToken);
+        return new CurrentUserBootstrapResult(createdPlan, timeZoneId);
     }
 
     private static string NormalizePreferredLocale(string? preferredLocale)

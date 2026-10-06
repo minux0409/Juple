@@ -364,7 +364,9 @@ describe('ApprovalSubmissionSheet - 내 링크 승인 대기 (my own, view only)
     expect(shown((await renderSheet({ variant: 'mine', collectionId: null })).renderer)).toContain(i18n.t('submissions.myEmpty'));
 
     jest.mocked(getMyPendingSubmissionsAcrossCollections).mockRejectedValue(new Error('offline'));
-    expect(shown((await renderSheet({ variant: 'mine', collectionId: null })).renderer)).toContain(i18n.t('submissions.myLoadError'));
+    expect(shown((await renderSheet({ variant: 'mine', collectionId: null })).renderer)).toEqual(
+      expect.arrayContaining([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage')]),
+    );
   });
 });
 

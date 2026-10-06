@@ -50,9 +50,10 @@ interface PendingSubmissionCardProps {
    */
   readonly actionStrip?: ReactNode;
   /**
-   * Inside a SwipeableItemRow: the card is a square, edge-to-edge rectangle and the swipe frame supplies the rounded
-   * clip - so the red action revealed behind it is one continuous underlay of this same row (no rounded card floating
-   * over a differently shaped red box, no gap at the corners).
+   * Inside a SwipeableItemRow: the swipe FRAME owns the card's outer shape - its rounded corners, hairline border and
+   * clip - and this card only fills it (no border or radius of its own). So closed, all four corners are intact (a
+   * square inner border is never cut off by the rounded clip); swiped, the red action is one continuous underlay of the
+   * same rounded row - no gap, no separate red box.
    */
   readonly embedded?: boolean;
 }
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     padding: CARD_PADDING,
   },
-  cardEmbedded: { borderRadius: 0 },
+  cardEmbedded: { borderRadius: 0, borderWidth: 0 },
   top: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   info: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.sm + 2, minWidth: 0 },
   thumbnail: {

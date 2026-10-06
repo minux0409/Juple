@@ -357,12 +357,13 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RemovingAContributor_DropsExactlyTheirLinksInThatCollection_AndAccessImmediately()
+    public async Task RemovingAContributor_KeepsTheLinksTheyAdded_AsTheCollectionsContent_AndEndsTheirAccessImmediately()
     {
         var contributorId = await JupleIdOfAsync(_contributor);
         await _collaboration.RemoveCollaboratorAsync(_owner, _sharedId, contributorId.ToLowerInvariant());
 
-        Assert.False(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == _contributorItem));
+        // Membership lifecycle != content lifecycle: their link stays in the shared Collection.
+        Assert.True(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == _contributorItem));
         Assert.True(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == _contributorOwnId && entry.ItemId == _contributorItem));
         Assert.True(await _db.CollectionItems.AnyAsync(entry => entry.CollectionId == _sharedId && entry.ItemId == _ownerItemInShared));
         Assert.True(await _db.Items.AnyAsync(item => item.Id == _contributorItem && item.DeletedAtUtc == null));

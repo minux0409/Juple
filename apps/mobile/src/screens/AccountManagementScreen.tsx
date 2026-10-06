@@ -95,7 +95,7 @@ export function AccountManagementScreen() {
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
         {profile === null && !loadError ? <ActivityIndicator style={styles.loading} /> : null}
-        {loadError ? <LoadFailureState error={loadError.cause} message={t('profile.loadFallback')} onRetry={() => setReloadToken(previous => previous + 1)} testID="account-load-error" /> : null}
+        {loadError ? <LoadFailureState error={loadError.cause} onRetry={() => setReloadToken(previous => previous + 1)} testID="account-load-error" /> : null}
         {profile ? (
           <View style={styles.card}>
             <View style={styles.row} testID="account-sign-in-method">

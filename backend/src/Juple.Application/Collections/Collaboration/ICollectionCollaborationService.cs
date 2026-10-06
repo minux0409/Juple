@@ -23,9 +23,9 @@ public interface ICollectionCollaborationService
 
     /// <summary>
     /// The caller leaves a Collection they are an accepted member of - through the SAME removal as an Owner removing
-    /// them (ICollectionCollaborationStore.RemoveCollaboratorAsync: their links there, reactions, favorite mark,
-    /// still-waiting proposals and the Owner's notifications about them, then the membership), so the two can never
-    /// disagree. Needs no content grant (leaving never requires the password). The Owner cannot leave
+    /// them (ICollectionCollaborationStore.RemoveCollaboratorAsync: their reactions, favorite mark, still-waiting
+    /// proposals and the Owner's notifications about them, then the membership - never the links they added, which are
+    /// the Collection's content and stay), so the two can never disagree. Needs no content grant (leaving never requires the password). The Owner cannot leave
     /// (CollectionForbiddenException); a stranger, a public-link visitor or a pending invitee is not a member
     /// (CollectionNotFoundException).
     /// </summary>

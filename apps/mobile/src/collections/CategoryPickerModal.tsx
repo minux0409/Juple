@@ -1,19 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CategoryEditorDialog } from './CategoryEditorDialog';
-import { CategoryIconTile } from './CategoryIconTile';
 import type { CollectionIconImageChange } from './collectionIconImage';
-import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionUnlockDialog } from './CollectionUnlockDialog';
-import { CollectionStatusBadges } from './CollectionStatusBadges';
 import { DEFAULT_COLLECTION_COLOR, type CollectionColorValue } from './collectionColors';
 import { DEFAULT_COLLECTION_ICON, type CollectionIconKey } from './collectionIcons';
-import { CheckIcon } from '../icons/CheckIcon';
-import { FolderPlusIcon } from '../icons/FolderPlusIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
-import { ViewModeToggle } from '../components/ViewModeToggle';
-import { useViewModePreference, type ViewModePreferenceKey } from '../settings/viewModePreference';
+import type { ViewModePreferenceKey } from '../settings/viewModePreference';
+import type { LoadFailureInfo } from '../components/LoadFailureState';
+import { CollectionChoiceGrid } from './CollectionChoiceGrid';
 import type { Collection } from './api/collectionsApi';
 
 // See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
@@ -21,13 +17,6 @@ import type { Collection } from './api/collectionsApi';
 // two components need it.
 const SHEET_ENTER_OFFSET = 800;
 const SHEET_ENTER_DURATION_MS = 250;
-
-const GRID_COLUMNS = 4;
-
-/** Stable sentinel identifying the leading "+ 새 카테고리" tile in the grid's data array - never a
- * real Collection, so `'id' in item` (see renderItem) reliably tells the two apart. */
-const CREATE_TILE = { kind: 'create' } as const;
-type GridItem = typeof CREATE_TILE | Collection;
 
 interface CategoryPickerModalProps {
   readonly visible: boolean;
@@ -78,6 +67,12 @@ interface CategoryPickerModalProps {
    * with something chosen. Absent = the sheet applies each tap itself and only offers 닫기.
    */
   readonly submit?: { readonly label: string; readonly onSubmit: () => void; readonly isSubmitting: boolean };
+  /**
+   * The Collection list could not be loaded. Nothing listed yet: a centered load-failure state INSIDE the sheet (the
+   * sheet stays open). Some already listed (a next page failed): they stay, with a compact non-blocking retry row.
+   */
+  readonly loadFailure?: LoadFailureInfo | null;
+  readonly onRetryLoad?: () => void;
 }
 
 /**
@@ -121,9 +116,10 @@ export function CategoryPickerModal({
   sort,
   disabledIds,
   submit,
+  loadFailure = null,
+  onRetryLoad,
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
-  const { viewMode, changeViewMode } = useViewModePreference(viewModeKey, 'grid');
   const sheetTranslateY = useRef(new Animated.Value(SHEET_ENTER_OFFSET)).current;
 
   useEffect(() => {
@@ -139,117 +135,30 @@ export function CategoryPickerModal({
     }).start();
   }, [visible, sheetTranslateY]);
 
-  const gridData: readonly GridItem[] = showCreateTile ? [CREATE_TILE, ...collectionPool] : collectionPool;
-
   return (
     <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: sheetTranslateY }] }]}>
-          <View style={styles.titleRow}><Text numberOfLines={2} style={styles.title}>{title ?? t('collections.selectTitle')}</Text><ViewModeToggle onChange={changeViewMode} value={viewMode} /></View>
-          {sort ? (
-            <View accessibilityRole="radiogroup" style={styles.sortRow} testID="category-picker-sort">
-              {(['newest', 'title'] as const).map(option => {
-                const isSelected = sort.value === option;
-                return (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: isSelected }}
-                    hitSlop={{ top: 8, bottom: 8 }}
-                    key={option}
-                    onPress={() => sort.onChange(option)}
-                    style={[styles.sortChip, isSelected && styles.sortChipSelected]}
-                    testID={`category-picker-sort-${option}`}
-                  >
-                    <Text numberOfLines={1} style={[styles.sortChipLabel, isSelected && styles.sortChipLabelSelected]}>
-                      {option === 'newest' ? t('collections.sortRecent') : t('collections.sortName')}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {isLoadingOptions ? (
-            <ActivityIndicator style={styles.loading} />
-          ) : (
-            <FlatList
-              key={viewMode}
-              data={gridData}
-              extraData={selectedIds}
-              keyExtractor={item => ('kind' in item ? 'create' : item.id.toString())}
-              numColumns={viewMode === 'grid' ? GRID_COLUMNS : 1}
-              onEndReached={onLoadMore}
-              onEndReachedThreshold={0.5}
-              renderItem={({ item }) => {
-                if ('kind' in item) {
-                  return (
-                    <Pressable
-                      accessibilityLabel={createAccessibilityLabel ?? createLabel ?? t('collections.addNew')}
-                      accessibilityRole="button"
-                      onPress={onOpenCreateDialog}
-                      style={viewMode === 'grid' ? styles.gridCell : styles.listCell}
-                    >
-                      <View style={styles.createTile}>
-                        <FolderPlusIcon color={colors.brand} size={24} strokeWidth={2} />
-                      </View>
-                      <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
-                        {createLabel ?? t('collections.addNew')}
-                      </Text>
-                    </Pressable>
-                  );
-                }
-
-                const option = item;
-                const isSelected = selectedIds.has(option.id);
-                const isDisabled = disabledIds?.has(option.id) === true;
-                // Touching a locked Collection (to select or to deselect it) asks for its password
-                // first - the caller's onToggle decides (see useCategoryPickerModal.requestToggle).
-                const isLocked = contentGateOf(option) !== null;
-                return (
-                  <Pressable
-                    accessibilityHint={isDisabled ? t('collections.alreadyIncluded') : isLocked ? t('collections.lockRequiredForAction') : undefined}
-                    accessibilityLabel={option.name}
-                    accessibilityRole="button"
-                    accessibilityState={isDisabled ? { selected: isSelected, disabled: true } : { selected: isSelected }}
-                    disabled={isDisabled || undefined}
-                    onPress={() => onToggle(option)}
-                    style={[viewMode === 'grid' ? styles.gridCell : styles.listCell, isDisabled && styles.disabledCell]}
-                    testID={`category-picker-option-${option.id}`}
-                  >
-                    <View style={styles.tileIconSlot}>
-                      <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} imageVersion={option.iconImageVersion} size={48} />
-                      {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
-                      <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
-                      {isSelected ? (
-                        <View style={styles.selectedBadge}>
-                          <CheckIcon color={colors.surface} size={11} strokeWidth={3} />
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={viewMode === 'list' ? styles.listText : styles.gridText}>
-                      <Text numberOfLines={1} style={[styles.tileLabel, viewMode === 'list' && styles.listLabel]}>
-                        {option.name}
-                      </Text>
-                      {isDisabled ? (
-                        <Text numberOfLines={1} style={[styles.disabledLabel, viewMode === 'list' && styles.listLabel]} testID={`category-picker-included-${option.id}`}>
-                          {t('collections.alreadyIncluded')}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </Pressable>
-                );
-              }}
-              ListFooterComponent={
-                isLoadingMore ? (
-                  <View style={styles.footerLoading}>
-                    <ActivityIndicator />
-                  </View>
-                ) : undefined
-              }
-              style={styles.optionList}
-            />
-          )}
-
+          <CollectionChoiceGrid
+            collectionPool={collectionPool}
+            createAccessibilityLabel={createAccessibilityLabel}
+            createLabel={createLabel}
+            disabledIds={disabledIds}
+            isLoadingMore={isLoadingMore}
+            isLoadingOptions={isLoadingOptions}
+            listStyle={styles.optionList}
+            loadFailure={loadFailure}
+            onLoadMore={onLoadMore}
+            onOpenCreateDialog={onOpenCreateDialog}
+            onRetryLoad={onRetryLoad}
+            onToggle={onToggle}
+            selectedIds={selectedIds}
+            showCreateTile={showCreateTile}
+            sort={sort}
+            title={title}
+            viewModeKey={viewModeKey}
+          />
+          {/* An action's result in this sheet (e.g. a Collection that became unavailable) - never a list-load failure. */}
           {error ? <Text style={styles.error} testID="category-picker-error">{error}</Text> : null}
 
           {submit ? (
@@ -313,84 +222,10 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     padding: 24,
   },
-  title: {
-    flexShrink: 1,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
-  // The same order chips as a Collection's own 시간순 | 이름순.
-  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
-  sortChip: {
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexShrink: 1,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 2,
-  },
-  sortChipSelected: { backgroundColor: colors.brand, borderColor: colors.brand },
-  sortChipLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  sortChipLabelSelected: { color: colors.surface },
-  loading: {
-    marginVertical: 20,
-  },
-  footerLoading: {
-    paddingVertical: 12,
-  },
+  // The sheet bounds the chooser's tiles; the 링크 저장 screen lets them fill its room instead.
   optionList: {
     maxHeight: 360,
-    marginTop: spacing.sm,
   },
-  // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis
-  // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line,
-  // matching the fixed-grid look this round's redesign calls for.
-  gridCell: {
-    alignItems: 'center',
-    flexBasis: `${100 / GRID_COLUMNS}%`,
-    paddingVertical: spacing.sm + 2,
-  },
-  listCell: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.xs },
-  tileIconSlot: {
-    position: 'relative',
-  },
-  createTile: {
-    alignItems: 'center',
-    backgroundColor: colors.brandSoft,
-    borderRadius: radii.md + 6,
-    height: 48,
-    justifyContent: 'center',
-    width: 48,
-  },
-  // A small brand-filled circle badge at the tile's corner - never a full-tile background tint
-  // (this round's explicit "row/tile 전체 background를 파랗게 칠하지 않는다" carry-over from the
-  // Category selection redesign already shipped and device-verified).
-  selectedBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderColor: colors.surface,
-    borderRadius: 9,
-    borderWidth: 2,
-    bottom: -2,
-    height: 18,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: -2,
-    width: 18,
-  },
-  tileLabel: {
-    color: colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: spacing.xs + 2,
-    maxWidth: 76,
-    textAlign: 'center',
-  },
-  listLabel: { maxWidth: undefined, textAlign: 'start' },
-  gridText: { alignItems: 'center' },
-  listText: { flex: 1, minWidth: 0 },
-  disabledCell: { opacity: 0.45 },
-  disabledLabel: { color: colors.textSecondary, fontSize: 11, marginTop: 1, maxWidth: 76, textAlign: 'center' },
   submitBar: { gap: spacing.sm, marginTop: spacing.md },
   selectedCount: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
   submitButtons: { flexDirection: 'row', gap: spacing.sm },

@@ -169,7 +169,7 @@ export function PersonProfileModal({ person, relationship, onClose, onRequestSen
         {relationship === 'pending' ? <Text style={styles.status} testID="person-profile-status-pending">{t('friends.requestPending')}</Text> : null}
         {relationship === 'incoming' ? <Text style={styles.status} testID="person-profile-status-incoming">{t('friends.incomingFromThem')}</Text> : null}
         {relationship === 'unknown' ? (
-          <LoadFailureState compact message={t('friends.loadFallback')} onRetry={onRetry} retryLabel={t('history.retry')} testID="person-profile-error" />
+          <LoadFailureState compact onRetry={onRetry} testID="person-profile-error" />
         ) : null}
         {message ? <Text accessibilityLiveRegion="polite" style={styles.message} testID="person-profile-message">{message}</Text> : null}
       </View>

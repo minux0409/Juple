@@ -6,9 +6,14 @@ import { FriendsScreen, OUTGOING_POLL_INTERVAL_MS, OUTGOING_POLL_MAX_MS } from '
 import { lookupJupleId } from '../../collections/api/collaborationApi';
 import { AppModal } from '../../components/AppModal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { ImportantState } from '../../components/ImportantState';
+import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
 import { UserAvatar } from '../../components/UserAvatar';
 import { ChevronIcon } from '../../icons/ChevronIcon';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
+import { CheckIcon } from '../../icons/CheckIcon';
+import { CloseIcon } from '../../icons/CloseIcon';
+import { TrashIcon } from '../../icons/TrashIcon';
 import { UserIcon } from '../../icons/UserIcon';
 import { SearchIcon } from '../../icons/SearchIcon';
 import { CopyIcon } from '../../icons/CopyIcon';
@@ -112,6 +117,15 @@ type Renderer = ReactTestRenderer.ReactTestRenderer;
 const texts = (renderer: Renderer | ReactTestRenderer.ReactTestInstance) =>
   ('root' in renderer ? renderer.root : renderer).findAllByType(Text).map(node => String(node.props.children));
 const exists = (renderer: Renderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID).length > 0;
+/** Renders a list's footer/header element on its own. */
+function renderPart(element: React.ReactElement) {
+  let part!: ReactTestRenderer.ReactTestRenderer;
+  act(() => {
+    part = ReactTestRenderer.create(element);
+  });
+  return part;
+}
+
 const byId = (renderer: Renderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID && (typeof node.props.onPress === 'function' || typeof node.props.onChangeText === 'function'))[0]
   ?? renderer.root.find(node => node.props.testID === testID);
@@ -209,7 +223,7 @@ describe('FriendsScreen - tabs', () => {
   it('a first load that fails offers 다시 시도; a later failure keeps the list', async () => {
     jest.mocked(getFriends).mockRejectedValueOnce(new Error('offline'));
     const renderer = await renderScreen();
-    expect(texts(byId(renderer, 'friends-error'))).toContain(i18n.t('friends.loadFallback'));
+    expect(texts(byId(renderer, 'friends-error'))).toEqual(expect.arrayContaining([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage')]));
 
     await press(renderer, 'friends-error-retry');
     expect(exists(renderer, 'friend-7')).toBe(true);
@@ -221,6 +235,27 @@ describe('FriendsScreen - tabs', () => {
     });
     expect(exists(renderer, 'friend-7')).toBe(true);
     expect(exists(renderer, 'friends-stale')).toBe(true);
+    // A compact, non-blocking retry row over the kept list - not a full failure state, not a red line.
+    expect(renderer.root.findAllByType(RefreshFailureNotice).map(node => node.props.testID)).toContain('friends-stale');
+    expect(renderer.root.findAllByType(ImportantState)).toHaveLength(0);
+    expect(exists(renderer, 'friends-action-error')).toBe(false);
+    await press(renderer, 'friends-stale-retry');
+    expect(exists(renderer, 'friends-stale')).toBe(false);
+    expect(exists(renderer, 'friend-7')).toBe(true);
+  });
+
+  it('a next page that fails keeps what is listed and offers a compact retry under it', async () => {
+    jest.mocked(getFriends).mockResolvedValueOnce({ items: [pikachu], nextCursor: '7' });
+    const renderer = await renderScreen();
+    jest.mocked(getFriends).mockRejectedValueOnce(new Error('offline'));
+    await act(async () => {
+      renderer.root.findByType(FlatList).props.onEndReached();
+    });
+
+    expect(exists(renderer, 'friend-7')).toBe(true);
+    const footer = renderPart(renderer.root.findByType(FlatList).props.ListFooterComponent);
+    expect(footer.root.findAllByType(RefreshFailureNotice)).toHaveLength(1);
+    expect(renderer.root.findAllByType(ImportantState)).toHaveLength(0);
   });
 
   it('pull to refresh reloads friends and requests once each', async () => {
@@ -454,7 +489,11 @@ describe('FriendsScreen - 받은 요청', () => {
     const row = byId(renderer, 'friends-incoming-1');
 
     expect(row.findByType(UserAvatar).props).toEqual(expect.objectContaining({ imageUrl: incomingCharmander.profileImageUrl, imageVersion: 'v3' }));
-    expect(texts(row)).toEqual(expect.arrayContaining(['파이리', '@NCMN-G234', '거절', '수락']));
+    // Icon-only actions: the words live in the accessibility labels, not as big text buttons.
+    expect(texts(row)).toEqual(expect.arrayContaining(['파이리', '@NCMN-G234', '받은 요청']));
+    expect(texts(row)).not.toEqual(expect.arrayContaining(['거절']));
+    expect(byId(renderer, 'friends-accept-1').findAllByType(CheckIcon)).toHaveLength(1);
+    expect(byId(renderer, 'friends-decline-1').findAllByType(CloseIcon)).toHaveLength(1);
     expect(lookupJupleId).not.toHaveBeenCalled();
     expect(byId(renderer, 'friends-accept-1').props.accessibilityLabel).toBe('파이리 님의 친구 요청 수락');
     expect(byId(renderer, 'friends-decline-1').props.accessibilityLabel).toBe('파이리 님의 친구 요청 거절');
@@ -495,17 +534,63 @@ describe('FriendsScreen - 받은 요청', () => {
     expect(exists(renderer, 'friend-11')).toBe(true);
   });
 
-  it('declining removes the row and the count', async () => {
-    jest.mocked(declineFriendRequest).mockResolvedValue(undefined);
+  const declineDialog = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(ConfirmDialog).find(candidate => candidate.props.title === i18n.t('friends.declineConfirmTitle'))!;
+
+  it('X asks first (the common centered confirmation) - 취소 leaves the request exactly as it was', async () => {
     const renderer = await renderScreen();
     await openTab(renderer, 'incoming');
 
     await press(renderer, 'friends-decline-1');
 
+    const dialog = declineDialog(renderer);
+    expect(dialog.props.visible).toBe(true);
+    expect(dialog.props.message).toBe(i18n.t('friends.declineConfirmMessage'));
+    expect(dialog.props.confirmLabel).toBe(i18n.t('collaboration.decline'));
+    expect(dialog.props.cancelLabel).toBe(i18n.t('common.cancel'));
+    expect(dialog.props.destructive).toBe(true);
+    expect(declineFriendRequest).not.toHaveBeenCalled();
+
+    await act(async () => {
+      declineDialog(renderer).props.onCancel();
+    });
+    expect(declineDialog(renderer).props.visible).toBe(false);
+    expect(declineFriendRequest).not.toHaveBeenCalled();
+    expect(exists(renderer, 'friends-incoming-1')).toBe(true);
+    expect(byId(renderer, 'friends-tab-incoming-count').props.children).toBe('1');
+  });
+
+  it('declining (after 거절 in the confirmation) removes the row and the count', async () => {
+    jest.mocked(declineFriendRequest).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    await openTab(renderer, 'incoming');
+
+    await press(renderer, 'friends-decline-1');
+    expect(declineFriendRequest).not.toHaveBeenCalled();
+    await act(async () => {
+      declineDialog(renderer).props.onConfirm();
+    });
+
     expect(declineFriendRequest).toHaveBeenCalledWith(expect.anything(), 1);
     expect(exists(renderer, 'friends-incoming-1')).toBe(false);
     expect(exists(renderer, 'friends-tab-incoming-count')).toBe(false);
     expect(exists(renderer, 'friends-incoming-empty')).toBe(true);
+  });
+
+  it('declining (after the confirmation) a request the sender already cancelled: the stale-request message, the row goes', async () => {
+    jest.mocked(declineFriendRequest).mockRejectedValue(new ApiError('notFound', 404, 'requestNoLongerPending'));
+    const renderer = await renderScreen();
+    await openTab(renderer, 'incoming');
+    jest.mocked(getFriendRequests).mockResolvedValue([outgoingTogepi]);
+
+    await press(renderer, 'friends-decline-1');
+    await act(async () => {
+      declineDialog(renderer).props.onConfirm();
+    });
+
+    const dialog = renderer.root.findAllByType(ConfirmDialog).find(candidate => candidate.props.visible)!;
+    expect(dialog.props.message).toBe(i18n.t('friends.requestCancelledByRequester'));
+    expect(exists(renderer, 'friends-incoming-1')).toBe(false);
   });
 
   it('a request the sender already cancelled shows a centered message, removes the stale row and refetches', async () => {
@@ -525,29 +610,41 @@ describe('FriendsScreen - 받은 요청', () => {
     expect(exists(renderer, 'friends-incoming-1')).toBe(false);
   });
 
-  it('puts the actions on their own line, each at least a touch target tall', async () => {
+  it('is one card: the person and compact 44dp icon actions on the same row, no divider line', async () => {
     const renderer = await renderScreen();
     await openTab(renderer, 'incoming');
 
     for (const testID of ['friends-accept-1', 'friends-decline-1']) {
       const style = StyleSheet.flatten(byId(renderer, testID).props.style);
-      expect(style.minHeight).toBeGreaterThanOrEqual(44);
-      expect(style.flexGrow).toBe(1);
+      expect(style.width).toBeGreaterThanOrEqual(44);
+      expect(style.height).toBeGreaterThanOrEqual(44);
     }
-    const row = byId(renderer, 'friends-incoming-1');
-    expect(StyleSheet.flatten(row.props.style).flexDirection).not.toBe('row');
+    const card = StyleSheet.flatten(byId(renderer, 'friends-incoming-1').props.style);
+    expect(card).toMatchObject({ flexDirection: 'row', overflow: 'hidden', marginBottom: 8 });
+    expect(card.borderRadius).toBeGreaterThan(0);
+    expect(card.borderBottomWidth).toBeUndefined();
+    // The person area still opens their profile.
+    expect(typeof byId(renderer, 'friends-incoming-person-1').props.onPress).toBe('function');
   });
 });
 
 describe('FriendsScreen - 보낸 요청', () => {
-  it('shows who, 요청 대기 중 and 요청 취소 (supported by the API)', async () => {
+  it('one compact row: who and 요청 대기 중, with an icon-only trash at the end that cancels (요청 취소 for screen readers)', async () => {
     jest.mocked(cancelFriendRequest).mockResolvedValue(undefined);
     const renderer = await renderScreen();
     await openTab(renderer, 'outgoing');
     const row = byId(renderer, 'friends-outgoing-2');
 
-    expect(texts(row)).toEqual(expect.arrayContaining(['@TGNG-2345', '요청 대기 중', '요청 취소']));
-    expect(byId(renderer, 'friends-cancel-2').props.accessibilityLabel).toBe('@TGNG-2345 님에게 보낸 친구 요청 취소');
+    expect(texts(row)).toEqual(expect.arrayContaining(['@TGNG-2345', '요청 대기 중']));
+    // No big text button under the row - the trash icon is the action, beside the person on the same line.
+    expect(texts(row)).not.toContain('요청 취소');
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', overflow: 'hidden', marginBottom: 8 });
+    const cancel = byId(renderer, 'friends-cancel-2');
+    expect(cancel.props.accessibilityLabel).toBe('@TGNG-2345 님에게 보낸 친구 요청 취소');
+    expect(cancel.findAllByType(TrashIcon)).toHaveLength(1);
+    const cancelStyle = StyleSheet.flatten(cancel.props.style);
+    expect(cancelStyle.width).toBeGreaterThanOrEqual(44);
+    expect(cancelStyle.height).toBeGreaterThanOrEqual(44);
 
     await press(renderer, 'friends-cancel-2');
     expect(cancelFriendRequest).toHaveBeenCalledWith(expect.anything(), 2);

@@ -200,39 +200,6 @@ public sealed class ItemsController(
     }
 
     /// <summary>
-    /// The Archive calendar: for one month (year, month), the days that have links with their exact
-    /// counts - in the caller's stored time zone, Trash excluded, one statement, no link data. Tapping a
-    /// day then reads GET history/date for it.
-    /// </summary>
-    [HttpGet("history/calendar")]
-    public async Task<IActionResult> GetHistoryCalendarAsync(
-        [FromQuery] int year,
-        [FromQuery] int month,
-        [FromServices] Juple.Application.Items.GetItemHistoryCalendar.IGetItemHistoryCalendarService calendarService,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var currentUser = await currentUserAccessor.GetRequiredAsync(
-                externalIdentityAccessor.GetRequired(), cancellationToken);
-            return Ok(await calendarService.GetAsync(currentUser.UserId, currentUser.TimeZoneId, year, month, cancellationToken));
-        }
-        catch (Juple.Application.Items.GetItemHistoryCalendar.InvalidCalendarMonthException exception)
-        {
-            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
-            {
-                [exception.Field] = [exception.Message],
-            }));
-        }
-        catch (CurrentJupleUserNotFoundException)
-        {
-            return Problem(
-                statusCode: StatusCodes.Status409Conflict,
-                title: "Juple user bootstrap is required.");
-        }
-    }
-
-    /// <summary>
     /// Items the user saved (SavedAtUtc) on a single local calendar date - powers Home
     /// ("오늘 저장한 링크"). date is required because Home always asks for a specific day; the
     /// local-date-to-UTC-range conversion uses DailyInboxDateRangeCalculator + currentUser.TimeZoneId.
@@ -333,13 +300,31 @@ public sealed class ItemsController(
         }
     }
 
+    /// <summary>
+    /// The caller's own Item. Optional collectionId: the Collection the link is being opened IN (a Home/Archive card gated
+    /// by that Collection) - then that Collection's CURRENT gate applies first (its lock for the Owner - no Owner bypass -
+    /// or its share password for a member), with the grant from POST collections/{id}/unlock in the
+    /// X-Juple-Collection-Unlock header, and the Item must be in that Collection: 403 collectionLocked /
+    /// sharePasswordRequired without a valid grant, 404 when the Collection is not the caller's to see or the Item is not
+    /// in it. Nothing of the Item is read before that passes. Without collectionId: ownership only, as before.
+    /// </summary>
     [HttpGet("{id:long}")]
-    public async Task<IActionResult> GetDetailAsync(long id, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetDetailAsync(
+        long id,
+        [FromServices] IItemCollectionContextGate collectionContextGate,
+        CancellationToken cancellationToken,
+        [FromQuery] long? collectionId = null,
+        [FromHeader(Name = CollectionsController.UnlockTokenHeader)] string? unlockToken = null)
     {
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
+            if (collectionId is { } contextCollectionId)
+            {
+                await collectionContextGate.RequireAsync(currentUser.UserId, id, contextCollectionId, unlockToken, cancellationToken);
+            }
+
             var details = await getItemDetailService.GetAsync(currentUser.UserId, id, cancellationToken);
 
             return Ok(new ItemDetailResponse(
@@ -361,6 +346,18 @@ public sealed class ItemsController(
         catch (ItemNotFoundException)
         {
             return NotFound();
+        }
+        catch (Juple.Application.Collections.CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Juple.Application.Collections.CollectionLockedException)
+        {
+            return Juple.Api.Collections.CollectionProblems.CollectionLocked();
+        }
+        catch (Juple.Application.Collections.CollectionSharePasswordRequiredException)
+        {
+            return Juple.Api.Collections.CollectionProblems.SharePasswordRequired();
         }
     }
 

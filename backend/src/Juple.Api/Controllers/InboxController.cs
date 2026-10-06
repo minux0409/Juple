@@ -1,4 +1,6 @@
 using Juple.Api.Authentication;
+using Juple.Api.Collections;
+using Juple.Application.Collections;
 using Juple.Application.Collections.Public;
 using Juple.Application.Identity;
 using Juple.Application.Inbox;
@@ -14,22 +16,43 @@ namespace Juple.Api.Controllers;
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
 public sealed class InboxController : ControllerBase
 {
+    /// <summary>
+    /// Saves a link. Optional collectionIds (the 링크 저장 screen): the Collections the new link goes into, written
+    /// together with it (see SaveInboxEntryToCollectionsService) - [] is an explicit "no Collection"; omitted keeps the
+    /// original contract (just the link, the plain entry body). unlockTokens: collectionId → grant, one per locked
+    /// destination. With collectionIds the body also carries what happened in the Collections.
+    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<InboxEntryDto>> SaveAsync(
+    public async Task<IActionResult> SaveAsync(
         SaveInboxEntryRequest request,
         [FromServices] IExternalIdentityAccessor externalIdentityAccessor,
         [FromServices] ICurrentJupleUserAccessor currentUserAccessor,
         [FromServices] IInboxEntrySaveService inboxEntrySaveService,
+        [FromServices] ISaveInboxEntryToCollectionsService saveToCollectionsService,
         CancellationToken cancellationToken)
     {
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
-            var result = await inboxEntrySaveService.SaveAsync(
-                currentUser.UserId,
-                new SaveInboxEntryCommand(request.Url, request.ClientRequestId),
-                cancellationToken);
+            var command = new SaveInboxEntryCommand(request.Url, request.ClientRequestId);
+            if (request.CollectionIds is { } collectionIds)
+            {
+                var withCollections = await saveToCollectionsService.SaveAsync(
+                    currentUser.UserId, command, collectionIds, request.UnlockTokens, cancellationToken);
+                var entry = withCollections.Save.Entry;
+                var body = new SaveInboxEntryWithCollectionsResponse(
+                    entry.Id,
+                    entry.Url,
+                    entry.SavedAtUtc,
+                    withCollections.Collections.Added,
+                    withCollections.Collections.Submitted,
+                    withCollections.Collections.AlreadyInCollection,
+                    withCollections.Collections.AlreadyPending);
+                return withCollections.Save.Created ? Created($"/api/v1/inbox/{entry.Id}", body) : Ok(body);
+            }
+
+            var result = await inboxEntrySaveService.SaveAsync(currentUser.UserId, command, cancellationToken);
 
             return result.Created
                 ? Created($"/api/v1/inbox/{result.Entry.Id}", result.Entry)
@@ -67,7 +90,41 @@ public sealed class InboxController : ControllerBase
                 statusCode: StatusCodes.Status409Conflict,
                 title: "The request conflicts with a prior request using the same clientRequestId.");
         }
+        catch (CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Juple.Application.Items.ItemNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (CollectionForbiddenException)
+        {
+            return CollectionProblems.CollectionForbidden();
+        }
+        catch (CollectionSharePasswordRequiredException)
+        {
+            return CollectionProblems.SharePasswordRequired();
+        }
+        catch (CollectionLockedException)
+        {
+            return CollectionProblems.CollectionLocked();
+        }
     }
 
-    public sealed record SaveInboxEntryRequest(string? Url, Guid? ClientRequestId);
+    public sealed record SaveInboxEntryRequest(
+        string? Url,
+        Guid? ClientRequestId,
+        IReadOnlyList<long>? CollectionIds = null,
+        IReadOnlyDictionary<long, string>? UnlockTokens = null);
+
+    /// <summary>The saved entry plus, per outcome, how many of the chosen Collections ended that way.</summary>
+    public sealed record SaveInboxEntryWithCollectionsResponse(
+        long Id,
+        string Url,
+        DateTimeOffset SavedAtUtc,
+        int AddedCount,
+        int SubmittedCount,
+        int AlreadyInCollectionCount,
+        int AlreadyPendingCount);
 }

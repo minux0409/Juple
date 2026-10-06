@@ -143,11 +143,8 @@ export function ApprovalSubmissionSheet({
       }
       setHasLoaded(true);
       setIsError(true);
-      setMessage(
-        contentGateOfError(caughtError) === 'lock'
-          ? t('collections.lockedMessage')
-          : t(isOwner ? 'submissions.loadError' : 'submissions.myLoadError'),
-      );
+      // Locked: a definite answer with its own sentence. Anything else: the app-wide load-failure text (message null).
+      setMessage(contentGateOfError(caughtError) === 'lock' ? t('collections.lockedMessage') : null);
     } finally {
       if (loadId === loadIdRef.current) {
         setIsLoading(false);
@@ -415,8 +412,8 @@ export function ApprovalSubmissionSheet({
           ItemSeparatorComponent={Separator}
           keyExtractor={row => String(row.submissionId)}
           ListEmptyComponent={
-            isError && message ? (
-              <ImportantState compact message={message} onRetry={() => { load().catch(() => undefined); }} testID="approval-sheet-empty" />
+            isError ? (
+              <ImportantState compact message={message ?? undefined} onRetry={() => { load().catch(() => undefined); }} testID="approval-sheet-empty" variant={message ? 'notice' : 'loadFailed'} />
             ) : (
               <Text style={styles.empty} testID="approval-sheet-empty">{message ?? t(emptyKey)}</Text>
             )

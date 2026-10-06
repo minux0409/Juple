@@ -1,4 +1,5 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
+import { itemReadContextRequest, type ItemReadContext } from '../../items/api/itemsApi';
 
 /**
  * Matches Juple.Api.Controllers.ItemImagesController.ItemImageResponse exactly - BlobName is
@@ -38,10 +39,13 @@ const UPLOAD_TIMEOUT_MS = 120_000;
 export async function getItemImages(
   request: AuthenticatedApiRequest,
   itemId: number,
+  context?: ItemReadContext | null,
 ): Promise<readonly ItemImage[]> {
+  const { query, headers } = itemReadContextRequest(context);
   const response = await request<ItemImagesResponse>({
     method: 'GET',
-    path: `/api/v1/items/${itemId}/images`,
+    path: `/api/v1/items/${itemId}/images${query}`,
+    headers,
   });
 
   if (!response.body) {

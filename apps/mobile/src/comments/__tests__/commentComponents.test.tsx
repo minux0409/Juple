@@ -212,7 +212,8 @@ describe('CommentList', () => {
     expect(loading.root.findAll(node => node.props.testID === 'comments-empty')).toHaveLength(0);
 
     const failed = list({ status: 'error', onRetry });
-    expect(texts(failed)).toContain('댓글을 불러오지 못했어요.');
+    // The app-wide load-failure wording - no comment-specific sentence.
+    expect(texts(failed)).toEqual(expect.arrayContaining(['불러오지 못했어요', '기록을 불러올 수 없습니다.', '다시 시도']));
     act(() => byId(failed, 'comments-error-retry').props.onPress());
     expect(onRetry).toHaveBeenCalledTimes(1);
   });

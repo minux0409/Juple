@@ -9,7 +9,7 @@ import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LinkSortChips } from '../components/LinkSortChips';
-import { LoadFailureState } from '../components/LoadFailureState';
+import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -266,7 +266,7 @@ export function TrashScreen() {
           isLoading ? (
             <ActivityIndicator style={styles.loading} />
           ) : loadError ? (
-            <LoadFailureState error={loadError.cause} message={loadError.message} onRetry={() => { load(); }} testID="trash-load-error" />
+            <LoadFailureState error={loadError.cause} notice={isDefinitiveLoadError(loadError.cause) ? loadError.message : null} onRetry={() => { load(); }} testID="trash-load-error" />
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.empty}>{t('trash.empty')}</Text>

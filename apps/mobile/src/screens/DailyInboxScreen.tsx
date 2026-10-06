@@ -20,7 +20,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { LoadFailureState } from '../components/LoadFailureState';
+import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -43,6 +43,7 @@ import {
 } from '../items/api/itemsApi';
 import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
+import { useItemCardOpen } from '../items/useItemCardOpen';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { parseCollectionShareUrl } from '../share/collectionShareUrl';
@@ -394,6 +395,7 @@ export function DailyInboxScreen() {
   };
 
   const runShare = async (item: ItemHistoryEntry) => {
+    if (item.isCollectionLocked) { return; }
     if (actionInFlightItemIdRef.current !== null || isRefreshingRef.current) {
       return;
     }
@@ -411,6 +413,10 @@ export function DailyInboxScreen() {
   const confirmDelete = (itemId: number) => {
     setPendingDeleteItemId(previous => previous ?? itemId);
   };
+  const itemCardOpen = useItemCardOpen(
+    (itemId, openContext) => navigation.navigate('ItemDetails', { itemId, openContext }),
+    () => { loadToday('refresh'); },
+  );
 
   // 시간순 ↓ (the server's own newest-first order) pages in as the list scrolls. 시간순 ↑ and 이름순 need
   // the whole day: it is loaded here (largest pages) before anything is shown in that order, never
@@ -526,7 +532,7 @@ export function DailyInboxScreen() {
             </View>
             {error && items.length > 0 ? (
               // Rows are shown (a refresh or the next page failed): the failure sits above them, with a retry.
-              <LoadFailureState compact error={error.cause} message={error.message} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />
+              <LoadFailureState compact error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('refresh'); }} testID="home-load-error" />
             ) : null}
             <View style={styles.recentHeaderRow}>
               {/* Title and count only - the controls are on the sort row below, as in a Collection. */}
@@ -557,7 +563,7 @@ export function DailyInboxScreen() {
         }
         ListEmptyComponent={
           error ? (
-            <LoadFailureState error={error.cause} message={error.message} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
+            <LoadFailureState error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
           ) : (isLoading || isAssemblingOrder) ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
         renderItem={({ item }) => viewMode === 'grid' ? (
@@ -566,8 +572,8 @@ export function DailyInboxScreen() {
             isActionInFlight={actionInFlightItemId === item.id}
             item={item}
             onDelete={() => confirmDelete(item.id)}
-            onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
-            onShare={() => runShare(item)}
+            onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+            onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
             preferEffectiveThumbnail
           />
         ) : (
@@ -575,8 +581,8 @@ export function DailyInboxScreen() {
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null || isRefreshing}
             onDelete={() => confirmDelete(item.id)}
-            onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
-            onShare={() => runShare(item)}
+            onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+            onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
           >
             <SavedLinkRow
               isActionInFlight={actionInFlightItemId === item.id}
@@ -587,6 +593,7 @@ export function DailyInboxScreen() {
         )}
         ListFooterComponent={isLoadingMore ? renderSkeletons(HOME_NEXT_PAGE_SKELETON_ROWS, 'home-next-page-loading') : undefined}
       />
+      {itemCardOpen.dialog}
       {saveError !== null && (
         <ConfirmDialog
           visible

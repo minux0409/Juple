@@ -153,14 +153,17 @@ export function DateSectionSkeletonRow({ grid, isFirst, isLast, testID }: CardRo
   );
 }
 
-/** A section whose page failed: the message and a retry that asks for exactly that page again. */
-export function DateSectionErrorRow({ message, onRetry, testID, retryTestID }: { readonly message: string; readonly onRetry: () => void; readonly testID: string; readonly retryTestID: string }) {
+/**
+ * One section's page failed while the other sections stay usable: a compact, non-blocking row in the standard words
+ * ("불러오지 못했어요 [다시 시도]") with a retry that asks for exactly that page again - never a red, section-specific line.
+ */
+export function DateSectionErrorRow({ onRetry, testID, retryTestID }: { readonly onRetry: () => void; readonly testID: string; readonly retryTestID: string }) {
   const { t } = useTranslation();
   return (
-    <View style={[dateAccordionStyles.row, dateAccordionStyles.rowLast, styles.errorRow]} testID={testID}>
-      <Text style={styles.errorRowText}>{message}</Text>
+    <View accessibilityLiveRegion="polite" style={[dateAccordionStyles.row, dateAccordionStyles.rowLast, styles.errorRow]} testID={testID}>
+      <Text style={styles.errorRowText}>{t('importantState.loadFailedTitle')}</Text>
       <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retryButton} testID={retryTestID}>
-        <Text style={styles.retryLabel}>{t('history.retry')}</Text>
+        <Text style={styles.retryLabel}>{t('importantState.retry')}</Text>
       </Pressable>
     </View>
   );
@@ -170,7 +173,7 @@ const styles = StyleSheet.create({
   skeletonRow: { backgroundColor: colors.surface, overflow: 'hidden' },
   gridSkeletonCell: { flexBasis: '50%', maxWidth: '50%', paddingHorizontal: 2 },
   errorRow: { alignItems: 'center', backgroundColor: colors.surface, flexDirection: 'row', gap: spacing.sm, padding: spacing.md },
-  errorRowText: { color: colors.danger, flex: 1, fontSize: 14 },
+  errorRowText: { color: colors.textSecondary, flex: 1, fontSize: 14 },
   retryButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   retryLabel: { color: colors.brand, fontSize: 14, fontWeight: '700' },
 });

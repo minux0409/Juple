@@ -81,14 +81,12 @@
     "searchPlaceholder": "リンクを検索",
     "searchClear": "検索をクリア",
     "searchEmpty": "結果がありません。",
-    "searchError": "検索できませんでした。",
     "empty": "保存したリンクはまだありません。",
     "errorLoadFallback": "履歴を読み込めませんでした。",
     "today": "今日",
     "yesterday": "昨日",
     "thisWeek": "今週",
     "sectionHeader": "{{label}} ・ {{count}}",
-    "retry": "再試行",
     "deleteConfirmTitle": "項目を削除",
     "deleteConfirmMessage": "この項目を削除しますか？この操作は取り消せません。",
     "errorDeleteFallback": "項目を削除できませんでした。",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "共有状態を変更できませんでした。",
     "errorListFallback": "コレクションの一覧を読み込めませんでした。",
     "errorItemsLoadFallback": "コレクションの項目を読み込めませんでした。",
-    "errorDetailLoadFallback": "コレクションを読み込めませんでした。",
     "errorNotFound": "このコレクションはすでに削除されたか、見つかりませんでした。",
     "errorCreateFallback": "コレクションを作成できませんでした。",
     "errorRenameFallback": "コレクション名を変更できませんでした。",
@@ -417,7 +414,6 @@
     "trash": "削除履歴",
     "collectionLock": "コレクションのロック",
     "collectionLockDescription": "コレクションのパスワードを設定してください。",
-    "collectionLockLoadFallback": "ロックの設定を読み込めませんでした。",
     "collectionLockStatusLabel": "状態",
     "collectionLockConfigured": "設定済み",
     "collectionLockNotConfigured": "未設定",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "このリンクはロックされています。",
     "fallbackInstagramPost": "Instagramの投稿",
     "fallbackInstagramReel": "Instagramのリール",
     "titleLabel": "タイトル",
@@ -470,6 +467,7 @@
     "share": "共有する",
     "memo": "メモ",
     "memoPlaceholder": "メモを入力してください",
+    "savedAtLabel": "保存日",
     "uploading": "アップロード中...",
     "representativePhoto": "代表写真",
     "editRepresentativePhoto": "代表写真を編集",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "項目を削除できませんでした。",
     "errorImagePickerPermission": "写真ライブラリへのアクセス権限が必要です。",
     "errorImagePickerFallback": "写真を選択できませんでした。",
-    "resolvingMetadataOverlay": "リンク情報を読み込み中...",
     "metadataResolutionFailedHint": "リンク情報を読み込めませんでした。直接入力して保存できます。",
     "activeDraftConflictTitle": "作成中のリンクがあります",
     "activeDraftConflictMessage": "現在作成中のリンクを保存してから新しいリンクを確認しますか?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "新しいコレクション",
     "newCollectionA11y": "新しいコレクションを作成",
     "saveDialogTitle": "リンクを保存",
-    "addMemo": "メモを追加",
     "collectionLinkNotSavable": "Jupleのコレクション共有リンクは通常のリンクとして保存できません。コレクションとして開いてください。"
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "このコメントを削除しますか?",
     "loadPrevious": "以前のコメントを見る",
     "loadError": "コメントを読み込めませんでした。",
-    "retry": "再試行",
     "sendError": "コメントを送信できませんでした。",
     "deleteError": "コメントを削除できませんでした。",
     "justNow": "たった今",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "受信した承認リクエストはありません。",
     "myEmpty": "送信した承認リクエストはありません。",
-    "myLoadError": "送信済みリクエストを読み込めませんでした。",
     "myStatus": "承認待ち",
-    "loadError": "承認待ちの一覧を読み込めませんでした。",
     "approve": "承認",
     "reject": "拒否",
     "rejectConfirmTitle": "このリンクのリクエストを拒否しますか？",
@@ -727,13 +720,11 @@
     "search": "友だちを検索",
     "sendRequest": "友だちリクエストを送る",
     "requestSent": "友だちリクエストを送りました。",
-    "cancelRequest": "リクエストを取り消す",
     "alreadyFriends": "すでに友だちです。",
     "requestAlreadyPending": "すでにリクエストを送っています。",
     "incomingRequestExists": "この人からリクエストが届いています。受け取った友だちリクエストで承認できます。",
     "cannotAddSelf": "自分自身は追加できません。",
     "actionFallback": "操作を完了できませんでした。",
-    "loadFallback": "友だちを読み込めませんでした。",
     "empty": "まだ友だちがいません。",
     "searchEmpty": "該当する友だちはいません。",
     "note": "メモ",
@@ -754,6 +745,8 @@
     "viewIncoming": "受信したリクエストを見る",
     "acceptA11y": "{{name}}さんの友だちリクエストを承認",
     "declineA11y": "{{name}}さんの友だちリクエストを拒否",
+    "declineConfirmTitle": "友達リクエストを拒否しますか？",
+    "declineConfirmMessage": "この友達リクエストを拒否します。",
     "cancelA11y": "{{name}}さんへの友だちリクエストを取り消す",
     "personTitle": "ユーザー情報",
     "you": "あなた",
@@ -766,7 +759,6 @@
     "markAllRead": "すべて既読",
     "empty": "まだ通知はありません。",
     "unavailable": "この通知の内容はもう表示できません。",
-    "loadError": "通知を読み込めませんでした。",
     "retry": "再試行",
     "unreadA11y": "未読",
     "bellA11y": "通知",
@@ -780,8 +772,7 @@
     "groupOlder": "以前",
     "daysAgo": "{{count}}日",
     "deleteA11y": "通知を削除",
-    "deleteFailed": "通知を削除できませんでした。",
-    "loadErrorTitle": "通知を読み込めませんでした"
+    "deleteFailed": "通知を削除できませんでした。"
   },
   "contact": {
     "title": "お問い合わせ",
@@ -792,22 +783,8 @@
     "copyEmail": "メールアドレスをコピー"
   },
   "importantState": {
-    "offlineTitle": "接続できません",
     "loadFailedTitle": "読み込めませんでした",
-    "retry": "もう一度試す",
-    "offlineMessage": "インターネット接続を確認してから、もう一度お試しください。"
-  },
-  "calendar": {
-    "previousMonthA11y": "前の月",
-    "nextMonthA11y": "次の月",
-    "today": "今日",
-    "dayCountA11y": "リンク{{count}}件",
-    "monthLoadError": "カレンダーを読み込めませんでした。",
-    "dayLoadError": "この日のリンクを読み込めませんでした。",
-    "dayEmpty": "この日に保存したリンクはありません。",
-    "collectionDayEmpty": "この日に追加されたリンクはありません。",
-    "pickDate": "日付を選択",
-    "selectedDateLabel": "日付: {{date}}",
-    "clearDateA11y": "日付フィルターを解除"
+    "loadFailedMessage": "記録を読み込めませんでした。",
+    "retry": "もう一度試す"
   }
 }

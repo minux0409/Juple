@@ -51,8 +51,6 @@ import { leaveCollection } from '../../collections/api/collaborationApi';
 import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { UndoToast } from '../../components/UndoToast';
-import { getCollectionCalendar } from '../../calendar/calendarApi';
-import { todayLocalDate } from '../../calendar/calendarDates';
 import { AppToastProvider } from '../../components/AppToast';
 
 beforeAll(async () => {
@@ -116,11 +114,6 @@ jest.mock('../../collections/api/collaborationApi', () => ({
 }));
 jest.mock('../../items/shareItem', () => ({
   shareItem: jest.fn(),
-}));
-
-jest.mock('../../calendar/calendarApi', () => ({
-  getCollectionCalendar: jest.fn(),
-  getHistoryCalendar: jest.fn(),
 }));
 
 function makeCollection(overrides: Partial<Collection> = {}): Collection {
@@ -316,6 +309,9 @@ async function pressCollectionMenuAction(renderer: ReactTestRenderer.ReactTestRe
   await act(async () => action.onPress());
 }
 
+/** A test that renders a real virtualized list of 1,200 links needs more than Jest's default 5 s on a busy machine. */
+const HEAVY_TEST_TIMEOUT_MS = 20_000;
+
 describe('CollectionDetailsScreen', () => {
   beforeEach(() => {
     jest.mocked(getCollection).mockResolvedValue(makeCollection());
@@ -369,79 +365,41 @@ describe('CollectionDetailsScreen', () => {
     });
   });
 
-  describe('date filter', () => {
-    const openPicker = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
-      await act(async () => {
-        renderer.root.find(node => node.props.testID === 'collection-date-filter-toggle' && typeof node.props.onPress === 'function').props.onPress();
-      });
-      await act(async () => {
-        await new Promise<void>(resolve => setImmediate(() => resolve()));
-      });
-    };
+  it('shows search and no date control', async () => {
+    const renderer = await renderScreen();
+    expect(renderer.root.findAll(node => node.props.testID === 'collection-search').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('collection-date-filter'))).toHaveLength(0);
+  });
 
-    it('is a filter beside List / Grid - the view selector has no calendar option', async () => {
-      const renderer = await renderScreen();
-      const toggle = renderer.root.findAllByType(ViewModeToggle)[0];
-      expect(toggle.props).not.toHaveProperty('withCalendar');
-      expect(renderer.root.findAll(node => node.props.testID === 'view-mode-calendar')).toHaveLength(0);
-      expect(renderer.root.findAll(node => node.props.testID === 'collection-date-filter-toggle')).not.toHaveLength(0);
+  it('places 링크 검색 BETWEEN the [시간순] [이름순] … [List/Grid] row and the links (like the Archive)', async () => {
+    jest.mocked(getCollectionItems).mockResolvedValue({ items: [makeItemEntry({ itemId: 5, title: 'First link' })], nextCursor: null });
+    const renderer = await renderScreen();
+    // Depth-first tree order is the on-screen order of this header column.
+    const order = renderer.root.findAll(node => typeof node.type === 'string' && ['collection-sort-date', 'collection-sort-name', 'collection-search'].includes(node.props.testID))
+      .map(node => node.props.testID as string);
+    const firstOf = (testID: string) => order.indexOf(testID);
+    expect(firstOf('collection-sort-date')).toBeGreaterThanOrEqual(0);
+    expect(firstOf('collection-sort-date')).toBeLessThan(firstOf('collection-search'));
+    expect(firstOf('collection-sort-name')).toBeLessThan(firstOf('collection-search'));
+    // The links follow the controls: the list's header holds them, its rows come after.
+    const list = renderer.root.findAllByType(FlatList).find(candidate => candidate.props.ListHeaderComponent);
+    expect(list).toBeTruthy();
+  });
+
+  it('searches this Collection on the server after debounce and clears back to the full list', async () => {
+    const searched = makeItemEntry({ itemId: 73, title: 'Needle result' });
+    jest.mocked(getCollectionItems).mockImplementation(async (_request, _id, options = {}) =>
+      options.q === 'needle' ? { items: [searched], nextCursor: null } : { items: [], nextCursor: null });
+    const renderer = await renderScreen();
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'collection-search' }).props.onChangeText('needle');
     });
-
-    it('asks the SERVER for the chosen day as a DATE - the same rule that counted it - and never builds UTC bounds itself', async () => {
-      const today = todayLocalDate();
-      const [year, month] = today.split('-').map(Number);
-      jest.mocked(getCollectionCalendar).mockResolvedValue({ year, month, days: [{ date: today, count: 2 }] });
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [makeItemEntry({ itemId: 41, title: 'On that day' })], nextCursor: null });
-      const renderer = await renderScreen();
-      jest.mocked(getCollectionItems).mockClear();
-
-      await openPicker(renderer);
-      // Month counts for the month on screen, through the calendar endpoint (counts only) - and no links yet.
-      expect(getCollectionCalendar).toHaveBeenCalledWith(expect.anything(), 1, year, month, null);
-      expect(getCollectionItems).not.toHaveBeenCalled();
-      expect(renderer.root.find(node => node.props.testID === `collection-date-filter-calendar-count-${today}` && typeof node.type === 'string').props.children).toBe(2);
-
-      await act(async () => {
-        renderer.root.find(node => node.props.testID === `collection-date-filter-calendar-day-${today}` && typeof node.props.onPress === 'function').props.onPress();
-      });
-
-      const dayRequests = jest.mocked(getCollectionItems).mock.calls.filter(call => call[2]?.date !== undefined);
-      expect(dayRequests).toHaveLength(1);
-      expect(dayRequests[0][1]).toBe(1);
-      expect(dayRequests[0][2]).toEqual(expect.objectContaining({ date: today, sort: 'dateDesc', limit: 25 }));
-      expect(dayRequests[0][2]).not.toHaveProperty('fromUtc');
-      expect(dayRequests[0][2]).not.toHaveProperty('toUtc');
-      // The day's links are what the screen lists below, the picker collapsed, the day shown as the filter.
-      expect(renderer.root.findAllByType(SavedLinkRow)).toHaveLength(1);
-      expect(renderer.root.find(node => node.props.testID === 'collection-date-filter-toggle' && typeof node.props.onPress === 'function').props.accessibilityLabel)
-        .toContain(i18n.t('calendar.selectedDateLabel', { date: '' }).replace(/\{\{.*$/, '').trim());
-    });
-
-    it('follows the current List / Grid, and X returns to every date', async () => {
-      const today = todayLocalDate();
-      const [year, month] = today.split('-').map(Number);
-      jest.mocked(getCollectionCalendar).mockResolvedValue({ year, month, days: [{ date: today, count: 2 }] });
-      jest.mocked(getCollectionItems).mockResolvedValue({ items: [makeItemEntry({ itemId: 41 }), makeItemEntry({ itemId: 42 })], nextCursor: null });
-      const renderer = await renderScreen();
-      await openPicker(renderer);
-      await act(async () => {
-        renderer.root.find(node => node.props.testID === `collection-date-filter-calendar-day-${today}` && typeof node.props.onPress === 'function').props.onPress();
-      });
-      // List: one column; Grid: two.
-      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
-      await act(async () => {
-        renderer.root.findAllByType(ViewModeToggle)[0].props.onChange('grid');
-      });
-      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
-      expect(renderer.root.findAllByType(SavedLinkGridCard)).toHaveLength(2);
-
-      await act(async () => {
-        renderer.root.find(node => node.props.testID === 'collection-date-filter-clear' && typeof node.props.onPress === 'function').props.onPress();
-      });
-      expect(renderer.root.findAll(node => node.props.testID === 'collection-date-filter-clear')).toHaveLength(0);
-      // Back to the whole Collection (its own list, not the day's).
-      expect(renderer.root.findAll(node => node.props.testID === 'collection-calendar-empty')).toHaveLength(0);
-    });
+    await act(async () => { await new Promise<void>(resolve => setTimeout(resolve, 350)); });
+    expect(getCollectionItems).toHaveBeenCalledWith(expect.anything(), 1,
+      expect.objectContaining({ q: 'needle', sort: 'dateDesc', limit: 30 }));
+    expect(renderer.root.findAllByType(FlatList).some(list => list.props.data?.some((row: CollectionItemEntry) => row.itemId === 73))).toBe(true);
+    await act(async () => { renderer.root.findByProps({ testID: 'collection-search-clear' }).props.onPress(); });
+    expect(renderer.root.findByProps({ testID: 'collection-search' }).props.value).toBe('');
   });
 
   describe('item row - swipe share/remove (reuses SwipeableItemRow)', () => {
@@ -1270,7 +1228,7 @@ describe('CollectionDetailsScreen', () => {
       expect(rows(renderer).filter(row => row.kind === 'gridRow').length).toBe(sections.reduce((sum, section) => sum + Math.ceil(Math.min(section.count, 25) / 2), 0));
       expect(renderer.root.findAllByType(SavedLinkGridCard).length).toBeLessThanOrEqual(dateList(renderer).props.initialNumToRender * 2);
       expect(itemCalls()).toHaveLength(sections.length);
-    });
+    }, HEAVY_TEST_TIMEOUT_MS);
 
     it('removing a link lowers its section\'s count at once, and an emptied section goes', async () => {
       const now = new Date();

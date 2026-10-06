@@ -15,4 +15,7 @@ public sealed record ItemHistoryEntryDto(
     DateTimeOffset SavedAtUtc,
     RepresentativeImageDto? RepresentativeImage,
     string? PreviewImageUrl,
-    RepresentativeImageDto? CoverImage);
+    RepresentativeImageDto? CoverImage,
+    bool IsCollectionLocked = false,
+    long? CollectionId = null,
+    string? CollectionGate = null);

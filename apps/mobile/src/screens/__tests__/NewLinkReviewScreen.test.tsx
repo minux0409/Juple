@@ -1,1591 +1,318 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ScrollView, TextInput } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { Image, TextInput } from 'react-native';
 import i18n from '../../i18n';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { ContentPreviewCard } from '../../components/ContentPreviewCard';
 import { NewLinkReviewScreen } from '../NewLinkReviewScreen';
-import { addItemToCollection, createCollection, getCollections } from '../../collections/api/collectionsApi';
-import { saveInboxEntry } from '../../inbox/api/inboxApi';
-import { setItemCoverImage, setItemPreviewImage, submitInstagramMetadataCandidate, updateItemDetails } from '../../items/api/itemsApi';
+import { createCollection, getCollection, getCollections } from '../../collections/api/collectionsApi';
+import { saveInboxEntryToCollections } from '../../inbox/api/inboxApi';
+import { setItemPreviewImage, updateItemDetails } from '../../items/api/itemsApi';
+import { resolveUrlMetadata } from '../../urlMetadata/api/urlMetadataApi';
 import { fetchInstagramOpenGraphCandidate } from '../../urlMetadata/instagramOpenGraphFetch';
-import { uploadItemImage, type ItemImage } from '../../images/api/imagesApi';
+import { CategoryEditorDialog } from '../../collections/CategoryEditorDialog';
+import { CollectionChoiceGrid } from '../../collections/CollectionChoiceGrid';
+import { CollectionUnlockDialog } from '../../collections/CollectionUnlockDialog';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { getActiveNewLinkReviewDraft } from '../../share/activeNewLinkReviewDraft';
-import type { PendingShare } from '../../share/specs/NativeIncomingShare';
-import { ApiError } from '../../api/ApiError';
-import {
-  previewInstagramMetadataCandidate,
-  resolveUrlMetadata,
-  type UrlMetadataSource,
-} from '../../urlMetadata/api/urlMetadataApi';
 
-beforeAll(async () => {
-  await i18n.changeLanguage('ko');
-});
-
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}));
-
-jest.mock('../../collections/api/collectionsApi', () => ({
-  getCollections: jest.fn(),
-  addItemToCollection: jest.fn(),
-  createCollection: jest.fn(),
-}));
-
-jest.mock('../../inbox/api/inboxApi', () => ({
-  saveInboxEntry: jest.fn(),
-}));
-
-jest.mock('../../items/api/itemsApi', () => ({
-  updateItemDetails: jest.fn(),
-  setItemPreviewImage: jest.fn(),
-  setItemCoverImage: jest.fn(),
-  submitInstagramMetadataCandidate: jest.fn(),
-}));
-
-// The Instagram device fetch is never a real network request in tests.
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev.juple.co.kr' } }));
+jest.mock('../../collections/api/collectionsApi', () => ({ getCollections: jest.fn(), getCollection: jest.fn(), createCollection: jest.fn() }));
+jest.mock('../../inbox/api/inboxApi', () => ({ saveInboxEntryToCollections: jest.fn() }));
+jest.mock('../../items/api/itemsApi', () => ({ updateItemDetails: jest.fn(), setItemPreviewImage: jest.fn() }));
+jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({ resolveUrlMetadata: jest.fn(), previewInstagramMetadataCandidate: jest.fn() }));
 jest.mock('../../urlMetadata/instagramOpenGraphFetch', () => ({
   ...jest.requireActual('../../urlMetadata/instagramOpenGraphFetch'),
   fetchInstagramOpenGraphCandidate: jest.fn(async () => ({ outcome: 'noMetadata', candidate: null })),
 }));
+jest.mock('../../share/useIncomingShare', () => ({ useIncomingShare: () => ({ acknowledgePendingShare: jest.fn().mockResolvedValue(undefined) }) }));
 
-jest.mock('../../images/api/imagesApi', () => ({
-  uploadItemImage: jest.fn(),
-}));
+const make = (id: number, name: string, extra: Record<string, unknown> = {}) =>
+  ({ id, name, isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, isLocked: false, ...extra });
+const reading = make(3, 'Reading');
+const games = make(4, 'Games');
+const vault = make(5, 'Vault', { isLocked: true });
+const routeParams: { url: string; initialTitle: string | null; preselectedCollectionId: number | null } = { url: 'https://example.com/shared?raw=1%2B2', initialTitle: 'Shared title', preselectedCollectionId: null };
 
-jest.mock('react-native-image-picker', () => ({
-  launchImageLibrary: jest.fn(),
-}));
-
-jest.mock('../../urlMetadata/api/urlMetadataApi', () => ({
-  resolveUrlMetadata: jest.fn(),
-  previewInstagramMetadataCandidate: jest.fn(),
-}));
-
-// Declared with a "mock" prefix so babel-plugin-jest-hoist allows referencing it from the
-// hoisted jest.mock factory below - kept as the SAME stable jest.fn() instance across every
-// useIncomingShare() call (including NewLinkReviewScreen's own internal one) so tests can assert
-// on it directly, rather than each call returning an unrelated new mock function.
-const mockAcknowledgePendingShare = jest.fn().mockResolvedValue(undefined);
-
-jest.mock('../../share/useIncomingShare', () => ({
-  useIncomingShare: jest.fn(() => ({
-    pendingShare: null,
-    acknowledgePendingShare: mockAcknowledgePendingShare,
-  })),
-}));
-
-function makeUploadedImage(overrides: Partial<ItemImage> = {}): ItemImage {
-  return {
-    id: 9,
-    contentType: 'image/jpeg',
-    byteLength: 1000,
-    sortOrder: 0,
-    createdAtUtc: new Date().toISOString(),
-    readUrl: 'https://blob.example/9.jpg',
-    ...overrides,
-  };
-}
-
-const ROUTE_PARAMS: { url: string; initialTitle: string | null; preselectedCollectionId: number | null } = {
-  url: 'https://example.com/shared',
-  initialTitle: 'Shared title',
-  preselectedCollectionId: null,
-};
-
-function makeProps(routeParamOverrides: Partial<typeof ROUTE_PARAMS> = {}) {
-  return {
-    route: { params: { ...ROUTE_PARAMS, ...routeParamOverrides }, key: 'r', name: 'NewLinkReview' as const },
-    navigation: { goBack: jest.fn(), replace: jest.fn() },
-  } as any;
-}
-
-function makePendingShare(overrides: Partial<PendingShare> = {}): PendingShare {
-  return {
-    id: 'incoming-1',
-    text: 'https://example.com/incoming',
-    receivedAtEpochMs: Date.now(),
-    initialTitle: null,
-    preselectedCollectionId: null,
-    draftTitle: null,
-    draftCollectionId: null,
-    ...overrides,
-  };
-}
-
-/** Simulates exactly what IncomingShareRouter does once it detects a conflicting share while this
- * screen's draft is registered (see activeNewLinkReviewDraft.ts) - calls the registered draft's
- * own onConflictingShare directly, rather than re-rendering a whole separate IncomingShareRouter
- * tree, since that hand-off call is the entire surface this screen needs to react to. */
-async function triggerConflictingShare(share: PendingShare): Promise<void> {
+async function render(overrides: Partial<typeof routeParams> = {}) {
+  const navigation = { goBack: jest.fn(), replace: jest.fn() };
+  let tree!: ReactTestRenderer.ReactTestRenderer;
   await act(async () => {
-    getActiveNewLinkReviewDraft()!.onConflictingShare(share);
+    tree = ReactTestRenderer.create(<NewLinkReviewScreen route={{ params: { ...routeParams, ...overrides } } as never} navigation={navigation as never} />);
   });
+  return { tree, navigation };
 }
 
-async function renderScreen(routeParamOverrides: Partial<typeof ROUTE_PARAMS> = {}) {
-  const props = makeProps(routeParamOverrides);
-  let renderer!: ReactTestRenderer.ReactTestRenderer;
+const node = (tree: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  tree.root.find(candidate => candidate.props.testID === testID && typeof candidate.props.onPress === 'function' || candidate.props.testID === testID && candidate.type === TextInput);
+const exists = (tree: ReactTestRenderer.ReactTestRenderer, testID: string) => tree.root.findAll(candidate => candidate.props.testID === testID).length > 0;
+const option = (tree: ReactTestRenderer.ReactTestRenderer, id: number) => node(tree, `category-picker-option-${id}`);
+const isChecked = (tree: ReactTestRenderer.ReactTestRenderer, id: number) => option(tree, id).props.accessibilityState.selected === true;
+const saveButton = (tree: ReactTestRenderer.ReactTestRenderer) => node(tree, 'new-link-review-save');
+async function tap(tree: ReactTestRenderer.ReactTestRenderer, testID: string) {
   await act(async () => {
-    renderer = ReactTestRenderer.create(<NewLinkReviewScreen {...props} />);
-  });
-  return { renderer, navigation: props.navigation };
-}
-
-function findByAccessibilityLabel(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
-  return renderer.root.findAll(node => node.props.accessibilityLabel === label)[0];
-}
-
-/** Opens the shared "카테고리 선택" picker modal (see CategoryField/CategoryPickerModal) - the same
- * component ItemDetailsScreen uses, reached by tapping the category summary row's own
- * accessibilityLabel (item.categoryEditA11y). Fetches the collection pool on open (no mount-time
- * fetch unless preselectedCollectionId is set - see this screen's own remarks), so callers must
- * flush a microtask afterward before the modal's option rows are queryable. */
-async function openCategoryPicker(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
-  await act(async () => {
-    findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))?.props.onPress();
+    node(tree, testID).props.onPress();
     await Promise.resolve();
   });
 }
-
-function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer, title: string) {
-  return renderer.root.findAll(
-    node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === title,
-  )[0];
-}
-
-/** The 대표 사진 field's photo, or null when it shows 사진 추가. */
-function shownRepresentativePhoto(renderer: ReactTestRenderer.ReactTestRenderer): string | null {
-  return renderer.root.findAll(node => node.props.testID === 'representative-photo-image' && node.props.source)[0]?.props.source.uri ?? null;
-}
-
-/** 사진 추가 (no photo yet) - opens the picker and stages what was picked. */
-async function pressAddPhoto(renderer: ReactTestRenderer.ReactTestRenderer) {
+async function save(tree: ReactTestRenderer.ReactTestRenderer) {
   await act(async () => {
-    await renderer.root.findAll(node => node.props.testID === 'representative-photo-add' && typeof node.props.onPress === 'function')[0].props.onPress();
+    await saveButton(tree).props.onPress();
   });
 }
+const savedWith = () => jest.mocked(saveInboxEntryToCollections).mock.calls[0];
 
-/** Thumbnail → 사진 변경 / 사진 삭제 (the test platform is iOS: the action runs on the menu's onDismiss). */
-async function runRepresentativePhotoMenu(renderer: ReactTestRenderer.ReactTestRenderer, label: string) {
-  const { ActionMenuDialog } = require('../../components/ActionMenuDialog');
-  await act(async () => {
-    renderer.root.findAll(node => node.props.testID === 'representative-photo-edit' && typeof node.props.onPress === 'function')[0].props.onPress();
-  });
-  const menu = renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!;
-  await act(async () => {
-    menu.props.actions.find((action: { label: string }) => action.label === label).onPress();
-  });
-  await act(async () => {
-    menu.props.onDismiss?.();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-  });
-}
+beforeAll(async () => { await i18n.changeLanguage('ko'); });
+beforeEach(() => {
+  jest.mocked(getCollections).mockImplementation(async (_request, options = {}) =>
+    ((options as { scope?: string }).scope === 'shared' ? { items: [], nextCursor: null } : { items: [reading, games, vault], nextCursor: null }) as never);
+  jest.mocked(getCollection).mockImplementation(async (_request, id) => ([reading, games, vault].find(entry => entry.id === id) ?? reading) as never);
+  jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
+  jest.mocked(saveInboxEntryToCollections).mockResolvedValue({ id: 55, url: routeParams.url, savedAtUtc: '2026-01-01T00:00:00Z', addedCount: 0, submittedCount: 0, alreadyInCollectionCount: 0, alreadyPendingCount: 0 });
+  jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+  jest.mocked(setItemPreviewImage).mockResolvedValue(undefined);
+});
+afterEach(() => { jest.clearAllMocks(); });
 
-/** The Save button doesn't set accessibilityLabel, so it's found by its label Text, walking up to
- * the nearest onPress-bearing ancestor. Returns onPress()'s own result so a caller whose save()
- * does real async work (e.g. a staged photo upload) can await full completion; existing callers
- * that don't await it are unaffected. */
-function pressSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
-  let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findAll(
-    n => n.props.children === i18n.t('common.save'),
-  )[0];
-  while (node && typeof node.props.onPress !== 'function') {
-    node = node.parent;
-  }
-  return node!.props.onPress();
-}
-
-describe('NewLinkReviewScreen', () => {
-  beforeEach(() => {
-    jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-    // Both are fire-and-forget (.catch()'d, never awaited) in save() - a bare jest.fn() (no
-    // resolved value) would make that .catch() itself throw synchronously on undefined, so every
-    // test needs a real resolved Promise here even when it never asserts on these calls directly.
-    jest.mocked(setItemPreviewImage).mockResolvedValue(undefined);
-    jest.mocked(setItemCoverImage).mockResolvedValue(undefined);
+describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collections or explicitly none', () => {
+  it('reuses the shared Collection chooser (List/Grid, icons) led by [+ 새로 만들기] [선택 안 함]', async () => {
+    const { tree } = await render();
+    expect(tree.root.findAllByType(CollectionChoiceGrid)).toHaveLength(1);
+    const data = tree.root.findAll(candidate => candidate.props.testID === 'category-picker-list')[0].props.data as readonly { kind?: string; id?: number }[];
+    expect(data[0]).toEqual({ kind: 'create' });
+    expect(data[1]).toEqual({ kind: 'none' });
+    expect(data.slice(2).map(entry => entry.id)).toEqual([3, 4, 5]);
+    expect(tree.root.findAll(candidate => candidate.props.children === i18n.t('quickSaveComposer.categoryNone')).length).toBeGreaterThan(0);
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  it('starts with nothing chosen: Save is disabled and no memo field yet', async () => {
+    const { tree } = await render();
+    expect(saveButton(tree).props.disabled).toBe(true);
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(false);
+    expect([3, 4, 5].some(id => isChecked(tree, id))).toBe(false);
+    expect(exists(tree, 'save-memo-composer')).toBe(false);
+    expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
   });
 
-  it('renders the title/source using the shared ContentPreviewCard component (also used by ItemDetailsScreen)', async () => {
-    const { renderer } = await renderScreen();
+  it('checks several Collections (each read fresh from the server), and a second tap unchecks one', async () => {
+    const { tree } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await tap(tree, 'category-picker-option-4');
+    expect(getCollection).toHaveBeenCalledWith(expect.any(Function), 3);
+    expect(getCollection).toHaveBeenCalledWith(expect.any(Function), 4);
+    expect(isChecked(tree, 3)).toBe(true);
+    expect(isChecked(tree, 4)).toBe(true);
+    expect(saveButton(tree).props.disabled).toBe(false);
 
-    expect(renderer.root.findAllByType(ContentPreviewCard)).toHaveLength(1);
+    await tap(tree, 'category-picker-option-3');
+    expect(isChecked(tree, 3)).toBe(false);
+    expect(isChecked(tree, 4)).toBe(true);
+    // Unchecking reads nothing: it changes nothing on the server yet.
+    expect(jest.mocked(getCollection).mock.calls.filter(call => call[1] === 3)).toHaveLength(1);
   });
 
-  it('prefills the title, and shows the compact source row (not the raw URL) by default', async () => {
-    const { renderer } = await renderScreen();
+  it('선택 안 함 clears every checked Collection; checking a Collection clears 선택 안 함', async () => {
+    const { tree } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await tap(tree, 'category-picker-option-4');
+    await tap(tree, 'category-picker-none');
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(true);
+    expect(isChecked(tree, 3) || isChecked(tree, 4)).toBe(false);
+    expect(saveButton(tree).props.disabled).toBe(false);
 
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('Shared title');
-    // Compact source row shows the hostname for a generic (unrecognized) site, never the raw URL.
-    expect(renderer.root.findByProps({ children: 'example.com' })).toBeTruthy();
-    expect(renderer.root.findAll(node => node.props.children === 'https://example.com/shared')).toHaveLength(0);
+    await tap(tree, 'category-picker-option-4');
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(false);
+    expect(isChecked(tree, 4)).toBe(true);
   });
 
-  it('tapping edit on the source row reveals an editable URL field prefilled with the current value', async () => {
-    const { renderer } = await renderScreen();
+  it('saves the link into every checked Collection in ONE request, with the memo', async () => {
+    jest.mocked(saveInboxEntryToCollections).mockResolvedValueOnce({ id: 55, url: routeParams.url, savedAtUtc: '', addedCount: 2, submittedCount: 0, alreadyInCollectionCount: 0, alreadyPendingCount: 0 });
+    const { tree, navigation } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await tap(tree, 'category-picker-option-4');
+    await act(async () => { node(tree, 'save-memo-composer').props.onChangeText('memo draft'); });
+    await save(tree);
 
-    await act(async () => {
-      findByAccessibilityLabel(renderer, i18n.t('common.edit')).props.onPress();
-    });
-
-    const urlInput = renderer.root
-      .findAllByType(TextInput)
-      .find(input => input.props.value === 'https://example.com/shared');
-    expect(urlInput).toBeTruthy();
-  });
-
-  it('never calls any Item API before Save is tapped', async () => {
-    await renderScreen();
-
-    expect(saveInboxEntry).not.toHaveBeenCalled();
-    expect(updateItemDetails).not.toHaveBeenCalled();
-    expect(addItemToCollection).not.toHaveBeenCalled();
-  });
-
-  it('saves the url/title/memo and links the selected category, in order, then goes back', async () => {
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null }],
-      nextCursor: null,
-    });
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 55,
-      url: 'https://example.com/shared',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-    jest.mocked(addItemToCollection).mockResolvedValue('added');
-
-    const { renderer, navigation } = await renderScreen();
-    await openCategoryPicker(renderer);
-
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '영화').props.onPress();
-    });
-
-    await act(async () => {
-      pressSaveButton(renderer);
-    });
-
-    // A generated clientRequestId (uuid) is now always passed - see clientRequestIdRef's own
-    // remarks on why (idempotent retry-safety) - so this only pins the first two args.
-    expect(saveInboxEntry).toHaveBeenCalledWith(
-      expect.anything(), 'https://example.com/shared', expect.any(String),
-    );
-    expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 55, { title: 'Shared title', memo: '' });
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 3, 55, { unlockToken: null });
+    expect(saveInboxEntryToCollections).toHaveBeenCalledTimes(1);
+    const [, url, clientRequestId, collectionIds, unlockTokens] = savedWith();
+    expect(url).toBe(routeParams.url);
+    expect(typeof clientRequestId).toBe('string');
+    expect([...collectionIds].sort()).toEqual([3, 4]);
+    expect(unlockTokens).toEqual({});
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.any(Function), 55, { title: 'Shared title', memo: 'memo draft' });
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  it('a 승인 후 추가 Collection takes the link as a proposal - the save still completes, and it says the request was sent', async () => {
-    const { AppToastProvider } = require('../../components/AppToast');
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 4, name: '팀 아이디어', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' }],
-      nextCursor: null,
-    });
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 57, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-    jest.mocked(addItemToCollection).mockResolvedValue('submitted');
-    const props = makeProps();
-    let renderer!: ReactTestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = ReactTestRenderer.create(<AppToastProvider><NewLinkReviewScreen {...props} /></AppToastProvider>);
-    });
-    await openCategoryPicker(renderer);
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '팀 아이디어').props.onPress();
-    });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 4, 57, { unlockToken: null });
-    // The result is a dialog (never a toast that can be missed): the link itself was saved, and the
-    // request was sent - and the screen only closes once it has been read.
-    const dialog = findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'));
-    expect(dialog.props.message).toBe(i18n.t('collections.saveOutcomeSubmitted', { count: 1 }));
-    expect(dialog.props.message).toContain('링크는 저장되었어요');
-    expect(props.navigation.goBack).not.toHaveBeenCalled();
-    await act(async () => {
-      dialog.props.onConfirm();
-    });
-    expect(findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'))).toBeUndefined();
-    expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
+  it('선택 안 함 saves with an explicit empty Collection list; the memo stays optional', async () => {
+    const { tree, navigation } = await render();
+    await tap(tree, 'category-picker-none');
+    expect(exists(tree, 'save-memo-composer')).toBe(true);
+    await save(tree);
+    expect(savedWith()[3]).toEqual([]);
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.any(Function), 55, { title: 'Shared title', memo: '' });
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  it('a direct collection and a 승인 후 추가 one together: the link is saved, and ONE dialog says both outcomes', async () => {
-    const { AppToastProvider } = require('../../components/AppToast');
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [
-        { id: 4, name: '팀 아이디어', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' },
-        { id: 5, name: '내 컬렉션', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'owner' },
-      ],
-      nextCursor: null,
-    });
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 58, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-    jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => (collectionId === 4 ? 'submitted' : 'added'));
-    const props = makeProps();
-    let renderer!: ReactTestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = ReactTestRenderer.create(<AppToastProvider><NewLinkReviewScreen {...props} /></AppToastProvider>);
-    });
-    await openCategoryPicker(renderer);
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '팀 아이디어').props.onPress();
-    });
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '내 컬렉션').props.onPress();
-    });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    const dialogs = renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('collections.saveOutcomeTitle'));
-    expect(dialogs).toHaveLength(1);
-    expect(dialogs[0].props.message).toBe(i18n.t('collections.saveOutcomeMixed', { added: 1, submitted: 1 }));
-    expect(props.navigation.goBack).not.toHaveBeenCalled();
-  });
-
-  it('Case A: the chosen Collection already has this link waiting - the link is still saved, the rest of the save goes on, and one dialog says exactly that', async () => {
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [
-        { id: 4, name: '팀 아이디어', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' },
-        { id: 5, name: '내 컬렉션', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null },
-      ],
-      nextCursor: null,
-    });
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 57, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-    jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => {
-      if (collectionId === 4) {
-        throw new ApiError('conflict', 409, 'linkAlreadyPending');
-      }
-      return 'added';
-    });
-    const { renderer, navigation } = await renderScreen();
-    await openCategoryPicker(renderer);
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '팀 아이디어').props.onPress();
-    });
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '내 컬렉션').props.onPress();
-    });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    // The other Collection still got it - the conflict did not stop the save.
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 5, 57, expect.anything());
-    const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
-    expect(dialog.props.message).toBe('링크는 저장되었어요.\n선택한 컬렉션에는 이미 승인 대기 중인 링크가 있어요.');
-    // No red line under Save, and the screen waits for the dialog before closing.
-    expect(renderer.root.findAll(node => node.props.children === i18n.t('collections.linkAlreadyPending'))).toHaveLength(0);
+  it('says what happened in 승인 후 추가 Collections in a dialog before leaving', async () => {
+    jest.mocked(saveInboxEntryToCollections).mockResolvedValueOnce({ id: 55, url: routeParams.url, savedAtUtc: '', addedCount: 1, submittedCount: 1, alreadyInCollectionCount: 0, alreadyPendingCount: 0 });
+    const { tree, navigation } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await save(tree);
+    const dialog = tree.root.findAllByType(ConfirmDialog).find(candidate => candidate.props.visible)!;
+    expect(dialog.props.title).toBe(i18n.t('collections.saveOutcomeTitle'));
     expect(navigation.goBack).not.toHaveBeenCalled();
-    await act(async () => {
-      dialog.props.onConfirm();
-    });
+    await act(async () => { dialog.props.onConfirm(); });
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  it('a link the chosen Collection already has: saved, and said in the dialog - never a red line', async () => {
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 57, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-    jest.mocked(addItemToCollection).mockRejectedValue(new ApiError('conflict', 409, 'linkAlreadyInCollection'));
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Folder', color: null, accessRole: 'submitter' }],
-      nextCursor: null,
-    });
-    const { renderer, navigation } = await renderScreen();
-    await openCategoryPicker(renderer);
-    await act(async () => {
-      findByAccessibilityLabel(renderer, '영화').props.onPress();
+  it('+ 새로 만들기: the new Collection comes back CHECKED next to the ones already checked; memo, link and preview stay', async () => {
+    const created = make(9, 'New collection');
+    jest.mocked(createCollection).mockResolvedValue(created as never);
+    const { tree } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await act(async () => { node(tree, 'save-memo-composer').props.onChangeText('keep me'); });
+    await tap(tree, 'category-picker-create');
+    const editor = tree.root.findByType(CategoryEditorDialog);
+    await act(async () => { await editor.props.onSubmit('New collection', 'Folder', null, { kind: 'keep' }); });
+
+    expect(isChecked(tree, 9)).toBe(true);
+    expect(isChecked(tree, 3)).toBe(true);
+    expect(node(tree, 'save-memo-composer').props.value).toBe('keep me');
+    expect(exists(tree, 'save-link-preview')).toBe(true);
+    await save(tree);
+    expect([...savedWith()[3]].sort()).toEqual([3, 9]);
+    expect(savedWith()[1]).toBe(routeParams.url);
+  });
+
+  it('+ 새로 만들기 after 선택 안 함 switches the choice to the new Collection', async () => {
+    jest.mocked(createCollection).mockResolvedValue(make(9, 'New collection') as never);
+    const { tree } = await render();
+    await tap(tree, 'category-picker-none');
+    await tap(tree, 'category-picker-create');
+    await act(async () => { await tree.root.findByType(CategoryEditorDialog).props.onSubmit('New collection', 'Folder', null, { kind: 'keep' }); });
+    expect(node(tree, 'category-picker-none').props.accessibilityState.selected).toBe(false);
+    expect(isChecked(tree, 9)).toBe(true);
+  });
+
+  describe('locked destinations - the CURRENT state decides, never the list', () => {
+    it('a locked Collection asks for its own password; its grant travels with the save', async () => {
+      const { tree } = await render();
+      await tap(tree, 'category-picker-option-5');
+      const unlock = tree.root.findByType(CollectionUnlockDialog);
+      expect(unlock.props.collection?.id).toBe(5);
+      expect(isChecked(tree, 5)).toBe(false);
+      await act(async () => { unlock.props.onGranted('grant-5'); });
+      expect(isChecked(tree, 5)).toBe(true);
+
+      await tap(tree, 'category-picker-option-3');
+      await save(tree);
+      expect([...savedWith()[3]].sort()).toEqual([3, 5]);
+      expect(savedWith()[4]).toEqual({ 5: 'grant-5' });
     });
 
-    await act(async () => {
-      await pressSaveButton(renderer);
+    it('unlocked elsewhere after the list loaded: checked at once, no stale password prompt', async () => {
+      jest.mocked(getCollection).mockImplementation(async (_request, id) => (id === 5 ? { ...vault, isLocked: false } : reading) as never);
+      const { tree } = await render();
+      await tap(tree, 'category-picker-option-5');
+      expect(tree.root.findAllByType(CollectionUnlockDialog)).toHaveLength(0);
+      expect(isChecked(tree, 5)).toBe(true);
     });
 
-    const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
-    expect(dialog.props.message).toBe(`${i18n.t('collections.saveOutcomeSaved')}\n${i18n.t('collections.saveOutcomeAlreadyInCollection')}`);
-    await act(async () => {
-      dialog.props.onConfirm();
+    it('locked elsewhere after the list loaded: the password is asked for', async () => {
+      jest.mocked(getCollection).mockImplementation(async (_request, id) => (id === 4 ? { ...games, isLocked: true } : reading) as never);
+      const { tree } = await render();
+      await tap(tree, 'category-picker-option-4');
+      expect(tree.root.findByType(CollectionUnlockDialog).props.collection?.id).toBe(4);
+      expect(isChecked(tree, 4)).toBe(false);
     });
+
+    it('the current state cannot be read: nothing is checked and Save stays disabled', async () => {
+      jest.mocked(getCollection).mockRejectedValueOnce(new Error('offline'));
+      const { tree } = await render();
+      await tap(tree, 'category-picker-option-3');
+      expect(isChecked(tree, 3)).toBe(false);
+      expect(saveButton(tree).props.disabled).toBe(true);
+    });
+  });
+
+  it('a share aimed at one Collection starts with it checked - but never a locked one', async () => {
+    const shared = await render({ preselectedCollectionId: 3 });
+    expect(isChecked(shared.tree, 3)).toBe(true);
+    expect(saveButton(shared.tree).props.disabled).toBe(false);
+
+    const locked = await render({ preselectedCollectionId: 5 });
+    expect(isChecked(locked.tree, 5)).toBe(false);
+    expect(saveButton(locked.tree).props.disabled).toBe(true);
+  });
+
+  it('keyboard-safe layout: the chooser fills the room, the memo and Save are a sticky bar under it', async () => {
+    const { tree } = await render();
+    await tap(tree, 'category-picker-none');
+    expect(tree.root.findAllByType(KeyboardSafeView)[0].props.testID).toBe('new-link-review');
+    const memo = node(tree, 'save-memo-composer');
+    expect(memo.props.multiline).toBe(true);
+    expect(memo.props.scrollEnabled).toBe(true);
+    expect(memo.props.style.minHeight).toBeGreaterThan(0);
+    expect(memo.props.style.maxHeight).toBeLessThanOrEqual(140);
+    // Only plain View/Text/TextInput primitives - nothing beyond what API 27 already supports.
+    expect(memo.props.placeholder).toBe(i18n.t('item.memoPlaceholder'));
+  });
+
+  it('shows the resolved metadata in the compact preview (no title editor) and saves it with the link', async () => {
+    jest.mocked(resolveUrlMetadata).mockResolvedValueOnce({ title: 'Resolved title', source: null, previewImageUrl: 'https://example.com/preview.jpg' });
+    const { tree } = await render();
+    expect(tree.root.findAllByType(Image).some(image => image.props.source?.uri === 'https://example.com/preview.jpg')).toBe(true);
+    expect(tree.root.findAll(candidate => candidate.props.testID === 'save-link-title')[0].props.children).toBe('Resolved title');
+    // The only text field on this screen is the memo (once a destination is chosen) - no title or URL editor.
+    expect(tree.root.findAllByType(TextInput)).toHaveLength(0);
+    await tap(tree, 'category-picker-none');
+    await save(tree);
+    expect(updateItemDetails).toHaveBeenCalledWith(expect.any(Function), 55, { title: 'Resolved title', memo: '' });
+    expect(setItemPreviewImage).toHaveBeenCalledWith(expect.any(Function), 55, 'https://example.com/preview.jpg');
+  });
+
+  it('keeps the Instagram device fallback: an Instagram link without metadata starts the device fetch once', async () => {
+    await render({ url: 'https://www.instagram.com/p/AbCdEf123/', initialTitle: null });
+    expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
+    expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledWith('https://www.instagram.com/p/AbCdEf123/');
+  });
+
+  it('permits saving when metadata resolution fails', async () => {
+    jest.mocked(resolveUrlMetadata).mockRejectedValueOnce(new Error('metadata offline'));
+    const { tree, navigation } = await render();
+    await tap(tree, 'category-picker-none');
+    expect(saveButton(tree).props.disabled).toBe(false);
+    await save(tree);
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  it('saving into direct collections only shows no dialog - it closes as before', async () => {
-    jest.mocked(saveInboxEntry).mockResolvedValue({ id: 59, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z' });
-    jest.mocked(addItemToCollection).mockResolvedValue('added');
-    const props = makeProps();
-    let renderer!: ReactTestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = ReactTestRenderer.create(<NewLinkReviewScreen {...props} />);
-    });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    expect(findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'))).toBeUndefined();
-    expect(props.navigation.goBack).toHaveBeenCalledTimes(1);
-  });
-
-  it('skips updateItemDetails and addItemToCollection when title/memo are empty and no category is selected', async () => {
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 56,
-      url: 'https://example.com/shared',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-
-    const { renderer, navigation } = await renderScreen({ initialTitle: null });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    await act(async () => {
-      pressSaveButton(renderer);
-    });
-
-    expect(saveInboxEntry).toHaveBeenCalled();
-    expect(updateItemDetails).not.toHaveBeenCalled();
-    expect(addItemToCollection).not.toHaveBeenCalled();
-    expect(navigation.goBack).toHaveBeenCalledTimes(1);
-  });
-
-  it('still resolves metadata (for the preview image) even when an incoming title is already present', async () => {
-    // Regression test: this used to skip the whole metadata fetch whenever an incoming title
-    // existed, which silently meant most real shares (which usually do carry a title) never got
-    // a preview image at all - see the metadata-resolution effect's own remarks.
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({
-      title: 'A Different Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg',
-    });
-
-    const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
-    // 2, not 1: this round's visual redesign shows the same resolved preview image both at the top
-    // of the content preview card and in the photo list below it - the same single resolved URL,
-    // rendered twice for two different purposes (preview vs. the editable/reorderable photo list).
-    const previewImages = renderer.root
-      .findAllByType(require('react-native').Image)
-      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-    expect(previewImages).toHaveLength(2);
-  });
-
-  it('replaces a share-provided initial title with the resolved Backend title, and applies the image too (both independent, both applied)', async () => {
-    // Title precedence: user edit > resolved Backend metadata title > share-provided initialTitle
-    // > empty. A non-empty initialTitle here is the sharing app's own EXTRA_SUBJECT (e.g. raw
-    // shared text or a caption, exactly what a YouTube share provides) - never something the user
-    // actually typed - so the real, Backend-resolved title must still be trusted to replace it.
-    // The image assertion here is the same shape as a real YouTube-share-with-image-missing
-    // report: title arrives via a *different* path (initialTitle) than the image (always only
-    // resolveUrlMetadata) - proving one being present/overwritten never blocks the other, since
-    // they're applied by two completely independent branches of the same effect.
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({
-      title: 'A Different Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg',
-    });
-
-    const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('A Different Metadata Title');
-    const previewImages = renderer.root
-      .findAllByType(require('react-native').Image)
-      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-    expect(previewImages).toHaveLength(2);
-  });
-
-  it('keeps the share-provided initial title when Backend metadata resolves with no title, but still applies a resolved image', async () => {
-    // Title and image are independent signals - a missing title must never suppress an image
-    // that did resolve (this is also the shape of the real "YouTube share: title fine, no
-    // thumbnail" style report, just with title/image roles swapped).
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({
-      title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-    });
-
-    const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('Shared title');
-    const previewImages = renderer.root
-      .findAllByType(require('react-native').Image)
-      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-    expect(previewImages).toHaveLength(2);
-  });
-
-  it('fetches URL metadata and fills the empty title field (and image) when there is no incoming title - the Home direct-URL-entry shape', async () => {
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({
-      title: 'Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg',
-    });
-
-    const { renderer } = await renderScreen({ initialTitle: null });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), 'https://example.com/shared');
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('Metadata Title');
-    const previewImages = renderer.root
-      .findAllByType(require('react-native').Image)
-      .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-    expect(previewImages).toHaveLength(2);
-  });
-
-  it('Quick Save OFF: applies real Instagram post metadata (normalized title + real image) for a URL-only Instagram share', async () => {
-    const instagramUrl = 'https://www.instagram.com/reel/ABC123xyz/?igsh=abc';
-    const realImage = 'https://scontent.cdninstagram.com/v/t51/real-post.jpg';
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({
-      title: 'kkikki_ent on Instagram: "caption"', source: 'openGraph', previewImageUrl: realImage,
-    });
-
-    const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(resolveUrlMetadata).toHaveBeenCalledWith(expect.anything(), instagramUrl);
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('kkikki_ent on Instagram: "caption"');
-    const previewImages = renderer.root
-      .findAllByType(require('react-native').Image)
-      .filter(node => node.props.source?.uri === realImage);
-    expect(previewImages.length).toBeGreaterThan(0);
-  });
-
-  it('Quick Save OFF: an Instagram login-wall result (Backend returns nothing) never replaces a share-provided title', async () => {
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-
-    const { renderer } = await renderScreen({ url: 'https://www.instagram.com/p/ABC123xyz/', initialTitle: '공유 제목' });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('공유 제목');
-  });
-
-  it('does not overwrite a title the user already started typing once URL metadata resolves', async () => {
-    let resolveMetadata!: (value: {
-      title: string | null;
-      source: UrlMetadataSource | null;
-      previewImageUrl: string | null;
-    }) => void;
-    jest.mocked(resolveUrlMetadata).mockReturnValue(
-      new Promise(resolve => {
-        resolveMetadata = resolve;
-      }),
-    );
-
-    const { renderer } = await renderScreen({ initialTitle: null });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    await act(async () => {
-      titleInput.props.onChangeText('User typed title');
-    });
-
-    await act(async () => {
-      resolveMetadata({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: null });
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const [titleInputAfter] = renderer.root.findAllByType(TextInput);
-    expect(titleInputAfter.props.value).toBe('User typed title');
-  });
-
-  describe('YouTube placeholder title defense (while DEV Backend may still return one)', () => {
-    const YOUTUBE_URL = 'https://www.youtube.com/watch?v=abc123';
-
-    it.each(['- YouTube', 'YouTube', '  youtube  '])(
-      'keeps the share-provided initial title when Backend metadata title is the known placeholder %j',
-      async placeholderTitle => {
-        jest.mocked(resolveUrlMetadata).mockResolvedValue({
-          title: placeholderTitle, source: 'openGraph', previewImageUrl: null,
-        });
-
-        const { renderer } = await renderScreen({
-          url: YOUTUBE_URL, initialTitle: '충격적이었던 FPX의 몰락과정 총정리',
-        });
-        await act(async () => {
-          await Promise.resolve();
-        });
-
-        const [titleInput] = renderer.root.findAllByType(TextInput);
-        expect(titleInput.props.value).toBe('충격적이었던 FPX의 몰락과정 총정리');
-      },
-    );
-
-    it('leaves the title empty (never the placeholder) when there is no initial title either', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: '- YouTube', source: 'openGraph', previewImageUrl: null,
-      });
-
-      const { renderer } = await renderScreen({ url: YOUTUBE_URL, initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      const [titleInput] = renderer.root.findAllByType(TextInput);
-      expect(titleInput.props.value).toBe('');
-    });
-
-    it('still applies a real (non-placeholder) YouTube video title over the share-provided initial title', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: '실제 영상 제목 - YouTube', source: 'openGraph', previewImageUrl: null,
-      });
-
-      const { renderer } = await renderScreen({ url: YOUTUBE_URL, initialTitle: '공유 제목' });
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      const [titleInput] = renderer.root.findAllByType(TextInput);
-      expect(titleInput.props.value).toBe('실제 영상 제목 - YouTube');
-    });
-
-    it('never lets a real YouTube title overwrite a title the user already edited', async () => {
-      let resolveMetadata!: (value: {
-        title: string | null;
-        source: UrlMetadataSource | null;
-        previewImageUrl: string | null;
-      }) => void;
-      jest.mocked(resolveUrlMetadata).mockReturnValue(
-        new Promise(resolve => {
-          resolveMetadata = resolve;
-        }),
-      );
-
-      const { renderer } = await renderScreen({ url: YOUTUBE_URL, initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      const [titleInput] = renderer.root.findAllByType(TextInput);
-      await act(async () => {
-        titleInput.props.onChangeText('사용자가 직접 입력한 제목');
-      });
-
-      await act(async () => {
-        resolveMetadata({ title: '실제 영상 제목', source: 'openGraph', previewImageUrl: null });
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-
-      const [titleInputAfter] = renderer.root.findAllByType(TextInput);
-      expect(titleInputAfter.props.value).toBe('사용자가 직접 입력한 제목');
-    });
-
-    it('does not filter a literal "YouTube"/"- YouTube" title on a non-YouTube host - only youtube.com is gated', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: '- YouTube', source: 'openGraph', previewImageUrl: null,
-      });
-
-      const { renderer } = await renderScreen({
-        url: 'https://www.instagram.com/p/xyz/', initialTitle: '공유 제목',
-      });
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      const [titleInput] = renderer.root.findAllByType(TextInput);
-      expect(titleInput.props.value).toBe('- YouTube');
-    });
-  });
-
-  describe('Instagram device fallback (Quick Save OFF / Home direct input)', () => {
-    const instagramUrl = 'https://www.instagram.com/p/ABC123xyz/?igsh=abc';
-    const candidate = { ogTitle: 'someone on Instagram: "x"', ogImage: 'https://scontent.cdninstagram.com/v/a.jpg', ogUrl: null, ogDescription: null };
-
-    async function settle() {
-      await act(async () => {
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-    }
-
-    beforeEach(() => {
-      jest.mocked(saveInboxEntry).mockResolvedValue({ id: 91, url: instagramUrl, savedAtUtc: '2026-01-01T00:00:00Z' });
-      jest.mocked(previewInstagramMetadataCandidate).mockResolvedValue({ title: null, previewImageUrl: null });
-    });
-
-    it('when the Backend resolve came back empty, fetches once during review and submits it for the saved Item before leaving', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
-      jest.mocked(submitInstagramMetadataCandidate).mockResolvedValueOnce({ title: 't', previewImageUrl: candidate.ogImage, applied: true });
-
-      const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
-      await settle();
-      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
-      // Raw client values are never shown on the review screen itself - only a Backend-normalized
-      // preview is (none usable here).
-      expect(renderer.root.findAllByType(TextInput)[0].props.value).toBe('');
-
-      await act(async () => {
-        pressSaveButton(renderer);
-      });
-
-      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
-      expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 91, candidate);
-      expect(updateItemDetails).not.toHaveBeenCalled();
-      expect(jest.mocked(submitInstagramMetadataCandidate).mock.invocationCallOrder[0])
-        .toBeLessThan(jest.mocked(navigation.goBack).mock.invocationCallOrder[0]);
-    });
-
-    it('never fetches on the device when the Backend already returned a real title and image', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'real title', source: 'openGraph', previewImageUrl: 'https://scontent.cdninstagram.com/v/b.jpg' });
-
-      const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-      await settle();
-      await act(async () => {
-        pressSaveButton(renderer);
-      });
-
-      expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
-      expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
-    });
-
-    it('a failed device fetch is silent - Save still completes normally', async () => {
-      jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
-      jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'loginRedirect', candidate: null });
-
-      const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
-      await settle();
-      await act(async () => {
-        pressSaveButton(renderer);
-      });
-
-      expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
-      expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
-      expect(navigation.goBack).toHaveBeenCalledTimes(1);
-    });
-
-    it('never runs for a non-Instagram link', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-
-      await renderScreen({ initialTitle: null });
-      await settle();
-
-      expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
-      expect(previewInstagramMetadataCandidate).not.toHaveBeenCalled();
-    });
-
-    describe('pre-save preview (Backend-normalized, shown before Save)', () => {
-      const normalized = { title: 'real_handle on Instagram: "x"', previewImageUrl: 'https://scontent.cdninstagram.com/v/a.jpg' };
-      type CandidateFetch = { outcome: 'candidate'; candidate: typeof candidate };
-
-      function deferred<T>() {
-        let resolve!: (value: T) => void;
-        const promise = new Promise<T>(r => {
-          resolve = r;
-        });
-        return { promise, resolve };
-      }
-
-      function shownImageCount(renderer: ReactTestRenderer.ReactTestRenderer, uri: string) {
-        return renderer.root
-          .findAllByType(require('react-native').Image)
-          .filter(node => node.props.source?.uri === uri).length;
-      }
-
-      function titleValue(renderer: ReactTestRenderer.ReactTestRenderer) {
-        return renderer.root.findAllByType(TextInput)[0].props.value;
-      }
-
-      beforeEach(() => {
-        jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-        jest.mocked(submitInstagramMetadataCandidate).mockResolvedValue({ ...normalized, applied: true });
-        jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-      });
-
-      it('normalizes the device candidate through the preview endpoint and shows the normalized title and image before Save', async () => {
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-
-        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-
-        expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
-        expect(previewInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), instagramUrl, candidate);
-        expect(titleValue(renderer)).toBe(normalized.title);
-        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBeGreaterThan(0);
-        expect(saveInboxEntry).not.toHaveBeenCalled();
-        expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
-      });
-
-      it('replaces a share-provided initial title, like a Backend title would', async () => {
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-
-        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: 'Instagram share text' });
-        await settle();
-
-        expect(titleValue(renderer)).toBe(normalized.title);
-      });
-
-      it('never replaces a real Backend title - only fills the missing Backend image', async () => {
-        jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'backend title', source: 'openGraph', previewImageUrl: null });
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-
-        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-
-        expect(titleValue(renderer)).toBe('backend title');
-        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBeGreaterThan(0);
-      });
-
-      it('never overwrites a title the user typed before the preview arrived', async () => {
-        const fetch = deferred<CandidateFetch>();
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(fetch.promise);
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-
-        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-        await act(async () => {
-          renderer.root.findAllByType(TextInput)[0].props.onChangeText('user typed title');
-        });
-        await act(async () => {
-          fetch.resolve({ outcome: 'candidate', candidate });
-        });
-        await settle();
-
-        expect(titleValue(renderer)).toBe('user typed title');
-        // The image is independent of the title edit.
-        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBeGreaterThan(0);
-      });
-
-      it('never adds the preview image once the user staged their own photo', async () => {
-        const fetch = deferred<CandidateFetch>();
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(fetch.promise);
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-        jest.mocked(launchImageLibrary).mockResolvedValue({
-          didCancel: false,
-          assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-        } as never);
-
-        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-        await pressAddPhoto(renderer);
-        await act(async () => {
-          fetch.resolve({ outcome: 'candidate', candidate });
-        });
-        await settle();
-
-        expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
-        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
-      });
-
-      it('ignores a late preview once the URL was edited, and never submits the candidate for the other URL', async () => {
-        const fetch = deferred<CandidateFetch>();
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockReturnValueOnce(fetch.promise);
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-
-        const { renderer } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-        await act(async () => {
-          findByAccessibilityLabel(renderer, i18n.t('common.edit')).props.onPress();
-        });
-        const urlInput = renderer.root.findAllByType(TextInput).find(input => input.props.value === instagramUrl)!;
-        await act(async () => {
-          urlInput.props.onChangeText('https://www.instagram.com/p/OTHER999/');
-        });
-        await act(async () => {
-          fetch.resolve({ outcome: 'candidate', candidate });
-        });
-        await settle();
-
-        expect(titleValue(renderer)).toBe('');
-        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
-
-        await act(async () => {
-          await pressSaveButton(renderer);
-        });
-        expect(submitInstagramMetadataCandidate).not.toHaveBeenCalled();
-      });
-
-      it('Save reuses the same fetched candidate (no second fetch/preview) and leaves the device image to the candidate endpoint', async () => {
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
-        jest.mocked(previewInstagramMetadataCandidate).mockResolvedValueOnce(normalized);
-
-        const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-        await act(async () => {
-          await pressSaveButton(renderer);
-        });
-
-        expect(fetchInstagramOpenGraphCandidate).toHaveBeenCalledTimes(1);
-        expect(previewInstagramMetadataCandidate).toHaveBeenCalledTimes(1);
-        expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 91, { title: normalized.title, memo: '' });
-        expect(submitInstagramMetadataCandidate).toHaveBeenCalledTimes(1);
-        expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 91, candidate);
-        expect(setItemPreviewImage).not.toHaveBeenCalled();
-        expect(navigation.goBack).toHaveBeenCalledTimes(1);
-      });
-
-      it.each([
-        ['a 400 rejection', () => Promise.reject(new ApiError('badRequest', 400))],
-        ['a network error', () => Promise.reject(new Error('network down'))],
-      ])('%s from the preview endpoint is silent - the screen stays as-is and Save still works', async (_label, failure) => {
-        jest.mocked(fetchInstagramOpenGraphCandidate).mockResolvedValueOnce({ outcome: 'candidate', candidate });
-        jest.mocked(previewInstagramMetadataCandidate).mockImplementationOnce(failure);
-
-        const { renderer, navigation } = await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-
-        expect(titleValue(renderer)).toBe('');
-        expect(shownImageCount(renderer, normalized.previewImageUrl)).toBe(0);
-
-        await act(async () => {
-          await pressSaveButton(renderer);
-        });
-        expect(submitInstagramMetadataCandidate).toHaveBeenCalledWith(expect.anything(), 91, candidate);
-        expect(navigation.goBack).toHaveBeenCalledTimes(1);
-      });
-
-      it('never calls the preview endpoint when the Backend already returned a real title and image', async () => {
-        jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: 'real title', source: 'openGraph', previewImageUrl: 'https://scontent.cdninstagram.com/v/b.jpg' });
-
-        await renderScreen({ url: instagramUrl, initialTitle: null });
-        await settle();
-
-        expect(fetchInstagramOpenGraphCandidate).not.toHaveBeenCalled();
-        expect(previewInstagramMetadataCandidate).not.toHaveBeenCalled();
-      });
-    });
-  });
-
-  it('metadata resolution failure leaves the title blank and Save still works', async () => {
-    jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 70,
-      url: 'https://example.com/shared',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-
-    const { renderer, navigation } = await renderScreen({ initialTitle: null });
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    const [titleInput] = renderer.root.findAllByType(TextInput);
-    expect(titleInput.props.value).toBe('');
-
-    await act(async () => {
-      pressSaveButton(renderer);
-    });
-
-    expect(saveInboxEntry).toHaveBeenCalled();
-    expect(navigation.goBack).toHaveBeenCalledTimes(1);
-  });
-
-  describe('metadata loading overlay', () => {
-    function findSaveButton(renderer: ReactTestRenderer.ReactTestRenderer) {
-      let node: ReactTestRenderer.ReactTestInstance | null = renderer.root.findAll(
-        n => n.props.children === i18n.t('common.save'),
-      )[0];
-      while (node && typeof node.props.disabled === 'undefined') {
-        node = node.parent;
-      }
-      return node!;
-    }
-
-    it('shows the centered loading overlay and disables Save while metadata is resolving, never the old small inline spinner', async () => {
-      let resolveMetadata!: (value: {
-        title: string | null;
-        source: UrlMetadataSource | null;
-        previewImageUrl: string | null;
-      }) => void;
-      jest.mocked(resolveUrlMetadata).mockReturnValue(
-        new Promise(resolve => {
-          resolveMetadata = resolve;
-        }),
-      );
-
-      const { renderer } = await renderScreen({ initialTitle: null });
-
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('item.resolvingMetadataOverlay')).length).toBeGreaterThan(0);
-      expect(findSaveButton(renderer).props.disabled).toBe(true);
-      // The old per-field small spinner (react-native's own ActivityIndicator directly beside the
-      // title label, size="small") is gone - only the overlay's large one remains.
-      const smallIndicators = renderer.root
-        .findAllByType(require('react-native').ActivityIndicator)
-        .filter(node => node.props.size === 'small');
-      expect(smallIndicators).toHaveLength(0);
-
-      await act(async () => {
-        resolveMetadata({ title: 'Metadata Title', source: 'openGraph', previewImageUrl: 'https://cdn.example.com/preview.jpg' });
-        await Promise.resolve();
-      });
-
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('item.resolvingMetadataOverlay')).length).toBe(0);
-      expect(findSaveButton(renderer).props.disabled).toBe(false);
-      const [titleInput] = renderer.root.findAllByType(TextInput);
-      expect(titleInput.props.value).toBe('Metadata Title');
-      const previewImages = renderer.root
-        .findAllByType(require('react-native').Image)
-        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(previewImages).toHaveLength(2);
-    });
-
-    it('hides the overlay, re-enables Save, and shows the small failure hint when metadata resolution fails - manual save still works', async () => {
-      jest.mocked(resolveUrlMetadata).mockRejectedValue(new Error('network down'));
-      jest.mocked(saveInboxEntry).mockResolvedValue({
-        id: 71,
-        url: 'https://example.com/shared',
-        savedAtUtc: '2026-01-01T00:00:00Z',
-      });
-
-      const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await act(async () => {
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-
-      expect(renderer.root.findAll(node => node.props.children === i18n.t('item.resolvingMetadataOverlay')).length).toBe(0);
-      expect(findSaveButton(renderer).props.disabled).toBe(false);
-      expect(renderer.root.findByProps({ children: i18n.t('item.metadataResolutionFailedHint') })).toBeTruthy();
-
-      await act(async () => {
-        pressSaveButton(renderer);
-      });
-
-      expect(saveInboxEntry).toHaveBeenCalled();
-      expect(navigation.goBack).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('never navigates back until the preview-image/cover-image persistence calls settle - the fix for the intermittent missing Home thumbnail (a race between an un-awaited persistence call and Home refetching on focus)', async () => {
-    jest.mocked(resolveUrlMetadata).mockResolvedValue({
-      title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-    });
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 90, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-
-    let resolveSetPreviewImage!: () => void;
-    jest.mocked(setItemPreviewImage).mockReturnValue(
-      new Promise(resolve => {
-        resolveSetPreviewImage = () => resolve(undefined);
-      }),
-    );
-
-    const { renderer, navigation } = await renderScreen({ initialTitle: null });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    let savePromise!: Promise<void>;
-    await act(async () => {
-      savePromise = pressSaveButton(renderer);
-      // Let every already-queued microtask (saveInboxEntry, etc.) run - setItemPreviewImage is
-      // still deliberately unresolved at this point.
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 90, 'https://cdn.example.com/preview.jpg');
+  it('a failed save shows the common centered dialog and keeps the whole draft', async () => {
+    jest.mocked(saveInboxEntryToCollections).mockRejectedValueOnce(new Error('save offline'));
+    const { tree, navigation } = await render();
+    await tap(tree, 'category-picker-option-3');
+    await act(async () => { node(tree, 'save-memo-composer').props.onChangeText('draft'); });
+    await save(tree);
+    expect(tree.root.findAllByType(ConfirmDialog).some(dialog => dialog.props.visible && dialog.props.message === i18n.t('inbox.errorSaveFallback'))).toBe(true);
+    expect(node(tree, 'save-memo-composer').props.value).toBe('draft');
+    expect(isChecked(tree, 3)).toBe(true);
     expect(navigation.goBack).not.toHaveBeenCalled();
-
-    await act(async () => {
-      resolveSetPreviewImage();
-      await savePromise;
-    });
-
-    expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
-  describe('대표 사진 before Save (Quick Save OFF) - one photo, staged until 저장', () => {
-    const stagedPick = {
-      didCancel: false,
-      assets: [{ uri: 'file://staged.jpg', type: 'image/jpeg', fileName: 'staged.jpg' }],
-    } as never;
-    const flush = async () => {
-      await act(async () => {
-        await Promise.resolve();
-      });
-    };
-
-    it('shows the auto-resolved preview as the 대표 사진 before Save - changeable, not deletable', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-      });
-
-      const { renderer } = await renderScreen({ initialTitle: null });
-      await flush();
-
-      expect(shownRepresentativePhoto(renderer)).toBe('https://cdn.example.com/preview.jpg');
-      expect(renderer.root.findAll(node => node.props.testID === 'representative-photo-add')).toHaveLength(0);
-      const { ActionMenuDialog } = require('../../components/ActionMenuDialog');
-      await act(async () => {
-        renderer.root.findAll(node => node.props.testID === 'representative-photo-edit' && typeof node.props.onPress === 'function')[0].props.onPress();
-      });
-      const menu = renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!;
-      expect(menu.props.actions.map((action: { label: string }) => action.label)).toEqual(['사진 변경']);
-    });
-
-    it('a picked photo replaces the preview as the one 대표 사진 - never a second photo', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-      });
-      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
-
-      const { renderer } = await renderScreen({ initialTitle: null });
-      await flush();
-      await runRepresentativePhotoMenu(renderer, '사진 변경');
-
-      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
-      expect(renderer.root.findAll(node => node.type === require('react-native').Image && node.props.testID === 'representative-photo-image')).toHaveLength(1);
-      expect(renderer.root.findAll(node => node.props.testID === 'representative-photo-add')).toHaveLength(0);
-    });
-
-    it('picking again replaces the staged photo; 사진 삭제 brings back the preview', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-      });
-      jest.mocked(launchImageLibrary)
-        .mockResolvedValueOnce(stagedPick)
-        .mockResolvedValueOnce({ didCancel: false, assets: [{ uri: 'file://second.jpg', type: 'image/jpeg', fileName: 'second.jpg' }] } as never);
-
-      const { renderer } = await renderScreen({ initialTitle: null });
-      await flush();
-      await runRepresentativePhotoMenu(renderer, '사진 변경');
-      await runRepresentativePhotoMenu(renderer, '사진 변경');
-      expect(shownRepresentativePhoto(renderer)).toBe('file://second.jpg');
-
-      await runRepresentativePhotoMenu(renderer, '사진 삭제');
-      await act(async () => {
-        findVisibleConfirmDialog(renderer, i18n.t('item.deletePhotoConfirmTitle'))?.props.onConfirm();
-      });
-      expect(shownRepresentativePhoto(renderer)).toBe('https://cdn.example.com/preview.jpg');
-    });
-
-    it('a cancelled pick keeps what was there', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-      jest.mocked(launchImageLibrary).mockResolvedValue({ didCancel: true } as never);
-
-      const { renderer } = await renderScreen({ initialTitle: null });
-      await flush();
-      await pressAddPhoto(renderer);
-
-      expect(shownRepresentativePhoto(renderer)).toBeNull();
-      expect(renderer.root.findAll(node => node.props.testID === 'representative-photo-add').length).toBeGreaterThan(0);
-    });
-
-    it('does not let a late-arriving metadata image displace a photo the user already staged', async () => {
-      let resolveMetadata!: (value: {
-        title: string | null;
-        source: UrlMetadataSource | null;
-        previewImageUrl: string | null;
-      }) => void;
-      jest.mocked(resolveUrlMetadata).mockReturnValue(
-        new Promise(resolve => {
-          resolveMetadata = resolve;
-        }),
-      );
-      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
-
-      const { renderer } = await renderScreen({ initialTitle: null });
-
-      // User stages their own photo while metadata is still resolving.
-      await pressAddPhoto(renderer);
-      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
-
-      await act(async () => {
-        resolveMetadata({ title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg' });
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-
-      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
-      const autoImages = renderer.root
-        .findAllByType(require('react-native').Image)
-        .filter(node => node.props.source?.uri === 'https://cdn.example.com/preview.jpg');
-      expect(autoImages).toHaveLength(0);
-    });
-
-    it('save: uploads the staged photo only after the Item exists - the server makes it the 대표 사진, no separate cover call', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({
-        title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg',
-      });
-      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
-      jest.mocked(saveInboxEntry).mockResolvedValue({
-        id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
-      });
-      jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
-
-      const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await flush();
-      await runRepresentativePhotoMenu(renderer, '사진 변경');
-      expect(uploadItemImage).not.toHaveBeenCalled();
-
-      await act(async () => {
-        await pressSaveButton(renderer);
-      });
-
-      expect(uploadItemImage).toHaveBeenCalledTimes(1);
-      expect(uploadItemImage).toHaveBeenCalledWith(
-        expect.anything(), 88, expect.objectContaining({ uri: 'file://staged.jpg' }),
-      );
-      expect(setItemCoverImage).not.toHaveBeenCalled();
-      // The link's own preview is still recorded as the Item's automatic preview (the fallback).
-      expect(setItemPreviewImage).toHaveBeenCalledWith(expect.anything(), 88, 'https://cdn.example.com/preview.jpg');
-      expect(navigation.goBack).toHaveBeenCalledTimes(1);
-    });
-
-    it('save with no photo of my own uploads nothing', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-      jest.mocked(saveInboxEntry).mockResolvedValue({
-        id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
-      });
-
-      const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await flush();
-      await act(async () => {
-        await pressSaveButton(renderer);
-      });
-
-      expect(uploadItemImage).not.toHaveBeenCalled();
-      expect(navigation.goBack).toHaveBeenCalledTimes(1);
-    });
-
-    it('a staged-photo upload failure surfaces an error but never creates a duplicate Item on retry', async () => {
-      jest.mocked(resolveUrlMetadata).mockResolvedValue({ title: null, source: null, previewImageUrl: null });
-      jest.mocked(launchImageLibrary).mockResolvedValue(stagedPick);
-      jest.mocked(saveInboxEntry).mockResolvedValue({
-        id: 88, url: 'https://example.com/shared', savedAtUtc: '2026-01-01T00:00:00Z',
-      });
-      jest.mocked(uploadItemImage).mockRejectedValue(new Error('network error'));
-
-      const { renderer, navigation } = await renderScreen({ initialTitle: null });
-      await flush();
-      await pressAddPhoto(renderer);
-
-      await act(async () => {
-        await pressSaveButton(renderer);
-      });
-
-      // Said in the shared message dialog (centered, above the keyboard) - never navigated away.
-      const uploadFailure = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
-      expect(uploadFailure.props.message).toBe('사진을 업로드할 수 없습니다.');
-      expect(navigation.goBack).not.toHaveBeenCalled();
-      await act(async () => {
-        uploadFailure.props.onConfirm();
-      });
-      // The picked photo is still staged for the retry.
-      expect(shownRepresentativePhoto(renderer)).toBe('file://staged.jpg');
-
-      // Retrying Save replays the SAME clientRequestId/Item (never a second saveInboxEntry create
-      // with a different id) - see clientRequestIdRef's own remarks.
-      jest.mocked(uploadItemImage).mockResolvedValue(makeUploadedImage({ id: 9 }));
-      await act(async () => {
-        await pressSaveButton(renderer);
-      });
-
-      expect(saveInboxEntry).toHaveBeenCalledTimes(2);
-      const [firstCallArgs, secondCallArgs] = jest.mocked(saveInboxEntry).mock.calls;
-      expect(secondCallArgs[2]).toBe(firstCallArgs[2]);
-      expect(navigation.goBack).toHaveBeenCalledTimes(1);
-    });
+  it('a Collection share URL opens the Collection and never creates a SavedLink', async () => {
+    const { tree, navigation } = await render({ url: 'https://dev.juple.co.kr/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
+    await tap(tree, 'category-picker-none');
+    await save(tree);
+    expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
+    expect(navigation.replace).toHaveBeenCalledWith('SharedCollection', expect.any(Object));
   });
 
-  it('shows an error and does not navigate back when saving fails', async () => {
-    jest.mocked(saveInboxEntry).mockRejectedValue(new Error('network down'));
-
-    const { renderer, navigation } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    await act(async () => {
-      pressSaveButton(renderer);
-    });
-
-    expect(navigation.goBack).not.toHaveBeenCalled();
-    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.message).toBe(i18n.t('inbox.errorSaveFallback'));
-  });
-
-  it('a failed save is said in the message dialog with the keyboard closed first, and keeps the memo as typed', async () => {
-    const { Keyboard } = require('react-native');
-    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
-    jest.mocked(saveInboxEntry).mockRejectedValue(new Error('network down'));
-    const { renderer, navigation } = await renderScreen();
-    // The compact save dialog keeps the memo folded until asked for.
-    await act(async () => {
-      renderer.root.find(node => node.props.testID === 'new-link-review-add-memo' && typeof node.props.onPress === 'function').props.onPress();
-    });
-    const memoInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
-    await act(async () => {
-      memoInput.props.onChangeText('draft memo');
-    });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    expect(dismissSpy).toHaveBeenCalled();
-    const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
-    expect(dialog.props.message).toBe(i18n.t('inbox.errorSaveFallback'));
-    // Single-action alert: just 확인, no cancel.
-    expect(dialog.props.onCancel).toBeUndefined();
-    await act(async () => {
-      dialog.props.onConfirm();
-    });
-    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeUndefined();
-    expect(renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!.props.value).toBe('draft memo');
-    expect(navigation.goBack).not.toHaveBeenCalled();
-    dismissSpy.mockRestore();
-  });
-
-  it('the server\'s Collection-share-link guard opens the Collection instead of saving or failing generically', async () => {
-    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('badRequest', 400, 'collectionShareUrlNotSavableAsLink'));
-    const { renderer, navigation } = await renderScreen({ url: 'https://some-host.test/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123?utm_source=x', initialTitle: null });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    expect(navigation.replace).toHaveBeenCalledWith('SharedCollection', { publicId: 'AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
-    expect(updateItemDetails).not.toHaveBeenCalled();
-    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeUndefined();
-  });
-
-  it('the same guard without a recoverable public id says why, in its own words - not the generic save error', async () => {
-    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('badRequest', 400, 'collectionShareUrlNotSavableAsLink'));
-    const { renderer, navigation } = await renderScreen({ url: 'https://example.com/not-a-collection-path', initialTitle: null });
-
-    await act(async () => {
-      await pressSaveButton(renderer);
-    });
-
-    expect(navigation.replace).not.toHaveBeenCalled();
-    expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.message).toBe(i18n.t('item.collectionLinkNotSavable'));
-  });
-
-  it('uses the same shared category picker row ItemDetailsScreen uses - not the old horizontal chip list', async () => {
-    const { renderer } = await renderScreen();
-
-    // The shared CategoryField summary row (see collections/CategoryField.tsx) - a single
-    // Pressable found by its accessibilityLabel, exactly like ItemDetailsScreen's own category row.
-    expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
-    // The old per-screen horizontal chip ScrollView this replaced no longer exists at all.
-    expect(renderer.root.findAllByType(ScrollView).some(node => node.props.horizontal === true)).toBe(false);
-  });
-
-  it('shows each category\'s own pastel icon tile in the picker - not a plain gray outline icon', async () => {
-    jest.mocked(getCollections).mockResolvedValue({
-      items: [{ id: 3, name: '영화', isFavorite: false, itemCount: 0, createdAtUtc: '', updatedAtUtc: '', icon: 'Heart', color: null }],
-      nextCursor: null,
-    });
-    const { renderer } = await renderScreen();
-
-    await openCategoryPicker(renderer);
-
-    const { HeartIcon } = require('../../icons/HeartIcon');
-    const { FolderIcon } = require('../../icons/FolderIcon');
-    expect(renderer.root.findAllByType(HeartIcon).length).toBeGreaterThan(0);
-    expect(renderer.root.findAllByType(FolderIcon)).toHaveLength(0);
-  });
-
-  it('the category summary row stays present and untouched whether or not an async preview image has arrived - never disturbed by the photo section', async () => {
-    let resolveMetadata!: (value: {
-      title: string | null;
-      source: UrlMetadataSource | null;
-      previewImageUrl: string | null;
-    }) => void;
-    jest.mocked(resolveUrlMetadata).mockReturnValue(
-      new Promise(resolve => {
-        resolveMetadata = resolve;
-      }),
-    );
-
-    const { renderer } = await renderScreen();
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    // Before the preview image resolves (no photo yet).
-    expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
-    expect(shownRepresentativePhoto(renderer)).toBeNull();
-
-    await act(async () => {
-      resolveMetadata({ title: null, source: null, previewImageUrl: 'https://cdn.example.com/preview.jpg' });
-      await Promise.resolve();
-    });
-
-    // After the preview image has arrived (now the 대표 사진) - the category row is still there,
-    // completely unaffected (the originally-reported bug: the photo appearing made the category
-    // section disappear/get pushed off-screen).
-    expect(findByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))).toBeTruthy();
-    expect(shownRepresentativePhoto(renderer)).toBe('https://cdn.example.com/preview.jpg');
-  });
-
-  it('creating a new category adds it to the list and auto-selects it', async () => {
-    jest.mocked(createCollection).mockResolvedValue({
-      id: 9,
-      name: '캠핑',
-      isFavorite: false,
-      itemCount: 0,
-      createdAtUtc: '',
-      updatedAtUtc: '',
-      icon: 'Folder',
-      color: null,
-    });
-    jest.mocked(saveInboxEntry).mockResolvedValue({
-      id: 60,
-      url: 'https://example.com/shared',
-      savedAtUtc: '2026-01-01T00:00:00Z',
-    });
-    jest.mocked(addItemToCollection).mockResolvedValue('added');
-
-    const { renderer } = await renderScreen();
-    await openCategoryPicker(renderer);
-
-    await act(async () => {
-      renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.addNew') }).props.onPress();
-    });
-
-    const nameInput = renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('collections.namePlaceholder'))!;
-    await act(async () => {
-      nameInput.props.onChangeText('캠핑');
-    });
-
-    await act(async () => {
-      const createButton = renderer.root.findByProps({ accessibilityLabel: i18n.t('collections.createAction') });
-      await createButton.props.onPress();
-    });
-
-    expect(createCollection).toHaveBeenCalledWith(expect.anything(), '캠핑', 'Folder', 'Blue');
-    expect(findByAccessibilityLabel(renderer, '캠핑')).toBeTruthy();
-
-    await act(async () => {
-      pressSaveButton(renderer);
-    });
-
-    expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 60, { unlockToken: null });
-  });
-
-  describe('active draft + conflicting incoming share', () => {
-    function findConflictDialog(renderer: ReactTestRenderer.ReactTestRenderer) {
-      return findVisibleConfirmDialog(renderer, i18n.t('item.activeDraftConflictTitle'));
-    }
-
-    it('shows the conflict dialog for a different-URL share, keeping the current draft untouched', async () => {
-      const { renderer } = await renderScreen();
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      await triggerConflictingShare(makePendingShare({ text: 'https://example.com/different' }));
-
-      expect(findConflictDialog(renderer)).toBeTruthy();
-      // The draft's own title field is completely unaffected by the incoming share just sitting
-      // there behind the dialog.
-      const [titleInput] = renderer.root.findAllByType(TextInput);
-      expect(titleInput.props.value).toBe('Shared title');
-    });
-
-    it('"저장 후 계속": saves the current draft exactly once, then replaces the screen with the new share', async () => {
-      jest.mocked(saveInboxEntry).mockResolvedValue({
-        id: 70,
-        url: 'https://example.com/shared',
-        savedAtUtc: '2026-01-01T00:00:00Z',
-      });
-      const { renderer, navigation } = await renderScreen();
-      await act(async () => {
-        await Promise.resolve();
-      });
-      const share = makePendingShare({
-        id: 'incoming-save',
-        text: 'https://example.com/new-after-save',
-        initialTitle: 'New Title',
-      });
-      await triggerConflictingShare(share);
-
-      await act(async () => {
-        await findConflictDialog(renderer)!.props.onCancel();
-      });
-
-      expect(saveInboxEntry).toHaveBeenCalledTimes(1);
-      expect(mockAcknowledgePendingShare).toHaveBeenCalledWith('incoming-save');
-      expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', {
-        url: 'https://example.com/new-after-save',
-        initialTitle: 'New Title',
-        preselectedCollectionId: null,
-      });
-      expect(navigation.goBack).not.toHaveBeenCalled();
-      expect(findConflictDialog(renderer)).toBeFalsy();
-    });
-
-    it('a failed "저장 후 계속" keeps the current draft and the pending share - never transitions to the new share', async () => {
-      jest.mocked(saveInboxEntry).mockRejectedValue(new Error('network down'));
-      const { renderer, navigation } = await renderScreen();
-      await act(async () => {
-        await Promise.resolve();
-      });
-      await triggerConflictingShare(makePendingShare({ id: 'incoming-fail', text: 'https://example.com/new-after-fail' }));
-
-      await act(async () => {
-        await findConflictDialog(renderer)!.props.onCancel();
-      });
-
-      expect(saveInboxEntry).toHaveBeenCalledTimes(1);
-      expect(navigation.replace).not.toHaveBeenCalled();
-      expect(mockAcknowledgePendingShare).not.toHaveBeenCalled();
-      // The dialog is still up (pendingConflictShare was never cleared) so the user can retry
-      // either button.
-      expect(findConflictDialog(renderer)).toBeTruthy();
-    });
-
-    it('"버리고 계속": never calls save, and replaces the screen with a fresh draft for the new share', async () => {
-      const { renderer, navigation } = await renderScreen();
-      await act(async () => {
-        await Promise.resolve();
-      });
-      const share = makePendingShare({
-        id: 'incoming-discard',
-        text: 'https://example.com/new-after-discard',
-        initialTitle: null,
-        preselectedCollectionId: 5,
-      });
-      await triggerConflictingShare(share);
-
-      await act(async () => {
-        await findConflictDialog(renderer)!.props.onConfirm();
-      });
-
-      expect(saveInboxEntry).not.toHaveBeenCalled();
-      expect(mockAcknowledgePendingShare).toHaveBeenCalledWith('incoming-discard');
-      expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', {
-        url: 'https://example.com/new-after-discard',
-        initialTitle: null,
-        preselectedCollectionId: 5,
-      });
-      expect(findConflictDialog(renderer)).toBeFalsy();
-    });
+  it('keeps an incoming share conflict visible when Save is not possible yet, and can discard the draft', async () => {
+    const { tree, navigation } = await render();
+    await act(async () => { getActiveNewLinkReviewDraft()!.onConflictingShare({ id: 'next', text: 'https://example.com/next', receivedAtEpochMs: Date.now(), initialTitle: null, preselectedCollectionId: null, draftTitle: null, draftCollectionId: null }); });
+    const dialog = tree.root.findAllByType(ConfirmDialog).find(item => item.props.visible && item.props.title === i18n.t('item.activeDraftConflictTitle'))!;
+    await act(async () => { dialog.props.onCancel(); });
+    expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
+    expect(dialog.props.visible).toBe(true);
+    await act(async () => { dialog.props.onConfirm(); });
+    expect(navigation.replace).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ url: 'https://example.com/next' }));
   });
 });

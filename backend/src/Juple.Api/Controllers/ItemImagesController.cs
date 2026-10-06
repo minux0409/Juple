@@ -5,6 +5,7 @@ using Juple.Application.Images.DeleteItemImage;
 using Juple.Application.Images.ListItemImages;
 using Juple.Application.Images.UploadItemImage;
 using Juple.Application.Items;
+using Juple.Application.Items.GetItemDetail;
 using Juple.Application.Users.CurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,13 +22,28 @@ public sealed class ItemImagesController(
     IUploadItemImageService uploadItemImageService,
     IDeleteItemImageService deleteItemImageService) : ControllerBase
 {
+    /// <summary>
+    /// The Item's photos. Optional collectionId (+ X-Juple-Collection-Unlock): the same Collection-context gate as
+    /// GET items/{id} - a link opened in a locked Collection's context shows none of its photos without that
+    /// Collection's grant. Without collectionId: ownership only, as before.
+    /// </summary>
     [HttpGet]
-    public async Task<IActionResult> ListAsync(long itemId, CancellationToken cancellationToken)
+    public async Task<IActionResult> ListAsync(
+        long itemId,
+        [FromServices] IItemCollectionContextGate collectionContextGate,
+        CancellationToken cancellationToken,
+        [FromQuery] long? collectionId = null,
+        [FromHeader(Name = CollectionsController.UnlockTokenHeader)] string? unlockToken = null)
     {
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
+            if (collectionId is { } contextCollectionId)
+            {
+                await collectionContextGate.RequireAsync(currentUser.UserId, itemId, contextCollectionId, unlockToken, cancellationToken);
+            }
+
             var images = await listItemImagesService.ListAsync(currentUser.UserId, itemId, cancellationToken);
 
             return Ok(new ItemImagesResponse(images.Select(ToResponse).ToList()));
@@ -41,6 +57,18 @@ public sealed class ItemImagesController(
         catch (ItemNotFoundException)
         {
             return NotFound();
+        }
+        catch (Juple.Application.Collections.CollectionNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (Juple.Application.Collections.CollectionLockedException)
+        {
+            return Juple.Api.Collections.CollectionProblems.CollectionLocked();
+        }
+        catch (Juple.Application.Collections.CollectionSharePasswordRequiredException)
+        {
+            return Juple.Api.Collections.CollectionProblems.SharePasswordRequired();
         }
     }
 

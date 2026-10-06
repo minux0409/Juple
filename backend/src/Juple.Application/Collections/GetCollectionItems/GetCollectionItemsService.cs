@@ -1,6 +1,7 @@
 using Juple.Application.Collections.Access;
 using Juple.Application.Collections.Reactions;
 using Juple.Application.Images;
+using Juple.Application.Items;
 
 namespace Juple.Application.Collections.GetCollectionItems;
 
@@ -44,19 +45,21 @@ public sealed class GetCollectionItemsService(
         return await EnrichAsync(userId, collectionId, page, representativeImages, coverImages, cancellationToken);
     }
 
-    public Task<CollectionItemPage> GetByDateAsync(
+    public async Task<CollectionItemPage> SearchAsync(
         long userId,
         long collectionId,
-        string timeZoneId,
-        DateOnly date,
+        string searchTerm,
         CollectionItemPageCursor? cursor,
         int limit,
         CollectionItemSort sort,
         string? unlockToken = null,
         CancellationToken cancellationToken = default)
     {
-        var range = Juple.Application.Inbox.GetDailyInbox.DailyInboxDateRangeCalculator.Calculate(date, timeZoneId);
-        return GetRangeAsync(userId, collectionId, range.FromUtc, range.ToUtc, cursor, limit, sort, unlockToken, cancellationToken);
+        await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
+
+        var (page, representativeImages, coverImages) = await collectionItemStore.SearchItemsAsync(
+            userId, collectionId, ItemSearchPattern.ToContainsPattern(searchTerm), cursor, limit, sort, cancellationToken);
+        return await EnrichAsync(userId, collectionId, page, representativeImages, coverImages, cancellationToken);
     }
 
     private async Task<CollectionItemPage> EnrichAsync(

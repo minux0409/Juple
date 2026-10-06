@@ -2,8 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // react-native-get-random-values is imported once at the app entry point before anything else can
 // call uuid - see pushInstallationId.ts's own remarks on why uuid would otherwise silently fall
@@ -12,23 +11,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { ApiError } from '../api/ApiError';
 import { formatSaveOutcomeMessage, needsSaveOutcomeDialog } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { addItemToCollection, getCollections, type Collection } from '../collections/api/collectionsApi';
-import { CategoryField } from '../collections/CategoryField';
-import { needsUnlockForContent } from '../collections/collectionAccess';
-import { CategoryPickerModal } from '../collections/CategoryPickerModal';
+import type { Collection } from '../collections/api/collectionsApi';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
-import { ContentPreviewCard } from '../components/ContentPreviewCard';
+import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
+import { CollectionUnlockDialog } from '../collections/CollectionUnlockDialog';
+import { DEFAULT_COLLECTION_COLOR } from '../collections/collectionColors';
+import { DEFAULT_COLLECTION_ICON } from '../collections/collectionIcons';
+import { CollectionChoiceGrid } from '../collections/CollectionChoiceGrid';
+import { needsUnlockForContent } from '../collections/collectionAccess';
 import { SourceRow } from '../components/SourceRow';
-import { EditIcon } from '../icons/EditIcon';
-import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
-import { saveInboxEntry } from '../inbox/api/inboxApi';
-import { QuickCollectionChips, useQuickCollectionOptions } from '../collections/QuickCollectionChips';
-import { contentGateOf } from '../collections/collectionAccess';
+import { LinkIcon } from '../icons/LinkIcon';
+import { SiteIcon } from '../icons/SiteIcon';
+import { saveInboxEntryToCollections } from '../inbox/api/inboxApi';
 import { COLLECTION_SHARE_URL_NOT_SAVABLE_CODE, parseCollectionShareUrl, publicIdFromServerVerifiedShareUrl } from '../share/collectionShareUrl';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useMessageDialog } from '../components/useMessageDialog';
-import { uploadItemImage, type ItemImageAsset } from '../images/api/imagesApi';
-import { RepresentativePhotoField } from '../images/RepresentativePhotoField';
 import { setItemPreviewImage, updateItemDetails } from '../items/api/itemsApi';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import type { RootStackParamList } from '../navigation/RootStack';
@@ -36,7 +33,7 @@ import { registerActiveNewLinkReviewDraft, clearActiveNewLinkReviewDraft } from 
 import { isHttpUrl, normalizeShareTextForComparison, resolveIncomingShare } from '../share/resolveIncomingShare';
 import type { PendingShare } from '../share/specs/NativeIncomingShare';
 import { useIncomingShare } from '../share/useIncomingShare';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { resolveUrlMetadata } from '../urlMetadata/api/urlMetadataApi';
 import {
   applyInstagramDeviceFallback,
@@ -47,7 +44,6 @@ import {
 import { fetchInstagramOpenGraphCandidate, type InstagramOpenGraphFetchResult } from '../urlMetadata/instagramOpenGraphFetch';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
-const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
 /**
  * Defensive-only, YouTube-gated filter: the current DEV Backend can still return "YouTube"/
@@ -87,36 +83,6 @@ function getSaveErrorMessage(error: unknown, t: TFunction): string {
   return t('inbox.errorSaveFallback');
 }
 
-/** picker/permission failures never reach the server, so this maps react-native-image-picker's own errorCode only. */
-function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction): string {
-  if (errorCode === 'permission') {
-    return t('item.errorImagePickerPermission');
-  }
-  return t('item.errorImagePickerFallback');
-}
-
-/** Never surfaces raw server/credential/token detail - only a short, actionable localized message. */
-function getPhotoUploadErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'badRequest') {
-      return t('item.errorImageUploadInvalid');
-    }
-    if (error.kind === 'unauthorized') {
-      return t('errors.unauthorized');
-    }
-    if (error.kind === 'timeout' || error.kind === 'unavailable') {
-      return t('item.errorImageUploadNetwork');
-    }
-  }
-  return t('item.errorImageUploadFallback');
-}
-
-/**
- * Reached only via IncomingShareRouter (Quick Save OFF, or a leftover Quick Save ON share that
- * still needs review) - never navigated to any other way, and never pre-creates the Item. Save is
- * the only thing that calls the Item API, using the same saveInboxEntry -> updateItemDetails ->
- * addItemToCollection sequence DailyInboxScreen/incomingShareHeadlessTask already use.
- */
 export function NewLinkReviewScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
@@ -124,7 +90,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
   const { acknowledgePendingShare } = useIncomingShare();
 
-  const [url, setUrl] = useState(route.params.url);
+  const [url] = useState(route.params.url);
   // Live mirror of `url` for activeNewLinkReviewDraft's getNormalizedUrl - read imperatively by
   // IncomingShareRouter (a component outside this screen's own render tree), not through state.
   const urlRef = useRef(url);
@@ -140,14 +106,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [pendingConflictShare, setPendingConflictShare] = useState<PendingShare | null>(null);
   const [title, setTitle] = useState(route.params.initialTitle ?? '');
   const [memo, setMemo] = useState('');
-  // The compact save dialog keeps the memo folded until asked for (or until it has text).
-  const [isMemoOpen, setIsMemoOpen] = useState(false);
-  // Full Collection objects (not just ids) - CategoryField needs each one's name to render the
-  // compact summary row, matching ItemDetailsScreen's own selectedCategories exactly (this round's
-  // explicit "같은 선택 방식... 그대로 사용" requirement, which extends this screen from its old
-  // single-category chip to the same multi-select picker ItemDetails already has). Seeded from
-  // route.params.preselectedCollectionId below once that id's name is resolved.
-  const [selectedCollections, setSelectedCollections] = useState<readonly Collection[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
   // What a save (or a photo pick, or opening the link) did when it was not a plain success - and the
@@ -155,12 +113,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // never a red line under the Save button that the keyboard can hide. Whatever should follow a
   // finished save (leaving the screen) waits for its 확인; a failed save keeps every draft as typed.
   const { showMessage, messageDialog } = useMessageDialog();
-
-  // Compact source row (icon + site name) by default - raw URL text only appears while the user has
-  // deliberately opened it for editing (e.g. fixing a malformed shared URL), never as a passive
-  // display. Starts collapsed even for a non-http review text (kind: 'reviewText'), which still
-  // needs to be editable the same way.
-  const [isEditingUrl, setIsEditingUrl] = useState(false);
 
   const [isResolvingMetadataTitle, setIsResolvingMetadataTitle] = useState(false);
   // Set only when the metadata fetch itself throws (network/timeout/server error) - never for a
@@ -170,7 +122,6 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // Set only by the user actually typing in the title field (see handleTitleChange) - never by
   // the metadata auto-fill below - so a later-arriving metadata result can tell "the user started
   // typing" apart from "the field is still exactly what it started as".
-  const hasUserEditedTitleRef = useRef(false);
 
   // The same mount-time metadata fetch also resolves a preview image - shown here (unlike before,
   // where it was only silently captured in a ref and applied after Save with no UI at all) so the
@@ -181,18 +132,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   // The new Item's one photo (대표 사진), picked here and uploaded only at Save - never before, as
   // there is no Item yet. Shown ahead of the automatic preview above; null = none picked.
-  const [stagedPhoto, setStagedPhoto] = useState<ItemImageAsset | null>(null);
-  // Live mirrors for the metadata-resolution effect below (a plain mount-time effect, not re-run on
-  // every change) to read the *current* photo state at the moment metadata actually arrives.
-  const stagedPhotoRef = useRef(stagedPhoto);
-  useEffect(() => {
-    stagedPhotoRef.current = stagedPhoto;
-  }, [stagedPhoto]);
   const previewImageUrlRef = useRef(previewImageUrl);
   useEffect(() => {
     previewImageUrlRef.current = previewImageUrl;
   }, [previewImageUrl]);
-  const [isPickingPhoto, setIsPickingPhoto] = useState(false);
   // Stable across retries of the SAME url (so a retried Save after a partial failure replays the
   // already-created Item instead of creating a duplicate - see saveInboxEntry's own
   // clientRequestId idempotency), but regenerated the moment the url actually changes, since that
@@ -214,45 +157,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     };
     registerActiveNewLinkReviewDraft(draft);
     return () => clearActiveNewLinkReviewDraft(draft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only registration; the closure reads urlRef.current live and setPendingConflictShare is stable.
   }, []);
-
-  // route.params.preselectedCollectionId only ever carries an id (see RootStack.tsx's own remarks
-  // on why - no Item/staged state exists yet for this not-yet-created Item), so its *name* - needed
-  // to actually render it as a selected chip in CategoryField - has to be resolved separately, once,
-  // against a fetched page of the user's Collections. Non-fatal and best-effort: if the match isn't
-  // found (e.g. past the first page), the id was never captured in local state to begin with, so
-  // there is nothing to persist either - Save simply proceeds with no category selected, exactly
-  // like any other non-fatal metadata resolution on this screen.
-  useEffect(() => {
-    if (route.params.preselectedCollectionId === null) {
-      return;
-    }
-
-    let isMounted = true;
-    (async () => {
-      try {
-        const page = await getCollections(authenticatedRequest, { limit: COLLECTION_OPTIONS_PAGE_LIMIT });
-        if (!isMounted) {
-          return;
-        }
-        const preselected = page.items.find(option => option.id === route.params.preselectedCollectionId);
-        // A locked Category is never preselected before it has been unlocked in this session (its
-        // add would be rejected on Save) - the user can still pick it after unlocking it.
-        if (preselected && !needsUnlockForContent(preselected)) {
-          setSelectedCollections(previous =>
-            previous.some(existing => existing.id === preselected.id) ? previous : [...previous, preselected],
-          );
-        }
-      } catch {
-        // Non-fatal - see this effect's own remarks above.
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, matching this screen's other mount-only metadata effects.
-  }, [authenticatedRequest]);
 
   // Always attempted once on mount for a URL (never re-fetched as the user edits the url field) -
   // regardless of whether the sharing app already provided a title (route.params.initialTitle).
@@ -306,13 +211,12 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       if (!preview || !isActive() || urlRef.current.trim() !== route.params.url.trim()) {
         return;
       }
-      if (preview.title && !backendMetadata.hasTitle && !hasUserEditedTitleRef.current) {
+      if (preview.title && !backendMetadata.hasTitle) {
         setTitle(preview.title);
       }
       if (
         preview.previewImageUrl
         && !backendMetadata.hasImage
-        && !stagedPhotoRef.current
         && !previewImageUrlRef.current
       ) {
         isPreviewImageFromInstagramDeviceRef.current = true;
@@ -347,15 +251,14 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         // Skipped entirely once the user has already picked their own photo - picking one from the
         // OS library realistically takes longer than this network round-trip, so a late-arriving
         // automatic image is a real race, not a hypothetical one.
-        if (metadata.previewImageUrl && !stagedPhotoRef.current) {
+        if (metadata.previewImageUrl) {
           setPreviewImageUrl(metadata.previewImageUrl);
         }
         // A known YouTube placeholder (see isKnownYouTubePlaceholderTitle) is treated exactly like
         // "no title" here - title simply stays whatever it already was (the share-provided
         // initialTitle, or empty), never the placeholder itself.
         if (
-          hasUserEditedTitleRef.current
-          || !metadata.title
+          !metadata.title
           || isKnownYouTubePlaceholderTitle(route.params.url, metadata.title)
         ) {
           return;
@@ -384,73 +287,84 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately mount-only, see remarks above.
   }, []);
 
-  const handleTitleChange = (value: string) => {
-    hasUserEditedTitleRef.current = true;
-    setTitle(value);
+  // The new link goes to the Collections chosen here - any number of them (Item ↔ Collection is many-to-many), or
+  // explicitly none. Nothing is chosen on arrival: Save waits for a deliberate decision.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<number>>(new Set());
+  const [isNoneChosen, setIsNoneChosen] = useState(false);
+  const hasDestinationDecision = isNoneChosen || selectedIds.size > 0;
+
+  const check = (collectionId: number) => {
+    setIsNoneChosen(false);
+    setSelectedIds(previous => new Set(previous).add(collectionId));
   };
 
-  const openUrl = async () => {
-    try {
-      await Linking.openURL(url);
-    } catch {
-      showMessage(t('item.urlOpenFailed'));
-    }
-  };
+  // A Collection made here is checked at once, next to whatever was already checked; the link, its preview and the
+  // memo draft are untouched (this screen never leaves for the create dialog).
+  const categoryPicker = useCategoryPickerModal(authenticatedRequest, t, created => check(created.id));
+  useEffect(() => {
+    if (categoryPicker.error) { showMessage(categoryPicker.error); }
+  }, [categoryPicker.error, showMessage]);
+  useEffect(() => {
+    categoryPicker.open();
+    // The destination list is loaded once on arrival; retries are explicit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  /** 사진 추가 / 사진 변경: the picked photo replaces any picked before (an Item has one photo). */
-  const pickAndStagePhoto = async () => {
-    if (isPickingPhoto) {
+  // A share aimed at one Collection (a direct-share shortcut) starts with it checked - once its card is known, and only
+  // when it is not locked (a locked one is checked by tapping it, which asks for its password first).
+  const preselectedAppliedRef = useRef(false);
+  useEffect(() => {
+    const preselectedId = route.params.preselectedCollectionId;
+    if (preselectedAppliedRef.current || preselectedId === null) {
       return;
     }
-
-    setIsPickingPhoto(true);
-    try {
-      const result = await launchImageLibrary({
-        mediaType: 'photo',
-        selectionLimit: 1,
-        includeBase64: false,
-        assetRepresentationMode: 'compatible',
-      });
-
-      if (result.didCancel) {
-        return;
+    const preselected = categoryPicker.collectionPool.find(option => option.id === preselectedId);
+    if (preselected) {
+      preselectedAppliedRef.current = true;
+      if (!needsUnlockForContent(preselected)) {
+        check(preselected.id);
       }
-
-      const asset = result.assets?.[0];
-      if (result.errorCode || !asset?.uri) {
-        showMessage(getImagePickerErrorMessage(result.errorCode, t));
-        return;
-      }
-
-      setStagedPhoto({ uri: asset.uri, type: asset.type, fileName: asset.fileName });
-    } finally {
-      setIsPickingPhoto(false);
     }
+  }, [categoryPicker.collectionPool, route.params.preselectedCollectionId]);
+
+  const toggleCollection = (option: Collection) => {
+    if (selectedIds.has(option.id)) {
+      // Unchecking changes nothing on the server yet - no password is needed for it.
+      setSelectedIds(previous => {
+        const next = new Set(previous);
+        next.delete(option.id);
+        return next;
+      });
+      return;
+    }
+    // Checking reads the Collection's CURRENT state first (never the list snapshot): locked now → its password;
+    // unlocked meanwhile → checked at once without a stale prompt.
+    categoryPicker.requestToggle(option, () => check(option.id), true);
   };
 
-  // onSuccess defaults to the plain "go back to whatever opened this screen" behavior the Save
-  // button has always had; the active-draft conflict flow below passes its own onSuccess instead
-  // (acknowledge the pending share + replace this screen with a fresh one for the new URL) so it
-  // can reuse this exact same save sequence rather than duplicating it - this round's explicit
-  // "별도 save implementation 만들지 않는다" requirement. The existing `isSaving` guard just below
-  // already makes a second concurrent call to save() (from either caller) a no-op, so the conflict
-  // dialog's "저장 후 계속" button never risks a double save even on a fast double-tap.
+  const chooseNone = () => {
+    setIsNoneChosen(true);
+    setSelectedIds(new Set());
+  };
+
+  // onSuccess defaults to the plain "go back to whatever opened this screen" behavior; the active-draft conflict flow
+  // below passes its own onSuccess (acknowledge the pending share + replace this screen with a fresh one for the new
+  // URL) so it reuses this exact same save. The `isSaving` guard makes a second concurrent call a no-op.
   const save = async (onSuccess: () => void = () => navigation.goBack()) => {
     const trimmedUrl = url.trim();
-    if (!trimmedUrl || isSaving) {
+    if (!trimmedUrl || isSaving || !hasDestinationDecision) {
       return;
     }
 
-    // A pasted/edited Juple Collection share link is never saved as an ordinary link - it opens the Collection.
+    // A Juple Collection share link is never saved as an ordinary link - it opens the Collection.
     const sharedCollectionId = parseCollectionShareUrl(trimmedUrl);
     if (sharedCollectionId !== null) {
       navigation.replace('SharedCollection', { publicId: sharedCollectionId });
       return;
     }
 
-    // Stable across a retry of this exact url (so saveInboxEntry replays the already-created Item
-    // instead of creating a duplicate - see clientRequestIdRef's own remarks), regenerated only if
-    // the url itself changed since the last attempt.
+    // Stable across a retry of this exact url (so the server replays the already-created Item instead of creating a
+    // duplicate), regenerated only if the url itself changed since the last attempt.
     if (clientRequestIdRef.current === null || clientRequestUrlRef.current !== trimmedUrl) {
       clientRequestIdRef.current = uuidv4();
       clientRequestUrlRef.current = trimmedUrl;
@@ -458,7 +372,17 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
     setIsSaving(true);
     try {
-      const savedEntry = await saveInboxEntry(authenticatedRequest, trimmedUrl, clientRequestIdRef.current);
+      // ONE request for the link and every chosen Collection: the server checks all of them before writing anything and
+      // writes the memberships together (see saveInboxEntryToCollections) - never one follow-up request per Collection.
+      const collectionIds = isNoneChosen ? [] : [...selectedIds];
+      const unlockTokens: Record<number, string> = {};
+      for (const collectionId of collectionIds) {
+        const token = categoryPicker.unlockTokenFor(collectionId);
+        if (token) {
+          unlockTokens[collectionId] = token;
+        }
+      }
+      const savedEntry = await saveInboxEntryToCollections(authenticatedRequest, trimmedUrl, clientRequestIdRef.current, collectionIds, unlockTokens);
 
       const trimmedTitle = title.trim();
       const trimmedMemo = memo.trim();
@@ -469,75 +393,30 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
         });
       }
 
-      // 승인 후 추가 Collections take it as a proposal for their Owner - said once the save is done. A
-      // Collection that already has this link waiting for its Owner (or already has it) is not a
-      // failure of the save: the link itself is saved by now, so the other Collections, the photo and
-      // the preview still go through and the dialog says what happened there. Anything else still
-      // stops the save (a retry replays the same Item - see clientRequestIdRef).
-      let proposed = 0;
-      let added = 0;
-      let alreadyPending = 0;
-      let alreadyInCollection = 0;
-      for (const collection of selectedCollections) {
-        try {
-          // A locked Collection goes with the grant this screen's picker obtained for it.
-          const outcome = await addItemToCollection(authenticatedRequest, collection.id, savedEntry.id, {
-            unlockToken: categoryPicker.unlockTokenFor(collection.id),
-          });
-          if (outcome === 'submitted') {
-            proposed += 1;
-          } else {
-            added += 1;
-          }
-        } catch (caughtError) {
-          const code = caughtError instanceof ApiError && caughtError.kind === 'conflict' ? caughtError.code : undefined;
-          if (code === 'linkAlreadyPending') {
-            alreadyPending += 1;
-          } else if (code === 'linkAlreadyInCollection') {
-            alreadyInCollection += 1;
-          } else {
-            throw caughtError;
-          }
-        }
-      }
-
-      // The picked photo uploads only now that the Item is real - never before. The server makes it
-      // the Item's cover (its 대표 사진) in the same step, so nothing else needs to follow. A failure
-      // here leaves the already-created Item exactly as-is (title/memo/category already persisted
-      // above) and is surfaced clearly rather than silently dropped; a retried Save replays the same
-      // Item via clientRequestId rather than creating a second one, then retries the upload.
-      if (stagedPhoto) {
-        try {
-          await uploadItemImage(authenticatedRequest, savedEntry.id, stagedPhoto);
-        } catch (caughtError) {
-          showMessage(getPhotoUploadErrorMessage(caughtError, t));
-          setIsSaving(false);
-          return;
-        }
-      }
-
-      // Best-effort, from the same mount-time metadata fetch the title above already used - never
-      // blocks/fails Save itself, but still AWAITED before navigating back, so Home's refetch on
-      // focus always sees it already committed (firing it unawaited once showed a just-saved Item
-      // with no thumbnail until a later refresh).
-      // A device-fallback image is left to the Instagram candidate step just below instead.
+      // Best-effort, from the same mount-time metadata fetch the title above already used - never blocks/fails Save
+      // itself, but still AWAITED before navigating back, so Home's refetch on focus sees it already committed. A
+      // device-fallback image is left to the Instagram candidate step just below instead.
       if (previewImageUrl && !isPreviewImageFromInstagramDeviceRef.current) {
         await setItemPreviewImage(authenticatedRequest, savedEntry.id, previewImageUrl).catch(() => undefined);
       }
 
-      // Instagram device fallback for the just-saved Item - reuses the fetch started during review
-      // (never a second one), only for the same URL that fetch was for, and awaited for the same
-      // reason as the cover/preview writes above (Home's refetch must see it). Never throws; the
-      // Backend applies it only to still-empty automatic fields, so the title saved just above wins.
+      // Instagram device fallback for the just-saved Item - reuses the fetch started during review (never a second
+      // one), only for the same URL that fetch was for. Never throws; the Backend applies it only to still-empty
+      // automatic fields, so the title saved just above wins.
       const pendingInstagramFetch = instagramDeviceFetchRef.current;
       if (pendingInstagramFetch && trimmedUrl === route.params.url.trim()) {
         await applyInstagramDeviceFallback(authenticatedRequest, savedEntry.id, trimmedUrl, pendingInstagramFetch);
       }
 
-      const saveOutcome = { added, submitted: proposed, alreadyPending, alreadyInCollection };
+      const saveOutcome = {
+        added: savedEntry.addedCount,
+        submitted: savedEntry.submittedCount,
+        alreadyPending: savedEntry.alreadyPendingCount,
+        alreadyInCollection: savedEntry.alreadyInCollectionCount,
+      };
       if (needsSaveOutcomeDialog(saveOutcome)) {
         showMessage(formatSaveOutcomeMessage(saveOutcome, t), {
-          title: proposed > 0 ? t('collections.saveOutcomeTitle') : undefined,
+          title: saveOutcome.submitted > 0 ? t('collections.saveOutcomeTitle') : undefined,
           onDone: onSuccess,
         });
       } else {
@@ -561,14 +440,10 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     }
   };
 
-  // Hands the now-resolved conflict share off to a brand-new NewLinkReview instance -
-  // navigation.replace (not navigate) is deliberate: unlike navigate, it always creates a fresh
-  // route with a new key, which is what actually remounts this screen and gives every piece of
-  // local state (title/memo/categories/photo/hasUserEditedTitleRef/stagedPhotoRef/metadata loading
-  // state) a clean start - see this codebase's existing CollectionDetailsScreen merge-navigation
-  // for the same replace-for-a-fresh-instance convention. acknowledgePendingShare only happens
-  // here, once the hand-off is actually committed - never earlier, so a save failure (see
-  // resolveConflictWithSave) never loses the pending share.
+  // Hands the now-resolved conflict share off to a brand-new NewLinkReview instance - navigation.replace (not
+  // navigate) always creates a fresh route with a new key, which remounts this screen with clean state.
+  // acknowledgePendingShare only happens here, once the hand-off is actually committed - never earlier, so a save
+  // failure (see resolveConflictWithSave) never loses the pending share.
   const completeConflictHandoff = (share: PendingShare) => {
     const resolved = resolveIncomingShare(share);
     setPendingConflictShare(null);
@@ -580,10 +455,8 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     });
   };
 
-  // "저장 후 계속" - runs the exact same save() the main Save button uses, just with a different
-  // onSuccess. On failure, save() already shows why (the message dialog) and resets `isSaving` on its own;
-  // pendingConflictShare is deliberately left untouched here so the dialog stays open and the user
-  // can retry either button - the new share is never silently dropped.
+  // "저장 후 계속" - the exact same save() the main Save button uses, with a different onSuccess. On failure save()
+  // already shows why and pendingConflictShare stays, so the user can retry either button.
   const resolveConflictWithSave = () => {
     if (!pendingConflictShare) {
       return;
@@ -592,9 +465,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     save(() => completeConflictHandoff(share));
   };
 
-  // "버리고 계속" - never calls save() at all; the current draft's local state is simply abandoned
-  // (nothing was ever persisted for it) and completeConflictHandoff's navigation.replace gives the
-  // new share a fully fresh screen instance, so none of the discarded draft's state can leak in.
+  // "버리고 계속" - never calls save(); the current draft (nothing persisted) is simply abandoned.
   const resolveConflictWithDiscard = () => {
     if (!pendingConflictShare) {
       return;
@@ -602,213 +473,89 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     completeConflictHandoff(pendingConflictShare);
   };
 
-  // A new category is immediately added to the pool and auto-selected for this not-yet-created
-  // Item (this screen's own explicit requirement - unlike ItemDetailsScreen, which never
-  // auto-selects a category it creates; see useCategoryPickerModal's own remarks on why that
-  // difference lives here, not in the shared hook).
-  const categoryPicker = useCategoryPickerModal(authenticatedRequest, t, created =>
-    setSelectedCollections(previous => [...previous, created]),
-  );
-  const selectedCollectionIds = new Set(selectedCollections.map(option => option.id));
-  // One-tap shortcuts: favorites and recent Collections. A Collection that is locked / share-password protected
-  // needs its password prompt, which lives in the full picker - so tapping one opens the picker instead.
-  const quickCollections = useQuickCollectionOptions(authenticatedRequest);
-  const toggleCategory = (option: Collection) => {
-    setSelectedCollections(previous =>
-      previous.some(existing => existing.id === option.id)
-        ? previous.filter(existing => existing.id !== option.id)
-        : [...previous, option],
-    );
-  };
+  const site = resolveSiteInfo(url);
+  const isSaveDisabled = !hasDestinationDecision || !url.trim() || isSaving;
 
   return (
     <KeyboardSafeView style={styles.screen} testID="new-link-review">
-      {/* A compact full-screen editor (the header is the navigator's): the scroll area, then a sticky Save. */}
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/*
-          Field order (제목, URL, 카테고리, 메모, 사진) matches ItemDetailsScreen's exactly - this
-          round's explicit requirement to unify the two screens' information structure. Category is
-          laid out before the photo section on purpose (same as ItemDetails): its position/height
-          must never depend on whether an async preview image has arrived yet, and putting it ahead
-          of the 대표 사진 field in document order means it already has its final layout before that
-          async state change can ever touch it.
-
-          Title + source are visually grouped into one "content preview" card (this round's visual
-          redesign - "폼 입력" feel replaced with "리뷰 중인 콘텐츠 하나" feel) instead of two
-          separately labeled form fields, but their order/semantics/state are completely unchanged -
-          still the exact same editable title TextInput and the exact same SourceRow/pencil-edit-url
-          toggle as before, just presented inside a single bordered card with the resolved preview
-          image (when one exists) up top.
-        */}
-        <ContentPreviewCard
-          onChangeTitle={handleTitleChange}
-          previewImageUrl={stagedPhoto?.uri ?? previewImageUrl}
-          titleAccessibilityLabel={t('item.titleLabel')}
-          titleEditable={!isSaving}
-          titleHint={
-            !isResolvingMetadataTitle && metadataResolutionFailed ? (
-              <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
-            ) : null
-          }
-          titlePlaceholder={t('item.titlePlaceholder')}
-          titleValue={title}
-        >
-          {isEditingUrl ? (
-            <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoFocus
-              editable={!isSaving}
-              keyboardType="url"
-              onBlur={() => setIsEditingUrl(false)}
-              onChangeText={setUrl}
-              style={[styles.urlInput, ltrTextStyle]}
-              value={url}
-            />
-          ) : (
-            <SourceRow
-              trailing={
-                <View style={styles.sourceActions}>
-                  <Pressable
-                    accessibilityLabel={t('item.goToUrlA11y')}
-                    accessibilityRole="button"
-                    onPress={openUrl}
-                    style={styles.iconButton}
-                  >
-                    <ExternalLinkIcon color={colors.brand} size={20} />
-                  </Pressable>
-                  <Pressable
-                    accessibilityLabel={t('common.edit')}
-                    accessibilityRole="button"
-                    disabled={isSaving}
-                    onPress={() => setIsEditingUrl(true)}
-                    style={[styles.iconButton, isSaving && styles.disabledButton]}
-                  >
-                    <EditIcon color={colors.textSecondary} size={18} />
-                  </Pressable>
-                </View>
-              }
-              url={url}
-            />
-          )}
-        </ContentPreviewCard>
-
-        <QuickCollectionChips
-          disabled={isSaving}
-          favoriteIds={quickCollections.favoriteIds}
-          onCreate={() => {
-            categoryPicker.open();
-            categoryPicker.openCreateDialog();
-          }}
-          onToggle={option => {
-            if (contentGateOf(option) !== null) {
-              categoryPicker.open();
-              return;
-            }
-            toggleCategory(option);
-          }}
-          options={quickCollections.options}
-          selectedIds={selectedCollectionIds}
-        />
-        <CategoryField
-          error={categoryPicker.error}
-          isLoading={false}
-          onPress={categoryPicker.open}
-          selectedCollections={selectedCollections}
-        />
-
-        {isMemoOpen || memo.length > 0 ? (
-          <>
-            <Text style={styles.label}>{t('item.memo')}</Text>
-            <TextInput
-              editable={!isSaving}
-              multiline
-              onChangeText={setMemo}
-              placeholder={t('item.memoPlaceholder')}
-              style={styles.memoInput}
-              value={memo}
-            />
-          </>
+      {/* What is being saved: compact, read-only (advanced editing belongs to the link's own details later). */}
+      <View style={styles.preview} testID="save-link-preview">
+        {previewImageUrl ? (
+          <Image source={{ uri: previewImageUrl }} style={styles.thumbnail} testID="save-link-thumbnail" />
         ) : (
-          <Pressable accessibilityRole="button" onPress={() => setIsMemoOpen(true)} style={styles.addMemoButton} testID="new-link-review-add-memo">
-            <Text style={styles.addMemoLabel}>{t('item.addMemo')}</Text>
-          </Pressable>
+          <View style={[styles.thumbnail, styles.thumbnailFallback]}>
+            {site.id ? <SiteIcon siteId={site.id} size={26} /> : <LinkIcon color={colors.brand} size={24} />}
+          </View>
         )}
+        <View style={styles.previewText}>
+          <Text numberOfLines={2} style={styles.previewTitle} testID="save-link-title">{title.trim() || site.label || url}</Text>
+          <SourceRow url={url} />
+          {isResolvingMetadataTitle ? <ActivityIndicator size="small" style={styles.previewLoading} testID="save-link-resolving" /> : null}
+          {!isResolvingMetadataTitle && metadataResolutionFailed ? (
+            <Text style={styles.metadataResolutionFailedHint}>{t('item.metadataResolutionFailedHint')}</Text>
+          ) : null}
+        </View>
+      </View>
 
-        {/* 대표 사진: the photo picked here, else the link's automatic preview (which can only be
-            replaced, not removed). */}
-        <RepresentativePhotoField
-          disabled={isSaving}
-          isBusy={isPickingPhoto}
-          isRemovable={stagedPhoto !== null}
-          onChoose={pickAndStagePhoto}
-          onRemove={() => setStagedPhoto(null)}
-          photoUrl={stagedPhoto?.uri ?? previewImageUrl}
+      {/* Where to: the same 컬렉션 선택 chooser as everywhere else in Juple, filling the room between the preview and the
+          composer (its own list scrolls), led by [+ 새로 만들기] [선택 안 함]. */}
+      <View style={styles.destinations} testID="save-destination-list">
+        <CollectionChoiceGrid
+          collectionPool={categoryPicker.collectionPool}
+          isLoadingMore={categoryPicker.isLoadingMore}
+          isLoadingOptions={categoryPicker.isLoadingOptions}
+          listStyle={styles.destinationList}
+          loadFailure={categoryPicker.loadFailure}
+          noneTile={{ label: t('quickSaveComposer.categoryNone'), isSelected: isNoneChosen, onPress: chooseNone }}
+          onLoadMore={categoryPicker.loadMore}
+          onOpenCreateDialog={categoryPicker.openCreateDialog}
+          onRetryLoad={categoryPicker.retryLoad}
+          onToggle={toggleCollection}
+          selectedIds={selectedIds}
+          viewModeKey="categoryPickerViewMode"
         />
-      </ScrollView>
+      </View>
 
+      {/* Sticky composer: the optional memo opens once a destination is decided; Save is always visible above the
+          keyboard (KeyboardSafeView) and the system navigation bar. */}
       <View style={[styles.bottomBar, { paddingBottom: spacing.md + insets.bottom }]}>
+        {hasDestinationDecision ? (
+          <TextInput
+            accessibilityLabel={t('item.memoPlaceholder')}
+            editable={!isSaving}
+            multiline
+            onChangeText={setMemo}
+            placeholder={t('item.memoPlaceholder')}
+            placeholderTextColor={colors.textSecondary}
+            scrollEnabled
+            style={styles.memoInput}
+            testID="save-memo-composer"
+            value={memo}
+          />
+        ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityState={{ disabled: !url.trim() || isSaving || isResolvingMetadataTitle, busy: isSaving }}
-          disabled={!url.trim() || isSaving || isResolvingMetadataTitle}
+          accessibilityState={{ disabled: isSaveDisabled, busy: isSaving }}
+          disabled={isSaveDisabled}
           onPress={() => save()}
-          style={[
-            styles.saveButton,
-            (!url.trim() || isSaving || isResolvingMetadataTitle) && styles.disabledButton,
-          ]}
+          style={[styles.saveButton, isSaveDisabled && styles.disabledButton]}
+          testID="new-link-review-save"
         >
-          <Text style={styles.saveButtonLabel}>{isSaving ? t('common.saving') : t('common.save')}</Text>
+          {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.saveButtonLabel}>{t('common.save')}</Text>}
         </Pressable>
       </View>
 
-      {isResolvingMetadataTitle ? (
-        <View pointerEvents="auto" style={styles.metadataLoadingOverlay}>
-          <ActivityIndicator color={colors.surface} size="large" />
-          <Text style={styles.metadataLoadingOverlayText}>{t('item.resolvingMetadataOverlay')}</Text>
-        </View>
-      ) : null}
-
-      <CategoryPickerModal
-        bottomInset={insets.bottom}
-        collectionPool={categoryPicker.collectionPool}
-        createError={categoryPicker.createError}
-        error={categoryPicker.error}
-        isCreateDialogVisible={categoryPicker.isCreateDialogVisible}
-        isCreatingCollection={categoryPicker.isCreatingCollection}
-        isLoadingMore={categoryPicker.isLoadingMore}
-        isLoadingOptions={categoryPicker.isLoadingOptions}
-        onClose={categoryPicker.close}
-        onCloseCreateDialog={categoryPicker.closeCreateDialog}
-        onCreateCollection={categoryPicker.submitNewCollection}
-        onLoadMore={categoryPicker.loadMore}
-        onOpenCreateDialog={categoryPicker.openCreateDialog}
-        onToggle={option => categoryPicker.requestToggle(option, () => toggleCategory(option))}
-        onUnlockCancel={categoryPicker.cancelUnlock}
-        onUnlockGranted={categoryPicker.onUnlockGranted}
-        onUnlockStateChanged={categoryPicker.onUnlockStateChanged}
-        selectedIds={selectedCollectionIds}
-        unlockTarget={categoryPicker.unlockTarget}
-        visible={categoryPicker.isVisible}
-      />
-
-      {/*
-        "버리고 계속" is the data-losing action, so it takes the confirm slot's destructive style
-        (matches this app's existing unsavedChanges/leave convention - see ItemDetailsScreen); "저장
-        후 계속" - the safe, nothing-is-lost action - takes the cancel slot's neutral style, so an
-        accidental backdrop tap or hardware back press (ConfirmDialog's dismiss falls back to
-        onCancel) can never discard data by mistake.
-      */}
-      <ConfirmDialog
-        cancelLabel={t('item.saveDraftAndContinue')}
-        confirmLabel={t('item.discardDraftAndContinue')}
-        message={t('item.activeDraftConflictMessage')}
-        onCancel={resolveConflictWithSave}
-        onConfirm={resolveConflictWithDiscard}
-        title={t('item.activeDraftConflictTitle')}
-        visible={pendingConflictShare !== null}
-      />
-      {/* Last, so a failed "저장 후 계속" says why above the still-open conflict dialog. */}
+      {categoryPicker.isCreateDialogVisible ? <CategoryEditorDialog
+        error={categoryPicker.createError} initialColor={DEFAULT_COLLECTION_COLOR} initialIcon={DEFAULT_COLLECTION_ICON}
+        initialName="" isSubmitting={categoryPicker.isCreatingCollection} mode="create"
+        onCancel={categoryPicker.closeCreateDialog} onSubmit={categoryPicker.submitNewCollection} visible
+      /> : null}
+      {categoryPicker.unlockTarget ? <CollectionUnlockDialog collection={categoryPicker.unlockTarget} onCancel={categoryPicker.cancelUnlock}
+        onGranted={categoryPicker.onUnlockGranted} onStateChanged={categoryPicker.onUnlockStateChanged} /> : null}
+      <ConfirmDialog cancelLabel={t('item.saveDraftAndContinue')}
+        confirmLabel={t('item.discardDraftAndContinue')} message={t('item.activeDraftConflictMessage')}
+        onCancel={resolveConflictWithSave} onConfirm={resolveConflictWithDiscard}
+        title={t('item.activeDraftConflictTitle')} visible={pendingConflictShare !== null} />
       {messageDialog}
     </KeyboardSafeView>
   );
@@ -816,117 +563,57 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: colors.background, flex: 1 },
-  addMemoButton: { alignItems: 'center', alignSelf: 'flex-start', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget },
-  addMemoLabel: { color: colors.brand, fontSize: 15, fontWeight: '600' },
-  content: {
-    flexGrow: 1,
-    padding: spacing.lg,
+  preview: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+  },
+  thumbnail: { borderRadius: radii.md, height: 64, width: 64 },
+  thumbnailFallback: { alignItems: 'center', backgroundColor: colors.surfaceMuted, justifyContent: 'center' },
+  previewText: { flex: 1, minWidth: 0 },
+  previewTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700', lineHeight: 20, marginBottom: 2 },
+  previewLoading: { alignSelf: 'flex-start', marginTop: spacing.xs },
+  metadataResolutionFailedHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
+  // Takes the room between the preview and the composer; the chooser's own list scrolls inside it.
+  destinations: { flex: 1, minHeight: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  destinationList: { flex: 1 },
+  bottomBar: {
+    backgroundColor: colors.surface,
+    borderTopColor: colors.inputBorder,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textSecondary,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs + 2,
-  },
-  sourceActions: {
-    flexDirection: 'row',
-  },
-  // Icon-only, no border/background box - matches ItemDetailsScreen's identical iconButton treatment.
-  iconButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
-  },
-  urlInput: {
-    backgroundColor: colors.background,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    color: colors.textPrimary,
-    fontSize: 14,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
   memoInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderColor: colors.inputBorder,
     borderRadius: radii.md + 4,
     borderWidth: 1,
     color: colors.textPrimary,
     fontSize: 15,
-    // A bounded area: tall enough for a few lines, never so tall it pushes Save off a short screen.
-    maxHeight: 140,
-    minHeight: 88,
+    // Bounded like a message composer: a few lines, then it scrolls inside - never pushes Save off a short screen.
+    maxHeight: 120,
+    minHeight: 48,
     paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm + 2,
     textAlignVertical: 'top',
-  },
-  metadataResolutionFailedHint: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: spacing.xs,
-  },
-  // Absolutely positioned over the whole screen (a sibling of the ScrollView/bottomBar, not inside
-  // either) so it covers both the fields and the Save button regardless of scroll position -
-  // deliberately just a translucent backdrop plus a centered spinner/label, not a Modal: this is a
-  // transient, in-place loading state for a screen already on top of the stack, not a separate
-  // layer that needs its own back-button/backdrop-dismiss semantics. Same backdrop tone as
-  // ConfirmDialog's own overlay for a consistent, already-established "something is blocking
-  // interaction" visual language.
-  metadataLoadingOverlay: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
-  },
-  metadataLoadingOverlayText: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: spacing.md,
-    overflow: 'hidden',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  // Fixed footer, outside the ScrollView (see this screen's return statement) - the save button
-  // used to be the ScrollView's last child with insets.bottom folded into the content's own
-  // paddingBottom, which only reserved that much *scrollable* space rather than actually pinning
-  // the button above the real bottom edge: on a short screen the content never scrolled far enough
-  // for that padding to matter, so the button rendered wherever the content naturally ended - which
-  // could still be behind the translucent system navigation bar. A fixed sibling bar with its own
-  // insets.bottom-aware padding (the same pattern ItemDetailsScreen's bottomBar already uses) is
-  // always measured from the screen's actual bottom edge regardless of scroll position or content
-  // length, and - since it's a sibling of the ScrollView within a flex:1 column, not inside it -
-  // Android's adjustResize keeps it pinned above the keyboard too.
-  bottomBar: {
-    backgroundColor: colors.surface,
-    borderTopColor: colors.inputBorder,
-    borderTopWidth: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
   },
   saveButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
     borderRadius: radii.md + 4,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
+    justifyContent: 'center',
+    minHeight: minTouchTarget + 4,
+    paddingVertical: spacing.sm,
   },
-  saveButtonLabel: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
+  saveButtonLabel: { color: colors.surface, fontSize: 16, fontWeight: '600' },
+  disabledButton: { opacity: 0.5 },
 });

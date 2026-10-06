@@ -60,9 +60,11 @@ public interface ICollectionCollaborationStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes the membership and exactly the associations that user added to this Collection -
-    /// never the Items themselves, never associations in other Collections. Throws
-    /// CollectionCollaboratorNotFoundException when they are not a collaborator.
+    /// Ends a membership - the one removal behind both leaving and being removed by the Owner. Removes what belongs to the
+    /// membership: the membership, the member's still-waiting proposals (and the Owner's notifications about them), their
+    /// reactions and their favorite mark. Never the Collection's confirmed content: the links they added (directly, or
+    /// proposed and approved) stay, as do their comments. Throws CollectionCollaboratorNotFoundException when they are not
+    /// a collaborator.
     /// </summary>
     Task RemoveCollaboratorAsync(
         long collectionId,

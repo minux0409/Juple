@@ -114,14 +114,42 @@ public sealed class CollectionShareUrlGuardTests
     public async Task TheApi_AnswersA400_WithTheStableCode_AndThePublicId()
     {
         var controller = new InboxController();
+        var save = new InboxEntrySaveService(new RecordingStore(), TimeProvider.System, new NeverResolver(), new Detector());
         var result = await controller.SaveAsync(
             new InboxController.SaveInboxEntryRequest($"https://{Host}/c/{Id}", null),
             new FakeIdentity(),
             new FakeCurrentUser(),
-            new InboxEntrySaveService(new RecordingStore(), TimeProvider.System, new NeverResolver(), new Detector()),
+            save,
+            NotWithCollections(save),
             CancellationToken.None);
 
-        var objectResult = Assert.IsType<ObjectResult>(result.Result);
+        AssertShareUrlProblem(result);
+    }
+
+    [Fact]
+    public async Task TheApi_WithCollections_KeepsTheSameGuard_AndWritesNothing()
+    {
+        var store = new RecordingStore();
+        var save = new InboxEntrySaveService(store, TimeProvider.System, new NeverResolver(), new Detector());
+        var result = await new InboxController().SaveAsync(
+            new InboxController.SaveInboxEntryRequest($"https://{Host}/c/{Id}", null, CollectionIds: []),
+            new FakeIdentity(),
+            new FakeCurrentUser(),
+            save,
+            NotWithCollections(save),
+            CancellationToken.None);
+
+        AssertShareUrlProblem(result);
+        Assert.Equal(0, store.Saves);
+    }
+
+    /// <summary>The 링크 저장 path; with no Collections chosen it never reaches any Collection dependency.</summary>
+    private static SaveInboxEntryToCollectionsService NotWithCollections(IInboxEntrySaveService save) =>
+        new(save, null!, null!, null!, TimeProvider.System);
+
+    private static void AssertShareUrlProblem(IActionResult result)
+    {
+        var objectResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(400, objectResult.StatusCode);
         var problem = Assert.IsType<ProblemDetails>(objectResult.Value);
         Assert.Equal("collectionShareUrlNotSavableAsLink", problem.Extensions["code"]);

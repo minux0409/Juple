@@ -11,6 +11,7 @@ import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { GRID_CARD_PADDING_H, GRID_CELL_PADDING_H } from './savedLinkLayout';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
 import { SwipeableItemRow } from './SwipeableItemRow';
+import { LockIcon } from '../icons/LockIcon';
 
 export const SAVED_LINK_GRID_TITLE_MAX_LINES = 2;
 const TITLE_LINE_HEIGHT = 18;
@@ -42,6 +43,17 @@ interface SavedLinkGridCardProps {
 export function SavedLinkGridCard({ item, isActionInFlight, preferEffectiveThumbnail, dateDisplayMode = 'time', addedBy, reactions }: SavedLinkGridCardProps) {
   const { fontScale } = useWindowDimensions();
   const { t } = useTranslation();
+  if (item.isCollectionLocked) {
+    // A link of a locked Collection (redacted by the server): the SAME card - the square image area holds a lock, the
+    // title area a fixed sentence (same reserved lines), the meta line only the saved time (no site icon).
+    return <View style={styles.card} testID="saved-link-locked">
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.image} testID="saved-link-locked-thumbnail">
+        <View style={styles.fallback}><LockIcon color={colors.textSecondary} size={34} /></View>
+      </View>
+      <Text numberOfLines={SAVED_LINK_GRID_TITLE_MAX_LINES} style={[styles.title, { minHeight: TITLE_LINE_HEIGHT * SAVED_LINK_GRID_TITLE_MAX_LINES * fontScale }]}>{t('item.lockedLinkPlaceholder')}</Text>
+      <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showSiteIcon={false} style={[styles.meta, { minHeight: META_LINE_HEIGHT * fontScale }]} url="" />
+    </View>;
+  }
   const displayTitle = resolveSavedLinkDisplayTitle(item.title, item.url, t);
   const imageUrl = preferEffectiveThumbnail ? resolveEffectiveThumbnailUrl(item) : item.representativeImage?.readUrl ?? null;
   const site = resolveSiteInfo(item.url);
@@ -60,7 +72,7 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
   readonly disabled?: boolean;
   readonly onPress: () => void;
   readonly onDelete: () => void;
-  readonly onShare: () => void;
+  readonly onShare?: () => void;
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { AuthenticatedApiRequest } from '../../api/useAuthenticatedApi';
 import type { RepresentativeImage } from '../../images/api/imagesApi';
+import { COLLECTION_UNLOCK_HEADER_NAME } from '../../collections/collectionUnlockGrants';
 
 export interface ItemDetails {
   readonly id: number;
@@ -33,6 +34,10 @@ export interface ItemHistoryEntry {
   readonly representativeImage: RepresentativeImage | null;
   readonly previewImageUrl: string | null;
   readonly coverImage: RepresentativeImage | null;
+  /** Redacted by the server while the relevant Collection's content gate is active. */
+  readonly isCollectionLocked?: boolean;
+  readonly collectionId?: number | null;
+  readonly collectionGate?: 'lock' | 'sharePassword' | null;
 }
 
 export interface ItemHistoryPage {
@@ -148,59 +153,6 @@ export async function getItemHistorySections(request: AuthenticatedApiRequest): 
   return response.body.sections;
 }
 
-export interface ItemHistoryByDate {
-  readonly date: string;
-  readonly items: readonly ItemHistoryEntry[];
-  readonly nextCursor: string | null;
-}
-
-export interface GetItemHistoryByDateOptions {
-  readonly limit?: number;
-  /**
-   * The Archive's text search INSIDE this day (2-100 characters after trimming; title, link / site or own memo): the day
-   * and the text are two conditions of ONE server query, never a client-side filter of a bigger result.
-   */
-  readonly q?: string;
-  /** Opaque value from a previous ItemHistoryByDate.nextCursor; never parsed or modified. */
-  readonly cursor?: string;
-}
-
-/**
- * Items saved on a single local calendar date - powers Home ("오늘 저장한 링크"), which is the same
- * underlying concept as History's "오늘" section, just windowed to one day instead of open-ended.
- * date must be a `YYYY-MM-DD` local calendar date (e.g. from formatDateOnly(new Date())); the
- * Backend converts it to a UTC range using the current user's own timezone. Cursor-paginated
- * exactly like getItemHistory - a day's worth of Items is unbounded, so callers must page via
- * nextCursor rather than assuming one response has everything.
- */
-export async function getItemHistoryByDate(
-  request: AuthenticatedApiRequest,
-  date: string,
-  options: GetItemHistoryByDateOptions = {},
-): Promise<ItemHistoryByDate> {
-  const query = new URLSearchParams({ date });
-  if (options.q) {
-    query.set('q', options.q);
-  }
-  if (options.limit !== undefined) {
-    query.set('limit', String(options.limit));
-  }
-  if (options.cursor) {
-    query.set('cursor', options.cursor);
-  }
-
-  const response = await request<ItemHistoryByDate>({
-    method: 'GET',
-    path: `/api/v1/items/history/date?${query.toString()}`,
-  });
-
-  if (!response.body) {
-    throw new Error('Juple API returned no Item history-by-date body.');
-  }
-
-  return response.body;
-}
-
 /** DELETEs the Item; resolves on 204 (idempotent - missing/already-deleted/other-user's Item all succeed too). */
 export async function deleteItem(
   request: AuthenticatedApiRequest,
@@ -212,13 +164,36 @@ export async function deleteItem(
   });
 }
 
+/**
+ * The Collection a link is being read IN (a Home/Archive card gated by that Collection): the server then applies that
+ * Collection's CURRENT gate first and needs this opening's grant for it - see GET items/{id}?collectionId=.
+ */
+export interface ItemReadContext {
+  readonly collectionId: number;
+  readonly unlockToken: string | null;
+}
+
+/** The query string and grant header of a read in a Collection's context (none without one). */
+export function itemReadContextRequest(context: ItemReadContext | null | undefined): { readonly query: string; readonly headers?: Readonly<Record<string, string>> } {
+  if (!context) {
+    return { query: '' };
+  }
+  return {
+    query: `?collectionId=${context.collectionId}`,
+    headers: context.unlockToken ? { [COLLECTION_UNLOCK_HEADER_NAME]: context.unlockToken } : undefined,
+  };
+}
+
 export async function getItemDetails(
   request: AuthenticatedApiRequest,
   itemId: number,
+  context?: ItemReadContext | null,
 ): Promise<ItemDetails> {
+  const { query, headers } = itemReadContextRequest(context);
   const response = await request<ItemDetails>({
     method: 'GET',
-    path: `/api/v1/items/${itemId}`,
+    path: `/api/v1/items/${itemId}${query}`,
+    headers,
   });
 
   if (!response.body) {

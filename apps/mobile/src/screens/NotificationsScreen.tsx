@@ -135,13 +135,7 @@ export function NotificationsScreen({ navigation }: Props) {
   if (state.status === 'error') {
     return (
       <StackScreenSafeArea style={styles.centered}>
-        <ImportantState
-          message={t('notifications.loadError')}
-          onRetry={() => reload('initial')}
-          retryLabel={t('notifications.retry')}
-          testID="notifications-error"
-          title={t('notifications.loadErrorTitle')}
-        />
+        <ImportantState onRetry={() => reload('initial')} testID="notifications-error" />
       </StackScreenSafeArea>
     );
   }

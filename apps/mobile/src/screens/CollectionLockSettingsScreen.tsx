@@ -101,7 +101,7 @@ export function CollectionLockSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.help}>{t('settings.collectionLockDescription')}</Text>
         {status === null && !loadError ? <ActivityIndicator style={styles.loading} /> : null}
-        {loadError ? <LoadFailureState error={loadError.cause} message={t('settings.collectionLockLoadFallback')} onRetry={() => { load(); }} testID="lock-settings-load-error" /> : null}
+        {loadError ? <LoadFailureState error={loadError.cause} onRetry={() => { load(); }} testID="lock-settings-load-error" /> : null}
         {status !== null ? (
           <View style={styles.card}>
             <View style={styles.statusRow}>

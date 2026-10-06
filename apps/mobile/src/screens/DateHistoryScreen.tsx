@@ -28,10 +28,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchField } from '../components/SearchField';
 import { savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
-import { normalizeArchiveQuery, useArchiveSearch } from '../items/useArchiveSearch';
-import { getHistoryCalendar } from '../calendar/calendarApi';
-import { DateFilterBar } from '../calendar/DateFilterBar';
-import { useCalendarBrowse } from '../calendar/useCalendarBrowse';
+import { useArchiveSearch } from '../items/useArchiveSearch';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
@@ -47,6 +44,7 @@ import { historySectionLabel, historySectionShowsItemDate } from '../items/histo
 import { useHistorySections, type HistorySectionPage } from '../items/useHistorySections';
 import { deleteItem, restoreItem, type ItemHistoryEntry, type ItemHistorySection } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
+import { useItemCardOpen } from '../items/useItemCardOpen';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, spacing } from '../theme/tokens';
 import { useViewModePreference } from '../settings/viewModePreference';
@@ -121,31 +119,7 @@ export function DateHistoryScreen() {
 
   // 보관함 search: the whole archive on the server (see useArchiveSearch). Empty/short text = the normal accordion.
   const [searchText, setSearchText] = useState('');
-  // The date is a FILTER (a query condition), not a view: it combines with the typed text in ONE server query, and the
-  // results below follow the current List / Grid.
-  const [dateFilter, setDateFilter] = useState<string | null>(null);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const search = useArchiveSearch(searchText, dateFilter);
-
-  // The month's per-day counts (never link data) for the date picker: loaded only while the picker is open.
-  const loadCalendarMonth = useCallback(
-    (ref: { readonly year: number; readonly month: number }) => getHistoryCalendar(authenticatedRequest, ref.year, ref.month),
-    [authenticatedRequest],
-  );
-  const calendar = useCalendarBrowse<ItemHistoryEntry>({
-    enabled: isDatePickerOpen,
-    idOf: item => item.id,
-    loadMonth: loadCalendarMonth,
-  });
-  const chooseDate = (date: string) => {
-    setDateFilter(date);
-    calendar.selectDate(date);
-    setIsDatePickerOpen(false);
-  };
-  const clearDate = () => {
-    setDateFilter(null);
-    calendar.selectDate(null);
-  };
+  const search = useArchiveSearch(searchText);
 
   const [actionInFlightItemId, setActionInFlightItemId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -191,8 +165,7 @@ export function DateHistoryScreen() {
       await deleteItem(authenticatedRequest, itemId);
       removeItem(itemId);
       search.removeItem(itemId);
-      calendar.removeItem(itemId); // the picker's day counts follow
-      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => { await restoreItem(authenticatedRequest, itemId); refresh(); search.refresh(); if (isDatePickerOpen) { calendar.refresh().catch(() => undefined); } } });
+      showUndoToast({ actionLabel: t('toast.undoAction'), message: t('toast.deleteSuccess'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'), undoErrorMessage: t('toast.undoDeleteError'), onUndo: async () => { await restoreItem(authenticatedRequest, itemId); refresh(); search.refresh(); } });
     } catch (caughtError) {
       setActionError(getHistoryDeleteErrorMessage(caughtError, t));
     } finally {
@@ -201,6 +174,7 @@ export function DateHistoryScreen() {
   };
 
   const runShare = async (item: ItemHistoryEntry) => {
+    if (item.isCollectionLocked) { return; }
     if (actionInFlightItemId !== null) {
       return;
     }
@@ -219,6 +193,10 @@ export function DateHistoryScreen() {
   const confirmDelete = (itemId: number) => {
     setPendingDeleteItemId(previous => previous ?? itemId);
   };
+  const itemCardOpen = useItemCardOpen(
+    (itemId, openContext) => navigation.navigate('ItemDetails', { itemId, openContext }),
+    () => { refresh(); search.refresh(); },
+  );
 
   const rows = useMemo(
     () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode === 'grid' ? 'grid' : 'list'),
@@ -265,8 +243,8 @@ export function DateHistoryScreen() {
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null}
             onDelete={() => confirmDelete(row.item.id)}
-            onPress={() => navigation.navigate('ItemDetails', { itemId: row.item.id })}
-            onShare={() => runShare(row.item)}
+            onPress={() => { itemCardOpen.open(row.item).catch(() => undefined); }}
+            onShare={row.item.isCollectionLocked ? undefined : () => runShare(row.item)}
           >
             <SavedLinkRow dateDisplayMode="dateTime" isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} preferEffectiveThumbnail />
           </SwipeableItemRow>
@@ -282,8 +260,8 @@ export function DateHistoryScreen() {
                 item={item}
                 key={item.id}
                 onDelete={() => confirmDelete(item.id)}
-                onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
-                onShare={() => runShare(item)}
+                onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+                onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
                 preferEffectiveThumbnail
               />
             ))}
@@ -294,9 +272,9 @@ export function DateHistoryScreen() {
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
         ) : row.status === 'error' ? (
-          <ImportantState message={dateFilter !== null && normalizeArchiveQuery(searchText) === null ? t('calendar.dayLoadError') : t('history.searchError')} onRetry={() => search.refresh()} testID="history-search-error" />
+          <ImportantState onRetry={() => search.refresh()} testID="history-search-error" />
         ) : (
-          <Text style={styles.searchStatusText} testID={`history-search-${row.status}`}>{dateFilter !== null && normalizeArchiveQuery(searchText) === null ? t('calendar.dayEmpty') : t('history.searchEmpty')}</Text>
+          <Text style={styles.searchStatusText} testID={`history-search-${row.status}`}>{t('history.searchEmpty')}</Text>
         );
     }
   };
@@ -322,8 +300,8 @@ export function DateHistoryScreen() {
             containerStyle={[dateAccordionStyles.row, row.isLast && dateAccordionStyles.rowLast]}
             disabled={actionInFlightItemId !== null}
             onDelete={() => confirmDelete(item.id)}
-            onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
-            onShare={() => runShare(item)}
+            onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+            onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
           >
             {/* Same effective-thumbnail rule as Home (see DailyInboxScreen). */}
             <SavedLinkRow
@@ -348,8 +326,8 @@ export function DateHistoryScreen() {
                 item={item}
                 key={item.id}
                 onDelete={() => confirmDelete(item.id)}
-                onPress={() => navigation.navigate('ItemDetails', { itemId: item.id })}
-                onShare={() => runShare(item)}
+                onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
+                onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
                 preferEffectiveThumbnail
               />
             ))}
@@ -360,7 +338,6 @@ export function DateHistoryScreen() {
       case 'error':
         return (
           <DateSectionErrorRow
-            message={row.message}
             onRetry={() => {
               const page = pages.get(row.section.key);
               if (page && page.items.length > 0) {
@@ -413,24 +390,9 @@ export function DateHistoryScreen() {
             {searchText.trim().length === 1 ? (
               <Text accessibilityLiveRegion="polite" style={styles.searchHint} testID="history-search-hint">{t('history.searchMinHint')}</Text>
             ) : null}
-            {error && !search.isSearching ? <ImportantState compact message={error} onRetry={() => refresh()} testID="history-sections-error" /> : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
-            <DateFilterBar
-              canGoNext={calendar.canGoNext}
-              counts={calendar.counts}
-              isOpen={isDatePickerOpen}
-              month={calendar.month}
-              onClear={clearDate}
-              onNextMonth={calendar.goToNextMonth}
-              onPreviousMonth={calendar.goToPreviousMonth}
-              onRetryMonth={() => { calendar.retryMonth().catch(() => undefined); }}
-              onSelectDate={chooseDate}
-              onToggleOpen={() => setIsDatePickerOpen(previous => !previous)}
-              selectedDate={dateFilter}
-              status={calendar.monthStatus}
-              testIDPrefix="history-date-filter"
-              today={calendar.today}
-            />
+            {/* A failed load belongs to the result area: under the query controls (search, then date), above the content. */}
+            {error && !search.isSearching ? <ImportantState compact onRetry={() => refresh()} testID="history-sections-error" /> : null}
           </View>
         }
         maxToRenderPerBatch={10}
@@ -445,6 +407,7 @@ export function DateHistoryScreen() {
         viewabilityConfig={viewabilityConfig}
         windowSize={7}
       />
+      {itemCardOpen.dialog}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}

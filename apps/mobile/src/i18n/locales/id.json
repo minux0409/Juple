@@ -81,14 +81,12 @@
     "searchPlaceholder": "Cari tautan",
     "searchClear": "Hapus pencarian",
     "searchEmpty": "Tidak ada hasil.",
-    "searchError": "Tidak dapat mencari.",
     "empty": "Belum ada tautan yang disimpan.",
     "errorLoadFallback": "Tidak dapat memuat riwayat Anda.",
     "today": "Hari ini",
     "yesterday": "Kemarin",
     "thisWeek": "Minggu ini",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "Coba lagi",
     "deleteConfirmTitle": "Hapus item",
     "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
     "errorDeleteFallback": "Tidak dapat menghapus item.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "Tidak dapat memperbarui status berbagi.",
     "errorListFallback": "Tidak dapat memuat koleksi Anda.",
     "errorItemsLoadFallback": "Tidak dapat memuat item di koleksi ini.",
-    "errorDetailLoadFallback": "Tidak dapat memuat koleksi ini.",
     "errorNotFound": "Koleksi ini sudah dihapus atau tidak dapat ditemukan.",
     "errorCreateFallback": "Tidak dapat membuat koleksi.",
     "errorRenameFallback": "Tidak dapat mengubah nama koleksi.",
@@ -417,7 +414,6 @@
     "trash": "Baru Dihapus",
     "collectionLock": "Kunci koleksi",
     "collectionLockDescription": "Atur kata sandi untuk koleksi Anda.",
-    "collectionLockLoadFallback": "Tidak dapat memuat pengaturan kunci.",
     "collectionLockStatusLabel": "Status",
     "collectionLockConfigured": "Sudah diatur",
     "collectionLockNotConfigured": "Belum diatur",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "Tautan ini terkunci.",
     "fallbackInstagramPost": "Postingan Instagram",
     "fallbackInstagramReel": "Reels Instagram",
     "titleLabel": "Judul",
@@ -470,6 +467,7 @@
     "share": "Bagikan",
     "memo": "Catatan",
     "memoPlaceholder": "Masukkan catatan",
+    "savedAtLabel": "Disimpan",
     "uploading": "Mengunggah...",
     "representativePhoto": "Foto utama",
     "editRepresentativePhoto": "Edit foto utama",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "Tidak dapat menghapus item.",
     "errorImagePickerPermission": "Akses ke galeri foto diperlukan.",
     "errorImagePickerFallback": "Tidak dapat memilih foto.",
-    "resolvingMetadataOverlay": "Memuat info tautan...",
     "metadataResolutionFailedHint": "Info tautan tidak dapat dimuat. Anda bisa memasukkannya sendiri lalu simpan.",
     "activeDraftConflictTitle": "Anda memiliki tautan yang sedang dikerjakan",
     "activeDraftConflictMessage": "Simpan tautan yang sedang Anda kerjakan sebelum memeriksa tautan baru?",
@@ -504,7 +501,6 @@
     "newCollectionChip": "Koleksi baru",
     "newCollectionA11y": "Buat koleksi baru",
     "saveDialogTitle": "Simpan tautan",
-    "addMemo": "Tambah catatan",
     "collectionLinkNotSavable": "Tautan koleksi Juple tidak dapat disimpan sebagai tautan biasa. Buka sebagai koleksi."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "Hapus komentar ini?",
     "loadPrevious": "Lihat komentar sebelumnya",
     "loadError": "Komentar tidak dapat dimuat.",
-    "retry": "Coba lagi",
     "sendError": "Komentar tidak dapat dikirim.",
     "deleteError": "Komentar tidak dapat dihapus.",
     "justNow": "Baru saja",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "Permintaan persetujuan diterima: tidak ada",
     "myEmpty": "Permintaan persetujuan terkirim: tidak ada",
-    "myLoadError": "Tidak dapat memuat permintaan terkirim.",
     "myStatus": "Menunggu persetujuan",
-    "loadError": "Tidak dapat memuat daftar yang menunggu persetujuan.",
     "approve": "Setujui",
     "reject": "Tolak",
     "rejectConfirmTitle": "Tolak permintaan tautan ini?",
@@ -727,13 +720,11 @@
     "search": "Cari teman",
     "sendRequest": "Kirim permintaan pertemanan",
     "requestSent": "Permintaan pertemanan terkirim.",
-    "cancelRequest": "Batalkan permintaan",
     "alreadyFriends": "Kalian sudah berteman.",
     "requestAlreadyPending": "Anda sudah mengirim permintaan.",
     "incomingRequestExists": "Orang ini sudah mengirimi Anda permintaan - Anda dapat menerimanya di Permintaan pertemanan diterima.",
     "cannotAddSelf": "Anda tidak dapat menambahkan diri sendiri.",
     "actionFallback": "Tidak dapat menyelesaikan tindakan.",
-    "loadFallback": "Tidak dapat memuat teman.",
     "empty": "Belum ada teman.",
     "searchEmpty": "Tidak ada teman yang cocok.",
     "note": "Catatan",
@@ -754,6 +745,8 @@
     "viewIncoming": "Lihat permintaan yang diterima",
     "acceptA11y": "Terima permintaan pertemanan dari {{name}}",
     "declineA11y": "Tolak permintaan pertemanan dari {{name}}",
+    "declineConfirmTitle": "Tolak permintaan pertemanan ini?",
+    "declineConfirmMessage": "Permintaan pertemanan ini akan ditolak.",
     "cancelA11y": "Batalkan permintaan pertemanan ke {{name}}",
     "personTitle": "Info pengguna",
     "you": "Anda",
@@ -766,7 +759,6 @@
     "markAllRead": "Tandai semua dibaca",
     "empty": "Belum ada notifikasi.",
     "unavailable": "Konten notifikasi ini sudah tidak tersedia.",
-    "loadError": "Tidak dapat memuat notifikasi.",
     "retry": "Coba lagi",
     "unreadA11y": "Belum dibaca",
     "bellA11y": "Notifikasi",
@@ -780,8 +772,7 @@
     "groupOlder": "Sebelumnya",
     "daysAgo": "{{count}} hr",
     "deleteA11y": "Hapus notifikasi",
-    "deleteFailed": "Gagal menghapus notifikasi.",
-    "loadErrorTitle": "Gagal memuat notifikasi"
+    "deleteFailed": "Gagal menghapus notifikasi."
   },
   "contact": {
     "title": "Hubungi kami",
@@ -792,22 +783,8 @@
     "copyEmail": "Salin alamat email"
   },
   "importantState": {
-    "offlineTitle": "Tidak dapat terhubung",
     "loadFailedTitle": "Gagal memuat",
-    "retry": "Coba lagi",
-    "offlineMessage": "Periksa koneksi internetmu lalu coba lagi."
-  },
-  "calendar": {
-    "previousMonthA11y": "Bulan sebelumnya",
-    "nextMonthA11y": "Bulan berikutnya",
-    "today": "Hari ini",
-    "dayCountA11y": "{{count}} tautan",
-    "monthLoadError": "Gagal memuat kalender.",
-    "dayLoadError": "Gagal memuat tautan hari ini.",
-    "dayEmpty": "Tidak ada tautan yang disimpan pada hari ini.",
-    "collectionDayEmpty": "Tidak ada tautan yang ditambahkan pada hari ini.",
-    "pickDate": "Pilih tanggal",
-    "selectedDateLabel": "Tanggal: {{date}}",
-    "clearDateA11y": "Hapus filter tanggal"
+    "loadFailedMessage": "Data tidak dapat dimuat.",
+    "retry": "Coba lagi"
   }
 }

@@ -285,11 +285,10 @@ public sealed class CollectionCollaborationStore(
                 entry => entry.CollectionId == collectionId && entry.UserId == collaboratorUserId, cancellationToken)
             ?? throw new CollectionCollaboratorNotFoundException();
 
-        // Exactly the links this person added to THIS Collection - their Items themselves, their
-        // Home/History, and their memberships in any other Collection are untouched.
-        await dbContext.CollectionItems
-            .Where(membership => membership.CollectionId == collectionId && membership.AddedByUserId == collaboratorUserId)
-            .ExecuteDeleteAsync(cancellationToken);
+        // MEMBERSHIP lifecycle != CONTENT lifecycle: the links this person added - directly, or proposed and approved -
+        // are the Collection's confirmed content and STAY (with their AddedByUserId: shown to the others without the
+        // former member's identity - see CollectionStore.ResolveAddersAsync - never rewritten as the Owner's). Only what
+        // belongs to the membership itself goes below. The same for leaving and for being removed.
 
         // The links they proposed as a member (승인 후 추가) and are still waiting for approval go with
         // their member-made links: a removed person must not have a request the Owner could still approve

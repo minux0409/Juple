@@ -20,11 +20,11 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     {
         try
         {
-            var plan = await bootstrapService.BootstrapAsync(
+            var result = await bootstrapService.BootstrapAsync(
                 externalIdentityAccessor.GetRequired(),
                 new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId),
                 cancellationToken);
-            return Ok(new BootstrapCurrentUserResponse(plan.ToString()));
+            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId));
         }
         catch (InvalidCurrentUserBootstrapRequestException exception)
         {
@@ -38,5 +38,6 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     public sealed record BootstrapCurrentUserRequest(string? PreferredLocale, string? TimeZoneId);
 
     /// <summary>Plan is "Free" or "Plus" (UserPlan.ToString(), matching how it's persisted - see UserConfiguration). Reuses this existing bootstrap call (already made on every app launch/sign-in) rather than adding a separate profile/entitlement endpoint.</summary>
-    public sealed record BootstrapCurrentUserResponse(string Plan);
+    /// <param name="TimeZoneId">The user's stored IANA time zone - the one the server's date filters and calendar use; clients use it for the same "today" (additive field).</param>
+    public sealed record BootstrapCurrentUserResponse(string Plan, string TimeZoneId);
 }

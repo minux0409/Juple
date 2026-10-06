@@ -9,6 +9,7 @@ import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
 import { MoreIcon } from '../icons/MoreIcon';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
+import { LockIcon } from '../icons/LockIcon';
 
 interface SavedLinkRowProps {
   readonly item: ItemHistoryEntry;
@@ -53,6 +54,22 @@ export function SavedLinkRow({
   reactions,
 }: SavedLinkRowProps) {
   const { t } = useTranslation();
+  if (item.isCollectionLocked) {
+    // A link of a locked Collection, as the server sent it: redacted (no title, link, image or memo). The SAME row
+    // geometry as any other link - a lock in the thumbnail slot, a fixed sentence as the title, only the saved time
+    // (no site icon, which would tell the site).
+    return (
+      <View style={styles.row} testID="saved-link-locked">
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.lockedThumbnail} testID="saved-link-locked-thumbnail">
+          <LockIcon color={colors.textSecondary} size={22} />
+        </View>
+        <View style={styles.textColumn}>
+          <Text numberOfLines={2} style={styles.primaryText}>{t('item.lockedLinkPlaceholder')}</Text>
+          <SavedLinkMetaRow dateDisplayMode={dateDisplayMode} savedAtUtc={item.savedAtUtc} showSiteIcon={false} style={styles.metaRow} url="" />
+        </View>
+      </View>
+    );
+  }
   const primaryText = resolveSavedLinkDisplayTitle(item.title, item.url, t);
   const thumbnailUrl = preferEffectiveThumbnail
     ? resolveEffectiveThumbnailUrl(item)
@@ -112,6 +129,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
+  },
+  // The same box as ItemRepresentativeThumbnail (60 x 60, radius 14, 12 to the text), holding a lock instead of an image.
+  lockedThumbnail: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 14,
+    height: 60,
+    justifyContent: 'center',
+    marginEnd: 12,
+    width: 60,
   },
   textColumn: {
     flex: 1,

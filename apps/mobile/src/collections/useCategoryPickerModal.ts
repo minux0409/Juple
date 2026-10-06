@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
+import type { LoadFailureInfo } from '../components/LoadFailureState';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
@@ -12,11 +13,9 @@ import type { CollectionIconKey } from './collectionIcons';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
-function getListErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('collections.errorListFallback');
+/** A failed LIST load: signed out is a definite state with its own sentence; anything else is the standard load failure. */
+function listLoadFailure(error: unknown, t: TFunction): LoadFailureInfo {
+  return { cause: error, notice: error instanceof ApiError && error.kind === 'unauthorized' ? t('errors.unauthorized') : null };
 }
 
 function getCreateErrorMessage(error: unknown, t: TFunction): string {
@@ -54,7 +53,12 @@ export interface UseCategoryPickerModalResult {
   readonly isLoadingOptions: boolean;
   readonly isLoadingMore: boolean;
   readonly loadMore: () => void;
+  /** An action's error (a Collection that became unavailable, an icon photo save) - never a list-load failure. */
   readonly error: string | null;
+  /** The Collection list could not be loaded (first page, or a next page): the picker shows it as such, with a retry. */
+  readonly loadFailure: LoadFailureInfo | null;
+  /** Retries what failed: the first load when nothing is listed yet, else the next page. */
+  readonly retryLoad: () => void;
   readonly isCreateDialogVisible: boolean;
   readonly openCreateDialog: () => void;
   readonly closeCreateDialog: () => void;
@@ -76,7 +80,7 @@ export interface UseCategoryPickerModalResult {
    * Whether it is locked is read from the server at THIS moment (see freshCollectionAccess) - never trusted from
    * the list loaded when the picker opened: a password switched off or on elsewhere is honored on the next tap.
    */
-  readonly requestToggle: (collection: Collection, toggle: () => void) => void;
+  readonly requestToggle: (collection: Collection, toggle: () => void, requireFresh?: boolean) => void;
   /** The locked Collection whose password is being asked for, if any. */
   readonly unlockTarget: Collection | null;
   readonly onUnlockGranted: (unlockToken: string) => void;
@@ -118,6 +122,7 @@ export function useCategoryPickerModal(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailure, setLoadFailure] = useState<LoadFailureInfo | null>(null);
   const [isCreateDialogVisible, setIsCreateDialogVisible] = useState(false);
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -139,6 +144,7 @@ export function useCategoryPickerModal(
   const open = async () => {
     setIsVisible(true);
     setError(null);
+    setLoadFailure(null);
     setIsLoadingOptions(true);
     try {
       // No itemId/excludeItemId here on purpose - this modal shows every Collection with a
@@ -159,7 +165,7 @@ export function useCategoryPickerModal(
         setPhase(shared.nextCursor ? 'shared' : 'done');
       }
     } catch (caughtError) {
-      setError(getListErrorMessage(caughtError, t));
+      setLoadFailure(listLoadFailure(caughtError, t));
     } finally {
       setIsLoadingOptions(false);
     }
@@ -176,7 +182,7 @@ export function useCategoryPickerModal(
     pendingToggleRef.current = null;
   };
 
-  const requestToggle = (collection: Collection, toggle: () => void) => {
+  const requestToggle = (collection: Collection, toggle: () => void, requireFresh = false) => {
     if (resolvingIdsRef.current.has(collection.id)) {
       return;
     }
@@ -186,6 +192,10 @@ export function useCategoryPickerModal(
         if (result.status === 'unavailable') {
           setCollectionPool(previous => previous.filter(option => option.id !== collection.id));
           setError(t('collections.pickerCollectionUnavailable'));
+          return;
+        }
+        if (result.status === 'unknown' && requireFresh) {
+          setError(t('collections.errorItemsLoadFallback'));
           return;
         }
         // The server's card when it answered; the cached one only when it could not be reached.
@@ -276,6 +286,7 @@ export function useCategoryPickerModal(
 
     loadingMoreRef.current = true;
     setIsLoadingMore(true);
+    setLoadFailure(null);
 
     (async () => {
       try {
@@ -301,7 +312,7 @@ export function useCategoryPickerModal(
           setPhase('done');
         }
       } catch (caughtError) {
-        setError(getListErrorMessage(caughtError, t));
+        setLoadFailure(listLoadFailure(caughtError, t));
       } finally {
         loadingMoreRef.current = false;
         setIsLoadingMore(false);
@@ -358,6 +369,14 @@ export function useCategoryPickerModal(
     isLoadingMore,
     loadMore,
     error,
+    loadFailure,
+    retryLoad: () => {
+      if (collectionPool.length === 0) {
+        open().catch(() => undefined);
+      } else {
+        loadMore();
+      }
+    },
     isCreateDialogVisible,
     openCreateDialog,
     closeCreateDialog,

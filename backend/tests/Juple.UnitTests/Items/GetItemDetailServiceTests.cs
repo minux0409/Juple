@@ -116,6 +116,9 @@ public sealed class GetItemDetailServiceTests
 
         public long? LastItemId { get; private set; }
 
+        public Task<bool> IsInCollectionAsync(long userId, long itemId, long collectionId, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<(ItemDetailsDto? Details, ItemRepresentativeImageRef? RepresentativeImage, ItemRepresentativeImageRef? CoverImage)> GetDetailsAsync(
             long userId,
             long itemId,

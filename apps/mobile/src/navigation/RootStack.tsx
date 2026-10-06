@@ -14,6 +14,7 @@ import { FriendsScreen } from '../screens/FriendsScreen';
 import { CollectionSharedItemScreen } from '../screens/CollectionSharedItemScreen';
 import { DeleteAccountScreen } from '../screens/DeleteAccountScreen';
 import { ItemDetailsScreen } from '../screens/ItemDetailsScreen';
+import type { ItemOpenContext } from '../items/itemOpenGrant';
 import { LanguageSettingsScreen } from '../screens/LanguageSettingsScreen';
 import { NewLinkReviewScreen } from '../screens/NewLinkReviewScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
@@ -51,6 +52,12 @@ export type RootStackParamList = {
     collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean };
     /** A comment notification: bring the comments into view once they are laid out (consumed once). */
     initialFocus?: 'comments';
+    /**
+     * Opened from a Home/Archive card gated by a Collection: the link is read IN that Collection's context (the server
+     * enforces its lock). Only the Collection id and a one-time key travel here - the grant itself is handed over in
+     * memory (see itemOpenGrant) and lives only as long as this popup.
+     */
+    openContext?: ItemOpenContext;
   };
   /**
    * collectionId only - the screen fetches the current Collection and its Item list itself via GET.
@@ -161,10 +168,18 @@ export function RootStack() {
         {isReady ? (
           <Stack.Group>
             <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
+            {/* A centered popup over the screen it was opened from - never a full page: transparent, no header, a fade
+                instead of a slide. The system back button (and the popup's own X / backdrop) close it. */}
             <Stack.Screen
               component={ItemDetailsScreen}
               name="ItemDetails"
-              options={{ title: t('nav.itemDetails') }}
+              options={{
+                animation: 'fade',
+                contentStyle: { backgroundColor: 'transparent' },
+                headerShown: false,
+                presentation: 'transparentModal',
+                title: t('nav.itemDetails'),
+              }}
             />
             <Stack.Screen
               component={CollectionDetailsScreen}

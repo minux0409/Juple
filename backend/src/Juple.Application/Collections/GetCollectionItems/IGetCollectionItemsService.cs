@@ -34,15 +34,15 @@ public interface IGetCollectionItemsService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The links added on ONE local calendar day (YYYY-MM-DD) in the caller's stored time zone: the same
-    /// [start, next start) interval as GET items/calendar's count for that day, computed by the one shared helper
-    /// (DailyInboxDateRangeCalculator) - the client never builds UTC bounds itself. Same gates, order and cursor as GetRangeAsync.
+    /// The Collection Details link search: same gates, rows, date order and cursor as GetAsync, limited to
+    /// this Collection's links whose title or link contains searchTerm (an already normalized term - see
+    /// ItemSearchPattern.Normalize). Only what every viewer of the Collection already sees is matched -
+    /// never a memo (another member's is private, and a memo is not part of the shared card).
     /// </summary>
-    Task<CollectionItemPage> GetByDateAsync(
+    Task<CollectionItemPage> SearchAsync(
         long userId,
         long collectionId,
-        string timeZoneId,
-        DateOnly date,
+        string searchTerm,
         CollectionItemPageCursor? cursor,
         int limit,
         CollectionItemSort sort,

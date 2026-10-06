@@ -81,14 +81,12 @@
     "searchPlaceholder": "البحث في الروابط",
     "searchClear": "مسح البحث",
     "searchEmpty": "لا توجد نتائج.",
-    "searchError": "تعذّر البحث.",
     "empty": "لم تُحفظ أي روابط بعد.",
     "errorLoadFallback": "تعذّر تحميل سجلك.",
     "today": "اليوم",
     "yesterday": "أمس",
     "thisWeek": "هذا الأسبوع",
     "sectionHeader": "{{label}} · {{count}}",
-    "retry": "إعادة المحاولة",
     "deleteConfirmTitle": "حذف العنصر",
     "deleteConfirmMessage": "هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن هذا الإجراء.",
     "errorDeleteFallback": "تعذّر حذف العنصر.",
@@ -170,7 +168,6 @@
     "errorShareManagementFallback": "تعذّر تحديث حالة المشاركة.",
     "errorListFallback": "تعذّر تحميل مجموعاتك.",
     "errorItemsLoadFallback": "تعذّر تحميل عناصر هذه المجموعة.",
-    "errorDetailLoadFallback": "تعذّر تحميل هذه المجموعة.",
     "errorNotFound": "تم حذف هذه المجموعة بالفعل أو تعذّر العثور عليها.",
     "errorCreateFallback": "تعذّر إنشاء المجموعة.",
     "errorRenameFallback": "تعذّر إعادة تسمية المجموعة.",
@@ -417,7 +414,6 @@
     "trash": "المحذوفة مؤخرًا",
     "collectionLock": "قفل المجموعات",
     "collectionLockDescription": "عيّن كلمة مرور لمجموعاتك.",
-    "collectionLockLoadFallback": "تعذّر تحميل إعدادات القفل.",
     "collectionLockStatusLabel": "الحالة",
     "collectionLockConfigured": "تم التعيين",
     "collectionLockNotConfigured": "غير معيّنة",
@@ -457,6 +453,7 @@
     "hindi": "हिन्दी"
   },
   "item": {
+    "lockedLinkPlaceholder": "هذا الرابط مقفل.",
     "fallbackInstagramPost": "منشور على Instagram",
     "fallbackInstagramReel": "مقطع Reels على Instagram",
     "titleLabel": "العنوان",
@@ -470,6 +467,7 @@
     "share": "مشاركة",
     "memo": "ملاحظة",
     "memoPlaceholder": "أدخل ملاحظة",
+    "savedAtLabel": "تاريخ الحفظ",
     "uploading": "جارٍ الرفع...",
     "representativePhoto": "الصورة الرئيسية",
     "editRepresentativePhoto": "تعديل الصورة الرئيسية",
@@ -495,7 +493,6 @@
     "errorItemDeleteFallback": "تعذّر حذف العنصر.",
     "errorImagePickerPermission": "الإذن بالوصول إلى مكتبة الصور مطلوب.",
     "errorImagePickerFallback": "تعذّر اختيار الصورة.",
-    "resolvingMetadataOverlay": "جارٍ تحميل معلومات الرابط...",
     "metadataResolutionFailedHint": "تعذّر تحميل معلومات الرابط. يمكنك إدخالها يدويًا والحفظ.",
     "activeDraftConflictTitle": "لديك رابط قيد الإنشاء",
     "activeDraftConflictMessage": "هل تريد حفظ الرابط الذي تعمل عليه حاليًا قبل الاطلاع على الرابط الجديد؟",
@@ -504,7 +501,6 @@
     "newCollectionChip": "مجموعة جديدة",
     "newCollectionA11y": "إنشاء مجموعة جديدة",
     "saveDialogTitle": "حفظ الرابط",
-    "addMemo": "إضافة ملاحظة",
     "collectionLinkNotSavable": "لا يمكن حفظ رابط مجموعة Juple كرابط عادي. افتحه كمجموعة بدلًا من ذلك."
   },
   "sharedCollection": {
@@ -605,7 +601,6 @@
     "deleteConfirm": "هل تريد حذف هذا التعليق؟",
     "loadPrevious": "عرض التعليقات السابقة",
     "loadError": "تعذّر تحميل التعليقات.",
-    "retry": "إعادة المحاولة",
     "sendError": "تعذّر إرسال التعليق.",
     "deleteError": "تعذّر حذف التعليق.",
     "justNow": "الآن",
@@ -693,9 +688,7 @@
   "submissions": {
     "empty": "طلبات الموافقة الواردة: لا شيء",
     "myEmpty": "طلبات الموافقة المرسلة: لا شيء",
-    "myLoadError": "تعذّر تحميل الطلبات المرسلة.",
     "myStatus": "بانتظار الموافقة",
-    "loadError": "تعذّر تحميل الروابط بانتظار الموافقة.",
     "approve": "موافقة",
     "reject": "رفض",
     "rejectConfirmTitle": "هل تريد رفض طلب الرابط هذا؟",
@@ -727,13 +720,11 @@
     "search": "البحث في الأصدقاء",
     "sendRequest": "إرسال طلب صداقة",
     "requestSent": "تم إرسال طلب الصداقة.",
-    "cancelRequest": "إلغاء الطلب",
     "alreadyFriends": "أنتما صديقان بالفعل.",
     "requestAlreadyPending": "لقد أرسلت طلبًا بالفعل.",
     "incomingRequestExists": "أرسل لك هذا الشخص طلبًا بالفعل - يمكنك قبوله ضمن طلبات الصداقة المستلمة.",
     "cannotAddSelf": "لا يمكنك إضافة نفسك.",
     "actionFallback": "تعذّر إكمال هذا الإجراء.",
-    "loadFallback": "تعذّر تحميل الأصدقاء.",
     "empty": "لا يوجد أصدقاء بعد.",
     "searchEmpty": "لا يوجد أصدقاء مطابقون.",
     "note": "ملاحظة",
@@ -754,6 +745,8 @@
     "viewIncoming": "عرض الطلبات المستلمة",
     "acceptA11y": "قبول طلب الصداقة من {{name}}",
     "declineA11y": "رفض طلب الصداقة من {{name}}",
+    "declineConfirmTitle": "هل تريد رفض طلب الصداقة هذا؟",
+    "declineConfirmMessage": "سيتم رفض طلب الصداقة هذا.",
     "cancelA11y": "إلغاء طلب الصداقة المرسل إلى {{name}}",
     "personTitle": "معلومات المستخدم",
     "you": "أنت",
@@ -766,7 +759,6 @@
     "markAllRead": "تحديد الكل كمقروء",
     "empty": "لا توجد إشعارات بعد.",
     "unavailable": "لم يعد محتوى هذا الإشعار متاحًا.",
-    "loadError": "تعذّر تحميل الإشعارات.",
     "retry": "إعادة المحاولة",
     "unreadA11y": "غير مقروء",
     "bellA11y": "الإشعارات",
@@ -780,8 +772,7 @@
     "groupOlder": "أقدم",
     "daysAgo": "{{count}} ي",
     "deleteA11y": "حذف الإشعار",
-    "deleteFailed": "تعذّر حذف الإشعار.",
-    "loadErrorTitle": "تعذّر تحميل الإشعارات"
+    "deleteFailed": "تعذّر حذف الإشعار."
   },
   "contact": {
     "title": "اتصل بنا",
@@ -792,22 +783,8 @@
     "copyEmail": "نسخ عنوان البريد الإلكتروني"
   },
   "importantState": {
-    "offlineTitle": "تعذّر الاتصال",
     "loadFailedTitle": "تعذّر التحميل",
-    "retry": "إعادة المحاولة",
-    "offlineMessage": "تحقق من اتصالك بالإنترنت ثم حاول مرة أخرى."
-  },
-  "calendar": {
-    "previousMonthA11y": "الشهر السابق",
-    "nextMonthA11y": "الشهر التالي",
-    "today": "اليوم",
-    "dayCountA11y": "{{count}} روابط",
-    "monthLoadError": "تعذّر تحميل التقويم.",
-    "dayLoadError": "تعذّر تحميل روابط هذا اليوم.",
-    "dayEmpty": "لا توجد روابط محفوظة في هذا اليوم.",
-    "collectionDayEmpty": "لا توجد روابط مضافة في هذا اليوم.",
-    "pickDate": "اختر تاريخًا",
-    "selectedDateLabel": "التاريخ: {{date}}",
-    "clearDateA11y": "إزالة مرشح التاريخ"
+    "loadFailedMessage": "تعذّر تحميل البيانات.",
+    "retry": "إعادة المحاولة"
   }
 }

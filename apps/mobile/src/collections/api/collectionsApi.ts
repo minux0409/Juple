@@ -407,6 +407,8 @@ export interface GetCollectionItemsOptions {
   readonly limit?: number;
   /** Opaque value from a previous CollectionItemsPage.nextCursor; never parsed or modified. */
   readonly cursor?: string;
+  /** Server-side title/URL search within this Collection (2-100 trimmed characters). */
+  readonly q?: string;
   /** Short-lived grant from unlockCollection, required while the Collection is locked. */
   readonly unlockToken?: string | null;
   /**
@@ -422,12 +424,6 @@ export interface GetCollectionItemsOptions {
    */
   readonly fromUtc?: string;
   readonly toUtc?: string | null;
-  /**
-   * ONE local calendar day, "YYYY-MM-DD" (the calendar view): the SERVER turns it into the day's interval in the
-   * user's stored time zone - the same rule as the month counts - so the client never builds UTC bounds for it.
-   * Exclusive with fromUtc/toUtc; implies newest-added first unless a date sort is given.
-   */
-  readonly date?: string;
 }
 
 /**
@@ -466,6 +462,9 @@ export async function getCollectionItems(
   if (options.cursor) {
     query.set('cursor', options.cursor);
   }
+  if (options.q) {
+    query.set('q', options.q);
+  }
   if (options.sort) {
     query.set('sort', options.sort);
   }
@@ -474,9 +473,6 @@ export async function getCollectionItems(
   }
   if (options.toUtc) {
     query.set('toUtc', options.toUtc);
-  }
-  if (options.date) {
-    query.set('date', options.date);
   }
   const queryString = query.toString();
 

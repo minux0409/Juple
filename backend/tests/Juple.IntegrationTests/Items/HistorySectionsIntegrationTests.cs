@@ -1,7 +1,6 @@
 using Juple.Application.Images;
 using Juple.Application.Items;
 using Juple.Application.Items.GetItemHistory;
-using Juple.Application.Items.GetItemHistoryCalendar;
 using Juple.Application.Items.GetItemHistorySections;
 using Juple.Domain.Items;
 using Juple.Domain.Users;
@@ -84,42 +83,6 @@ public sealed class HistorySectionsIntegrationTests : IAsyncLifetime
     }
 
     private GetItemHistorySectionsService Sections() => new(new ItemStore(_db), new FixedTimeProvider(Now));
-
-    private GetItemHistoryCalendarService Calendar() => new(new ItemStore(_db));
-
-    [Fact]
-    public async Task TheCalendar_IsPerLocalDayCounts_OnlyForDaysWithLinks_AgreeingWithTheSections()
-    {
-        var september = await Calendar().GetAsync(_userId, Seoul, 2026, 9);
-
-        Assert.Equal((2026, 9), (september.Year, september.Month));
-        var days = september.Days.ToDictionary(day => day.Date, day => day.Count);
-        Assert.Equal(12, days["2026-09-30"]);
-        Assert.Equal(31, days["2026-09-29"]); // local midnight belongs to the day it starts
-        Assert.Equal(84, days["2026-09-27"] + days["2026-09-28"]); // one tick before 09-29 is still 09-28
-        Assert.All(september.Days, day => Assert.True(day.Count > 0)); // empty days are not listed
-        Assert.Equal(12 + 31 + 84 + 153, september.Days.Sum(day => day.Count)); // = the History sections of that month
-
-        // Trash and other people's links are never counted.
-        Assert.Equal(470, (await Calendar().GetAsync(_userId, Seoul, 2026, 8)).Days.Sum(day => day.Count));
-        Assert.Equal(25, (await Calendar().GetAsync(_otherUserId, Seoul, 2026, 8)).Days.Sum(day => day.Count));
-        Assert.Empty((await Calendar().GetAsync(_emptyUserId, Seoul, 2026, 9)).Days);
-        Assert.Empty((await Calendar().GetAsync(_userId, Seoul, 2026, 12)).Days);
-    }
-
-    [Fact]
-    public async Task TheCalendar_FollowsTheCallersTimeZone_AndRejectsAnInvalidMonth()
-    {
-        // The same instants fall on other local days elsewhere: every link was saved before 09-30 07:00 UTC,
-        // so nothing is on 09-30 in Los Angeles - while Seoul has 12 there.
-        var inLosAngeles = (await Calendar().GetAsync(_userId, "America/Los_Angeles", 2026, 9)).Days.Select(day => day.Date).ToList();
-        Assert.DoesNotContain("2026-09-30", inLosAngeles);
-        Assert.Contains("2026-09-29", inLosAngeles);
-
-        await Assert.ThrowsAsync<InvalidCalendarMonthException>(() => Calendar().GetAsync(_userId, Seoul, 2026, 13));
-        await Assert.ThrowsAsync<InvalidCalendarMonthException>(() => Calendar().GetAsync(_userId, Seoul, 2026, 0));
-        await Assert.ThrowsAsync<InvalidCalendarMonthException>(() => Calendar().GetAsync(_userId, Seoul, 1900, 5));
-    }
 
     [Fact]
     public async Task TheSummary_IsExactCountsPerSection_WithoutAnyLinkData()

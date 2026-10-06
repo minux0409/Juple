@@ -866,7 +866,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(draft.findAllByType(UserAvatar)).toHaveLength(1);
     });
 
-    it('the result shows who with "+" on one line, then 권한 over their choice; "+" adds them and clears the field', async () => {
+    it('the result shows who with "+" on one line, then their permission choice right under it (no 권한 label); "+" adds them and clears the field', async () => {
       const renderer = await renderScreen();
       for (const jupleId of ['AAAA2345', 'BBBB2345', 'CCCC2345']) {
         await findById(renderer, jupleId);
@@ -874,7 +874,8 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
         const [whoLine, permissionBlock] = row.children.filter(child => typeof child !== 'string') as ReactTestRenderer.ReactTestInstance[];
         expect(whoLine.findAll(node => node.props.testID === 'id-invite-add').length).toBeGreaterThan(0);
         expect(permissionBlock.props.testID).toBe('id-invite-permission');
-        expect(texts(permissionBlock)[0]).toBe('권한');
+        expect(texts(permissionBlock)).not.toContain('권한');
+        expect(texts(permissionBlock)[0]).toBe(i18n.t('shareSheet.permissionRead'));
         expect(byId(renderer, 'id-invite-add').props.accessibilityLabel).toContain(jupleId.slice(0, 4));
         await press(renderer, 'id-invite-add');
         expect(byId(renderer, 'id-invite-input').props.value).toBe('');
@@ -1027,7 +1028,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       await findById(renderer, 'DDDD2345');
       await tapUnavailable('id-invite-role-viewer', 'id-invite-role-contributor');
       await tapUnavailable('id-invite-role-submitter', 'id-invite-role-contributor');
-      expect(texts(byId(renderer, 'id-invite-permission'))[0]).toBe('권한');
+      expect(texts(byId(renderer, 'id-invite-permission'))).not.toContain('권한');
       // C. the person in the batch, before sending
       await press(renderer, 'id-invite-add');
       await tapUnavailable('draft-role-DDDD2345-viewer', 'draft-role-DDDD2345-contributor');
@@ -1198,7 +1199,7 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
     it.each([
       ['narrow (320dp)', { width: 320, height: 640, scale: 2, fontScale: 1 }],
       ['wide', { width: 580, height: 900, scale: 2, fontScale: 1 }],
-    ])('%s: a person to invite is who and X on one line, then 권한 over their own full-width choice', async (_label, window) => {
+    ])('%s: a person to invite is who and X on one line, then their own full-width permission choice (no 권한 label)', async (_label, window) => {
       mockWindow.current = window;
       const renderer = await renderScreen();
       await findById(renderer, 'AAAA2345');
@@ -1208,14 +1209,17 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       expect(idsIn(firstLine)).toContain('draft-remove-AAAA2345');
       expect(idsIn(firstLine).some(id => id.startsWith('draft-role-'))).toBe(false);
       expect(secondLine.props.testID).toBe('draft-permission-AAAA2345');
-      expect(texts(secondLine)).toEqual(['권한', i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionSubmit'), i18n.t('shareSheet.permissionWrite')]);
+      expect(texts(secondLine)).toEqual([i18n.t('shareSheet.permissionRead'), i18n.t('shareSheet.permissionSubmit'), i18n.t('shareSheet.permissionWrite')]);
+      // Still announced as that person's permission group.
+      expect(secondLine.findAll(node => node.props.accessibilityRole === 'radiogroup' && typeof node.type === 'string')[0].props.accessibilityLabel)
+        .toMatch(new RegExp(`AAAA.*${i18n.t('shareSheet.permissionA11y', { name: '' }).trim()}$`));
       expect(idsIn(secondLine)).toEqual(expect.arrayContaining(['draft-role-AAAA2345-viewer', 'draft-role-AAAA2345-submitter', 'draft-role-AAAA2345-contributor']));
       // Full width: both options share the line equally.
       const option = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === 'draft-role-AAAA2345-viewer');
       expect(StyleSheet.flatten(option.props.style)).toEqual(expect.objectContaining({ flexBasis: 0, flexGrow: 1 }));
     });
 
-    it('two people to invite stay compact: 8dp around each, 6dp between who and 권한', async () => {
+    it('two people to invite stay compact: 8dp around each, 6dp between who and their choice - nothing in between', async () => {
       jest.mocked(getFriends).mockResolvedValue({ items: [friend('FRND2345', '피카츄'), friend('FRNE2345', '파이리')], nextCursor: null });
       const renderer = await renderScreen();
       await pickFriends(renderer, ['FRND2345', 'FRNE2345']);
@@ -1223,8 +1227,9 @@ describe('CollectionShareScreen (Owner) - one screen: who and what they may do',
       for (const jupleId of ['FRND2345', 'FRNE2345']) {
         const row = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === `draft-${jupleId}`);
         expect(StyleSheet.flatten(row.props.style)).toEqual(expect.objectContaining({ gap: 6, paddingVertical: 8 }));
-        const label = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === `draft-permission-${jupleId}`).findAllByType(Text)[0];
-        expect(StyleSheet.flatten(label.props.style)).toEqual(expect.objectContaining({ fontSize: 12, color: colors.textSecondary }));
+        // The permission block starts directly with the choice - no label line (and so no space left for one).
+        const block = renderer.root.find(node => typeof node.type === 'string' && node.props.testID === `draft-permission-${jupleId}`);
+        expect(block.findAllByType(Text)[0].props.children).toBe(i18n.t('shareSheet.permissionRead'));
       }
     });
 

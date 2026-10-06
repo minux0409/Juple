@@ -340,6 +340,6 @@ describe('ProfileEditScreen', () => {
     jest.mocked(getMyProfile).mockRejectedValue(new Error('offline'));
     const renderer = await renderScreen();
 
-    expect(texts(renderer)).toContain(i18n.t('profile.loadFallback'));
+    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage')]));
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { getItemHistory, getItemHistoryByDate, type ItemHistoryEntry } from './api/itemsApi';
+import { getItemHistory, type ItemHistoryEntry } from './api/itemsApi';
 
 /** Shorter terms are not searched (a 1-character contains search matches nearly everything; the server refuses them too). */
 export const ARCHIVE_SEARCH_MIN_LENGTH = 2;
@@ -14,17 +14,14 @@ export function normalizeArchiveQuery(raw: string): string | null {
 }
 
 export interface ArchiveSearchState {
-  /**
-   * A filter is active - the typed text is long enough and/or a date is selected - so flat results, not the date
-   * accordion, are shown. Text and date combine (both apply); neither is ever filtered on the device.
-   */
+  /** A query is active, so flat server results replace the date accordion. */
   readonly isSearching: boolean;
   readonly items: readonly ItemHistoryEntry[];
   /** The first page of the current term is on its way (the screen keeps showing what it had until then). */
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly error: boolean;
-  /** The filter (text + date) the shown items belong to. */
+  /** The query the shown items belong to. */
   readonly settledTerm: string | null;
   readonly loadMore: () => void;
   readonly refresh: () => void;
@@ -34,17 +31,13 @@ export interface ArchiveSearchState {
 /**
  * Searches the user's whole archive on the server (never only the rows already loaded): the typed text
  * is trimmed, debounced, and each request carries a sequence number, so a slow answer for an older
- * filter can never overwrite the newer one. Clearing the text (or going under the minimum) AND the date cancels any
+ * filter can never overwrite the newer one. Clearing the text (or going under the minimum) cancels any
  * pending request and returns to the normal Archive at once. Results page by cursor, newest first.
- *
- * date ("YYYY-MM-DD", a local calendar day) is a second condition of the same query: with it the server resolves the
- * day in the user's stored time zone (the rule that counted it in the calendar) and applies the text inside it.
  */
-export function useArchiveSearch(rawQuery: string, date: string | null = null): ArchiveSearchState {
+export function useArchiveSearch(rawQuery: string): ArchiveSearchState {
   const request = useAuthenticatedApi();
   const text = normalizeArchiveQuery(rawQuery);
-  // One identity for "this filter" (also what settledTerm reports): the text, the day, or both.
-  const term = text === null && date === null ? null : `${date ?? ''}|${text ?? ''}`;
+  const term = text;
   const [items, setItems] = useState<readonly ItemHistoryEntry[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [settledTerm, setSettledTerm] = useState<string | null>(null);
@@ -58,14 +51,9 @@ export function useArchiveSearch(rawQuery: string, date: string | null = null): 
 
   const textRef = useRef(text);
   textRef.current = text;
-  const dateRef = useRef(date);
-  dateRef.current = date;
-
   const fetchPage = useCallback(
     (cursor: string | undefined) =>
-      dateRef.current !== null
-        ? getItemHistoryByDate(request, dateRef.current, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: textRef.current ?? undefined, cursor })
-        : getItemHistory(request, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: textRef.current ?? undefined, cursor }),
+      getItemHistory(request, { limit: ARCHIVE_SEARCH_PAGE_SIZE, q: textRef.current ?? undefined, cursor }),
     [request],
   );
 
@@ -111,10 +99,9 @@ export function useArchiveSearch(rawQuery: string, date: string | null = null): 
     }
     // Debounced: one request after the typing pauses, not one per keystroke.
     setIsLoading(true);
-    // Typing is debounced; picking a day is one deliberate tap - no wait.
     const timer = setTimeout(() => {
       run(term).catch(() => undefined);
-    }, text === null ? 0 : ARCHIVE_SEARCH_DEBOUNCE_MS);
+    }, ARCHIVE_SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [run, term, text]);
 

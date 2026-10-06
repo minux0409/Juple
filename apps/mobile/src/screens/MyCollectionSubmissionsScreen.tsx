@@ -40,7 +40,8 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // A failed load: notice is a definite answer with its own sentence (switched off / locked), null = the standard load-failure text.
+  const [loadError, setLoadError] = useState<{ readonly notice: string | null } | null>(null);
   const isLoadingMoreRef = useRef(false);
   // A newer load supersedes an older one still in flight.
   const loadIdRef = useRef(0);
@@ -66,11 +67,11 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
       }
       // The link was switched off, or is protected and not unlocked here: nothing to show, said safely.
       const isUnavailable = caughtError instanceof ApiError && (caughtError.kind === 'notFound' || caughtError.kind === 'forbidden');
-      setLoadError(
-        isUnavailable
+      setLoadError({
+        notice: isUnavailable
           ? t('sharedCollection.unavailableMessage')
-          : contentGateOfError(caughtError) === 'lock' ? t('collections.lockedMessage') : t('submissions.myLoadError'),
-      );
+          : contentGateOfError(caughtError) === 'lock' ? t('collections.lockedMessage') : null,
+      });
     } finally {
       if (loadId === loadIdRef.current) {
         setIsLoading(false);
@@ -130,7 +131,7 @@ export function MyCollectionSubmissionsScreen({ route }: Props) {
             <ActivityIndicator style={styles.loading} />
           ) : (
             loadError ? (
-              <ImportantState message={loadError} onRetry={() => { load(false).catch(() => undefined); }} testID="my-submissions-empty" />
+              <ImportantState message={loadError.notice ?? undefined} onRetry={() => { load(false).catch(() => undefined); }} testID="my-submissions-empty" variant={loadError.notice ? 'notice' : 'loadFailed'} />
             ) : (
               <Text style={styles.empty} testID="my-submissions-empty">{t('submissions.myEmpty')}</Text>
             )
