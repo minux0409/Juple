@@ -1471,6 +1471,88 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Juple.Domain.Support.SupportInquiry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Answer")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("AnsweredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("BuildNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<Guid>("ClientRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DeviceModel")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(35)
+                        .HasColumnType("nvarchar(35)");
+
+                    b.Property<string>("OsVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ClientRequestId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SupportInquiries_UserId_ClientRequestId");
+
+                    b.HasIndex("UserId", "Id")
+                        .HasDatabaseName("IX_SupportInquiries_UserId_Id");
+
+                    b.ToTable("SupportInquiries", "support", t =>
+                        {
+                            t.HasCheckConstraint("CK_SupportInquiries_Answer_Consistent", "([Status] = 'Pending' AND [Answer] IS NULL AND [AnsweredAtUtc] IS NULL) OR ([Status] = 'Answered' AND [Answer] IS NOT NULL AND [AnsweredAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_SupportInquiries_Status_Valid", "[Status] IN ('Pending', 'Answered')");
+
+                            t.HasCheckConstraint("CK_SupportInquiries_Type_Valid", "[Type] IN ('Account', 'Subscription', 'LinkSaving', 'CollectionSharing', 'Bug', 'FeatureRequest', 'Other')");
+                        });
+                });
+
             modelBuilder.Entity("Juple.Domain.Users.User", b =>
                 {
                     b.Property<long>("Id")
@@ -1923,6 +2005,15 @@ namespace Juple.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Juple.Domain.Push.PushDeviceRegistration", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Support.SupportInquiry", b =>
                 {
                     b.HasOne("Juple.Domain.Users.User", null)
                         .WithMany()

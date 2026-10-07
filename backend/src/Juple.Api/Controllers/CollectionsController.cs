@@ -661,7 +661,8 @@ public sealed class CollectionsController(
     /// section from GET {id}/items/sections, paged on its own; omitted, the whole Collection, unchanged.
     /// Optional q (2-100 characters after trimming): the Collection Details link search - only this
     /// Collection's links (same access/lock gates) whose title or link contains the term, in a date order
-    /// (newest added first unless dateAsc is asked), paged with the same cursor. Never anyone's memo.
+    /// (newest added first unless dateAsc is asked, or by visible name with nameAsc / nameDesc), paged with the
+    /// same cursor. Never anyone's memo.
     /// </summary>
     [HttpGet("{id:long}/items")]
     public async Task<IActionResult> GetItemsAsync(
@@ -679,7 +680,7 @@ public sealed class CollectionsController(
         {
             return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
             {
-                ["sort"] = ["sort must be \"dateDesc\" or \"dateAsc\"."],
+                ["sort"] = ["sort must be \"dateDesc\", \"dateAsc\", \"nameAsc\" or \"nameDesc\"."],
             }));
         }
 
@@ -700,6 +701,14 @@ public sealed class CollectionsController(
             {
                 resolvedSort = CollectionItemSort.DateDesc;
             }
+        }
+
+        if (resolvedSort is CollectionItemSort.NameAsc or CollectionItemSort.NameDesc && searchTerm is null)
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["sort"] = ["The name orders apply to the link search (q) only."],
+            }));
         }
 
         var isWindowed = fromUtc is not null || toUtc is not null;

@@ -208,6 +208,7 @@ public sealed class GetItemHistoryByDateServiceTests
             ItemHistoryPageCursor? cursor,
             int limit,
             string? searchPattern = null,
+            ItemHistorySort sort = ItemHistorySort.Time,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException("Not exercised by GetItemHistoryByDateService tests.");
 

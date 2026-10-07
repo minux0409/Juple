@@ -11,7 +11,6 @@ import { SavedLinkRow } from '../../components/SavedLinkRow';
 import { UndoToast } from '../../components/UndoToast';
 import { AppToastProvider } from '../../components/AppToast';
 import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
-import { GroupingModeToggle } from '../../components/GroupingModeToggle';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 
 // The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
@@ -200,17 +199,22 @@ describe('DailyInboxScreen grid', () => {
   });
 });
 
+/** Home is only today's links: no 날짜별 / 전체 (or any grouping) selector exists on it. */
+const noGroupingSelector = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  !renderer.root.findAllByType(Text).some(node => ['날짜별', '전체'].includes(String(node.props.children)))
+  && renderer.root.findAll(node => ['날짜별', '전체'].includes(String(node.props.accessibilityLabel))).length === 0;
+
 describe('DailyInboxScreen controls', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
   // Home is only today's links - one day, no date headers - so a 날짜별 / 전체 choice would change nothing.
-  it('has no 날짜별 / 전체 selector (only today is shown); List / Grid stays', async () => {
+  it('has no 날짜별 / 전체 selector (only today is shown); List / Grid / Image stay', async () => {
     setUpItems([makeItem({ id: 1, title: 'Hi' })]);
     const renderer = await renderScreen();
 
-    expect(renderer.root.findAllByType(GroupingModeToggle)).toHaveLength(0);
+    expect(noGroupingSelector(renderer)).toBe(true);
     expect(renderer.root.findAllByType(ViewModeToggle)).toHaveLength(1);
   });
 });
@@ -787,7 +791,7 @@ describe('DailyInboxScreen image view', () => {
     expect(getList(renderer).props.numColumns).toBe(1);
     expect(renderer.root.findAllByType(FlatList)).toHaveLength(1);
     expect(jest.mocked(getItemHistory).mock.calls.length).toBe(calls);
-    expect(renderer.root.findAllByType(GroupingModeToggle)).toHaveLength(0);
+    expect(noGroupingSelector(renderer)).toBe(true);
   });
 
   it('a tile is only the picture: no title, time, host or memo text', async () => {

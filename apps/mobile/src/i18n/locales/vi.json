@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Kho lưu trữ",
-    "groupByDate": "Theo ngày",
-    "groupAll": "Tất cả",
-    "groupingA11y": "Cách nhóm liên kết",
     "searchPlaceholder": "Tìm liên kết",
     "searchClear": "Xóa tìm kiếm",
     "searchEmpty": "Không có kết quả.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Xóa thông báo",
     "deleteFailed": "Không thể xóa thông báo."
   },
-  "contact": {
-    "title": "Liên hệ",
-    "description": "Nếu bạn có thắc mắc về Juple, hãy gửi email cho chúng tôi.",
-    "sendEmail": "Gửi email",
-    "subject": "Câu hỏi về Juple",
-    "noMailApp": "Không thể mở ứng dụng email. Vui lòng gửi email trực tiếp đến {{email}}.",
-    "copyEmail": "Sao chép địa chỉ email"
-  },
   "importantState": {
     "loadFailedTitle": "Không thể tải",
     "loadFailedMessage": "Không thể tải dữ liệu.",
     "retry": "Thử lại"
+  },
+  "customerCenter": {
+    "title": "Trung tâm hỗ trợ",
+    "replayTutorial": "Xem lại hướng dẫn",
+    "faqHeading": "Câu hỏi thường gặp",
+    "inquiryHeading": "Liên hệ",
+    "serviceInfoHeading": "Thông tin dịch vụ",
+    "terms": "Điều khoản dịch vụ",
+    "privacy": "Chính sách quyền riêng tư",
+    "appInfoHeading": "Thông tin ứng dụng",
+    "version": "Phiên bản {{version}} (bản dựng {{build}})",
+    "openLinkFailed": "Không thể mở liên kết. Vui lòng thử lại sau.",
+    "faq": {
+      "saveLinks": {
+        "question": "Làm sao để lưu một liên kết?",
+        "answer": "Dán URL vào Juple, hoặc chia sẻ liên kết tới Juple từ ứng dụng khác như trình duyệt hay mạng xã hội. Khi bật Lưu nhanh, liên kết được lưu ngay; khi tắt, bạn chọn bộ sưu tập và thêm ghi chú trước khi lưu."
+      },
+      "collections": {
+        "question": "Dùng bộ sưu tập như thế nào?",
+        "answer": "Bộ sưu tập giúp bạn sắp xếp liên kết theo cách riêng. Một liên kết có thể thuộc nhiều bộ sưu tập, và bạn có thể tạo bộ sưu tập mới khi lưu."
+      },
+      "archive": {
+        "question": "Tìm liên kết đã lưu ở đâu?",
+        "answer": "Trang chủ hiển thị liên kết lưu hôm nay, còn Kho lưu trữ chứa mọi thứ bạn đã lưu. Xem theo ngày hoặc tất cả, chuyển giữa dạng danh sách, lưới và hình ảnh, và tìm kiếm."
+      },
+      "sharedCollections": {
+        "question": "Bộ sưu tập chia sẻ hoạt động ra sao?",
+        "answer": "Bạn có thể chia sẻ bộ sưu tập với người khác. Việc mỗi người tham gia làm được phụ thuộc vào quyền bạn cấp, và một số quyền có thể cần phê duyệt trước khi thêm liên kết."
+      },
+      "locks": {
+        "question": "Bộ sưu tập bị khóa hoạt động ra sao?",
+        "answer": "Nội dung bộ sưu tập bị khóa được ẩn cho đến khi bạn mở khóa. Liên kết của nó hiển thị bị che ở Trang chủ và Kho lưu trữ, và mỗi lần mở khi còn khóa đều cần nhập mật khẩu."
+      },
+      "trash": {
+        "question": "Liên kết đã xóa sẽ ra sao?",
+        "answer": "Liên kết đã xóa chuyển vào mục Đã xóa gần đây trong Trang của tôi. Tại đó bạn có thể khôi phục hoặc xóa vĩnh viễn; liên kết đã xóa vĩnh viễn không thể lấy lại."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Bỏ qua",
+    "next": "Tiếp",
+    "start": "Bắt đầu",
+    "close": "Đóng",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Lưu liên kết dễ dàng",
+        "description": "Dán URL hoặc chia sẻ liên kết từ trình duyệt hay mạng xã hội. Bật Lưu nhanh thì liên kết được lưu ngay."
+      },
+      "collections": {
+        "title": "Sắp xếp theo cách của bạn",
+        "description": "Lưu liên kết vào một hoặc nhiều bộ sưu tập, và tạo bộ sưu tập mới ngay khi lưu."
+      },
+      "find": {
+        "title": "Tìm nhanh liên kết đã lưu",
+        "description": "Trang chủ hiển thị liên kết hôm nay, Kho lưu trữ có tất cả. Xem theo ngày hoặc tất cả, dạng danh sách, lưới hay hình ảnh, và tìm kiếm bất cứ lúc nào."
+      },
+      "share": {
+        "title": "Cùng dùng bộ sưu tập",
+        "description": "Chia sẻ bộ sưu tập với người khác. Quyền quyết định mỗi người làm được gì, và liên kết có thể cần phê duyệt."
+      },
+      "lock": {
+        "title": "Khóa bộ sưu tập nhạy cảm",
+        "description": "Bộ sưu tập bị khóa sẽ ẩn các liên kết, và cần mật khẩu để mở khi còn khóa."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Liên hệ",
+    "tabWrite": "Liên hệ",
+    "tabHistory": "Yêu cầu của tôi",
+    "typeLabel": "Loại yêu cầu",
+    "typePlaceholder": "Vui lòng chọn",
+    "typePickerTitle": "Loại yêu cầu",
+    "contentLabel": "Nội dung yêu cầu",
+    "contentPlaceholder": "Vui lòng nhập nội dung yêu cầu",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Hãy gửi yêu cầu liên quan đến việc sử dụng dịch vụ Juple.",
+    "helpNote2": "Bạn có thể xem phản hồi trong Yêu cầu của tôi.",
+    "required": "Bắt buộc",
+    "submit": "Gửi",
+    "successMessage": "Yêu cầu của bạn đã được tiếp nhận.",
+    "submitFailed": "Không thể gửi yêu cầu. Vui lòng thử lại sau ít phút.",
+    "statusPending": "Đã tiếp nhận",
+    "statusAnswered": "Đã phản hồi",
+    "types": {
+      "Account": "Tài khoản",
+      "Subscription": "Thanh toán / Đăng ký",
+      "LinkSaving": "Lưu liên kết",
+      "CollectionSharing": "Bộ sưu tập / Chia sẻ",
+      "Bug": "Lỗi / Sự cố",
+      "FeatureRequest": "Đề xuất tính năng",
+      "Other": "Khác"
+    },
+    "historyEmpty": "Bạn chưa gửi yêu cầu nào.",
+    "detailTitle": "Chi tiết yêu cầu",
+    "contentHeading": "Nội dung yêu cầu",
+    "receivedAt": "Ngày tiếp nhận",
+    "answerHeading": "Phản hồi",
+    "answeredAt": "Ngày phản hồi",
+    "awaitingAnswer": "Đang chờ phản hồi.",
+    "notFound": "Không tìm thấy yêu cầu này.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

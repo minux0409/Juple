@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Arşiv",
-    "groupByDate": "Tarihe göre",
-    "groupAll": "Tümü",
-    "groupingA11y": "Bağlantıları grupla",
     "searchPlaceholder": "Bağlantı ara",
     "searchClear": "Aramayı temizle",
     "searchEmpty": "Sonuç yok.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Bildirimi sil",
     "deleteFailed": "Bildirim silinemedi."
   },
-  "contact": {
-    "title": "Bize ulaşın",
-    "description": "Juple hakkında sorularınız varsa bize e-posta gönderin.",
-    "sendEmail": "E-posta gönder",
-    "subject": "Juple hakkında soru",
-    "noMailApp": "Bir e-posta uygulaması açılamadı. Lütfen doğrudan {{email}} adresine yazın.",
-    "copyEmail": "E-posta adresini kopyala"
-  },
   "importantState": {
     "loadFailedTitle": "Yüklenemedi",
     "loadFailedMessage": "Kayıtlar yüklenemedi.",
     "retry": "Tekrar dene"
+  },
+  "customerCenter": {
+    "title": "Müşteri Merkezi",
+    "replayTutorial": "Eğitimi tekrar izle",
+    "faqHeading": "Sık sorulan sorular",
+    "inquiryHeading": "İletişim",
+    "serviceInfoHeading": "Hizmet bilgileri",
+    "terms": "Kullanım Koşulları",
+    "privacy": "Gizlilik Politikası",
+    "appInfoHeading": "Uygulama bilgileri",
+    "version": "Sürüm {{version}} (derleme {{build}})",
+    "openLinkFailed": "Bağlantı açılamadı. Lütfen daha sonra tekrar deneyin.",
+    "faq": {
+      "saveLinks": {
+        "question": "Bir bağlantıyı nasıl kaydederim?",
+        "answer": "Juple'a bir URL yapıştırın ya da tarayıcı veya sosyal uygulama gibi başka bir uygulamadan Juple'a bağlantı paylaşın. Hızlı Kaydet açıksa paylaşılan bağlantı hemen kaydedilir; kapalıysa kaydetmeden önce koleksiyonları seçer ve not eklersiniz."
+      },
+      "collections": {
+        "question": "Koleksiyonları nasıl kullanırım?",
+        "answer": "Koleksiyonlar bağlantıları istediğiniz gibi düzenlemenizi sağlar. Bir bağlantı birden fazla koleksiyonda olabilir ve kaydederken yeni bir koleksiyon oluşturabilirsiniz."
+      },
+      "archive": {
+        "question": "Kaydedilen bağlantıları nerede bulurum?",
+        "answer": "Ana Sayfa bugün kaydedilenleri gösterir, Arşiv ise kaydettiğiniz her şeyi tutar. Tarihe göre veya hepsini birlikte gezin, Liste, Izgara ve Görsel görünümleri arasında geçin ve arayın."
+      },
+      "sharedCollections": {
+        "question": "Paylaşılan koleksiyonlar nasıl çalışır?",
+        "answer": "Bir koleksiyonu başkalarıyla paylaşabilirsiniz. Her katılımcının neler yapabileceği verdiğiniz izne bağlıdır; bazı izinlerde bağlantı eklenmeden önce onay gerekebilir."
+      },
+      "locks": {
+        "question": "Kilitli koleksiyonlar nasıl çalışır?",
+        "answer": "Kilitli bir koleksiyonun içeriği kilidi açana kadar gizli kalır. Bağlantıları Ana Sayfa ve Arşiv’de gizlenmiş görünür ve kilitliyken her açışta parola istenir."
+      },
+      "trash": {
+        "question": "Silinen bağlantılara ne olur?",
+        "answer": "Silinen bağlantılar Sayfam’daki Son Silinenler’e taşınır. Orada geri yükleyebilir veya kalıcı olarak silebilirsiniz; kalıcı silinen bağlantılar geri getirilemez."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Atla",
+    "next": "İleri",
+    "start": "Başla",
+    "close": "Kapat",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Bağlantıları kolayca kaydedin",
+        "description": "Bir URL yapıştırın veya tarayıcı ya da sosyal uygulamadan bağlantı paylaşın. Hızlı Kaydet açıksa hemen kaydedilir."
+      },
+      "collections": {
+        "title": "İstediğiniz gibi düzenleyin",
+        "description": "Bir bağlantıyı bir veya birkaç koleksiyona kaydedin, kaydederken yeni koleksiyon oluşturun."
+      },
+      "find": {
+        "title": "Kaydedilenleri hızla bulun",
+        "description": "Ana Sayfa bugünün bağlantılarını, Arşiv hepsini gösterir. Tarihe göre veya hepsini birlikte, Liste, Izgara ya da Görsel görünümde gezin ve istediğiniz zaman arayın."
+      },
+      "share": {
+        "title": "Koleksiyonları birlikte kullanın",
+        "description": "Bir koleksiyonu başkalarıyla paylaşın. İzinler herkesin neler yapabileceğini belirler; bağlantılar onay gerektirebilir."
+      },
+      "lock": {
+        "title": "Hassas koleksiyonları kilitleyin",
+        "description": "Kilitli bir koleksiyon bağlantılarını gizler; kilitliyken açmak için parola gerekir."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Bize ulaşın",
+    "tabWrite": "Bize ulaşın",
+    "tabHistory": "Taleplerim",
+    "typeLabel": "Talep türü",
+    "typePlaceholder": "Lütfen seçin",
+    "typePickerTitle": "Talep türü",
+    "contentLabel": "Talep",
+    "contentPlaceholder": "Lütfen talebinizi yazın",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Juple hizmetini kullanımıyla ilgili talebinizi bırakın.",
+    "helpNote2": "Yanıtı Taleplerim bölümünde görebilirsiniz.",
+    "required": "Zorunlu",
+    "submit": "Gönder",
+    "successMessage": "Talebiniz alındı.",
+    "submitFailed": "Talebiniz gönderilemedi. Lütfen biraz sonra tekrar deneyin.",
+    "statusPending": "Alındı",
+    "statusAnswered": "Yanıtlandı",
+    "types": {
+      "Account": "Hesap",
+      "Subscription": "Ödeme / Abonelik",
+      "LinkSaving": "Bağlantı kaydetme",
+      "CollectionSharing": "Koleksiyonlar / Paylaşım",
+      "Bug": "Hata / Bug",
+      "FeatureRequest": "Özellik önerisi",
+      "Other": "Diğer"
+    },
+    "historyEmpty": "Henüz talep göndermediniz.",
+    "detailTitle": "Talep ayrıntısı",
+    "contentHeading": "Talep",
+    "receivedAt": "Alınma tarihi",
+    "answerHeading": "Yanıt",
+    "answeredAt": "Yanıt tarihi",
+    "awaitingAnswer": "Yanıt bekleniyor.",
+    "notFound": "Bu talep bulunamadı.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

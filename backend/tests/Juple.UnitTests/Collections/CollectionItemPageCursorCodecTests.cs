@@ -131,4 +131,39 @@ public sealed class CollectionItemPageCursorCodecTests
         Assert.False(CollectionItemPageCursorCodec.TryDecode(encoded, out var result));
         Assert.Null(result);
     }
+
+    [Theory]
+    [InlineData(CollectionItemSort.NameAsc, 0, "Blue Sneaker")]
+    [InlineData(CollectionItemSort.NameDesc, 1, "example.com")]
+    [InlineData(CollectionItemSort.NameAsc, 0, "")]
+    public void EncodeThenTryDecode_RoundTripsANameCursor(CollectionItemSort sort, int bucket, string key)
+    {
+        var cursor = CollectionItemPageCursor.ForName(sort, new DateTimeOffset(2026, 10, 7, 1, 2, 3, TimeSpan.Zero), 77, bucket, key);
+
+        Assert.True(CollectionItemPageCursorCodec.TryDecode(CollectionItemPageCursorCodec.Encode(cursor), out var result));
+
+        Assert.Equal(cursor, result);
+        Assert.Equal(sort, result!.Sort);
+    }
+
+    [Fact]
+    public void TryDecode_RefusesAHalfFormedOrOutOfRangeNameCursor()
+    {
+        static string Raw(string json) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        const string at = "2026-10-07T00:00:00+00:00";
+
+        Assert.False(CollectionItemPageCursorCodec.TryDecode(Raw($"{{\"V\":4,\"S\":0,\"ItemId\":5,\"O\":\"nameAsc\",\"T\":\"{at}\"}}"), out _));
+        Assert.False(CollectionItemPageCursorCodec.TryDecode(Raw($"{{\"V\":4,\"S\":0,\"ItemId\":5,\"O\":\"nameAsc\",\"T\":\"{at}\",\"B\":2,\"K\":\"x\"}}"), out _));
+        Assert.False(CollectionItemPageCursorCodec.TryDecode(Raw($"{{\"V\":4,\"S\":0,\"ItemId\":5,\"O\":\"dateDesc\",\"T\":\"{at}\",\"B\":0,\"K\":\"x\"}}"), out _));
+    }
+
+    [Fact]
+    public void ADateCursor_CarriesNoNameFields()
+    {
+        var cursor = CollectionItemPageCursor.ForDate(CollectionItemSort.DateDesc, DateTimeOffset.UnixEpoch, 5);
+
+        Assert.True(CollectionItemPageCursorCodec.TryDecode(CollectionItemPageCursorCodec.Encode(cursor), out var result));
+        Assert.Null(result!.NameBucket);
+        Assert.Null(result.NameKey);
+    }
 }

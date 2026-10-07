@@ -115,7 +115,7 @@ describe('MyPageScreen settings entry points', () => {
     expect(mockNavigate).toHaveBeenCalledWith('Trash');
   });
 
-  it('has no 설정 heading - the rows (language, Quick Save, friends, lock, trash, account, contact, logout) are not all settings', async () => {
+  it('has no 설정 heading - the rows (language, Quick Save, friends, lock, trash, account, customer center, logout) are not all settings', async () => {
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
@@ -128,7 +128,7 @@ describe('MyPageScreen settings entry points', () => {
       i18n.t('settings.collectionLock'),
       i18n.t('settings.trash'),
       i18n.t('account.title'),
-      i18n.t('contact.title'),
+      i18n.t('customerCenter.title'),
       i18n.t('auth.logout'),
     ];
     const shown = findTextValues(renderer);
@@ -154,28 +154,36 @@ describe('MyPageScreen settings entry points', () => {
     }
   });
 
-  it('has a 문의하기 row that opens the Contact screen', async () => {
+  it('has one 고객센터 row that opens the Customer Center - and no separate FAQ / 문의하기 / 튜토리얼 rows', async () => {
+    await i18n.changeLanguage('ko');
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
-    const row = renderer.root.findByProps({ testID: 'my-contact' });
-    expect(row.findAllByType(Text).map(node => node.props.children)).toContain(i18n.t('contact.title'));
+    const row = renderer.root.findByProps({ testID: 'my-customer-center' });
+    expect(i18n.t('customerCenter.title')).toBe('고객센터');
+    expect(row.findAllByType(Text).map(node => node.props.children)).toContain('고객센터');
     await act(async () => {
       row.props.onPress();
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('Contact');
+    expect(mockNavigate).toHaveBeenCalledWith('CustomerCenter');
+    const labels = renderer.root.findAllByType(Text).map(node => String(node.props.children));
+    for (const absent of [i18n.t('inquiry.title'), i18n.t('customerCenter.replayTutorial'), i18n.t('customerCenter.faqHeading')]) {
+      expect(labels).not.toContain(absent);
+    }
+    expect(renderer.root.findAll(node => node.props.testID === 'my-contact')).toHaveLength(0);
+    await i18n.changeLanguage('en');
   });
 
   it('shows the same icons as the matching tab / screen titles (one icon per navigation item)', async () => {
     mockUseAuth({ userEmail: null });
     const renderer = await renderScreen();
 
-    const iconTypes = (testID: string) => renderer.root.findByProps({ testID }).findAll(node => node.type === screenIcons.friends || node.type === screenIcons.collectionLock || node.type === screenIcons.account || node.type === screenIcons.contact).map(node => node.type);
+    const iconTypes = (testID: string) => renderer.root.findByProps({ testID }).findAll(node => node.type === screenIcons.friends || node.type === screenIcons.collectionLock || node.type === screenIcons.account || node.type === screenIcons.customerCenter).map(node => node.type);
     expect(iconTypes('my-friends')).toContain(screenIcons.friends);
     expect(iconTypes('my-collection-lock')).toContain(screenIcons.collectionLock);
     expect(iconTypes('my-account-management')).toContain(screenIcons.account);
-    expect(iconTypes('my-contact')).toContain(screenIcons.contact);
+    expect(iconTypes('my-customer-center')).toContain(screenIcons.customerCenter);
     expect(renderer.root.findAllByType(ScreenTitle)[0].props.icon).toBe(screenIcons.myPage);
   });
 

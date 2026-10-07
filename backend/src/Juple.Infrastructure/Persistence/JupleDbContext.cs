@@ -75,6 +75,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<PushDeviceRegistration> PushDeviceRegistrations => Set<PushDeviceRegistration>();
 
+    public DbSet<Juple.Domain.Support.SupportInquiry> SupportInquiries => Set<Juple.Domain.Support.SupportInquiry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

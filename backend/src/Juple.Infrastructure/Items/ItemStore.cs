@@ -476,6 +476,7 @@ public sealed class ItemStore(JupleDbContext dbContext) :
         ItemHistoryPageCursor? cursor,
         int limit,
         string? searchPattern = null,
+        ItemHistorySort sort = ItemHistorySort.Time,
         CancellationToken cancellationToken = default)
     {
         // Orders/pages by SavedAtUtc (the original save moment). Backed by the existing
@@ -510,7 +511,16 @@ public sealed class ItemStore(JupleDbContext dbContext) :
                 select membership.Id).Any());
         }
 
-        if (cursor is not null)
+        // 이름순: the page's rows are chosen by the name order first (over the whole archive, keyset-paged), then read
+        // with the same projection as the time order below and put back in that order.
+        List<NameOrderKey>? namePage = null;
+        if (sort == ItemHistorySort.Name)
+        {
+            namePage = await ReadNameOrderPageAsync(userId, itemsQuery, cursor, limit, cancellationToken);
+            var pageIds = namePage.Select(entry => entry.Id).ToList();
+            itemsQuery = itemsQuery.Where(item => pageIds.Contains(item.Id));
+        }
+        else if (cursor is not null)
         {
             itemsQuery = itemsQuery.Where(item =>
                 item.SavedAtUtc < cursor.SavedAtUtc
@@ -562,6 +572,12 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             };
 
         var page = await pagedQuery.Take(limit + 1).ToListAsync(cancellationToken);
+        if (namePage is not null)
+        {
+            // Back into the name order the ids were chosen in (the projection reads them newest-saved first).
+            var position = namePage.Select((entry, index) => (entry.Id, index)).ToDictionary(pair => pair.Id, pair => pair.index);
+            page = page.OrderBy(row => position[row.Id]).ToList();
+        }
 
         var hasMore = page.Count > limit;
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
@@ -598,11 +614,103 @@ public sealed class ItemStore(JupleDbContext dbContext) :
             }
         }
 
-        var nextCursor = hasMore
-            ? new ItemHistoryPageCursor(pageRows[^1].SavedAtUtc, pageRows[^1].Id)
-            : null;
+        var nextCursor = !hasMore
+            ? null
+            : namePage is null
+                ? new ItemHistoryPageCursor(pageRows[^1].SavedAtUtc, pageRows[^1].Id)
+                : namePage.Where(entry => entry.Id == pageRows[^1].Id)
+                    .Select(entry => new ItemHistoryPageCursor(entry.SavedAtUtc, entry.Id, entry.Bucket, entry.Key))
+                    .Single();
 
         return (new ItemHistoryPage(items, nextCursor), representativeImages, coverImages);
+    }
+
+    private sealed record NameOrderKey(long Id, DateTimeOffset SavedAtUtc, int Bucket, string Key);
+
+    /// <summary>
+    /// One page (limit + 1 rows, to know whether another follows) of the caller's rows in the Archive's name order - see
+    /// ItemNameOrder: titled links by title, title-less ones by site host, and every link still behind a Collection's
+    /// lock or share password in a last bucket with NO key (so the order itself never reveals a hidden title or site).
+    /// Ties: newest saved first, then newest id. Keyset: the cursor is the last row's (bucket, key, savedAt, id), compared
+    /// with the same database collation the order uses - no OFFSET.
+    /// </summary>
+    private async Task<List<NameOrderKey>> ReadNameOrderPageAsync(
+        long userId,
+        IQueryable<Item> itemsQuery,
+        ItemHistoryPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var gated = itemsQuery.Select(item => new
+        {
+            item.Id,
+            item.SavedAtUtc,
+            item.Url,
+            item.Title,
+            IsGated = (
+                from membership in dbContext.CollectionItems
+                join collection in dbContext.Collections on membership.CollectionId equals collection.Id
+                where membership.ItemId == item.Id && membership.AddedByUserId == userId
+                    && collection.DeletedAtUtc == null
+                    && (collection.UserId == userId || dbContext.CollectionCollaborators.Any(member =>
+                        member.CollectionId == collection.Id && member.UserId == userId))
+                    && (collection.UserId == userId
+                        ? collection.IsLocked
+                        : dbContext.CollectionSharePasswords.Any(password => password.CollectionId == collection.Id
+                            && (password.Mode == CollectionSharePasswordMode.PerCollection
+                                || (password.Mode == CollectionSharePasswordMode.LegacyCommonLock && collection.IsLocked))))
+                select membership.Id).Any(),
+        });
+        var withRest = gated.Select(row => new
+        {
+            row.Id,
+            row.SavedAtUtc,
+            row.Title,
+            row.IsGated,
+            // What follows the scheme ("www.example.com/path?x"); links are http(s) URLs.
+            AfterScheme = row.Url.Substring(row.Url.IndexOf("://") + 3),
+        });
+        var withHost = withRest.Select(row => new
+        {
+            row.Id,
+            row.SavedAtUtc,
+            row.Title,
+            row.IsGated,
+            Host = row.AfterScheme.IndexOf("/") >= 0 ? row.AfterScheme.Substring(0, row.AfterScheme.IndexOf("/")) : row.AfterScheme,
+        });
+        var keyed = withHost.Select(row => new
+        {
+            row.Id,
+            row.SavedAtUtc,
+            Bucket = row.IsGated
+                ? ItemNameOrder.Gated
+                : row.Title != null && row.Title.Trim() != "" ? ItemNameOrder.Titled : ItemNameOrder.TitleLess,
+            Key = row.IsGated
+                ? ""
+                : row.Title != null && row.Title.Trim() != ""
+                    ? row.Title
+                    : row.Host.StartsWith("www.") ? row.Host.Substring(4) : row.Host,
+        });
+
+        if (cursor is { NameBucket: { } cursorBucket, NameKey: { } cursorKey })
+        {
+            var cursorSavedAt = cursor.SavedAtUtc;
+            var cursorId = cursor.Id;
+            keyed = keyed.Where(row =>
+                row.Bucket > cursorBucket
+                || (row.Bucket == cursorBucket && string.Compare(row.Key, cursorKey) > 0)
+                || (row.Bucket == cursorBucket && row.Key == cursorKey
+                    && (row.SavedAtUtc < cursorSavedAt || (row.SavedAtUtc == cursorSavedAt && row.Id < cursorId))));
+        }
+
+        var rows = await keyed
+            .OrderBy(row => row.Bucket)
+            .ThenBy(row => row.Key)
+            .ThenByDescending(row => row.SavedAtUtc)
+            .ThenByDescending(row => row.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken);
+        return rows.Select(row => new NameOrderKey(row.Id, row.SavedAtUtc, row.Bucket, row.Key)).ToList();
     }
 
     public async Task<(ItemHistoryPage Page, IReadOnlyDictionary<long, ItemRepresentativeImageRef> RepresentativeImages, IReadOnlyDictionary<long, ItemRepresentativeImageRef> CoverImages)> GetByDateRangeAsync(

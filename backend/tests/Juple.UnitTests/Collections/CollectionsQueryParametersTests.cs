@@ -74,6 +74,8 @@ public sealed class CollectionsQueryParametersTests
     [InlineData("dateDesc", CollectionItemSort.DateDesc)]
     [InlineData("dateAsc", CollectionItemSort.DateAsc)]
     [InlineData("DATEASC", CollectionItemSort.DateAsc)]
+    [InlineData("nameAsc", CollectionItemSort.NameAsc)]
+    [InlineData("NAMEDESC", CollectionItemSort.NameDesc)]
     public void TryParseItemSort_AcceptsNothingOrADateOrder(string? value, CollectionItemSort expected)
     {
         Assert.True(CollectionsQueryParameters.TryParseItemSort(value, out var sort));
@@ -83,6 +85,7 @@ public sealed class CollectionsQueryParametersTests
     [Theory]
     [InlineData("")]
     [InlineData("name")]
+    [InlineData("nameAscending")]
     [InlineData("title")]
     [InlineData("newest")]
     public void TryParseItemSort_RefusesAnythingElse(string value)

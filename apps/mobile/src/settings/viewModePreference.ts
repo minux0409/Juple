@@ -15,9 +15,9 @@ export type ViewModePreferenceKey =
   | 'participantViewMode'
   | 'trashViewMode';
 
-/** Home and the Archive: the only surfaces whose stored preference may be 'image' (everywhere else it is unknown and falls back). */
-type ImageViewModePreferenceKey = 'homeViewMode' | 'historyViewMode';
-const IMAGE_CAPABLE_KEYS: ReadonlySet<ViewModePreferenceKey> = new Set<ViewModePreferenceKey>(['homeViewMode', 'historyViewMode']);
+/** Home, the Archive and Collection Details: the only surfaces whose stored preference may be 'image' (everywhere else it is unknown and falls back). */
+type ImageViewModePreferenceKey = 'homeViewMode' | 'historyViewMode' | 'collectionDetailsViewMode';
+const IMAGE_CAPABLE_KEYS: ReadonlySet<ViewModePreferenceKey> = new Set<ViewModePreferenceKey>(['homeViewMode', 'historyViewMode', 'collectionDetailsViewMode']);
 
 const storageKey = (key: ViewModePreferenceKey) => `juple.${key}`;
 

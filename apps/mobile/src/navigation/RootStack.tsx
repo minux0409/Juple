@@ -7,7 +7,11 @@ import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
-import { ContactScreen } from '../screens/ContactScreen';
+import { CustomerCenterScreen } from '../screens/CustomerCenterScreen';
+import { SupportInquiryDetailScreen } from '../screens/SupportInquiryDetailScreen';
+import { SupportInquiryScreen } from '../screens/SupportInquiryScreen';
+import { TutorialScreen } from '../screens/TutorialScreen';
+import { TutorialLauncher } from '../support/TutorialLauncher';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
 import { FriendsScreen } from '../screens/FriendsScreen';
@@ -116,8 +120,17 @@ export type RootStackParamList = {
   /** 계정 관리 > 계정 삭제: warning, a fresh sign-in, then typing the Juple ID - never a single tap. */
   DeleteAccount: undefined;
   Trash: undefined;
-  /** 내 페이지 > 문의하기: the support address and a button that opens the system mail app. */
-  Contact: undefined;
+  /** 내 페이지 > 고객센터: tutorial replay, FAQ, 문의하기 (system mail app), legal documents and the app version. */
+  CustomerCenter: undefined;
+  /** 고객센터 > 문의하기: write an inquiry (default) or read 문의내역. Sent inside the app - no mail app. */
+  SupportInquiry: { initialTab?: 'write' | 'history' } | undefined;
+  /** 문의내역 > one inquiry: its question and the answer. Only the caller's own inquiry opens (the server answers 404 otherwise). */
+  SupportInquiryDetail: { inquiryId: number };
+  /**
+   * The tutorial. firstRun: shown once per person and tutorial version after sign-in (userKey = the person's key for
+   * the completion record); replay: from 고객센터, records nothing.
+   */
+  Tutorial: { mode: 'firstRun'; userKey: string } | { mode: 'replay' };
   /** Rendered instead of MainTabs while signed in but not yet backend-valid/bootstrapped - see this file's isReady branching. */
   AuthPending: undefined;
   /** Rendered instead of MainTabs while signed out - see this file's isReady branching. */
@@ -229,7 +242,11 @@ export function RootStack() {
               options={{ title: t('nav.collectionLockSettings'), ...headerTitleWithIcon(screenIcons.collectionLock, t('nav.collectionLockSettings')) }}
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
-            <Stack.Screen component={ContactScreen} name="Contact" options={{ title: t('contact.title'), ...headerTitleWithIcon(screenIcons.contact, t('contact.title')) }} />
+            <Stack.Screen component={CustomerCenterScreen} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
+            <Stack.Screen component={SupportInquiryScreen} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
+            <Stack.Screen component={SupportInquiryDetailScreen} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
+            {/* Full-screen, no header: its own skip/close and Android back (see TutorialScreen); no swipe-back gesture, so a first run is always recorded. */}
+            <Stack.Screen component={TutorialScreen} name="Tutorial" options={{ animation: 'fade', gestureEnabled: false, headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen component={ProfileEditScreen} name="ProfileEdit" options={{ title: t('profile.edit'), ...headerTitleWithIcon(screenIcons.profileEdit, t('profile.edit')) }} />
             <Stack.Screen component={AccountManagementScreen} name="AccountManagement" options={{ title: t('account.title'), ...headerTitleWithIcon(screenIcons.account, t('account.title')) }} />
             <Stack.Screen component={DeleteAccountScreen} name="DeleteAccount" options={{ title: t('account.deleteTitle') }} />
@@ -256,6 +273,7 @@ export function RootStack() {
         NewLinkReview, a screen that only exists in the tree above once isReady is true.
       */}
       {isReady ? <IncomingShareRouter /> : null}
+      {isReady ? <TutorialLauncher /> : null}
     </>
   );
 }

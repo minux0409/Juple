@@ -78,4 +78,34 @@ public sealed class ItemHistoryPageCursorCodecTests
         Assert.False(decoded);
         Assert.Null(result);
     }
+
+    [Fact]
+    public void ANameCursor_RoundTripsWithItsBucketAndKey_IncludingNonLatinText()
+    {
+        var cursor = new ItemHistoryPageCursor(new DateTimeOffset(2026, 8, 29, 10, 0, 0, TimeSpan.Zero), 7, ItemNameOrder.Titled, "가나다 \"quoted\" / slash");
+
+        Assert.True(ItemHistoryPageCursorCodec.TryDecode(ItemHistoryPageCursorCodec.Encode(cursor), out var result));
+        Assert.Equal(cursor, result);
+    }
+
+    [Fact]
+    public void ATimeCursorCarriesNoNameFields_AndANameCursorIsNotATimeCursor()
+    {
+        Assert.True(ItemHistoryPageCursorCodec.TryDecode(ItemHistoryPageCursorCodec.Encode(new ItemHistoryPageCursor(DateTimeOffset.UnixEpoch, 5)), out var time));
+        Assert.Null(time!.NameBucket);
+        Assert.Null(time.NameKey);
+    }
+
+    [Theory]
+    [InlineData("{\"V\":1,\"T\":\"2026-08-29T10:00:00+00:00\",\"Id\":5,\"B\":1}")]
+    [InlineData("{\"V\":1,\"T\":\"2026-08-29T10:00:00+00:00\",\"Id\":5,\"K\":\"x\"}")]
+    [InlineData("{\"V\":1,\"T\":\"2026-08-29T10:00:00+00:00\",\"Id\":5,\"B\":9,\"K\":\"x\"}")]
+    [InlineData("{\"V\":1,\"T\":\"2026-08-29T10:00:00+00:00\",\"Id\":5,\"B\":-1,\"K\":\"x\"}")]
+    public void AHalfFormedOrOutOfRangeNameCursor_IsRejected(string json)
+    {
+        var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(json)).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        Assert.False(ItemHistoryPageCursorCodec.TryDecode(encoded, out var result));
+        Assert.Null(result);
+    }
 }

@@ -27,12 +27,20 @@ public static class CollectionItemPageCursorCodec
     private const string DateDescWire = "dateDesc";
     private const string DateAscWire = "dateAsc";
 
+    // A name-ordered position (link search only): the date cursor fields plus the name bucket and key.
+    private const int NameVersion = 4;
+    private const string NameAscWire = "nameAsc";
+    private const string NameDescWire = "nameDesc";
+
     public static string Encode(CollectionItemPageCursor cursor)
     {
         var payload = cursor.Sort switch
         {
             CollectionItemSort.DateDesc => new CursorPayload(DateVersion, 0, cursor.ItemId, DateDescWire, cursor.AddedAtUtc),
             CollectionItemSort.DateAsc => new CursorPayload(DateVersion, 0, cursor.ItemId, DateAscWire, cursor.AddedAtUtc),
+            CollectionItemSort.NameAsc or CollectionItemSort.NameDesc => new CursorPayload(
+                NameVersion, 0, cursor.ItemId, cursor.Sort == CollectionItemSort.NameAsc ? NameAscWire : NameDescWire,
+                cursor.AddedAtUtc, cursor.NameBucket, cursor.NameKey),
             _ => new CursorPayload(CurrentVersion, cursor.SortOrder, cursor.ItemId),
         };
         var json = JsonSerializer.SerializeToUtf8Bytes(payload);
@@ -80,6 +88,22 @@ public static class CollectionItemPageCursorCodec
                 }
             }
 
+            if (payload.V == NameVersion && payload.T is { } nameAddedAtUtc
+                && payload.B is { } bucket and >= 0 and <= 1 && payload.K is { } key)
+            {
+                var sort = payload.O switch
+                {
+                    NameAscWire => CollectionItemSort.NameAsc,
+                    NameDescWire => CollectionItemSort.NameDesc,
+                    _ => (CollectionItemSort?)null,
+                };
+                if (sort is { } nameSort)
+                {
+                    cursor = CollectionItemPageCursor.ForName(nameSort, nameAddedAtUtc, payload.ItemId, bucket, key);
+                    return true;
+                }
+            }
+
             return false;
         }
         catch (Exception exception) when (
@@ -95,5 +119,7 @@ public static class CollectionItemPageCursorCodec
         int S,
         long ItemId,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? O = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? T = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTimeOffset? T = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? B = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? K = null);
 }

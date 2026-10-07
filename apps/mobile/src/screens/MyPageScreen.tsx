@@ -26,7 +26,7 @@ import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from
 
 /**
  * 내 페이지: a compact profile header (photo, nickname, @Juple ID, 프로필 편집) → one card of rows (언어,
- * 빠른 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리, 문의하기, 로그아웃) - deliberately without a
+ * 빠른 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리, 고객센터, 로그아웃) - deliberately without a
  * "설정" heading, since they are not all settings. Account deletion is deliberately NOT
  * on this page - it lives under 계정 관리, behind its own multi-step flow. Sign-out asks first.
  */
@@ -232,14 +232,14 @@ export function MyPageScreen() {
           <View style={styles.settingsRowDivider} />
           <Pressable
             accessibilityRole="button"
-            onPress={() => navigation.navigate('Contact')}
+            onPress={() => navigation.navigate('CustomerCenter')}
             style={styles.settingsRow}
-            testID="my-contact"
+            testID="my-customer-center"
           >
             <View style={styles.settingsRowIcon}>
-              <screenIcons.contact color={colors.textSecondary} size={18} />
+              <screenIcons.customerCenter color={colors.textSecondary} size={18} />
             </View>
-            <Text style={styles.settingsRowLabel}>{t('contact.title')}</Text>
+            <Text style={styles.settingsRowLabel}>{t('customerCenter.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <Pressable

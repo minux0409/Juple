@@ -123,6 +123,7 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
 builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
+builder.Services.AddScoped<Juple.Application.Support.ISupportInquiryService, Juple.Application.Support.SupportInquiryService>();
 builder.Services.AddScoped<Juple.Application.Items.GetItemDetail.IItemCollectionContextGate, Juple.Application.Items.GetItemDetail.ItemCollectionContextGate>();
 builder.Services.AddScoped<ISaveInboxEntryToCollectionsService, SaveInboxEntryToCollectionsService>();
 builder.Services.AddSingleton<Juple.Application.Collections.Public.ICollectionShareUrlDetector, Juple.Api.Configuration.ConfiguredCollectionShareUrlDetector>();
@@ -268,6 +269,11 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.IdentityPartitionKey(httpContext),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(15), QueueLimit = 0 }));
+    // Sending a support inquiry: per identity, so one account cannot fill the support queue.
+    options.AddPolicy(RateLimitPolicies.SupportInquiryCreate, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
     options.AddPolicy(RateLimitPolicies.PublicCollectionUnlock, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.PublicUnlockPartitionKey(httpContext),

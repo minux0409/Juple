@@ -1,7 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
 import i18n from '../../i18n';
-import { GroupingModeToggle } from '../../components/GroupingModeToggle';
+import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import { buildFlatRows } from '../DateHistoryScreen';
 import {
@@ -37,8 +37,8 @@ import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
 import { SavedLinkRow } from '../../components/SavedLinkRow';
 import { SearchField } from '../../components/SearchField';
 import { ARCHIVE_SEARCH_DEBOUNCE_MS } from '../../items/useArchiveSearch';
-import { Image, Text, TextInput } from 'react-native';
-import { CollectionUnlockPanel } from '../../collections/CollectionUnlockPanel';
+import { Text, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
@@ -268,7 +268,7 @@ afterEach(() => {
 });
 
 describe('DateHistoryScreen header', () => {
-  it('puts 보관함 alone on its title row (gap below on the row itself); 날짜별/전체 at the start and the List/Grid switch at the end of one controls row', async () => {
+  it('puts 보관함 alone on its title row, then [시간순 | 이름순] at the start and the List/Grid/Image switch at the end of ONE controls row, then the search', async () => {
     installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
     const renderer = await renderScreen();
 
@@ -280,14 +280,19 @@ describe('DateHistoryScreen header', () => {
     expect(StyleSheet.flatten(title.props.style).marginBottom).toBeUndefined();
     expect(titleRow.findAllByType(ViewModeToggle)).toHaveLength(0);
 
-    const grouping = header.root.findByType(GroupingModeToggle);
+    const chips = header.root.findByType(LinkSortChips);
     const viewToggle = header.root.findByType(ViewModeToggle);
     const controls = viewToggle.parent!;
-    expect(controls).toBe(grouping.parent);
-    expect(StyleSheet.flatten(controls.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' });
+    expect(controls).toBe(chips.parent);
+    expect(StyleSheet.flatten(controls.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center' });
     const children = controls.children as ReactTestRenderer.ReactTestInstance[];
-    expect(children[0]).toBe(grouping);
+    expect(children[0]).toBe(chips);
     expect(children[children.length - 1]).toBe(viewToggle);
+    expect(viewToggle.props.showImage).toBe(true);
+    // Order: controls THEN search (the Collection's order too) - and no 날짜별 / 전체 anywhere.
+    const everything = header.root.findAll(() => true);
+    expect(everything.findIndex(node => node.type === LinkSortChips)).toBeLessThan(everything.findIndex(node => node.type === SearchField));
+    expect(header.root.findAllByType(Text).some(node => ['날짜별', '전체'].includes(String(node.props.children)))).toBe(false);
   });
 });
 
@@ -917,9 +922,9 @@ describe('DateHistoryScreen - search the whole archive', () => {
     await typeSearch(renderer, 'quokka');
     await flush();
 
-    // 날짜별 (the default): the matches under a plain (non-collapsible) date label, in the server's order.
+    // One flat list in the server's order (no date labels).
     const rows = searchRowsOf(renderer);
-    expect(rows.map(row => row.kind)).toEqual(['flatHeader', 'flatItem', 'flatItem', 'flatItem', 'flatItem']);
+    expect(rows.map(row => row.kind)).toEqual(['flatItem', 'flatItem', 'flatItem', 'flatItem']);
     expect(rows.filter(row => row.item).map(row => row.item!.id)).toEqual([500, 501, 502, 503]);
     expect(getRows(renderer).some(row => row.kind === 'header')).toBe(false);
   });
@@ -929,14 +934,14 @@ describe('DateHistoryScreen - search the whole archive', () => {
     const renderer = await renderScreen();
     await typeSearch(renderer, 'quokka');
     await flush();
-    expect(searchRowsOf(renderer).map(row => row.kind)).toEqual(['flatHeader', 'flatItem', 'flatItem', 'flatItem']);
+    expect(searchRowsOf(renderer).map(row => row.kind)).toEqual(['flatItem', 'flatItem', 'flatItem']);
 
     const onChange = renderPart(getList(renderer).props.ListHeaderComponent).root.findByType(ViewModeToggle).props.onChange;
     await act(async () => {
       onChange('grid');
     });
     const gridRows = searchRowsOf(renderer);
-    expect(gridRows.map(row => row.kind)).toEqual(['flatHeader', 'flatGridRow', 'flatGridRow']);
+    expect(gridRows.map(row => row.kind)).toEqual(['flatGridRow', 'flatGridRow']);
     expect(gridRows.filter(row => row.items).map(row => row.items!.length)).toEqual([2, 1]);
     expect(searchCalls()).toHaveLength(1);
   });
@@ -953,7 +958,7 @@ describe('DateHistoryScreen - search the whole archive', () => {
     await flush();
     await typeSearch(renderer, 'quokka');
     await flush();
-    expect(searchRowsOf(renderer).map(row => row.kind)).toEqual(['flatHeader', 'flatItem', 'flatItem', 'flatItem']);
+    expect(searchRowsOf(renderer).map(row => row.kind)).toEqual(['flatItem', 'flatItem', 'flatItem']);
 
     await act(async () => {
       first.resolve({ items: [makeItem({ id: 999, title: 'Stale quo' })], nextCursor: null });
@@ -1028,1006 +1033,553 @@ describe('DateHistoryScreen load failure placement', () => {
   });
 });
 
-describe('DateHistoryScreen - 날짜별 / 전체', () => {
-  type Flat = { kind: string; key: string; item?: ItemHistoryEntry; items?: ItemHistoryEntry[]; label?: string };
-  const flatRows = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as Flat[];
-  const idsOf = (rows: readonly Flat[]) => rows.flatMap(row => (row.item ? [row.item.id] : row.items ? row.items.map(item => item.id) : []));
-  const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(getList(renderer).props.ListHeaderComponent);
+// ---------------------------------------------------------------------------------------------------------------
+// 시간순 / 이름순 x List / Grid / Image. 시간순 is the date accordion (오늘 / 어제 / 이번 주 / months); 이름순 is the WHOLE
+// archive A-Z as ONE flat list from the server (an order no client could produce over only the loaded pages).
+// ---------------------------------------------------------------------------------------------------------------
+const mockSortStore = new Map<string, string>();
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn(async (key: string) => mockSortStore.get(key) ?? null),
+  setItem: jest.fn(async (key: string, value: string) => {
+    mockSortStore.set(key, value);
+  }),
+}));
+// Preferences (view mode, sort) must not leak from one test into the next.
+beforeEach(() => {
+  mockSortStore.clear();
+  jest.mocked(AsyncStorage.getItem).mockImplementation(async (key: string) => mockSortStore.get(key) ?? null);
+});
 
-  async function setGrouping(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'grouped' | 'continuous') {
-    const toggle = header(renderer).root.findByType(GroupingModeToggle);
+describe('DateHistoryScreen - 시간순 / 이름순', () => {
+  type Row = { kind: string; key: string; item?: ItemHistoryEntry; items?: ItemHistoryEntry[]; status?: string; section?: { key: string } };
+  const listRows = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as Row[];
+  const idsOf = (rowsIn: readonly Row[]) => rowsIn.flatMap(row => (row.item ? [row.item.id] : row.items ? row.items.map(item => item.id) : []));
+  const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(getList(renderer).props.ListHeaderComponent);
+  const tilesOf = (view: ReactTestRenderer.ReactTestRenderer) =>
+    view.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function');
+  const renderOne = (renderer: ReactTestRenderer.ReactTestRenderer, row: Row) => renderPart(getList(renderer).props.renderItem({ item: row, index: 1 }));
+
+  async function pressSort(renderer: ReactTestRenderer.ReactTestRenderer, which: 'date' | 'name') {
+    const chip = header(renderer).root.find(node => node.props.testID === `history-sort-${which}` && typeof node.props.onPress === 'function');
     await act(async () => {
-      toggle.props.onChange(mode);
+      chip.props.onPress();
+    });
+    await act(async () => {
+      await new Promise<void>(resolve => setImmediate(() => resolve()));
     });
   }
-  async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid') {
+  async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image') {
     const toggle = header(renderer).root.findByType(ViewModeToggle);
     await act(async () => {
       toggle.props.onChange(mode);
     });
   }
-  async function reachEnd(renderer: ReactTestRenderer.ReactTestRenderer) {
+  const nameCalls = () => jest.mocked(getItemHistory).mock.calls.filter(([, options]) => options?.sort === 'name');
+  const flushIo = async () => {
     await act(async () => {
-      getList(renderer).props.onEndReached();
+      await new Promise<void>(resolve => setImmediate(() => resolve()));
+    });
+  };
+  const reachEnd = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    await act(async () => {
+      getList(renderer).props.onEndReached?.();
+    });
+    await flushIo();
+  };
+
+  /**
+   * The server's name order stand-in over EVERYTHING (not only what the screen loaded): titled links by title, then
+   * title-less ones by site, then locked ones last; q filters; limit/cursor page it. It can serve short pages (pageCap).
+   */
+  function installNameServer(all: readonly ItemHistoryEntry[], pageCap = 1000) {
+    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
+    const normal = jest.mocked(getItemHistory).getMockImplementation()!;
+    const key = (item: ItemHistoryEntry) => (item.isCollectionLocked ? [2, ''] : item.title ? [0, item.title.toLowerCase()] : [1, new URL(item.url).host]);
+    jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
+      if (options.sort !== 'name' && options.q === undefined) {
+        return normal(request, options);
+      }
+      const term = options.q?.toLowerCase();
+      const hits = all.filter(item => !term || `${item.title ?? ''} ${item.url}`.toLowerCase().includes(term));
+      const ordered = options.sort === 'name'
+        ? [...hits].sort((a, b) => { const [ba, ka] = key(a) as [number, string]; const [bb, kb] = key(b) as [number, string]; return ba - bb || ka.localeCompare(kb) || b.id - a.id; })
+        : hits;
+      const offset = options.cursor ? Number(options.cursor) : 0;
+      const limit = Math.min(options.limit ?? 50, pageCap);
+      return { items: ordered.slice(offset, offset + limit), nextCursor: offset + limit < ordered.length ? String(offset + limit) : null };
     });
   }
-  const threeDays = () => installFakeServer([
-    { kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) },
-    { kind: 'yesterday', key: '2026-09-29', items: itemsFor(10, 2) },
-    { kind: 'thisWeek', key: 'thisWeek', items: itemsFor(20, 2) },
-  ]);
+  const named = (count: number, from = 1000) => Array.from({ length: count }, (_, index) => makeItem({ id: from + index, title: `Item ${String(index).padStart(3, '0')}` }));
 
-  it('defaults to 날짜별: the accordion with its date headers, the selector on 날짜별', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-
-    expect(header(renderer).root.findByType(GroupingModeToggle).props.value).toBe('grouped');
-    expect(getRows(renderer).filter(row => row.kind === 'header')).toHaveLength(3);
-    expect(i18n.t('history.groupByDate')).toBe('날짜별');
-    expect(i18n.t('history.groupAll')).toBe('전체');
-  });
-
-  it('전체 removes every date header and shows the same links in the same order, laying the next sections end to end', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    const groupedIds = getRows(renderer).flatMap(row => (row.kind === 'item' ? [row.item.id] : []));
-    expect(groupedIds).toEqual([1, 2, 3]);
-
-    await setGrouping(renderer, 'continuous');
-    expect(flatRows(renderer).some(row => row.kind === 'header' || row.kind === 'flatHeader')).toBe(false);
-    expect(idsOf(flatRows(renderer))).toEqual(groupedIds);
-
-    await reachEnd(renderer);
-    await reachEnd(renderer);
-    expect(flatRows(renderer).every(row => row.kind === 'flatItem')).toBe(true);
-    expect(idsOf(flatRows(renderer))).toEqual([1, 2, 3, 10, 11, 20, 21]);
-    // The same per-section requests as the accordion - one each, nothing extra (and no unfiltered query).
-    expect(jest.mocked(getItemHistory).mock.calls.every(([, options]) => options?.fromUtc !== undefined)).toBe(true);
-    expect(jest.mocked(getItemHistory)).toHaveBeenCalledTimes(3);
-  });
-
-  it('전체 + Grid is one continuous run of two-tile lines - a line can hold the end of one day and the start of the next', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setView(renderer, 'grid');
-    await setGrouping(renderer, 'continuous');
-    await reachEnd(renderer);
-
-    const rows = flatRows(renderer);
-    expect(rows.every(row => row.kind === 'flatGridRow')).toBe(true);
-    expect(rows.map(row => row.items!.map(item => item.id))).toEqual([[1, 2], [3, 10], [11]]);
-    const body = renderPart(getList(renderer).props.renderItem({ item: rows[1], index: 1 }));
-    expect(body.root.findAllByType(SavedLinkGridCell).map(cell => cell.props.item.id)).toEqual([3, 10]);
-    // No card/section frame around the tiles, no date label between lines.
-    const frame = StyleSheet.flatten(body.root.find(node => String(node.props.testID).startsWith('history-flat-grid-row') && typeof node.type === 'string').props.style);
-    expect(frame.borderLeftWidth).toBeUndefined();
-    expect(frame.marginBottom).toBeUndefined();
-  });
-
-  it('switching back to 날짜별 restores the date headers; List/Grid and 날짜별/전체 never change each other', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-
-    await setGrouping(renderer, 'continuous');
-    expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe('list');
-    await setView(renderer, 'grid');
-    expect(header(renderer).root.findByType(GroupingModeToggle).props.value).toBe('continuous');
-    expect(flatRows(renderer).every(row => row.kind === 'flatGridRow')).toBe(true);
-
-    await setGrouping(renderer, 'grouped');
-    expect(header(renderer).root.findByType(ViewModeToggle).props.value).toBe('grid');
-    expect(getRows(renderer).filter(row => row.kind === 'header')).toHaveLength(3);
-    expect(getRows(renderer).some(row => row.kind === 'gridRow')).toBe(true);
-    await setView(renderer, 'list');
-    expect(getRows(renderer).some(row => row.kind === 'item')).toBe(true);
-  });
-
-  it('전체 pages without gaps: a later day shows only once the earlier one is fully loaded, and nothing is requested twice', async () => {
-    installFakeServer([
-      { kind: 'today', key: '2026-09-30', items: itemsFor(1, 30) },
-      { kind: 'yesterday', key: '2026-09-29', items: itemsFor(100, 2) },
-    ]);
-    const yesterday = makeSection('yesterday', '2026-09-29', 2);
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    expect(idsOf(flatRows(renderer))).toHaveLength(HISTORY_SECTION_PAGE_SIZE);
-    expect(sectionCalls(yesterday)).toHaveLength(0);
-
-    await reachEnd(renderer);
-    expect(idsOf(flatRows(renderer))).toEqual(Array.from({ length: 30 }, (_, index) => index + 1));
-    expect(sectionCalls(yesterday)).toHaveLength(0);
-
-    await reachEnd(renderer);
-    expect(idsOf(flatRows(renderer))).toHaveLength(32);
-    await reachEnd(renderer);
-    expect(jest.mocked(getItemHistory)).toHaveBeenCalledTimes(3);
-    expect(new Set(idsOf(flatRows(renderer))).size).toBe(32);
-  });
-
-  it('shows skeletons where the next page is about to appear in 전체', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    const pending = deferred<ReturnType<typeof serveHistoryPage>>();
-    jest.mocked(getItemHistory).mockImplementationOnce(async () => pending.promise);
-    await reachEnd(renderer);
-    expect(flatRows(renderer).filter(row => row.kind === 'flatSkeleton')).toHaveLength(2);
-    await act(async () => {
-      pending.resolve({ items: [], nextCursor: null });
-    });
-  });
-
-  it('a section that fails keeps what is shown and offers the standard retry row; retrying loads it', async () => {
-    installFakeServer([
-      { kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) },
-      { kind: 'yesterday', key: '2026-09-29', items: itemsFor(10, 2) },
-    ]);
-    const working = jest.mocked(getItemHistory).getMockImplementation()!;
-    jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
-      if (options.fromUtc === WINDOWS.yesterday.fromUtc) {
-        throw new Error('offline');
-      }
-      return working(request, options);
-    });
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await reachEnd(renderer);
-    expect(idsOf(flatRows(renderer))).toEqual([1, 2, 3]);
-    const errorRow = flatRows(renderer).find(row => row.kind === 'flatError')!;
-    expect(errorRow).toBeDefined();
-
-    const errorView = renderPart(getList(renderer).props.renderItem({ item: errorRow, index: 0 }));
-    jest.mocked(getItemHistory).mockImplementation(working);
-    await act(async () => {
-      errorView.root.find(node => String(node.props.testID).startsWith('history-section-retry') && typeof node.props.onPress === 'function').props.onPress();
-    });
-    expect(idsOf(flatRows(renderer))).toEqual([1, 2, 3, 10, 11]);
-    expect(flatRows(renderer).some(row => row.kind === 'flatError')).toBe(false);
-  });
-
-  it('a failed first load keeps the standard failure state in 전체 too', async () => {
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
-    jest.mocked(getItemHistorySections).mockRejectedValue(new Error('offline'));
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-
-    expect(renderer.root.findAll(node => node.props.testID === 'history-sections-error').length).toBeGreaterThan(0);
-    expect(flatRows(renderer)).toEqual([]);
-  });
-
-  it('opening a link works the same from a 전체 row', async () => {
-    threeDays();
-    mockNavigate.mockClear();
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-
-    const element = getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 });
-    await act(async () => {
-      element.props.onPress();
-    });
-    expect(mockNavigate).toHaveBeenCalledWith('ItemDetails', { itemId: 1 });
-  });
-
-  it('deleting in 전체 removes the link from the run', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-
-    await act(async () => {
-      getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 }).props.onDelete();
-    });
-    await act(async () => {
-      getConfirmDialogButton(renderer, '삭제').props.onPress();
-    });
-    expect(idsOf(flatRows(renderer))).toEqual([2, 3]);
-  });
-
-  it('a locked link renders identically in both modes: normal row, placeholder text, no title/URL/host/memo, no share', async () => {
-    const locked = makeItem({ id: 7, title: 'Secret title', url: 'https://secret.example.com/path', memo: 'secret memo', isCollectionLocked: true });
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: [locked] }]);
-    const renderer = await renderScreen();
-    const textsOf = (rowRenderer: ReactTestRenderer.ReactTestRenderer) => rowRenderer.root.findAllByType(Text).map(node => String(node.props.children));
-    const groupedRow = getRows(renderer).find(row => row.kind === 'item')!;
-    const groupedTexts = textsOf(renderPart(getList(renderer).props.renderItem({ item: groupedRow, index: 0 })));
-
-    await setGrouping(renderer, 'continuous');
-    const flatElement = getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 });
-    const flatRow = renderPart(flatElement);
-    expect(flatRow.root.findAll(node => node.props.testID === 'saved-link-locked').length).toBeGreaterThan(0);
-    for (const texts of [groupedTexts, textsOf(flatRow)]) {
-      expect(texts).toContain(i18n.t('item.lockedLinkPlaceholder'));
-      expect(texts.join(' ')).not.toMatch(/Secret|secret/);
-    }
-    expect(flatElement.props.onShare).toBeUndefined();
-
-    await setView(renderer, 'grid');
-    const tile = renderPart(getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 }));
-    expect(textsOf(tile)).toContain(i18n.t('item.lockedLinkPlaceholder'));
-    expect(textsOf(tile).join(' ')).not.toMatch(/Secret|secret/);
-  });
-
-  describe('search', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-    const day = (offset: number) => new Date(2026, 0, 15 - offset, 12).toISOString();
-    function installSearchResults(all: readonly ItemHistoryEntry[]) {
-      threeDays();
-      const normal = jest.mocked(getItemHistory).getMockImplementation()!;
-      jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
-        if (options.q === undefined) {
-          return normal(request, options);
-        }
-        const offset = options.cursor ? Number(options.cursor) : 0;
-        const limit = options.limit ?? 50;
-        return { items: all.slice(offset, offset + limit), nextCursor: offset + limit < all.length ? String(offset + limit) : null };
-      });
-    }
-    async function search(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
-      const field = header(renderer).root.findByType(SearchField);
-      await act(async () => {
-        field.props.onChangeText(text);
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(ARCHIVE_SEARCH_DEBOUNCE_MS + 10);
-      });
-    }
-
-    it('shows the same matches in both modes - under date labels in 날짜별, as one run in 전체 - from the one server search', async () => {
-      installSearchResults([
-        makeItem({ id: 1, title: 'Quokka a', savedAtUtc: day(0) }),
-        makeItem({ id: 2, title: 'Quokka b', savedAtUtc: day(0) }),
-        makeItem({ id: 3, title: 'Quokka c', savedAtUtc: day(900) }),
-      ]);
+  describe('controls and preferences', () => {
+    it('offers 시간순 and 이름순 (the shared chips), defaults to 시간순, and keeps 날짜별 / 전체 out of the screen', async () => {
+      installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) }]);
       const renderer = await renderScreen();
-      await search(renderer, 'quokka');
+      const chips = header(renderer).root.findByType(LinkSortChips);
 
-      expect(flatRows(renderer).filter(row => row.kind === 'flatHeader')).toHaveLength(2);
-      expect(idsOf(flatRows(renderer))).toEqual([1, 2, 3]);
+      expect(chips.props.sort).toBe('newest');
+      expect(chips.props.dateLabel).toBe('시간순');
+      expect(chips.props.nameLabel).toBe('이름순');
+      expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+      expect(i18n.exists('history.groupByDate')).toBe(false);
+      expect(i18n.exists('history.groupAll')).toBe(false);
+    });
 
-      await setGrouping(renderer, 'continuous');
-      expect(flatRows(renderer).some(row => row.kind === 'flatHeader')).toBe(false);
-      expect(idsOf(flatRows(renderer))).toEqual([1, 2, 3]);
-      expect(jest.mocked(getItemHistory).mock.calls.filter(([, options]) => options?.q !== undefined)).toHaveLength(1);
+    it('persists the choice under the Archive\'s own key, independent of the view mode, and restores it', async () => {
+      installNameServer(named(5));
+      const renderer = await renderScreen();
+      await pressSort(renderer, 'name');
+      expect(mockSortStore.get('juple.historyLinkSort')).toBe('title');
+      expect(mockSortStore.get('juple.collectionDetailsLinkSort')).toBeUndefined();
+      expect(mockSortStore.get('juple.homeLinkSort')).toBeUndefined();
 
-      // Clearing the text restores the loaded browsing state in the chosen mode.
-      await search(renderer, '');
-      expect(idsOf(flatRows(renderer))).toEqual([1, 2, 3]);
-      await setGrouping(renderer, 'grouped');
+      await setView(renderer, 'list');
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+      await setView(renderer, 'image');
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+      renderer.unmount();
+
+      // A restart: 이름순 + Image come back, and the grouping key of the old selector is never read.
+      mockSortStore.set('juple.historyGroupingMode', 'continuous');
+      const restored = await renderScreen();
+      expect(header(restored).root.findByType(LinkSortChips).props.sort).toBe('title');
+      expect(header(restored).root.findByType(ViewModeToggle).props.value).toBe('image');
+      expect(listRows(restored).every(row => row.kind === 'flatImageRow')).toBe(true);
+    });
+
+    it('pressing the chosen chip again changes nothing (no direction flip here), and an old stored direction reads as its order', async () => {
+      installNameServer(named(3));
+      mockSortStore.set('juple.historyLinkSort', 'titleDesc');
+      const renderer = await renderScreen();
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+      const calls = nameCalls().length;
+      await pressSort(renderer, 'name');
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+      expect(nameCalls().length).toBe(calls);
+    });
+  });
+
+  describe('the stored sort is known BEFORE the first request (hydration)', () => {
+    const sectionCalls = () => jest.mocked(getItemHistorySections).mock.calls;
+    const historyCalls = () => jest.mocked(getItemHistory).mock.calls;
+    const timeCalls = () => historyCalls().filter(([, options]) => options?.sort !== 'name');
+
+    it('stored 시간순: the first and only requests are the date sections and their pages', async () => {
+      installNameServer(named(5));
+      mockSortStore.set('juple.historyLinkSort', 'newest');
+      const renderer = await renderScreen();
+
+      expect(sectionCalls()).toHaveLength(1);
+      expect(nameCalls()).toHaveLength(0);
+      expect(historyCalls().length).toBeGreaterThan(0);
+      expect(timeCalls()).toHaveLength(historyCalls().length);
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('newest');
       expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
     });
 
-    it('a next page of search results that starts on the same date joins that date label instead of repeating it', async () => {
-      const all = Array.from({ length: 40 }, (_, index) => makeItem({ id: 1000 + index, title: `Quokka ${index}`, savedAtUtc: day(0) }));
-      installSearchResults(all);
+    it('stored 이름순: the only requests are name-sorted - no date sections, no throwaway 시간순 request', async () => {
+      installNameServer(named(5));
+      mockSortStore.set('juple.historyLinkSort', 'title');
       const renderer = await renderScreen();
-      await search(renderer, 'quokka');
-      expect(flatRows(renderer).filter(row => row.kind === 'flatHeader')).toHaveLength(1);
+
+      expect(sectionCalls()).toHaveLength(0);
+      expect(timeCalls()).toHaveLength(0);
+      expect(historyCalls().length).toBeGreaterThan(0);
+      expect(historyCalls()[0][1]).toMatchObject({ sort: 'name' });
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+      expect(listRows(renderer).every(row => row.kind === 'flatItem')).toBe(true);
+    });
+
+    it('nothing is requested while the stored value is still being read, and the screen shows only its spinner; then 이름순 starts directly', async () => {
+      installNameServer(named(5));
+      mockSortStore.set('juple.historyLinkSort', 'title');
+      let release!: (value: string | null) => void;
+      // Only the SORT read is held back (the view mode reads through the same storage).
+      jest.mocked(AsyncStorage.getItem).mockImplementation((key: string) =>
+        key === 'juple.historyLinkSort' ? new Promise<string | null>(resolve => { release = resolve; }) : Promise.resolve(mockSortStore.get(key) ?? null));
+      const renderer = await renderScreen();
+
+      expect(sectionCalls()).toHaveLength(0);
+      expect(historyCalls()).toHaveLength(0);
+      expect(renderer.root.findAllByType(FlatList)).toHaveLength(0);
+
+      await act(async () => {
+        release('title');
+      });
+      await flushIo();
+
+      expect(sectionCalls()).toHaveLength(0);
+      expect(timeCalls()).toHaveLength(0);
+      expect(nameCalls().length).toBeGreaterThan(0);
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+    });
+
+    it('a failing read falls back to 시간순 and loads normally (the screen never hangs)', async () => {
+      installNameServer(named(5));
+      jest.mocked(AsyncStorage.getItem).mockImplementation((key: string) =>
+        key === 'juple.historyLinkSort' ? Promise.reject(new Error('storage unavailable')) : Promise.resolve(mockSortStore.get(key) ?? null));
+      const renderer = await renderScreen();
+
+      expect(sectionCalls()).toHaveLength(1);
+      expect(nameCalls()).toHaveLength(0);
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('newest');
+      expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+    });
+
+    it('an unreadable value (not a known sort) is treated as no preference: 시간순', async () => {
+      installNameServer(named(5));
+      mockSortStore.set('juple.historyLinkSort', 'sideways');
+      const renderer = await renderScreen();
+
+      expect(sectionCalls()).toHaveLength(1);
+      expect(nameCalls()).toHaveLength(0);
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('newest');
+    });
+
+    it('switching the sort after hydration still works both ways, with one request set per switch', async () => {
+      installNameServer(named(5));
+      mockSortStore.set('juple.historyLinkSort', 'title');
+      const renderer = await renderScreen();
+      expect(sectionCalls()).toHaveLength(0);
+
+      await pressSort(renderer, 'date');
+      expect(sectionCalls()).toHaveLength(1);
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('newest');
+      expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+      expect(mockSortStore.get('juple.historyLinkSort')).toBe('newest');
+
+      const namesBefore = nameCalls().length;
+      await pressSort(renderer, 'name');
+      expect(nameCalls().length).toBeGreaterThan(namesBefore);
+      expect(header(renderer).root.findByType(LinkSortChips).props.sort).toBe('title');
+      expect(mockSortStore.get('juple.historyLinkSort')).toBe('title');
+    });
+  });
+
+  describe('시간순', () => {
+    it('keeps the date sections and their counts in List, Grid and Image', async () => {
+      for (const view of ['list', 'grid', 'image'] as const) {
+        mockSortStore.clear();
+        installFakeServer([
+          { kind: 'today', key: '2026-09-30', items: itemsFor(1, 4) },
+          { kind: 'yesterday', key: '2026-09-29', items: itemsFor(10, 2) },
+        ]);
+        const renderer = await renderScreen();
+        await setView(renderer, view);
+        expect(getRows(renderer).filter(row => row.kind === 'header')).toHaveLength(2);
+        expect(getRows(renderer).some(row => row.kind === (view === 'list' ? 'item' : view === 'grid' ? 'gridRow' : 'imageRow'))).toBe(true);
+        expect(getItemHistorySections).toHaveBeenCalled();
+        renderer.unmount();
+        jest.clearAllMocks();
+      }
+    });
+
+    it('REGRESSION (device): 7 links in 오늘 + Image are the header and exactly three lines 3 / 3 / 1 of real tiles - no blank accordion', async () => {
+      installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 7) }]);
+      const renderer = await renderScreen();
+      await setView(renderer, 'image');
+
+      expect(getRows(renderer).map(row => row.kind)).toEqual(['header', 'imageRow', 'imageRow', 'imageRow']);
+      const lines = getRows(renderer).filter(row => row.kind === 'imageRow');
+      expect(lines.map(row => (row.kind === 'imageRow' ? row.items.map(item => item.id) : []))).toEqual([[1, 2, 3], [4, 5, 6], [7]]);
+      const views = lines.map(row => renderOne(renderer, row as unknown as Row));
+      expect(views.map(view => tilesOf(view).length)).toEqual([3, 3, 1]);
+      // A column card body and a full-width line, with no fixed height: a row-direction body would collapse the tiles to 0 wide.
+      const body = StyleSheet.flatten(views[0].root.find(node => String(node.props.testID).startsWith('history-image-row') && typeof node.type === 'string').props.style);
+      const line = StyleSheet.flatten(views[0].root.find(node => String(node.props.testID).startsWith('history-image-line') && typeof node.type === 'string').props.style);
+      expect(body.flexDirection).toBe('column');
+      expect(body.height).toBeUndefined();
+      expect(line).toMatchObject({ flexDirection: 'row', width: '100%' });
+    });
+
+    it.each([[1, 1], [2, 1], [3, 1], [4, 2], [7, 3]])('%i links make %i image line(s) in a date card', async (count, lineCount) => {
+      installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, count) }]);
+      const renderer = await renderScreen();
+      await setView(renderer, 'image');
+      const lines = getRows(renderer).filter(row => row.kind === 'imageRow');
+      expect(lines).toHaveLength(lineCount);
+      expect(lines.reduce((total, row) => total + tilesOf(renderOne(renderer, row as unknown as Row)).length, 0)).toBe(count);
+    });
+
+    it('a locked link is a lock tile and a picture-less link a fallback tile inside the date card, nothing leaking; a tap opens the details', async () => {
+      installFakeServer([{ kind: 'today', key: '2026-09-30', items: [
+        makeItem({ id: 1, title: 'Secret title', url: 'https://secret.example.com/x', isCollectionLocked: true, previewImageUrl: 'https://img.example/s.jpg' }),
+        makeItem({ id: 2, title: 'Plain', url: 'https://www.youtube.com/watch?v=a' }),
+        makeItem({ id: 3, title: 'Other', url: 'https://example.com/a' }),
+      ] }]);
+      mockNavigate.mockClear();
+      const renderer = await renderScreen();
+      await setView(renderer, 'image');
+      const view = renderOne(renderer, getRows(renderer).find(row => row.kind === 'imageRow') as unknown as Row);
+
+      expect(view.root.findAll(node => node.props.testID === 'saved-link-image-tile-locked' && typeof node.type === 'string')).toHaveLength(1);
+      expect(view.root.findAll(node => node.props.testID === 'saved-link-image-tile-fallback' && typeof node.type === 'string')).toHaveLength(2);
+      expect(JSON.stringify(view.toJSON())).not.toMatch(/secret|youtube/i);
+      await act(async () => {
+        tilesOf(view).find(tile => tile.props.accessibilityLabel === 'Plain')!.props.onPress();
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('ItemDetails', { itemId: 2 });
+    });
+  });
+
+  describe('이름순', () => {
+    it('is ONE flat list from the server (sort=name over the whole archive) in List, Grid and Image - no date headers', async () => {
+      for (const view of ['list', 'grid', 'image'] as const) {
+        mockSortStore.clear();
+        jest.clearAllMocks();
+        installNameServer([makeItem({ id: 1, title: 'Mango' }), makeItem({ id: 2, title: 'apple' }), makeItem({ id: 3, title: 'Zebra' }), makeItem({ id: 4, title: null, url: 'https://b.example/x' })]);
+        const renderer = await renderScreen();
+        await setView(renderer, view);
+        await pressSort(renderer, 'name');
+
+        expect(nameCalls()).toHaveLength(1);
+        expect(nameCalls()[0][1]).toEqual({ limit: 30, sort: 'name', q: undefined, cursor: undefined });
+        expect(idsOf(listRows(renderer))).toEqual([2, 1, 3, 4]);
+        expect(listRows(renderer).some(row => row.kind === 'header' || row.kind === 'flatHeader')).toBe(false);
+        expect(listRows(renderer).every(row => row.kind === (view === 'list' ? 'flatItem' : view === 'grid' ? 'flatGridRow' : 'flatImageRow'))).toBe(true);
+        renderer.unmount();
+      }
+    });
+
+    it('does not keep loading the date sections while 이름순 is chosen, and 시간순 brings the accordion back', async () => {
+      installNameServer(named(4));
+      mockSortStore.set('juple.historyLinkSort', 'title');
+      const renderer = await renderScreen();
+      // (The very first frame is drawn before the stored choice is read, so one early summary request can exist.)
+      const afterStart = jest.mocked(getItemHistorySections).mock.calls.length;
+      await flushIo();
+      await flushIo();
+      expect(jest.mocked(getItemHistorySections).mock.calls.length).toBe(afterStart);
+      expect(listRows(renderer).some(row => row.kind === 'header')).toBe(false);
+      await reachEnd(renderer);
+      await setView(renderer, 'grid');
+      expect(jest.mocked(getItemHistorySections).mock.calls.length).toBe(afterStart);
+
+      await pressSort(renderer, 'date');
+      expect(jest.mocked(getItemHistorySections).mock.calls.length).toBeGreaterThan(afterStart);
+      expect(getRows(renderer).some(row => row.kind === 'header')).toBe(true);
+    });
+
+    it('pages the whole archive with the server cursor - once per page, appending without repeats', async () => {
+      installNameServer(named(70));
+      const renderer = await renderScreen();
+      await pressSort(renderer, 'name');
+      expect(idsOf(listRows(renderer))).toHaveLength(30);
 
       await reachEnd(renderer);
-      expect(flatRows(renderer).filter(row => row.kind === 'flatHeader')).toHaveLength(1);
-      expect(idsOf(flatRows(renderer))).toHaveLength(40);
+      expect(idsOf(listRows(renderer))).toHaveLength(60);
+      await reachEnd(renderer);
+      expect(idsOf(listRows(renderer))).toHaveLength(70);
+      expect(new Set(idsOf(listRows(renderer))).size).toBe(70);
+      expect(nameCalls().map(([, options]) => options?.cursor)).toEqual([undefined, '30', '60']);
+      await reachEnd(renderer);
+      expect(nameCalls()).toHaveLength(3);
+    });
+
+    it('switching List / Grid / Image never asks the server again; switching the sort asks for the sorted query', async () => {
+      installNameServer(named(10));
+      const renderer = await renderScreen();
+      await pressSort(renderer, 'name');
+      const calls = jest.mocked(getItemHistory).mock.calls.length;
+
+      await setView(renderer, 'grid');
+      await setView(renderer, 'image');
+      await setView(renderer, 'list');
+      expect(jest.mocked(getItemHistory).mock.calls.length).toBe(calls);
+      expect(idsOf(listRows(renderer))).toEqual(named(10).map(item => item.id));
+    });
+
+    it('search + 이름순 is ONE server query with both q and sort=name, flat; clearing returns to the name list; switching view adds no request', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+      try {
+        installNameServer([makeItem({ id: 1, title: 'quokka zulu' }), makeItem({ id: 2, title: 'quokka alpha' }), makeItem({ id: 3, title: 'unrelated' })]);
+        const renderer = await renderScreen();
+        await pressSort(renderer, 'name');
+        const field = header(renderer).root.findByType(SearchField);
+        await act(async () => {
+          field.props.onChangeText('quokka');
+        });
+        await act(async () => {
+          jest.advanceTimersByTime(ARCHIVE_SEARCH_DEBOUNCE_MS + 10);
+        });
+        await act(async () => {
+          await Promise.resolve();
+        });
+
+        const both = jest.mocked(getItemHistory).mock.calls.filter(([, options]) => options?.q === 'quokka' && options.sort === 'name');
+        expect(both).toHaveLength(1);
+        expect(idsOf(listRows(renderer))).toEqual([2, 1]);
+        const calls = jest.mocked(getItemHistory).mock.calls.length;
+        await setView(renderer, 'image');
+        expect(jest.mocked(getItemHistory).mock.calls.length).toBe(calls);
+
+        const clearField = header(renderer).root.findByType(SearchField);
+        await act(async () => {
+          clearField.props.onChangeText('');
+        });
+        await act(async () => {
+          await Promise.resolve();
+        });
+        await flushIo();
+        expect(idsOf(listRows(renderer)).sort()).toEqual([1, 2, 3]);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('a locked link in the name list is a lock card / lock tile - the server already placed it last and sent nothing of it', async () => {
+      installNameServer([
+        makeItem({ id: 1, title: 'Zebra' }),
+        makeItem({ id: 2, title: '', url: '', isCollectionLocked: true, memo: null, previewImageUrl: null }),
+      ]);
+      mockSortStore.set('juple.historyLinkSort', 'title');
+      mockSortStore.set('juple.historyViewMode', 'image');
+      const renderer = await renderScreen();
+
+      expect(idsOf(listRows(renderer))).toEqual([1, 2]);
+      const view = renderOne(renderer, listRows(renderer)[0]);
+      expect(view.root.findAll(node => node.props.testID === 'saved-link-image-tile-locked' && typeof node.type === 'string')).toHaveLength(1);
+    });
+
+    it('a failed first load shows the standard failure state with a retry; a failed NEXT page keeps the rows and offers the compact retry (no automatic loop)', async () => {
+      installNameServer(named(70));
+      const working = jest.mocked(getItemHistory).getMockImplementation()!;
+      let failing = true;
+      jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
+        if (failing && options.sort === 'name') {
+          throw new Error('offline');
+        }
+        return working(request, options);
+      });
+      const renderer = await renderScreen();
+      await pressSort(renderer, 'name');
+      expect(listRows(renderer).map(row => row.status)).toEqual(['error']);
+
+      failing = false;
+      const errorView = renderOne(renderer, listRows(renderer)[0]);
+      await act(async () => {
+        errorView.root.find(node => typeof node.props.onRetry === 'function').props.onRetry();
+      });
+      await flushIo();
+      expect(idsOf(listRows(renderer))).toHaveLength(30);
+
+      failing = true;
+      await reachEnd(renderer);
+      const calls = nameCalls().length;
+      expect(listRows(renderer).some(row => row.status === 'moreError')).toBe(true);
+      expect(idsOf(listRows(renderer))).toHaveLength(30);
+      await flushIo();
+      await flushIo();
+      expect(nameCalls().length).toBe(calls);
+
+      failing = false;
+      const notice = renderOne(renderer, listRows(renderer).find(row => row.status === 'moreError')!);
+      await act(async () => {
+        notice.root.find(node => typeof node.props.onRetry === 'function').props.onRetry();
+      });
+      await flushIo();
+      expect(idsOf(listRows(renderer))).toHaveLength(60);
+    });
+  });
+
+  describe('the flat list fills the viewport by itself (dense Image lines)', () => {
+    const HEADER_HEIGHT = 400;
+    const LINE_HEIGHT = { list: 90, grid: 200, image: 110 } as const;
+    let reported = new WeakMap<object, number>();
+    beforeEach(() => {
+      reported = new WeakMap();
+    });
+    async function layout(renderer: ReactTestRenderer.ReactTestRenderer, viewport: number) {
+      await act(async () => {
+        getList(renderer).props.onLayout({ nativeEvent: { layout: { height: viewport, width: 360, x: 0, y: 0 } } });
+      });
+    }
+    async function measure(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image', passes = 16) {
+      for (let pass = 0; pass < passes; pass++) {
+        const height = HEADER_HEIGHT + LINE_HEIGHT[mode] * listRows(renderer).length;
+        if (reported.get(renderer) !== height) {
+          reported.set(renderer, height);
+          await act(async () => {
+            getList(renderer).props.onContentSizeChange(360, height);
+          });
+        }
+        await flushIo();
+      }
+    }
+
+    it('CRITICAL: short pages (7 per request) in 이름순 + Image keep loading until the viewport is full - no scrolling, in order, no repeats', async () => {
+      installNameServer(named(60), 7);
+      mockSortStore.set('juple.historyLinkSort', 'title');
+      mockSortStore.set('juple.historyViewMode', 'image');
+      const renderer = await renderScreen();
+      expect(idsOf(listRows(renderer))).toHaveLength(7);
+
+      await layout(renderer, 800);
+      await measure(renderer, 'image');
+
+      const loaded = idsOf(listRows(renderer));
+      expect(loaded.length).toBeGreaterThan(7);
+      expect(new Set(loaded).size).toBe(loaded.length);
+      expect(loaded).toEqual(named(60).map(item => item.id).slice(0, loaded.length));
+      // Each page asked for once.
+      const cursors = nameCalls().map(([, options]) => options?.cursor ?? '');
+      expect(new Set(cursors).size).toBe(cursors.length);
+    });
+
+    it('stops once the viewport is filled, and when there is nothing more', async () => {
+      installNameServer(named(12), 7);
+      mockSortStore.set('juple.historyLinkSort', 'title');
+      mockSortStore.set('juple.historyViewMode', 'image');
+      const renderer = await renderScreen();
+      await layout(renderer, 9000);
+      await measure(renderer, 'image', 20);
+      expect(idsOf(listRows(renderer))).toHaveLength(12);
+      const calls = nameCalls().length;
+      await measure(renderer, 'image', 6);
+      expect(nameCalls().length).toBe(calls);
+
+      reported = new WeakMap();
+      jest.clearAllMocks();
+      installNameServer(named(60), 7);
+      const small = await renderScreen();
+      await layout(small, 100);
+      await measure(small, 'image');
+      expect(idsOf(listRows(small)).length).toBeLessThanOrEqual(14);
+    });
+
+    it('List, Grid and Image converge to the same sequence', async () => {
+      const sequences: number[][] = [];
+      for (const view of ['list', 'grid', 'image'] as const) {
+        reported = new WeakMap();
+        jest.clearAllMocks();
+        mockSortStore.clear();
+        installNameServer(named(40), 7);
+        mockSortStore.set('juple.historyLinkSort', 'title');
+        mockSortStore.set('juple.historyViewMode', view);
+        const renderer = await renderScreen();
+        await layout(renderer, 99999);
+        await measure(renderer, view, 24);
+        sequences.push(idsOf(listRows(renderer)));
+        renderer.unmount();
+      }
+      expect(sequences[0]).toHaveLength(40);
+      expect(sequences[1]).toEqual(sequences[0]);
+      expect(sequences[2]).toEqual(sequences[0]);
     });
   });
 });
 
 describe('buildFlatRows', () => {
-  const labels = ((key: string) => key) as never;
   const items = [1, 2, 3].map(id => makeItem({ id, savedAtUtc: new Date().toISOString() }));
 
-  it('is one unbroken run without labels, in the given order, tiles two per line', () => {
-    expect(buildFlatRows(items, 'list', null).map(row => row.kind)).toEqual(['flatItem', 'flatItem', 'flatItem']);
-    const grid = buildFlatRows(items, 'grid', null);
-    expect(grid.map(row => (row.kind === 'flatGridRow' ? row.items.map(item => item.id) : []))).toEqual([[1, 2], [3]]);
+  it('is one unbroken run in the given order: a row per link in List, pairs in Grid, three to a line in Image', () => {
+    expect(buildFlatRows(items, 'list').map(row => row.kind)).toEqual(['flatItem', 'flatItem', 'flatItem']);
+    expect(buildFlatRows(items, 'grid').map(row => (row.kind === 'flatGridRow' ? row.items.map(item => item.id) : []))).toEqual([[1, 2], [3]]);
+    expect(buildFlatRows(items, 'image').map(row => (row.kind === 'flatImageRow' ? row.items.map(item => item.id) : []))).toEqual([[1, 2, 3]]);
   });
 
-  it('with labels, one label per date and tiles never straddle two dates', () => {
-    const older = makeItem({ id: 4, savedAtUtc: new Date(2020, 0, 5, 12).toISOString() });
-    const rows = buildFlatRows([...items, older], 'grid', labels);
-    expect(rows.map(row => row.kind)).toEqual(['flatHeader', 'flatGridRow', 'flatGridRow', 'flatHeader', 'flatGridRow']);
-  });
-});
-
-describe('DateHistoryScreen - Image view', () => {
-  type Flat = { kind: string; key: string; item?: ItemHistoryEntry; items?: ItemHistoryEntry[]; layout?: string; section?: { key: string } };
-  const flatRows = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as Flat[];
-  const idLines = (rows: readonly Flat[], kind: string) => rows.filter(row => row.kind === kind).map(row => row.items!.map(item => item.id));
-  const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(getList(renderer).props.ListHeaderComponent);
-  const toggles = (renderer: ReactTestRenderer.ReactTestRenderer) => header(renderer).root;
-
-  async function setGrouping(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'grouped' | 'continuous') {
-    const toggle = toggles(renderer).findByType(GroupingModeToggle);
-    await act(async () => {
-      toggle.props.onChange(mode);
-    });
-  }
-  async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image') {
-    const toggle = toggles(renderer).findByType(ViewModeToggle);
-    await act(async () => {
-      toggle.props.onChange(mode);
-    });
-  }
-  async function reachEnd(renderer: ReactTestRenderer.ReactTestRenderer) {
-    await act(async () => {
-      getList(renderer).props.onEndReached();
-    });
-  }
-  const tilesOf = (rowRenderer: ReactTestRenderer.ReactTestRenderer) =>
-    rowRenderer.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function');
-  const threeDays = () => installFakeServer([
-    { kind: 'today', key: '2026-09-30', items: itemsFor(1, 4) },
-    { kind: 'yesterday', key: '2026-09-29', items: itemsFor(10, 2) },
-    { kind: 'thisWeek', key: 'thisWeek', items: itemsFor(20, 2) },
-  ]);
-
-  it('offers List, Grid and Image, with Image independent of 날짜별 / 전체 (and the other way round)', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    expect(toggles(renderer).findByType(ViewModeToggle).props.showImage).toBe(true);
-
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'image');
-    expect(toggles(renderer).findByType(ViewModeToggle).props.value).toBe('image');
-    expect(toggles(renderer).findByType(GroupingModeToggle).props.value).toBe('continuous');
-    await setGrouping(renderer, 'grouped');
-    expect(toggles(renderer).findByType(ViewModeToggle).props.value).toBe('image');
-    await setView(renderer, 'grid');
-    expect(toggles(renderer).findByType(GroupingModeToggle).props.value).toBe('grouped');
-    expect(getRows(renderer).some(row => row.kind === 'gridRow')).toBe(true);
-    await setView(renderer, 'list');
-    expect(getRows(renderer).some(row => row.kind === 'item')).toBe(true);
-  });
-
-  it('날짜별 + Image keeps the date headers; each opened date holds lines of three tiles, the last one short', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-
-    const rows = getRows(renderer);
-    expect(rows.filter(row => row.kind === 'header')).toHaveLength(3);
-    expect(rows.filter(row => row.kind === 'item' || row.kind === 'gridRow')).toHaveLength(0);
-    const lines = rows.filter(row => row.kind === 'imageRow');
-    expect(lines.map(row => (row.kind === 'imageRow' ? row.items.map(item => item.id) : []))).toEqual([[1, 2, 3], [4]]);
-    expect(lines.every(row => row.section.key === '2026-09-30')).toBe(true);
-
-    const line = renderPart(getList(renderer).props.renderItem({ item: lines[0], index: 1 }));
-    expect(tilesOf(line)).toHaveLength(3);
-    // Still the date card's body: framed lines under the header, not a bare grid.
-    const frame = StyleSheet.flatten(line.root.find(node => String(node.props.testID).startsWith('history-image-row') && typeof node.type === 'string').props.style);
-    expect(frame).toEqual(expect.objectContaining({ borderLeftWidth: 1, borderRightWidth: 1, borderTopWidth: 1 }));
-  });
-
-  it('날짜별 + Image shows skeleton squares where a date\'s first page is about to appear, one list throughout', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    const pending = deferred<ReturnType<typeof serveHistoryPage>>();
-    jest.mocked(getItemHistory).mockImplementationOnce(async () => pending.promise);
-    await toggleSection(renderer, '2026-09-29');
-    const skeletons = getRows(renderer).filter(row => row.kind === 'skeleton' && row.section.key === '2026-09-29');
-    expect(skeletons).toHaveLength(1);
-    expect(skeletons[0].kind === 'skeleton' && skeletons[0].image).toBe(true);
-    expect(renderer.root.findAllByType(FlatList)).toHaveLength(1);
-    await act(async () => {
-      pending.resolve({ items: [], nextCursor: null });
-    });
-  });
-
-  it('전체 + Image is one continuous run of three-tile lines: no headers, a line can span two days', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'image');
-    await reachEnd(renderer);
-    await reachEnd(renderer);
-
-    const rows = flatRows(renderer);
-    expect(rows.every(row => row.kind === 'flatImageRow')).toBe(true);
-    expect(idLines(rows, 'flatImageRow')).toEqual([[1, 2, 3], [4, 10, 11], [20, 21]]);
-    const line = renderPart(getList(renderer).props.renderItem({ item: rows[1], index: 1 }));
-    expect(tilesOf(line)).toHaveLength(3);
-    // No card frame, no section spacing around the lines.
-    const frame = StyleSheet.flatten(line.root.find(node => String(node.props.testID).startsWith('history-flat-image-row') && typeof node.type === 'string').props.style);
-    expect(frame.borderLeftWidth).toBeUndefined();
-    expect(frame.padding).toBeUndefined();
-  });
-
-  it('switching List / Grid / Image never asks the server again', async () => {
-    threeDays();
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await reachEnd(renderer);
-    const before = jest.mocked(getItemHistory).mock.calls.length;
-
-    await setView(renderer, 'grid');
-    await setView(renderer, 'image');
-    await setView(renderer, 'list');
-    await setGrouping(renderer, 'grouped');
-    await setView(renderer, 'image');
-    expect(jest.mocked(getItemHistory).mock.calls.length).toBe(before);
-  });
-
-  it('전체 + Image pages without gaps or duplicates and appends as it goes', async () => {
-    installFakeServer([
-      { kind: 'today', key: '2026-09-30', items: itemsFor(1, 30) },
-      { kind: 'yesterday', key: '2026-09-29', items: itemsFor(100, 2) },
-    ]);
-    const yesterday = makeSection('yesterday', '2026-09-29', 2);
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'image');
-    const count = () => flatRows(renderer).flatMap(row => row.items ?? []).length;
-    expect(count()).toBe(HISTORY_SECTION_PAGE_SIZE);
-    expect(sectionCalls(yesterday)).toHaveLength(0);
-
-    await reachEnd(renderer);
-    expect(count()).toBe(30);
-    expect(sectionCalls(yesterday)).toHaveLength(0);
-    await reachEnd(renderer);
-    expect(count()).toBe(32);
-    await reachEnd(renderer);
-    expect(jest.mocked(getItemHistory)).toHaveBeenCalledTimes(3);
-    expect(new Set(flatRows(renderer).flatMap(row => (row.items ?? []).map(item => item.id))).size).toBe(32);
-  });
-
-  it('전체 + Image shows square skeleton lines for the page on its way, and a retry row (not a fake tile) when it fails', async () => {
-    installFakeServer([
-      { kind: 'today', key: '2026-09-30', items: itemsFor(1, 3) },
-      { kind: 'yesterday', key: '2026-09-29', items: itemsFor(10, 2) },
-    ]);
-    const working = jest.mocked(getItemHistory).getMockImplementation()!;
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'image');
-    const pending = deferred<ReturnType<typeof serveHistoryPage>>();
-    jest.mocked(getItemHistory).mockImplementationOnce(async () => pending.promise);
-    await reachEnd(renderer);
-    expect(flatRows(renderer).filter(row => row.kind === 'flatSkeleton').map(row => row.layout)).toEqual(['image']);
-    await act(async () => {
-      pending.reject(new Error('offline'));
-    });
-
-    expect(idLines(flatRows(renderer), 'flatImageRow')).toEqual([[1, 2, 3]]);
-    const errorRow = flatRows(renderer).find(row => row.kind === 'flatError')!;
-    expect(errorRow).toBeDefined();
-    expect(flatRows(renderer).indexOf(errorRow)).toBe(flatRows(renderer).length - 1);
-    const errorView = renderPart(getList(renderer).props.renderItem({ item: errorRow, index: 1 }));
-    jest.mocked(getItemHistory).mockImplementation(working);
-    await act(async () => {
-      errorView.root.find(node => String(node.props.testID).startsWith('history-section-retry') && typeof node.props.onPress === 'function').props.onPress();
-    });
-    expect(idLines(flatRows(renderer), 'flatImageRow')).toEqual([[1, 2, 3], [10, 11]]);
-  });
-
-  describe('locked links', () => {
-    const lockedItem = makeItem({
-      id: 7,
-      collectionId: 4,
-      isCollectionLocked: true,
-      title: 'Secret title',
-      url: 'https://www.youtube.com/watch?v=secret',
-      memo: 'secret memo',
-      previewImageUrl: 'https://img.example/secret.jpg',
-    });
-    const collectionsApi = require('../../collections/api/collectionsApi');
-
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    it('renders as a lock on a neutral square in 날짜별 and 전체 - nothing of the hidden link anywhere', async () => {
-      installFakeServer([{ kind: 'today', key: '2026-09-30', items: [lockedItem] }]);
-      const renderer = await renderScreen();
-      await setView(renderer, 'image');
-
-      const grouped = renderPart(getList(renderer).props.renderItem({ item: getRows(renderer).find(row => row.kind === 'imageRow')!, index: 1 }));
-      await setGrouping(renderer, 'continuous');
-      const continuous = renderPart(getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 }));
-      for (const rowView of [grouped, continuous]) {
-        expect(rowView.root.findAll(node => node.props.testID === 'saved-link-image-tile-locked' && typeof node.type === 'string')).toHaveLength(1);
-        expect(rowView.root.findAllByType(Image)).toHaveLength(0);
-        expect(rowView.root.findAllByType(Text)).toHaveLength(0);
-        expect(JSON.stringify(rowView.toJSON())).not.toMatch(/secret|youtube/i);
-        expect(tilesOf(rowView)[0].props.accessibilityLabel).toBe(i18n.t('item.lockedLinkPlaceholder'));
-      }
-    });
-
-    it('a tap runs the same protected open flow as a card: the Collection is read fresh and its password asked for', async () => {
-      installFakeServer([{ kind: 'today', key: '2026-09-30', items: [lockedItem] }]);
-      const getCollection = jest.spyOn(collectionsApi, 'getCollection').mockResolvedValue({ id: 4, accessRole: 'owner', isLocked: true, isSharePasswordProtected: false });
-      mockNavigate.mockClear();
-      const renderer = await renderScreen();
-      await setGrouping(renderer, 'continuous');
-      await setView(renderer, 'image');
-
-      const line = renderPart(getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 }));
-      await act(async () => {
-        tilesOf(line)[0].props.onPress();
-      });
-      expect(getCollection).toHaveBeenCalledWith(expect.any(Function), 4);
-      expect(renderer.root.findAllByType(CollectionUnlockPanel)).toHaveLength(1);
-      expect(mockNavigate).not.toHaveBeenCalled();
-    });
-  });
-
-  it('a plain tile opens the Item Details through the same path as a card', async () => {
-    threeDays();
-    mockNavigate.mockClear();
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'image');
-
-    const line = renderPart(getList(renderer).props.renderItem({ item: flatRows(renderer)[0], index: 0 }));
-    expect(tilesOf(line).map(tile => tile.props.accessibilityLabel)).toEqual(['Link 1', 'Link 2', 'Link 3']);
-    await act(async () => {
-      tilesOf(line)[1].props.onPress();
-    });
-    expect(mockNavigate).toHaveBeenCalledWith('ItemDetails', { itemId: 2 });
-  });
-
-  describe('search', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-    const day = (offset: number) => new Date(2026, 0, 15 - offset, 12).toISOString();
-    function installSearchResults(all: readonly ItemHistoryEntry[]) {
-      threeDays();
-      const normal = jest.mocked(getItemHistory).getMockImplementation()!;
-      jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
-        if (options.q === undefined) {
-          return normal(request, options);
-        }
-        const offset = options.cursor ? Number(options.cursor) : 0;
-        const limit = options.limit ?? 50;
-        return { items: all.slice(offset, offset + limit), nextCursor: offset + limit < all.length ? String(offset + limit) : null };
-      });
-    }
-    async function search(renderer: ReactTestRenderer.ReactTestRenderer, text: string) {
-      const field = header(renderer).root.findByType(SearchField);
-      await act(async () => {
-        field.props.onChangeText(text);
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(ARCHIVE_SEARCH_DEBOUNCE_MS + 10);
-      });
-    }
-
-    it('날짜별 + Image keeps the date labels over three-tile lines; 전체 + Image is one flat grid - from the one search', async () => {
-      installSearchResults([
-        makeItem({ id: 1, title: 'Quokka a', savedAtUtc: day(0) }),
-        makeItem({ id: 2, title: 'Quokka b', savedAtUtc: day(0) }),
-        makeItem({ id: 3, title: 'Quokka c', savedAtUtc: day(0) }),
-        makeItem({ id: 4, title: 'Quokka d', savedAtUtc: day(0) }),
-        makeItem({ id: 5, title: 'Quokka e', savedAtUtc: day(900) }),
-      ]);
-      const renderer = await renderScreen();
-      await setView(renderer, 'image');
-      await search(renderer, 'quokka');
-
-      expect(flatRows(renderer).map(row => row.kind)).toEqual(['flatHeader', 'flatImageRow', 'flatImageRow', 'flatHeader', 'flatImageRow']);
-      expect(idLines(flatRows(renderer), 'flatImageRow')).toEqual([[1, 2, 3], [4], [5]]);
-
-      await setGrouping(renderer, 'continuous');
-      expect(flatRows(renderer).map(row => row.kind)).toEqual(['flatImageRow', 'flatImageRow']);
-      expect(idLines(flatRows(renderer), 'flatImageRow')).toEqual([[1, 2, 3], [4, 5]]);
-      expect(jest.mocked(getItemHistory).mock.calls.filter(([, options]) => options?.q !== undefined)).toHaveLength(1);
-    });
-
-    it('a next page that starts on the same date joins its label, and the tiles continue the same lines', async () => {
-      installSearchResults(Array.from({ length: 40 }, (_, index) => makeItem({ id: 1000 + index, title: `Quokka ${index}`, savedAtUtc: day(0) })));
-      const renderer = await renderScreen();
-      await setView(renderer, 'image');
-      await search(renderer, 'quokka');
-      expect(flatRows(renderer).filter(row => row.kind === 'flatHeader')).toHaveLength(1);
-
-      await reachEnd(renderer);
-      expect(flatRows(renderer).filter(row => row.kind === 'flatHeader')).toHaveLength(1);
-      const lines = idLines(flatRows(renderer), 'flatImageRow');
-      expect(lines.flat()).toHaveLength(40);
-      expect(lines.slice(0, -1).every(line => line.length === 3)).toBe(true);
-    });
-  });
-});
-
-// Device bug (Samsung): 날짜별 + Image showed an expanded date as a blank area with no tiles. The date card's body
-// is a row-direction frame (made for Grid), and a line of flex:1 square tiles shrink-wrapped by a row parent has width 0.
-// Jest has no layout engine, so besides the rows and tiles these pin the layout CONTRACT that makes tiles measurable.
-describe('DateHistoryScreen - 날짜별 + Image (device regression: blank accordion)', () => {
-  const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(getList(renderer).props.ListHeaderComponent);
-  async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image') {
-    const toggle = header(renderer).root.findByType(ViewModeToggle);
-    await act(async () => {
-      toggle.props.onChange(mode);
-    });
-  }
-  const renderRowElement = (renderer: ReactTestRenderer.ReactTestRenderer, row: unknown) => renderPart(getList(renderer).props.renderItem({ item: row, index: 1 }));
-  const realTiles = (rowView: ReactTestRenderer.ReactTestRenderer) =>
-    rowView.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function');
-  const imageRows = (renderer: ReactTestRenderer.ReactTestRenderer) => getRows(renderer).filter(row => row.kind === 'imageRow');
-  const host = (rowView: ReactTestRenderer.ReactTestRenderer, prefix: string) =>
-    rowView.root.find(node => String(node.props.testID).startsWith(prefix) && typeof node.type === 'string');
-
-  it('7 items in 오늘: the header, then exactly three lines (3 / 3 / 1) holding 7 real tiles, nothing else under it', async () => {
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 7) }]);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-
-    expect(getRows(renderer).map(row => row.kind)).toEqual(['header', 'imageRow', 'imageRow', 'imageRow']);
-    const lines = imageRows(renderer);
-    expect(lines.map(row => (row.kind === 'imageRow' ? row.items.map(item => item.id) : []))).toEqual([[1, 2, 3], [4, 5, 6], [7]]);
-
-    const views = lines.map(row => renderRowElement(renderer, row));
-    expect(views.map(view => realTiles(view).length)).toEqual([3, 3, 1]);
-    // The short last line keeps three slots (so its tile is the same width); the two empty ones are plain, inert views.
-    const lastSlots = host(views[2], 'history-image-line').children as ReactTestRenderer.ReactTestInstance[];
-    expect(lastSlots).toHaveLength(3);
-    expect(lastSlots.filter(slot => typeof slot.props.onPress === 'function' || slot.findAll(node => typeof node.props.onPress === 'function').length > 0)).toHaveLength(1);
-    // The date header is still there, expanded, with the section's real count.
-    const headers = getRows(renderer).filter(row => row.kind === 'header');
-    expect(headers).toHaveLength(1);
-    expect(headers[0].kind === 'header' && headers[0].section.count).toBe(7);
-  });
-
-  it('lays the lines out so the tiles can be measured: a COLUMN card body, a full-width line, no fixed or reserved height', async () => {
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 7) }]);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-
-    for (const row of imageRows(renderer)) {
-      const view = renderRowElement(renderer, row);
-      const body = StyleSheet.flatten(host(view, 'history-image-row').props.style);
-      const line = StyleSheet.flatten(host(view, 'history-image-line').props.style);
-      // A row-direction body would shrink-wrap the line to width 0 (the device bug).
-      expect(body.flexDirection).toBe('column');
-      expect(line).toMatchObject({ flexDirection: 'row', width: '100%' });
-      // Height follows the squares (aspectRatio) - nothing is preallocated from item counts or card heights.
-      for (const style of [body, line]) {
-        expect(style.height).toBeUndefined();
-        expect(style.minHeight).toBeUndefined();
-      }
-      expect(StyleSheet.flatten(realTiles(view)[0].props.style)).toMatchObject({ aspectRatio: 1, flex: 1 });
-    }
-  });
-
-  it.each([[1, 1], [2, 1], [3, 1], [4, 2], [7, 3]])('%i items make %i image line(s)', async (count, lineCount) => {
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, count) }]);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-
-    const lines = imageRows(renderer);
-    expect(lines).toHaveLength(lineCount);
-    expect(lines.reduce((total, row) => total + (row.kind === 'imageRow' ? row.items.length : 0), 0)).toBe(count);
-    expect(lines.reduce((total, row) => total + realTiles(renderRowElement(renderer, row)).length, 0)).toBe(count);
-  });
-
-  it('a locked link is a lock tile and a picture-less link a fallback tile - inside the date card too, nothing leaking', async () => {
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: [
-      makeItem({ id: 1, title: 'Secret title', url: 'https://secret.example.com/x', memo: 'secret memo', isCollectionLocked: true, previewImageUrl: 'https://img.example/secret.jpg' }),
-      makeItem({ id: 2, title: 'No picture', url: 'https://www.youtube.com/watch?v=abc' }),
-      makeItem({ id: 3, title: 'Plain', url: 'https://example.com/a' }),
-    ] }]);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-
-    const view = renderRowElement(renderer, imageRows(renderer)[0]);
-    expect(view.root.findAll(node => node.props.testID === 'saved-link-image-tile-locked' && typeof node.type === 'string')).toHaveLength(1);
-    expect(view.root.findAll(node => node.props.testID === 'saved-link-image-tile-fallback' && typeof node.type === 'string')).toHaveLength(2);
-    expect(JSON.stringify(view.toJSON())).not.toMatch(/secret/i);
-  });
-
-  it('날짜별 + search + Image: the date label, then lines of real tiles (the same row the 전체 grid uses)', async () => {
-    jest.useFakeTimers();
-    try {
-      installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 2) }]);
-      const normal = jest.mocked(getItemHistory).getMockImplementation()!;
-      const hits = Array.from({ length: 7 }, (_, index) => makeItem({ id: 500 + index, title: `Quokka ${index}`, savedAtUtc: new Date().toISOString() }));
-      jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) =>
-        options.q === undefined ? normal(request, options) : { items: hits, nextCursor: null });
-      const renderer = await renderScreen();
-      await setView(renderer, 'image');
-      const field = header(renderer).root.findByType(SearchField);
-      await act(async () => {
-        field.props.onChangeText('quokka');
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(ARCHIVE_SEARCH_DEBOUNCE_MS + 10);
-      });
-
-      const rows = getList(renderer).props.data as { kind: string; items?: ItemHistoryEntry[] }[];
-      expect(rows.map(row => row.kind)).toEqual(['flatHeader', 'flatImageRow', 'flatImageRow', 'flatImageRow']);
-      const views = rows.slice(1).map(row => renderRowElement(renderer, row));
-      expect(views.map(view => realTiles(view).length)).toEqual([3, 3, 1]);
-      expect(StyleSheet.flatten(host(views[0], 'history-flat-image-row').props.style)).toMatchObject({ flexDirection: 'row', width: '100%' });
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it('전체 + Image is unchanged: the same tiles in a plain column cell, no card frame', async () => {
-    installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 7) }]);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    const toggle = header(renderer).root.findByType(GroupingModeToggle);
-    await act(async () => {
-      toggle.props.onChange('continuous');
-    });
-
-    const rows = getList(renderer).props.data as { kind: string }[];
-    expect(rows.map(row => row.kind)).toEqual(['flatImageRow', 'flatImageRow', 'flatImageRow']);
-    expect(rows.map(row => realTiles(renderRowElement(renderer, row)).length)).toEqual([3, 3, 1]);
-  });
-});
-
-// Device bug: 전체 + Image sometimes stopped at today. React Native sends onEndReached once per distinct content
-// LENGTH, and the screen's advance was a no-op while a request was loading - so when the page landed and the content
-// came out the same length (an Image skeleton line is as tall as the tile line replacing it) nothing asked again.
-// The screen now measures itself and keeps advancing, one request at a time, while the loaded data does not fill the
-// viewport. There is no layout engine in Jest, so these drive the same two events React Native would (onLayout and
-// onContentSizeChange - the latter only when the height actually changes, as on a device).
-describe('DateHistoryScreen - 전체 fills the viewport by itself', () => {
-  type Flat = { kind: string; key: string; items?: ItemHistoryEntry[]; item?: ItemHistoryEntry };
-  const HEADER_HEIGHT = 300;
-  const LINE_HEIGHT = { list: 90, grid: 200, image: 110 } as const;
-  const header = (renderer: ReactTestRenderer.ReactTestRenderer) => renderPart(getList(renderer).props.ListHeaderComponent);
-  const feedRows = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as Flat[];
-  const idsOf = (renderer: ReactTestRenderer.ReactTestRenderer) =>
-    feedRows(renderer).flatMap(row => (row.item ? [row.item.id] : row.items ? row.items.map(item => item.id) : []));
-  const calls = (key: Parameters<typeof makeSection>[0], sectionKey: string) => sectionCalls(makeSection(key, sectionKey, 1)).length;
-
-  let reportedHeight = new WeakMap<object, number>();
-  async function setView(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image') {
-    const toggle = header(renderer).root.findByType(ViewModeToggle);
-    await act(async () => {
-      toggle.props.onChange(mode);
-    });
-  }
-  async function setGrouping(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'grouped' | 'continuous') {
-    const toggle = header(renderer).root.findByType(GroupingModeToggle);
-    await act(async () => {
-      toggle.props.onChange(mode);
-    });
-  }
-  async function layout(renderer: ReactTestRenderer.ReactTestRenderer, viewport: number) {
-    await act(async () => {
-      getList(renderer).props.onLayout({ nativeEvent: { layout: { height: viewport, width: 360, x: 0, y: 0 } } });
-    });
-  }
-  /** What the list would report for what it holds: the header plus one fixed-height unit per row (skeleton lines as tall as tile lines). */
-  async function measure(renderer: ReactTestRenderer.ReactTestRenderer, mode: 'list' | 'grid' | 'image', passes = 14) {
-    for (let pass = 0; pass < passes; pass++) {
-      const height = HEADER_HEIGHT + LINE_HEIGHT[mode] * feedRows(renderer).length;
-      if (reportedHeight.get(renderer) === height) {
-        continue;
-      }
-      reportedHeight.set(renderer, height);
-      await act(async () => {
-        getList(renderer).props.onContentSizeChange(360, height);
-      });
-    }
-  }
-  const server = (today: number, yesterday: number, thisWeek: number) => installFakeServer([
-    { kind: 'today', key: '2026-09-30', items: itemsFor(1, today) },
-    ...(yesterday > 0 ? [{ kind: 'yesterday' as const, key: '2026-09-29', items: itemsFor(100, yesterday) }] : []),
-    ...(thisWeek > 0 ? [{ kind: 'thisWeek' as const, key: 'thisWeek', items: itemsFor(200, thisWeek) }] : []),
-  ]);
-  const range = (from: number, count: number) => Array.from({ length: count }, (_, index) => from + index);
-
-  beforeEach(() => {
-    reportedHeight = new WeakMap();
-  });
-
-  it('CRITICAL: 7 today + 5 yesterday + 16 this week, straight to 전체 + Image - advances past today with no scrolling, in order, nothing requested twice', async () => {
-    server(7, 5, 16);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    // Today alone is three short lines: nowhere near a screenful.
-    expect(idsOf(renderer)).toEqual(range(1, 7));
-
-    await layout(renderer, 800);
-    await measure(renderer, 'image');
-
-    expect(idsOf(renderer)).toEqual([...range(1, 7), ...range(100, 5), ...range(200, 16)]);
-    expect(new Set(idsOf(renderer)).size).toBe(28);
-    expect(calls('today', '2026-09-30')).toBe(1);
-    expect(calls('yesterday', '2026-09-29')).toBe(1);
-    expect(calls('thisWeek', 'thisWeek')).toBe(1);
-    expect(feedRows(renderer).every(row => row.kind === 'flatImageRow')).toBe(true);
-  });
-
-  it.each([1, 2, 3, 7])('%i items today: 전체 + Image still moves on to yesterday by itself', async todayCount => {
-    server(todayCount, 5, 0);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    await layout(renderer, 800);
-    await measure(renderer, 'image');
-
-    expect(idsOf(renderer)).toEqual([...range(1, todayCount), ...range(100, 5)]);
-    expect(calls('yesterday', '2026-09-29')).toBe(1);
-  });
-
-  it('a full first page that is still short in Image mode continues with its own next page, then the next day', async () => {
-    server(30, 4, 0);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    // 25 links = 9 image lines: short for a tall screen, so the rest of today and then yesterday follow.
-    await layout(renderer, 1400);
-    await measure(renderer, 'image');
-
-    expect(idsOf(renderer)).toEqual([...range(1, 30), ...range(100, 4)]);
-    expect(calls('today', '2026-09-30')).toBe(2);
-    expect(calls('yesterday', '2026-09-29')).toBe(1);
-  });
-
-  it('stops asking once the viewport is filled (scrolling takes over from there)', async () => {
-    server(30, 4, 0);
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'image');
-    // 9 lines + header = 1290 >= 600 * 1.5.
-    await layout(renderer, 600);
-    await measure(renderer, 'image');
-
-    expect(idsOf(renderer)).toEqual(range(1, 25));
-    expect(calls('today', '2026-09-30')).toBe(1);
-    expect(calls('yesterday', '2026-09-29')).toBe(0);
-  });
-
-  it('List, Grid and Image converge to the same continuous sequence from the same Archive', async () => {
-    const sequences: number[][] = [];
-    for (const mode of ['list', 'grid', 'image'] as const) {
-      reportedHeight = new WeakMap();
-      jest.clearAllMocks();
-      server(7, 5, 16);
-      const renderer = await renderScreen();
-      await setView(renderer, mode);
-      await setGrouping(renderer, 'continuous');
-      await layout(renderer, 6000);
-      await measure(renderer, mode, 20);
-      sequences.push(idsOf(renderer));
-      renderer.unmount();
-    }
-    expect(sequences[0]).toEqual([...range(1, 7), ...range(100, 5), ...range(200, 16)]);
-    expect(sequences[1]).toEqual(sequences[0]);
-    expect(sequences[2]).toEqual(sequences[0]);
-  });
-
-  it('날짜별 never fills by itself; switching to 전체 starts the chain at once', async () => {
-    server(7, 5, 0);
-    const renderer = await renderScreen();
-    await layout(renderer, 800);
-    await measure(renderer, 'list');
-    expect(calls('yesterday', '2026-09-29')).toBe(0);
-
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    await measure(renderer, 'image');
-    expect(idsOf(renderer)).toEqual([...range(1, 7), ...range(100, 5)]);
-  });
-
-  it('Grid -> Image keeps what is loaded (no refetch) and asks for more only because the denser layout leaves room', async () => {
-    server(7, 5, 0);
-    const renderer = await renderScreen();
-    await setGrouping(renderer, 'continuous');
-    await setView(renderer, 'grid');
-    await layout(renderer, 700);
-    await measure(renderer, 'grid');
-    // 7 links in Grid = 4 lines = 1100 >= 1050: filled.
-    expect(idsOf(renderer)).toEqual(range(1, 7));
-    expect(calls('yesterday', '2026-09-29')).toBe(0);
-
-    await setView(renderer, 'image');
-    await measure(renderer, 'image');
-    expect(calls('today', '2026-09-30')).toBe(1);
-    expect(idsOf(renderer)).toEqual([...range(1, 7), ...range(100, 5)]);
-  });
-
-  it('sections already loaded by 날짜별 browsing join 전체 in order, with no repeat request', async () => {
-    server(3, 2, 2);
-    const renderer = await renderScreen();
-    const yesterdayHeader = getRows(renderer).find(row => row.kind === 'header' && row.section.key === '2026-09-29')!;
-    await act(async () => {
-      getList(renderer).props.renderItem({ item: yesterdayHeader, index: 1 }).props.onPress();
-    });
-    expect(calls('yesterday', '2026-09-29')).toBe(1);
-
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    await layout(renderer, 5000);
-    await measure(renderer, 'image');
-    expect(idsOf(renderer)).toEqual([1, 2, 3, 100, 101, 200, 201]);
-    expect(calls('yesterday', '2026-09-29')).toBe(1);
-    expect(calls('thisWeek', 'thisWeek')).toBe(1);
-  });
-
-  it('a failing next section stops the chain at its retry row (no spinning); retrying resumes it', async () => {
-    server(3, 2, 2);
-    const working = jest.mocked(getItemHistory).getMockImplementation()!;
-    jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) => {
-      if (options.fromUtc === WINDOWS.yesterday.fromUtc) {
-        throw new Error('offline');
-      }
-      return working(request, options);
-    });
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    await layout(renderer, 5000);
-    await measure(renderer, 'image', 20);
-
-    expect(idsOf(renderer)).toEqual([1, 2, 3]);
-    expect(calls('yesterday', '2026-09-29')).toBe(1);
-    expect(calls('thisWeek', 'thisWeek')).toBe(0);
-    const errorRow = feedRows(renderer).find(row => row.kind === 'flatError')!;
-    expect(errorRow).toBeDefined();
-
-    jest.mocked(getItemHistory).mockImplementation(working);
-    const retry = renderPart(getList(renderer).props.renderItem({ item: errorRow, index: 1 })).root
-      .find(node => String(node.props.testID).startsWith('history-section-retry') && typeof node.props.onPress === 'function');
-    await act(async () => {
-      retry.props.onPress();
-    });
-    await measure(renderer, 'image', 20);
-    expect(idsOf(renderer)).toEqual([1, 2, 3, 100, 101, 200, 201]);
-    expect(calls('yesterday', '2026-09-29')).toBe(2);
-  });
-
-  it('asks for nothing more when there is no more history, however empty the screen', async () => {
-    server(3, 0, 0);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    await layout(renderer, 5000);
-    await measure(renderer, 'image', 20);
-
-    expect(idsOf(renderer)).toEqual([1, 2, 3]);
-    expect(jest.mocked(getItemHistory)).toHaveBeenCalledTimes(1);
-  });
-
-  it('never loops: however many layout passes, each section is requested exactly once', async () => {
-    server(7, 5, 16);
-    const renderer = await renderScreen();
-    await setView(renderer, 'image');
-    await setGrouping(renderer, 'continuous');
-    await layout(renderer, 99999);
-    await measure(renderer, 'image', 40);
-    await layout(renderer, 99999);
-    await measure(renderer, 'image', 40);
-
-    expect(jest.mocked(getItemHistory)).toHaveBeenCalledTimes(3);
-    expect(new Set(idsOf(renderer)).size).toBe(28);
-  });
-
-  it('search is untouched: no archive paging while a search is showing', async () => {
-    jest.useFakeTimers();
-    try {
-      server(3, 5, 0);
-      const normal = jest.mocked(getItemHistory).getMockImplementation()!;
-      jest.mocked(getItemHistory).mockImplementation(async (request, options: GetItemHistoryOptions = {}) =>
-        options.q === undefined ? normal(request, options) : { items: [makeItem({ id: 900, title: 'Quokka' })], nextCursor: null });
-      const renderer = await renderScreen();
-      await setGrouping(renderer, 'continuous');
-      const field = header(renderer).root.findByType(SearchField);
-      await act(async () => {
-        field.props.onChangeText('quokka');
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(ARCHIVE_SEARCH_DEBOUNCE_MS + 10);
-      });
-      await layout(renderer, 5000);
-      await measure(renderer, 'list');
-
-      expect(calls('yesterday', '2026-09-29')).toBe(0);
-    } finally {
-      jest.useRealTimers();
-    }
+  it('keys every row by its first link, so a later page never reshuffles the lines already there', () => {
+    const more = [...items, ...[4, 5, 6, 7].map(id => makeItem({ id }))];
+    expect(buildFlatRows(more, 'image').slice(0, 1).map(row => row.key)).toEqual(buildFlatRows(items, 'image').map(row => row.key));
   });
 });

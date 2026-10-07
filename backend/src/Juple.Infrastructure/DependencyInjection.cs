@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountDeletionBlobCleanupStore, AccountDeletionBlobCleanupStore>();
         services.AddScoped<IBlobCleanupService, BlobCleanupService>();
         services.AddScoped<IInboxEntryStore, ItemStore>();
+        services.AddScoped<Juple.Application.Support.ISupportInquiryStore, Juple.Infrastructure.Support.SupportInquiryStore>();
         services.AddScoped<IItemLifecycleStore, ItemStore>();
         services.AddScoped<IItemDetailsStore, ItemStore>();
         services.AddScoped<IItemDetailQueryStore, ItemStore>();

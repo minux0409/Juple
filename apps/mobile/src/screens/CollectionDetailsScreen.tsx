@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -90,6 +90,7 @@ import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkG
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
+import { SavedLinkImageRow } from '../components/SavedLinkImageTile';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { LinkSortChips } from '../components/LinkSortChips';
 import { PendingActionRow } from '../components/PendingActionRow';
@@ -98,6 +99,7 @@ import { closeOpenRow } from '../components/swipeableRowCoordinator';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
 import {
   buildDateSectionRows,
+  DATE_SECTION_IMAGE_LINE_STYLE,
   DateSectionErrorRow,
   DateSectionGridRow,
   DateSectionSkeletonRow,
@@ -121,14 +123,16 @@ import { MoreIcon } from '../icons/MoreIcon';
 import { CollectionTargetPickerDialog } from '../collections/CollectionTargetPickerDialog';
 import { sortCollectionItemsByName } from '../collections/sortCollectionItems';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
+import { buildFlatItemRows, type FlatItemRow } from '../items/flatItemRows';
 import { historySectionLabel } from '../items/historyDateGrouping';
+import { END_REACHED_THRESHOLD, useContinuousViewportFill } from '../items/useContinuousViewportFill';
 import { useDateSectionPages, type DateSectionPagesSource } from '../items/useDateSectionPages';
 import { shareItem } from '../items/shareItem';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { SocialPushEventType } from '../push/pushEvents';
-import { useViewModePreference } from '../settings/viewModePreference';
+import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
@@ -242,8 +246,17 @@ function getNameValidationError(name: string, t: TFunction): string | null {
  * identical. This is purely a display-shape adapter, not a new domain concept - CollectionItemEntry
  * remains the real API type everywhere else in this screen.
  */
+// One shared-row object per Collection item, so the memoized image tiles are not redrawn by every render, and a
+// tapped tile can name the Collection item it came from.
+const rowItemByEntry = new WeakMap<CollectionItemEntry, ItemHistoryEntry>();
+const entryByRowItem = new WeakMap<ItemHistoryEntry, CollectionItemEntry>();
+
 function toSavedLinkRowItem(item: CollectionItemEntry): ItemHistoryEntry {
-  return {
+  const cached = rowItemByEntry.get(item);
+  if (cached) {
+    return cached;
+  }
+  const rowItem: ItemHistoryEntry = {
     id: item.itemId,
     url: item.url,
     title: item.title,
@@ -253,7 +266,13 @@ function toSavedLinkRowItem(item: CollectionItemEntry): ItemHistoryEntry {
     previewImageUrl: item.previewImageUrl,
     coverImage: item.coverImage,
   };
+  rowItemByEntry.set(item, rowItem);
+  entryByRowItem.set(rowItem, item);
+  return rowItem;
 }
+
+const collectionItemAccessors = { idOf: (item: CollectionItemEntry) => item.itemId };
+type CollectionFlatRow = FlatItemRow<CollectionItemEntry>;
 
 /**
  * A single Collection's detail: rename/delete the Collection itself, and its Item list
@@ -373,16 +392,20 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // from its link count, or found while loading - stays on 시간순 instead of a partial name order.
   const [isNameOrderTooLarge, setIsNameOrderTooLarge] = useState(false);
   const isNameOrderUnavailable = isNameOrderTooLarge || (collection?.itemCount ?? 0) > NAME_ORDER_MAX_LINKS;
-  // Search pages are ordered by the server's date cursor. Show that order in the controls,
-  // including when the saved full-list preference was name order.
-  const effectiveSort = isNameSort(sortOption) && (isNameOrderUnavailable || searchText.trim().length >= 2) ? 'newest' : sortOption;
+  // The chips always show the order really in effect, searching included: the server search pages in the chosen
+  // order too (see searchSort), so typing never rewrites 이름순 to 시간순. Only a Collection too large for a whole-list
+  // name order stays on 시간순.
+  const effectiveSort = isNameSort(sortOption) && isNameOrderUnavailable ? 'newest' : sortOption;
   // 시간순 (newest ↓ / oldest ↑): the Collection's date sections and exact counts first, then each
   // expanded section's links from the server a page at a time (see useDateSectionPages). 이름순
   // loads the whole Collection first and sorts it here (see NAME_ORDER_MAX_LINKS).
   const dateSortDirection = isNameSort(effectiveSort) ? null : effectiveSort;
   const isDateOrder = dateSortDirection !== null;
+  // Picking links to copy marks each card, which an image tile has no room for: selection shows Grid instead.
+  const layoutMode: SavedLinkViewMode = selectedItemIds && viewMode === 'image' ? 'grid' : viewMode;
   const pageSort = dateSortDirection === 'oldest' ? 'dateAsc' : 'dateDesc';
-  const search = useCollectionSearch(collectionId, searchText, pageSort);
+  const searchSort = effectiveSort === 'title' ? 'nameAsc' : effectiveSort === 'titleDesc' ? 'nameDesc' : pageSort;
+  const search = useCollectionSearch(collectionId, searchText, searchSort);
   const refreshSearch = search.refresh;
 
   const nameOrdered = useCollectionItems(collectionId, 'whole', !isDateOrder);
@@ -478,10 +501,42 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   }, [dated.sections, ensureDateSectionLoaded, expandedDateKeys, isDateOrder]);
   const dateRows = useMemo(
-    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), viewMode === 'grid' ? 'grid' : 'list', item => item.itemId) : []),
-    [dateSections, dated.pages, expandedDateKeys, isDateOrder, viewMode],
+    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), layoutMode, item => item.itemId) : []),
+    [dateSections, dated.pages, expandedDateKeys, isDateOrder, layoutMode],
   );
   const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(dated.pages, dated.loadMore);
+  // 이름순 holds the whole Collection already: Image is just its links packed three to a line.
+  const nameImageRows = useMemo<readonly CollectionFlatRow[]>(
+    () => (!isDateOrder && layoutMode === 'image' ? buildFlatItemRows(displayedItems, 'image', collectionItemAccessors) : []),
+    [displayedItems, isDateOrder, layoutMode],
+  );
+  // Search results: one flat run in the server's date order (the search endpoint has no name order, so a name-sorted
+  // Collection shows the same newest-first results while searching) - from the one server search.
+  const searchRows = useMemo<readonly CollectionFlatRow[]>(
+    () => (search.isSearching ? buildFlatItemRows(search.items, layoutMode, collectionItemAccessors) : []),
+    [layoutMode, search.isSearching, search.items],
+  );
+  // The search result list fills itself while the loaded links do not fill the viewport (dense Image lines would
+  // otherwise never ask for another page).
+  const advanceSearch = () => {
+    if (search.hasMore && !search.isLoading && !search.isLoadingMore && !search.error) {
+      search.loadMore();
+    }
+  };
+  const fillKey = useMemo(
+    () => [search.items, search.isLoading, search.isLoadingMore, search.error, search.hasMore],
+    [search.error, search.hasMore, search.isLoading, search.isLoadingMore, search.items],
+  );
+  const viewportFill = useContinuousViewportFill({ advance: advanceSearch, dataKey: fillKey, enabled: search.isSearching && !isContentLocked });
+  // One stable callback for every (memoized) image tile - the same open path as a card's tap (set below, where the
+  // Collection is known).
+  const openCollectionItemRef = useRef<(item: CollectionItemEntry) => void>(() => undefined);
+  const openImageTile = useCallback((rowItem: ItemHistoryEntry) => {
+    const entry = entryByRowItem.get(rowItem);
+    if (entry) {
+      openCollectionItemRef.current(entry);
+    }
+  }, []);
   const toggleDateSection = (dateKey: string) => {
     setExpandedDateKeys(previous => {
       const next = new Set(previous ?? []);
@@ -1353,6 +1408,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
    * One link of this Collection as a swipeable List row or Grid tile - the same in the flat 이름순
    * list and inside a 시간순 date section (which passes its accordion card's own row style).
    */
+  const openCollectionItem = (item: CollectionItemEntry) => {
+    if (item.isMine !== false) {
+      // Opened from this Collection: its delete action removes the link from here only.
+      navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: true, isCollectionOwner: isOwner, isCollaborative: reactionsEnabled } });
+    } else {
+      navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId, isCollectionOwner: isOwner });
+    }
+  };
+  openCollectionItemRef.current = openCollectionItem;
+
   const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>) => {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
     // would be a 404 anyway), and never offered Add/Move - those act on one's own Items.
@@ -1379,7 +1444,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     ) : undefined;
     // The frame is the same one Home/History use (see savedLinkLayout.ts): a List card, or a Grid tile
     // inside its 50% cell. A caller that places the item itself (a date section) passes its own frame.
-    const isGrid = viewMode === 'grid';
+    const isGrid = layoutMode === 'grid';
     const wrapInGridCell = isGrid && containerStyle === undefined;
     const frameStyle = containerStyle ?? (isGrid ? savedLinkGridLayout.swipeContainer : savedLinkLayout.card);
     const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={savedLinkGridLayout.cell}>{node}</View> : node);
@@ -1397,7 +1462,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testID={`collection-copy-select-${item.itemId}`}
         >
           <View>
-            {viewMode === 'grid' ? (
+            {layoutMode === 'grid' ? (
               <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" isActionInFlight={false} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
             ) : (
               <SavedLinkRow addedBy={addedBy} dateDisplayMode="dateTime" isActionInFlight={false} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
@@ -1421,14 +1486,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         // Long-press opens the 복제/이동 menu in both List and Grid - the one way in (a List row no
         // longer has its own trailing "..." for it).
         onLongPress={canManageItem || canCopyToMine || reactionsEnabled ? openItemMenu : undefined}
-        onPress={() => {
-          if (isMine) {
-            // Opened from this Collection: its delete action removes the link from here only.
-            navigation.navigate('ItemDetails', { itemId: item.itemId, collectionContext: { collectionId, canRemove: isOwner || isMine, isCollectionOwner: isOwner, isCollaborative: reactionsEnabled } });
-          } else {
-            navigation.navigate('CollectionSharedItem', { collectionId, itemId: item.itemId, isCollectionOwner: isOwner });
-          }
-        }}
+        onPress={() => openCollectionItem(item)}
         onShare={() => shareItemAction(item)}
       >
         {/* Exactly Home/History's own row/tile - see SavedLinkRow.tsx/SavedLinkGridCard.tsx -
@@ -1437,7 +1495,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             because a Category's items span arbitrary dates, never a single grouped day the way
             a History section does - matches this row's own prior "always show the full date"
             behavior exactly - Grid passes the same mode, so both show the identical timestamp. */}
-        {viewMode === 'grid' ? (
+        {layoutMode === 'grid' ? (
           <SavedLinkGridCard addedBy={addedBy} dateDisplayMode="dateTime" reactions={reactionFooter} isActionInFlight={itemActionInFlightId === item.itemId} item={toSavedLinkRowItem(item)} preferEffectiveThumbnail />
         ) : (
           <SavedLinkRow
@@ -1613,9 +1671,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testIDPrefix="collection-sort"
         />
         <View style={styles.sortRowSpacer} />
-        <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+        <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
       </View>
-      {/* [시간순] [이름순] ... [List/Grid], then 링크 검색 right above the links - the server-backed search of this Collection. */}
+      {/* [시간순] [이름순] ... [List/Grid/Image], then 링크 검색 right above the links - the server-backed search of this Collection. */}
       {isContentLocked ? null : (
         <View style={styles.searchBox}>
           <SearchField
@@ -1663,6 +1721,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     </View>
   ) : !error ? <CenteredEmptyState message={t('collections.itemsEmpty')} /> : undefined;
 
+  const renderFlatRow = ({ item: row }: { item: CollectionFlatRow }) => {
+    switch (row.kind) {
+      case 'flatItem':
+        return renderCollectionItem(row.item);
+      case 'flatGridRow':
+        return (
+          <View style={styles.flatGridRow} testID={`collection-flat-grid-row-${row.key}`}>
+            {row.items.map(item => <Fragment key={item.itemId}>{renderCollectionItem(item)}</Fragment>)}
+            {row.items.length === 1 ? <View style={savedLinkGridLayout.cell} /> : null}
+          </View>
+        );
+      case 'flatImageRow':
+        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onPress={openImageTile} testID={`collection-flat-image-row-${row.key}`} />;
+    }
+  };
+
   const renderDateRow = ({ item: row }: { item: DateSectionRow<CollectionItemEntry> }) => {
     switch (row.kind) {
       case 'header':
@@ -1687,8 +1761,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
             ))}
           </DateSectionGridRow>
         );
+      case 'imageRow':
+        // Image view inside a date card: lines of tiles as the card's body (one virtualized list row per line).
+        return (
+          <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} style={[DATE_SECTION_IMAGE_LINE_STYLE, row.isLast && styles.imageSectionLast]} testID={`collection-date-image-${row.section.key}-${row.position}`}>
+            <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onPress={openImageTile} testID={`collection-image-line-${row.section.key}-${row.position}`} />
+          </DateSectionGridRow>
+        );
       case 'skeleton':
-        return <DateSectionSkeletonRow grid={row.grid} isFirst={row.isFirst} isLast={row.isLast} testID="collection-items-skeleton" />;
+        return <DateSectionSkeletonRow grid={row.grid} image={row.image} isFirst={row.isFirst} isLast={row.isLast} testID="collection-items-skeleton" />;
       case 'error':
         return (
           <DateSectionErrorRow
@@ -1713,12 +1794,11 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       <KeyboardSafeView enabled={isContentLocked}>
       {search.isSearching && !isContentLocked ? (
         <FlatList
-          key={`collection-search-${viewMode}`}
+          key="collection-search"
           contentContainerStyle={styles.content}
           style={styles.list}
-          data={search.items}
-          keyExtractor={item => item.itemId.toString()}
-          numColumns={viewMode === 'grid' ? 2 : 1}
+          data={searchRows}
+          keyExtractor={row => row.key}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
           ListHeaderComponent={listHeader}
@@ -1732,14 +1812,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           ListFooterComponent={search.items.length > 0 && search.error ? (
             <RefreshFailureNotice onRetry={search.loadMore} testID="collection-search-more-error" />
           ) : search.isLoadingMore ? <ActivityIndicator style={styles.searchStatus} /> : undefined}
+          onContentSizeChange={viewportFill.onContentSizeChange}
           onEndReached={search.loadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={END_REACHED_THRESHOLD}
+          onLayout={viewportFill.onLayout}
           onScrollBeginDrag={closeOpenRow}
-          renderItem={({ item }) => renderCollectionItem(item)}
+          renderItem={renderFlatRow}
         />
       ) : isDateOrder && !isContentLocked ? (
-        // One virtualized list: headers, the loaded rows of expanded dates (in image view one list
-        // row per pair of tiles), skeletons while a page is on its way, and a retry row.
+        // 시간순: one virtualized list: headers, the loaded rows of expanded dates (in image view one list
+        // row per line of tiles), skeletons while a page is on its way, and a retry row.
         <FlatList
           key="date-list"
           contentContainerStyle={styles.content}
@@ -1758,14 +1840,32 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           onScrollBeginDrag={closeOpenRow}
           renderItem={renderDateRow}
         />
+      ) : layoutMode === 'image' ? (
+        // 이름순 + Image: the whole name-ordered Collection, three tiles to a line.
+        <FlatList
+          key="name-image-list"
+          contentContainerStyle={styles.content}
+          style={styles.list}
+          data={isContentLocked ? [] : nameImageRows}
+          keyExtractor={row => row.key}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refreshAll} />}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          onScrollBeginDrag={closeOpenRow}
+          renderItem={renderFlatRow}
+        />
       ) : (
         <FlatList
-          key={viewMode}
+          key={layoutMode}
           contentContainerStyle={styles.content}
           style={styles.list}
           data={isContentLocked ? [] : displayedItems}
           keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
-          numColumns={viewMode === 'grid' ? 2 : 1}
+          numColumns={layoutMode === 'grid' ? 2 : 1}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}
@@ -2238,7 +2338,11 @@ const styles = StyleSheet.create({
   selectionPrimary: { backgroundColor: colors.brand },
   selectionPrimaryLabel: { color: colors.surface, fontSize: 15, fontWeight: '700' },
   skeletonRow: { overflow: 'hidden' },
-  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
+  // Wraps only when the sort chips and the three-option view switch genuinely do not fit side by side (the switch keeps the end edge).
+  sortRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
+  viewModeToggle: { marginStart: 'auto' },
+  flatGridRow: { flexDirection: 'row' },
+  imageSectionLast: { paddingBottom: spacing.xs },
   searchBox: { marginBottom: LINK_CONTROLS_BOTTOM_GAP },
   searchHint: { color: colors.textSecondary, fontSize: 12, marginTop: spacing.xs },
   searchStatus: { marginTop: spacing.xl },

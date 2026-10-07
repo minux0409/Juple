@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Archives",
-    "groupByDate": "Par date",
-    "groupAll": "Tous",
-    "groupingA11y": "Regrouper les liens",
     "searchPlaceholder": "Rechercher des liens",
     "searchClear": "Effacer la recherche",
     "searchEmpty": "Aucun résultat.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Supprimer la notification",
     "deleteFailed": "Impossible de supprimer la notification."
   },
-  "contact": {
-    "title": "Nous contacter",
-    "description": "Pour toute question sur Juple, écrivez-nous par e-mail.",
-    "sendEmail": "Envoyer un e-mail",
-    "subject": "Question sur Juple",
-    "noMailApp": "Impossible d’ouvrir une app de messagerie. Écrivez directement à {{email}}.",
-    "copyEmail": "Copier l’adresse e-mail"
-  },
   "importantState": {
     "loadFailedTitle": "Chargement impossible",
     "loadFailedMessage": "Impossible de charger les données.",
     "retry": "Réessayer"
+  },
+  "customerCenter": {
+    "title": "Centre d'aide",
+    "replayTutorial": "Revoir le tutoriel",
+    "faqHeading": "Questions fréquentes",
+    "inquiryHeading": "Contact",
+    "serviceInfoHeading": "Informations sur le service",
+    "terms": "Conditions d'utilisation",
+    "privacy": "Politique de confidentialité",
+    "appInfoHeading": "Informations sur l'app",
+    "version": "Version {{version}} (build {{build}})",
+    "openLinkFailed": "Impossible d'ouvrir le lien. Réessayez plus tard.",
+    "faq": {
+      "saveLinks": {
+        "question": "Comment enregistrer un lien ?",
+        "answer": "Collez une URL dans Juple, ou partagez un lien vers Juple depuis une autre app, comme un navigateur ou un réseau social. Avec l'enregistrement rapide activé, le lien partagé est enregistré tout de suite ; sinon, vous choisissez des collections et ajoutez une note avant d'enregistrer."
+      },
+      "collections": {
+        "question": "Comment utiliser les collections ?",
+        "answer": "Les collections vous permettent d'organiser vos liens à votre façon. Un lien peut appartenir à plusieurs collections, et vous pouvez en créer une nouvelle pendant l'enregistrement."
+      },
+      "archive": {
+        "question": "Où retrouver mes liens enregistrés ?",
+        "answer": "Accueil affiche les liens enregistrés aujourd'hui, et Archives contient tout ce que vous avez enregistré. Parcourez par date ou tout ensemble, passez entre les vues Liste, Grille et Image, et recherchez."
+      },
+      "sharedCollections": {
+        "question": "Comment fonctionnent les collections partagées ?",
+        "answer": "Vous pouvez partager une collection avec d'autres personnes. Ce que chaque participant peut faire dépend de l'autorisation accordée, et certaines autorisations peuvent exiger une approbation avant l'ajout d'un lien."
+      },
+      "locks": {
+        "question": "Comment fonctionnent les collections verrouillées ?",
+        "answer": "Le contenu d'une collection verrouillée reste masqué jusqu'au déverrouillage. Ses liens apparaissent masqués dans Accueil et Archives, et le mot de passe est demandé à chaque ouverture tant qu'elle est verrouillée."
+      },
+      "trash": {
+        "question": "Que deviennent les liens supprimés ?",
+        "answer": "Les liens supprimés vont dans Supprimés récemment, dans Ma page. Vous pouvez les restaurer ou les supprimer définitivement ; un lien supprimé définitivement est irrécupérable."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Passer",
+    "next": "Suivant",
+    "start": "Commencer",
+    "close": "Fermer",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Enregistrez vos liens facilement",
+        "description": "Collez une URL ou partagez un lien depuis votre navigateur ou réseau social. Avec l'enregistrement rapide, il est enregistré tout de suite."
+      },
+      "collections": {
+        "title": "Organisez à votre façon",
+        "description": "Enregistrez un lien dans une ou plusieurs collections, et créez une collection pendant l’enregistrement."
+      },
+      "find": {
+        "title": "Retrouvez vite vos liens",
+        "description": "Accueil affiche les liens du jour et Archives les contient tous. Parcourez par date ou tout ensemble, en vue Liste, Grille ou Image, et recherchez à tout moment."
+      },
+      "share": {
+        "title": "Utilisez les collections à plusieurs",
+        "description": "Partagez une collection avec d'autres personnes. Les autorisations définissent ce que chacun peut faire, et les liens peuvent nécessiter une approbation."
+      },
+      "lock": {
+        "title": "Verrouillez les collections sensibles",
+        "description": "Une collection verrouillée masque ses liens, et un mot de passe est nécessaire pour les ouvrir tant qu'elle est verrouillée."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Nous contacter",
+    "tabWrite": "Nous contacter",
+    "tabHistory": "Mes demandes",
+    "typeLabel": "Type de demande",
+    "typePlaceholder": "Sélectionnez",
+    "typePickerTitle": "Type de demande",
+    "contentLabel": "Votre demande",
+    "contentPlaceholder": "Saisissez votre demande",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Laissez-nous votre demande concernant l'utilisation de Juple.",
+    "helpNote2": "Vous pouvez consulter la réponse dans Mes demandes.",
+    "required": "Obligatoire",
+    "submit": "Envoyer",
+    "successMessage": "Votre demande a bien été reçue.",
+    "submitFailed": "Impossible d'envoyer votre demande. Réessayez dans un instant.",
+    "statusPending": "Reçue",
+    "statusAnswered": "Réponse reçue",
+    "types": {
+      "Account": "Compte",
+      "Subscription": "Paiement / Abonnement",
+      "LinkSaving": "Enregistrement de liens",
+      "CollectionSharing": "Collections / Partage",
+      "Bug": "Erreur / Bug",
+      "FeatureRequest": "Suggestion de fonctionnalité",
+      "Other": "Autre"
+    },
+    "historyEmpty": "Vous n'avez encore envoyé aucune demande.",
+    "detailTitle": "Détail de la demande",
+    "contentHeading": "Demande",
+    "receivedAt": "Reçue le",
+    "answerHeading": "Réponse",
+    "answeredAt": "Répondue le",
+    "awaitingAnswer": "En attente de réponse.",
+    "notFound": "Cette demande est introuvable.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

@@ -53,6 +53,10 @@ public sealed class ItemsController(
     /// Optional q (2-100 characters after trimming) searches the caller's OWN whole archive instead -
     /// title, link (host / site) or memo contain it - newest first, same cursor/page shape; it cannot
     /// be combined with fromUtc/toUtc, and Trash is never searched.
+    /// Optional sort: "time" (the default - newest saved first, unchanged) or "name" - the WHOLE archive A-Z by name
+    /// (titled links by title, then title-less ones by site, then links still behind a Collection lock last with no key,
+    /// so the order never reveals a hidden title), keyset-paged with its own cursor. It works with q, but not with
+    /// fromUtc/toUtc, and a cursor of one sort is not valid for the other.
     /// </summary>
     [HttpGet("history")]
     public async Task<IActionResult> GetHistoryAsync(
@@ -61,8 +65,33 @@ public sealed class ItemsController(
         CancellationToken cancellationToken,
         [FromQuery] DateTimeOffset? fromUtc = null,
         [FromQuery] DateTimeOffset? toUtc = null,
-        [FromQuery] string? q = null)
+        [FromQuery] string? q = null,
+        [FromQuery] string? sort = null)
     {
+        var historySort = ItemHistorySort.Time;
+        if (sort is not null)
+        {
+            if (string.Equals(sort, "name", StringComparison.Ordinal))
+            {
+                historySort = ItemHistorySort.Name;
+            }
+            else if (!string.Equals(sort, "time", StringComparison.Ordinal))
+            {
+                return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+                {
+                    ["sort"] = ["sort must be \"time\" or \"name\"."],
+                }));
+            }
+        }
+
+        if (historySort == ItemHistorySort.Name && (fromUtc is not null || toUtc is not null))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["sort"] = ["sort=name covers the whole archive and cannot be combined with fromUtc/toUtc."],
+            }));
+        }
+
         string? searchTerm = null;
         if (q is not null)
         {
@@ -103,12 +132,21 @@ public sealed class ItemsController(
             }));
         }
 
+        // A cursor belongs to the order it was issued for: a name cursor carries its bucket/key, a time cursor does not.
+        if (typedCursor is not null && (typedCursor.NameBucket is not null) != (historySort == ItemHistorySort.Name))
+        {
+            return BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
+            {
+                ["cursor"] = ["cursor does not belong to this sort."],
+            }));
+        }
+
         try
         {
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var page = fromUtc is null && toUtc is null
-                ? await getItemHistoryService.GetAsync(currentUser.UserId, typedCursor, resolvedLimit, searchTerm, cancellationToken)
+                ? await getItemHistoryService.GetAsync(currentUser.UserId, typedCursor, resolvedLimit, searchTerm, historySort, cancellationToken)
                 : await getItemHistoryService.GetRangeAsync(
                     currentUser.UserId,
                     fromUtc ?? DateTimeOffset.MinValue,

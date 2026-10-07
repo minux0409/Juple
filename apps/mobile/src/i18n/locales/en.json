@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Archive",
-    "groupByDate": "By date",
-    "groupAll": "All",
-    "groupingA11y": "Group links",
     "searchPlaceholder": "Search links",
     "searchClear": "Clear search",
     "searchEmpty": "No results.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Delete notification",
     "deleteFailed": "Couldn’t delete the notification."
   },
-  "contact": {
-    "title": "Contact us",
-    "description": "If you have any questions about Juple, email us.",
-    "sendEmail": "Send email",
-    "subject": "Juple inquiry",
-    "noMailApp": "Couldn't open a mail app. Please email {{email}} directly.",
-    "copyEmail": "Copy email address"
-  },
   "importantState": {
     "loadFailedTitle": "Couldn’t load",
     "loadFailedMessage": "Your records could not be loaded.",
     "retry": "Try again"
+  },
+  "customerCenter": {
+    "title": "Customer Center",
+    "replayTutorial": "View tutorial again",
+    "faqHeading": "Frequently asked questions",
+    "inquiryHeading": "Contact",
+    "serviceInfoHeading": "Service information",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "appInfoHeading": "App information",
+    "version": "Version {{version}} (build {{build}})",
+    "openLinkFailed": "Couldn't open the link. Please try again later.",
+    "faq": {
+      "saveLinks": {
+        "question": "How do I save a link?",
+        "answer": "Paste a URL into Juple, or share a link to Juple from another app such as a browser or social app. With Quick Save on, a shared link is saved right away; with it off, you choose Collections and add a memo before saving."
+      },
+      "collections": {
+        "question": "How do I use Collections?",
+        "answer": "Collections let you organize links your own way. One link can belong to several Collections, and you can create a new Collection while you save."
+      },
+      "archive": {
+        "question": "Where do I find saved links?",
+        "answer": "Home shows today's saved links, and Archive holds everything you've saved. Browse by date or all together, switch between List, Grid and Image views, and search."
+      },
+      "sharedCollections": {
+        "question": "How do shared Collections work?",
+        "answer": "You can share a Collection with other people. What each participant can do depends on the permission you give, and some permissions may need approval before a link is added."
+      },
+      "locks": {
+        "question": "How do locked Collections work?",
+        "answer": "The content of a locked Collection stays hidden until you unlock it. Its links appear redacted in Home and Archive, and the password is asked every time you open one while it is locked."
+      },
+      "trash": {
+        "question": "What happens to deleted links?",
+        "answer": "Deleted links move to Recently Deleted in My Page. You can restore them there or delete them permanently; permanently deleted links cannot be brought back."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Get started",
+    "close": "Close",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Save links with ease",
+        "description": "Paste a URL, or share a link from your browser or social app. With Quick Save on, it's saved right away."
+      },
+      "collections": {
+        "title": "Organize it your way",
+        "description": "Save a link to one or several Collections, and create a new Collection while you save."
+      },
+      "find": {
+        "title": "Find saved links fast",
+        "description": "Home shows today's links and Archive has them all. Browse by date or all together, in List, Grid or Image view, and search anytime."
+      },
+      "share": {
+        "title": "Use Collections together",
+        "description": "Share a Collection with others. Permissions decide what each person can do, and links may need approval."
+      },
+      "lock": {
+        "title": "Lock sensitive Collections",
+        "description": "A locked Collection hides its links, and a password is needed to open them while it is locked."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Contact us",
+    "tabWrite": "Contact us",
+    "tabHistory": "My inquiries",
+    "typeLabel": "Inquiry type",
+    "typePlaceholder": "Please select",
+    "typePickerTitle": "Inquiry type",
+    "contentLabel": "Inquiry",
+    "contentPlaceholder": "Please enter your inquiry",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Leave an inquiry about using the Juple service.",
+    "helpNote2": "You can see the answer under My inquiries.",
+    "required": "Required",
+    "submit": "Submit",
+    "successMessage": "Your inquiry has been received.",
+    "submitFailed": "We couldn't send your inquiry. Please try again in a moment.",
+    "statusPending": "Received",
+    "statusAnswered": "Answered",
+    "types": {
+      "Account": "Account",
+      "Subscription": "Payment / Subscription",
+      "LinkSaving": "Saving links",
+      "CollectionSharing": "Collections / Sharing",
+      "Bug": "Error / Bug",
+      "FeatureRequest": "Feature request",
+      "Other": "Other"
+    },
+    "historyEmpty": "You haven't sent any inquiries yet.",
+    "detailTitle": "Inquiry details",
+    "contentHeading": "Inquiry",
+    "receivedAt": "Received on",
+    "answerHeading": "Answer",
+    "answeredAt": "Answered on",
+    "awaitingAnswer": "Waiting for an answer.",
+    "notFound": "This inquiry could not be found.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

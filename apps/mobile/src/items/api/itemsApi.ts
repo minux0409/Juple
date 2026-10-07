@@ -47,6 +47,11 @@ export interface ItemHistoryPage {
 
 export interface GetItemHistoryOptions {
   readonly limit?: number;
+  /**
+   * 'name': the WHOLE archive A-Z by name on the server (titled links by title, then title-less ones by site, then links
+   * still behind a Collection lock last) with its own cursor - never with fromUtc/toUtc. Omitted / 'time': newest saved first.
+   */
+  readonly sort?: 'time' | 'name';
   /** Opaque value from a previous ItemHistoryPage.nextCursor; never parsed or modified. */
   readonly cursor?: string;
   /**
@@ -77,6 +82,9 @@ export async function getItemHistory(
   }
   if (options.q) {
     query.set('q', options.q);
+  }
+  if (options.sort) {
+    query.set('sort', options.sort);
   }
   if (options.fromUtc) {
     query.set('fromUtc', options.fromUtc);

@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Archiv",
-    "groupByDate": "Nach Datum",
-    "groupAll": "Alle",
-    "groupingA11y": "Links gruppieren",
     "searchPlaceholder": "Links suchen",
     "searchClear": "Suche löschen",
     "searchEmpty": "Keine Ergebnisse.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Benachrichtigung löschen",
     "deleteFailed": "Die Benachrichtigung konnte nicht gelöscht werden."
   },
-  "contact": {
-    "title": "Kontakt",
-    "description": "Wenn Sie Fragen zu Juple haben, schreiben Sie uns eine E-Mail.",
-    "sendEmail": "E-Mail senden",
-    "subject": "Juple-Anfrage",
-    "noMailApp": "Es konnte keine E-Mail-App geöffnet werden. Bitte schreiben Sie direkt an {{email}}.",
-    "copyEmail": "E-Mail-Adresse kopieren"
-  },
   "importantState": {
     "loadFailedTitle": "Laden fehlgeschlagen",
     "loadFailedMessage": "Die Einträge konnten nicht geladen werden.",
     "retry": "Erneut versuchen"
+  },
+  "customerCenter": {
+    "title": "Kundencenter",
+    "replayTutorial": "Tutorial erneut ansehen",
+    "faqHeading": "Häufige Fragen",
+    "inquiryHeading": "Kontakt",
+    "serviceInfoHeading": "Serviceinformationen",
+    "terms": "Nutzungsbedingungen",
+    "privacy": "Datenschutzerklärung",
+    "appInfoHeading": "App-Informationen",
+    "version": "Version {{version}} (Build {{build}})",
+    "openLinkFailed": "Der Link konnte nicht geöffnet werden. Bitte versuche es später erneut.",
+    "faq": {
+      "saveLinks": {
+        "question": "Wie speichere ich einen Link?",
+        "answer": "Füge eine URL in Juple ein oder teile einen Link aus einer anderen App, etwa einem Browser oder sozialen Netzwerk, mit Juple. Ist Schnellspeichern an, wird der geteilte Link sofort gespeichert; sonst wählst du Sammlungen und fügst eine Notiz hinzu, bevor du speicherst."
+      },
+      "collections": {
+        "question": "Wie nutze ich Sammlungen?",
+        "answer": "Mit Sammlungen ordnest du Links auf deine Weise. Ein Link kann in mehreren Sammlungen sein, und beim Speichern kannst du eine neue Sammlung anlegen."
+      },
+      "archive": {
+        "question": "Wo finde ich gespeicherte Links?",
+        "answer": "Start zeigt die heute gespeicherten Links, das Archiv enthält alles, was du gespeichert hast. Durchsuche nach Datum oder alles zusammen, wechsle zwischen Listen-, Raster- und Bildansicht und nutze die Suche."
+      },
+      "sharedCollections": {
+        "question": "Wie funktionieren geteilte Sammlungen?",
+        "answer": "Du kannst eine Sammlung mit anderen teilen. Was jede Person tun darf, hängt von der vergebenen Berechtigung ab; bei manchen Berechtigungen muss das Hinzufügen eines Links genehmigt werden."
+      },
+      "locks": {
+        "question": "Wie funktionieren gesperrte Sammlungen?",
+        "answer": "Der Inhalt einer gesperrten Sammlung bleibt verborgen, bis du sie entsperrst. Ihre Links erscheinen in Start und Archiv verdeckt, und beim Öffnen wird solange sie gesperrt ist jedes Mal das Passwort verlangt."
+      },
+      "trash": {
+        "question": "Was passiert mit gelöschten Links?",
+        "answer": "Gelöschte Links landen unter „Kürzlich gelöscht“ in Meine Seite. Dort kannst du sie wiederherstellen oder endgültig löschen; endgültig gelöschte Links lassen sich nicht zurückholen."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Überspringen",
+    "next": "Weiter",
+    "start": "Los geht’s",
+    "close": "Schließen",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Links einfach speichern",
+        "description": "Füge eine URL ein oder teile einen Link aus Browser oder sozialer App. Mit Schnellspeichern wird er sofort gespeichert."
+      },
+      "collections": {
+        "title": "Ordne es auf deine Weise",
+        "description": "Speichere einen Link in einer oder mehreren Sammlungen und lege beim Speichern eine neue Sammlung an."
+      },
+      "find": {
+        "title": "Gespeicherte Links schnell finden",
+        "description": "Start zeigt die Links von heute, das Archiv alle. Durchsuche nach Datum oder alles zusammen, in Listen-, Raster- oder Bildansicht, und suche jederzeit."
+      },
+      "share": {
+        "title": "Sammlungen gemeinsam nutzen",
+        "description": "Teile eine Sammlung mit anderen. Berechtigungen legen fest, was jede Person tun darf, und Links können eine Genehmigung brauchen."
+      },
+      "lock": {
+        "title": "Sensible Sammlungen sperren",
+        "description": "Eine gesperrte Sammlung verbirgt ihre Links, und zum Öffnen ist solange sie gesperrt ist ein Passwort nötig."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Kontakt",
+    "tabWrite": "Kontakt",
+    "tabHistory": "Meine Anfragen",
+    "typeLabel": "Art der Anfrage",
+    "typePlaceholder": "Bitte auswählen",
+    "typePickerTitle": "Art der Anfrage",
+    "contentLabel": "Anfrage",
+    "contentPlaceholder": "Bitte gib deine Anfrage ein",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Hinterlasse eine Anfrage zur Nutzung von Juple.",
+    "helpNote2": "Die Antwort findest du unter „Meine Anfragen“.",
+    "required": "Pflichtfeld",
+    "submit": "Senden",
+    "successMessage": "Deine Anfrage ist eingegangen.",
+    "submitFailed": "Deine Anfrage konnte nicht gesendet werden. Bitte versuche es gleich noch einmal.",
+    "statusPending": "Eingegangen",
+    "statusAnswered": "Beantwortet",
+    "types": {
+      "Account": "Konto",
+      "Subscription": "Zahlung / Abo",
+      "LinkSaving": "Links speichern",
+      "CollectionSharing": "Sammlungen / Teilen",
+      "Bug": "Fehler / Bug",
+      "FeatureRequest": "Funktionswunsch",
+      "Other": "Sonstiges"
+    },
+    "historyEmpty": "Du hast noch keine Anfragen gesendet.",
+    "detailTitle": "Anfrage-Details",
+    "contentHeading": "Anfrage",
+    "receivedAt": "Eingegangen am",
+    "answerHeading": "Antwort",
+    "answeredAt": "Beantwortet am",
+    "awaitingAnswer": "Warte auf eine Antwort.",
+    "notFound": "Diese Anfrage wurde nicht gefunden.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

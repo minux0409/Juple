@@ -5,8 +5,8 @@ import { EditIcon } from '../icons/EditIcon';
 import { FolderIcon } from '../icons/FolderIcon';
 import { GlobeIcon } from '../icons/GlobeIcon';
 import { HomeIcon } from '../icons/HomeIcon';
+import { InfoIcon } from '../icons/InfoIcon';
 import { LockIcon } from '../icons/LockIcon';
-import { MailIcon } from '../icons/MailIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UserIcon } from '../icons/UserIcon';
@@ -28,7 +28,7 @@ export const screenIcons = {
   trash: TrashIcon,
   account: UserIcon,
   language: GlobeIcon,
-  contact: MailIcon,
+  customerCenter: InfoIcon,
 } as const satisfies Record<string, ScreenTitleIcon>;
 
 /**

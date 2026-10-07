@@ -100,7 +100,7 @@ describe('useViewModePreference - the Image view', () => {
   });
 
   it('a screen that has no Image view treats a stored image as unknown: List, rewritten', async () => {
-    expect((await mount('collectionDetailsViewMode', 'image')).current!.viewMode).toBe('list');
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith('juple.collectionDetailsViewMode', 'list');
+    expect((await mount('trashViewMode', 'image')).current!.viewMode).toBe('list');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('juple.trashViewMode', 'list');
   });
 });

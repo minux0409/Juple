@@ -397,7 +397,7 @@ describe('CollectionDetailsScreen', () => {
     await act(async () => { await new Promise<void>(resolve => setTimeout(resolve, 350)); });
     expect(getCollectionItems).toHaveBeenCalledWith(expect.anything(), 1,
       expect.objectContaining({ q: 'needle', sort: 'dateDesc', limit: 30 }));
-    expect(renderer.root.findAllByType(FlatList).some(list => list.props.data?.some((row: CollectionItemEntry) => row.itemId === 73))).toBe(true);
+    expect(renderer.root.findAllByType(FlatList).some(list => list.props.data?.some((row: { item?: CollectionItemEntry }) => row.item?.itemId === 73))).toBe(true);
     await act(async () => { renderer.root.findByProps({ testID: 'collection-search-clear' }).props.onPress(); });
     expect(renderer.root.findByProps({ testID: 'collection-search' }).props.value).toBe('');
   });

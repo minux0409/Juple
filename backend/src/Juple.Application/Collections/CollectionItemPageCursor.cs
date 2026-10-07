@@ -16,6 +16,17 @@ public sealed record CollectionItemPageCursor(int SortOrder, long ItemId)
     /// <summary>Date orders only: the AddedAtUtc of the last link on the previous page.</summary>
     public DateTimeOffset AddedAtUtc { get; init; }
 
+    /// <summary>Name orders only: 0 = the link has a title, 1 = it has none (named by its host).</summary>
+    public int? NameBucket { get; init; }
+
+    /// <summary>Name orders only: the visible name (title, else host) of the last link on the previous page.</summary>
+    public string? NameKey { get; init; }
+
+    public static CollectionItemPageCursor ForName(CollectionItemSort sort, DateTimeOffset addedAtUtc, long itemId, int nameBucket, string nameKey) =>
+        sort is CollectionItemSort.NameAsc or CollectionItemSort.NameDesc
+            ? new CollectionItemPageCursor(0, itemId) { Sort = sort, AddedAtUtc = addedAtUtc, NameBucket = nameBucket, NameKey = nameKey }
+            : throw new ArgumentOutOfRangeException(nameof(sort), sort, "Only a name order has a name cursor.");
+
     public static CollectionItemPageCursor ForDate(CollectionItemSort sort, DateTimeOffset addedAtUtc, long itemId) =>
         sort is CollectionItemSort.DateDesc or CollectionItemSort.DateAsc
             ? new CollectionItemPageCursor(0, itemId) { Sort = sort, AddedAtUtc = addedAtUtc }

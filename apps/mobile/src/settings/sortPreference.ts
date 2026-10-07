@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** 시간순 ↓ newest / ↑ oldest, 이름순 ↑ title (A→Z) / ↓ titleDesc (Z→A). */
 export type LinkSortOption = 'newest' | 'oldest' | 'title' | 'titleDesc';
@@ -12,7 +12,7 @@ export const nextDateSort = (current: LinkSortOption): LinkSortOption => (curren
 
 /** Pressing 이름순: first press picks A→Z ↑; pressed again it flips ↑ ↔ ↓. */
 export const nextNameSort = (current: LinkSortOption): LinkSortOption => (current === 'title' ? 'titleDesc' : 'title');
-export type SortPreferenceKey = 'collectionDetailsLinkSort' | 'replicatePickerSort' | 'homeLinkSort' | 'trashLinkSort';
+export type SortPreferenceKey = 'collectionDetailsLinkSort' | 'replicatePickerSort' | 'homeLinkSort' | 'trashLinkSort' | 'historyLinkSort';
 
 const storageKey = (key: SortPreferenceKey) => `juple.${key}`;
 
@@ -26,21 +26,31 @@ const storageKey = (key: SortPreferenceKey) => `juple.${key}`;
  */
 export function useSortPreference(key: SortPreferenceKey, defaultValue: LinkSortOption = 'newest') {
   const [sortOption, setSortOptionState] = useState<LinkSortOption>(defaultValue);
+  // The stored value is read asynchronously: until `isReady`, `sortOption` is only the default. A screen whose FIRST request
+  // depends on the order (the Archive) waits for it, so it never fetches in an order the user is not using. A failed read
+  // still makes it ready - with the default - so a storage problem can never hold a screen back.
+  const [isReady, setIsReady] = useState(false);
+  const chosenByUser = useRef(false);
 
   useEffect(() => {
     let active = true;
-    void AsyncStorage.getItem(storageKey(key)).then(value => {
-      if (active && (value === 'newest' || value === 'oldest' || value === 'title' || value === 'titleDesc')) {
+    AsyncStorage.getItem(storageKey(key)).then(value => {
+      if (active && !chosenByUser.current && (value === 'newest' || value === 'oldest' || value === 'title' || value === 'titleDesc')) {
         setSortOptionState(value);
       }
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => {
+      if (active) {
+        setIsReady(true);
+      }
+    });
     return () => { active = false; };
   }, [key]);
 
   const setSortOption = (next: LinkSortOption) => {
+    chosenByUser.current = true;
     setSortOptionState(next);
     void AsyncStorage.setItem(storageKey(key), next).catch(() => undefined);
   };
 
-  return { sortOption, setSortOption } as const;
+  return { sortOption, setSortOption, isReady } as const;
 }

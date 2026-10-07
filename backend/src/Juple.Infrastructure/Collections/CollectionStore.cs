@@ -784,7 +784,8 @@ public sealed class CollectionStore(
         // Keyset position after the previous page, in the requested order. The date orders are over
         // the whole Collection (AddedAtUtc, ItemId) - never a re-sort of one page - and ItemId is
         // unique within a Collection, so equal timestamps still page without duplicates or gaps.
-        if (cursor is not null)
+        var isNameOrder = sort is CollectionItemSort.NameAsc or CollectionItemSort.NameDesc;
+        if (cursor is not null && !isNameOrder)
         {
             membershipQuery = sort switch
             {
@@ -812,6 +813,16 @@ public sealed class CollectionStore(
             activeItems = activeItems.Where(item =>
                 EF.Functions.Like(item.Url, searchPattern, ItemSearchPattern.EscapeCharacter)
                 || (item.Title != null && EF.Functions.Like(item.Title, searchPattern, ItemSearchPattern.EscapeCharacter)));
+        }
+
+        List<CollectionNameKey>? namePage = null;
+        if (isNameOrder)
+        {
+            // Link search only (the controller refuses a name order otherwise): the page of ids is chosen in SQL by the
+            // keyset below, then read with the normal projection and put back into this order.
+            namePage = await ReadNameOrderPageAsync(membershipQuery, activeItems, sort, cursor, limit, cancellationToken);
+            var pageIds = namePage.Select(entry => entry.Id).ToList();
+            membershipQuery = membershipQuery.Where(membership => pageIds.Contains(membership.ItemId));
         }
 
         var pagedQuery =
@@ -846,10 +857,16 @@ public sealed class CollectionStore(
         {
             CollectionItemSort.DateDesc => pagedQuery.OrderByDescending(row => row.AddedAtUtc).ThenByDescending(row => row.Id),
             CollectionItemSort.DateAsc => pagedQuery.OrderBy(row => row.AddedAtUtc).ThenBy(row => row.Id),
+            CollectionItemSort.NameAsc or CollectionItemSort.NameDesc => pagedQuery.OrderBy(row => row.Id),
             _ => pagedQuery.OrderBy(row => row.SortOrder).ThenBy(row => row.Id),
         };
 
         var page = await orderedQuery.Take(limit + 1).ToListAsync(cancellationToken);
+        if (namePage is not null)
+        {
+            var position = namePage.Select((entry, index) => (entry.Id, index)).ToDictionary(pair => pair.Id, pair => pair.index);
+            page = page.OrderBy(row => position[row.Id]).ToList();
+        }
 
         var hasMore = page.Count > limit;
         var pageRows = hasMore ? page.GetRange(0, limit) : page;
@@ -883,11 +900,89 @@ public sealed class CollectionStore(
 
         var nextCursor = !hasMore
             ? null
-            : sort == CollectionItemSort.Manual
-                ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].Id)
-                : CollectionItemPageCursor.ForDate(sort, pageRows[^1].AddedAtUtc, pageRows[^1].Id);
+            : namePage is not null
+                ? namePage.Where(entry => entry.Id == pageRows[^1].Id)
+                    .Select(entry => CollectionItemPageCursor.ForName(sort, entry.AddedAtUtc, entry.Id, entry.Bucket, entry.Key))
+                    .Single()
+                : sort == CollectionItemSort.Manual
+                    ? new CollectionItemPageCursor(pageRows[^1].SortOrder, pageRows[^1].Id)
+                    : CollectionItemPageCursor.ForDate(sort, pageRows[^1].AddedAtUtc, pageRows[^1].Id);
 
         return (new CollectionItemPage(items, nextCursor), representativeImages, coverImages);
+    }
+
+    private sealed record CollectionNameKey(long Id, DateTimeOffset AddedAtUtc, int Bucket, string Key);
+
+    /// <summary>
+    /// One page of ids in name order, keyed by (bucket, key, AddedAtUtc desc, ItemId desc): bucket 0 = the link has a
+    /// non-blank title (key = the title), bucket 1 = it has none (key = its host without a leading "www.") - the same
+    /// "title-less last, otherwise the visible name" rule as the app Collection 이름순. Only fields every viewer of
+    /// the Collection already sees on the card feed the key - never the memo or anything private - so the order cannot
+    /// reveal more than the cards do. NameDesc reverses only the key; title-less stays last and ties stay newest first.
+    /// Equal names compare under the database collation. The keyset is exact, so pages never repeat or skip a link.
+    /// </summary>
+    private static async Task<List<CollectionNameKey>> ReadNameOrderPageAsync(
+        IQueryable<CollectionItem> memberships,
+        IQueryable<Juple.Domain.Items.Item> activeItems,
+        CollectionItemSort sort,
+        CollectionItemPageCursor? cursor,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var rows =
+            from membership in memberships
+            join item in activeItems on membership.ItemId equals item.Id
+            select new
+            {
+                item.Id,
+                membership.AddedAtUtc,
+                item.Title,
+                // What follows the scheme ("www.example.com/path?x"); links are http(s) URLs.
+                AfterScheme = item.Url.Substring(item.Url.IndexOf("://") + 3),
+            };
+        var withHost = rows.Select(row => new
+        {
+            row.Id,
+            row.AddedAtUtc,
+            row.Title,
+            Host = row.AfterScheme.IndexOf("/") >= 0 ? row.AfterScheme.Substring(0, row.AfterScheme.IndexOf("/")) : row.AfterScheme,
+        });
+        var keyed = withHost.Select(row => new
+        {
+            row.Id,
+            row.AddedAtUtc,
+            Bucket = row.Title != null && row.Title.Trim() != "" ? 0 : 1,
+            Key = row.Title != null && row.Title.Trim() != ""
+                ? row.Title
+                : row.Host.StartsWith("www.") ? row.Host.Substring(4) : row.Host,
+        });
+
+        if (cursor is { NameBucket: { } cursorBucket, NameKey: { } cursorKey })
+        {
+            var cursorAddedAt = cursor.AddedAtUtc;
+            var cursorId = cursor.ItemId;
+            keyed = sort == CollectionItemSort.NameAsc
+                ? keyed.Where(row =>
+                    row.Bucket > cursorBucket
+                    || (row.Bucket == cursorBucket && string.Compare(row.Key, cursorKey) > 0)
+                    || (row.Bucket == cursorBucket && row.Key == cursorKey
+                        && (row.AddedAtUtc < cursorAddedAt || (row.AddedAtUtc == cursorAddedAt && row.Id < cursorId))))
+                : keyed.Where(row =>
+                    row.Bucket > cursorBucket
+                    || (row.Bucket == cursorBucket && string.Compare(row.Key, cursorKey) < 0)
+                    || (row.Bucket == cursorBucket && row.Key == cursorKey
+                        && (row.AddedAtUtc < cursorAddedAt || (row.AddedAtUtc == cursorAddedAt && row.Id < cursorId))));
+        }
+
+        var ordered = sort == CollectionItemSort.NameAsc
+            ? keyed.OrderBy(row => row.Bucket).ThenBy(row => row.Key)
+            : keyed.OrderBy(row => row.Bucket).ThenByDescending(row => row.Key);
+        var page = await ordered
+            .ThenByDescending(row => row.AddedAtUtc)
+            .ThenByDescending(row => row.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken);
+        return page.Select(row => new CollectionNameKey(row.Id, row.AddedAtUtc, row.Bucket, row.Key)).ToList();
     }
 
     /// <summary>

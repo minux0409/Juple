@@ -19,7 +19,7 @@ describe('navigation identity: one icon per navigation item', () => {
     expect(tabs).toMatch(/screenIcons\.myPage/);
     expect(tabs).not.toMatch(/ClockIcon/);
     const stack: string = require('fs').readFileSync(require('path').resolve(__dirname, '../RootStack.tsx'), 'utf8');
-    for (const key of ['friends', 'language', 'collectionLock', 'trash', 'contact', 'account']) {
+    for (const key of ['friends', 'language', 'collectionLock', 'trash', 'customerCenter', 'account']) {
       expect(stack).toMatch(new RegExp(`screenIcons\\.${key}`));
     }
   });
@@ -41,13 +41,13 @@ describe('navigation identity: one icon per navigation item', () => {
   });
 
   it('headerTitleWithIcon gives a stack screen [icon] Title as its header title', () => {
-    const options = headerTitleWithIcon(screenIcons.contact, 'Contact us');
+    const options = headerTitleWithIcon(screenIcons.customerCenter, 'Customer Center');
     let renderer!: ReactTestRenderer.ReactTestRenderer;
     act(() => {
       renderer = ReactTestRenderer.create(options.headerTitle());
     });
 
-    expect(renderer.root.findByType(screenIcons.contact)).toBeDefined();
-    expect(renderer.root.findByType(Text).props.children).toBe('Contact us');
+    expect(renderer.root.findByType(screenIcons.customerCenter)).toBeDefined();
+    expect(renderer.root.findByType(Text).props.children).toBe('Customer Center');
   });
 });

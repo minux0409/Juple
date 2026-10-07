@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "典藏庫",
-    "groupByDate": "依日期",
-    "groupAll": "全部",
-    "groupingA11y": "連結分組方式",
     "searchPlaceholder": "搜尋連結",
     "searchClear": "清除搜尋",
     "searchEmpty": "沒有結果。",
@@ -777,17 +774,113 @@
     "deleteA11y": "刪除通知",
     "deleteFailed": "無法刪除通知。"
   },
-  "contact": {
-    "title": "聯絡我們",
-    "description": "如對 Juple 有任何疑問，請寄電子郵件給我們。",
-    "sendEmail": "寄送郵件",
-    "subject": "Juple 諮詢",
-    "noMailApp": "無法開啟郵件應用程式。請直接寄信至 {{email}}。",
-    "copyEmail": "複製電子郵件地址"
-  },
   "importantState": {
     "loadFailedTitle": "載入失敗",
     "loadFailedMessage": "無法載入記錄。",
     "retry": "重試"
+  },
+  "customerCenter": {
+    "title": "客戶中心",
+    "replayTutorial": "重新查看教學",
+    "faqHeading": "常見問題",
+    "inquiryHeading": "聯絡我們",
+    "serviceInfoHeading": "服務資訊",
+    "terms": "服務條款",
+    "privacy": "隱私權政策",
+    "appInfoHeading": "應用程式資訊",
+    "version": "版本 {{version}}（組建 {{build}}）",
+    "openLinkFailed": "無法開啟連結，請稍後再試。",
+    "faq": {
+      "saveLinks": {
+        "question": "如何儲存連結？",
+        "answer": "在 Juple 貼上網址，或從瀏覽器、社群應用程式等其他應用程式把連結分享到 Juple。開啟快速儲存時，分享的連結會立即儲存；關閉時，會先讓你選擇合集並加上備註再儲存。"
+      },
+      "collections": {
+        "question": "如何使用合集？",
+        "answer": "合集可以依你的方式整理連結。一個連結可以屬於多個合集，儲存時也可以新增合集。"
+      },
+      "archive": {
+        "question": "在哪裡找到已儲存的連結？",
+        "answer": "首頁顯示今天儲存的連結，封存庫裡有你儲存的全部連結。可依日期或全部瀏覽，在清單、格狀、圖片檢視間切換，也可以搜尋。"
+      },
+      "sharedCollections": {
+        "question": "共享合集如何運作？",
+        "answer": "你可以與他人共享合集。參與者能做什麼取決於你授予的權限，部分權限下新增連結可能需要核准。"
+      },
+      "locks": {
+        "question": "鎖定的合集如何運作？",
+        "answer": "鎖定合集的內容在解鎖前會被隱藏。其連結在首頁和封存庫中也會被遮蔽，鎖定期間每次開啟都需要輸入密碼。"
+      },
+      "trash": {
+        "question": "刪除的連結會怎樣？",
+        "answer": "刪除的連結會移到「我的頁面」的刪除紀錄中。你可以在那裡復原或永久刪除；永久刪除的連結無法找回。"
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "略過",
+    "next": "下一步",
+    "start": "開始使用",
+    "close": "關閉",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "輕鬆儲存連結",
+        "description": "貼上網址，或從瀏覽器、社群應用程式分享連結。開啟快速儲存後會立即儲存。"
+      },
+      "collections": {
+        "title": "依你的方式整理",
+        "description": "把連結儲存到一個或多個合集，儲存時還能新增合集。"
+      },
+      "find": {
+        "title": "快速找到已儲存的連結",
+        "description": "首頁顯示今天的連結，封存庫包含全部連結。可依日期或全部瀏覽，用清單、格狀或圖片檢視，並隨時搜尋。"
+      },
+      "share": {
+        "title": "一起使用合集",
+        "description": "與他人共享合集。權限決定每個人能做什麼，新增連結可能需要核准。"
+      },
+      "lock": {
+        "title": "為敏感合集上鎖",
+        "description": "鎖定的合集會隱藏其連結，鎖定期間開啟需要輸入密碼。"
+      }
+    }
+  },
+  "inquiry": {
+    "title": "聯絡我們",
+    "tabWrite": "聯絡我們",
+    "tabHistory": "諮詢紀錄",
+    "typeLabel": "諮詢類型",
+    "typePlaceholder": "請選擇",
+    "typePickerTitle": "諮詢類型",
+    "contentLabel": "諮詢內容",
+    "contentPlaceholder": "請輸入諮詢內容",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "請留下與 Juple 服務使用相關的諮詢。",
+    "helpNote2": "你可以在諮詢紀錄中查看回覆。",
+    "required": "必填",
+    "submit": "送出",
+    "successMessage": "諮詢已送出。",
+    "submitFailed": "諮詢送出失敗，請稍後再試。",
+    "statusPending": "已送出",
+    "statusAnswered": "已回覆",
+    "types": {
+      "Account": "帳號",
+      "Subscription": "付款/訂閱",
+      "LinkSaving": "儲存連結",
+      "CollectionSharing": "合集/分享",
+      "Bug": "錯誤/故障",
+      "FeatureRequest": "功能建議",
+      "Other": "其他"
+    },
+    "historyEmpty": "還沒有諮詢紀錄。",
+    "detailTitle": "諮詢詳情",
+    "contentHeading": "諮詢內容",
+    "receivedAt": "送出時間",
+    "answerHeading": "回覆",
+    "answeredAt": "回覆時間",
+    "awaitingAnswer": "正在等待回覆。",
+    "notFound": "找不到此諮詢。",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

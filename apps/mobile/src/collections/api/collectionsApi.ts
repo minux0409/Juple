@@ -414,7 +414,8 @@ export interface GetCollectionItemsOptions {
   /**
    * The whole Collection by when each link was added - newest ('dateDesc') or oldest ('dateAsc')
    * first. A cursor is only valid with the sort that issued it. Omitted: the server's original
-   * manual order.
+   * manual order. 'nameAsc' / 'nameDesc' (A-Z / Z-A by the visible name, title-less last) exist for the link search only
+   * (with q) - the server refuses them otherwise.
    */
   readonly sort?: CollectionItemsSort;
   /**
@@ -440,7 +441,7 @@ export interface CollectionItemSection {
   readonly count: number;
 }
 
-export type CollectionItemsSort = 'dateDesc' | 'dateAsc';
+export type CollectionItemsSort = 'dateDesc' | 'dateAsc' | 'nameAsc' | 'nameDesc';
 
 /** The request header the unlock grant travels in (a header, so it never lands in a URL/log line). */
 export const COLLECTION_UNLOCK_HEADER = COLLECTION_UNLOCK_HEADER_NAME;

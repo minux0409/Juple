@@ -23,6 +23,7 @@ public interface IItemHistoryQueryStore
         ItemHistoryPageCursor? cursor,
         int limit,
         string? searchPattern = null,
+        ItemHistorySort sort = ItemHistorySort.Time,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "保管庫",
-    "groupByDate": "日付別",
-    "groupAll": "すべて",
-    "groupingA11y": "リンクのまとめ方",
     "searchPlaceholder": "リンクを検索",
     "searchClear": "検索をクリア",
     "searchEmpty": "結果がありません。",
@@ -777,17 +774,113 @@
     "deleteA11y": "通知を削除",
     "deleteFailed": "通知を削除できませんでした。"
   },
-  "contact": {
-    "title": "お問い合わせ",
-    "description": "Juple についてのお問い合わせは、メールでご連絡ください。",
-    "sendEmail": "メールを送る",
-    "subject": "Juple のお問い合わせ",
-    "noMailApp": "メールアプリを開けませんでした。{{email}} へ直接メールをお送りください。",
-    "copyEmail": "メールアドレスをコピー"
-  },
   "importantState": {
     "loadFailedTitle": "読み込めませんでした",
     "loadFailedMessage": "記録を読み込めませんでした。",
     "retry": "もう一度試す"
+  },
+  "customerCenter": {
+    "title": "カスタマーセンター",
+    "replayTutorial": "チュートリアルをもう一度見る",
+    "faqHeading": "よくある質問",
+    "inquiryHeading": "お問い合わせ",
+    "serviceInfoHeading": "サービス情報",
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー",
+    "appInfoHeading": "アプリ情報",
+    "version": "バージョン {{version}}（ビルド {{build}}）",
+    "openLinkFailed": "リンクを開けませんでした。しばらくしてからもう一度お試しください。",
+    "faq": {
+      "saveLinks": {
+        "question": "リンクはどう保存しますか？",
+        "answer": "JupleにURLを貼り付けるか、ブラウザやSNSなど他のアプリからJupleへリンクを共有します。クイック保存がオンなら共有したリンクはすぐ保存され、オフならコレクションとメモを選んでから保存します。"
+      },
+      "collections": {
+        "question": "コレクションはどう使いますか？",
+        "answer": "コレクションでリンクを好きなように整理できます。1つのリンクを複数のコレクションに入れられ、保存しながら新しいコレクションも作れます。"
+      },
+      "archive": {
+        "question": "保存したリンクはどこで探せますか？",
+        "answer": "ホームには今日保存したリンク、保管庫には保存したすべてのリンクがあります。日付別またはすべてで表示し、リスト・グリッド・画像表示を切り替え、検索もできます。"
+      },
+      "sharedCollections": {
+        "question": "共有コレクションはどう動きますか？",
+        "answer": "コレクションは他の人と共有できます。参加者にできることは付与した権限で決まり、権限によってはリンクの追加に承認が必要な場合があります。"
+      },
+      "locks": {
+        "question": "ロックしたコレクションはどう動きますか？",
+        "answer": "ロックしたコレクションの内容は、解除するまで非表示です。ホームや保管庫でもそのリンクは伏せて表示され、ロック中は開くたびにパスワードが必要です。"
+      },
+      "trash": {
+        "question": "削除したリンクはどうなりますか？",
+        "answer": "削除したリンクはマイページの削除履歴に移ります。そこで復元または完全に削除でき、完全に削除したリンクは元に戻せません。"
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "スキップ",
+    "next": "次へ",
+    "start": "始める",
+    "close": "閉じる",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "リンクを簡単に保存しましょう",
+        "description": "URLを貼り付けるか、ブラウザやSNSからリンクを共有します。クイック保存をオンにすればすぐ保存されます。"
+      },
+      "collections": {
+        "title": "好きな方法で整理しましょう",
+        "description": "リンクを1つまたは複数のコレクションに保存し、保存しながら新しいコレクションも作れます。"
+      },
+      "find": {
+        "title": "保存したリンクをすばやく探しましょう",
+        "description": "ホームでは今日のリンク、保管庫ではすべてのリンクを見られます。日付別・すべて、リスト・グリッド・画像で表示し、いつでも検索できます。"
+      },
+      "share": {
+        "title": "コレクションを一緒に使えます",
+        "description": "コレクションを共有しましょう。権限で各自にできることが決まり、リンクの追加に承認が必要な場合があります。"
+      },
+      "lock": {
+        "title": "大切なコレクションはロックできます",
+        "description": "ロックしたコレクションはリンクを隠し、ロック中に開くにはパスワードが必要です。"
+      }
+    }
+  },
+  "inquiry": {
+    "title": "お問い合わせ",
+    "tabWrite": "お問い合わせ",
+    "tabHistory": "問い合わせ履歴",
+    "typeLabel": "お問い合わせの種類",
+    "typePlaceholder": "選択してください",
+    "typePickerTitle": "お問い合わせの種類",
+    "contentLabel": "お問い合わせ内容",
+    "contentPlaceholder": "お問い合わせ内容を入力してください",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Jupleのご利用に関するお問い合わせをお寄せください。",
+    "helpNote2": "回答は問い合わせ履歴で確認できます。",
+    "required": "必須",
+    "submit": "送信",
+    "successMessage": "お問い合わせを受け付けました。",
+    "submitFailed": "お問い合わせを送信できませんでした。しばらくしてからもう一度お試しください。",
+    "statusPending": "受付済み",
+    "statusAnswered": "回答済み",
+    "types": {
+      "Account": "アカウント",
+      "Subscription": "決済・サブスクリプション",
+      "LinkSaving": "リンク保存",
+      "CollectionSharing": "コレクション・共有",
+      "Bug": "エラー・不具合",
+      "FeatureRequest": "機能の提案",
+      "Other": "その他"
+    },
+    "historyEmpty": "まだ問い合わせ履歴がありません。",
+    "detailTitle": "お問い合わせ詳細",
+    "contentHeading": "お問い合わせ内容",
+    "receivedAt": "受付日",
+    "answerHeading": "回答",
+    "answeredAt": "回答日",
+    "awaitingAnswer": "回答をお待ちください。",
+    "notFound": "お問い合わせが見つかりません。",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

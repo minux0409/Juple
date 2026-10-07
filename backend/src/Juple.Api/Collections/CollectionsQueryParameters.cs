@@ -33,7 +33,7 @@ public static class CollectionsQueryParameters
 
     /// <summary>
     /// A Collection's link order: missing is the original manual order; otherwise exactly
-    /// "dateDesc" or "dateAsc" (any case). Anything else is invalid - never silently ignored.
+    /// "dateDesc", "dateAsc", "nameAsc" or "nameDesc" (any case; the name orders are for link search only). Anything else is invalid - never silently ignored.
     /// </summary>
     public static bool TryParseItemSort(string? value, out CollectionItemSort sort)
     {
@@ -47,6 +47,12 @@ public static class CollectionsQueryParameters
                 return true;
             case "dateasc":
                 sort = CollectionItemSort.DateAsc;
+                return true;
+            case "nameasc":
+                sort = CollectionItemSort.NameAsc;
+                return true;
+            case "namedesc":
+                sort = CollectionItemSort.NameDesc;
                 return true;
             default:
                 sort = default;

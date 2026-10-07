@@ -11,6 +11,7 @@ public sealed class GetItemHistoryService(
         ItemHistoryPageCursor? cursor,
         int limit,
         string? searchTerm = null,
+        ItemHistorySort sort = ItemHistorySort.Time,
         CancellationToken cancellationToken = default)
     {
         var (page, representativeImages, coverImages) = await itemHistoryQueryStore.GetHistoryAsync(
@@ -18,6 +19,7 @@ public sealed class GetItemHistoryService(
             cursor,
             limit,
             searchTerm is null ? null : ItemSearchPattern.ToContainsPattern(searchTerm),
+            sort,
             cancellationToken);
         return await EnrichAsync(userId, page, representativeImages, coverImages, cancellationToken);
     }

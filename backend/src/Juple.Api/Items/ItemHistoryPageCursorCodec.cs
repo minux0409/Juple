@@ -15,7 +15,7 @@ public static class ItemHistoryPageCursorCodec
 
     public static string Encode(ItemHistoryPageCursor cursor)
     {
-        var payload = new CursorPayload(CurrentVersion, cursor.SavedAtUtc, cursor.Id);
+        var payload = new CursorPayload(CurrentVersion, cursor.SavedAtUtc, cursor.Id, cursor.NameBucket, cursor.NameKey);
         var json = JsonSerializer.SerializeToUtf8Bytes(payload);
         return Convert.ToBase64String(json)
             .Replace('+', '-')
@@ -40,7 +40,13 @@ public static class ItemHistoryPageCursorCodec
                 return false;
             }
 
-            cursor = new ItemHistoryPageCursor(payload.T, payload.Id);
+            // A name cursor carries both its bucket and key (a half-formed one is not a cursor of this API).
+            if ((payload.B is null) != (payload.K is null) || payload.B is < ItemNameOrder.Titled or > ItemNameOrder.Gated)
+            {
+                return false;
+            }
+
+            cursor = new ItemHistoryPageCursor(payload.T, payload.Id, payload.B, payload.K);
             return true;
         }
         catch (Exception exception) when (
@@ -50,5 +56,5 @@ public static class ItemHistoryPageCursorCodec
         }
     }
 
-    private sealed record CursorPayload(int V, DateTimeOffset T, long Id);
+    private sealed record CursorPayload(int V, DateTimeOffset T, long Id, int? B = null, string? K = null);
 }

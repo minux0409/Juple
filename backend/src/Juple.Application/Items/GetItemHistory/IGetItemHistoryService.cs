@@ -11,6 +11,7 @@ public interface IGetItemHistoryService
         ItemHistoryPageCursor? cursor,
         int limit,
         string? searchTerm = null,
+        ItemHistorySort sort = ItemHistorySort.Time,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Archivo",
-    "groupByDate": "Por fecha",
-    "groupAll": "Todos",
-    "groupingA11y": "Agrupar enlaces",
     "searchPlaceholder": "Buscar enlaces",
     "searchClear": "Borrar búsqueda",
     "searchEmpty": "Sin resultados.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Eliminar notificación",
     "deleteFailed": "No se pudo eliminar la notificación."
   },
-  "contact": {
-    "title": "Contáctanos",
-    "description": "Si tienes alguna consulta sobre Juple, escríbenos un correo.",
-    "sendEmail": "Enviar correo",
-    "subject": "Consulta sobre Juple",
-    "noMailApp": "No se pudo abrir una app de correo. Escribe directamente a {{email}}.",
-    "copyEmail": "Copiar dirección de correo"
-  },
   "importantState": {
     "loadFailedTitle": "No se pudo cargar",
     "loadFailedMessage": "No se pudieron cargar los registros.",
     "retry": "Reintentar"
+  },
+  "customerCenter": {
+    "title": "Centro de ayuda",
+    "replayTutorial": "Ver el tutorial de nuevo",
+    "faqHeading": "Preguntas frecuentes",
+    "inquiryHeading": "Contacto",
+    "serviceInfoHeading": "Información del servicio",
+    "terms": "Términos del servicio",
+    "privacy": "Política de privacidad",
+    "appInfoHeading": "Información de la app",
+    "version": "Versión {{version}} (compilación {{build}})",
+    "openLinkFailed": "No se pudo abrir el enlace. Inténtalo de nuevo más tarde.",
+    "faq": {
+      "saveLinks": {
+        "question": "¿Cómo guardo un enlace?",
+        "answer": "Pega una URL en Juple o comparte un enlace a Juple desde otra app, como un navegador o una red social. Con el guardado rápido activado, el enlace compartido se guarda al instante; si está desactivado, eliges colecciones y añades una nota antes de guardar."
+      },
+      "collections": {
+        "question": "¿Cómo uso las colecciones?",
+        "answer": "Las colecciones te permiten organizar los enlaces a tu manera. Un enlace puede estar en varias colecciones y puedes crear una nueva mientras guardas."
+      },
+      "archive": {
+        "question": "¿Dónde encuentro los enlaces guardados?",
+        "answer": "Inicio muestra los enlaces guardados hoy y Archivo contiene todo lo que has guardado. Explora por fecha o todo junto, cambia entre vistas de lista, cuadrícula e imagen, y busca."
+      },
+      "sharedCollections": {
+        "question": "¿Cómo funcionan las colecciones compartidas?",
+        "answer": "Puedes compartir una colección con otras personas. Lo que puede hacer cada participante depende del permiso que le des, y algunos permisos pueden requerir aprobación antes de añadir un enlace."
+      },
+      "locks": {
+        "question": "¿Cómo funcionan las colecciones bloqueadas?",
+        "answer": "El contenido de una colección bloqueada permanece oculto hasta que la desbloqueas. Sus enlaces aparecen ocultos en Inicio y Archivo, y se pide la contraseña cada vez que abres uno mientras está bloqueada."
+      },
+      "trash": {
+        "question": "¿Qué pasa con los enlaces eliminados?",
+        "answer": "Los enlaces eliminados pasan a Eliminados recientemente en Mi página. Allí puedes restaurarlos o eliminarlos de forma permanente; los enlaces eliminados permanentemente no se pueden recuperar."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Omitir",
+    "next": "Siguiente",
+    "start": "Empezar",
+    "close": "Cerrar",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Guarda enlaces con facilidad",
+        "description": "Pega una URL o comparte un enlace desde tu navegador o red social. Con el guardado rápido activado, se guarda al instante."
+      },
+      "collections": {
+        "title": "Organízalo a tu manera",
+        "description": "Guarda un enlace en una o varias colecciones y crea una colección nueva mientras guardas."
+      },
+      "find": {
+        "title": "Encuentra rápido tus enlaces",
+        "description": "Inicio muestra los enlaces de hoy y Archivo los tiene todos. Explora por fecha o todo junto, en vista de lista, cuadrícula o imagen, y busca cuando quieras."
+      },
+      "share": {
+        "title": "Usa las colecciones en equipo",
+        "description": "Comparte una colección con otras personas. Los permisos deciden qué puede hacer cada una, y los enlaces pueden requerir aprobación."
+      },
+      "lock": {
+        "title": "Bloquea las colecciones sensibles",
+        "description": "Una colección bloqueada oculta sus enlaces y hace falta una contraseña para abrirlos mientras está bloqueada."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Contacto",
+    "tabWrite": "Contacto",
+    "tabHistory": "Mis consultas",
+    "typeLabel": "Tipo de consulta",
+    "typePlaceholder": "Selecciona una opción",
+    "typePickerTitle": "Tipo de consulta",
+    "contentLabel": "Consulta",
+    "contentPlaceholder": "Escribe tu consulta",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Déjanos tu consulta sobre el uso del servicio Juple.",
+    "helpNote2": "Puedes ver la respuesta en Mis consultas.",
+    "required": "Obligatorio",
+    "submit": "Enviar",
+    "successMessage": "Hemos recibido tu consulta.",
+    "submitFailed": "No pudimos enviar tu consulta. Inténtalo de nuevo en un momento.",
+    "statusPending": "Recibida",
+    "statusAnswered": "Respondida",
+    "types": {
+      "Account": "Cuenta",
+      "Subscription": "Pagos / Suscripción",
+      "LinkSaving": "Guardar enlaces",
+      "CollectionSharing": "Colecciones / Compartir",
+      "Bug": "Error / Fallo",
+      "FeatureRequest": "Sugerencia de función",
+      "Other": "Otro"
+    },
+    "historyEmpty": "Aún no has enviado consultas.",
+    "detailTitle": "Detalle de la consulta",
+    "contentHeading": "Consulta",
+    "receivedAt": "Recibida el",
+    "answerHeading": "Respuesta",
+    "answeredAt": "Respondida el",
+    "awaitingAnswer": "Esperando respuesta.",
+    "notFound": "No se encontró esta consulta.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

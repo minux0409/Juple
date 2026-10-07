@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { getCollectionItems, type CollectionItemEntry } from './api/collectionsApi';
+import { getCollectionItems, type CollectionItemEntry, type CollectionItemsSort } from './api/collectionsApi';
 import { getCollectionUnlockToken } from './collectionUnlockGrants';
 import { ARCHIVE_SEARCH_DEBOUNCE_MS, normalizeArchiveQuery } from '../items/useArchiveSearch';
 
 const PAGE_SIZE = 30;
 
 /** Server-backed search over one Collection, independent of the currently loaded sections. */
-export function useCollectionSearch(collectionId: number, rawQuery: string, sort: 'dateDesc' | 'dateAsc') {
+export function useCollectionSearch(collectionId: number, rawQuery: string, sort: CollectionItemsSort) {
   const request = useAuthenticatedApi();
   const term = normalizeArchiveQuery(rawQuery);
   const [items, setItems] = useState<readonly CollectionItemEntry[]>([]);
@@ -96,5 +96,5 @@ export function useCollectionSearch(collectionId: number, rawQuery: string, sort
   const removeItem = useCallback((itemId: number) => {
     setItems(previous => previous.filter(item => item.itemId !== itemId));
   }, []);
-  return { isSearching: term !== null, items, isLoading, isLoadingMore, error, settledTerm, loadMore, refresh, removeItem };
+  return { isSearching: term !== null, items, isLoading, isLoadingMore, error, settledTerm, hasMore: nextCursor !== null, loadMore, refresh, removeItem };
 }

@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Archivio",
-    "groupByDate": "Per data",
-    "groupAll": "Tutti",
-    "groupingA11y": "Raggruppa i link",
     "searchPlaceholder": "Cerca link",
     "searchClear": "Cancella ricerca",
     "searchEmpty": "Nessun risultato.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Elimina notifica",
     "deleteFailed": "Impossibile eliminare la notifica."
   },
-  "contact": {
-    "title": "Contattaci",
-    "description": "Per qualsiasi richiesta su Juple, scrivici un'email.",
-    "sendEmail": "Invia email",
-    "subject": "Richiesta su Juple",
-    "noMailApp": "Impossibile aprire un'app di posta. Scrivi direttamente a {{email}}.",
-    "copyEmail": "Copia indirizzo email"
-  },
   "importantState": {
     "loadFailedTitle": "Impossibile caricare",
     "loadFailedMessage": "Impossibile caricare i dati.",
     "retry": "Riprova"
+  },
+  "customerCenter": {
+    "title": "Centro assistenza",
+    "replayTutorial": "Rivedi il tutorial",
+    "faqHeading": "Domande frequenti",
+    "inquiryHeading": "Contatti",
+    "serviceInfoHeading": "Informazioni sul servizio",
+    "terms": "Termini di servizio",
+    "privacy": "Informativa sulla privacy",
+    "appInfoHeading": "Informazioni sull'app",
+    "version": "Versione {{version}} (build {{build}})",
+    "openLinkFailed": "Impossibile aprire il link. Riprova più tardi.",
+    "faq": {
+      "saveLinks": {
+        "question": "Come salvo un link?",
+        "answer": "Incolla un URL in Juple oppure condividi un link con Juple da un'altra app, come un browser o un social. Con il salvataggio rapido attivo il link condiviso viene salvato subito; altrimenti scegli le raccolte e aggiungi una nota prima di salvare."
+      },
+      "collections": {
+        "question": "Come uso le raccolte?",
+        "answer": "Le raccolte ti permettono di organizzare i link a modo tuo. Un link può stare in più raccolte e puoi crearne una nuova mentre salvi."
+      },
+      "archive": {
+        "question": "Dove trovo i link salvati?",
+        "answer": "Home mostra i link salvati oggi e Archivio contiene tutto ciò che hai salvato. Sfoglia per data o tutto insieme, passa tra le viste Elenco, Griglia e Immagine, e cerca."
+      },
+      "sharedCollections": {
+        "question": "Come funzionano le raccolte condivise?",
+        "answer": "Puoi condividere una raccolta con altre persone. Ciò che ogni partecipante può fare dipende dall'autorizzazione che concedi, e alcune autorizzazioni possono richiedere l'approvazione prima di aggiungere un link."
+      },
+      "locks": {
+        "question": "Come funzionano le raccolte bloccate?",
+        "answer": "Il contenuto di una raccolta bloccata resta nascosto finché non la sblocchi. I suoi link appaiono oscurati in Home e Archivio, e la password viene richiesta a ogni apertura finché è bloccata."
+      },
+      "trash": {
+        "question": "Cosa succede ai link eliminati?",
+        "answer": "I link eliminati vanno in Eliminati di recente in La mia pagina. Lì puoi ripristinarli o eliminarli definitivamente; i link eliminati definitivamente non si possono recuperare."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Salta",
+    "next": "Avanti",
+    "start": "Inizia",
+    "close": "Chiudi",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Salva i link con facilità",
+        "description": "Incolla un URL o condividi un link dal browser o da un social. Con il salvataggio rapido viene salvato subito."
+      },
+      "collections": {
+        "title": "Organizza a modo tuo",
+        "description": "Salva un link in una o più raccolte e crea una nuova raccolta mentre salvi."
+      },
+      "find": {
+        "title": "Ritrova subito i link salvati",
+        "description": "Home mostra i link di oggi e Archivio li contiene tutti. Sfoglia per data o tutto insieme, in vista Elenco, Griglia o Immagine, e cerca quando vuoi."
+      },
+      "share": {
+        "title": "Usa le raccolte insieme",
+        "description": "Condividi una raccolta con altre persone. Le autorizzazioni decidono cosa può fare ciascuno, e i link possono richiedere approvazione."
+      },
+      "lock": {
+        "title": "Blocca le raccolte sensibili",
+        "description": "Una raccolta bloccata nasconde i suoi link e serve una password per aprirli finché è bloccata."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Contattaci",
+    "tabWrite": "Contattaci",
+    "tabHistory": "Le mie richieste",
+    "typeLabel": "Tipo di richiesta",
+    "typePlaceholder": "Seleziona",
+    "typePickerTitle": "Tipo di richiesta",
+    "contentLabel": "Richiesta",
+    "contentPlaceholder": "Scrivi la tua richiesta",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Lascia una richiesta sull'uso del servizio Juple.",
+    "helpNote2": "Puoi vedere la risposta in Le mie richieste.",
+    "required": "Obbligatorio",
+    "submit": "Invia",
+    "successMessage": "La tua richiesta è stata ricevuta.",
+    "submitFailed": "Non è stato possibile inviare la richiesta. Riprova tra poco.",
+    "statusPending": "Ricevuta",
+    "statusAnswered": "Risposta ricevuta",
+    "types": {
+      "Account": "Account",
+      "Subscription": "Pagamenti / Abbonamento",
+      "LinkSaving": "Salvataggio link",
+      "CollectionSharing": "Raccolte / Condivisione",
+      "Bug": "Errore / Bug",
+      "FeatureRequest": "Proposta di funzione",
+      "Other": "Altro"
+    },
+    "historyEmpty": "Non hai ancora inviato richieste.",
+    "detailTitle": "Dettaglio richiesta",
+    "contentHeading": "Richiesta",
+    "receivedAt": "Ricevuta il",
+    "answerHeading": "Risposta",
+    "answeredAt": "Risposta del",
+    "awaitingAnswer": "In attesa di risposta.",
+    "notFound": "Richiesta non trovata.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

@@ -78,9 +78,6 @@
   },
   "history": {
     "title": "Arsip",
-    "groupByDate": "Per tanggal",
-    "groupAll": "Semua",
-    "groupingA11y": "Pengelompokan tautan",
     "searchPlaceholder": "Cari tautan",
     "searchClear": "Hapus pencarian",
     "searchEmpty": "Tidak ada hasil.",
@@ -777,17 +774,113 @@
     "deleteA11y": "Hapus notifikasi",
     "deleteFailed": "Gagal menghapus notifikasi."
   },
-  "contact": {
-    "title": "Hubungi kami",
-    "description": "Jika Anda memiliki pertanyaan tentang Juple, kirimi kami email.",
-    "sendEmail": "Kirim email",
-    "subject": "Pertanyaan Juple",
-    "noMailApp": "Tidak dapat membuka aplikasi email. Silakan kirim email langsung ke {{email}}.",
-    "copyEmail": "Salin alamat email"
-  },
   "importantState": {
     "loadFailedTitle": "Gagal memuat",
     "loadFailedMessage": "Data tidak dapat dimuat.",
     "retry": "Coba lagi"
+  },
+  "customerCenter": {
+    "title": "Pusat Bantuan",
+    "replayTutorial": "Lihat tutorial lagi",
+    "faqHeading": "Pertanyaan umum",
+    "inquiryHeading": "Hubungi kami",
+    "serviceInfoHeading": "Informasi layanan",
+    "terms": "Ketentuan Layanan",
+    "privacy": "Kebijakan Privasi",
+    "appInfoHeading": "Info aplikasi",
+    "version": "Versi {{version}} (build {{build}})",
+    "openLinkFailed": "Tidak dapat membuka tautan. Coba lagi nanti.",
+    "faq": {
+      "saveLinks": {
+        "question": "Bagaimana cara menyimpan tautan?",
+        "answer": "Tempel URL di Juple, atau bagikan tautan ke Juple dari aplikasi lain seperti browser atau media sosial. Jika Simpan Cepat aktif, tautan yang dibagikan langsung tersimpan; jika nonaktif, Anda memilih koleksi dan menambah catatan sebelum menyimpan."
+      },
+      "collections": {
+        "question": "Bagaimana cara memakai koleksi?",
+        "answer": "Koleksi memungkinkan Anda mengatur tautan dengan cara sendiri. Satu tautan bisa masuk ke beberapa koleksi, dan Anda bisa membuat koleksi baru saat menyimpan."
+      },
+      "archive": {
+        "question": "Di mana saya menemukan tautan tersimpan?",
+        "answer": "Beranda menampilkan tautan yang disimpan hari ini, dan Arsip berisi semua yang Anda simpan. Jelajahi per tanggal atau semuanya, beralih antara tampilan Daftar, Kisi, dan Gambar, lalu cari."
+      },
+      "sharedCollections": {
+        "question": "Bagaimana koleksi bersama bekerja?",
+        "answer": "Anda dapat membagikan koleksi kepada orang lain. Apa yang bisa dilakukan tiap peserta bergantung pada izin yang diberikan, dan beberapa izin mungkin memerlukan persetujuan sebelum tautan ditambahkan."
+      },
+      "locks": {
+        "question": "Bagaimana koleksi terkunci bekerja?",
+        "answer": "Isi koleksi terkunci tetap tersembunyi sampai Anda membukanya. Tautannya tampil tersamarkan di Beranda dan Arsip, dan kata sandi diminta setiap kali Anda membukanya selama terkunci."
+      },
+      "trash": {
+        "question": "Apa yang terjadi pada tautan yang dihapus?",
+        "answer": "Tautan yang dihapus pindah ke Baru Dihapus di Halaman Saya. Di sana Anda bisa memulihkan atau menghapusnya permanen; tautan yang dihapus permanen tidak dapat dikembalikan."
+      }
+    }
+  },
+  "tutorial": {
+    "skip": "Lewati",
+    "next": "Berikutnya",
+    "start": "Mulai",
+    "close": "Tutup",
+    "progress": "{{current}} / {{total}}",
+    "pages": {
+      "save": {
+        "title": "Simpan tautan dengan mudah",
+        "description": "Tempel URL atau bagikan tautan dari browser atau media sosial. Dengan Simpan Cepat aktif, langsung tersimpan."
+      },
+      "collections": {
+        "title": "Atur dengan cara Anda",
+        "description": "Simpan tautan ke satu atau beberapa koleksi, dan buat koleksi baru saat menyimpan."
+      },
+      "find": {
+        "title": "Temukan tautan dengan cepat",
+        "description": "Beranda menampilkan tautan hari ini dan Arsip memuat semuanya. Jelajahi per tanggal atau semuanya, dalam tampilan Daftar, Kisi, atau Gambar, dan cari kapan saja."
+      },
+      "share": {
+        "title": "Pakai koleksi bersama-sama",
+        "description": "Bagikan koleksi kepada orang lain. Izin menentukan apa yang bisa dilakukan tiap orang, dan tautan mungkin perlu persetujuan."
+      },
+      "lock": {
+        "title": "Kunci koleksi sensitif",
+        "description": "Koleksi terkunci menyembunyikan tautannya, dan kata sandi diperlukan untuk membukanya selama terkunci."
+      }
+    }
+  },
+  "inquiry": {
+    "title": "Hubungi kami",
+    "tabWrite": "Hubungi kami",
+    "tabHistory": "Riwayat pertanyaan",
+    "typeLabel": "Jenis pertanyaan",
+    "typePlaceholder": "Silakan pilih",
+    "typePickerTitle": "Jenis pertanyaan",
+    "contentLabel": "Isi pertanyaan",
+    "contentPlaceholder": "Silakan tulis pertanyaan Anda",
+    "counter": "{{count}} / {{max}}",
+    "helpNote1": "Tinggalkan pertanyaan terkait penggunaan layanan Juple.",
+    "helpNote2": "Jawaban dapat dilihat di Riwayat pertanyaan.",
+    "required": "Wajib",
+    "submit": "Kirim",
+    "successMessage": "Pertanyaan Anda sudah diterima.",
+    "submitFailed": "Pertanyaan tidak dapat dikirim. Coba lagi sebentar lagi.",
+    "statusPending": "Diterima",
+    "statusAnswered": "Dijawab",
+    "types": {
+      "Account": "Akun",
+      "Subscription": "Pembayaran / Langganan",
+      "LinkSaving": "Menyimpan tautan",
+      "CollectionSharing": "Koleksi / Berbagi",
+      "Bug": "Error / Bug",
+      "FeatureRequest": "Saran fitur",
+      "Other": "Lainnya"
+    },
+    "historyEmpty": "Belum ada pertanyaan yang dikirim.",
+    "detailTitle": "Detail pertanyaan",
+    "contentHeading": "Isi pertanyaan",
+    "receivedAt": "Tanggal diterima",
+    "answerHeading": "Jawaban",
+    "answeredAt": "Tanggal dijawab",
+    "awaitingAnswer": "Menunggu jawaban.",
+    "notFound": "Pertanyaan tidak ditemukan.",
+    "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
   }
 }

@@ -40,7 +40,7 @@ function errorMessage(error: unknown, t: TFunction): string {
  * items/history/sections for the sections and their exact counts, GET items/history with a
  * section's fromUtc/toUtc for its links, HISTORY_SECTION_PAGE_SIZE at a time.
  */
-export function useHistorySections(isExpanded: (key: string) => boolean): UseHistorySectionsResult {
+export function useHistorySections(isExpanded: (key: string) => boolean, options: { readonly enabled?: boolean } = {}): UseHistorySectionsResult {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const source = useMemo<DateSectionPagesSource<ItemHistoryEntry>>(
@@ -53,5 +53,6 @@ export function useHistorySections(isExpanded: (key: string) => boolean): UseHis
     }),
     [authenticatedRequest, t],
   );
-  return useDateSectionPages(source, isExpanded) as UseHistorySectionsResult;
+  // enabled false (the Archive in 이름순, which reads the whole archive as one flat list): no summary or page is requested.
+  return useDateSectionPages(source, isExpanded, { enabled: options.enabled ?? true }) as UseHistorySectionsResult;
 }
