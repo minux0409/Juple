@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "Архив",
+    "groupByDate": "По дате",
+    "groupAll": "Все",
+    "groupingA11y": "Группировка ссылок",
     "searchPlaceholder": "Поиск ссылок",
     "searchClear": "Очистить поиск",
     "searchEmpty": "Ничего не найдено.",

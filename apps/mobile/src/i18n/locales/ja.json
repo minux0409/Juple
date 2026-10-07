@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "保管庫",
+    "groupByDate": "日付別",
+    "groupAll": "すべて",
+    "groupingA11y": "リンクのまとめ方",
     "searchPlaceholder": "リンクを検索",
     "searchClear": "検索をクリア",
     "searchEmpty": "結果がありません。",

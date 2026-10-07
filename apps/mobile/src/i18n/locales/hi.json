@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "संग्रह",
+    "groupByDate": "तारीख़ के अनुसार",
+    "groupAll": "सभी",
+    "groupingA11y": "लिंक समूहित करने का तरीका",
     "searchPlaceholder": "लिंक खोजें",
     "searchClear": "खोज साफ़ करें",
     "searchEmpty": "कोई परिणाम नहीं।",

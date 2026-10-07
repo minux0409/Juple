@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "Arsip",
+    "groupByDate": "Per tanggal",
+    "groupAll": "Semua",
+    "groupingA11y": "Pengelompokan tautan",
     "searchPlaceholder": "Cari tautan",
     "searchClear": "Hapus pencarian",
     "searchEmpty": "Tidak ada hasil.",

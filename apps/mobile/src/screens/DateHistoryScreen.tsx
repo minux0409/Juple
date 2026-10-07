@@ -23,7 +23,10 @@ import { ImportantState } from '../components/ImportantState';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
+import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
+import { chunkIntoImageLines, SAVED_LINK_IMAGE_COLUMNS, SavedLinkImageRow, SavedLinkImageRowSkeleton } from '../components/SavedLinkImageTile';
 import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
+import { GroupingModeToggle } from '../components/GroupingModeToggle';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchField } from '../components/SearchField';
 import { savedLinkGridLayout } from '../components/SavedLinkGridCard';
@@ -35,21 +38,29 @@ import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccord
 import {
   buildDateSectionRows,
   DateSectionErrorRow,
+  DATE_SECTION_IMAGE_LINE_STYLE,
   DateSectionGridRow,
   DateSectionSkeletonRow,
+  FIRST_PAGE_SKELETON_ROWS,
+  NEXT_PAGE_SKELETON_ROWS,
   useDateSectionViewability,
   type DateSectionRow,
 } from '../components/DateSectionList';
-import { historySectionLabel, historySectionShowsItemDate } from '../items/historyDateGrouping';
+import { buildContinuousHistory } from '../items/continuousHistory';
+import { groupByLocalDate, historySectionLabel, historySectionShowsItemDate } from '../items/historyDateGrouping';
 import { useHistorySections, type HistorySectionPage } from '../items/useHistorySections';
 import { deleteItem, restoreItem, type ItemHistoryEntry, type ItemHistorySection } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, spacing } from '../theme/tokens';
-import { useViewModePreference } from '../settings/viewModePreference';
+import { useGroupingModePreference, type BrowsingGroupingMode } from '../settings/groupingModePreference';
+import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
+
+/** How close to the end (in viewports) the list asks for more - also how much loaded content 전체 keeps beyond the viewport. */
+const END_REACHED_THRESHOLD = 0.5;
 
 export { FIRST_PAGE_SKELETON_ROWS, NEAR_END_ROWS, NEXT_PAGE_SKELETON_ROWS } from '../components/DateSectionList';
 
@@ -68,20 +79,65 @@ function getHistoryShareErrorMessage(t: TFunction): string {
 /** One row of the single History list (see DateSectionRow). */
 export type HistoryRow = DateSectionRow<ItemHistoryEntry>;
 
-/** What the same list shows while a search is active: a flat result list (or a line of two tiles), or a status line. */
-export type SearchRow =
-  | { readonly kind: 'searchItem'; readonly key: string; readonly item: ItemHistoryEntry }
-  | { readonly kind: 'searchGridRow'; readonly key: string; readonly items: readonly ItemHistoryEntry[] }
+/**
+ * The rows of every flat (header-less or lightly headed) view of the same list: 전체 (continuous), and the
+ * search results in either grouping mode - links as list rows or lines of two tiles, optional plain date
+ * labels (날짜별 search only), a skeleton/retry for the page on its way, or a search status line.
+ */
+export type FlatRow =
+  | { readonly kind: 'flatHeader'; readonly key: string; readonly label: string }
+  | { readonly kind: 'flatItem'; readonly key: string; readonly item: ItemHistoryEntry; readonly dateDisplayMode: 'dateTime' | 'time' }
+  | { readonly kind: 'flatGridRow'; readonly key: string; readonly items: readonly ItemHistoryEntry[]; readonly dateDisplayMode: 'dateTime' | 'time' }
+  | { readonly kind: 'flatImageRow'; readonly key: string; readonly items: readonly ItemHistoryEntry[] }
+  | { readonly kind: 'flatSkeleton'; readonly key: string; readonly layout: SavedLinkViewMode }
+  | { readonly kind: 'flatError'; readonly key: string; readonly sectionKey: string }
   | { readonly kind: 'searchStatus'; readonly key: string; readonly status: 'loading' | 'empty' | 'error' };
 
-type ScreenRow = HistoryRow | SearchRow;
+/**
+ * Links as flat rows: one per link in List, one per pair of tiles in Grid. With `groupLabels` the links are
+ * first bucketed by local date (the same 오늘 / 어제 / 이번 주 / month rule as the Archive) under plain,
+ * non-collapsible labels - a pair of tiles never straddles two dates, and a page boundary inside one date
+ * merges into it (the bucketing runs over everything loaded, not per page). Without it, one unbroken run.
+ */
+export function buildFlatRows(
+  items: readonly ItemHistoryEntry[],
+  viewMode: SavedLinkViewMode,
+  groupLabels: TFunction | null,
+): readonly FlatRow[] {
+  const rowsOut: FlatRow[] = [];
+  const pushRun = (run: readonly ItemHistoryEntry[], dateDisplayMode: 'dateTime' | 'time') => {
+    if (viewMode === 'image') {
+      for (const line of chunkIntoImageLines(run)) {
+        rowsOut.push({ kind: 'flatImageRow', key: `fm:${line[0].id}`, items: line });
+      }
+    } else if (viewMode === 'grid') {
+      for (let index = 0; index < run.length; index += 2) {
+        const pair = run.slice(index, index + 2);
+        rowsOut.push({ kind: 'flatGridRow', key: `fg:${pair[0].id}`, items: pair, dateDisplayMode });
+      }
+    } else {
+      run.forEach(item => rowsOut.push({ kind: 'flatItem', key: `fi:${item.id}`, item, dateDisplayMode }));
+    }
+  };
+  if (groupLabels) {
+    for (const group of groupByLocalDate(items, groupLabels, item => item.savedAtUtc)) {
+      rowsOut.push({ kind: 'flatHeader', key: `fh:${group.dateKey}`, label: group.label });
+      pushRun(group.items, group.showItemDate ? 'dateTime' : 'time');
+    }
+  } else {
+    pushRun(items, 'dateTime');
+  }
+  return rowsOut;
+}
+
+type ScreenRow = HistoryRow | FlatRow;
 
 /** The flat rows for the current sections, expansion and loaded pages (pure - see buildDateSectionRows). */
 export function buildHistoryRows(
   sections: readonly ItemHistorySection[],
   pages: ReadonlyMap<string, HistorySectionPage>,
   expandedKeys: ReadonlySet<string>,
-  viewMode: 'list' | 'grid',
+  viewMode: SavedLinkViewMode,
 ): readonly HistoryRow[] {
   return buildDateSectionRows(sections, pages, expandedKeys, viewMode, item => item.id);
 }
@@ -104,6 +160,9 @@ export function DateHistoryScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   const { showUndoToast } = useAppToast();
   const { viewMode, changeViewMode } = useViewModePreference('historyViewMode');
+  // Independent of List/Grid: 날짜별 (date headers, the accordion) or 전체 (the same links as one run).
+  const { groupingMode, changeGroupingMode } = useGroupingModePreference('historyGroupingMode');
+  const listRef = useRef<FlatList<ScreenRow>>(null);
   // AppToastHost renders above NavigationContainer (root coordinate space), so unlike a
   // screen-local Toast this needs the actual bottom tab bar height, not 0 - otherwise the Toast
   // sits under the tab bar, over the Android system navigation area.
@@ -113,7 +172,10 @@ export function DateHistoryScreen() {
   const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string> | null>(null);
   const expandedRef = useRef<ReadonlySet<string>>(new Set());
   expandedRef.current = expandedKeys ?? new Set();
-  const isExpanded = useCallback((key: string) => expandedRef.current.has(key), []);
+  // 전체 has no collapsed sections: a refresh reloads every loaded section in place (no jump), as an open one.
+  const groupingModeRef = useRef<BrowsingGroupingMode>(groupingMode);
+  groupingModeRef.current = groupingMode;
+  const isExpanded = useCallback((key: string) => groupingModeRef.current === 'continuous' || expandedRef.current.has(key), []);
 
   const { sections, pages, isLoading, isRefreshing, error, refresh, ensureLoaded, loadMore, removeItem } = useHistorySections(isExpanded);
 
@@ -198,8 +260,13 @@ export function DateHistoryScreen() {
     () => { refresh(); search.refresh(); },
   );
 
+  // One stable open callback for every image tile (the tiles are memoized) - the same open path as a card.
+  const itemCardOpenRef = useRef(itemCardOpen);
+  itemCardOpenRef.current = itemCardOpen;
+  const openItem = useCallback((item: ItemHistoryEntry) => { itemCardOpenRef.current.open(item).catch(() => undefined); }, []);
+
   const rows = useMemo(
-    () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode === 'grid' ? 'grid' : 'list'),
+    () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode),
     [sections, pages, expandedKeys, viewMode],
   );
 
@@ -210,20 +277,70 @@ export function DateHistoryScreen() {
     reportSectionRows({ viewableItems: viewableItems.filter(token => !!token.item && 'section' in (token.item as object)) });
   }).current;
 
-  // Search mode: newest-first results, flat (no date accordion while searching), List or Grid like the Archive.
-  const searchRows = useMemo<readonly SearchRow[]>(() => {
+  // 전체: the same per-section pages laid end to end (see buildContinuousHistory) - no second data source.
+  const continuous = useMemo(
+    () => buildContinuousHistory(sections, pages, FIRST_PAGE_SKELETON_ROWS, NEXT_PAGE_SKELETON_ROWS),
+    [sections, pages],
+  );
+  const continuousRows = useMemo<readonly FlatRow[]>(() => {
+    const rowsOut: FlatRow[] = [...buildFlatRows(continuous.items, viewMode, null)];
+    const perLine = viewMode === 'image' ? SAVED_LINK_IMAGE_COLUMNS : viewMode === 'grid' ? 2 : 1;
+    const skeletonRows = Math.ceil(continuous.frontierCount / perLine);
+    for (let index = 0; index < skeletonRows; index++) {
+      rowsOut.push({ kind: 'flatSkeleton', key: `fs:${index}`, layout: viewMode });
+    }
+    if (continuous.errorKey !== null) {
+      rowsOut.push({ kind: 'flatError', key: `fe:${continuous.errorKey}`, sectionKey: continuous.errorKey });
+    }
+    return rowsOut;
+  }, [continuous, viewMode]);
+  const advanceContinuous = () => {
+    const next = continuous.next;
+    if (!next || continuous.isLoadingFirst || continuous.isLoadingMore || continuous.errorKey !== null) {
+      return;
+    }
+    if (next.action === 'first') {
+      ensureLoaded(next.key);
+    } else {
+      loadMore(next.key);
+    }
+  };
+  // 전체 must not depend on the user scrolling: React Native sends onEndReached once per distinct content LENGTH, and
+  // advanceContinuous is a no-op while a request is on its way - so when that request lands and the content comes out
+  // the SAME length (an Image-view skeleton line is exactly as tall as the tile line that replaces it), nothing ever
+  // asks again and the feed stops at today. So the screen measures itself and, while the loaded links do not fill the
+  // viewport (plus the end-reached margin, so scrolling takes over), keeps advancing - one request at a time: every
+  // request's state change re-runs this, and advanceContinuous refuses while one is loading or after a failure
+  // (the retry row resumes the chain). It reads Archive DATA state (what is loaded, what is next), never row counts.
+  const [listViewportHeight, setListViewportHeight] = useState(0);
+  const [listContentHeight, setListContentHeight] = useState(0);
+  const advanceContinuousRef = useRef(advanceContinuous);
+  advanceContinuousRef.current = advanceContinuous;
+  useEffect(() => {
+    // Nothing is decided until both sizes are really known (an unmeasured list is not an empty one).
+    if (groupingMode !== 'continuous' || search.isSearching || listViewportHeight <= 0 || listContentHeight <= 0) {
+      return;
+    }
+    if (listContentHeight >= listViewportHeight * (1 + END_REACHED_THRESHOLD)) {
+      return;
+    }
+    advanceContinuousRef.current();
+  }, [continuous, groupingMode, listContentHeight, listViewportHeight, search.isSearching]);
+
+  // Opening straight into 전체 (or switching with nothing loaded yet): the newest section's first page, once.
+  const firstSectionKey = sections[0]?.key;
+  useEffect(() => {
+    if (groupingMode === 'continuous' && firstSectionKey !== undefined) {
+      ensureLoaded(firstSectionKey);
+    }
+  }, [ensureLoaded, firstSectionKey, groupingMode]);
+
+  // Search mode: newest-first results from the server - under plain date labels in 날짜별, one run in 전체.
+  const searchRows = useMemo<readonly FlatRow[]>(() => {
     if (!search.isSearching) {
       return [];
     }
-    const rowsOut: SearchRow[] = [];
-    if (viewMode === 'grid') {
-      for (let index = 0; index < search.items.length; index += 2) {
-        const pair = search.items.slice(index, index + 2);
-        rowsOut.push({ kind: 'searchGridRow', key: `sg:${pair[0].id}`, items: pair });
-      }
-    } else {
-      search.items.forEach(item => rowsOut.push({ kind: 'searchItem', key: `si:${item.id}`, item }));
-    }
+    const rowsOut: FlatRow[] = [...buildFlatRows(search.items, viewMode, groupingMode === 'grouped' ? t : null)];
     // Under the results (or alone) only a status: loading the first page, nothing found, or a failed search.
     if (search.error) {
       rowsOut.push({ kind: 'searchStatus', key: 'ss:error', status: 'error' });
@@ -233,11 +350,22 @@ export function DateHistoryScreen() {
       rowsOut.push({ kind: 'searchStatus', key: 'ss:empty', status: 'empty' });
     }
     return rowsOut;
-  }, [search.error, search.isLoading, search.isSearching, search.items, search.settledTerm, viewMode]);
+  }, [groupingMode, search.error, search.isLoading, search.isSearching, search.items, search.settledTerm, t, viewMode]);
 
-  const renderSearchRow = (row: SearchRow) => {
+  const switchGroupingMode = (next: BrowsingGroupingMode) => {
+    if (next === groupingMode) {
+      return;
+    }
+    changeGroupingMode(next);
+    // The two layouts share no row positions, so the old offset means nothing in the new one: start at the top.
+    listRef.current?.scrollToOffset({ animated: false, offset: 0 });
+  };
+
+  const renderFlatRow = (row: FlatRow) => {
     switch (row.kind) {
-      case 'searchItem':
+      case 'flatHeader':
+        return <Text accessibilityRole="header" style={styles.flatHeader} testID={`history-flat-header-${row.key}`}>{row.label}</Text>;
+      case 'flatItem':
         return (
           <SwipeableItemRow
             containerStyle={savedLinkLayout.card}
@@ -246,15 +374,15 @@ export function DateHistoryScreen() {
             onPress={() => { itemCardOpen.open(row.item).catch(() => undefined); }}
             onShare={row.item.isCollectionLocked ? undefined : () => runShare(row.item)}
           >
-            <SavedLinkRow dateDisplayMode="dateTime" isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} preferEffectiveThumbnail />
+            <SavedLinkRow dateDisplayMode={row.dateDisplayMode} isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} preferEffectiveThumbnail />
           </SwipeableItemRow>
         );
-      case 'searchGridRow':
+      case 'flatGridRow':
         return (
-          <View style={styles.searchGridRow} testID={`history-search-grid-row-${row.key}`}>
+          <View style={styles.flatGridRow} testID={`history-flat-grid-row-${row.key}`}>
             {row.items.map(item => (
               <SavedLinkGridCell
-                dateDisplayMode="dateTime"
+                dateDisplayMode={row.dateDisplayMode}
                 disabled={actionInFlightItemId !== null}
                 isActionInFlight={actionInFlightItemId === item.id}
                 item={item}
@@ -268,6 +396,39 @@ export function DateHistoryScreen() {
             {row.items.length === 1 ? <View style={savedLinkGridLayout.cell} /> : null}
           </View>
         );
+      case 'flatImageRow':
+        return <SavedLinkImageRow items={row.items} onPress={openItem} testID={`history-flat-image-row-${row.key}`} />;
+      case 'flatSkeleton':
+        return row.layout === 'image' ? (
+          <SavedLinkImageRowSkeleton testID="history-skeleton" />
+        ) : row.layout === 'grid' ? (
+          <View style={styles.flatGridRow}>
+            {[0, 1].map(index => (
+              <View key={index} style={savedLinkGridLayout.cell}>
+                <SavedLinkGridCardSkeleton testID="history-skeleton" />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={[savedLinkLayout.card, styles.skeletonCard]}>
+            <SavedLinkRowSkeleton testID="history-skeleton" />
+          </View>
+        );
+      case 'flatError':
+        return (
+          <DateSectionErrorRow
+            onRetry={() => {
+              const next = continuous.next;
+              if (next?.action === 'more') {
+                loadMore(next.key);
+              } else {
+                ensureLoaded(row.sectionKey);
+              }
+            }}
+            retryTestID={`history-section-retry-${row.sectionKey}`}
+            testID={`history-section-error-${row.sectionKey}`}
+          />
+        );
       case 'searchStatus':
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
@@ -280,8 +441,8 @@ export function DateHistoryScreen() {
   };
 
   const renderRow = ({ item: row }: { item: ScreenRow }) => {
-    if (row.kind === 'searchItem' || row.kind === 'searchGridRow' || row.kind === 'searchStatus') {
-      return renderSearchRow(row);
+    if (row.kind.startsWith('flat') || row.kind === 'searchStatus') {
+      return renderFlatRow(row as FlatRow);
     }
     switch (row.kind) {
       case 'header':
@@ -333,8 +494,15 @@ export function DateHistoryScreen() {
             ))}
           </DateSectionGridRow>
         );
+      case 'imageRow':
+        // Image view inside a date card: lines of tiles as the card's body (one virtualized list row per line).
+        return (
+          <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} style={[DATE_SECTION_IMAGE_LINE_STYLE, row.isLast && styles.imageSectionLast]} testID={`history-image-row-${row.section.key}-${row.position}`}>
+            <SavedLinkImageRow items={row.items} onPress={openItem} testID={`history-image-line-${row.section.key}-${row.position}`} />
+          </DateSectionGridRow>
+        );
       case 'skeleton':
-        return <DateSectionSkeletonRow grid={row.grid} isFirst={row.isFirst} isLast={row.isLast} testID="history-skeleton" />;
+        return <DateSectionSkeletonRow grid={row.grid} image={row.image} isFirst={row.isFirst} isLast={row.isLast} testID="history-skeleton" />;
       case 'error':
         return (
           <DateSectionErrorRow
@@ -365,7 +533,8 @@ export function DateHistoryScreen() {
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
         contentContainerStyle={styles.content}
-        data={search.isSearching ? searchRows : rows}
+        data={search.isSearching ? searchRows : groupingMode === 'continuous' ? continuousRows : rows}
+        ref={listRef}
         initialNumToRender={12}
         keyboardShouldPersistTaps="handled"
         keyExtractor={row => row.key}
@@ -374,7 +543,6 @@ export function DateHistoryScreen() {
           <View>
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} />
-              <ViewModeToggle onChange={changeViewMode} value={viewMode} />
             </View>
             <View style={styles.searchBox}>
               <SearchField
@@ -390,6 +558,11 @@ export function DateHistoryScreen() {
             {searchText.trim().length === 1 ? (
               <Text accessibilityLiveRegion="polite" style={styles.searchHint} testID="history-search-hint">{t('history.searchMinHint')}</Text>
             ) : null}
+            {/* [날짜별 | 전체] how links are grouped (start), [List | Grid] how each is shown (end) - two separate switches. */}
+            <View style={styles.controlsRow}>
+              <GroupingModeToggle onChange={switchGroupingMode} testID="history-grouping" value={groupingMode} />
+              <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
+            </View>
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
             {/* A failed load belongs to the result area: under the query controls (search, then date), above the content. */}
             {error && !search.isSearching ? <ImportantState compact onRetry={() => refresh()} testID="history-sections-error" /> : null}
@@ -397,8 +570,10 @@ export function DateHistoryScreen() {
         }
         maxToRenderPerBatch={10}
         onScrollBeginDrag={closeOpenRow}
-        onEndReached={() => search.loadMore()}
-        onEndReachedThreshold={0.5}
+        onEndReached={() => (search.isSearching ? search.loadMore() : groupingMode === 'continuous' ? advanceContinuous() : undefined)}
+        onContentSizeChange={(_width, height) => setListContentHeight(height)}
+        onEndReachedThreshold={END_REACHED_THRESHOLD}
+        onLayout={event => setListViewportHeight(event.nativeEvent.layout.height)}
         onViewableItemsChanged={onViewableItemsChanged}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => (search.isSearching ? search.refresh() : refresh())} />}
         // Android: rows scrolled far away drop their native views (and images) entirely.
@@ -443,8 +618,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: spacing.xl,
   },
-  // [보관함 ........ List/Grid] on one row, vertically centered; the gap to the list is this row's own
-  // bottom margin (a margin on the title alone made the toggle sit lower than the title).
+  // The title row's gap to the search field is the row's own bottom margin (see ScreenTitle's remark on a margin on the title alone).
   titleRow: {
     alignItems: 'center',
     columnGap: spacing.sm,
@@ -461,7 +635,15 @@ const styles = StyleSheet.create({
   // The hint sits close under the field (the box's own bottom gap is taken back), so showing it moves the list down by one compact line only.
   searchBox: { marginBottom: spacing.md },
   searchHint: { color: colors.textSecondary, fontSize: 12, marginBottom: spacing.sm, marginTop: -spacing.sm },
-  searchGridRow: { flexDirection: 'row' },
+  // Wraps only when [날짜별 | 전체] and the three-option switch genuinely do not fit side by side (the switch then keeps the end edge).
+  controlsRow: { alignItems: 'center', columnGap: spacing.md, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: spacing.md, rowGap: spacing.sm },
+  viewModeToggle: { marginStart: 'auto' },
+  // The last line of a date card's picture body sits a little off the card's bottom edge.
+  imageSectionLast: { paddingBottom: spacing.xs },
+  // 전체 / search tiles: the same cells as everywhere, with nothing between lines but their own gap.
+  flatGridRow: { flexDirection: 'row' },
+  flatHeader: { color: colors.textPrimary, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.xs },
+  skeletonCard: { overflow: 'hidden' },
   searchStatus: { marginTop: spacing.xl },
   searchStatusText: { color: colors.textSecondary, fontSize: 15, marginTop: spacing.xl, textAlign: 'center' },
   error: {

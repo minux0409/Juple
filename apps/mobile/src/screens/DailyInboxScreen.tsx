@@ -27,6 +27,13 @@ import { SavedLinkRow } from '../components/SavedLinkRow';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout, TITLE_COUNT_GAP } from '../components/savedLinkLayout';
 import { SavedLinkGridCell, savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
+import {
+  chunkIntoImageLines,
+  SAVED_LINK_IMAGE_FIRST_PAGE_SKELETON_LINES,
+  SAVED_LINK_IMAGE_NEXT_PAGE_SKELETON_LINES,
+  SavedLinkImageRow,
+  SavedLinkImageRowSkeleton,
+} from '../components/SavedLinkImageTile';
 import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
@@ -55,6 +62,16 @@ import { sortLinksByName } from '../collections/sortCollectionItems';
 import { NAME_ORDER_MAX_LINKS } from '../collections/useCollectionItems';
 import { ScreenTitleGlyph } from '../components/ScreenTitle';
 import { ClockIcon } from '../icons/ClockIcon';
+
+/** Image view's line of up to three links (see chunkIntoImageLines) - one row of the Home list. */
+interface ImageLine {
+  readonly lineKey: string;
+  readonly items: readonly ItemHistoryEntry[];
+}
+
+function isImageLine(entry: ItemHistoryEntry | ImageLine): entry is ImageLine {
+  return 'lineKey' in entry;
+}
 
 /** Links per request - a screenful or two; the rest of the day comes a page at a time. */
 export const HOME_PAGE_SIZE = 25;
@@ -452,9 +469,25 @@ export function DailyInboxScreen() {
     }
   };
 
+  // Image view: the same loaded links as lines of three squares (one virtualized list, no nested lists).
+  const imageLines = useMemo<readonly ImageLine[]>(
+    () => (viewMode === 'image' ? chunkIntoImageLines(displayedItems).map(items => ({ lineKey: `m:${items[0].id}`, items })) : []),
+    [displayedItems, viewMode],
+  );
+  // One stable open callback for every tile (the tiles are memoized).
+  const itemCardOpenRef = useRef(itemCardOpen);
+  itemCardOpenRef.current = itemCardOpen;
+  const openItem = useCallback((item: ItemHistoryEntry) => { itemCardOpenRef.current.open(item).catch(() => undefined); }, []);
+
   // Where links are about to appear - only while that request is actually on its way.
   const renderSkeletons = (count: number, testID: string) =>
-    viewMode === 'grid' ? (
+    viewMode === 'image' ? (
+      <View testID={testID}>
+        {Array.from({ length: count === HOME_FIRST_PAGE_SKELETON_ROWS ? SAVED_LINK_IMAGE_FIRST_PAGE_SKELETON_LINES : SAVED_LINK_IMAGE_NEXT_PAGE_SKELETON_LINES }, (_, index) => (
+          <SavedLinkImageRowSkeleton key={index} testID="home-skeleton" />
+        ))}
+      </View>
+    ) : viewMode === 'grid' ? (
       <View style={styles.gridSkeletons} testID={testID}>
         {Array.from({ length: count }, (_, index) => (
           <View key={index} style={savedLinkGridLayout.cell}>
@@ -474,11 +507,11 @@ export function DailyInboxScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <FlatList
+      <FlatList<ItemHistoryEntry | ImageLine>
         key={viewMode}
         contentContainerStyle={styles.content}
-        data={displayedItems}
-        keyExtractor={entry => entry.id.toString()}
+        data={viewMode === 'image' ? imageLines : displayedItems}
+        keyExtractor={entry => (isImageLine(entry) ? entry.lineKey : entry.id.toString())}
         numColumns={viewMode === 'grid' ? 2 : 1}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
@@ -557,7 +590,7 @@ export function DailyInboxScreen() {
                 testIDPrefix="home-sort"
               />
               <View style={styles.sortRowSpacer} />
-              <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+              <ViewModeToggle onChange={changeViewMode} showImage style={styles.viewModeToggle} value={viewMode} />
             </View>
           </View>
         }
@@ -566,7 +599,9 @@ export function DailyInboxScreen() {
             <LoadFailureState error={error.cause} notice={isDefinitiveLoadError(error.cause) ? error.message : null} onRetry={() => { loadToday('initial'); }} testID="home-load-error" />
           ) : (isLoading || isAssemblingOrder) ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
-        renderItem={({ item }) => viewMode === 'grid' ? (
+        renderItem={({ item }) => isImageLine(item) ? (
+          <SavedLinkImageRow items={item.items} onPress={openItem} testID={`home-image-line-${item.lineKey}`} />
+        ) : viewMode === 'grid' ? (
           <SavedLinkGridCell
             disabled={actionInFlightItemId !== null || isRefreshing}
             isActionInFlight={actionInFlightItemId === item.id}
@@ -710,8 +745,10 @@ const styles = StyleSheet.create({
   // Title and count on ONE row, count right after the title: the title shrinks (and wraps within itself)
   // on a long translation, the count never drops to a line of its own.
   recentHeaderLabel: { alignItems: 'baseline', columnGap: TITLE_COUNT_GAP, flexDirection: 'row', flexShrink: 1, minWidth: 0 },
-  sortRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
+  sortRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: LINK_CONTROLS_BOTTOM_GAP, marginTop: LINK_CONTROLS_TOP_GAP },
   sortRowSpacer: { flex: 1 },
+  // Pinned to the end edge, also when the (three-option) switch no longer fits beside the sort chips and wraps.
+  viewModeToggle: { marginStart: 'auto' },
   recentTitle: {
     flexShrink: 1,
     color: colors.textPrimary,

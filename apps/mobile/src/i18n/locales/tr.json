@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "Arşiv",
+    "groupByDate": "Tarihe göre",
+    "groupAll": "Tümü",
+    "groupingA11y": "Bağlantıları grupla",
     "searchPlaceholder": "Bağlantı ara",
     "searchClear": "Aramayı temizle",
     "searchEmpty": "Sonuç yok.",

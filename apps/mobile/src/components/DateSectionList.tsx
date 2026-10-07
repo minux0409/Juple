@@ -1,9 +1,10 @@
 import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View, type ListViewToken } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type ListViewToken } from 'react-native';
 import type { DateSection, DateSectionPage } from '../items/useDateSectionPages';
 import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import { dateAccordionStyles } from './DateAccordion';
+import { chunkIntoImageLines, SAVED_LINK_IMAGE_COLUMNS, SavedLinkImageRowSkeleton } from './SavedLinkImageTile';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from './SavedLinkSkeleton';
 
 /** Skeleton rows while a section's first page loads (never more than the section holds). */
@@ -25,7 +26,8 @@ export type DateSectionRow<T> =
   | { readonly kind: 'header'; readonly key: string; readonly section: DateSection }
   | { readonly kind: 'item'; readonly key: string; readonly section: DateSection; readonly item: T; readonly position: number; readonly isLast: boolean }
   | { readonly kind: 'gridRow'; readonly key: string; readonly section: DateSection; readonly items: readonly T[]; readonly position: number; readonly isFirst: boolean; readonly isLast: boolean }
-  | { readonly kind: 'skeleton'; readonly key: string; readonly section: DateSection; readonly grid: boolean; readonly isFirst: boolean; readonly isLast: boolean }
+  | { readonly kind: 'imageRow'; readonly key: string; readonly section: DateSection; readonly items: readonly T[]; readonly position: number; readonly isFirst: boolean; readonly isLast: boolean }
+  | { readonly kind: 'skeleton'; readonly key: string; readonly section: DateSection; readonly grid: boolean; readonly image: boolean; readonly isFirst: boolean; readonly isLast: boolean }
   | { readonly kind: 'error'; readonly key: string; readonly section: DateSection; readonly message: string };
 
 /** The flat rows for the current sections, expansion and loaded pages (pure - see DateSectionRow). */
@@ -33,7 +35,7 @@ export function buildDateSectionRows<T>(
   sections: readonly DateSection[],
   pages: ReadonlyMap<string, DateSectionPage<T>>,
   expandedKeys: ReadonlySet<string>,
-  viewMode: 'list' | 'grid',
+  viewMode: 'list' | 'grid' | 'image',
   idOf: (item: T) => number,
 ): readonly DateSectionRow<T>[] {
   const rows: DateSectionRow<T>[] = [];
@@ -47,8 +49,16 @@ export function buildDateSectionRows<T>(
     const firstLoad = !page || (page.isLoading && items.length === 0);
     const body: DateSectionRow<T>[] = [];
     const grid = viewMode === 'grid';
+    const image = viewMode === 'image';
 
-    if (grid) {
+    if (image) {
+      // Image view: lines of tiles inside the same section structure (one virtualized list, never a list per section).
+      let position = 0;
+      for (const line of chunkIntoImageLines(items)) {
+        body.push({ kind: 'imageRow', key: `m:${section.key}:${idOf(line[0])}`, section, items: line, position, isFirst: false, isLast: false });
+        position += line.length;
+      }
+    } else if (grid) {
       for (let index = 0; index < items.length; index += DATE_SECTION_GRID_COLUMNS) {
         body.push({ kind: 'gridRow', key: `g:${section.key}:${idOf(items[index])}`, section, items: items.slice(index, index + DATE_SECTION_GRID_COLUMNS), position: index, isFirst: false, isLast: false });
       }
@@ -63,9 +73,9 @@ export function buildDateSectionRows<T>(
       : page.isLoadingMore
         ? NEXT_PAGE_SKELETON_ROWS
         : 0;
-    const skeletonRows = grid ? Math.ceil(skeletons / DATE_SECTION_GRID_COLUMNS) : skeletons;
+    const skeletonRows = image ? Math.ceil(skeletons / SAVED_LINK_IMAGE_COLUMNS) : grid ? Math.ceil(skeletons / DATE_SECTION_GRID_COLUMNS) : skeletons;
     for (let index = 0; index < skeletonRows; index++) {
-      body.push({ kind: 'skeleton', key: `s:${section.key}:${index}`, section, grid, isFirst: false, isLast: false });
+      body.push({ kind: 'skeleton', key: `s:${section.key}:${index}`, section, grid, image, isFirst: false, isLast: false });
     }
     if (page?.error) {
       body.push({ kind: 'error', key: `e:${section.key}`, section, message: page.error });
@@ -74,7 +84,7 @@ export function buildDateSectionRows<T>(
     body.forEach((row, index) => {
       const isFirst = index === 0;
       const isLast = index === body.length - 1;
-      if (row.kind === 'gridRow' || row.kind === 'skeleton') {
+      if (row.kind === 'gridRow' || row.kind === 'imageRow' || row.kind === 'skeleton') {
         rows.push({ ...row, isFirst, isLast });
       } else if (row.kind === 'item') {
         rows.push({ ...row, isLast });
@@ -111,7 +121,7 @@ export function useDateSectionViewability<T>(
       if (!page?.nextCursor) {
         continue;
       }
-      const reached = row.kind === 'skeleton' ? page.items.length : row.position + (row.kind === 'gridRow' ? row.items.length : 1);
+      const reached = row.kind === 'skeleton' ? page.items.length : row.position + (row.kind === 'gridRow' || row.kind === 'imageRow' ? row.items.length : 1);
       if (page.items.length - reached < NEAR_END_ROWS) {
         wanted.add(row.section.key);
       }
@@ -128,17 +138,28 @@ interface CardRowPosition {
 }
 
 /** Image view: one line of tiles in a section's card (the first opens the body, the last closes it). */
-export function DateSectionGridRow({ isFirst, isLast, testID, children }: CardRowPosition & { readonly testID?: string; readonly children: ReactNode }) {
+export function DateSectionGridRow({ isFirst, isLast, testID, style, children }: CardRowPosition & { readonly testID?: string; readonly style?: StyleProp<ViewStyle>; readonly children: ReactNode }) {
   return (
-    <View style={[dateAccordionStyles.gridRow, isFirst && dateAccordionStyles.gridRowFirst, isLast && dateAccordionStyles.gridRowLast]} testID={testID}>
+    <View style={[dateAccordionStyles.gridRow, isFirst && dateAccordionStyles.gridRowFirst, isLast && dateAccordionStyles.gridRowLast, style]} testID={testID}>
       {children}
     </View>
   );
 }
 
 /** Where a link is about to appear while its page loads - a list row, or a line of grid tiles. */
-export function DateSectionSkeletonRow({ grid, isFirst, isLast, testID }: CardRowPosition & { readonly grid: boolean; readonly testID: string }) {
-  return grid ? (
+/**
+ * A date card's image lines stack in a COLUMN inside the card frame: dateAccordionStyles.gridRow is a row (for the
+ * Grid view's side-by-side cells), and a line of flex:1 square tiles shrink-wrapped by a row parent has no width -
+ * its tiles, and so the whole section body, collapse to nothing.
+ */
+export const DATE_SECTION_IMAGE_LINE_STYLE: StyleProp<ViewStyle> = { flexDirection: 'column' };
+
+export function DateSectionSkeletonRow({ grid, image = false, isFirst, isLast, testID }: CardRowPosition & { readonly grid: boolean; readonly image?: boolean; readonly testID: string }) {
+  return image ? (
+    <DateSectionGridRow isFirst={isFirst} isLast={isLast} style={DATE_SECTION_IMAGE_LINE_STYLE}>
+      <SavedLinkImageRowSkeleton testID={testID} />
+    </DateSectionGridRow>
+  ) : grid ? (
     <DateSectionGridRow isFirst={isFirst} isLast={isLast}>
       {Array.from({ length: DATE_SECTION_GRID_COLUMNS }, (_, index) => (
         <View key={index} style={styles.gridSkeletonCell}>

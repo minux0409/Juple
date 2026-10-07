@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "Kho lưu trữ",
+    "groupByDate": "Theo ngày",
+    "groupAll": "Tất cả",
+    "groupingA11y": "Cách nhóm liên kết",
     "searchPlaceholder": "Tìm liên kết",
     "searchClear": "Xóa tìm kiếm",
     "searchEmpty": "Không có kết quả.",

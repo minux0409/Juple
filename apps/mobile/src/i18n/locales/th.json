@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "คลังเก็บ",
+    "groupByDate": "ตามวันที่",
+    "groupAll": "ทั้งหมด",
+    "groupingA11y": "การจัดกลุ่มลิงก์",
     "searchPlaceholder": "ค้นหาลิงก์",
     "searchClear": "ล้างการค้นหา",
     "searchEmpty": "ไม่พบผลลัพธ์",

@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "Archives",
+    "groupByDate": "Par date",
+    "groupAll": "Tous",
+    "groupingA11y": "Regrouper les liens",
     "searchPlaceholder": "Rechercher des liens",
     "searchClear": "Effacer la recherche",
     "searchEmpty": "Aucun résultat.",

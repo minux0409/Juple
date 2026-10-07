@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "الأرشيف",
+    "groupByDate": "حسب التاريخ",
+    "groupAll": "الكل",
+    "groupingA11y": "طريقة تجميع الروابط",
     "searchPlaceholder": "البحث في الروابط",
     "searchClear": "مسح البحث",
     "searchEmpty": "لا توجد نتائج.",

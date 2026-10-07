@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "存档",
+    "groupByDate": "按日期",
+    "groupAll": "全部",
+    "groupingA11y": "链接分组方式",
     "searchPlaceholder": "搜索链接",
     "searchClear": "清除搜索",
     "searchEmpty": "没有结果。",

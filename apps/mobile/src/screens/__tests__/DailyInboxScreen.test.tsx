@@ -3,13 +3,16 @@ jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev
 
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Modal, TextInput } from 'react-native';
+import { FlatList, Image, Modal, Text, TextInput } from 'react-native';
+import { CollectionUnlockPanel } from '../../collections/CollectionUnlockPanel';
 import i18n from '../../i18n';
 import { DailyInboxScreen, HOME_FIRST_PAGE_SKELETON_ROWS, HOME_NEXT_PAGE_SKELETON_ROWS, HOME_PAGE_SIZE } from '../DailyInboxScreen';
 import { SavedLinkRow } from '../../components/SavedLinkRow';
 import { UndoToast } from '../../components/UndoToast';
 import { AppToastProvider } from '../../components/AppToast';
 import { SavedLinkGridCell } from '../../components/SavedLinkGridCard';
+import { GroupingModeToggle } from '../../components/GroupingModeToggle';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 
 // The react-native-localize jest mock (see jest.config.js) reports "en-US", so i18n would
 // otherwise resolve to English by default - pinned to Korean so this file's label assertions are
@@ -194,6 +197,21 @@ describe('DailyInboxScreen grid', () => {
     expect(cells.map(cell => cell.props.item.id)).toEqual([1, 2]);
     expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
     expect(Object.keys(cells[0].props).sort()).toEqual(Object.keys(cells[1].props).sort());
+  });
+});
+
+describe('DailyInboxScreen controls', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // Home is only today's links - one day, no date headers - so a 날짜별 / 전체 choice would change nothing.
+  it('has no 날짜별 / 전체 selector (only today is shown); List / Grid stays', async () => {
+    setUpItems([makeItem({ id: 1, title: 'Hi' })]);
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByType(GroupingModeToggle)).toHaveLength(0);
+    expect(renderer.root.findAllByType(ViewModeToggle)).toHaveLength(1);
   });
 });
 
@@ -721,5 +739,113 @@ describe('DailyInboxScreen paging and virtualization', () => {
     });
     expect(renderer.root.findAllByProps({ children: 'Stale' })).toHaveLength(0);
     expect(renderer.root.findByType(FlatList).props.data).toHaveLength(3);
+  });
+});
+
+describe('DailyInboxScreen image view', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+  });
+
+  type Line = { lineKey: string; items: ItemHistoryEntry[] };
+  const getList = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findByType(FlatList);
+  const lines = (renderer: ReactTestRenderer.ReactTestRenderer) => getList(renderer).props.data as Line[];
+  async function selectImage(renderer: ReactTestRenderer.ReactTestRenderer) {
+    const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'Image view' && typeof node.props.onPress === 'function')[0];
+    await act(async () => {
+      toggle.props.onPress();
+    });
+  }
+  const renderLine = (renderer: ReactTestRenderer.ReactTestRenderer, line: Line) => {
+    let part!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      part = ReactTestRenderer.create(getList(renderer).props.renderItem({ item: line, index: 0 }));
+    });
+    return part;
+  };
+  const tilesOf = (part: ReactTestRenderer.ReactTestRenderer) =>
+    part.root.findAll(node => String(node.props.testID).startsWith('saved-link-image-tile') && typeof node.props.onPress === 'function');
+
+  it('offers List, Grid and Image', async () => {
+    setUpItems([makeItem({ id: 1 })]);
+    const renderer = await renderScreen();
+    const toggle = renderer.root.findByType(ViewModeToggle);
+    expect(toggle.props.showImage).toBe(true);
+    for (const label of ['List view', 'Grid view', 'Image view']) {
+      expect(toggle.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function').length).toBeGreaterThan(0);
+    }
+  });
+
+  it('Image shows today\'s same links, in the same order, as lines of three square tiles - one list, no new request, still no 날짜별/전체', async () => {
+    setUpItems(manyItems(7));
+    const renderer = await renderScreen();
+    const calls = jest.mocked(getItemHistory).mock.calls.length;
+    await selectImage(renderer);
+
+    expect(lines(renderer).map(line => line.items.map(item => item.id))).toEqual([[1, 2, 3], [4, 5, 6], [7]]);
+    expect(getList(renderer).props.numColumns).toBe(1);
+    expect(renderer.root.findAllByType(FlatList)).toHaveLength(1);
+    expect(jest.mocked(getItemHistory).mock.calls.length).toBe(calls);
+    expect(renderer.root.findAllByType(GroupingModeToggle)).toHaveLength(0);
+  });
+
+  it('a tile is only the picture: no title, time, host or memo text', async () => {
+    setUpItems([makeItem({ id: 1, title: 'Visible title elsewhere', memo: 'A memo', previewImageUrl: 'https://img.example/a.jpg' })]);
+    const renderer = await renderScreen();
+    await selectImage(renderer);
+
+    const part = renderLine(renderer, lines(renderer)[0]);
+    expect(part.root.findAllByType(Text)).toHaveLength(0);
+    // Only the screen-reader label carries the title; nothing visible does.
+    expect(JSON.stringify(part.toJSON()).replace('"accessibilityLabel":"Visible title elsewhere"', '')).not.toMatch(/Visible title|A memo|example\.com/);
+    expect(tilesOf(part)[0].props.accessibilityLabel).toBe('Visible title elsewhere');
+  });
+
+  it('tapping a tile opens the Item Details like a card does', async () => {
+    setUpItems(manyItems(3));
+    mockNavigate.mockClear();
+    const renderer = await renderScreen();
+    await selectImage(renderer);
+
+    const part = renderLine(renderer, lines(renderer)[0]);
+    await act(async () => {
+      tilesOf(part)[2].props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('ItemDetails', { itemId: 3 });
+  });
+
+  it('a locked link is a lock on a neutral square (nothing of it shown) and its tap runs the protected open flow', async () => {
+    const lockedItem = makeItem({ id: 9, collectionId: 4, isCollectionLocked: true, title: 'Secret title', url: 'https://secret.example.com/x', memo: 'secret memo', previewImageUrl: 'https://img.example/secret.jpg' });
+    setUpItems([lockedItem]);
+    const getCollection = jest.spyOn(require('../../collections/api/collectionsApi'), 'getCollection').mockResolvedValue({ id: 4, accessRole: 'owner', isLocked: true, isSharePasswordProtected: false });
+    mockNavigate.mockClear();
+    const renderer = await renderScreen();
+    await selectImage(renderer);
+
+    const part = renderLine(renderer, lines(renderer)[0]);
+    expect(part.root.findAllByType(Image)).toHaveLength(0);
+    expect(part.root.findAllByType(Text)).toHaveLength(0);
+    expect(JSON.stringify(part.toJSON())).not.toMatch(/secret/i);
+    expect(tilesOf(part)[0].props.accessibilityLabel).toBe(i18n.t('item.lockedLinkPlaceholder'));
+    await act(async () => {
+      tilesOf(part)[0].props.onPress();
+    });
+    expect(getCollection).toHaveBeenCalledWith(expect.any(Function), 4);
+    expect(renderer.root.findAllByType(CollectionUnlockPanel)).toHaveLength(1);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('keeps paging in Image view: the next page continues the lines', async () => {
+    setUpItems(manyItems(HOME_PAGE_SIZE + 5));
+    const renderer = await renderScreen();
+    await selectImage(renderer);
+    expect(lines(renderer).flatMap(line => line.items)).toHaveLength(HOME_PAGE_SIZE);
+
+    await act(async () => {
+      getList(renderer).props.onEndReached();
+    });
+    expect(lines(renderer).flatMap(line => line.items)).toHaveLength(HOME_PAGE_SIZE + 5);
+    expect(lines(renderer).slice(0, -1).every(line => line.items.length === 3)).toBe(true);
   });
 });

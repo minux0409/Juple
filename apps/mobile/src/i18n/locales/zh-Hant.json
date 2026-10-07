@@ -78,6 +78,9 @@
   },
   "history": {
     "title": "典藏庫",
+    "groupByDate": "依日期",
+    "groupAll": "全部",
+    "groupingA11y": "連結分組方式",
     "searchPlaceholder": "搜尋連結",
     "searchClear": "清除搜尋",
     "searchEmpty": "沒有結果。",
