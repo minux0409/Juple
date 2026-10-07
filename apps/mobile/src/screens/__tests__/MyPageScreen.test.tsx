@@ -45,6 +45,7 @@ function mockUseAuth(overrides: {
     signOut: overrides.signOut ?? jest.fn(),
     userEmail: overrides.userEmail ?? null,
     plan: 'plan' in overrides ? overrides.plan ?? null : 'Free',
+    entitlement: null,
     isInitializing: false,
     isSigningIn: false,
     isAuthenticated: true,

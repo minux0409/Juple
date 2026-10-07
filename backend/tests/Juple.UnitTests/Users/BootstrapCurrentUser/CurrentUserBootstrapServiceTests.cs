@@ -94,8 +94,40 @@ public sealed class CurrentUserBootstrapServiceTests
         Assert.Empty(store.CreatedUsers);
     }
 
+    [Fact]
+    public async Task BootstrapAsync_ForAnExistingUser_CarriesTheEntitlement_AndKeepsTheLegacyPlan()
+    {
+        var store = new FakeProvisioningStore { ExistingPlan = UserPlan.Free };
+
+        var result = await CreateService(store).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        Assert.Equal(UserPlan.Free, result.Plan);
+        Assert.False(result.Entitlement.ProgramEnabled);
+        Assert.True(result.Entitlement.CanWrite);
+        Assert.Null(result.Entitlement.Status);
+    }
+
+    [Fact]
+    public async Task BootstrapAsync_ForANewUser_CarriesTheEntitlement()
+    {
+        var result = await CreateService(new FakeProvisioningStore()).BootstrapAsync(ExternalIdentity, new("ko-KR", "Asia/Seoul"));
+
+        Assert.False(result.Entitlement.ProgramEnabled);
+        Assert.True(result.Entitlement.CanWrite);
+    }
+
     private static CurrentUserBootstrapService CreateService(FakeProvisioningStore store) =>
-        new(store, new FixedTimeProvider());
+        new(store, new ProgramNotLaunchedEntitlements(), new FixedTimeProvider());
+
+    // The subscription program is not launched in these tests: access is unrestricted and no status is claimed.
+    private sealed class ProgramNotLaunchedEntitlements : Juple.Application.Billing.IEntitlementService
+    {
+        public Task<Juple.Domain.Billing.Entitlement> GetForUserAsync(long userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Juple.Domain.Billing.Entitlement.NotLaunched(DateTimeOffset.UnixEpoch));
+
+        public Task<Juple.Domain.Billing.Entitlement> GetForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Juple.Domain.Billing.Entitlement.NotLaunched(DateTimeOffset.UnixEpoch));
+    }
 
     private sealed record TimeZoneSyncCall(ExternalIdentityPrincipal ExternalIdentity, string TimeZoneId);
 

@@ -9,6 +9,10 @@ namespace Juple.Domain.Users;
 /// separate change - not by reviving Plus. Every new User is still written as Free (see
 /// CurrentUserProvisioningStore.CreateAsync) and nothing calls SetPlan. Persisted as a string (see
 /// UserConfiguration) so reordering these members can never change the meaning of an existing row.
+///
+/// It is compatibility only and MUST NOT become the entitlement source: access comes from
+/// Juple.Domain.Billing.Entitlement (see IEntitlementService). Removal is a later contract migration, after old
+/// installed clients that still read the bootstrap `plan` field are gone.
 /// </summary>
 public enum UserPlan
 {

@@ -76,7 +76,7 @@ public sealed class HistoryNameSortIntegrationTests : IAsyncLifetime
 
     private async Task LinkAsync(long collectionId, long itemId, long addedByUserId)
     {
-        _db.CollectionItems.Add(new CollectionItem(collectionId, itemId, addedByUserId, Base, 0));
+        _db.CollectionItems.Add(CollectionItem.CreateNew(collectionId, itemId, addedByUserId, Base, 0));
         await _db.SaveChangesAsync();
     }
 

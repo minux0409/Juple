@@ -82,7 +82,7 @@ public sealed class CollectionItemSearchIntegrationTests : IAsyncLifetime
         _db.Items.AddRange(memberships.Select(membership => membership.Item));
         await _db.SaveChangesAsync();
         _db.CollectionItems.AddRange(memberships.Select((membership, index) =>
-            new CollectionItem(membership.CollectionId, membership.Item.Id, _owner, Now.AddMinutes(-(index / 3)), index * 16)));
+            CollectionItem.CreateNew(membership.CollectionId, membership.Item.Id, _owner, Now.AddMinutes(-(index / 3)), index * 16)));
         await _db.SaveChangesAsync();
         await _db.Database.ExecuteSqlInterpolatedAsync(
             $"UPDATE items.Items SET DeletedAtUtc = {Now} WHERE UserId = {_owner} AND Url = 'https://shop.example/trashed'");

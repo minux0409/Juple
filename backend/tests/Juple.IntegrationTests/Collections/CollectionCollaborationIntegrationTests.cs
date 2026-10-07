@@ -600,7 +600,7 @@ public sealed class CollectionCollaborationIntegrationTests : IAsyncLifetime
 
         // Defense in depth: a foreign Item that somehow sits in a public Collection is never published.
         await _db.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT INTO collections.CollectionItems (CollectionId, ItemId, AddedByUserId, AddedAtUtc, SortOrder) VALUES ({publicCollection}, {_contributorOtherItem}, {_contributor}, {DateTimeOffset.UtcNow}, 99999)");
+            $"INSERT INTO collections.CollectionItems (CollectionId, ItemId, AddedByUserId, AddedAtUtc, VisibleSinceUtc, SortOrder) VALUES ({publicCollection}, {_contributorOtherItem}, {_contributor}, {DateTimeOffset.UtcNow}, {DateTimeOffset.UtcNow}, 99999)");
 
         Assert.Equal(new PublicCollectionDto(null, true), await _public.GetCollectionAsync(publicId));
         await Assert.ThrowsAsync<CollectionLockedException>(() => _public.GetItemsAsync(publicId, null, 50));

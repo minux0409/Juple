@@ -21,11 +21,18 @@ public sealed class CollectionItem
     {
     }
 
+    /// <summary>
+    /// Both timestamps are mandatory, so a new membership cannot be created without deciding VisibleSinceUtc:
+    /// <paramref name="addedAtUtc"/> is the existing browsing/history time (a move or copy keeps the source's), while
+    /// <paramref name="visibleSinceUtc"/> is when THIS membership became content of THIS Collection (always the time of
+    /// the operation that created it). Most callers want <see cref="CreateNew"/>.
+    /// </summary>
     public CollectionItem(
         long collectionId,
         long itemId,
         long addedByUserId,
         DateTimeOffset addedAtUtc,
+        DateTimeOffset visibleSinceUtc,
         int sortOrder,
         bool addedViaPublicShare = false)
     {
@@ -33,9 +40,23 @@ public sealed class CollectionItem
         ItemId = itemId;
         AddedByUserId = addedByUserId;
         AddedAtUtc = addedAtUtc;
+        VisibleSinceUtc = visibleSinceUtc;
         SortOrder = sortOrder;
         AddedViaPublicShare = addedViaPublicShare;
     }
+
+    /// <summary>
+    /// A membership created by a direct add, a new save into the Collection, an approved proposal (the APPROVAL time), a
+    /// copy-in of links or a restored membership: AddedAtUtc and VisibleSinceUtc are both the creation instant.
+    /// </summary>
+    public static CollectionItem CreateNew(
+        long collectionId,
+        long itemId,
+        long addedByUserId,
+        DateTimeOffset nowUtc,
+        int sortOrder,
+        bool addedViaPublicShare = false) =>
+        new(collectionId, itemId, addedByUserId, nowUtc, nowUtc, sortOrder, addedViaPublicShare);
 
     /// <summary>
     /// Added through a writable public share link by a signed-in holder (not a member). Such a
@@ -62,7 +83,21 @@ public sealed class CollectionItem
     /// </summary>
     public long AddedByUserId { get; private set; }
 
+    /// <summary>
+    /// The existing browsing/history time of this link in the Collection (date sections, ordering, "added" dates). A move or
+    /// copy into another Collection deliberately CARRIES it over; its meaning is unchanged and nothing else is derived from it.
+    /// </summary>
     public DateTimeOffset AddedAtUtc { get; private set; }
+
+    /// <summary>
+    /// The UTC instant THIS membership became visible/confirmed content of THIS Collection: the time of a direct add, the
+    /// APPROVAL time of a proposal (not when it was proposed), and the move/copy time for the target membership (never the
+    /// source's). It is internal access-control state - never shown, never used for dates or ordering - and the single
+    /// timestamp the subscription freeze compares (SharedContentFreeze: visible while VisibleSinceUtc &lt;= AccessFrozenAtUtc).
+    /// Editing the link never changes it; only a NEW membership gets a new value. There is no database default: every
+    /// creation path sets it explicitly from its authoritative operation time.
+    /// </summary>
+    public DateTimeOffset VisibleSinceUtc { get; private set; }
 
     public int SortOrder { get; private set; }
 

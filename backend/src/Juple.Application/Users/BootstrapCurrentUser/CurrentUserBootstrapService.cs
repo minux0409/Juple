@@ -1,4 +1,5 @@
 using System.Globalization;
+using Juple.Application.Billing;
 using Juple.Application.Identity;
 using Juple.Domain.Users;
 
@@ -6,6 +7,7 @@ namespace Juple.Application.Users.BootstrapCurrentUser;
 
 public sealed class CurrentUserBootstrapService(
     ICurrentUserProvisioningStore provisioningStore,
+    IEntitlementService entitlementService,
     TimeProvider timeProvider) : ICurrentUserBootstrapService
 {
     private const int PreferredLocaleMaxLength = 35;
@@ -34,7 +36,8 @@ public sealed class CurrentUserBootstrapService(
         // canonical zone from here on.
         if (existingPlan is { } plan)
         {
-            return new CurrentUserBootstrapResult(plan, timeZoneId);
+            return new CurrentUserBootstrapResult(
+                plan, timeZoneId, await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken));
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
@@ -47,7 +50,8 @@ public sealed class CurrentUserBootstrapService(
                 DefaultCurrencyCode: null,
                 utcNow),
             cancellationToken);
-        return new CurrentUserBootstrapResult(createdPlan, timeZoneId);
+        return new CurrentUserBootstrapResult(
+            createdPlan, timeZoneId, await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken));
     }
 
     private static string NormalizePreferredLocale(string? preferredLocale)

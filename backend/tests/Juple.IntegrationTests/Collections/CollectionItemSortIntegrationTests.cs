@@ -52,7 +52,7 @@ public sealed class CollectionItemSortIntegrationTests : IAsyncLifetime
                 ? _base.AddDays(TieStart)
                 : _base.AddDays(index);
             var sortOrder = (index * 37 % LinkCount) * 10;
-            _db.CollectionItems.Add(new CollectionItem(_collectionId, saved.Entry.Id, _owner, addedAtUtc, sortOrder));
+            _db.CollectionItems.Add(CollectionItem.CreateNew(_collectionId, saved.Entry.Id, _owner, addedAtUtc, sortOrder));
             _links.Add((saved.Entry.Id, addedAtUtc, sortOrder));
         }
 

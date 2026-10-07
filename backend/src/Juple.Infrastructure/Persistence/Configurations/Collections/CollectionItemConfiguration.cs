@@ -33,6 +33,14 @@ public sealed class CollectionItemConfiguration : IEntityTypeConfiguration<Colle
             .HasColumnType("datetimeoffset")
             .IsRequired();
 
+        // When this membership became visible content of this Collection (see CollectionItem.VisibleSinceUtc). NOT NULL and
+        // deliberately WITHOUT a database default: the application always sets it from the authoritative operation time.
+        // Not indexed: no live query filters on it yet (the subscription freeze is off) - add an index with R39-D's query
+        // plan, not before.
+        builder.Property(collectionItem => collectionItem.VisibleSinceUtc)
+            .HasColumnType("datetimeoffset")
+            .IsRequired();
+
         builder.Property(collectionItem => collectionItem.SortOrder)
             .HasColumnType("int")
             .IsRequired();

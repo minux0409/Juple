@@ -7,6 +7,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/auth/session")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class AuthSessionController : ControllerBase
 {
     [HttpGet]

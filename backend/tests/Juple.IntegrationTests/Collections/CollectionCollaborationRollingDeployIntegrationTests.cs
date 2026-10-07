@@ -73,9 +73,12 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // writes always record who added the link. That revision is played by today's model, which
         // also maps CollectionItems.AddedViaPublicShare (a later, purely additive migration) - so
         // this block gets exactly that column (with its migration's default) and gives it back
-        // afterwards, leaving the real migration to add it.
+        // afterwards, leaving the real migration to add it. The same goes for CollectionItems.VisibleSinceUtc (also a later
+        // migration): the model maps it, and the new revision's own AddAsync sets it explicitly.
         await ExecuteAsync(
             "ALTER TABLE [collections].[CollectionItems] ADD [AddedViaPublicShare] bit NOT NULL CONSTRAINT [DF_RollingDeploy_AddedViaPublicShare] DEFAULT CAST(0 AS bit)");
+        await ExecuteAsync(
+            "ALTER TABLE [collections].[CollectionItems] ADD [VisibleSinceUtc] datetimeoffset NOT NULL CONSTRAINT [DF_RollingDeploy_VisibleSinceUtc] DEFAULT SYSUTCDATETIME()");
         await using (var db = NewContext())
         {
             var store = new CollectionStore(db);
@@ -94,6 +97,8 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
 
         await ExecuteAsync(
             "ALTER TABLE [collections].[CollectionItems] DROP CONSTRAINT [DF_RollingDeploy_AddedViaPublicShare]; ALTER TABLE [collections].[CollectionItems] DROP COLUMN [AddedViaPublicShare]");
+        await ExecuteAsync(
+            "ALTER TABLE [collections].[CollectionItems] DROP CONSTRAINT [DF_RollingDeploy_VisibleSinceUtc]; ALTER TABLE [collections].[CollectionItems] DROP COLUMN [VisibleSinceUtc]");
 
         await MigrateToAsync(null);
 

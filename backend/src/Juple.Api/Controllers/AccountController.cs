@@ -12,6 +12,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/account")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class AccountController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

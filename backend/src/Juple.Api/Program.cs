@@ -120,6 +120,11 @@ if (!isOutsideHttpApi)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IExternalIdentityAccessor, HttpContextExternalIdentityAccessor>();
 builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+// The subscription program switch (default OFF - nobody restricted, no trial consumed). Validated at API startup below.
+var billingOptions = builder.Configuration.GetSection("Billing").Get<Juple.Application.Billing.BillingOptions>() ?? new Juple.Application.Billing.BillingOptions();
+builder.Services.AddSingleton(billingOptions);
+builder.Services.AddScoped<Juple.Application.Billing.ITrialIdentityHasher, Juple.Application.Billing.TrialIdentityHasher>();
+builder.Services.AddScoped<Juple.Application.Billing.IEntitlementService, Juple.Application.Billing.EntitlementService>();
 builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
 builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
@@ -350,6 +355,9 @@ if (isInstagramMetadataRetryJob)
     return await RunInstagramMetadataRetryOnceAsync(app.Services);
 }
 
+// Billing:* (program switch, fixed 30-day trial, and - only once the program is enabled - ProgramStartAtUtc and the
+// trial-ledger HMAC key): an invalid combination stops the API here with a message naming the setting.
+Juple.Application.Billing.BillingOptionsValidator.Validate(billingOptions);
 // Forces PublicCollectionCursor:EncryptionKey validation (see PublicCollectionItemPageCursorCodec's
 // constructor) at startup rather than on the first public "load more" request.
 app.Services.GetRequiredService<IPublicCollectionItemPageCursorCodec>();

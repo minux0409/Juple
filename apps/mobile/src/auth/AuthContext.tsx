@@ -35,6 +35,7 @@ const INITIAL_STATE: AuthState = {
   userBootstrapStatus: 'notStarted',
   sessionRestoreStep: 'sessionRestore',
   plan: null,
+  entitlement: null,
 };
 
 const SIGNED_OUT_STATE: AuthState = {
@@ -46,6 +47,7 @@ const SIGNED_OUT_STATE: AuthState = {
   userBootstrapStatus: 'notStarted',
   sessionRestoreStep: 'sessionRestore',
   plan: null,
+  entitlement: null,
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -68,7 +70,7 @@ async function bootstrapUserAccount(
   try {
     return await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
   } catch {
-    return { status: 'invalidDeviceSettings', plan: null };
+    return { status: 'invalidDeviceSettings', plan: null, entitlement: null };
   }
 }
 
@@ -156,7 +158,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
-              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan }
+              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement }
               : previous,
           );
         }
@@ -257,7 +259,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         );
         setState(previous =>
           previous.isAuthenticated
-            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan }
+            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement }
             : previous,
         );
       }
@@ -271,6 +273,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         backendAuthStatus: 'notChecked',
         userBootstrapStatus: 'notStarted',
         plan: null,
+        entitlement: null,
       }));
     }
   }, [t]);

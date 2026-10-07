@@ -52,7 +52,7 @@ public sealed class LockedHistoryRedactionIntegrationTests : IAsyncLifetime
         _db.Collections.Add(locked);
         _db.Items.Add(item);
         await _db.SaveChangesAsync();
-        _db.CollectionItems.Add(new CollectionItem(locked.Id, item.Id, _userId, now, 0));
+        _db.CollectionItems.Add(CollectionItem.CreateNew(locked.Id, item.Id, _userId, now, 0));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
 
@@ -93,7 +93,7 @@ public sealed class LockedHistoryRedactionIntegrationTests : IAsyncLifetime
         _db.Collections.Add(foreign);
         _db.Items.Add(item);
         await _db.SaveChangesAsync();
-        _db.CollectionItems.Add(new CollectionItem(foreign.Id, item.Id, _otherUserId, now, 0));
+        _db.CollectionItems.Add(CollectionItem.CreateNew(foreign.Id, item.Id, _otherUserId, now, 0));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
 

@@ -45,6 +45,15 @@ public sealed class User
 
     public UserPlan Plan { get; private set; }
 
+    /// <summary>
+    /// The account's free-trial window (see Juple.Domain.Billing.TrialPolicy) - null until the subscription program is
+    /// enabled and the account has been evaluated (never backfilled from "now"). Explicit account state: not derived
+    /// from CreatedAtUtc and not from <see cref="Plan"/>, which stays legacy compatibility only.
+    /// </summary>
+    public DateTimeOffset? TrialStartedAtUtc { get; private set; }
+
+    public DateTimeOffset? TrialEndsAtUtc { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public DateTimeOffset UpdatedAtUtc { get; private set; }
@@ -56,6 +65,13 @@ public sealed class User
     public void RegeneratePublicCodeBeforeCreate()
     {
         PublicCode = UserPublicCode.Generate();
+    }
+
+    /// <summary>Records the trial window (only ever the ledger's original one - see EntitlementService).</summary>
+    public void SetTrial(Juple.Domain.Billing.TrialWindow window)
+    {
+        TrialStartedAtUtc = window.StartedAtUtc;
+        TrialEndsAtUtc = window.EndsAtUtc;
     }
 
     public void SetPlan(UserPlan plan, DateTimeOffset updatedAtUtc)

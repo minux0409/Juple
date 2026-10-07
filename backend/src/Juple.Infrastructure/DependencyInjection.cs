@@ -60,6 +60,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
+        services.AddScoped<Juple.Application.Billing.IEntitlementStore, Juple.Infrastructure.Billing.EntitlementStore>();
         services.AddScoped<IAccountDeletionStore, AccountDeletionStore>();
         services.AddScoped<IAccountDeletionBlobCleanupStore, AccountDeletionBlobCleanupStore>();
         services.AddScoped<IBlobCleanupService, BlobCleanupService>();

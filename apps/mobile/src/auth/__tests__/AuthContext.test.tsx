@@ -64,7 +64,7 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
   beforeEach(() => {
     // Only the two tests that actually reach backendAuthStatus 'valid' exercise this call - a
     // plain default so they don't crash on an unmocked resolved value; neither asserts on plan.
-    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free' });
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free', entitlement: null });
   });
 
   afterEach(() => {
@@ -145,5 +145,70 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
       resolveToken('a-valid-token');
     });
     expect(readProbeText(renderer)).toBe('true:valid:entraRefresh');
+  });
+});
+
+/** Captures the entitlement/plan the provider exposes - this round only makes it available; nothing on screen reads it. */
+function EntitlementProbe({ onValue }: { onValue: (value: { plan: unknown; entitlement: unknown; status: string }) => void }) {
+  const { plan, entitlement, userBootstrapStatus } = useAuth();
+  onValue({ plan, entitlement, status: userBootstrapStatus });
+  return null;
+}
+
+async function renderEntitlementProbe() {
+  const seen: { plan: unknown; entitlement: unknown; status: string }[] = [];
+  await act(async () => {
+    ReactTestRenderer.create(
+      <AuthProvider>
+        <EntitlementProbe onValue={value => seen.push(value)} />
+      </AuthProvider>,
+    );
+  });
+  return seen;
+}
+
+describe('AuthProvider bootstrap - entitlement state', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('exposes the entitlement alongside the legacy plan once bootstrap is ready', async () => {
+    const entitlement = {
+      programEnabled: true,
+      status: 'trial',
+      reason: 'none',
+      trialStartedAtUtc: '2026-12-01T00:00:00+00:00',
+      trialEndsAtUtc: '2026-12-31T00:00:00+00:00',
+      currentPeriodEndsAtUtc: null,
+      accessFrozenAtUtc: null,
+      canWrite: true,
+      verifiedAtUtc: '2026-12-05T00:00:00+00:00',
+    };
+    jest.mocked(getValidAccessToken).mockResolvedValue('a-valid-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free', entitlement } as never);
+
+    const seen = await renderEntitlementProbe();
+
+    expect(seen[seen.length - 1]).toEqual({ plan: 'Free', entitlement, status: 'ready' });
+  });
+
+  it('starts with no entitlement (nothing is guessed before the server answers)', async () => {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('offline'));
+
+    const seen = await renderEntitlementProbe();
+
+    expect(seen[0].entitlement).toBeNull();
+    expect(seen[0].plan).toBeNull();
+  });
+
+  it('an older backend (no entitlement) leaves it null while the plan and bootstrap still work', async () => {
+    jest.mocked(getValidAccessToken).mockResolvedValue('a-valid-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(bootstrapCurrentUser).mockResolvedValue({ status: 'ready', plan: 'Free', entitlement: null });
+
+    const seen = await renderEntitlementProbe();
+
+    expect(seen[seen.length - 1]).toEqual({ plan: 'Free', entitlement: null, status: 'ready' });
   });
 });

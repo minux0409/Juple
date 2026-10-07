@@ -13,6 +13,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/push/devices")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class PushDevicesController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

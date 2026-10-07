@@ -27,6 +27,7 @@ function mockAuth(overrides: Partial<AuthContextValue>): void {
     userBootstrapStatus: 'notStarted',
     sessionRestoreStep: 'sessionRestore',
     plan: null,
+    entitlement: null,
     signIn: jest.fn(),
     signOut: jest.fn(),
     getValidAccessToken: jest.fn(),

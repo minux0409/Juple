@@ -67,7 +67,7 @@ public sealed class CollectionLinkSubmissionStore(
         // The Owner's own link is never a proposal: it goes straight in (as their direct add would).
         if (ownerUserId == userId)
         {
-            dbContext.CollectionItems.Add(new CollectionItem(
+            dbContext.CollectionItems.Add(CollectionItem.CreateNew(
                 collectionId, itemId, userId, nowUtc, await TopSortOrderAsync(collectionId, cancellationToken)));
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -261,7 +261,9 @@ public sealed class CollectionLinkSubmissionStore(
         dbContext.CollectionLinkSubmissions.Remove(submission);
         if (conflict is null)
         {
-            dbContext.CollectionItems.Add(new CollectionItem(
+            // The membership - and so VisibleSinceUtc - is created NOW, at approval: the proposal's own submission time never
+            // reaches it, so a proposal made before a viewer's freeze but approved after it is new content.
+            dbContext.CollectionItems.Add(CollectionItem.CreateNew(
                 collectionId,
                 submission.ItemId,
                 submission.SubmittedByUserId,

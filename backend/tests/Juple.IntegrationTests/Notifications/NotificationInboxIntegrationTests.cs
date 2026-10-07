@@ -156,7 +156,7 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
         }
 
         var item = await NewItemAsync(_member, "https://example.test/mine");
-        _db.CollectionItems.Add(new CollectionItem(collections[0], item, _member, DateTimeOffset.UtcNow, 0));
+        _db.CollectionItems.Add(CollectionItem.CreateNew(collections[0], item, _member, DateTimeOffset.UtcNow, 0));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
 
@@ -224,7 +224,7 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
     public async Task Actors_AreShownOnlyWherePermitted_AndNothingPrivateLeaves()
     {
         var item = await NewItemAsync(_member, "https://secret.example.test/private-path?token=abc");
-        _db.CollectionItems.Add(new CollectionItem(_collectionId, item, _member, DateTimeOffset.UtcNow, 0));
+        _db.CollectionItems.Add(CollectionItem.CreateNew(_collectionId, item, _member, DateTimeOffset.UtcNow, 0));
         _db.CollectionItemComments.Add(new CollectionItemComment(_collectionId, item, _owner, "SECRET-COMMENT-TEXT", DateTimeOffset.UtcNow));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
@@ -255,7 +255,7 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
     public async Task ATargetThatIsGone_FallsBackSafely_AndNamesNothing()
     {
         var item = await NewItemAsync(_member, "https://example.test/gone");
-        _db.CollectionItems.Add(new CollectionItem(_collectionId, item, _member, DateTimeOffset.UtcNow, 0));
+        _db.CollectionItems.Add(CollectionItem.CreateNew(_collectionId, item, _member, DateTimeOffset.UtcNow, 0));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
         var reaction = await NotifyAsync(_member, NotificationType.CollectionItemReactionReceived, _owner, subjectId: item);
@@ -398,17 +398,20 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
             var migrator = db.GetService<IMigrator>();
             await migrator.MigrateAsync("20261002042744_AddNotificationOutbox");
             var nowUtc = DateTimeOffset.UtcNow;
-            var user = new User("ko-KR", "UTC", null, nowUtc, nowUtc);
-            db.Users.Add(user);
-            await db.SaveChangesAsync();
-            var old = Notification.Social(user.Id, NotificationType.CollectionItemsAdded, null, 1, null, "old", nowUtc);
-            var refresh = Notification.Social(user.Id, NotificationType.CollectionContentChanged, null, 1, null, "refresh", nowUtc);
+            // Raw SQL, not the User entity: this database is deliberately at an OLD schema, and the current User model maps
+            // columns added by later migrations (e.g. the trial window) that do not exist there yet.
+            var publicCode = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+            var userId = (await db.Database
+                .SqlQuery<long>($"INSERT INTO users.Users (PreferredLocale, TimeZoneId, CreatedAtUtc, UpdatedAtUtc, PublicCode) OUTPUT INSERTED.Id AS [Value] VALUES ('ko-KR', 'UTC', {nowUtc}, {nowUtc}, {publicCode})")
+                .ToListAsync()).Single();
+            var old = Notification.Social(userId, NotificationType.CollectionItemsAdded, null, 1, null, "old", nowUtc);
+            var refresh = Notification.Social(userId, NotificationType.CollectionContentChanged, null, 1, null, "refresh", nowUtc);
             db.Notifications.AddRange(old, refresh);
             await db.SaveChangesAsync();
 
             await migrator.MigrateAsync();
             db.ChangeTracker.Clear();
-            var fresh = Notification.Social(user.Id, NotificationType.CollectionItemsAdded, null, 1, null, "fresh", nowUtc);
+            var fresh = Notification.Social(userId, NotificationType.CollectionItemsAdded, null, 1, null, "fresh", nowUtc);
             db.Notifications.Add(fresh);
             await db.SaveChangesAsync();
 
@@ -416,7 +419,7 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
             Assert.NotNull(readAt["old"]);
             Assert.Null(readAt["refresh"]);
             Assert.Null(readAt["fresh"]);
-            Assert.Equal(1, await new NotificationInboxStore(db).CountUnreadAsync(user.Id));
+            Assert.Equal(1, await new NotificationInboxStore(db).CountUnreadAsync(userId));
         }
         finally
         {
@@ -455,7 +458,7 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
         await _db.Items.Where(entry => entry.Id == mine).ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.PreviewImageUrl, "https://img.example.test/mine.jpg"));
         await _db.Items.Where(entry => entry.Id == theirs).ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.PreviewImageUrl, "https://img.example.test/theirs.jpg"));
         _db.ChangeTracker.Clear();
-        await _db.CollectionItems.AddAsync(new CollectionItem(_collectionId, mine, _member, DateTimeOffset.UtcNow, 0));
+        await _db.CollectionItems.AddAsync(CollectionItem.CreateNew(_collectionId, mine, _member, DateTimeOffset.UtcNow, 0));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
 

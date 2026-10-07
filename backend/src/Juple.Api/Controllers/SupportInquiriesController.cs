@@ -20,6 +20,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/support/inquiries")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class SupportInquiriesController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

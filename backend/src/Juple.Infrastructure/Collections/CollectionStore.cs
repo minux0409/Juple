@@ -21,8 +21,11 @@ namespace Juple.Infrastructure.Collections;
 public sealed class CollectionStore(
     JupleDbContext dbContext,
     ICollectionIconImageStorage? iconImageStorage = null,
-    IUserProfileImageStorage? profileImageStorage = null) : ICollectionContributedLinkStore, ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
+    IUserProfileImageStorage? profileImageStorage = null,
+    TimeProvider? timeProvider = null) : ICollectionContributedLinkStore, ICollectionStore, ICollectionItemStore, ICollectionManagementStore, IPublicCollectionWriteStore
 {
+    private TimeProvider Clock => timeProvider ?? TimeProvider.System;
+
     /// <summary>
     /// Spacing between adjacent CollectionItem.SortOrder values - wide enough that a manual move or
     /// a new prepend almost always just writes the moved/added row's own midpoint value (see
@@ -1189,7 +1192,7 @@ public sealed class CollectionStore(
             .MinAsync(cancellationToken);
         var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
 
-        dbContext.CollectionItems.Add(new CollectionItem(
+        dbContext.CollectionItems.Add(CollectionItem.CreateNew(
             share.CollectionId, itemId, userId, addedAtUtc, sortOrder, addedViaPublicShare: true));
         try
         {
@@ -1254,7 +1257,7 @@ public sealed class CollectionStore(
             .MinAsync(cancellationToken);
         var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
 
-        var membership = new CollectionItem(collectionId, itemId, userId, addedAtUtc, sortOrder);
+        var membership = CollectionItem.CreateNew(collectionId, itemId, userId, addedAtUtc, sortOrder);
         dbContext.CollectionItems.Add(membership);
 
         try
@@ -1401,7 +1404,10 @@ public sealed class CollectionStore(
                 .Select(membership => (int?)membership.SortOrder)
                 .MinAsync(cancellationToken);
             var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
-            dbContext.CollectionItems.Add(new CollectionItem(targetCollectionId, itemId, userId, sourceMembership.AddedAtUtc, sortOrder));
+            // AddedAtUtc keeps being carried over (browsing/history dates are unchanged); VisibleSinceUtc is the MOVE time -
+            // the source Collection's visibility time says nothing about when this link became content of the target.
+            dbContext.CollectionItems.Add(new CollectionItem(
+                targetCollectionId, itemId, userId, sourceMembership.AddedAtUtc, Clock.GetUtcNow(), sortOrder));
         }
 
         dbContext.CollectionItems.Remove(sourceMembership);
@@ -1443,7 +1449,7 @@ public sealed class CollectionStore(
                 .Select(membership => (int?)membership.SortOrder)
                 .MinAsync(cancellationToken);
             var sortOrder = minSortOrder is { } existingMin ? existingMin - SortOrderGap : 0;
-            dbContext.CollectionItems.Add(new CollectionItem(sourceCollectionId, itemId, userId, DateTimeOffset.UtcNow, sortOrder));
+            dbContext.CollectionItems.Add(CollectionItem.CreateNew(sourceCollectionId, itemId, userId, Clock.GetUtcNow(), sortOrder));
         }
 
         if (targetMembershipCreated)
@@ -1493,12 +1499,15 @@ public sealed class CollectionStore(
             .MinAsync(cancellationToken) ?? 0;
 
         var createdMemberships = new List<CollectionItem>();
+        var mergedAtUtc = Clock.GetUtcNow();
         foreach (var membership in sourceMemberships)
         {
             if (targetItemIds.Add(membership.ItemId))
             {
                 minSortOrder -= SortOrderGap;
-                var created = new CollectionItem(targetCollectionId, membership.ItemId, userId, membership.AddedAtUtc, minSortOrder);
+                // AddedAtUtc carried over as before; VisibleSinceUtc is the merge time (a new membership in the target).
+                var created = new CollectionItem(
+                    targetCollectionId, membership.ItemId, userId, membership.AddedAtUtc, mergedAtUtc, minSortOrder);
                 dbContext.CollectionItems.Add(created);
                 createdMemberships.Add(created);
             }

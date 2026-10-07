@@ -77,6 +77,8 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Support.SupportInquiry> SupportInquiries => Set<Juple.Domain.Support.SupportInquiry>();
 
+    public DbSet<Juple.Domain.Billing.TrialLedgerEntry> TrialLedger => Set<Juple.Domain.Billing.TrialLedgerEntry>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

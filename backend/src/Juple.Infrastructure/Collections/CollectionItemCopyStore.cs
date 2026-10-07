@@ -112,7 +112,7 @@ public sealed class CollectionItemCopyStore(
         var sortOrder = (minSortOrder ?? SortOrderGap) - (SortOrderGap * toAdd.Count);
         foreach (var (ownItemId, newItem) in toAdd)
         {
-            dbContext.CollectionItems.Add(new CollectionItem(
+            dbContext.CollectionItems.Add(CollectionItem.CreateNew(
                 destinationCollectionId, ownItemId ?? newItem!.Id, userId, nowUtc, sortOrder));
             sortOrder += SortOrderGap;
         }

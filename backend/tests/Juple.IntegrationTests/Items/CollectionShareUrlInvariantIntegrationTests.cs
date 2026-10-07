@@ -97,7 +97,7 @@ public sealed class CollectionShareUrlInvariantIntegrationTests : IAsyncLifetime
         var legacy = new Item(_bob, $"https://dev.juple.co.kr/c/{Id}", now);
         _db.Items.AddRange(ordinary, legacy);
         await _db.SaveChangesAsync();
-        _db.CollectionItems.AddRange(new CollectionItem(source, ordinary.Id, _bob, now, 0), new CollectionItem(source, legacy.Id, _bob, now, 16));
+        _db.CollectionItems.AddRange(CollectionItem.CreateNew(source, ordinary.Id, _bob, now, 0), CollectionItem.CreateNew(source, legacy.Id, _bob, now, 16));
         await _db.SaveChangesAsync();
         _db.ChangeTracker.Clear();
 

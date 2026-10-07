@@ -1,4 +1,5 @@
 using Juple.Application.Identity;
+using Juple.Domain.Billing;
 using Juple.Domain.Users;
 
 namespace Juple.Application.Users.BootstrapCurrentUser;
@@ -17,4 +18,5 @@ public interface ICurrentUserBootstrapService
 }
 
 /// <param name="TimeZoneId">The user's stored (canonical) IANA time zone after this bootstrap.</param>
-public sealed record CurrentUserBootstrapResult(UserPlan Plan, string TimeZoneId);
+/// <param name="Entitlement">The account's effective access (see IEntitlementService) - additive; Plan stays legacy compatibility only.</param>
+public sealed record CurrentUserBootstrapResult(UserPlan Plan, string TimeZoneId, Entitlement Entitlement);
