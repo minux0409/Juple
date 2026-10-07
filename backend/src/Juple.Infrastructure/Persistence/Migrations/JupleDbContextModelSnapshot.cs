@@ -22,6 +22,191 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountKey")
+                        .IsRequired()
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GoogleAccountLinks_AccountKey");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GoogleAccountLinks_UserId");
+
+                    b.ToTable("GoogleAccountLinks", "billing");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Billing.StoreEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("DispatchedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("EncryptedToken")
+                        .HasColumnType("varbinary(2048)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<string>("ExternalEventId")
+                        .IsRequired()
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTimeOffset>("NextAttemptAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ProcessedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ReceivedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<byte[]>("TokenHash")
+                        .HasColumnType("binary(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NextAttemptAtUtc")
+                        .HasDatabaseName("IX_StoreEvents_Unprocessed_NextAttemptAtUtc")
+                        .HasFilter("[ProcessedAtUtc] IS NULL");
+
+                    b.HasIndex("Source", "ExternalEventId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StoreEvents_Source_ExternalEventId");
+
+                    b.ToTable("StoreEvents", "billing");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Billing.StorePurchase", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("AccessEndsAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("AcknowledgedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("AcknowledgementPending")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("AutoRenews")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("BasePlanId")
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CurrentPeriodStartUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DetachedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("ExternalKeyHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.Property<DateTimeOffset>("FirstLinkedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("LatestVerifiedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("NextReconcileAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("VerificationHandleEncrypted")
+                        .IsRequired()
+                        .HasColumnType("varbinary(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NextReconcileAtUtc")
+                        .HasDatabaseName("IX_StorePurchases_NextReconcileAtUtc");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_StorePurchases_UserId");
+
+                    b.HasIndex("Source", "ExternalKeyHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StorePurchases_Source_ExternalKeyHash");
+
+                    b.ToTable("StorePurchases", "billing");
+                });
+
             modelBuilder.Entity("Juple.Domain.Billing.TrialLedgerEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -1651,6 +1836,23 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UX_Users_PublicCode");
 
                     b.ToTable("Users", "users");
+                });
+
+            modelBuilder.Entity("Juple.Domain.Billing.GoogleAccountLink", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Billing.StorePurchase", b =>
+                {
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("Juple.Domain.Collections.Collection", b =>

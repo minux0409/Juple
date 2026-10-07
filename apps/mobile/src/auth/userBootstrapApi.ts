@@ -16,7 +16,7 @@ interface BootstrapCurrentUserResponseBody {
 }
 
 const ENTITLEMENT_STATUSES: readonly EntitlementStatus[] = ['trial', 'active', 'gracePeriod', 'expired'];
-const ENTITLEMENT_REASONS: readonly EntitlementReason[] = ['none', 'cancelled', 'billingIssue', 'refunded'];
+const ENTITLEMENT_REASONS: readonly EntitlementReason[] = ['none', 'cancelled', 'billingIssue', 'refunded', 'paused'];
 
 const timestampOrNull = (value: unknown): string | null => (typeof value === 'string' && value.length > 0 ? value : null);
 

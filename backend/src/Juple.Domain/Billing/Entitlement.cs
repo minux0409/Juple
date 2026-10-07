@@ -19,6 +19,9 @@ public enum EntitlementReason
     Cancelled,
     BillingIssue,
     Refunded,
+
+    /// <summary>The user paused the subscription in the store (no access while paused).</summary>
+    Paused,
 }
 
 /// <summary>The account's 30-day free window (see <see cref="TrialPolicy"/>). Both ends are UTC instants.</summary>

@@ -61,6 +61,22 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
         services.AddScoped<Juple.Application.Billing.IEntitlementStore, Juple.Infrastructure.Billing.EntitlementStore>();
+        // Google Play billing (R39-B1). Everything here is inert until Billing:Google:Enabled: nothing reads a credential at startup.
+        services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingStore, Juple.Infrastructure.Billing.GoogleBillingStore>();
+        services.AddSingleton<Juple.Infrastructure.Billing.IGoogleCredentialSource, Juple.Infrastructure.Billing.ConfiguredServiceAccountCredentialSource>();
+        services.AddSingleton<Juple.Application.Billing.GooglePlay.IGooglePlayClient, Juple.Infrastructure.Billing.GooglePlayClient>();
+        services.AddSingleton<Juple.Application.Billing.GooglePlay.IBillingTelemetry, Juple.Infrastructure.Billing.BillingTelemetry>();
+        services.AddSingleton<Juple.Application.Billing.GooglePlay.IPubSubPushAuthenticator, Juple.Infrastructure.Billing.GooglePubSubOidcAuthenticator>();
+        if (string.IsNullOrWhiteSpace(configuration["Billing:Events:ServiceBusNamespace"]))
+        {
+            services.AddSingleton<Juple.Application.Billing.GooglePlay.IBillingEventSignal, Juple.Infrastructure.Billing.NullBillingEventSignal>();
+        }
+        else
+        {
+            services.AddSingleton<Juple.Application.Billing.GooglePlay.IBillingEventSignal, Juple.Infrastructure.Billing.ServiceBusBillingEventSignal>();
+        }
+
+        services.AddSingleton<Juple.Infrastructure.Billing.ServiceBusBillingConsumer>();
         services.AddScoped<IAccountDeletionStore, AccountDeletionStore>();
         services.AddScoped<IAccountDeletionBlobCleanupStore, AccountDeletionBlobCleanupStore>();
         services.AddScoped<IBlobCleanupService, BlobCleanupService>();

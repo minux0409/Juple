@@ -100,6 +100,11 @@ public sealed class EntitlementServiceTests
 
         public byte[]? LastHash { get; private set; }
 
+        public IReadOnlyList<PurchaseAccess> Purchases { get; set; } = [];
+
+        public Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Purchases);
+
         public Task<EntitlementUserState?> GetUserStateAsync(long userId, CancellationToken cancellationToken = default)
         {
             StateReads++;

@@ -18,6 +18,9 @@ public interface IEntitlementStore
 
     Task<EntitlementUserState?> GetUserStateAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default);
 
+    /// <summary>What each of the account's store purchases currently grants (empty when it never bought). Detached purchases are not the account's.</summary>
+    Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Atomically and idempotently settles the account's trial. <paramref name="identityHash"/> is the ledger key. If the
     /// ledger already holds that identity, ITS window is used and projected onto the user (never a fresh 30 days);
@@ -76,9 +79,16 @@ public sealed class EntitlementService(
 
     private async Task<Entitlement> EvaluateAsync(EntitlementUserState state, DateTimeOffset nowUtc, CancellationToken cancellationToken)
     {
+        var window = await SettleTrialAsync(state, nowUtc, cancellationToken);
+        var purchases = await store.GetPurchaseAccessAsync(state.UserId, cancellationToken);
+        return EntitlementCalculator.Effective(window, purchases, nowUtc);
+    }
+
+    private async Task<TrialWindow> SettleTrialAsync(EntitlementUserState state, DateTimeOffset nowUtc, CancellationToken cancellationToken)
+    {
         if (state.TrialStartedAtUtc is { } started && state.TrialEndsAtUtc is { } ends)
         {
-            return Entitlement.ForTrial(new TrialWindow(started, ends), nowUtc);
+            return new TrialWindow(started, ends);
         }
 
         // Not evaluated yet since the program was enabled (or a freshly re-created account): settle through the ledger.
@@ -86,12 +96,11 @@ public sealed class EntitlementService(
             ?? throw new InvalidOperationException("An account always has an external identity; none was found for the trial ledger.");
         var programStart = options.ProgramStartAtUtc
             ?? throw new InvalidOperationException("Billing:ProgramStartAtUtc is required while the program is enabled.");
-        var window = await store.EnsureTrialAsync(
+        return await store.EnsureTrialAsync(
             state.UserId,
             hasher.Hash(identity),
             TrialPolicy.WindowFor(state.CreatedAtUtc, programStart),
             nowUtc,
             cancellationToken);
-        return Entitlement.ForTrial(window, nowUtc);
     }
 }

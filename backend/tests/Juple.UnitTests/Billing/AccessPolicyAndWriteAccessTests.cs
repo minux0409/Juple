@@ -326,7 +326,7 @@ public sealed class ExpiredWriteAllowlistTests
         // account deletion, support inquiries, the bootstrap/session plumbing and push-device registration.
         // Billing verify / restore / manage controllers join this list in R39-B/C.
         Assert.Equal(
-            ["AccountController", "AuthSessionController", "CurrentUserBootstrapController", "PushDevicesController", "SupportInquiriesController"],
+            ["AccountController", "AuthSessionController", "CurrentUserBootstrapController", "GoogleBillingController", "PushDevicesController", "SupportInquiriesController"],
             allowed);
     }
 

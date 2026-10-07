@@ -97,6 +97,127 @@ var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 // and vice versa. An environment with neither yet (Dev today) deploys with an empty customDomains
 // array - Container Apps' own default, no different from before this parameter existed. Identical
 // pattern to ../web/main.bicep's own hasCustomDomain.
+// ---- Google Play billing (R39-B1). Everything here is OFF by default: with googleBillingEnabled false the API gets no
+// billing secret and no billing setting, and starts exactly as before. Secrets are never parameters - they are Azure Key Vault
+// references resolved through the API's Managed Identity (the vault itself is ../foundation/billing.bicep); only their NAMES are
+// parameters. The product and base plan stay empty until they exist in Play Console (R39-B2).
+@description('Turns on Google Play billing in the API (catalog / verify / restore / RTDN). Requires billingKeyVaultUri and the settings below.')
+param googleBillingEnabled bool = false
+
+@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri". Needed only when googleBillingEnabled or billingProgramEnabled.')
+param billingKeyVaultUri string = ''
+
+@description('The ONE allowlisted subscription product / base plan (proposed: juple_monthly / monthly - confirmed in R39-B2, never guessed).')
+param googleProductId string = ''
+param googleBasePlanId string = ''
+
+@description('Pub/Sub push audience (the RTDN webhook URL the subscription is configured with) and the push service account that signs the OIDC token.')
+param googlePubSubAudience string = ''
+param googlePushServiceAccountEmail string = ''
+
+@description('Key Vault secret NAMES (never values) - see ../foundation/billing.bicep for what each holds.')
+param googleServiceAccountSecretName string = 'google-play-service-account'
+param googlePurchaseTokenKeySecretName string = 'google-purchase-token-key'
+param googleAccountHashKeySecretName string = 'google-account-hash-key'
+param trialIdentityHashKeySecretName string = 'trial-identity-hash-key'
+
+@description('Fully-qualified Service Bus namespace for the billing-events wake-up (usually the same as serviceBusNamespaceFqdn). Empty = no wake-up; the reconcile Job sweep still processes every event.')
+param billingEventsServiceBusNamespace string = ''
+
+@description('The subscription program switch (trial + entitlement). Stays false until the product launch: nothing is blocked, no trial starts. Turning it on additionally needs billingProgramStartAtUtc and the trial-identity-hash-key secret.')
+param billingProgramEnabled bool = false
+param billingProgramStartAtUtc string = ''
+
+var billingSecrets = concat(
+  googleBillingEnabled
+    ? [
+        {
+          name: 'google-play-credential'
+          keyVaultUrl: '${billingKeyVaultUri}secrets/${googleServiceAccountSecretName}'
+          identity: managedIdentityResourceId
+        }
+        {
+          name: 'google-purchase-token-key'
+          keyVaultUrl: '${billingKeyVaultUri}secrets/${googlePurchaseTokenKeySecretName}'
+          identity: managedIdentityResourceId
+        }
+        {
+          name: 'google-account-hash-key'
+          keyVaultUrl: '${billingKeyVaultUri}secrets/${googleAccountHashKeySecretName}'
+          identity: managedIdentityResourceId
+        }
+      ]
+    : [],
+  billingProgramEnabled
+    ? [
+        {
+          name: 'trial-identity-hash-key'
+          keyVaultUrl: '${billingKeyVaultUri}secrets/${trialIdentityHashKeySecretName}'
+          identity: managedIdentityResourceId
+        }
+      ]
+    : []
+)
+
+var billingEnv = concat(
+  googleBillingEnabled
+    ? [
+        {
+          name: 'Billing__Google__Enabled'
+          value: 'true'
+        }
+        {
+          name: 'Billing__Google__ProductId'
+          value: googleProductId
+        }
+        {
+          name: 'Billing__Google__BasePlanId'
+          value: googleBasePlanId
+        }
+        {
+          name: 'Billing__Google__ServiceAccountCredentialJson'
+          secretRef: 'google-play-credential'
+        }
+        {
+          name: 'Billing__Google__PurchaseTokenEncryptionKey'
+          secretRef: 'google-purchase-token-key'
+        }
+        {
+          name: 'Billing__Google__AccountHashKey'
+          secretRef: 'google-account-hash-key'
+        }
+        {
+          name: 'Billing__Google__PubSub__Audience'
+          value: googlePubSubAudience
+        }
+        {
+          name: 'Billing__Google__PubSub__PushServiceAccountEmail'
+          value: googlePushServiceAccountEmail
+        }
+        {
+          name: 'Billing__Events__ServiceBusNamespace'
+          value: billingEventsServiceBusNamespace
+        }
+      ]
+    : [],
+  billingProgramEnabled
+    ? [
+        {
+          name: 'Billing__ProgramEnabled'
+          value: 'true'
+        }
+        {
+          name: 'Billing__ProgramStartAtUtc'
+          value: billingProgramStartAtUtc
+        }
+        {
+          name: 'Billing__TrialIdentityHashKey'
+          secretRef: 'trial-identity-hash-key'
+        }
+      ]
+    : []
+)
+
 var hasCustomDomain = !empty(customDomainName) && !empty(managedCertificateName)
 var managedCertificateResourceId = hasCustomDomain
   ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
@@ -150,24 +271,27 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           identity: managedIdentityResourceId
         }
       ]
-      secrets: [
-        {
-          name: 'sql-connection-string'
-          value: sqlConnectionString
-        }
-        {
-          name: 'public-collection-cursor-key'
-          value: publicCollectionCursorEncryptionKey
-        }
-        {
-          name: 'collection-unlock-grant-key'
-          value: collectionUnlockGrantEncryptionKey
-        }
-        {
-          name: 'collection-share-password-key'
-          value: collectionSharePasswordEncryptionKey
-        }
-      ]
+      secrets: concat(
+        [
+          {
+            name: 'sql-connection-string'
+            value: sqlConnectionString
+          }
+          {
+            name: 'public-collection-cursor-key'
+            value: publicCollectionCursorEncryptionKey
+          }
+          {
+            name: 'collection-unlock-grant-key'
+            value: collectionUnlockGrantEncryptionKey
+          }
+          {
+            name: 'collection-share-password-key'
+            value: collectionSharePasswordEncryptionKey
+          }
+        ],
+        billingSecrets
+      )
     }
     template: {
       containers: [
@@ -178,7 +302,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
+          env: concat([
             {
               // Never "Development" - see aspNetCoreEnvironment above.
               name: 'ASPNETCORE_ENVIRONMENT'
@@ -248,7 +372,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ]
+          ], billingEnv)
           probes: [
             {
               type: 'Liveness'

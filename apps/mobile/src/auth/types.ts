@@ -24,7 +24,7 @@ export type UserPlan = 'Free' | 'Plus';
 export type EntitlementStatus = 'trial' | 'active' | 'gracePeriod' | 'expired';
 
 /** Why the status is what it is - copy only, never access. */
-export type EntitlementReason = 'none' | 'cancelled' | 'billingIssue' | 'refunded';
+export type EntitlementReason = 'none' | 'cancelled' | 'billingIssue' | 'refunded' | 'paused';
 
 /**
  * The bootstrap `entitlement` object. While the subscription program is not launched (`programEnabled` false) `status` and
@@ -70,6 +70,8 @@ export interface AuthContextValue extends AuthState {
   ) => Promise<string>;
   /** Re-runs the session-restore/backend-check bootstrap - see AuthenticatedPlaceholder's retry action. */
   retryBootstrap: () => Promise<void>;
+  /** Refreshes just the plan/entitlement from the server (after a verified purchase / restore) - no startup states, best effort, never throws. */
+  refreshEntitlement: () => Promise<void>;
   /** Email-like claim (email, then preferred_username, then upn) decoded from the current id token, or null if unauthenticated/not present. Display-only, never used for authorization. */
   readonly userEmail: string | null;
 }

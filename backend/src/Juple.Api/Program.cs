@@ -81,12 +81,16 @@ var builder = WebApplication.CreateBuilder(args);
 var isPushDispatchJob = args.Contains("--run-push-dispatch", StringComparer.Ordinal);
 var isBlobCleanupRetryJob = args.Contains("--run-blob-cleanup-retry", StringComparer.Ordinal);
 var isInstagramMetadataRetryJob = args.Contains("--run-instagram-metadata-retry", StringComparer.Ordinal);
-var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob;
+// --run-billing-reconcile: one bounded pass of the Google billing sweep (events whose wake-up was lost, purchases whose periodic
+// re-check is due). --run-billing-worker: the long-running billing-events consumer. Neither authenticates a request.
+var isBillingReconcileJob = args.Contains("--run-billing-reconcile", StringComparer.Ordinal);
+var isBillingWorker = args.Contains("--run-billing-worker", StringComparer.Ordinal);
+var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob;
 // --run-notification-worker: the long-running notification worker (Service Bus consumer - see
 // NotificationWorkerService). Like the Jobs it authenticates no request and runs no controllers; it
 // serves only /health. Only it and the push-dispatch Job hold the Firebase credential.
 var isNotificationWorker = args.Contains("--run-notification-worker", StringComparer.Ordinal);
-var isOutsideHttpApi = isOneShotJob || isNotificationWorker;
+var isOutsideHttpApi = isOneShotJob || isNotificationWorker || isBillingWorker;
 
 // Never required, and never validated, for either Job - RequireScope still needs a non-null value
 // to register the policy below, but that policy is only ever evaluated by the ASP.NET Core
@@ -100,6 +104,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 if (isNotificationWorker)
 {
     builder.Services.AddHostedService<Juple.Api.Notifications.NotificationWorkerService>();
+}
+
+if (isBillingWorker)
+{
+    builder.Services.AddHostedService<Juple.Api.Billing.BillingWorkerService>();
 }
 
 if (!isOutsideHttpApi
@@ -125,6 +134,10 @@ var billingOptions = builder.Configuration.GetSection("Billing").Get<Juple.Appli
 builder.Services.AddSingleton(billingOptions);
 builder.Services.AddScoped<Juple.Application.Billing.ITrialIdentityHasher, Juple.Application.Billing.TrialIdentityHasher>();
 builder.Services.AddScoped<Juple.Application.Billing.IEntitlementService, Juple.Application.Billing.EntitlementService>();
+builder.Services.AddSingleton<Juple.Application.Billing.IPurchaseTokenProtector, Juple.Application.Billing.PurchaseTokenProtector>();
+builder.Services.AddSingleton<Juple.Application.Billing.GooglePlay.IGoogleAccountIdProvider, Juple.Application.Billing.GooglePlay.GoogleAccountIdProvider>();
+builder.Services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingService, Juple.Application.Billing.GooglePlay.GoogleBillingService>();
+builder.Services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingProcessor, Juple.Application.Billing.GooglePlay.GoogleBillingProcessor>();
 builder.Services.AddScoped<ICurrentUserBootstrapService, CurrentUserBootstrapService>();
 builder.Services.AddScoped<IDeleteAccountService, DeleteAccountService>();
 builder.Services.AddScoped<IInboxEntrySaveService, InboxEntrySaveService>();
@@ -248,6 +261,10 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.IdentityPartitionKey(httpContext),
             _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy(RateLimitPolicies.BillingGoogle, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitPolicies.IdentityPartitionKey(httpContext),
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
     options.AddPolicy(RateLimitPolicies.CollectionUnlock, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             RateLimitPolicies.IdentityPartitionKey(httpContext),
@@ -306,6 +323,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Google billing settings are checked in EVERY mode (API, worker, Jobs): disabled needs nothing; enabled needs all of its settings and
+// three distinct secrets, or the process stops here naming the setting (never echoing a value).
+Juple.Application.Billing.BillingOptionsValidator.ValidateGoogle(billingOptions);
+
 // One-shot execution mode for the push-dispatch Job - never reaches the HTTP pipeline below.
 if (isPushDispatchJob)
 {
@@ -320,6 +341,20 @@ if (isNotificationWorker)
     if (string.IsNullOrWhiteSpace(app.Services.GetRequiredService<NotificationPipelineOptions>().ServiceBusNamespace))
     {
         throw new InvalidOperationException("NotificationPipeline:ServiceBusNamespace must be configured for --run-notification-worker.");
+    }
+
+    app.MapHealthChecks("/health");
+    await app.RunAsync();
+    return 0;
+}
+
+// The billing worker: its hosted service consumes the billing-events queue; the only endpoint is /health. Google billing and a queue
+// namespace are required - without them there is nothing to do, a misconfiguration.
+if (isBillingWorker)
+{
+    if (!billingOptions.Google.Enabled || string.IsNullOrWhiteSpace(billingOptions.Events.ServiceBusNamespace))
+    {
+        throw new InvalidOperationException("Billing:Google:Enabled and Billing:Events:ServiceBusNamespace must be configured for --run-billing-worker.");
     }
 
     app.MapHealthChecks("/health");
@@ -342,6 +377,12 @@ if (isNotificationWorker)
 if (isBlobCleanupRetryJob)
 {
     return await RunBlobCleanupRetryOnceAsync(app.Services);
+}
+
+// One-shot billing reconciliation (the Job that recovers lost wake-ups and re-checks due purchases against Google).
+if (isBillingReconcileJob)
+{
+    return await RunBillingReconcileOnceAsync(app.Services);
 }
 
 // One-shot execution mode for the Instagram metadata retry Job (see
@@ -429,6 +470,33 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
         // Same rationale as RunPushDispatchOnceAsync's own catch block - a scheduled Job's exit
         // code is how Azure reports failure.
         logger.LogError(exception, "Blob cleanup retry run failed.");
+        return 1;
+    }
+}
+
+static async Task<int> RunBillingReconcileOnceAsync(IServiceProvider rootServices)
+{
+    await using var scope = rootServices.CreateAsyncScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("BillingReconcileJob");
+    var billing = scope.ServiceProvider.GetRequiredService<Juple.Application.Billing.BillingOptions>();
+    if (!billing.Google.Enabled)
+    {
+        logger.LogInformation("Google billing is not enabled; nothing to reconcile.");
+        return 0;
+    }
+
+    try
+    {
+        // Bounded on purpose: the cadence per purchase is set by the purchase itself (see GooglePurchaseNormalizer), never a hot loop.
+        var summary = await scope.ServiceProvider.GetRequiredService<Juple.Application.Billing.GooglePlay.IGoogleBillingProcessor>().SweepAsync(eventLimit: 100, purchaseLimit: 100);
+        logger.LogInformation(
+            "Billing reconcile complete. EventsProcessed={EventsProcessed} PurchasesReconciled={PurchasesReconciled} Failures={Failures}",
+            summary.EventsProcessed, summary.PurchasesReconciled, summary.Failures);
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        logger.LogError("Billing reconcile run failed ({ErrorType}).", exception.GetType().Name);
         return 1;
     }
 }

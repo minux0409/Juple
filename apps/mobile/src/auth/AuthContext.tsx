@@ -202,6 +202,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return runBootstrap(isMountedRef);
   }, [runBootstrap]);
 
+  // Re-reads ONLY the account's plan/entitlement from the server's bootstrap response, with none of the startup states a full
+  // bootstrap passes through - used after a verified purchase or restore. Best effort: the purchase is already recorded on the
+  // server, and the next launch's bootstrap would show it anyway.
+  const refreshEntitlement = useCallback(async () => {
+    try {
+      const accessToken = await getValidAccessToken();
+      const result = await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
+      if (result.status === 'ready') {
+        setState(previous =>
+          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement } : previous,
+        );
+      }
+    } catch {
+      // See above.
+    }
+  }, []);
+
   const signIn = useCallback(async () => {
     setState(previous =>
       previous.isSigningIn
@@ -295,8 +312,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, signIn, signOut, getValidAccessToken, retryBootstrap, userEmail }),
-    [state, signIn, signOut, retryBootstrap, userEmail],
+    () => ({ ...state, signIn, signOut, getValidAccessToken, retryBootstrap, refreshEntitlement, userEmail }),
+    [state, signIn, signOut, retryBootstrap, refreshEntitlement, userEmail],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

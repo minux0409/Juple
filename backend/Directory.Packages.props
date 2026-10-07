@@ -14,6 +14,9 @@
     <!-- Official Google .NET Admin SDK - the officially-supported way to send FCM v1 messages from
          .NET (see FirebaseCloudMessagingSender). Not Azure Notification Hubs; see docs/architecture.md. -->
     <PackageVersion Include="FirebaseAdmin" Version="3.6.0" />
+    <!-- Official Google Play Developer API client: purchases.subscriptionsv2.get (authoritative subscription state) and
+         purchases.subscriptions.acknowledge - see GooglePlayClient. Server-side only; no store SDK reaches any client from here. -->
+    <PackageVersion Include="Google.Apis.AndroidPublisher.v3" Version="1.77.0.4284" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />

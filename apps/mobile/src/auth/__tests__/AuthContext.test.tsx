@@ -212,3 +212,70 @@ describe('AuthProvider bootstrap - entitlement state', () => {
     expect(seen[seen.length - 1]).toEqual({ plan: 'Free', entitlement: null, status: 'ready' });
   });
 });
+
+describe('AuthProvider - refreshEntitlement (after a server-verified purchase)', () => {
+  const trial = (status: string, canWrite: boolean) => ({
+    programEnabled: true,
+    status,
+    reason: 'none',
+    trialStartedAtUtc: null,
+    trialEndsAtUtc: null,
+    currentPeriodEndsAtUtc: null,
+    accessFrozenAtUtc: null,
+    canWrite,
+    verifiedAtUtc: '2026-12-05T00:00:00+00:00',
+  });
+
+  function RefreshProbe({ onValue }: { onValue: (value: { entitlement: unknown; refresh: () => Promise<void> }) => void }) {
+    const { entitlement, refreshEntitlement } = useAuth();
+    onValue({ entitlement, refresh: refreshEntitlement });
+    return null;
+  }
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('re-reads only the entitlement from the server, with no startup states in between', async () => {
+    jest.mocked(getValidAccessToken).mockResolvedValue('a-valid-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(bootstrapCurrentUser).mockResolvedValueOnce({ status: 'ready', plan: 'Free', entitlement: trial('expired', false) } as never);
+    let latest!: { entitlement: unknown; refresh: () => Promise<void> };
+    await act(async () => {
+      ReactTestRenderer.create(
+        <AuthProvider>
+          <RefreshProbe onValue={value => { latest = value; }} />
+        </AuthProvider>,
+      );
+    });
+    expect(latest.entitlement).toMatchObject({ status: 'expired', canWrite: false });
+
+    jest.mocked(bootstrapCurrentUser).mockResolvedValueOnce({ status: 'ready', plan: 'Free', entitlement: trial('active', true) } as never);
+    await act(async () => {
+      await latest.refresh();
+    });
+
+    expect(latest.entitlement).toMatchObject({ status: 'active', canWrite: true });
+  });
+
+  it('a failed refresh keeps what it had and never throws', async () => {
+    jest.mocked(getValidAccessToken).mockResolvedValue('a-valid-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+    jest.mocked(bootstrapCurrentUser).mockResolvedValueOnce({ status: 'ready', plan: 'Free', entitlement: trial('trial', true) } as never);
+    let latest!: { entitlement: unknown; refresh: () => Promise<void> };
+    await act(async () => {
+      ReactTestRenderer.create(
+        <AuthProvider>
+          <RefreshProbe onValue={value => { latest = value; }} />
+        </AuthProvider>,
+      );
+    });
+
+    jest.mocked(bootstrapCurrentUser).mockRejectedValueOnce(new Error('offline'));
+    await act(async () => {
+      await expect(latest.refresh()).resolves.toBeUndefined();
+    });
+
+    expect(latest.entitlement).toMatchObject({ status: 'trial' });
+  });
+});

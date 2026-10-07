@@ -1014,3 +1014,11 @@ az deployment sub create --location koreacentral --parameters infra/azure/founda
 `environmentName`은 모든 템플릿에서 parameter다. `foundation/main.bicep`의 `@allowed`는
 `dev`/`prod` 둘 다 허용한다(Production Foundation은 아직 실제로 배포되지 않았을 뿐, 템플릿 자체는
 막혀 있지 않다) - 같은 템플릿을 그대로 재사용해 생성한다. Staging은 여전히 고려 단계다.
+
+## Google Play billing (R39-B1 - defined, not deployed)
+
+`foundation/billing.bicep` (Key Vault, the `billing-events` queue, the billing identity and its least-privilege roles), `billing-worker/` (the `--run-billing-worker` Container App) and
+`billing-reconcile-job/` (the `--run-billing-reconcile` scheduled Job) are the Azure side of Google Play billing, and `app/main.bicep` gained default-off Billing parameters that reference Key Vault
+secrets through the API's managed identity. None of it has been deployed and no secret value is in any template or parameter file: the operator creates the Key Vault secrets
+(`google-play-service-account`, `google-purchase-token-key`, `google-account-hash-key`, later `trial-identity-hash-key`) at deploy time. The ordered external setup (Google Cloud, Play Console, Azure) is
+`docs/google-play-billing-setup.md` (R39-B2).

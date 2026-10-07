@@ -79,6 +79,12 @@ public sealed class JupleDbContext(DbContextOptions<JupleDbContext> options) : D
 
     public DbSet<Juple.Domain.Billing.TrialLedgerEntry> TrialLedger => Set<Juple.Domain.Billing.TrialLedgerEntry>();
 
+    public DbSet<Juple.Domain.Billing.StorePurchase> StorePurchases => Set<Juple.Domain.Billing.StorePurchase>();
+
+    public DbSet<Juple.Domain.Billing.StoreEvent> StoreEvents => Set<Juple.Domain.Billing.StoreEvent>();
+
+    public DbSet<Juple.Domain.Billing.GoogleAccountLink> GoogleAccountLinks => Set<Juple.Domain.Billing.GoogleAccountLink>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

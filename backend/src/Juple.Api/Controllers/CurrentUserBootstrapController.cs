@@ -78,6 +78,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 EntitlementReason.Cancelled => "cancelled",
                 EntitlementReason.BillingIssue => "billingIssue",
                 EntitlementReason.Refunded => "refunded",
+                EntitlementReason.Paused => "paused",
                 _ => null,
             },
             entitlement.TrialStartedAtUtc,

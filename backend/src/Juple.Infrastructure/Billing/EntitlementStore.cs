@@ -48,6 +48,12 @@ public sealed class EntitlementStore(JupleDbContext dbContext) : IEntitlementSto
                 row.Identity is null ? null : new ExternalIdentityPrincipal(row.Identity.TenantId, row.Identity.ObjectId));
     }
 
+    public async Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default) =>
+        await dbContext.StorePurchases.AsNoTracking()
+            .Where(purchase => purchase.UserId == userId)
+            .Select(purchase => new PurchaseAccess(purchase.State, purchase.Reason, purchase.AccessEndsAtUtc))
+            .ToListAsync(cancellationToken);
+
     public async Task<TrialWindow> EnsureTrialAsync(
         long userId,
         byte[] identityHash,

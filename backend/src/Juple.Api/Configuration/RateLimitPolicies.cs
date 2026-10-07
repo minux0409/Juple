@@ -12,6 +12,9 @@ public static class RateLimitPolicies
     public const string CollectionInvite = "collection-invite";
     public const string SupportInquiryCreate = "support-inquiry-create";
 
+    /// <summary>Google Play billing catalog / verify / restore: per signed-in identity (the public RTDN webhook has none, on purpose).</summary>
+    public const string BillingGoogle = "billing-google";
+
     /// <summary>Public unlock: the share link plus the opaque browser attempt id (bounded length; never logged).</summary>
     public static string PublicUnlockPartitionKey(HttpContext httpContext)
     {
