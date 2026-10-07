@@ -14,6 +14,8 @@ interface CategoryFieldProps {
   readonly disabled?: boolean;
   readonly error: string | null;
   readonly onPress: () => void;
+  /** False: no own label (an info row - Item Details' sheet - already says 컬렉션). Default true. */
+  readonly showLabel?: boolean;
 }
 
 /**
@@ -25,12 +27,12 @@ interface CategoryFieldProps {
  * itself, only `onPress`, which keeps this screen's own height independent of how many categories
  * exist or are selected.
  */
-export function CategoryField({ selectedCollections, isLoading, disabled, error, onPress }: CategoryFieldProps) {
+export function CategoryField({ selectedCollections, isLoading, disabled, error, onPress, showLabel = true }: CategoryFieldProps) {
   const { t } = useTranslation();
 
   return (
     <>
-      <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text>
+      {showLabel ? <Text style={styles.label}>{t('collections.itemSectionTitle')}</Text> : null}
       {isLoading ? (
         <ActivityIndicator style={styles.loading} />
       ) : (

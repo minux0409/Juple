@@ -1,14 +1,16 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Linking, StyleSheet, Text, TextInput, ScrollView } from 'react-native';
+import { Animated, Linking, StyleSheet, Text, TextInput, ScrollView } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { CategoryField } from '../../collections/CategoryField';
+import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { RepresentativePhotoField } from '../../images/RepresentativePhotoField';
 import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { clearItemOpenGrant, handOffItemOpenGrant } from '../../items/itemOpenGrant';
-import { ItemDetailsScreen } from '../ItemDetailsScreen';
+import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
+import { ItemDetailsScreen, KEYBOARD_FIELD_GAP, sheetKeyboardShift } from '../ItemDetailsScreen';
 import { AppToastProvider } from '../../components/AppToast';
 import {
   deleteItem,
@@ -208,65 +210,118 @@ describe('ItemDetailsScreen', () => {
     jest.clearAllMocks();
   });
 
-  describe('a compact centered popup - never a full-screen page', () => {
+  describe('a bottom half-sheet - never a centered dialog or a full-screen page', () => {
     const byId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string');
+    const press = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+      renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0].props.onPress();
+    const textsOf = (node: ReactTestRenderer.ReactTestInstance) =>
+      node.findAll(child => typeof child.type === 'string' && typeof child.props.children === 'string').map(child => child.props.children as string);
 
-    it('is a centered card over a dim backdrop: 상세 + X, screen width minus the margins (capped), at most ~85% tall', async () => {
+    it('sits at the bottom over a dim backdrop: rounded top corners, a handle, about 62% of the window to start', async () => {
       const renderer = await renderScreen();
-      const popup = byId(renderer, 'item-details-popup')[0];
-      const style = StyleSheet.flatten(popup.props.style);
-      // The test window is 750 x 1334 (react-native's jest setup).
-      expect(style.width).toBe(560);
-      expect(style.maxHeight).toBeCloseTo(1334 * 0.85, 0);
-      expect(style.borderRadius).toBeGreaterThan(0);
-      const overlay = StyleSheet.flatten(renderer.root.findAllByType(KeyboardSafeView)[0].props.style);
-      expect(overlay).toMatchObject({ alignItems: 'center', justifyContent: 'center' });
-      expect(overlay.backgroundColor).toMatch(/^rgba\(0, 0, 0/);
-      expect(renderer.root.findAll(node => node.props.children === '상세').length).toBeGreaterThan(0);
+      const sheet = byId(renderer, 'item-details-sheet')[0];
+      const style = StyleSheet.flatten(sheet.props.style);
+      // The test window is 750 x 1334 (react-native's jest setup) with no insets: a fixed top at 38% of it, and the
+      // sheet fills the room below that top.
+      const overlayStyle = StyleSheet.flatten(byId(renderer, 'item-details-overlay')[0].props.style);
+      expect(overlayStyle.paddingTop).toBe(1334 - Math.round(1334 * 0.62));
+      expect(style.height).toBe(Math.round(1334 * 0.62));
+      expect(style.width).toBe('100%');
+      expect(style.borderTopLeftRadius).toBeGreaterThan(0);
+      expect(style.borderTopRightRadius).toBeGreaterThan(0);
+      expect(style.borderBottomLeftRadius).toBeUndefined();
+      const overlay = StyleSheet.flatten(byId(renderer, 'item-details-overlay')[0].props.style);
+      expect(overlay.justifyContent).toBe('flex-start');
+      // Not inside a keyboard-avoiding container any more: the keyboard never resizes the sheet.
+      expect(renderer.root.findAllByType(KeyboardSafeView)).toHaveLength(0);
+      // The dim is its own layer behind the sheet (it fades as the sheet is dragged away).
+      const dim = byId(renderer, 'item-details-overlay')[0].findAll(node => typeof node.type === 'string' && /^rgba\(0, 0, 0/.test(String(StyleSheet.flatten(node.props.style)?.backgroundColor)));
+      expect(dim.length).toBeGreaterThan(0);
+      expect(byId(renderer, 'item-details-handle')).toHaveLength(1);
+      // The old centered card is gone.
+      expect(byId(renderer, 'item-details-popup')).toHaveLength(0);
     });
 
-    it('X, a tap on the backdrop (and the system back button, which pops the route) close it', async () => {
+    it('header: [link icon] 상세 and X', async () => {
       const renderer = await renderScreen();
-      const press = (testID: string) => renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0].props.onPress();
-      await act(async () => { press('item-details-close'); });
-      await act(async () => { press('item-details-backdrop'); });
+      const icon = byId(renderer, 'item-details-header-icon')[0];
+      const { LinkIcon } = require('../../icons/LinkIcon');
+      expect(icon.findAllByType(LinkIcon)).toHaveLength(1);
+      expect(renderer.root.findAll(node => node.props.children === '상세').length).toBeGreaterThan(0);
+      expect(byId(renderer, 'item-details-close')).toHaveLength(1);
+    });
+
+    it('X and a tap on the backdrop close it (the system back button pops the same route)', async () => {
+      const renderer = await renderScreen();
+      await act(async () => { press(renderer, 'item-details-close'); });
+      await act(async () => { press(renderer, 'item-details-backdrop'); });
       expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(2);
     });
 
-    it('shows a compact ~104dp thumbnail beside the title - never the old full-width hero image', async () => {
+    it('A. a compact preview - never the old full-width hero image - with the title, the site and opening the link', async () => {
       jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ previewImageUrl: 'https://example.com/p.jpg' }));
       const renderer = await renderScreen();
       const thumbnail = byId(renderer, 'item-details-thumbnail')[0];
       expect(thumbnail.props.source).toEqual({ uri: 'https://example.com/p.jpg' });
       const size = StyleSheet.flatten(thumbnail.props.style);
-      expect(size.width).toBeGreaterThanOrEqual(100);
       expect(size.width).toBeLessThanOrEqual(120);
       expect(size.height).toBe(size.width);
       expect(size.borderRadius).toBeGreaterThan(0);
+      expect(byId(renderer, 'item-details-title')[0].props.value).toBe('Original title');
+      expect(byId(renderer, 'item-details-open-url')).toHaveLength(1);
     });
 
-    it('a long title is held to about three lines in the header (it scrolls inside its field)', async () => {
+    it('A. a long Korean/English title is held to about three lines (it scrolls inside its field)', async () => {
+      const longTitle = '아주 긴 한국어 제목과 A very long English title that keeps going '.repeat(8);
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ title: longTitle }));
       const renderer = await renderScreen();
-      const titleStyle = StyleSheet.flatten(byId(renderer, 'item-details-title')[0].props.style);
+      const titleInput = byId(renderer, 'item-details-title')[0];
+      expect(titleInput.props.value).toBe(longTitle);
+      const titleStyle = StyleSheet.flatten(titleInput.props.style);
       expect(titleStyle.maxHeight).toBeLessThanOrEqual(titleStyle.lineHeight * 3 + 12);
     });
 
-    it('long content scrolls INSIDE the popup', async () => {
+    it('B. the memo is its own block; a long memo scrolls inside a bounded field', async () => {
+      jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails({ memo: '긴 메모 '.repeat(200) }));
+      const renderer = await renderScreen();
+      const block = byId(renderer, 'item-details-memo-block')[0];
+      expect(textsOf(block)).toContain(i18n.t('item.memo'));
+      const memo = byId(renderer, 'item-details-memo')[0];
+      expect(memo.props.multiline).toBe(true);
+      expect(memo.props.scrollEnabled).toBe(true);
+      expect(StyleSheet.flatten(memo.props.style).maxHeight).toBeLessThanOrEqual(160);
+    });
+
+    it('C. consistent info rows ([icon] label ... value): 컬렉션, 대표 사진, 저장일 - nothing made up', async () => {
+      const renderer = await renderScreen();
+      const rows = ['item-details-row-collections', 'item-details-row-photo', 'item-details-row-saved-at'].map(testID => byId(renderer, testID)[0]);
+      expect(textsOf(rows[0])).toContain(i18n.t('collections.itemSectionTitle'));
+      expect(rows[0].findAllByType(CategoryField)).toHaveLength(1);
+      expect(rows[0].findByType(CategoryField).props.showLabel).toBe(false);
+      expect(textsOf(rows[1])).toContain(i18n.t('item.representativePhoto'));
+      expect(rows[1].findByType(RepresentativePhotoField).props.compact).toBe(true);
+      expect(textsOf(rows[2])).toContain(i18n.t('item.savedAtLabel'));
+      expect(byId(renderer, 'item-details-saved-at')).toHaveLength(1);
+      // Same row geometry for each.
+      const rowStyles = rows.map(row => StyleSheet.flatten(row.props.style));
+      expect(new Set(rowStyles.map(style => style.minHeight)).size).toBe(1);
+      expect(new Set(rowStyles.map(style => style.flexDirection)).size).toBe(1);
+    });
+
+    it('long content scrolls INSIDE the sheet, which keeps its size (small screens included)', async () => {
       const renderer = await renderScreen();
       const scroll = renderer.root.findAllByType(ScrollView).find(node => node.props.testID === 'item-details-scroll')!;
       expect(scroll).toBeTruthy();
-      expect(StyleSheet.flatten(scroll.props.style)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
-      // The popup holds it (bounded by maxHeight), not the screen.
-      const popup = byId(renderer, 'item-details-popup')[0];
-      expect(popup.findAllByType(ScrollView)).toContain(scroll);
+      expect(StyleSheet.flatten(scroll.props.style)).toMatchObject({ flex: 1 });
+      const sheet = byId(renderer, 'item-details-sheet')[0];
+      expect(sheet.findAllByType(ScrollView)).toContain(scroll);
     });
 
-    it('keeps every major action reachable: open link, Collections, memo, saved date, photo, delete, save', async () => {
+    it('D. every major action stays reachable: open link, Collections, memo, photo, delete, save', async () => {
       const renderer = await renderScreen();
       expect(byId(renderer, 'item-details-open-url')).toHaveLength(1);
       expect(renderer.root.findAllByType(CategoryField)).toHaveLength(1);
       expect(byId(renderer, 'item-details-memo')).toHaveLength(1);
-      expect(byId(renderer, 'item-details-saved-at')).toHaveLength(1);
       expect(renderer.root.findAllByType(RepresentativePhotoField)).toHaveLength(1);
       expect(byId(renderer, 'item-details-delete')).toHaveLength(1);
       expect(byId(renderer, 'item-details-save')).toHaveLength(1);
@@ -404,7 +459,7 @@ describe('ItemDetailsScreen', () => {
       });
       // Only the photo field is busy - the rest of the screen stays as it is.
       expect(has(renderer, 'representative-photo-busy')).toBe(true);
-      expect(renderer.root.findAll(node => node.props.testID === 'item-details-popup')).not.toHaveLength(0);
+      expect(renderer.root.findAll(node => node.props.testID === 'item-details-sheet')).not.toHaveLength(0);
 
       await act(async () => {
         finishUpload(makeImage({ id: 9, readUrl: 'https://blob.example/9.jpg' }));
@@ -611,8 +666,10 @@ describe('ItemDetailsScreen', () => {
 
       const { PlaneIcon } = require('../../icons/PlaneIcon');
       const { FolderIcon } = require('../../icons/FolderIcon');
-      expect(renderer.root.findAllByType(PlaneIcon).length).toBeGreaterThan(0);
-      expect(renderer.root.findAllByType(FolderIcon)).toHaveLength(0);
+      // In the picker's tiles (the sheet's own 컬렉션 row label has a folder icon of its own).
+      const picker = renderer.root.findByType(CategoryPickerModal);
+      expect(picker.findAllByType(PlaneIcon).length).toBeGreaterThan(0);
+      expect(picker.findAllByType(FolderIcon)).toHaveLength(0);
     });
 
     it('category add stages locally with no immediate API call, and enables Save', async () => {
@@ -1477,13 +1534,13 @@ describe('ItemDetailsScreen - opened in a locked Collection context (Home/Archiv
     jest.clearAllMocks();
   });
 
-  it('reads the link and its photos IN that Collection\'s context with this opening\'s grant - and still renders the centered popup', async () => {
+  it('reads the link and its photos IN that Collection\'s context with this opening\'s grant - and opens as the half-sheet', async () => {
     const key = handOffItemOpenGrant(4, 'grant-4');
     const renderer = await renderInContext(key);
 
     expect(getItemDetails).toHaveBeenCalledWith(expect.anything(), 1, { collectionId: 4, unlockToken: 'grant-4' });
     expect(getItemImages).toHaveBeenCalledWith(expect.anything(), 1, { collectionId: 4, unlockToken: 'grant-4' });
-    expect(renderer.root.findAll(node => node.props.testID === 'item-details-popup').length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'item-details-sheet').length).toBeGreaterThan(0);
   });
 
   it('takes the grant once: closed and opened again with the same key, it has none (the server then asks for the password)', async () => {
@@ -1506,5 +1563,357 @@ describe('ItemDetailsScreen - opened in a locked Collection context (Home/Archiv
     expect(texts).toContain(i18n.t('collections.lockRequiredForAction'));
     expect(texts).not.toContain('Original title');
     expect(renderer.root.findAll(node => node.props.testID === 'item-details-title')).toHaveLength(0);
+  });
+});
+
+describe('ItemDetailsScreen - keyboard: the sheet moves up only as far as the focused field needs; the save toast shows at once', () => {
+  type KeyboardHandler = (event?: { endCoordinates: { screenY: number; height: number } }) => void;
+  let keyboardHandlers: Map<string, Set<KeyboardHandler>>;
+  const { Keyboard, Platform } = require('react-native');
+  const keyboardEvent = (kind: 'Show' | 'Hide') => (Platform.OS === 'ios' ? `keyboardWill${kind}` : `keyboardDid${kind}`);
+  function emitKeyboard(kind: 'Show' | 'Hide', screenY = 1034) {
+    act(() => {
+      keyboardHandlers.get(keyboardEvent(kind))?.forEach(handler => handler({ endCoordinates: { screenY, height: 1334 - screenY } }));
+    });
+  }
+  const byId = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string');
+  const backdrop = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'item-details-backdrop' && typeof node.props.onLayout === 'function')[0];
+  const scrollView = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(ScrollView).find(node => node.props.testID === 'item-details-scroll')!;
+  const layout = (height: number, y = 0) => ({ nativeEvent: { layout: { x: 0, y, width: 750, height } } });
+
+  beforeEach(() => {
+    keyboardHandlers = new Map();
+    jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, handler: KeyboardHandler) => {
+      const set = keyboardHandlers.get(event) ?? new Set<KeyboardHandler>();
+      set.add(handler);
+      keyboardHandlers.set(event, set);
+      return { remove: () => set.delete(handler) };
+    }) as never);
+    jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails());
+    jest.mocked(getItemImages).mockResolvedValue([]);
+    jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
+  });
+  afterEach(() => {
+    act(() => {
+      mounted.splice(0).forEach(renderer => renderer.unmount());
+    });
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+  });
+
+  // The test window is 750 x 1334, no insets: the sheet's normal top is 1334 - 827 = 507, its height 827.
+  const NORMAL_TOP = 1334 - Math.round(1334 * 0.62);
+  const SHEET_HEIGHT = Math.round(1334 * 0.62);
+  const KEYBOARD_TOP = 1034; // a 300dp keyboard
+
+  /** Answers the window measurements the sheet takes: overlay at the top, sheet at its normal place, this input. */
+  function measureAs(renderer: ReactTestRenderer.ReactTestRenderer, input: { y: number; height: number }) {
+    const answer = (testID: string, frame: [number, number, number, number]) =>
+      renderer.root.findAll(node => node.props.testID === testID && node.instance && 'measureInWindow' in node.instance)
+        .forEach(node => {
+          node.instance.measureInWindow = (callback: (x: number, y: number, width: number, height: number) => void) => callback(...frame);
+        });
+    answer('item-details-overlay', [0, 0, 750, 1334]);
+    answer('item-details-sheet', [0, NORMAL_TOP, 750, SHEET_HEIGHT]);
+    const { TextInput: Input } = require('react-native');
+    jest.spyOn(Input.State, 'currentlyFocusedInput').mockReturnValue({
+      measureInWindow: (callback: (x: number, y: number, width: number, height: number) => void) => callback(16, input.y, 700, input.height),
+    });
+  }
+  /** The sheet moves with Animated.timing on its shift value: the last target it was sent to (negative = up). */
+  function sheetMoves(timing: jest.SpyInstance) {
+    return timing.mock.calls.map(call => call[1]?.toValue).filter(value => typeof value === 'number' && value <= 0);
+  }
+  async function flushFrames() {
+    await act(async () => {
+      await new Promise<void>(resolve => setTimeout(resolve, 40));
+    });
+  }
+
+  it('the overlap formula: only what the focused field needs (+16), never the keyboard height, clamped under the top inset', () => {
+    // Already clear of the keyboard: no move.
+    expect(sheetKeyboardShift({ fieldBottom: 1000, keyboardTop: KEYBOARD_TOP, normalSheetTop: NORMAL_TOP, safeTop: 12 })).toEqual({ shift: 0, remaining: 0 });
+    // 120 under the keyboard: 120 + 16 - not the 300 of the keyboard.
+    expect(sheetKeyboardShift({ fieldBottom: KEYBOARD_TOP + 120, keyboardTop: KEYBOARD_TOP, normalSheetTop: NORMAL_TOP, safeTop: 12 })).toEqual({ shift: 136, remaining: 0 });
+    // More than the sheet may move: clamped at the safe top, the rest is for the body to scroll.
+    expect(sheetKeyboardShift({ fieldBottom: KEYBOARD_TOP + 600, keyboardTop: KEYBOARD_TOP, normalSheetTop: NORMAL_TOP, safeTop: 12 })).toEqual({ shift: NORMAL_TOP - 12, remaining: 616 - (NORMAL_TOP - 12) });
+    expect(KEYBOARD_FIELD_GAP).toBe(16);
+  });
+
+  it('memo already above the keyboard: the sheet does not move, and keeps its normal place and height', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    measureAs(renderer, { y: 880, height: 100 });
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onFocus(); });
+    emitKeyboard('Show', KEYBOARD_TOP);
+    await flushFrames();
+
+    expect(sheetMoves(timing).filter(value => value < 0)).toHaveLength(0);
+    const sheet = byId(renderer, 'item-details-sheet')[0];
+    expect(StyleSheet.flatten(sheet.props.style).height).toBe(SHEET_HEIGHT);
+    expect(StyleSheet.flatten(byId(renderer, 'item-details-overlay')[0].props.style).paddingTop).toBe(NORMAL_TOP);
+  });
+
+  it('memo 120 under the keyboard: the WHOLE sheet moves up 136 (overlap + 16) - not the 300 of the keyboard - and keeps its height', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    measureAs(renderer, { y: KEYBOARD_TOP + 20, height: 100 });
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onFocus(); });
+    emitKeyboard('Show', KEYBOARD_TOP);
+    await flushFrames();
+
+    expect(sheetMoves(timing)).toContain(-136);
+    expect(sheetMoves(timing)).not.toContain(-300);
+    // Its own size does not follow the keyboard.
+    act(() => backdrop(renderer).props.onLayout(layout(KEYBOARD_TOP)));
+    expect(StyleSheet.flatten(byId(renderer, 'item-details-sheet')[0].props.style).height).toBe(SHEET_HEIGHT);
+    expect(StyleSheet.flatten(byId(renderer, 'item-details-overlay')[0].props.style).paddingTop).toBe(NORMAL_TOP);
+  });
+
+  it('the memo keeps a real editing height while focused - several lines, never a one-line strip', async () => {
+    const renderer = await renderScreen();
+    const memo = () => byId(renderer, 'item-details-memo')[0];
+    await act(async () => { memo().props.onFocus(); });
+    const editing = StyleSheet.flatten(memo().props.style);
+    expect(editing.minHeight).toBeGreaterThanOrEqual(90);
+    expect(editing.maxHeight).toBeGreaterThanOrEqual(editing.minHeight);
+    await act(async () => { memo().props.onBlur(); });
+    expect(StyleSheet.flatten(memo().props.style).minHeight).toBeLessThan(editing.minHeight);
+  });
+
+  it('clamped under the top inset: the sheet moves only that far, and the body scrolls the rest', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    const scrollTo = jest.fn();
+    scrollView(renderer).instance.scrollTo = scrollTo;
+    // Inside the sheet (it starts at 1300), but reaching far below the keyboard: 1600 + 16 - 1034 = 582 needed.
+    measureAs(renderer, { y: 1300, height: 300 });
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onFocus(); });
+    emitKeyboard('Show', KEYBOARD_TOP);
+    await flushFrames();
+
+    const maxShift = NORMAL_TOP - 12;
+    expect(sheetMoves(timing)).toContain(-maxShift);
+    expect(scrollTo).toHaveBeenLastCalledWith({ animated: true, y: 582 - maxShift });
+  });
+
+  it('the title is handled by the same rule (whichever editor is focused decides)', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    emitKeyboard('Show', 700);
+    measureAs(renderer, { y: 650, height: 60 });
+    await act(async () => { byId(renderer, 'item-details-title')[0].props.onFocus(); });
+    await flushFrames();
+    // 710 + 16 - 700 = 26
+    expect(sheetMoves(timing)).toContain(-26);
+  });
+
+  it('keyboard closes: the sheet animates back to its normal place', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    measureAs(renderer, { y: KEYBOARD_TOP + 20, height: 100 });
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onFocus(); });
+    emitKeyboard('Show', KEYBOARD_TOP);
+    await flushFrames();
+    expect(sheetMoves(timing)).toContain(-136);
+
+    emitKeyboard('Hide');
+    const moves = sheetMoves(timing);
+    expect(moves[moves.length - 1]).toBe(-0);
+  });
+
+  it('an editor in a dialog above the sheet (e.g. the Collection picker) never moves the sheet', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    const { CategoryField: Field } = require('../../collections/CategoryField');
+    await act(async () => { renderer.root.findByType(Field).props.onPress(); });
+    measureAs(renderer, { y: KEYBOARD_TOP + 20, height: 100 });
+    emitKeyboard('Show', KEYBOARD_TOP);
+    await flushFrames();
+    expect(sheetMoves(timing).filter(value => value < 0)).toHaveLength(0);
+  });
+
+  it('saving with the keyboard open: 저장되었습니다. shows at once (no keyboard dismiss), Save turns off, the field keeps focus', async () => {
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    const dismiss = jest.spyOn(Keyboard, 'dismiss');
+    const renderer = await renderScreen();
+    emitKeyboard('Show');
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onChangeText('new memo'); });
+
+    const save = renderer.root.findAll(node => node.props.testID === 'item-details-save' && typeof node.props.onPress === 'function')[0];
+    await act(async () => { await save.props.onPress(); });
+
+    const { NotificationToast } = require('../../components/NotificationToast');
+    const toast = renderer.root.findAllByType(NotificationToast);
+    expect(toast).toHaveLength(1);
+    expect(toast[0].props.message).toBe(i18n.t('item.saved'));
+    expect(dismiss).not.toHaveBeenCalled();
+    expect(isSaveDisabled(renderer)).toBe(true);
+    expect(byId(renderer, 'item-details-memo')[0].props.value).toBe('new memo');
+  });
+
+  it('a failed save shows no success toast', async () => {
+    jest.mocked(updateItemDetails).mockRejectedValue(new Error('offline'));
+    const renderer = await renderScreen();
+    emitKeyboard('Show');
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onChangeText('new memo'); });
+    const save = renderer.root.findAll(node => node.props.testID === 'item-details-save' && typeof node.props.onPress === 'function')[0];
+    await act(async () => { await save.props.onPress(); });
+
+    const { NotificationToast } = require('../../components/NotificationToast');
+    expect(renderer.root.findAllByType(NotificationToast)).toHaveLength(0);
+    expect(isSaveDisabled(renderer)).toBe(false);
+  });
+
+  it('anchors the toast just above the measured action row (and above it again while it rides on the keyboard)', async () => {
+    const renderer = await renderScreen();
+    const footer = renderer.root.findAll(node => node.props.testID === 'item-details-footer' && typeof node.props.onLayout === 'function')[0];
+    act(() => footer.props.onLayout(layout(60)));
+    // The real provider registered (insets.bottom 0 + 60, 60): a toast shown now sits above the action row.
+    await act(async () => { byId(renderer, 'item-details-memo')[0].props.onChangeText('x'); });
+    jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    const save = renderer.root.findAll(node => node.props.testID === 'item-details-save' && typeof node.props.onPress === 'function')[0];
+    await act(async () => { await save.props.onPress(); });
+    const { NotificationToast } = require('../../components/NotificationToast');
+    expect(renderer.root.findByType(NotificationToast).props.bottomOffset).toBe(60);
+  });
+});
+
+describe('ItemDetailsScreen - dragging the sheet down is the same close as X / back', () => {
+  const dragArea = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'item-details-handle' && typeof node.props.onMoveShouldSetResponder === 'function')[0].props;
+  const memo = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'item-details-memo' && typeof node.props.onChangeText === 'function')[0];
+
+  beforeEach(() => {
+    jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails());
+    jest.mocked(getItemImages).mockResolvedValue([]);
+    jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
+  });
+  afterEach(() => {
+    act(() => {
+      mounted.splice(0).forEach(renderer => renderer.unmount());
+    });
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+  });
+
+  it('the handle and the header (상세 + X) are the drag area', async () => {
+    const renderer = await renderScreen();
+    const area = renderer.root.findAll(node => node.props.testID === 'item-details-handle' && typeof node.type === 'string')[0];
+    expect(area.findAll(node => node.props.testID === 'sheet-handle').length).toBeGreaterThan(0);
+    expect(area.findAll(node => node.props.testID === 'item-details-close').length).toBeGreaterThan(0);
+    // Icon, 상세 and the space around them: one real native view.
+    expect(area.props.collapsable).toBe(false);
+    expect(area.findAll(node => node.props.testID === 'item-details-header-icon').length).toBeGreaterThan(0);
+    expect(area.findAll(node => typeof node.type === 'string' && node.props.children === '상세').length).toBeGreaterThan(0);
+    // The body (its scroll view) is not part of it.
+    expect(area.findAll(node => node.props.testID === 'item-details-scroll')).toHaveLength(0);
+  });
+
+  it('X in the header still closes with a plain tap', async () => {
+    const renderer = await renderScreen();
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'item-details-close' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('nothing unsaved: the sheet slides away and closes through navigation.goBack - once', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    dragSheet(dragArea(renderer), { dy: 180, durationMs: 600 });
+    await settleSheet();
+    expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+    expect(timing.mock.calls.some(call => call[1]?.toValue === 1334)).toBe(true);
+  });
+
+  it('unsaved edits: the sheet snaps back and the SAME close runs - so the unsaved-changes guard asks, nothing is bypassed', async () => {
+    const timing = jest.spyOn(Animated, 'timing');
+    const renderer = await renderScreen();
+    await act(async () => {
+      memo(renderer).props.onChangeText('unsaved');
+    });
+    expect(latestPreventRemoveIsDirty()).toBe(true);
+
+    dragSheet(dragArea(renderer), { dy: 180, durationMs: 600 });
+    await settleSheet();
+    // The guarded close path (usePreventRemove shows its question on this navigation) - the sheet never left.
+    expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+    expect(timing.mock.calls.some(call => call[1]?.toValue === 1334)).toBe(false);
+    expect(memo(renderer).props.value).toBe('unsaved');
+  });
+
+  it('a short drag snaps back - nothing closes', async () => {
+    const renderer = await renderScreen();
+    dragSheet(dragArea(renderer), { dy: 30, durationMs: 600 });
+    await settleSheet();
+    expect((navigation as { goBack: jest.Mock }).goBack).not.toHaveBeenCalled();
+  });
+
+  it('the drag offset is its own value on top of the entrance and the keyboard shift (none overwrites another)', async () => {
+    const renderer = await renderScreen();
+    const sheet = renderer.root.findAll(node => node.props.testID === 'item-details-sheet' && typeof node.type !== 'string')[0];
+    const transform = StyleSheet.flatten(sheet.props.style).transform as Array<Record<string, unknown>>;
+    const translateY = transform.find(entry => 'translateY' in entry)?.translateY as object;
+    // An Animated sum ((entrance + keyboard shift) + drag) - not a single value one of them would replace.
+    expect(translateY.constructor.name).toMatch(/Addition/);
+  });
+});
+
+/** The shared SheetHeader as rendered in this sheet: the responder view, its title area and its actions. */
+function renderedSheetHeader(renderer: ReactTestRenderer.ReactTestRenderer, testID: string) {
+  const area = renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+  const titleArea = area.findAll(node => node.props.testID === 'sheet-header-title' && typeof node.type === 'string')[0];
+  const actions = area.findAll(node => node.props.testID === 'sheet-header-actions' && typeof node.type === 'string')[0];
+  return { area, titleArea, actions };
+}
+function expectOneDragSurface(header: ReturnType<typeof renderedSheetHeader>, title: string) {
+  // ONE native responder view (never flattened, full width) owns the drag...
+  expect(header.area.props.collapsable).toBe(false);
+  expect(typeof header.area.props.onStartShouldSetResponder).toBe('function');
+  expect(typeof header.area.props.onMoveShouldSetResponderCapture).toBe('function');
+  expect(StyleSheet.flatten(header.area.props.style).alignSelf).toBe('stretch');
+  // ...and its title area holds the title AND takes the free width (the empty space up to the actions is inside it).
+  expect(StyleSheet.flatten(header.titleArea.props.style)).toMatchObject({ flex: 1 });
+  expect(header.titleArea.findAll(node => typeof node.type === 'string' && node.props.children === title).length).toBeGreaterThan(0);
+  // Nothing inside has handlers of its own: the drag is the outer header's.
+  expect(header.titleArea.props.onStartShouldSetResponder).toBeUndefined();
+}
+
+describe('ItemDetailsScreen - the shared drag header (icon, 상세, empty space and X are one surface)', () => {
+  beforeEach(() => {
+    jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails());
+    jest.mocked(getItemImages).mockResolvedValue([]);
+    jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
+  });
+  afterEach(() => {
+    act(() => {
+      mounted.splice(0).forEach(renderer => renderer.unmount());
+    });
+    jest.clearAllMocks();
+  });
+
+  it('a drag starting on 상세 / the empty space closes it; one starting on X is captured and closes it too', async () => {
+    const renderer = await renderScreen();
+    const header = renderedSheetHeader(renderer, 'item-details-handle');
+    expectOneDragSurface(header, '상세');
+    expect(header.titleArea.findAll(node => node.props.testID === 'item-details-header-icon').length).toBeGreaterThan(0);
+    expect(header.actions.findAll(node => node.props.testID === 'item-details-close').length).toBeGreaterThan(0);
+
+    dragSheet(header.area.props, { from: 'header', dy: 180, durationMs: 600 });
+    await settleSheet();
+    expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('from X: captured by the header, closes through the same path (X itself is not pressed twice)', async () => {
+    const renderer = await renderScreen();
+    const header = renderedSheetHeader(renderer, 'item-details-handle');
+    expect(dragSheet(header.area.props, { from: 'control', dy: 180, durationMs: 600 })).toBe(true);
+    await settleSheet();
+    expect((navigation as { goBack: jest.Mock }).goBack).toHaveBeenCalledTimes(1);
   });
 });

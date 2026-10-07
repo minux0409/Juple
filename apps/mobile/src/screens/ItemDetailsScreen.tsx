@@ -1,10 +1,14 @@
 ﻿import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentRef, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Image,
+  Keyboard,
   Linking,
+  Platform,
   ScrollView,
   type ScrollViewInstance,
   StyleSheet,
@@ -42,11 +46,16 @@ import { useMessageDialog } from '../components/useMessageDialog';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SourceRow } from '../components/SourceRow';
 import { formatSavedLinkTimestamp } from '../components/SavedLinkMetaRow';
+import { ClockIcon } from '../icons/ClockIcon';
 import { CloseIcon } from '../icons/CloseIcon';
+import { EditIcon } from '../icons/EditIcon';
+import { FolderIcon } from '../icons/FolderIcon';
+import { ImageIcon } from '../icons/ImageIcon';
 import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import { SiteIcon } from '../icons/SiteIcon';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
+import { SheetHeader, useSheetDismissGesture } from '../components/sheetDismissGesture';
 import {
   deleteItemImage,
   getItemImages,
@@ -66,7 +75,6 @@ import { takeItemOpenGrant } from '../items/itemOpenGrant';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
-import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -161,7 +169,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   const [readContext] = useState<ItemReadContext | null>(() =>
     openContext ? { collectionId: openContext.collectionId, unlockToken: takeItemOpenGrant(openContext.grantKey, openContext.collectionId) } : null);
   const insets = useSafeAreaInsets();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   // The Collection's reactions and comments on this link - only when it was opened from a Collection that
   // has other people in it, and only IN that Collection. The server's view of the link in that Collection
   // (its counts and my reaction) is read once; the collaboration is its own state from then on, so reacting
@@ -197,12 +205,90 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // proposed the link to 승인 후 추가 Collections) - the shared message dialog, never a red line that
   // can be missed or hidden under the keyboard. Drafts are never touched by it.
   const { showMessage, messageDialog } = useMessageDialog();
-  // The popup floats in the middle of the screen: a toast keeps to the bottom edge, clear of the navigation bar.
-  useToastBottomAnchor(insets.bottom);
+  // The sheet's action row (Delete / Save) is measured, never guessed (its labels can wrap): a toast shows just above
+  // it. With the keyboard open the row is under the keyboard (the sheet keeps its height), and the one toast host keeps
+  // the toast right above the keyboard itself (see AppToast) - visible at once, and moving down (the same toast, the same
+  // timer) when the keyboard closes.
+  const [footerHeight, setFooterHeight] = useState(0);
+  useToastBottomAnchor(insets.bottom + footerHeight);
+
+  // Keyboard handling (see renderSheet): the sheet keeps its normal height and position, and when the keyboard opens it
+  // moves up ONLY as far as the focused field needs - its bottom then sits KEYBOARD_FIELD_GAP above the keyboard - never
+  // by the whole keyboard height, and never past a margin under the status bar; whatever is still needed after that is
+  // scrolled inside the body. Measured in window coordinates (keyboard top, sheet, focused input), so a window that
+  // resizes for the keyboard (older Android) and one that does not (edge-to-edge) come out the same.
+  const isKeyboardVisibleRef = useRef(false);
+  const keyboardTopRef = useRef<number | null>(null);
+  // The overlay's height with the keyboard CLOSED, and the window width it was measured at: the sheet's place and size
+  // come from this, never from the room left above an open keyboard (which crushed the sheet).
+  const [stableArea, setStableArea] = useState<{ readonly height: number; readonly width: number } | null>(null);
+  const [isMemoFocused, setIsMemoFocused] = useState(false);
+  const sheetShiftY = useRef(new Animated.Value(0)).current;
+  const sheetShiftRef = useRef(0);
+  const overlayRef = useRef<ComponentRef<typeof View>>(null);
+  const sheetRef = useRef<ComponentRef<typeof View>>(null);
+  // This render's values for the (once-registered) keyboard handler.
+  const sheetLayoutRef = useRef({ sheetTop: 0, safeTop: 0, isDialogOpen: false });
 
   // Opened from a comment notification: the comments are brought into view once - after they are
   // actually laid out (their position is measured, never guessed), so the screen never jumps early.
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const scrollYRef = useRef(0);
+  const moveSheet = useCallback((shift: number) => {
+    if (Math.abs(shift - sheetShiftRef.current) < 1) {
+      return;
+    }
+    sheetShiftRef.current = shift;
+    Animated.timing(sheetShiftY, { duration: SHEET_SHIFT_DURATION_MS, easing: Easing.out(Easing.cubic), toValue: -shift, useNativeDriver: true }).start();
+  }, [sheetShiftY]);
+  const keepFocusedFieldAboveKeyboard = useCallback(() => {
+    const keyboardTop = keyboardTopRef.current;
+    const { sheetTop, safeTop, isDialogOpen } = sheetLayoutRef.current;
+    // Any of this sheet's editors (title, memo, the comment composer) - never one in a dialog above it.
+    const input = TextInput.State.currentlyFocusedInput();
+    const overlay = overlayRef.current;
+    const sheet = sheetRef.current;
+    if (keyboardTop === null || isDialogOpen || !input || !overlay || !sheet) {
+      return;
+    }
+    overlay.measureInWindow((_overlayX, overlayY) => {
+      sheet.measureInWindow((_sheetX, sheetY, _sheetWidth, sheetHeight) => {
+        input.measureInWindow((_inputX, inputY, _inputWidth, inputHeight) => {
+          if (inputY < sheetY || inputY > sheetY + sheetHeight) {
+            return;
+          }
+          // The field's bottom with the sheet at its normal place (both measurements carry the same current shift).
+          const normalSheetTop = overlayY + sheetTop;
+          const fieldBottom = normalSheetTop + (inputY - sheetY) + inputHeight;
+          const { shift, remaining } = sheetKeyboardShift({ fieldBottom, keyboardTop, normalSheetTop, safeTop });
+          moveSheet(shift);
+          if (remaining > 0) {
+            scrollRef.current?.scrollTo({ animated: true, y: scrollYRef.current + remaining });
+          }
+        });
+      });
+    });
+  }, [moveSheet]);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, event => {
+      isKeyboardVisibleRef.current = true;
+      keyboardTopRef.current = event.endCoordinates.screenY;
+      requestAnimationFrame(keepFocusedFieldAboveKeyboard);
+    });
+    const hide = Keyboard.addListener(hideEvent, () => {
+      isKeyboardVisibleRef.current = false;
+      keyboardTopRef.current = null;
+      // Back to the normal place; the body keeps its scroll position.
+      moveSheet(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [keepFocusedFieldAboveKeyboard, moveSheet]);
+  const onEditorFocus = () => requestAnimationFrame(keepFocusedFieldAboveKeyboard);
   const commentsYRef = useRef<number | null>(null);
   const scrollToCommentsPending = useRef(initialFocus === 'comments');
   const scrollToCommentsIfPending = useCallback(() => {
@@ -706,32 +792,94 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  // A centered popup over the screen it was opened from (the route is a transparent modal - see RootStack): a little
-  // narrower than the screen, never wider than a comfortable reading width, never taller than ~85% of the window.
-  // Long content scrolls INSIDE it; the popup itself never becomes a full screen.
+  // A bottom half-sheet over the screen it was opened from (the route is a transparent modal - see RootStack): rounded
+  // top corners, a handle, 62% of the keyboard-closed room; long content scrolls INSIDE it. Its place and height come
+  // from that keyboard-closed room and never change with the keyboard: an open keyboard covers its lower part, and the
+  // sheet moves up only as much as the field being edited needs (see keepFocusedFieldAboveKeyboard). The handle is
+  // visual only - X, a tap on the backdrop and the system back button close it.
   const close = () => navigation.goBack();
-  const popupWidth = Math.min(windowWidth - spacing.lg * 2, POPUP_MAX_WIDTH);
-  const popupMaxHeight = (windowHeight - insets.top - insets.bottom) * POPUP_MAX_HEIGHT_RATIO;
+  // Dragging the sheet down is the same close as X / the backdrop / back: with unsaved edits it snaps back and the usual
+  // "leave without saving?" question shows (the navigation guard), otherwise it slides away and the route closes. Its
+  // offset is its own value, added to the entrance and the keyboard shift - none of the three overwrites another.
+  const sheetGesture = useSheetDismissGesture({
+    canDismiss: () => !(isDirty && !isDeleted),
+    isStillOpen: () => navigation.isFocused?.() ?? false,
+    onDismiss: close,
+  });
+  const roomHeight = stableArea?.height ?? windowHeight;
+  const sheetHeight = Math.round((roomHeight - insets.top) * SHEET_INITIAL_HEIGHT_RATIO);
+  const sheetTop = Math.max(roomHeight - sheetHeight, insets.top + spacing.lg);
+  const sheetEnterY = useRef(new Animated.Value(sheetHeight)).current;
+  sheetLayoutRef.current = {
+    sheetTop,
+    safeTop: insets.top + SHEET_SAFE_TOP_MARGIN,
+    // A dialog over the sheet (the Collection picker, its create / password dialogs) has its own keyboard handling.
+    isDialogOpen: categoryPicker.isVisible || categoryPicker.isCreateDialogVisible || categoryPicker.unlockTarget !== null,
+  };
+  const recordRoom = (height: number) => {
+    // Only a keyboard-closed measurement sets the top. A smaller room at the same width without a reported keyboard
+    // is the keyboard too (a window that resizes for it can lay out before the keyboard event) - also ignored.
+    setStableArea(previous => {
+      if (isKeyboardVisibleRef.current) {
+        return previous;
+      }
+      if (previous && previous.width === windowWidth && height <= previous.height) {
+        return previous;
+      }
+      return { height, width: windowWidth };
+    });
+  };
+  useEffect(() => {
+    Animated.timing(sheetEnterY, { duration: SHEET_ENTER_DURATION_MS, easing: Easing.out(Easing.cubic), toValue: 0, useNativeDriver: true }).start();
+  }, [sheetEnterY]);
 
-  const renderPopup = (body: ReactNode, footer?: ReactNode) => (
-    <KeyboardSafeView style={styles.overlay}>
-      {/* The dimmed backdrop: tapping outside closes, like the system back button (unsaved edits are asked about first). */}
-      <Pressable accessibilityElementsHidden importantForAccessibility="no" onPress={close} style={StyleSheet.absoluteFill} testID="item-details-backdrop" />
-      <View accessibilityViewIsModal style={[styles.popup, { maxHeight: popupMaxHeight, width: popupWidth }]} testID="item-details-popup">
-        <View style={styles.header}>
-          <Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{t('nav.itemDetails')}</Text>
-          <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={4} onPress={close} style={styles.closeButton} testID="item-details-close">
-            <CloseIcon color={colors.textSecondary} size={20} />
-          </Pressable>
-        </View>
+  const renderSheet = (body: ReactNode, footer?: ReactNode) => (
+    <View ref={overlayRef} style={[styles.overlay, { paddingTop: sheetTop }]} testID="item-details-overlay">
+      {/* The dim behind the sheet - it fades as the sheet is dragged away. */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdropDim, { opacity: sheetGesture.backdropOpacity }]} />
+      {/* The backdrop: tapping outside closes, like the system back button (unsaved edits are asked about first). */}
+      <Pressable
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        onLayout={event => recordRoom(event.nativeEvent.layout.height)}
+        onPress={close}
+        style={StyleSheet.absoluteFill}
+        testID="item-details-backdrop"
+      />
+      <Animated.View
+        accessibilityViewIsModal
+        ref={sheetRef}
+        style={[
+          styles.sheet,
+          { height: sheetHeight, paddingBottom: insets.bottom, transform: [{ translateY: Animated.add(Animated.add(sheetEnterY, sheetShiftY), sheetGesture.dragY) }] },
+        ]}
+        testID="item-details-sheet"
+      >
+        {/* The shared sheet header: the handle over [icon 상세 ........ X] - one drag area, like every bottom sheet's. */}
+        <SheetHeader
+          actions={
+            <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={4} onPress={close} style={styles.closeButton} testID="item-details-close">
+              <CloseIcon color={colors.textSecondary} size={20} />
+            </Pressable>
+          }
+          gesture={sheetGesture}
+          icon={
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" testID="item-details-header-icon">
+              <LinkIcon color={colors.brand} size={18} />
+            </View>
+          }
+          rowStyle={styles.header}
+          testID="item-details-handle"
+          title={<Text accessibilityRole="header" numberOfLines={1} style={styles.headerTitle}>{t('nav.itemDetails')}</Text>}
+        />
         {body}
         {footer}
-      </View>
-    </KeyboardSafeView>
+      </Animated.View>
+    </View>
   );
 
   if (isLoading && !item) {
-    return renderPopup(
+    return renderSheet(
       <View style={styles.statusBody}>
         <ActivityIndicator testID="item-details-loading" />
       </View>,
@@ -739,7 +887,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }
 
   if (!item) {
-    return renderPopup(
+    return renderSheet(
       <View style={styles.statusBody}>
         {error ? <LoadFailureState compact error={loadFailure} notice={isDefinitiveLoadError(loadFailure) ? error : null} onRetry={() => { loadDetails(); }} testID="item-details-load-error" /> : null}
       </View>,
@@ -751,15 +899,25 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
   return (
     <>
-      {renderPopup(
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" ref={scrollRef} style={styles.body} testID="item-details-scroll">
-          {/* The link: a compact thumbnail beside its (editable) title, the site, and opening it. */}
-          <View style={styles.linkHeader}>
+      {renderSheet(
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          onScroll={event => {
+            scrollYRef.current = event.nativeEvent.contentOffset.y;
+          }}
+          ref={scrollRef}
+          scrollEventThrottle={16}
+          style={styles.body}
+          testID="item-details-scroll"
+        >
+          {/* A. The link: a compact preview beside its (editable) title, the site, and opening it. */}
+          <View style={styles.linkHeader} testID="item-details-preview">
             {thumbnailUrl ? (
               <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} testID="item-details-thumbnail" />
             ) : (
               <View style={[styles.thumbnail, styles.thumbnailFallback]} testID="item-details-thumbnail-fallback">
-                {site.id ? <SiteIcon siteId={site.id} size={34} /> : <LinkIcon color={colors.brand} size={30} />}
+                {site.id ? <SiteIcon siteId={site.id} size={30} /> : <LinkIcon color={colors.brand} size={26} />}
               </View>
             )}
             <View style={styles.linkText}>
@@ -767,6 +925,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                 accessibilityLabel={t('item.titleLabel')}
                 multiline
                 onChangeText={setTitle}
+                onFocus={onEditorFocus}
                 placeholder={t('item.titlePlaceholder')}
                 placeholderTextColor={colors.textSecondary}
                 scrollEnabled
@@ -785,48 +944,89 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
             </View>
           </View>
 
-          <View style={styles.section}>
-            <CategoryField
-              disabled={isSaving}
-              error={itemCollectionsError}
-              isLoading={isLoadingItemCollections}
-              onPress={categoryPicker.open}
-              selectedCollections={selectedCategories}
+          {/* B. The memo, as its own block. */}
+          <View
+            onLayout={() => {
+              // The memo grew to its editing height (or its text wrapped): keep it above the keyboard.
+              if (isMemoFocused) {
+                onEditorFocus();
+              }
+            }}
+            style={styles.memoBlock}
+            testID="item-details-memo-block"
+          >
+            <View style={styles.blockTitleRow}>
+              <EditIcon color={colors.textSecondary} size={15} />
+              <Text style={styles.blockTitle}>{t('item.memo')}</Text>
+            </View>
+            <TextInput
+              accessibilityLabel={t('item.memo')}
+              multiline
+              onBlur={() => setIsMemoFocused(false)}
+              onChangeText={setMemo}
+              onFocus={() => {
+                setIsMemoFocused(true);
+                onEditorFocus();
+              }}
+              placeholder={t('item.memoPlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              scrollEnabled
+              style={[styles.memoInput, isMemoFocused && styles.memoInputEditing]}
+              testID="item-details-memo"
+              value={memo}
             />
           </View>
 
-          <Text style={styles.label}>{t('item.memo')}</Text>
-          <TextInput
-            accessibilityLabel={t('item.memo')}
-            multiline
-            onChangeText={setMemo}
-            placeholder={t('item.memoPlaceholder')}
-            placeholderTextColor={colors.textSecondary}
-            scrollEnabled
-            style={styles.memoInput}
-            testID="item-details-memo"
-            value={memo}
-          />
-
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>{t('item.savedAtLabel')}</Text>
-            <Text numberOfLines={1} style={styles.metaValue} testID="item-details-saved-at">{formatSavedLinkTimestamp(item.savedAtUtc, 'dateTime')}</Text>
+          {/* C. What the link is filed under and when - one consistent row each: [icon] label ...... value. */}
+          <View style={styles.infoRows}>
+            <View style={styles.infoRow} testID="item-details-row-collections">
+              <View style={styles.infoLabelColumn}>
+                <FolderIcon color={colors.textSecondary} size={16} />
+                <Text numberOfLines={1} style={styles.infoLabel}>{t('collections.itemSectionTitle')}</Text>
+              </View>
+              <View style={styles.infoValue}>
+                <CategoryField
+                  disabled={isSaving}
+                  error={itemCollectionsError}
+                  isLoading={isLoadingItemCollections}
+                  onPress={categoryPicker.open}
+                  selectedCollections={selectedCategories}
+                  showLabel={false}
+                />
+              </View>
+            </View>
+            <View style={[styles.infoRow, styles.infoRowDivided]} testID="item-details-row-photo">
+              <View style={styles.infoLabelColumn}>
+                <ImageIcon color={colors.textSecondary} size={16} />
+                <Text numberOfLines={1} style={styles.infoLabel}>{t('item.representativePhoto')}</Text>
+              </View>
+              <View style={styles.infoValue}>
+                {isLoadingImages ? (
+                  <ActivityIndicator style={styles.imagesLoading} />
+                ) : (
+                  <RepresentativePhotoField
+                    compact
+                    isBusy={isPhotoBusy}
+                    isRemovable={representativePhoto?.kind === 'uploaded'}
+                    onChoose={pickAndUploadImage}
+                    onRemove={removePhoto}
+                    photoUrl={thumbnailUrl}
+                  />
+                )}
+              </View>
+            </View>
+            <View style={[styles.infoRow, styles.infoRowDivided]} testID="item-details-row-saved-at">
+              <View style={styles.infoLabelColumn}>
+                <ClockIcon color={colors.textSecondary} size={16} />
+                <Text numberOfLines={1} style={styles.infoLabel}>{t('item.savedAtLabel')}</Text>
+              </View>
+              <Text numberOfLines={1} style={styles.infoValueText} testID="item-details-saved-at">{formatSavedLinkTimestamp(item.savedAtUtc, 'dateTime')}</Text>
+            </View>
           </View>
-
-          {isLoadingImages ? (
-            <ActivityIndicator style={styles.imagesLoading} />
-          ) : (
-            <RepresentativePhotoField
-              isBusy={isPhotoBusy}
-              isRemovable={representativePhoto?.kind === 'uploaded'}
-              onChoose={pickAndUploadImage}
-              onRemove={removePhoto}
-              photoUrl={thumbnailUrl}
-            />
-          )}
 
           {imagesError ? <Text style={styles.error}>{imagesError}</Text> : null}
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* The Collection's reactions and comments on this link (only when opened from a shared Collection). */}
           {collaboration.reactions}
           {collaboration.comments ? (
             <View
@@ -841,7 +1041,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
           ) : null}
           {collaboration.composer}
         </ScrollView>,
-        <View style={styles.footer}>
+        // D. The actions, always at the sheet's bottom.
+        <View onLayout={event => setFooterHeight(Math.round(event.nativeEvent.layout.height))} style={styles.footer} testID="item-details-footer">
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: isItemActionInFlight, busy: isDeletingItem }}
@@ -944,27 +1145,67 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   );
 }
 
-const POPUP_MAX_WIDTH = 560;
-const POPUP_MAX_HEIGHT_RATIO = 0.85;
-const THUMBNAIL_SIZE = 104;
+/** The sheet's starting height, as a share of the window below the status bar - a half-sheet, never a full page. */
+const SHEET_INITIAL_HEIGHT_RATIO = 0.62;
+/** The widest the sheet gets on a large screen (tablet / unfolded) - centered there. */
+const SHEET_MAX_WIDTH = 640;
+const SHEET_ENTER_DURATION_MS = 250;
+/** The gap kept between the field being edited and the top of the keyboard. */
+export const KEYBOARD_FIELD_GAP = 16;
+/** The sheet's top never goes higher than this under the status bar / top inset while it moves for the keyboard. */
+const SHEET_SAFE_TOP_MARGIN = 12;
+const SHEET_SHIFT_DURATION_MS = 220;
+/** While the memo is being edited it keeps at least a few lines of room - never a one-line strip. */
+export const MEMO_EDITING_MIN_HEIGHT = 96;
+
+/**
+ * How far the sheet moves up for the keyboard: just enough for the focused field's bottom (at the sheet's normal place)
+ * to sit KEYBOARD_FIELD_GAP above the keyboard's top - never the whole keyboard height - and never so far that the
+ * sheet's top passes safeTop. What the clamp leaves is 'remaining', for the body to scroll. All in window coordinates.
+ */
+export function sheetKeyboardShift({ fieldBottom, keyboardTop, normalSheetTop, safeTop }: {
+  readonly fieldBottom: number;
+  readonly keyboardTop: number;
+  readonly normalSheetTop: number;
+  readonly safeTop: number;
+}): { readonly shift: number; readonly remaining: number } {
+  const required = Math.max(0, Math.round(fieldBottom + KEYBOARD_FIELD_GAP - keyboardTop));
+  const maxShift = Math.max(0, Math.round(normalSheetTop - safeTop));
+  const shift = Math.min(required, maxShift);
+  return { shift, remaining: required - shift };
+}
+const THUMBNAIL_SIZE = 88;
+/** The label side of an info row ([icon] 컬렉션 / 대표 사진 / 저장일). */
+const INFO_LABEL_WIDTH = 104;
 const TITLE_LINE_HEIGHT = 20;
 
 const styles = StyleSheet.create({
-  overlay: { alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.45)', flex: 1, justifyContent: 'center' },
-  popup: { backgroundColor: colors.surface, borderRadius: radii.lg + 4, overflow: 'hidden' },
+  // The sheet sits at its keyboard-closed place (paddingTop) with its own height; the keyboard never resizes it.
+  overlay: { flex: 1, justifyContent: 'flex-start' },
+  backdropDim: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },
+  sheet: {
+    alignSelf: 'center',
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radii.lg + 6,
+    borderTopRightRadius: radii.lg + 6,
+    maxWidth: SHEET_MAX_WIDTH,
+    overflow: 'hidden',
+    width: '100%',
+  },
   header: {
     alignItems: 'center',
     borderBottomColor: colors.inputBorder,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    paddingStart: spacing.lg,
+    gap: spacing.sm,
     paddingEnd: spacing.xs,
+    paddingStart: spacing.lg,
   },
   headerTitle: { color: colors.textPrimary, flex: 1, fontSize: 17, fontWeight: '700' },
   closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', width: minTouchTarget },
-  statusBody: { alignItems: 'center', justifyContent: 'center', minHeight: 160, padding: spacing.lg },
-  // Shrinks to what the content needs, scrolls when that is more than the popup allows.
-  body: { flexGrow: 0, flexShrink: 1 },
+  statusBody: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.lg },
+  // Fills the sheet between the header and the actions, and scrolls when the content is longer.
+  body: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing.md },
   linkHeader: { flexDirection: 'row', gap: spacing.md },
   thumbnail: { borderRadius: radii.md + 4, height: THUMBNAIL_SIZE, width: THUMBNAIL_SIZE },
@@ -981,26 +1222,37 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     textAlignVertical: 'top',
   },
-  section: { marginTop: spacing.md },
-  label: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.xs + 2, marginTop: spacing.md },
   // Icon-only, the full touch target around a compact icon (same treatment as the other row actions).
   iconButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
-  memoInput: {
+  memoBlock: {
     backgroundColor: colors.background,
     borderColor: colors.inputBorder,
     borderRadius: radii.md + 4,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  blockTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  blockTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  // A long memo scrolls inside its own field; the field never grows past this.
+  memoInput: {
     color: colors.textPrimary,
     fontSize: 15,
-    maxHeight: 160,
-    minHeight: 72,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    maxHeight: 140,
+    minHeight: 56,
+    padding: 0,
+    paddingVertical: spacing.xs,
     textAlignVertical: 'top',
   },
-  metaRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, marginTop: spacing.md },
-  metaLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
-  metaValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14 },
+  memoInputEditing: { minHeight: MEMO_EDITING_MIN_HEIGHT },
+  infoRows: { marginTop: spacing.md },
+  infoRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget + 4, paddingVertical: spacing.xs },
+  infoRowDivided: { borderTopColor: colors.inputBorder, borderTopWidth: StyleSheet.hairlineWidth },
+  infoLabelColumn: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs + 2, width: INFO_LABEL_WIDTH },
+  infoLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 13, fontWeight: '700' },
+  infoValue: { alignItems: 'flex-end', flex: 1, minWidth: 0 },
+  infoValueText: { color: colors.textPrimary, flex: 1, fontSize: 14, textAlign: 'right' },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.md },
   disabledButton: { opacity: 0.5 },
   footer: {

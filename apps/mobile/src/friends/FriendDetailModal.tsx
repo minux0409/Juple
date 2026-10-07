@@ -7,6 +7,7 @@ import { AppModal } from '../components/AppModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { CopyIconButton } from '../components/CopyIconButton';
 import { UserAvatar } from '../components/UserAvatar';
+import { CheckIcon } from '../icons/CheckIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { FRIEND_NOTE_MAX_STORAGE_LENGTH, removeFriend, setFriendNote, type Friend } from './api/friendsApi';
@@ -128,10 +129,15 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
             accessibilityState={{ disabled: isBusy, busy: isSaving }}
             disabled={isBusy}
             onPress={save}
-            style={[styles.primaryButton, isBusy && !isSaving && styles.disabled]}
+            style={[styles.actionButton, styles.primaryButton, isBusy && !isSaving && styles.disabled]}
             testID="friend-note-save"
           >
-            {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('friends.saveNote')}</Text>}
+            {isSaving ? <ActivityIndicator color={colors.surface} size="small" /> : (
+              <>
+                <CheckIcon color={colors.surface} size={ACTION_ICON_SIZE} />
+                <Text numberOfLines={2} style={[styles.actionLabel, styles.primaryLabel]}>{t('friends.saveNote')}</Text>
+              </>
+            )}
           </Pressable>
 
           <View style={styles.divider} />
@@ -143,13 +149,13 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
             accessibilityState={{ disabled: isBusy, busy: isRemoving }}
             disabled={isBusy}
             onPress={() => setIsRemoveConfirmVisible(true)}
-            style={[styles.removeButton, isBusy && !isRemoving && styles.disabled]}
+            style={[styles.actionButton, styles.removeButton, isBusy && !isRemoving && styles.disabled]}
             testID="friend-remove"
           >
             {isRemoving ? <ActivityIndicator color={colors.danger} size="small" /> : (
               <>
-                <TrashIcon color={colors.danger} size={16} />
-                <Text numberOfLines={2} style={styles.removeLabel}>{t('friends.remove')}</Text>
+                <TrashIcon color={colors.danger} size={ACTION_ICON_SIZE} />
+                <Text numberOfLines={2} style={[styles.actionLabel, styles.removeLabel]}>{t('friends.remove')}</Text>
               </>
             )}
           </Pressable>
@@ -167,6 +173,9 @@ export function FriendDetailModal({ friend, onClose, onChanged, onRemoved }: Fri
     </>
   );
 }
+
+/** One icon size for both actions (메모 저장 / 친구 삭제). */
+const ACTION_ICON_SIZE = 16;
 
 const styles = StyleSheet.create({
   identity: { alignItems: 'center', gap: 0, paddingTop: spacing.xs },
@@ -190,20 +199,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   error: { color: colors.danger, fontSize: 14, marginTop: spacing.sm },
-  primaryButton: {
+  // 메모 저장 and 친구 삭제 share one button shape - [icon] text, the same height, radius, border width, padding and gap -
+  // only the color says which is the default action and which is destructive.
+  actionButton: {
     alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderRadius: radii.md,
-    justifyContent: 'center',
-    marginTop: spacing.md,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-  },
-  primaryLabel: { color: colors.surface, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  disabled: { opacity: 0.45 },
-  removeButton: {
-    alignItems: 'center',
-    borderColor: colors.danger,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -212,5 +211,10 @@ const styles = StyleSheet.create({
     minHeight: minTouchTarget,
     paddingHorizontal: spacing.md,
   },
-  removeLabel: { color: colors.danger, flexShrink: 1, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  actionLabel: { flexShrink: 1, fontSize: 15, fontWeight: '700', textAlign: 'center' },
+  primaryButton: { backgroundColor: colors.brand, borderColor: colors.brand, marginTop: spacing.md },
+  primaryLabel: { color: colors.surface },
+  disabled: { opacity: 0.45 },
+  removeButton: { borderColor: colors.danger },
+  removeLabel: { color: colors.danger },
 });

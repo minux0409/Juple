@@ -121,16 +121,15 @@ export function CollectionParticipantsSheet({
 
   return (
     <BottomSheetModal
+      // 참여자 ........ [List/Grid]: one line, the switch at the far end - the sheet's header, so dragging it down closes the sheet.
+      headerActions={<ViewModeToggle onChange={changeViewMode} value={viewMode} />}
+      headerRowStyle={styles.titleRow}
+      headerTitle={<Text style={styles.title}>{t('collections.participantsTitle')}</Text>}
       modalExtras={profileModal}
       onClose={onClose}
       testID="participants-sheet"
       visible={visible}
     >
-          {/* 참여자 ........ [List/Grid]: one line, the switch at the far end. */}
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{t('collections.participantsTitle')}</Text>
-            <ViewModeToggle onChange={changeViewMode} value={viewMode} />
-          </View>
           <ScrollView style={styles.list}>
             {isLoading && !data ? <ActivityIndicator style={styles.loading} /> : null}
             {viewMode === 'grid' && data ? (
@@ -221,7 +220,7 @@ export { OwnerCrown };
 const styles = StyleSheet.create({
   nameRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   nameText: { flexShrink: 1 },
-  titleRow: { alignItems: 'center', columnGap: spacing.sm, flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
+  titleRow: { marginBottom: spacing.sm },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
   list: { flexGrow: 0 },
   loading: { minHeight: 160, paddingVertical: spacing.lg },

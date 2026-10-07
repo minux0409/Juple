@@ -168,8 +168,9 @@ export function RootStack() {
         {isReady ? (
           <Stack.Group>
             <Stack.Screen component={MainTabs} name="MainTabs" options={{ headerShown: false }} />
-            {/* A centered popup over the screen it was opened from - never a full page: transparent, no header, a fade
-                instead of a slide. The system back button (and the popup's own X / backdrop) close it. */}
+            {/* A bottom half-sheet over the screen it was opened from - never a full page: transparent, no header; the dimmed
+                backdrop fades in while the sheet itself slides up (see ItemDetailsScreen). The system back button (and the
+                sheet's own X / backdrop) close it. */}
             <Stack.Screen
               component={ItemDetailsScreen}
               name="ItemDetails"

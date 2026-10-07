@@ -1,5 +1,5 @@
-import { useCallback, useContext, useRef, useState, createContext } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useCallback, useContext, useEffect, useRef, useState, createContext, type ComponentRef } from 'react';
+import { Keyboard, Platform, StyleSheet, View } from 'react-native';
 import { NotificationToast } from './NotificationToast';
 import { UndoToast } from './UndoToast';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -25,7 +25,7 @@ type AppToastContextValue = {
    * otherwise clobber whichever screen registered after it. clearToastBottomOffset only takes
    * effect while `owner` is still the most recent registrant.
    */
-  readonly setToastBottomOffset: (owner: number, bottomOffset: number) => void;
+  readonly setToastBottomOffset: (owner: number, bottomOffset: number, aboveKeyboardOffset?: number) => void;
   readonly clearToastBottomOffset: (owner: number) => void;
 };
 
@@ -41,7 +41,33 @@ const AppToastContext = createContext<AppToastContextValue>(missingProvider);
 export function AppToastProvider({ children }: { readonly children: React.ReactNode }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [bottomOffset, setBottomOffset] = useState(0);
+  // The part of the screen's anchor that stays visible ABOVE an open keyboard (e.g. a sheet's own action row that
+  // rides on the keyboard) - a tab bar, by contrast, is under the keyboard and counts for nothing then.
+  const [aboveKeyboardOffset, setAboveKeyboardOffset] = useState(0);
   const bottomOffsetOwnerRef = useRef<number | null>(null);
+  // How much of this host's own area the on-screen keyboard covers right now (0 when hidden). Measured against the
+  // host's real frame, so where the window already resizes for the keyboard (older Android, no edge-to-edge) the
+  // overlap is 0 and nothing is applied twice; on an edge-to-edge / non-resizing window it is the keyboard's height.
+  const [keyboardOverlap, setKeyboardOverlap] = useState(0);
+  const containerRef = useRef<ComponentRef<typeof View>>(null);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, event => {
+      const keyboardTop = event.endCoordinates.screenY;
+      containerRef.current?.measureInWindow((_x, y, _width, height) => {
+        setKeyboardOverlap(Math.max(Math.round((y ?? 0) + (height ?? 0) - keyboardTop), 0));
+      });
+    });
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOverlap(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  // One anchor for the visible toast: above the keyboard while it is open, back to the screen's own anchor once it
+  // closes. The toast animates between the two - it is the same toast (same key, same timer), only its anchor moves.
+  const effectiveBottomOffset = keyboardOverlap > 0 ? Math.max(bottomOffset, keyboardOverlap + aboveKeyboardOffset) : bottomOffset;
   const nextIdRef = useRef(0);
   const isUndoingRef = useRef(false);
   const [isUndoing, setIsUndoing] = useState(false);
@@ -87,9 +113,10 @@ export function AppToastProvider({ children }: { readonly children: React.ReactN
   const handleDismiss = useCallback(() => setToast(null), []);
   const handleUndo = useCallback(() => { void undo(); }, [undo]);
 
-  const setToastBottomOffset = useCallback((owner: number, value: number) => {
+  const setToastBottomOffset = useCallback((owner: number, value: number, aboveKeyboard = 0) => {
     bottomOffsetOwnerRef.current = owner;
     setBottomOffset(value);
+    setAboveKeyboardOffset(aboveKeyboard);
   }, []);
   const clearToastBottomOffset = useCallback((owner: number) => {
     // Only releases ownership tracking - never resets bottomOffset itself, so a screen's own
@@ -101,9 +128,9 @@ export function AppToastProvider({ children }: { readonly children: React.ReactN
   }, []);
 
   return <AppToastContext.Provider value={{ showNotificationToast, showUndoToast, dismissToast, setToastBottomOffset, clearToastBottomOffset }}>
-    <View style={styles.container}>{children}</View>
-    {toast?.kind === 'notification' ? <NotificationToast key={toast.id} bottomOffset={bottomOffset} message={toast.message} onDismiss={handleDismiss} /> : null}
-    {toast?.kind === 'undo' ? <UndoToast key={toast.id} actionLabel={toast.actionLabel} bottomOffset={bottomOffset} isUndoing={isUndoing} message={toast.message} onDismiss={handleDismiss} onUndo={handleUndo} /> : null}
+    <View collapsable={false} ref={containerRef} style={styles.container}>{children}</View>
+    {toast?.kind === 'notification' ? <NotificationToast key={toast.id} bottomOffset={effectiveBottomOffset} message={toast.message} onDismiss={handleDismiss} /> : null}
+    {toast?.kind === 'undo' ? <UndoToast key={toast.id} actionLabel={toast.actionLabel} bottomOffset={effectiveBottomOffset} isUndoing={isUndoing} message={toast.message} onDismiss={handleDismiss} onUndo={handleUndo} /> : null}
     {undoFailure ? <ConfirmDialog confirmLabel={undoFailure.confirmLabel} message={undoFailure.message} onConfirm={() => setUndoFailure(null)} title={undoFailure.noticeTitle} visible /> : null}
   </AppToastContext.Provider>;
 }

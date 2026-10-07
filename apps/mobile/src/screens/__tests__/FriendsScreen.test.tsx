@@ -1006,6 +1006,29 @@ describe('FriendsScreen - a friend', () => {
     expect(texts(byId(renderer, 'friend-7'))).toContain('회사 개발팀 김민수');
   });
 
+  it('메모 저장 has a save (check) icon like 친구 삭제 has its trash - the same button shape, only the color differs', async () => {
+    const renderer = await openPikachu();
+    const save = byId(renderer, 'friend-note-save');
+    const remove = byId(renderer, 'friend-remove');
+
+    expect(save.findAllByType(CheckIcon)).toHaveLength(1);
+    expect(texts(save)).toEqual(['메모 저장']);
+    expect(remove.findAllByType(TrashIcon)).toHaveLength(1);
+    expect(texts(remove)).toEqual(['친구 삭제']);
+    expect(save.findByType(CheckIcon).props.size).toBe(remove.findByType(TrashIcon).props.size);
+
+    const shape = (node: ReactTestRenderer.ReactTestInstance) => {
+      const { flexDirection, alignItems, justifyContent, gap, minHeight, borderRadius, borderWidth, paddingHorizontal } = StyleSheet.flatten(node.props.style);
+      return { flexDirection, alignItems, justifyContent, gap, minHeight, borderRadius, borderWidth, paddingHorizontal };
+    };
+    expect(shape(save)).toEqual(shape(remove));
+    expect(shape(save).flexDirection).toBe('row');
+    expect(shape(save).minHeight).toBeGreaterThanOrEqual(44);
+    // Blue default action vs red destructive outline.
+    expect(StyleSheet.flatten(save.props.style).backgroundColor).toBe(colors.brand);
+    expect(StyleSheet.flatten(remove.props.style).borderColor).toBe(colors.danger);
+  });
+
   it('removes only after 이 친구를 삭제할까요? is confirmed, then closes and leaves the list', async () => {
     jest.mocked(removeFriend).mockResolvedValue(undefined);
     const renderer = await openPikachu();

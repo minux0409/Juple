@@ -10,6 +10,7 @@ import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import type { ViewModePreferenceKey } from '../settings/viewModePreference';
 import type { LoadFailureInfo } from '../components/LoadFailureState';
 import { CollectionChoiceGrid } from './CollectionChoiceGrid';
+import { useSheetDismissGesture } from '../components/sheetDismissGesture';
 import type { Collection } from './api/collectionsApi';
 
 // See CollectionTargetPickerDialog.tsx's identical constants/animation - the same bottom-sheet
@@ -121,6 +122,16 @@ export function CategoryPickerModal({
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
   const sheetTranslateY = useRef(new Animated.Value(SHEET_ENTER_OFFSET)).current;
+  // Dragging the sheet down closes it like 닫기 / back (onClose) - not while a Collection is being created or the
+  // confirming action runs (its close is unavailable then too).
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const gesture = useSheetDismissGesture({
+    dismissEnabled: !isCreatingCollection && !submit?.isSubmitting,
+    isStillOpen: () => visibleRef.current,
+    onDismiss: onClose,
+    resetKey: visible,
+  });
 
   useEffect(() => {
     if (!visible) {
@@ -138,26 +149,31 @@ export function CategoryPickerModal({
   return (
     <Modal animationType="none" onRequestClose={onClose} transparent visible={visible}>
       <View style={styles.overlay}>
-        <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: sheetTranslateY }] }]}>
-          <CollectionChoiceGrid
-            collectionPool={collectionPool}
-            createAccessibilityLabel={createAccessibilityLabel}
-            createLabel={createLabel}
-            disabledIds={disabledIds}
-            isLoadingMore={isLoadingMore}
-            isLoadingOptions={isLoadingOptions}
-            listStyle={styles.optionList}
-            loadFailure={loadFailure}
-            onLoadMore={onLoadMore}
-            onOpenCreateDialog={onOpenCreateDialog}
-            onRetryLoad={onRetryLoad}
-            onToggle={onToggle}
-            selectedIds={selectedIds}
-            showCreateTile={showCreateTile}
-            sort={sort}
-            title={title}
-            viewModeKey={viewModeKey}
-          />
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: gesture.backdropOpacity }]} />
+        <Animated.View style={[styles.content, { paddingBottom: 24 + bottomInset, transform: [{ translateY: Animated.add(sheetTranslateY, gesture.dragY) }] }]} testID="category-picker-sheet">
+          <View style={styles.gridArea}>
+            <CollectionChoiceGrid
+              collectionPool={collectionPool}
+              createAccessibilityLabel={createAccessibilityLabel}
+              createLabel={createLabel}
+              disabledIds={disabledIds}
+              isLoadingMore={isLoadingMore}
+              isLoadingOptions={isLoadingOptions}
+              listStyle={styles.optionList}
+              loadFailure={loadFailure}
+              onLoadMore={onLoadMore}
+              onOpenCreateDialog={onOpenCreateDialog}
+              onRetryLoad={onRetryLoad}
+              onToggle={onToggle}
+              selectedIds={selectedIds}
+              showCreateTile={showCreateTile}
+              sort={sort}
+              title={title}
+              viewModeKey={viewModeKey}
+              // 컬렉션 선택 + List/Grid under the shared handle: the sheet's header, so dragging it down closes it.
+              sheetHeader={{ gesture, style: styles.dragArea, testID: 'category-picker-drag-area' }}
+            />
+          </View>
           {/* An action's result in this sheet (e.g. a Collection that became unavailable) - never a list-load failure. */}
           {error ? <Text style={styles.error} testID="category-picker-error">{error}</Text> : null}
 
@@ -211,17 +227,23 @@ export function CategoryPickerModal({
 
 const styles = StyleSheet.create({
   overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     flex: 1,
     justifyContent: 'flex-end',
   },
+  // The dim behind the sheet - it fades as the sheet is dragged away.
+  backdrop: { backgroundColor: 'rgba(0, 0, 0, 0.4)' },
   content: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '80%',
     padding: 24,
+    // The shared handle takes the top edge (see SheetHeader).
+    paddingTop: 0,
   },
+  // Full width (over the sheet's side padding), so the whole header block - edge to edge - is the drag area.
+  dragArea: { marginHorizontal: -24, paddingHorizontal: 24 },
+  gridArea: { flexShrink: 1 },
   // The sheet bounds the chooser's tiles; the 링크 저장 screen lets them fill its room instead.
   optionList: {
     maxHeight: 360,

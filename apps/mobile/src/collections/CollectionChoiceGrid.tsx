@@ -12,6 +12,7 @@ import { useViewModePreference, type ViewModePreferenceKey } from '../settings/v
 import type { Collection } from './api/collectionsApi';
 import { LoadFailureState, type LoadFailureInfo } from '../components/LoadFailureState';
 import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
+import { SheetHeader, type SheetDismissGesture } from '../components/sheetDismissGesture';
 
 const GRID_COLUMNS = 4;
 
@@ -55,6 +56,11 @@ export interface CollectionChoiceGridProps {
   readonly onRetryLoad?: () => void;
   /** The tile list's own size: the bottom sheet bounds it; a full screen lets it fill the room it has. */
   readonly listStyle?: StyleProp<ViewStyle>;
+  /**
+   * Inside a bottom sheet: the title row (title + List/Grid) goes under the shared handle as the sheet's drag area
+   * (see SheetHeader / CategoryPickerModal). Absent: a plain title row.
+   */
+  readonly sheetHeader?: { readonly gesture: Pick<SheetDismissGesture, 'dragAreaHandlers'>; readonly style?: StyleProp<ViewStyle>; readonly testID?: string };
 }
 
 /**
@@ -83,10 +89,14 @@ export function CollectionChoiceGrid({
   loadFailure = null,
   onRetryLoad,
   listStyle,
+  sheetHeader,
 }: CollectionChoiceGridProps) {
   const { t } = useTranslation();
   const { viewMode, changeViewMode } = useViewModePreference(viewModeKey, 'grid');
   const isGrid = viewMode === 'grid';
+
+  const titleText = <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{title ?? t('collections.selectTitle')}</Text>;
+  const toggle = <ViewModeToggle onChange={changeViewMode} value={viewMode} />;
 
   const leading: GridItem[] = [];
   if (showCreateTile) {
@@ -127,10 +137,14 @@ export function CollectionChoiceGrid({
 
   return (
     <>
-      <View style={styles.titleRow}>
-        <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{title ?? t('collections.selectTitle')}</Text>
-        <ViewModeToggle onChange={changeViewMode} value={viewMode} />
-      </View>
+      {sheetHeader ? (
+        <SheetHeader actions={toggle} gesture={sheetHeader.gesture} style={sheetHeader.style} testID={sheetHeader.testID} title={titleText} />
+      ) : (
+        <View style={styles.titleRow}>
+          {titleText}
+          {toggle}
+        </View>
+      )}
       {sort ? (
         <View accessibilityRole="radiogroup" style={styles.sortRow} testID="category-picker-sort">
           {(['newest', 'title'] as const).map(option => {

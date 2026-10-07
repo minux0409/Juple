@@ -6,6 +6,8 @@ import { FriendPickerModal } from '../../friends/FriendPickerModal';
 import { CollectionLinkShareSheet } from '../CollectionLinkShareSheet';
 import { lookupJupleId } from '../api/collaborationApi';
 import { sendCollectionShareLink } from '../api/collectionsApi';
+import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
+import { StyleSheet } from 'react-native';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -167,5 +169,62 @@ describe('CollectionLinkShareSheet', () => {
 
     expect(exists(renderer, 'link-share-recipient-DDDD2345')).toBe(false);
     expect(textOf(renderer, 'link-share-error')).toBe(i18n.t('linkShare.limit', { max: 3 }));
+  });
+});
+
+
+const sheetDragArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onMoveShouldSetResponder === 'function')[0].props;
+const hasHandle = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAll(node => node.props.testID === 'sheet-handle' && typeof node.type === 'string').length > 0;
+
+describe('CollectionLinkShareSheet - the shared handle', () => {
+  it('handle shown above the title and X; a downward drag closes like X (onClose)', async () => {
+    const { renderer, callbacks } = await renderSheet();
+    expect(hasHandle(renderer)).toBe(true);
+    const dragArea = renderer.root.findAll(node => node.props.testID === 'link-share-drag-area' && typeof node.type === 'string')[0];
+    expect(dragArea.props.collapsable).toBe(false);
+    expect(dragArea.findAll(node => node.props.testID === 'link-share-close').length).toBeGreaterThan(0);
+    expect(dragArea.findAll(node => typeof node.type === 'string' && node.props.children === i18n.t('shareSheet.shareLink')).length).toBeGreaterThan(0);
+    dragSheet(sheetDragArea(renderer, 'link-share-drag-area'), { dy: 160, durationMs: 600 });
+    await settleSheet();
+    expect(callbacks.onClose).toHaveBeenCalledTimes(1);
+    act(() => renderer.unmount());
+  });
+});
+
+/** The shared SheetHeader as rendered in this sheet: the responder view, its title area and its actions. */
+function renderedSheetHeader(renderer: ReactTestRenderer.ReactTestRenderer, testID: string) {
+  const area = renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+  const titleArea = area.findAll(node => node.props.testID === 'sheet-header-title' && typeof node.type === 'string')[0];
+  const actions = area.findAll(node => node.props.testID === 'sheet-header-actions' && typeof node.type === 'string')[0];
+  return { area, titleArea, actions };
+}
+function expectOneDragSurface(header: ReturnType<typeof renderedSheetHeader>, title: string) {
+  // ONE native responder view (never flattened, full width) owns the drag...
+  expect(header.area.props.collapsable).toBe(false);
+  expect(typeof header.area.props.onStartShouldSetResponder).toBe('function');
+  expect(typeof header.area.props.onMoveShouldSetResponderCapture).toBe('function');
+  expect(StyleSheet.flatten(header.area.props.style).alignSelf).toBe('stretch');
+  // ...and its title area holds the title AND takes the free width (the empty space up to the actions is inside it).
+  expect(StyleSheet.flatten(header.titleArea.props.style)).toMatchObject({ flex: 1 });
+  expect(header.titleArea.findAll(node => typeof node.type === 'string' && node.props.children === title).length).toBeGreaterThan(0);
+  // Nothing inside has handlers of its own: the drag is the outer header's.
+  expect(header.titleArea.props.onStartShouldSetResponder).toBeUndefined();
+}
+
+describe('CollectionLinkShareSheet - the shared drag header', () => {
+  it('title and X in the header; a drag from the title closes it; from X too; X still taps', async () => {
+    const { renderer, callbacks } = await renderSheet();
+    const header = renderedSheetHeader(renderer, 'link-share-drag-area');
+    expectOneDragSurface(header, i18n.t('shareSheet.shareLink'));
+    expect(header.actions.findAll(node => node.props.testID === 'link-share-close').length).toBeGreaterThan(0);
+    await act(async () => byId(renderer, 'link-share-close').props.onPress());
+    expect(callbacks.onClose).toHaveBeenCalledTimes(1);
+
+    expect(dragSheet(header.area.props, { from: 'control', dy: 160, durationMs: 600 })).toBe(true);
+    await settleSheet();
+    expect(callbacks.onClose).toHaveBeenCalledTimes(2);
+    act(() => renderer.unmount());
   });
 });

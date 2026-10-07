@@ -196,3 +196,90 @@ describe('AppToast Host', () => {
     expect(renderer.root.findByType(NotificationToast).props.message).toBe('Second');
   });
 });
+
+describe('AppToast Host - follows the keyboard (one toast, one timer, a moving anchor)', () => {
+  type KeyboardHandler = (event: { endCoordinates: { screenY: number; height: number } }) => void;
+  let handlers: Map<string, KeyboardHandler>;
+  const { Keyboard } = require('react-native');
+
+  beforeEach(() => {
+    handlers = new Map();
+    jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, handler: KeyboardHandler) => {
+      handlers.set(event, handler);
+      return { remove: () => handlers.delete(event) };
+    }) as never);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  /** The host's own area is the whole 750 x 1334 window: a keyboard whose top is at screenY covers 1334 - screenY. */
+  function renderMeasuredHost() {
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = ReactTestRenderer.create(
+        <AppToastProvider>
+          <Harness />
+        </AppToastProvider>,
+      );
+    });
+    // The jest preset's View mock does not measure: the host container answers as the full window.
+    const container = renderer.root.findAll(node => node.props.collapsable === false && node.instance)[0];
+    container.instance.measureInWindow = (callback: (x: number, y: number, width: number, height: number) => void) => callback(0, 0, 750, 1334);
+    return renderer;
+  }
+  // The host listens to the platform's own events (iOS: will-, Android: did-) - the test speaks in did- terms.
+  const keyboard = (event: 'keyboardDidShow' | 'keyboardDidHide', screenY = 1334) => {
+    const { Platform } = require('react-native');
+    const name = Platform.OS === 'ios' ? event.replace('Did', 'Will') : event;
+    const handler = handlers.get(name);
+    expect(handler).toBeDefined();
+    act(() => handler?.({ endCoordinates: { screenY, height: 1334 - screenY } }));
+  };
+
+  it('a toast shown with the keyboard open appears at once ABOVE it (above the action row riding on it)', () => {
+    const renderer = renderMeasuredHost();
+    act(() => capturedApi.setToastBottomOffset(1, 80, 56));
+    keyboard('keyboardDidShow', 1034);
+    act(() => capturedApi.showNotificationToast('저장되었습니다.'));
+
+    // 300 covered by the keyboard + the 56 of the action row above it.
+    expect(renderer.root.findByType(NotificationToast).props.bottomOffset).toBe(356);
+  });
+
+  it('keyboard closes while it is visible: the SAME toast moves down to its normal anchor, and its timer is not restarted', () => {
+    const renderer = renderMeasuredHost();
+    act(() => capturedApi.setToastBottomOffset(1, 80, 56));
+    keyboard('keyboardDidShow', 1034);
+    act(() => capturedApi.showNotificationToast('저장되었습니다.'));
+    const before = renderer.root.findByType(NotificationToast);
+    expect(before.props.bottomOffset).toBe(356);
+
+    act(() => jest.advanceTimersByTime(NOTIFICATION_TOAST_DURATION_MS - 1000));
+    keyboard('keyboardDidHide');
+
+    const after = renderer.root.findByType(NotificationToast);
+    expect(after.props.bottomOffset).toBe(80);
+    expect(after.instance ?? after).toBe(before.instance ?? before);
+    // Still the first timer: 1 s more and it is gone - not another full duration.
+    act(() => jest.advanceTimersByTime(1000));
+    expect(renderer.root.findAllByType(NotificationToast)).toHaveLength(0);
+  });
+
+  it('never applies the keyboard twice where the window already resized for it (no overlap with the host)', () => {
+    const renderer = renderMeasuredHost();
+    act(() => capturedApi.setToastBottomOffset(1, 80, 56));
+    // The keyboard's top is at (or below) the host's bottom - the host already ends above it.
+    keyboard('keyboardDidShow', 1334);
+    act(() => capturedApi.showNotificationToast('Saved.'));
+    expect(renderer.root.findByType(NotificationToast).props.bottomOffset).toBe(80);
+  });
+
+  it('a screen anchor with nothing above the keyboard (a tab bar) floats the toast right above the keyboard', () => {
+    const renderer = renderMeasuredHost();
+    act(() => capturedApi.setToastBottomOffset(1, 64));
+    keyboard('keyboardDidShow', 1034);
+    act(() => capturedApi.showNotificationToast('Saved.'));
+    expect(renderer.root.findByType(NotificationToast).props.bottomOffset).toBe(300);
+  });
+});

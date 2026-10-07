@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SheetHeader, useSheetDismissGesture } from '../components/sheetDismissGesture';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
@@ -185,6 +186,11 @@ export function CollectionLinkShareSheet({
   };
 
   const unavailable = new Map<string, FriendUnavailableReason>(recipients.map(recipient => [recipient.jupleId, 'added']));
+  // Dragging the sheet down closes it, exactly like X / the backdrop / back (onClose).
+  const isOpen = visible && !isPickingFriends;
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
+  const gesture = useSheetDismissGesture({ isStillOpen: () => isOpenRef.current, onDismiss: onClose, resetKey: isOpen });
 
   return (
     <>
@@ -200,13 +206,22 @@ export function CollectionLinkShareSheet({
       >
         <KeyboardSafeView style={styles.backdrop}>
           <Pressable accessibilityElementsHidden importantForAccessibility="no-hide-descendants" onPress={onClose} style={StyleSheet.absoluteFill} />
-          <View accessibilityViewIsModal style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]} testID="link-share-sheet">
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>{t('shareSheet.shareLink')}</Text>
-              <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={8} onPress={onClose} style={styles.iconButton} testID="link-share-close">
-                <CloseIcon color={colors.textSecondary} size={20} />
-              </Pressable>
-            </View>
+          <Animated.View
+            accessibilityViewIsModal
+            style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom, transform: [{ translateY: gesture.dragY }] }]}
+            testID="link-share-sheet"
+          >
+            <SheetHeader
+              actions={
+                <Pressable accessibilityLabel={t('common.close')} accessibilityRole="button" hitSlop={8} onPress={onClose} style={styles.iconButton} testID="link-share-close">
+                  <CloseIcon color={colors.textSecondary} size={20} />
+                </Pressable>
+              }
+              gesture={gesture}
+              style={styles.dragArea}
+              testID="link-share-drag-area"
+              title={<Text style={styles.title}>{t('shareSheet.shareLink')}</Text>}
+            />
 
             {/* [친구] [ID] choose who gets it inside Juple; [외부 공유] hands the link to the OS share sheet. */}
             <View accessibilityRole="tablist" style={styles.modes}>
@@ -325,7 +340,7 @@ export function CollectionLinkShareSheet({
                 <Text numberOfLines={2} style={styles.primaryLabel}>{t('linkShare.send', { count: recipients.length })}</Text>
               )}
             </Pressable>
-          </View>
+          </Animated.View>
         </KeyboardSafeView>
       </Modal>
       <FriendPickerModal
@@ -348,9 +363,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     maxHeight: '85%',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    // The shared handle takes the top edge (see SheetHeader).
+    paddingTop: 0,
   },
-  headerRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  // Full width (over the sheet's side padding), so the whole top strip - handle, title and X - is the drag area.
+  dragArea: { marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg },
   title: { color: colors.textPrimary, flexShrink: 1, fontSize: 17, fontWeight: '700' },
   iconButton: { alignItems: 'center', justifyContent: 'center', minHeight: minTouchTarget, minWidth: minTouchTarget },
   modes: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md + 2, flexDirection: 'row', gap: 2, padding: 2 },

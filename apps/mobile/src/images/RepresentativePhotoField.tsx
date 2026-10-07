@@ -10,6 +10,9 @@ import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 const THUMBNAIL_SIZE = 96;
 const EDIT_BADGE_SIZE = 28;
+/** Compact (info row): still at least a touch target. */
+const COMPACT_THUMBNAIL_SIZE = 48;
+const COMPACT_EDIT_BADGE_SIZE = 22;
 
 interface RepresentativePhotoFieldProps {
   /** The photo shown (the user's own, or the link's automatic preview), or null for none. */
@@ -21,6 +24,11 @@ interface RepresentativePhotoFieldProps {
   readonly disabled?: boolean;
   /** 사진 추가 / 사진 변경: the caller opens the picker and stores the result. */
   readonly onChoose: () => void;
+  /**
+   * The value side of an info row (Item Details' sheet): no own label (the row has it) and a small thumbnail. Same
+   * actions, same menu and confirmation; default false (the standalone field, unchanged).
+   */
+  readonly compact?: boolean;
   /** 사진 삭제, after the user confirmed it here. */
   readonly onRemove: () => void;
 }
@@ -31,7 +39,7 @@ interface RepresentativePhotoFieldProps {
  * the user's own photo, and only after a confirmation). Never a second "+" - an Item has one photo.
  * Shared by ItemDetailsScreen (saves at once) and NewLinkReviewScreen (stages until 저장).
  */
-export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabled = false, onChoose, onRemove }: RepresentativePhotoFieldProps) {
+export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabled = false, compact = false, onChoose, onRemove }: RepresentativePhotoFieldProps) {
   const { t } = useTranslation();
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [isRemoveConfirmVisible, setIsRemoveConfirmVisible] = useState(false);
@@ -65,8 +73,8 @@ export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabl
   ];
 
   return (
-    <View style={styles.section} testID="representative-photo">
-      <Text style={styles.label}>{t('item.representativePhoto')}</Text>
+    <View style={compact ? styles.compactSection : styles.section} testID="representative-photo">
+      {compact ? null : <Text style={styles.label}>{t('item.representativePhoto')}</Text>}
       {photoUrl ? (
         <Pressable
           accessibilityLabel={t('item.editRepresentativePhoto')}
@@ -74,17 +82,17 @@ export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabl
           accessibilityState={{ disabled: isInactive, busy: isBusy }}
           disabled={isInactive}
           onPress={() => setIsMenuVisible(true)}
-          style={styles.thumbnailButton}
+          style={[styles.thumbnailButton, compact && styles.compactThumbnail]}
           testID="representative-photo-edit"
         >
-          <Image source={{ uri: photoUrl }} style={styles.thumbnail} testID="representative-photo-image" />
+          <Image source={{ uri: photoUrl }} style={[styles.thumbnail, compact && styles.compactThumbnail]} testID="representative-photo-image" />
           {isBusy ? (
             <View style={styles.busyOverlay} testID="representative-photo-busy">
               <ActivityIndicator color={colors.surface} />
             </View>
           ) : (
-            <View style={styles.editBadge}>
-              <EditIcon color={colors.textPrimary} size={14} />
+            <View style={[styles.editBadge, compact && styles.compactEditBadge]}>
+              <EditIcon color={colors.textPrimary} size={compact ? 12 : 14} />
             </View>
           )}
         </Pressable>
@@ -94,7 +102,7 @@ export function RepresentativePhotoField({ photoUrl, isRemovable, isBusy, disabl
           accessibilityState={{ disabled: isInactive, busy: isBusy }}
           disabled={isInactive}
           onPress={onChoose}
-          style={[styles.addButton, isInactive && styles.inactive]}
+          style={[styles.addButton, compact && styles.compactAddButton, isInactive && styles.inactive]}
           testID="representative-photo-add"
         >
           {isBusy ? (
@@ -168,4 +176,8 @@ const styles = StyleSheet.create({
   },
   addLabel: { color: colors.brand, flexShrink: 1, fontSize: 15, fontWeight: '600', textAlign: 'center' },
   inactive: { opacity: 0.5 },
+  compactSection: { alignItems: 'flex-end' },
+  compactThumbnail: { height: COMPACT_THUMBNAIL_SIZE, width: COMPACT_THUMBNAIL_SIZE },
+  compactEditBadge: { borderRadius: COMPACT_EDIT_BADGE_SIZE / 2, bottom: -4, end: -4, height: COMPACT_EDIT_BADGE_SIZE, width: COMPACT_EDIT_BADGE_SIZE },
+  compactAddButton: { paddingHorizontal: spacing.md },
 });

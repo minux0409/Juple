@@ -29,6 +29,7 @@ import {
 import { emitSocialPushEvent } from '../../push/pushEvents';
 import { markCollectionSubmissionRequestsRead } from '../../notifications/notificationsApi';
 import { getUnreadCount, resetNotificationState } from '../../notifications/notificationState';
+import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: React.ReactNode }) => children,
@@ -968,4 +969,100 @@ describe('ApprovalSubmissionSheet - the Owner\'s open popup follows a requester\
     expect(shown(renderer)).toContain('이미 취소되었거나 처리된 요청입니다.');
     expect(onChanged).toHaveBeenCalled();
   });
+});
+
+
+const sheetDragArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onMoveShouldSetResponder === 'function')[0].props;
+const headerArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+const headerTexts = (area: ReactTestRenderer.ReactTestInstance) =>
+  area.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string').map(node => node.props.children as string);
+const hasHandle = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAll(node => node.props.testID === 'sheet-handle' && typeof node.type === 'string').length > 0;
+
+describe('ApprovalSubmissionSheet - the shared handle: dragging it down closes like X', () => {
+  for (const variant of ['owner', 'mine'] as const) {
+    it(`${variant === 'owner' ? '받은' : '보낸'} 승인 요청: handle shown; a downward drag closes through onClose; a short one does not`, async () => {
+      const { renderer, onClose } = await renderSheet({ variant, collectionId: 5 });
+      const sheetId = variant === 'owner' ? 'owner-approval-sheet' : 'my-approval-sheet';
+      expect(hasHandle(renderer)).toBe(true);
+      // The header - title and X, under the handle - is the drag area (a real native view), not just the handle.
+      const area = headerArea(renderer, `${sheetId}-drag-area`);
+      expect(area.props.collapsable).toBe(false);
+      expect(headerTexts(area)).toContain(i18n.t(variant === 'owner' ? 'submissions.ownerSheetTitle' : 'submissions.mySheetTitle'));
+      expect(area.findAll(node => node.props.testID === 'approval-sheet-close').length).toBeGreaterThan(0);
+
+      dragSheet(sheetDragArea(renderer, `${sheetId}-drag-area`), { dy: 30, durationMs: 600 });
+      await settleSheet();
+      expect(onClose).not.toHaveBeenCalled();
+
+      dragSheet(sheetDragArea(renderer, `${sheetId}-drag-area`), { dy: 160, durationMs: 600 });
+      await settleSheet();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it('X still closes with a plain tap; the list is outside the drag area and scrolls as always', async () => {
+    const { renderer, onClose } = await renderSheet({ variant: 'owner', collectionId: 5 });
+    const area = headerArea(renderer, 'owner-approval-sheet-drag-area');
+    const list = renderer.root.findByType(FlatList);
+    expect(area.findAllByType(FlatList)).toHaveLength(0);
+    expect(list.props.onScroll).toBeUndefined();
+    expect(list.props.scrollEnabled).not.toBe(false);
+    await act(async () => {
+      renderer.root.findAll(node => node.props.testID === 'approval-sheet-close' && typeof node.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** The shared SheetHeader as rendered in this sheet: the responder view, its title area and its actions. */
+function renderedSheetHeader(renderer: ReactTestRenderer.ReactTestRenderer, testID: string) {
+  const area = renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+  const titleArea = area.findAll(node => node.props.testID === 'sheet-header-title' && typeof node.type === 'string')[0];
+  const actions = area.findAll(node => node.props.testID === 'sheet-header-actions' && typeof node.type === 'string')[0];
+  return { area, titleArea, actions };
+}
+function expectOneDragSurface(header: ReturnType<typeof renderedSheetHeader>, title: string) {
+  // ONE native responder view (never flattened, full width) owns the drag...
+  expect(header.area.props.collapsable).toBe(false);
+  expect(typeof header.area.props.onStartShouldSetResponder).toBe('function');
+  expect(typeof header.area.props.onMoveShouldSetResponderCapture).toBe('function');
+  expect(StyleSheet.flatten(header.area.props.style).alignSelf).toBe('stretch');
+  // ...and its title area holds the title AND takes the free width (the empty space up to the actions is inside it).
+  expect(StyleSheet.flatten(header.titleArea.props.style)).toMatchObject({ flex: 1 });
+  expect(header.titleArea.findAll(node => typeof node.type === 'string' && node.props.children === title).length).toBeGreaterThan(0);
+  // Nothing inside has handlers of its own: the drag is the outer header's.
+  expect(header.titleArea.props.onStartShouldSetResponder).toBeUndefined();
+}
+
+describe('ApprovalSubmissionSheet - the shared drag header (title, empty space and X are one surface)', () => {
+  for (const variant of ['owner', 'mine'] as const) {
+    const label = variant === 'owner' ? '받은' : '보낸';
+    const sheetId = variant === 'owner' ? 'owner-approval-sheet' : 'my-approval-sheet';
+    const titleKey = variant === 'owner' ? 'submissions.ownerSheetTitle' : 'submissions.mySheetTitle';
+
+    it(`${label} 승인 요청: title and X in the header; a drag starting on the title / empty space closes it`, async () => {
+      const { renderer, onClose } = await renderSheet({ variant, collectionId: 5 });
+      const header = renderedSheetHeader(renderer, `${sheetId}-drag-area`);
+      expectOneDragSurface(header, i18n.t(titleKey));
+      expect(header.actions.findAll(node => node.props.testID === 'approval-sheet-close').length).toBeGreaterThan(0);
+
+      dragSheet(header.area.props, { from: 'header', dy: 30, durationMs: 600 });
+      await settleSheet();
+      expect(onClose).not.toHaveBeenCalled();
+      dragSheet(header.area.props, { from: 'header', dy: 160, durationMs: 600 });
+      await settleSheet();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it(`${label} 승인 요청: a drag starting on X is captured by the header and closes the sheet once`, async () => {
+      const { renderer, onClose } = await renderSheet({ variant, collectionId: 5 });
+      const header = renderedSheetHeader(renderer, `${sheetId}-drag-area`);
+      expect(dragSheet(header.area.props, { from: 'control', dy: 160, durationMs: 600 })).toBe(true);
+      await settleSheet();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  }
 });

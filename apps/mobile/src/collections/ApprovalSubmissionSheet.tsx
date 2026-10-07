@@ -379,13 +379,8 @@ export function ApprovalSubmissionSheet({
           {cancellation.dialogs}
         </>
       }
-      onClose={onClose}
-      testID={isOwner ? 'owner-approval-sheet' : 'my-approval-sheet'}
-      visible={visible}
-    >
-      {/* Title and the X in one row - no bottom 닫기 row taking a line of its own. */}
-      <View style={styles.titleRow}>
-        <Text accessibilityRole="header" style={styles.title}>{t(isOwner ? 'submissions.ownerSheetTitle' : 'submissions.mySheetTitle')}</Text>
+      // Title and the X in one row (no bottom 닫기 row) - the sheet's header, so dragging it down closes the sheet.
+      headerActions={
         <Pressable
           accessibilityLabel={t('common.close')}
           accessibilityRole="button"
@@ -396,7 +391,13 @@ export function ApprovalSubmissionSheet({
         >
           <CloseIcon color={colors.textSecondary} size={20} />
         </Pressable>
-      </View>
+      }
+      headerRowStyle={styles.titleRow}
+      headerTitle={<Text accessibilityRole="header" style={styles.title}>{t(isOwner ? 'submissions.ownerSheetTitle' : 'submissions.mySheetTitle')}</Text>}
+      onClose={onClose}
+      testID={isOwner ? 'owner-approval-sheet' : 'my-approval-sheet'}
+      visible={visible}
+    >
       {showSkeleton ? (
         <View style={styles.list} testID="approval-sheet-skeleton">
           {Array.from({ length: skeletonCount }, (_, index) => (
@@ -453,7 +454,7 @@ function Separator() {
 }
 
 const styles = StyleSheet.create({
-  titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
+  titleRow: { marginBottom: spacing.xs },
   title: { color: colors.textPrimary, flex: 1, fontSize: 17, fontWeight: '700' },
   closeButton: { alignItems: 'center', height: minTouchTarget, justifyContent: 'center', marginEnd: -spacing.sm, width: minTouchTarget },
   list: { flexGrow: 0 },

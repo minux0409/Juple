@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { ActivityIndicator, Animated, Modal, Text } from 'react-native';
+import { ActivityIndicator, Animated, Modal, ScrollView, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionParticipantsSheet } from '../CollectionParticipantsSheet';
 import { formatParticipantSummary } from '../participantSummary';
@@ -15,6 +15,7 @@ import {
   revokeCollectionInvitation,
   type CollectionParticipants,
 } from '../api/collaborationApi';
+import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
 
 const mockPrefs = new Map<string, string>();
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -218,12 +219,16 @@ describe('CollectionParticipantsSheet - List / Grid', () => {
   it('puts the List/Grid switch on the title line, at the far end', async () => {
     const renderer = await renderWith(data);
 
-    const toggle = renderer.root.findByType(ViewModeToggle);
-    const row = toggle.parent!;
-    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' });
+    // The shared sheet header's row: [title area (takes the free width)] [actions] - the switch is its last element.
+    const row = renderer.root.findAll(node => node.props.testID === 'sheet-header-row' && typeof node.type === 'string')[0];
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', alignItems: 'center' });
     const children = row.children as ReactTestRenderer.ReactTestInstance[];
-    expect(children[children.length - 1] === toggle).toBe(true);
-    expect(row.findAllByType(Text).some(node => node.props.children === i18n.t('collections.participantsTitle'))).toBe(true);
+    const actions = children[children.length - 1];
+    expect(actions.props.testID).toBe('sheet-header-actions');
+    expect(actions.findAllByType(ViewModeToggle)).toHaveLength(1);
+    const titleArea = children[0];
+    expect(StyleSheet.flatten(titleArea.props.style)).toMatchObject({ flex: 1 });
+    expect(titleArea.findAllByType(Text).some(node => node.props.children === i18n.t('collections.participantsTitle'))).toBe(true);
   });
 
   it('Grid uses the shared tiles (avatar with fallback, name, role, crown) - identity only, no "..." and no removal - and saves the choice', async () => {
@@ -424,5 +429,107 @@ describe('CollectionParticipantsSheet - a failed reload', () => {
 
     expect(byTestIdHost(renderer, 'participants-sheet-error')).toHaveLength(1);
     expect(byTestIdHost(renderer, 'participants-sheet-refresh-failure')).toHaveLength(0);
+  });
+});
+
+
+const sheetDragArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onMoveShouldSetResponder === 'function')[0].props;
+const headerArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+const headerTexts = (area: ReactTestRenderer.ReactTestInstance) =>
+  area.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string').map(node => node.props.children as string);
+const hasHandle = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAll(node => node.props.testID === 'sheet-handle' && typeof node.type === 'string').length > 0;
+
+describe('CollectionParticipantsSheet - the shared handle', () => {
+  it('참여자: handle shown; a downward drag closes through onClose', async () => {
+    jest.mocked(getCollectionParticipants).mockResolvedValue({ participants: [{ jupleId: 'WNER2345', displayName: '쥬플리', role: 'owner', isMe: true }], pendingInvitations: [], canManage: false } as never);
+    const onClose = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} onClose={onClose} visible />,
+      );
+    });
+    expect(hasHandle(renderer)).toBe(true);
+    // The header - 참여자 and the List/Grid switch, under the handle - is the drag area; the member list is not.
+    const area = headerArea(renderer, 'participants-sheet-drag-area');
+    expect(area.props.collapsable).toBe(false);
+    expect(headerTexts(area)).toContain(i18n.t('collections.participantsTitle'));
+    expect(area.findAllByType(ViewModeToggle)).toHaveLength(1);
+    expect(area.findAllByType(ScrollView)).toHaveLength(0);
+
+    // List/Grid in the header still switches with a plain tap.
+    await act(async () => {
+      area.findByType(ViewModeToggle).props.onChange('grid');
+    });
+    expect(renderer.root.findAll(node => node.props.testID === 'participants-sheet-grid').length).toBeGreaterThan(0);
+
+    dragSheet(sheetDragArea(renderer, 'participants-sheet-drag-area'), { dy: 160, durationMs: 600 });
+    await settleSheet();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    act(() => renderer.unmount());
+  });
+});
+
+/** The shared SheetHeader as rendered in this sheet: the responder view, its title area and its actions. */
+function renderedSheetHeader(renderer: ReactTestRenderer.ReactTestRenderer, testID: string) {
+  const area = renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+  const titleArea = area.findAll(node => node.props.testID === 'sheet-header-title' && typeof node.type === 'string')[0];
+  const actions = area.findAll(node => node.props.testID === 'sheet-header-actions' && typeof node.type === 'string')[0];
+  return { area, titleArea, actions };
+}
+function expectOneDragSurface(header: ReturnType<typeof renderedSheetHeader>, title: string) {
+  // ONE native responder view (never flattened, full width) owns the drag...
+  expect(header.area.props.collapsable).toBe(false);
+  expect(typeof header.area.props.onStartShouldSetResponder).toBe('function');
+  expect(typeof header.area.props.onMoveShouldSetResponderCapture).toBe('function');
+  expect(StyleSheet.flatten(header.area.props.style).alignSelf).toBe('stretch');
+  // ...and its title area holds the title AND takes the free width (the empty space up to the actions is inside it).
+  expect(StyleSheet.flatten(header.titleArea.props.style)).toMatchObject({ flex: 1 });
+  expect(header.titleArea.findAll(node => typeof node.type === 'string' && node.props.children === title).length).toBeGreaterThan(0);
+  // Nothing inside has handlers of its own: the drag is the outer header's.
+  expect(header.titleArea.props.onStartShouldSetResponder).toBeUndefined();
+}
+
+describe('CollectionParticipantsSheet - the shared drag header (참여자, empty space and List/Grid are one surface)', () => {
+  async function open(onClose: () => void) {
+    jest.mocked(getCollectionParticipants).mockResolvedValue({ participants: [{ jupleId: 'WNER2345', displayName: '쥬플리', role: 'owner', isMe: true }], pendingInvitations: [], canManage: false } as never);
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<CollectionParticipantsSheet authenticatedRequest={jest.fn() as never} collectionId={5} onClose={onClose} visible />);
+    });
+    return renderer;
+  }
+
+  it('참여자 and List/Grid in the header; a drag starting on 참여자 / the empty space closes it; List/Grid still taps', async () => {
+    const onClose = jest.fn();
+    const renderer = await open(onClose);
+    const header = renderedSheetHeader(renderer, 'participants-sheet-drag-area');
+    expectOneDragSurface(header, i18n.t('collections.participantsTitle'));
+    expect(header.actions.findAllByType(ViewModeToggle)).toHaveLength(1);
+
+    await act(async () => {
+      header.actions.findByType(ViewModeToggle).props.onChange('grid');
+    });
+    expect(renderer.root.findAll(node => node.props.testID === 'participants-sheet-grid').length).toBeGreaterThan(0);
+    expect(onClose).not.toHaveBeenCalled();
+
+    dragSheet(header.area.props, { from: 'header', dy: 160, durationMs: 600 });
+    await settleSheet();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    act(() => renderer.unmount());
+  });
+
+  it('a drag starting on List/Grid is captured by the header (the switch is not toggled) and closes the sheet', async () => {
+    const onClose = jest.fn();
+    const renderer = await open(onClose);
+    const header = renderedSheetHeader(renderer, 'participants-sheet-drag-area');
+    expect(dragSheet(header.area.props, { from: 'control', dy: 160, durationMs: 600 })).toBe(true);
+    await settleSheet();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(renderer.root.findAll(node => node.props.testID === 'participants-sheet-grid')).toHaveLength(0);
+    act(() => renderer.unmount());
   });
 });

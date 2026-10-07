@@ -15,8 +15,11 @@ let nextAnchorOwnerId = 1;
  * height settling after its first layout pass) without needing this screen to blur/refocus - this
  * only ever writes AppToast's own bottomOffset state, never its toast/timer state, so it can never
  * reset an in-flight Toast's auto-dismiss timer.
+ *
+ * aboveKeyboardOffset: the part of that anchor that stays visible above an open keyboard (a sheet's action row that
+ * sits on the keyboard) - the toast then floats that much above the keyboard. Default 0 (a tab bar is under it).
  */
-export function useToastBottomAnchor(bottomOffset: number): void {
+export function useToastBottomAnchor(bottomOffset: number, aboveKeyboardOffset = 0): void {
   const { setToastBottomOffset, clearToastBottomOffset } = useAppToast();
   const ownerIdRef = useRef<number | null>(null);
   if (ownerIdRef.current === null) {
@@ -26,8 +29,8 @@ export function useToastBottomAnchor(bottomOffset: number): void {
 
   useFocusEffect(
     useCallback(() => {
-      setToastBottomOffset(ownerId, bottomOffset);
+      setToastBottomOffset(ownerId, bottomOffset, aboveKeyboardOffset);
       return () => clearToastBottomOffset(ownerId);
-    }, [ownerId, bottomOffset, setToastBottomOffset, clearToastBottomOffset]),
+    }, [ownerId, bottomOffset, aboveKeyboardOffset, setToastBottomOffset, clearToastBottomOffset]),
   );
 }

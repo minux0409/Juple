@@ -5,6 +5,9 @@ import { CheckIcon } from '../../icons/CheckIcon';
 import { KeyIcon } from '../../icons/KeyIcon';
 import type { Collection } from '../api/collectionsApi';
 import { clearCollectionUnlockGrants } from '../collectionUnlockGrants';
+import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
+import { StyleSheet } from 'react-native';
+import { ViewModeToggle } from '../../components/ViewModeToggle';
 
 function makeCollection(overrides: Partial<Collection> = {}): Collection {
   return {
@@ -291,5 +294,92 @@ describe('CategoryPickerModal - the Collection list could not be loaded', () => 
     expect(hostTexts(renderer, 'category-picker-more-failure')).toEqual([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.retry')]);
     act(() => renderer.root.findAll(node => node.props.testID === 'category-picker-more-failure-retry' && typeof node.props.onPress === 'function')[0].props.onPress());
     expect(onRetryLoad).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+const sheetDragArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onMoveShouldSetResponder === 'function')[0].props;
+const headerArea = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+const headerTexts = (area: ReactTestRenderer.ReactTestInstance) =>
+  area.findAll(node => typeof node.type === 'string' && typeof node.props.children === 'string').map(node => node.props.children as string);
+const hasHandle = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+  renderer.root.findAll(node => node.props.testID === 'sheet-handle' && typeof node.type === 'string').length > 0;
+
+describe('CategoryPickerModal - the shared handle', () => {
+  it('handle shown; a downward drag closes like 닫기 (onClose)', async () => {
+    const onClose = jest.fn();
+    const renderer = render(<CategoryPickerModal {...baseProps} collectionPool={[]} onClose={onClose} onToggle={jest.fn()} selectedIds={new Set()} />);
+    expect(hasHandle(renderer)).toBe(true);
+    // The header - 컬렉션 선택 and List/Grid, under the handle - is the drag area; the tiles are not.
+    const area = headerArea(renderer, 'category-picker-drag-area');
+    expect(area.props.collapsable).toBe(false);
+    expect(headerTexts(area)).toContain(i18n.t('collections.selectTitle'));
+    expect(area.findAll(node => node.props.testID === 'category-picker-list')).toHaveLength(0);
+    dragSheet(sheetDragArea(renderer, 'category-picker-drag-area'), { dy: 160, durationMs: 600 });
+    await settleSheet();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    act(() => renderer.unmount());
+  });
+
+  it('while a Collection is being created (its close is unavailable), the drag does nothing', async () => {
+    const onClose = jest.fn();
+    const renderer = render(<CategoryPickerModal {...baseProps} collectionPool={[]} isCreatingCollection onClose={onClose} onToggle={jest.fn()} selectedIds={new Set()} />);
+    expect(dragSheet(sheetDragArea(renderer, 'category-picker-drag-area'), { dy: 200 })).toBe(false);
+    await settleSheet();
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it('while its confirming action runs (복제 / 이동), the drag does nothing either', async () => {
+    const onClose = jest.fn();
+    const renderer = render(
+      <CategoryPickerModal {...baseProps} collectionPool={[]} onClose={onClose} onToggle={jest.fn()} selectedIds={new Set([1])} submit={{ label: 'x', onSubmit: jest.fn(), isSubmitting: true }} />,
+    );
+    expect(dragSheet(sheetDragArea(renderer, 'category-picker-drag-area'), { dy: 200 })).toBe(false);
+    act(() => renderer.unmount());
+  });
+});
+
+/** The shared SheetHeader as rendered in this sheet: the responder view, its title area and its actions. */
+function renderedSheetHeader(renderer: ReactTestRenderer.ReactTestRenderer, testID: string) {
+  const area = renderer.root.findAll(node => node.props.testID === testID && typeof node.type === 'string')[0];
+  const titleArea = area.findAll(node => node.props.testID === 'sheet-header-title' && typeof node.type === 'string')[0];
+  const actions = area.findAll(node => node.props.testID === 'sheet-header-actions' && typeof node.type === 'string')[0];
+  return { area, titleArea, actions };
+}
+function expectOneDragSurface(header: ReturnType<typeof renderedSheetHeader>, title: string) {
+  // ONE native responder view (never flattened, full width) owns the drag...
+  expect(header.area.props.collapsable).toBe(false);
+  expect(typeof header.area.props.onStartShouldSetResponder).toBe('function');
+  expect(typeof header.area.props.onMoveShouldSetResponderCapture).toBe('function');
+  expect(StyleSheet.flatten(header.area.props.style).alignSelf).toBe('stretch');
+  // ...and its title area holds the title AND takes the free width (the empty space up to the actions is inside it).
+  expect(StyleSheet.flatten(header.titleArea.props.style)).toMatchObject({ flex: 1 });
+  expect(header.titleArea.findAll(node => typeof node.type === 'string' && node.props.children === title).length).toBeGreaterThan(0);
+  // Nothing inside has handlers of its own: the drag is the outer header's.
+  expect(header.titleArea.props.onStartShouldSetResponder).toBeUndefined();
+}
+
+describe('CategoryPickerModal - the shared drag header (컬렉션 선택, empty space and List/Grid are one surface)', () => {
+  it('a drag starting on the title / empty space closes it; one starting on List/Grid is captured too', async () => {
+    const onClose = jest.fn();
+    const renderer = render(<CategoryPickerModal {...baseProps} collectionPool={[]} onClose={onClose} onToggle={jest.fn()} selectedIds={new Set()} />);
+    const header = renderedSheetHeader(renderer, 'category-picker-drag-area');
+    expectOneDragSurface(header, i18n.t('collections.selectTitle'));
+    expect(header.actions.findAllByType(ViewModeToggle)).toHaveLength(1);
+
+    dragSheet(header.area.props, { from: 'header', dy: 160, durationMs: 600 });
+    await settleSheet();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    act(() => renderer.unmount());
+
+    const onClose2 = jest.fn();
+    const renderer2 = render(<CategoryPickerModal {...baseProps} collectionPool={[]} onClose={onClose2} onToggle={jest.fn()} selectedIds={new Set()} />);
+    expect(dragSheet(renderedSheetHeader(renderer2, 'category-picker-drag-area').area.props, { from: 'control', dy: 160, durationMs: 600 })).toBe(true);
+    await settleSheet();
+    expect(onClose2).toHaveBeenCalledTimes(1);
+    act(() => renderer2.unmount());
   });
 });
