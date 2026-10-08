@@ -5,7 +5,7 @@ import type { ImportantStateVariant } from './ImportantState';
 /**
  * Whether a failed load never reached the server (no connection, DNS, timeout - an ApiError 'unavailable' / 'timeout' with
  * no HTTP status) as opposed to a server that answered with an error. Anything that is not a recognised ApiError is
- * treated as "reached it, failed" - never claimed to be offline. Only the icon differs: the words are the same.
+ * treated as "reached it, failed" - never claimed to be offline. Both render the same state (icon and words).
  */
 export function loadFailureVariant(error: unknown): Extract<ImportantStateVariant, 'offline' | 'loadFailed'> {
   return error instanceof ApiError && (error.kind === 'timeout' || (error.kind === 'unavailable' && error.status === undefined)) ? 'offline' : 'loadFailed';
@@ -26,7 +26,7 @@ export interface LoadFailureInfo {
 }
 
 interface LoadFailureStateProps {
-  /** The caught error (or undefined/null when only "it failed" is known) - picks the offline / load-failed icon. */
+  /** The caught error (or undefined/null when only "it failed" is known) - offline vs. load-failed (same presentation). */
   readonly error?: unknown;
   /**
    * A definitive state with its own sentence (not found, locked, owner only, signed out) - shown INSTEAD of the load
@@ -39,8 +39,8 @@ interface LoadFailureStateProps {
 }
 
 /**
- * A list / page / popup content that failed to load: ImportantState, centered - "불러오지 못했어요" / "기록을 불러올 수
- * 없습니다." / "다시 시도" whatever the screen or cause (network-off icon when offline). Field validation stays inline and an
+ * A list / page / popup content that failed to load: ImportantState, centered - the broken chain link, "불러오지 못했어요" /
+ * "기록을 불러올 수 없습니다." / "다시 시도" whatever the screen or cause. Field validation stays inline and an
  * operation's result is a message dialog - this is only for "the thing this surface shows could not be loaded".
  */
 export function LoadFailureState({ error, notice, onRetry, compact, testID }: LoadFailureStateProps) {

@@ -49,7 +49,7 @@ describe('isDefinitiveLoadError', () => {
 });
 
 describe('LoadFailureState', () => {
-  it('offline: the network-off icon, with the SAME words as any load failure, and 다시 시도', () => {
+  it('offline: the broken chain link, with the SAME words as any load failure, and 다시 시도', () => {
     const onRetry = jest.fn();
     const renderer = render(<LoadFailureState error={new ApiError('unavailable')} onRetry={onRetry} testID="x" />);
 
@@ -61,17 +61,31 @@ describe('LoadFailureState', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('a server failure: the info icon and the standard words', () => {
-    const renderer = render(<LoadFailureState error={new ApiError('unavailable', 500)} onRetry={() => undefined} />);
+  it.each([
+    ['a server failure', new ApiError('unavailable', 500)],
+    ['an unrecognised error', new Error('boom')],
+    ['a screen that kept only a message string', '컬렉션을 불러오지 못했어요.'],
+    ['no error at all', undefined],
+  ])('%s: the SAME broken chain link and words as offline - never the info circle', (_label, error) => {
+    const renderer = render(<LoadFailureState error={error} onRetry={() => undefined} />);
 
     expect(textsOf(renderer)).toEqual(STANDARD);
-    expect(renderer.root.findAllByType(InfoIcon)).toHaveLength(1);
-    expect(renderer.root.findAllByType(BrokenLinkIcon)).toHaveLength(0);
+    expect(renderer.root.findAllByType(BrokenLinkIcon)).toHaveLength(1);
+    expect(renderer.root.findAllByType(InfoIcon)).toHaveLength(0);
+  });
+
+  it('compact (a nested sheet / popup) is still the broken chain link and the standard words', () => {
+    const renderer = render(<LoadFailureState compact onRetry={() => undefined} />);
+    expect(textsOf(renderer)).toEqual(STANDARD);
+    expect(renderer.root.findAllByType(BrokenLinkIcon)).toHaveLength(1);
   });
 
   it('a definite state is said as itself, and has no retry button when nothing can be retried', () => {
     const renderer = render(<LoadFailureState error={new ApiError('forbidden', 403)} notice="이 컬렉션은 소유자만 열 수 있어요." />);
     expect(textsOf(renderer)).toEqual(['이 컬렉션은 소유자만 열 수 있어요.']);
     expect(renderer.root.findAll(node => typeof node.props.onPress === 'function')).toHaveLength(0);
+    // Not a failure to load: it keeps the notice look, not the broken link.
+    expect(renderer.root.findAllByType(InfoIcon)).toHaveLength(1);
+    expect(renderer.root.findAllByType(BrokenLinkIcon)).toHaveLength(0);
   });
 });

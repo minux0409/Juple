@@ -1,3 +1,7 @@
+import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
+import { LoadFailureState } from '../../components/LoadFailureState';
+import { RefreshFailureNotice } from '../../components/RefreshFailureNotice';
+import { InfoIcon } from '../../icons/InfoIcon';
 import { KeyIcon } from '../../icons/KeyIcon';
 import { ApprovalSubmissionSheet } from '../../collections/ApprovalSubmissionSheet';
 import { CollectionStatusBadges } from '../../collections/CollectionStatusBadges';
@@ -1343,5 +1347,72 @@ describe('CollectionsScreen - a crown before the name of a Collection I own', ()
       expect(crown(renderer, 1)).toHaveLength(1);
       expect(crown(renderer, 2)).toHaveLength(0);
     }
+  });
+});
+
+describe('CollectionsScreen load failure', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('a first load that fails is the shared state: broken link, the standard words, 다시 시도 - and retry recovers', async () => {
+    setUpGetCollectionsMock();
+    jest.mocked(getCollections).mockRejectedValueOnce(new Error('offline'));
+    const renderer = await renderScreen();
+
+    const failure = renderer.root.findAll(node => node.props.testID === 'collections-list-error')[0];
+    expect(failure).toBeDefined();
+    expect(failure.findAllByType(Text).map(node => node.props.children)).toEqual([
+      i18n.t('importantState.loadFailedTitle'),
+      i18n.t('importantState.loadFailedMessage'),
+      i18n.t('importantState.retry'),
+    ]);
+    expect(failure.findAllByType(BrokenLinkIcon)).toHaveLength(1);
+    expect(failure.findAllByType(InfoIcon)).toHaveLength(0);
+
+    await act(async () => {
+      renderer.root.find(node => node.props.testID === 'collections-list-error-retry' && typeof node.props.onPress === 'function').props.onPress();
+    });
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-list-error')).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ children: ownedCollection.name }).length).toBeGreaterThan(0);
+    act(() => renderer.unmount());
+  });
+
+  it('with cards already shown, a failed refresh keeps them, with the shared state above them (as 보관함) - and retry recovers', async () => {
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    expect(renderer.root.findAllByProps({ children: ownedCollection.name }).length).toBeGreaterThan(0);
+
+    jest.mocked(getCollections).mockRejectedValueOnce(new Error('offline'));
+    await act(async () => {
+      await renderer.root.findByType(FlatList).props.refreshControl.props.onRefresh();
+    });
+
+    // The cards stay...
+    expect(renderer.root.findAllByProps({ children: ownedCollection.name }).length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.testID === 'collections-list-error')).toHaveLength(0);
+    // ...and the failure is the shared LoadFailureState (broken link, the standard words, 다시 시도) - not the one-line row.
+    const header = renderer.root.findAllByType(LoadFailureState);
+    expect(header).toHaveLength(1);
+    expect(header[0].props.testID).toBe('collections-refresh-failure');
+    expect(header[0].findAllByType(Text).map(node => node.props.children)).toEqual([
+      i18n.t('importantState.loadFailedTitle'),
+      i18n.t('importantState.loadFailedMessage'),
+      i18n.t('importantState.retry'),
+    ]);
+    expect(header[0].findAllByType(BrokenLinkIcon)).toHaveLength(1);
+    expect(header[0].findAllByType(InfoIcon)).toHaveLength(0);
+    expect(renderer.root.findAllByType(RefreshFailureNotice)).toHaveLength(0);
+
+    // 다시 시도 reloads the same Collections list; once it succeeds the state goes and the cards are current.
+    const callsBeforeRetry = jest.mocked(getCollections).mock.calls.length;
+    await act(async () => {
+      renderer.root.find(node => node.props.testID === 'collections-refresh-failure-retry' && typeof node.props.onPress === 'function').props.onPress();
+    });
+    expect(jest.mocked(getCollections).mock.calls.length).toBe(callsBeforeRetry + 1);
+    expect(jest.mocked(getCollections).mock.calls[callsBeforeRetry][1]).toEqual(jest.mocked(getCollections).mock.calls[0][1]);
+    expect(renderer.root.findAllByType(LoadFailureState)).toHaveLength(0);
+    expect(renderer.root.findAllByProps({ children: ownedCollection.name }).length).toBeGreaterThan(0);
+    act(() => renderer.unmount());
   });
 });

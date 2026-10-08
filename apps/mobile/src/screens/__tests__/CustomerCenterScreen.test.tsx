@@ -169,3 +169,20 @@ describe('CustomerCenterScreen', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
+
+describe('CustomerCenterScreen without a network', () => {
+  it('renders completely and makes no request when every request would fail', async () => {
+    const fetchSpy = jest.fn(() => Promise.reject(new TypeError('Network request failed')));
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    try {
+      const renderer = await renderScreen();
+      expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('customerCenter.faqHeading'), i18n.t('inquiry.title'), 'Juple']));
+      expect(exists(renderer, 'customer-center-version')).toBe(true);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      act(() => renderer.unmount());
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

@@ -1,3 +1,5 @@
+import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
+import { InfoIcon } from '../../icons/InfoIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { AppState, FlatList, Image, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import i18n from '../../i18n';
@@ -224,6 +226,8 @@ describe('FriendsScreen - tabs', () => {
     jest.mocked(getFriends).mockRejectedValueOnce(new Error('offline'));
     const renderer = await renderScreen();
     expect(texts(byId(renderer, 'friends-error'))).toEqual(expect.arrayContaining([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage')]));
+    expect(byId(renderer, 'friends-error').findAllByType(BrokenLinkIcon)).toHaveLength(1);
+    expect(byId(renderer, 'friends-error').findAllByType(InfoIcon)).toHaveLength(0);
 
     await press(renderer, 'friends-error-retry');
     expect(exists(renderer, 'friend-7')).toBe(true);

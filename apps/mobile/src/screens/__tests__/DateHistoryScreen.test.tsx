@@ -1,3 +1,5 @@
+import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
+import { InfoIcon } from '../../icons/InfoIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
 import i18n from '../../i18n';
@@ -1030,6 +1032,9 @@ describe('DateHistoryScreen load failure placement', () => {
       .findAll(node => typeof node.props.children === 'string')
       .map(node => node.props.children as string);
     expect(texts).toEqual(expect.arrayContaining([i18n.t('importantState.loadFailedTitle'), i18n.t('importantState.loadFailedMessage'), i18n.t('importantState.retry')]));
+    const failure = header.root.findAll(node => node.props.testID === 'history-sections-error')[0];
+    expect(failure.findAllByType(BrokenLinkIcon)).toHaveLength(1);
+    expect(failure.findAllByType(InfoIcon)).toHaveLength(0);
   });
 });
 

@@ -2,6 +2,8 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import i18n from '../../i18n';
 import { ImportantState } from '../ImportantState';
+import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
+import { InfoIcon } from '../../icons/InfoIcon';
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
@@ -30,9 +32,22 @@ describe('ImportantState', () => {
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
-  it('offline says exactly the same words (only its icon differs) - no transport detail in the copy', () => {
-    const renderer = render(<ImportantState onRetry={() => undefined} variant="offline" />);
-    expect(textsOf(renderer)).toEqual(STANDARD);
+  it('offline and loadFailed are one state: the same words and the same broken chain link (no transport detail)', () => {
+    for (const variant of ['offline', 'loadFailed'] as const) {
+      const renderer = render(<ImportantState onRetry={() => undefined} variant={variant} />);
+      expect(textsOf(renderer)).toEqual(STANDARD);
+      expect(renderer.root.findAllByType(BrokenLinkIcon)).toHaveLength(1);
+      expect(renderer.root.findAllByType(InfoIcon)).toHaveLength(0);
+      // Decorative: the icon is hidden from screen readers (the text says it).
+      const iconCircle = renderer.root.find(node => node.props.importantForAccessibility === 'no-hide-descendants' && typeof node.type === 'string');
+      expect(iconCircle.findAllByType(BrokenLinkIcon)).toHaveLength(1);
+    }
+  });
+
+  it('a notice keeps the info circle - it is a definite state, not a failure to load', () => {
+    const renderer = render(<ImportantState message="이 컬렉션을 찾을 수 없어요." variant="notice" />);
+    expect(renderer.root.findAllByType(InfoIcon)).toHaveLength(1);
+    expect(renderer.root.findAllByType(BrokenLinkIcon)).toHaveLength(0);
   });
 
   it('a screen-specific sentence or headline can never replace the load-failure text', () => {

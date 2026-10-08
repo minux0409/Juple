@@ -33,8 +33,7 @@ import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsShee
 import { useLiveRefresh } from '../push/useLiveRefresh';
 import { formatBadgeCount } from '../components/badgeCount';
 import { CountBadge } from '../components/CountBadge';
-import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
-import { ImportantState } from '../components/ImportantState';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { subscribeCollectionNewLinksRead } from '../notifications/notificationState';
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
@@ -677,15 +676,16 @@ export function CollectionsScreen() {
             ) : null}
 
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
-            {/* With cards already on screen a failed refresh keeps them, with a compact retry row; with none it is the centered state below. */}
-            {error && activeList.items.length > 0 ? <RefreshFailureNotice onRetry={() => load(filter, 'refresh')} testID="collections-refresh-failure" /> : null}
+            {/* With cards already on screen a failed refresh keeps them, with the shared load-failure state above them (as 보관함
+                does); with none it is the centered state below. */}
+            {error && activeList.items.length > 0 ? <LoadFailureState compact onRetry={() => load(filter, 'refresh')} testID="collections-refresh-failure" /> : null}
           </View>
         }
         ListEmptyComponent={
           isActiveInitialLoading ? (
             renderSkeletons(viewMode === 'grid' ? FIRST_PAGE_SKELETON_GRID_ROWS : FIRST_PAGE_SKELETON_LIST_ROWS, 'collections-first-page-loading')
           ) : error ? (
-            <ImportantState onRetry={() => load(filter, 'initial')} testID="collections-list-error" />
+            <LoadFailureState onRetry={() => load(filter, 'initial')} testID="collections-list-error" />
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.empty}>{t(FILTER_EMPTY_KEYS[filter])}</Text>

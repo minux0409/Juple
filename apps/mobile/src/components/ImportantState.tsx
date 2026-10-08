@@ -7,9 +7,9 @@ import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 /**
  * offline: the server could not be reached; loadFailed: it was reached but the load failed. Both are a LOAD FAILURE and
- * always say the same thing everywhere ("불러오지 못했어요" / "기록을 불러올 수 없습니다." / "다시 시도") - only the icon
- * tells them apart. notice: a definitive state that is not a failure to load (not found, locked, owner only, signed out)
- * with its own specific message. empty: nothing here.
+ * look and read the same everywhere (the broken chain link, "불러오지 못했어요" / "기록을 불러올 수 없습니다." / "다시 시도").
+ * notice: a definitive state that is not a failure to load (not found, locked, owner only, signed out) with its own
+ * specific message. empty: nothing here.
  */
 export type ImportantStateVariant = 'offline' | 'loadFailed' | 'notice' | 'empty';
 
@@ -43,9 +43,10 @@ export function isLoadFailureVariant(variant: ImportantStateVariant): boolean {
 export function ImportantState({ variant = 'loadFailed', message, title, icon, onRetry, compact = false, testID }: ImportantStateProps) {
   const { t } = useTranslation();
   const isFailure = isLoadFailureVariant(variant);
-  // Offline / no connection: a broken chain link - never a Wi-Fi or signal glyph. Decorative (hidden from screen readers):
-  // the text below already says what happened.
-  const Icon = icon ?? (variant === 'offline' ? BrokenLinkIcon : InfoIcon);
+  // Every load failure - offline or not, whatever the screen and whatever error it kept - is the same broken chain link
+  // (never a Wi-Fi / signal glyph, never the info circle, which is for a notice). Decorative (hidden from screen
+  // readers): the text below already says what happened.
+  const Icon = icon ?? (isFailure ? BrokenLinkIcon : InfoIcon);
   const headline = isFailure ? t('importantState.loadFailedTitle') : title ?? null;
   const body = isFailure ? t('importantState.loadFailedMessage') : message ?? null;
   return (

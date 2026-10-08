@@ -19,7 +19,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { CenteredEmptyState } from '../components/CenteredEmptyState';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { ImportantState } from '../components/ImportantState';
+import { LoadFailureState } from '../components/LoadFailureState';
 import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
 import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -316,7 +316,7 @@ export function DateHistoryScreen() {
         ) : row.status === 'moreError' ? (
           <RefreshFailureNotice onRetry={() => search.loadMore()} testID="history-more-error" />
         ) : row.status === 'error' ? (
-          <ImportantState onRetry={() => search.refresh()} testID="history-search-error" />
+          <LoadFailureState error={search.error} onRetry={() => search.refresh()} testID="history-search-error" />
         ) : (
           <Text style={styles.searchStatusText} testID={`history-search-${row.status}`}>{t('history.searchEmpty')}</Text>
         );
@@ -460,7 +460,7 @@ export function DateHistoryScreen() {
             ) : null}
             {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
             {/* A failed load belongs to the result area: under the query controls (search, then date), above the content. */}
-            {error && !search.isFlat ? <ImportantState compact onRetry={() => refresh()} testID="history-sections-error" /> : null}
+            {error && !search.isFlat ? <LoadFailureState compact onRetry={() => refresh()} testID="history-sections-error" /> : null}
           </View>
         }
         maxToRenderPerBatch={10}
