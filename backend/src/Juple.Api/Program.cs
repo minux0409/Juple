@@ -106,11 +106,6 @@ if (isNotificationWorker)
     builder.Services.AddHostedService<Juple.Api.Notifications.NotificationWorkerService>();
 }
 
-if (isBillingWorker)
-{
-    builder.Services.AddHostedService<Juple.Api.Billing.BillingWorkerService>();
-}
-
 if (!isOutsideHttpApi
     && !string.IsNullOrWhiteSpace(builder.Configuration[$"{NotificationPipelineOptions.SectionName}:ServiceBusNamespace"]))
 {
@@ -132,6 +127,11 @@ builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
 // The subscription program switch (default OFF - nobody restricted, no trial consumed). Validated at API startup below.
 var billingOptions = builder.Configuration.GetSection("Billing").Get<Juple.Application.Billing.BillingOptions>() ?? new Juple.Application.Billing.BillingOptions();
 builder.Services.AddSingleton(billingOptions);
+if (isBillingWorker)
+{
+    // Enabled: the billing-events consumer. Disabled: an idle placeholder - no Service Bus processor, Google client or key is built.
+    Juple.Api.Billing.BillingRuntimeActivation.AddBillingWorker(builder.Services, billingOptions);
+}
 builder.Services.AddScoped<Juple.Application.Billing.ITrialIdentityHasher, Juple.Application.Billing.TrialIdentityHasher>();
 builder.Services.AddScoped<Juple.Application.Billing.IEntitlementService, Juple.Application.Billing.EntitlementService>();
 builder.Services.AddSingleton<Juple.Application.Billing.IPurchaseTokenProtector, Juple.Application.Billing.PurchaseTokenProtector>();
@@ -348,14 +348,11 @@ if (isNotificationWorker)
     return 0;
 }
 
-// The billing worker: its hosted service consumes the billing-events queue; the only endpoint is /health. Google billing and a queue
-// namespace are required - without them there is nothing to do, a misconfiguration.
+// The billing worker: with Google billing enabled its hosted service consumes the billing-events queue (and the queue namespace is
+// required); disabled, it idles - deployable before billing is switched on, without crash-looping. The only endpoint is /health.
 if (isBillingWorker)
 {
-    if (!billingOptions.Google.Enabled || string.IsNullOrWhiteSpace(billingOptions.Events.ServiceBusNamespace))
-    {
-        throw new InvalidOperationException("Billing:Google:Enabled and Billing:Events:ServiceBusNamespace must be configured for --run-billing-worker.");
-    }
+    Juple.Api.Billing.BillingRuntimeActivation.EnsureWorkerConfiguration(billingOptions);
 
     app.MapHealthChecks("/health");
     await app.RunAsync();
@@ -382,7 +379,7 @@ if (isBlobCleanupRetryJob)
 // One-shot billing reconciliation (the Job that recovers lost wake-ups and re-checks due purchases against Google).
 if (isBillingReconcileJob)
 {
-    return await RunBillingReconcileOnceAsync(app.Services);
+    return await Juple.Api.Billing.BillingRuntimeActivation.RunReconcileOnceAsync(app.Services);
 }
 
 // One-shot execution mode for the Instagram metadata retry Job (see
@@ -470,33 +467,6 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
         // Same rationale as RunPushDispatchOnceAsync's own catch block - a scheduled Job's exit
         // code is how Azure reports failure.
         logger.LogError(exception, "Blob cleanup retry run failed.");
-        return 1;
-    }
-}
-
-static async Task<int> RunBillingReconcileOnceAsync(IServiceProvider rootServices)
-{
-    await using var scope = rootServices.CreateAsyncScope();
-    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("BillingReconcileJob");
-    var billing = scope.ServiceProvider.GetRequiredService<Juple.Application.Billing.BillingOptions>();
-    if (!billing.Google.Enabled)
-    {
-        logger.LogInformation("Google billing is not enabled; nothing to reconcile.");
-        return 0;
-    }
-
-    try
-    {
-        // Bounded on purpose: the cadence per purchase is set by the purchase itself (see GooglePurchaseNormalizer), never a hot loop.
-        var summary = await scope.ServiceProvider.GetRequiredService<Juple.Application.Billing.GooglePlay.IGoogleBillingProcessor>().SweepAsync(eventLimit: 100, purchaseLimit: 100);
-        logger.LogInformation(
-            "Billing reconcile complete. EventsProcessed={EventsProcessed} PurchasesReconciled={PurchasesReconciled} Failures={Failures}",
-            summary.EventsProcessed, summary.PurchasesReconciled, summary.Failures);
-        return 0;
-    }
-    catch (Exception exception)
-    {
-        logger.LogError("Billing reconcile run failed ({ErrorType}).", exception.GetType().Name);
         return 1;
     }
 }

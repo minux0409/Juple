@@ -1,7 +1,8 @@
 // Billing worker Container App - resource group scope. Deployed after Foundation (../foundation) AND ../foundation/billing.bicep
 // (the Key Vault, the billing-events queue and the billing identity with its roles), and after the same Backend image the API runs has
 // been pushed (one image, several entrypoints: the API, the Jobs, --run-notification-worker, and this app's --run-billing-worker).
-// NOT deployed by R39-B1 - R39-B2 does that against DEV once Google Play is configured.
+// NOT deployed by R39-B1 - R39-B2 does that against DEV. With googleBillingEnabled false (the default) it is deployable before Google Play
+// is configured: the worker starts and idles (no queue consumption, no KEDA queue rule, no Key Vault reference, no Google setting).
 //
 // What it does: consumes billing-events (one message = one stored Google Play notification id; never a purchase token), asks Google for
 // the AUTHORITATIVE state of that purchase, ties it to the right account only by evidence, updates the purchase and acknowledges it if
@@ -36,23 +37,26 @@ param billingIdentityResourceId string
 @description('Its client ID - output "billingIdentityClientId". Not a secret; passed as AZURE_CLIENT_ID so DefaultAzureCredential picks this identity for Service Bus.')
 param billingIdentityClientId string
 
-@description('Service Bus namespace name (the KEDA rule takes the name, the app the FQDN).')
-param serviceBusNamespaceName string
+@description('Turns Google Play billing on for this runtime - the same switch as ../app/main.bicep\'s googleBillingEnabled. false (the default): the runtime is deployed but inert - no Google call, no billing-event consumption, no reconciliation - and none of the Google / Key Vault settings below is wired or required.')
+param googleBillingEnabled bool = false
 
-@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri".')
-param billingKeyVaultUri string
+@description('Service Bus namespace name (the KEDA rule takes the name, the app the FQDN). Needed only when googleBillingEnabled.')
+param serviceBusNamespaceName string = ''
+
+@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri". Needed only when googleBillingEnabled.')
+param billingKeyVaultUri string = ''
 
 @description('Full ASP.NET Core SQL connection string, credentials included - same value/shape as ../app/main.bicep\'s. Never put a real value in a checked-in parameter file.')
 @secure()
 param sqlConnectionString string
 
-@description('The allowlisted product / base plan (the same values as the API\'s).')
-param googleProductId string
-param googleBasePlanId string
+@description('The allowlisted product / base plan (the same values as the API\'s). Needed only when googleBillingEnabled.')
+param googleProductId string = ''
+param googleBasePlanId string = ''
 
-@description('Pub/Sub push settings (validated at startup like the API\'s; the worker does not serve the webhook but shares the validated configuration).')
-param googlePubSubAudience string
-param googlePushServiceAccountEmail string
+@description('Pub/Sub push settings (validated at startup like the API\'s; the worker does not serve the webhook but shares the validated configuration). Needed only when googleBillingEnabled.')
+param googlePubSubAudience string = ''
+param googlePushServiceAccountEmail string = ''
 
 @description('Key Vault secret NAMES (never values).')
 param googleServiceAccountSecretName string = 'google-play-service-account'
@@ -85,6 +89,65 @@ var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 var serviceBusNamespaceFqdn = '${serviceBusNamespaceName}.servicebus.windows.net'
 var billingEventsQueueName = 'billing-events'
 
+var googleEnv = googleBillingEnabled
+  ? [
+      {
+        name: 'Billing__Google__ProductId'
+        value: googleProductId
+      }
+      {
+        name: 'Billing__Google__BasePlanId'
+        value: googleBasePlanId
+      }
+      {
+        name: 'Billing__Google__ServiceAccountCredentialJson'
+        secretRef: 'google-play-credential'
+      }
+      {
+        name: 'Billing__Google__PurchaseTokenEncryptionKey'
+        secretRef: 'google-purchase-token-key'
+      }
+      {
+        name: 'Billing__Google__AccountHashKey'
+        secretRef: 'google-account-hash-key'
+      }
+      {
+        name: 'Billing__TrialIdentityHashKey'
+        secretRef: 'trial-identity-hash-key'
+      }
+      {
+        name: 'Billing__Google__PubSub__Audience'
+        value: googlePubSubAudience
+      }
+      {
+        name: 'Billing__Google__PubSub__PushServiceAccountEmail'
+        value: googlePushServiceAccountEmail
+      }
+      {
+        name: 'Billing__Events__ServiceBusNamespace'
+        value: serviceBusNamespaceFqdn
+      }
+    ]
+  : []
+
+// Only an enabled worker scales on the queue; a disabled one has nothing to consume, so it runs minReplicas (0 in dev: none at all).
+var queueScaleRules = googleBillingEnabled
+  ? [
+      {
+        name: 'billing-events'
+        custom: {
+          type: 'azure-servicebus'
+          metadata: {
+            namespace: serviceBusNamespaceName
+            queueName: billingEventsQueueName
+            messageCount: string(messagesPerReplica)
+          }
+          identity: billingIdentityResourceId
+        }
+      }
+    ]
+  : []
+
 resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
   name: containerAppName
   location: location
@@ -105,33 +168,40 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
           identity: billingIdentityResourceId
         }
       ]
-      secrets: [
-        {
-          name: 'sql-connection-string'
-          value: sqlConnectionString
-        }
-        {
-          name: 'google-play-credential'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${googleServiceAccountSecretName}'
-          identity: billingIdentityResourceId
-        }
-        {
-          name: 'google-purchase-token-key'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${googlePurchaseTokenKeySecretName}'
-          identity: billingIdentityResourceId
-        }
-        {
-          name: 'google-account-hash-key'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${googleAccountHashKeySecretName}'
-          identity: billingIdentityResourceId
-        }
-        {
-          // Read so the shared secret-distinctness validation sees the same three secrets the API does.
-          name: 'trial-identity-hash-key'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${trialIdentityHashKeySecretName}'
-          identity: billingIdentityResourceId
-        }
-      ]
+      // Key Vault references only while enabled: a disabled worker resolves no Google secret at all.
+      secrets: concat(
+        [
+          {
+            name: 'sql-connection-string'
+            value: sqlConnectionString
+          }
+        ],
+        googleBillingEnabled
+          ? [
+              {
+                name: 'google-play-credential'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${googleServiceAccountSecretName}'
+                identity: billingIdentityResourceId
+              }
+              {
+                name: 'google-purchase-token-key'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${googlePurchaseTokenKeySecretName}'
+                identity: billingIdentityResourceId
+              }
+              {
+                name: 'google-account-hash-key'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${googleAccountHashKeySecretName}'
+                identity: billingIdentityResourceId
+              }
+              {
+                // Read so the shared secret-distinctness validation sees the same three secrets the API does.
+                name: 'trial-identity-hash-key'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${trialIdentityHashKeySecretName}'
+                identity: billingIdentityResourceId
+              }
+            ]
+          : []
+      )
     }
     template: {
       containers: [
@@ -147,56 +217,23 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
-            {
-              name: 'ConnectionStrings__JupleDatabase'
-              secretRef: 'sql-connection-string'
-            }
-            {
-              name: 'AZURE_CLIENT_ID'
-              value: billingIdentityClientId
-            }
-            {
-              name: 'Billing__Google__Enabled'
-              value: 'true'
-            }
-            {
-              name: 'Billing__Google__ProductId'
-              value: googleProductId
-            }
-            {
-              name: 'Billing__Google__BasePlanId'
-              value: googleBasePlanId
-            }
-            {
-              name: 'Billing__Google__ServiceAccountCredentialJson'
-              secretRef: 'google-play-credential'
-            }
-            {
-              name: 'Billing__Google__PurchaseTokenEncryptionKey'
-              secretRef: 'google-purchase-token-key'
-            }
-            {
-              name: 'Billing__Google__AccountHashKey'
-              secretRef: 'google-account-hash-key'
-            }
-            {
-              name: 'Billing__TrialIdentityHashKey'
-              secretRef: 'trial-identity-hash-key'
-            }
-            {
-              name: 'Billing__Google__PubSub__Audience'
-              value: googlePubSubAudience
-            }
-            {
-              name: 'Billing__Google__PubSub__PushServiceAccountEmail'
-              value: googlePushServiceAccountEmail
-            }
-            {
-              name: 'Billing__Events__ServiceBusNamespace'
-              value: serviceBusNamespaceFqdn
-            }
-          ]
+          env: concat(
+            [
+              {
+                name: 'ConnectionStrings__JupleDatabase'
+                secretRef: 'sql-connection-string'
+              }
+              {
+                name: 'AZURE_CLIENT_ID'
+                value: billingIdentityClientId
+              }
+              {
+                name: 'Billing__Google__Enabled'
+                value: string(googleBillingEnabled)
+              }
+            ],
+            googleEnv
+          )
           probes: [
             {
               type: 'Liveness'
@@ -217,20 +254,7 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
         maxReplicas: maxReplicas
         pollingInterval: pollingIntervalSeconds
         cooldownPeriod: cooldownPeriodSeconds
-        rules: [
-          {
-            name: 'billing-events'
-            custom: {
-              type: 'azure-servicebus'
-              metadata: {
-                namespace: serviceBusNamespaceName
-                queueName: billingEventsQueueName
-                messageCount: string(messagesPerReplica)
-              }
-              identity: billingIdentityResourceId
-            }
-          }
-        ]
+        rules: queueScaleRules
       }
     }
   }

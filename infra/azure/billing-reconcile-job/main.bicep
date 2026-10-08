@@ -1,6 +1,7 @@
 // Billing reconcile scheduled Job - resource group scope. Deployed after Foundation (../foundation) and
 // ../foundation/billing.bicep, and after the Backend image has been pushed (same image as the API, entrypoint --run-billing-reconcile).
-// NOT deployed by R39-B1 - R39-B2 does that against DEV.
+// NOT deployed by R39-B1 - R39-B2 does that against DEV. With googleBillingEnabled false (the default) each run logs that billing
+// reconciliation is disabled and exits 0 - no Google call, no billing write, no Key Vault reference, no Google setting required.
 //
 // What it does, in one bounded pass per run (see GoogleBillingProcessor.SweepAsync):
 //   1. sweeps billing.StoreEvents that are not processed yet - including any whose wake-up never reached the queue or whose
@@ -31,18 +32,21 @@ param containerAppsEnvironmentId string
 @description('The billing identity resource ID - ../foundation/billing.bicep output "billingIdentityResourceId". ACR pull and Key Vault secret reads.')
 param billingIdentityResourceId string
 
-@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri".')
-param billingKeyVaultUri string
+@description('Turns Google Play billing on for this runtime - the same switch as ../app/main.bicep\'s googleBillingEnabled. false (the default): the runtime is deployed but inert - no Google call, no billing-event consumption, no reconciliation - and none of the Google / Key Vault settings below is wired or required.')
+param googleBillingEnabled bool = false
+
+@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri". Needed only when googleBillingEnabled.')
+param billingKeyVaultUri string = ''
 
 @description('Full ASP.NET Core SQL connection string, credentials included. Never put a real value in a checked-in parameter file.')
 @secure()
 param sqlConnectionString string
 
 @description('The allowlisted product / base plan (the same values as the API\'s).')
-param googleProductId string
-param googleBasePlanId string
-param googlePubSubAudience string
-param googlePushServiceAccountEmail string
+param googleProductId string = ''
+param googleBasePlanId string = ''
+param googlePubSubAudience string = ''
+param googlePushServiceAccountEmail string = ''
 
 @description('Key Vault secret NAMES (never values).')
 param googleServiceAccountSecretName string = 'google-play-service-account'
@@ -63,6 +67,43 @@ param containerMemory string = '0.5Gi'
 
 var jobName = 'caj-juple-billing-reconcile-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+
+var googleEnv = googleBillingEnabled
+  ? [
+      {
+        name: 'Billing__Google__ProductId'
+        value: googleProductId
+      }
+      {
+        name: 'Billing__Google__BasePlanId'
+        value: googleBasePlanId
+      }
+      {
+        name: 'Billing__Google__ServiceAccountCredentialJson'
+        secretRef: 'google-play-credential'
+      }
+      {
+        name: 'Billing__Google__PurchaseTokenEncryptionKey'
+        secretRef: 'google-purchase-token-key'
+      }
+      {
+        name: 'Billing__Google__AccountHashKey'
+        secretRef: 'google-account-hash-key'
+      }
+      {
+        name: 'Billing__TrialIdentityHashKey'
+        secretRef: 'trial-identity-hash-key'
+      }
+      {
+        name: 'Billing__Google__PubSub__Audience'
+        value: googlePubSubAudience
+      }
+      {
+        name: 'Billing__Google__PubSub__PushServiceAccountEmail'
+        value: googlePushServiceAccountEmail
+      }
+    ]
+  : []
 
 resource billingReconcileJob 'Microsoft.App/jobs@2024-03-01' = {
   name: jobName
@@ -90,32 +131,40 @@ resource billingReconcileJob 'Microsoft.App/jobs@2024-03-01' = {
           identity: billingIdentityResourceId
         }
       ]
-      secrets: [
-        {
-          name: 'sql-connection-string'
-          value: sqlConnectionString
-        }
-        {
-          name: 'google-play-credential'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${googleServiceAccountSecretName}'
-          identity: billingIdentityResourceId
-        }
-        {
-          name: 'google-purchase-token-key'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${googlePurchaseTokenKeySecretName}'
-          identity: billingIdentityResourceId
-        }
-        {
-          name: 'google-account-hash-key'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${googleAccountHashKeySecretName}'
-          identity: billingIdentityResourceId
-        }
-        {
-          name: 'trial-identity-hash-key'
-          keyVaultUrl: '${billingKeyVaultUri}secrets/${trialIdentityHashKeySecretName}'
-          identity: billingIdentityResourceId
-        }
-      ]
+      // Key Vault references only while enabled: a disabled run resolves no Google secret at all.
+      secrets: concat(
+        [
+          {
+            name: 'sql-connection-string'
+            value: sqlConnectionString
+          }
+        ],
+        googleBillingEnabled
+          ? [
+              {
+                name: 'google-play-credential'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${googleServiceAccountSecretName}'
+                identity: billingIdentityResourceId
+              }
+              {
+                name: 'google-purchase-token-key'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${googlePurchaseTokenKeySecretName}'
+                identity: billingIdentityResourceId
+              }
+              {
+                name: 'google-account-hash-key'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${googleAccountHashKeySecretName}'
+                identity: billingIdentityResourceId
+              }
+              {
+                // Read so the shared secret-distinctness validation sees the same three secrets the API does.
+                name: 'trial-identity-hash-key'
+                keyVaultUrl: '${billingKeyVaultUri}secrets/${trialIdentityHashKeySecretName}'
+                identity: billingIdentityResourceId
+              }
+            ]
+          : []
+      )
     }
     template: {
       containers: [
@@ -131,48 +180,19 @@ resource billingReconcileJob 'Microsoft.App/jobs@2024-03-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
-            {
-              name: 'ConnectionStrings__JupleDatabase'
-              secretRef: 'sql-connection-string'
-            }
-            {
-              name: 'Billing__Google__Enabled'
-              value: 'true'
-            }
-            {
-              name: 'Billing__Google__ProductId'
-              value: googleProductId
-            }
-            {
-              name: 'Billing__Google__BasePlanId'
-              value: googleBasePlanId
-            }
-            {
-              name: 'Billing__Google__ServiceAccountCredentialJson'
-              secretRef: 'google-play-credential'
-            }
-            {
-              name: 'Billing__Google__PurchaseTokenEncryptionKey'
-              secretRef: 'google-purchase-token-key'
-            }
-            {
-              name: 'Billing__Google__AccountHashKey'
-              secretRef: 'google-account-hash-key'
-            }
-            {
-              name: 'Billing__TrialIdentityHashKey'
-              secretRef: 'trial-identity-hash-key'
-            }
-            {
-              name: 'Billing__Google__PubSub__Audience'
-              value: googlePubSubAudience
-            }
-            {
-              name: 'Billing__Google__PubSub__PushServiceAccountEmail'
-              value: googlePushServiceAccountEmail
-            }
-          ]
+          env: concat(
+            [
+              {
+                name: 'ConnectionStrings__JupleDatabase'
+                secretRef: 'sql-connection-string'
+              }
+              {
+                name: 'Billing__Google__Enabled'
+                value: string(googleBillingEnabled)
+              }
+            ],
+            googleEnv
+          )
         }
       ]
     }
