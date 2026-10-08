@@ -20,6 +20,19 @@ jest.mock('@react-native-firebase/messaging', () => ({
   onTokenRefresh: jest.fn(() => jest.fn()),
 }));
 
+// The Subscription screen (RootStack) reaches react-native-iap, which ships untranspiled source and needs its
+// native module - neither exists under Jest, and this render test never opens that screen, so it is stubbed.
+jest.mock('react-native-iap', () => ({
+  initConnection: jest.fn(),
+  endConnection: jest.fn(),
+  fetchProducts: jest.fn(),
+  requestPurchase: jest.fn(),
+  finishTransaction: jest.fn(),
+  getAvailablePurchases: jest.fn(),
+  purchaseUpdatedListener: jest.fn(),
+  purchaseErrorListener: jest.fn(),
+}));
+
 test('renders correctly', async () => {
   await ReactTestRenderer.act(() => {
     ReactTestRenderer.create(<App />);

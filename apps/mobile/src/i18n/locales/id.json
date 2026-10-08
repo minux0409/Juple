@@ -882,5 +882,45 @@
     "awaitingAnswer": "Menunggu jawaban.",
     "notFound": "Pertanyaan tidak ditemukan.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Langganan",
+    "testEntry": "Langganan (uji internal)",
+    "planName": "Langganan Juple",
+    "pricePerMonth": "{{price}} / bulan",
+    "cadence": "Ditagih setiap bulan. Diperpanjang otomatis hingga Anda membatalkan.",
+    "cancelNote": "Anda dapat membatalkan kapan saja di pengaturan langganan toko. Pembatalan menghentikan perpanjangan berikutnya.",
+    "accessHeading": "Akses Anda",
+    "access": {
+      "trial": "Uji coba gratis",
+      "active": "Berlangganan",
+      "gracePeriod": "Berlangganan (masalah pembayaran)",
+      "expired": "Langganan berakhir",
+      "inactive": "Langganan belum diperlukan."
+    },
+    "loading": "Memuat...",
+    "subscribe": "Berlangganan",
+    "restore": "Pulihkan pembelian",
+    "unavailable": {
+      "disabled": "Langganan belum tersedia saat ini.",
+      "store": "Tidak dapat terhubung ke toko. Periksa koneksi Anda lalu coba lagi.",
+      "product": "Langganan ini sedang tidak tersedia di toko.",
+      "platform": "Langganan belum didukung di perangkat ini."
+    },
+    "result": {
+      "verified": "Terima kasih! Langganan Anda telah dikonfirmasi.",
+      "pending": "Pembayaran Anda masih diproses. Akses Anda akan diperbarui setelah selesai.",
+      "notEntitled": "Pembelian ini tidak memberikan akses.",
+      "alreadyOwned": "Anda sudah memiliki langganan ini. Ketuk Pulihkan pembelian untuk menautkannya ke akun ini.",
+      "temporary": "Pembelian Anda belum dapat dikonfirmasi. Coba lagi atau pulihkan pembelian sebentar lagi.",
+      "anotherAccount": "Pembelian ini milik akun Juple lain.",
+      "failed": "Pembelian tidak dapat diselesaikan."
+    },
+    "restoreResult": {
+      "restored": "Langganan Anda telah dipulihkan.",
+      "nothingFound": "Tidak ada pembelian yang dapat dipulihkan.",
+      "anotherAccount": "Pembelian itu milik akun Juple lain.",
+      "temporary": "Pembelian tidak dapat dipulihkan saat ini. Silakan coba lagi."
+    }
   }
 }

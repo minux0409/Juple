@@ -882,5 +882,45 @@
     "awaitingAnswer": "Yanıt bekleniyor.",
     "notFound": "Bu talep bulunamadı.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Abonelik",
+    "testEntry": "Abonelik (dahili test)",
+    "planName": "Juple aboneliği",
+    "pricePerMonth": "{{price}} / ay",
+    "cadence": "Aylık faturalandırılır. Siz iptal edene kadar otomatik olarak yenilenir.",
+    "cancelNote": "Mağazanın abonelik ayarlarından istediğiniz zaman iptal edebilirsiniz. İptal etmek sonraki yenilemeleri durdurur.",
+    "accessHeading": "Erişiminiz",
+    "access": {
+      "trial": "Ücretsiz deneme",
+      "active": "Abone",
+      "gracePeriod": "Abone (ödeme sorunu)",
+      "expired": "Abonelik sona erdi",
+      "inactive": "Abonelik henüz gerekli değil."
+    },
+    "loading": "Yükleniyor...",
+    "subscribe": "Abone ol",
+    "restore": "Satın alımları geri yükle",
+    "unavailable": {
+      "disabled": "Abonelikler şu anda kullanılamıyor.",
+      "store": "Mağazaya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+      "product": "Bu abonelik şu anda mağazada kullanılamıyor.",
+      "platform": "Abonelikler bu cihazda henüz desteklenmiyor."
+    },
+    "result": {
+      "verified": "Teşekkürler! Aboneliğiniz onaylandı.",
+      "pending": "Ödemeniz hâlâ işleniyor. Tamamlandığında erişiminiz güncellenecek.",
+      "notEntitled": "Bu satın alım erişim sağlamıyor.",
+      "alreadyOwned": "Bu aboneliğe zaten sahipsiniz. Bu hesaba bağlamak için Satın alımları geri yükle’ye dokunun.",
+      "temporary": "Satın alımınız henüz onaylanamadı. Lütfen tekrar deneyin veya biraz sonra satın alımları geri yükleyin.",
+      "anotherAccount": "Bu satın alım başka bir Juple hesabına ait.",
+      "failed": "Satın alım tamamlanamadı."
+    },
+    "restoreResult": {
+      "restored": "Aboneliğiniz geri yüklendi.",
+      "nothingFound": "Geri yüklenecek satın alım bulunamadı.",
+      "anotherAccount": "Bu satın alım başka bir Juple hesabına ait.",
+      "temporary": "Satın alımlar şu anda geri yüklenemedi. Lütfen tekrar deneyin."
+    }
   }
 }

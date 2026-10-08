@@ -882,5 +882,45 @@
     "awaitingAnswer": "Waiting for an answer.",
     "notFound": "This inquiry could not be found.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Subscription",
+    "testEntry": "Subscription (internal test)",
+    "planName": "Juple subscription",
+    "pricePerMonth": "{{price}} / month",
+    "cadence": "Billed monthly. Renews automatically until you cancel.",
+    "cancelNote": "You can cancel anytime in your store subscription settings. Cancelling stops future renewals.",
+    "accessHeading": "Your access",
+    "access": {
+      "trial": "Free trial",
+      "active": "Subscribed",
+      "gracePeriod": "Subscribed (payment issue)",
+      "expired": "Subscription ended",
+      "inactive": "Subscriptions are not required yet."
+    },
+    "loading": "Loading...",
+    "subscribe": "Subscribe",
+    "restore": "Restore purchases",
+    "unavailable": {
+      "disabled": "Subscriptions are not available right now.",
+      "store": "Could not reach the store. Check your connection and try again.",
+      "product": "This subscription is not available in the store right now.",
+      "platform": "Subscriptions are not supported on this device yet."
+    },
+    "result": {
+      "verified": "Thank you! Your subscription is confirmed.",
+      "pending": "Your payment is still being processed. Your access will update once it completes.",
+      "notEntitled": "This purchase does not grant access.",
+      "alreadyOwned": "You already have this subscription. Tap Restore purchases to link it to this account.",
+      "temporary": "We could not confirm your purchase yet. Please try again or restore purchases in a moment.",
+      "anotherAccount": "This purchase belongs to another Juple account.",
+      "failed": "The purchase could not be completed."
+    },
+    "restoreResult": {
+      "restored": "Your subscription was restored.",
+      "nothingFound": "No purchases were found to restore.",
+      "anotherAccount": "That purchase belongs to another Juple account.",
+      "temporary": "Could not restore purchases right now. Please try again."
+    }
   }
 }

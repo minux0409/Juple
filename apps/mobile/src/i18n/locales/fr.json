@@ -882,5 +882,45 @@
     "awaitingAnswer": "En attente de réponse.",
     "notFound": "Cette demande est introuvable.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "testEntry": "Abonnement (test interne)",
+    "planName": "Abonnement Juple",
+    "pricePerMonth": "{{price}} / mois",
+    "cadence": "Facturé chaque mois. Se renouvelle automatiquement jusqu’à ce que vous le résiliiez.",
+    "cancelNote": "Vous pouvez résilier à tout moment dans les réglages d’abonnement du store. La résiliation arrête les renouvellements futurs.",
+    "accessHeading": "Votre accès",
+    "access": {
+      "trial": "Essai gratuit",
+      "active": "Abonné",
+      "gracePeriod": "Abonné (problème de paiement)",
+      "expired": "Abonnement terminé",
+      "inactive": "L’abonnement n’est pas encore nécessaire."
+    },
+    "loading": "Chargement...",
+    "subscribe": "S’abonner",
+    "restore": "Restaurer les achats",
+    "unavailable": {
+      "disabled": "Les abonnements ne sont pas disponibles pour le moment.",
+      "store": "Impossible de joindre le store. Vérifiez votre connexion et réessayez.",
+      "product": "Cet abonnement n’est pas disponible dans le store pour le moment.",
+      "platform": "Les abonnements ne sont pas encore pris en charge sur cet appareil."
+    },
+    "result": {
+      "verified": "Merci ! Votre abonnement est confirmé.",
+      "pending": "Votre paiement est en cours de traitement. Votre accès sera mis à jour une fois terminé.",
+      "notEntitled": "Cet achat ne donne pas accès.",
+      "alreadyOwned": "Vous avez déjà cet abonnement. Touchez Restaurer les achats pour le lier à ce compte.",
+      "temporary": "Nous n’avons pas encore pu confirmer votre achat. Réessayez ou restaurez les achats dans un instant.",
+      "anotherAccount": "Cet achat appartient à un autre compte Juple.",
+      "failed": "L’achat n’a pas pu être finalisé."
+    },
+    "restoreResult": {
+      "restored": "Votre abonnement a été restauré.",
+      "nothingFound": "Aucun achat à restaurer n’a été trouvé.",
+      "anotherAccount": "Cet achat appartient à un autre compte Juple.",
+      "temporary": "Impossible de restaurer les achats pour le moment. Réessayez."
+    }
   }
 }

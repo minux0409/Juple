@@ -882,5 +882,45 @@
     "awaitingAnswer": "Đang chờ phản hồi.",
     "notFound": "Không tìm thấy yêu cầu này.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Gói đăng ký",
+    "testEntry": "Gói đăng ký (thử nghiệm nội bộ)",
+    "planName": "Gói đăng ký Juple",
+    "pricePerMonth": "{{price}} / tháng",
+    "cadence": "Thanh toán hằng tháng. Tự động gia hạn cho đến khi bạn hủy.",
+    "cancelNote": "Bạn có thể hủy bất cứ lúc nào trong phần cài đặt đăng ký của cửa hàng. Hủy sẽ dừng các lần gia hạn sau.",
+    "accessHeading": "Quyền truy cập của bạn",
+    "access": {
+      "trial": "Dùng thử miễn phí",
+      "active": "Đã đăng ký",
+      "gracePeriod": "Đã đăng ký (sự cố thanh toán)",
+      "expired": "Gói đăng ký đã kết thúc",
+      "inactive": "Chưa cần đăng ký."
+    },
+    "loading": "Đang tải...",
+    "subscribe": "Đăng ký",
+    "restore": "Khôi phục giao dịch mua",
+    "unavailable": {
+      "disabled": "Hiện chưa thể dùng gói đăng ký.",
+      "store": "Không thể kết nối cửa hàng. Hãy kiểm tra kết nối và thử lại.",
+      "product": "Hiện cửa hàng chưa cung cấp gói đăng ký này.",
+      "platform": "Thiết bị này chưa hỗ trợ gói đăng ký."
+    },
+    "result": {
+      "verified": "Cảm ơn bạn! Gói đăng ký đã được xác nhận.",
+      "pending": "Thanh toán của bạn vẫn đang được xử lý. Quyền truy cập sẽ cập nhật khi hoàn tất.",
+      "notEntitled": "Giao dịch mua này không cấp quyền truy cập.",
+      "alreadyOwned": "Bạn đã có gói đăng ký này. Hãy chạm Khôi phục giao dịch mua để liên kết với tài khoản này.",
+      "temporary": "Chưa thể xác nhận giao dịch mua. Hãy thử lại hoặc khôi phục giao dịch mua sau ít phút.",
+      "anotherAccount": "Giao dịch mua này thuộc về tài khoản Juple khác.",
+      "failed": "Không thể hoàn tất giao dịch mua."
+    },
+    "restoreResult": {
+      "restored": "Đã khôi phục gói đăng ký của bạn.",
+      "nothingFound": "Không tìm thấy giao dịch mua nào để khôi phục.",
+      "anotherAccount": "Giao dịch mua đó thuộc về tài khoản Juple khác.",
+      "temporary": "Hiện chưa thể khôi phục giao dịch mua. Vui lòng thử lại."
+    }
   }
 }

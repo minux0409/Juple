@@ -64,3 +64,14 @@ export const apiConfig = {
  */
 export const isDetailedShareDiagnosticsEnabled =
   __DEV__ || process.env.JUPLE_API_ENV === 'dogfood';
+
+/**
+ * Whether this build shows the internal "Subscription (internal test)" entry (내 페이지). True for Local Development and for
+ * the Dogfood / Play Internal builds (both run with JUPLE_API_ENV='dogfood' against the Azure Dev Backend); never in the
+ * Production release build, where the subscription program is not exposed through this test entry.
+ */
+export function resolveSubscriptionTestEntryEnabled(isDevelopmentBuild: boolean, apiEnv: string | undefined): boolean {
+  return isDevelopmentBuild || apiEnv === 'dogfood';
+}
+
+export const isSubscriptionTestEntryEnabled = resolveSubscriptionTestEntryEnabled(__DEV__, process.env.JUPLE_API_ENV);

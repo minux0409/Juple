@@ -882,5 +882,45 @@
     "awaitingAnswer": "In attesa di risposta.",
     "notFound": "Richiesta non trovata.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Abbonamento",
+    "testEntry": "Abbonamento (test interno)",
+    "planName": "Abbonamento Juple",
+    "pricePerMonth": "{{price}} / mese",
+    "cadence": "Fatturazione mensile. Si rinnova automaticamente finché non lo annulli.",
+    "cancelNote": "Puoi annullare in qualsiasi momento dalle impostazioni degli abbonamenti dello store. L’annullamento interrompe i rinnovi futuri.",
+    "accessHeading": "Il tuo accesso",
+    "access": {
+      "trial": "Prova gratuita",
+      "active": "Abbonato",
+      "gracePeriod": "Abbonato (problema di pagamento)",
+      "expired": "Abbonamento terminato",
+      "inactive": "L’abbonamento non è ancora necessario."
+    },
+    "loading": "Caricamento...",
+    "subscribe": "Abbonati",
+    "restore": "Ripristina acquisti",
+    "unavailable": {
+      "disabled": "Gli abbonamenti non sono disponibili al momento.",
+      "store": "Impossibile raggiungere lo store. Controlla la connessione e riprova.",
+      "product": "Questo abbonamento non è al momento disponibile nello store.",
+      "platform": "Gli abbonamenti non sono ancora supportati su questo dispositivo."
+    },
+    "result": {
+      "verified": "Grazie! Il tuo abbonamento è confermato.",
+      "pending": "Il pagamento è ancora in elaborazione. Il tuo accesso si aggiornerà al termine.",
+      "notEntitled": "Questo acquisto non concede l’accesso.",
+      "alreadyOwned": "Hai già questo abbonamento. Tocca Ripristina acquisti per collegarlo a questo account.",
+      "temporary": "Non siamo ancora riusciti a confermare l’acquisto. Riprova o ripristina gli acquisti tra poco.",
+      "anotherAccount": "Questo acquisto appartiene a un altro account Juple.",
+      "failed": "Non è stato possibile completare l’acquisto."
+    },
+    "restoreResult": {
+      "restored": "Il tuo abbonamento è stato ripristinato.",
+      "nothingFound": "Nessun acquisto da ripristinare.",
+      "anotherAccount": "Quell’acquisto appartiene a un altro account Juple.",
+      "temporary": "Impossibile ripristinare gli acquisti al momento. Riprova."
+    }
   }
 }

@@ -882,5 +882,45 @@
     "awaitingAnswer": "Warte auf eine Antwort.",
     "notFound": "Diese Anfrage wurde nicht gefunden.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "testEntry": "Abonnement (interner Test)",
+    "planName": "Juple-Abonnement",
+    "pricePerMonth": "{{price}} / Monat",
+    "cadence": "Monatliche Abrechnung. Verlängert sich automatisch, bis du kündigst.",
+    "cancelNote": "Du kannst jederzeit in den Abo-Einstellungen des Stores kündigen. Nach der Kündigung gibt es keine weiteren Verlängerungen.",
+    "accessHeading": "Dein Zugang",
+    "access": {
+      "trial": "Kostenlose Testphase",
+      "active": "Abonniert",
+      "gracePeriod": "Abonniert (Zahlungsproblem)",
+      "expired": "Abonnement beendet",
+      "inactive": "Ein Abonnement ist noch nicht erforderlich."
+    },
+    "loading": "Wird geladen...",
+    "subscribe": "Abonnieren",
+    "restore": "Käufe wiederherstellen",
+    "unavailable": {
+      "disabled": "Abonnements sind derzeit nicht verfügbar.",
+      "store": "Der Store ist nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
+      "product": "Dieses Abonnement ist im Store derzeit nicht verfügbar.",
+      "platform": "Abonnements werden auf diesem Gerät noch nicht unterstützt."
+    },
+    "result": {
+      "verified": "Danke! Dein Abonnement ist bestätigt.",
+      "pending": "Deine Zahlung wird noch verarbeitet. Dein Zugang wird nach Abschluss aktualisiert.",
+      "notEntitled": "Dieser Kauf gewährt keinen Zugang.",
+      "alreadyOwned": "Du hast dieses Abonnement bereits. Tippe auf „Käufe wiederherstellen“, um es mit diesem Konto zu verknüpfen.",
+      "temporary": "Wir konnten deinen Kauf noch nicht bestätigen. Versuche es gleich noch einmal oder stelle Käufe wieder her.",
+      "anotherAccount": "Dieser Kauf gehört zu einem anderen Juple-Konto.",
+      "failed": "Der Kauf konnte nicht abgeschlossen werden."
+    },
+    "restoreResult": {
+      "restored": "Dein Abonnement wurde wiederhergestellt.",
+      "nothingFound": "Es wurden keine Käufe zum Wiederherstellen gefunden.",
+      "anotherAccount": "Dieser Kauf gehört zu einem anderen Juple-Konto.",
+      "temporary": "Käufe konnten gerade nicht wiederhergestellt werden. Bitte versuche es erneut."
+    }
   }
 }

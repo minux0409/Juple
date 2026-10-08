@@ -2,12 +2,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isSubscriptionTestEntryEnabled } from '../api/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
 import { CustomerCenterScreen } from '../screens/CustomerCenterScreen';
+import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 import { SupportInquiryDetailScreen } from '../screens/SupportInquiryDetailScreen';
 import { SupportInquiryScreen } from '../screens/SupportInquiryScreen';
 import { TutorialScreen } from '../screens/TutorialScreen';
@@ -122,6 +124,8 @@ export type RootStackParamList = {
   Trash: undefined;
   /** 내 페이지 > 고객센터: tutorial replay, FAQ, 문의하기 (system mail app), legal documents and the app version. */
   CustomerCenter: undefined;
+  /** 내 페이지 > 구독(내부 테스트): the monthly plan, store price, Subscribe and Restore. Registered only in builds that show the internal test entry. */
+  Subscription: undefined;
   /** 고객센터 > 문의하기: write an inquiry (default) or read 문의내역. Sent inside the app - no mail app. */
   SupportInquiry: { initialTab?: 'write' | 'history' } | undefined;
   /** 문의내역 > one inquiry: its question and the answer. Only the caller's own inquiry opens (the server answers 404 otherwise). */
@@ -243,6 +247,9 @@ export function RootStack() {
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
             <Stack.Screen component={CustomerCenterScreen} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
+            {isSubscriptionTestEntryEnabled ? (
+              <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
+            ) : null}
             <Stack.Screen component={SupportInquiryScreen} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
             <Stack.Screen component={SupportInquiryDetailScreen} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
             {/* Full-screen, no header: its own skip/close and Android back (see TutorialScreen); no swipe-back gesture, so a first run is always recorded. */}

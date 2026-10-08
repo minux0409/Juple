@@ -882,5 +882,45 @@
     "awaitingAnswer": "正在等待回覆。",
     "notFound": "找不到此諮詢。",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "訂閱",
+    "testEntry": "訂閱(內部測試)",
+    "planName": "Juple 訂閱",
+    "pricePerMonth": "每月 {{price}}",
+    "cadence": "按月計費,在您取消之前會自動續訂。",
+    "cancelNote": "您可以隨時在商店的訂閱設定中取消。取消後將不再續訂。",
+    "accessHeading": "您的使用狀態",
+    "access": {
+      "trial": "免費試用",
+      "active": "已訂閱",
+      "gracePeriod": "已訂閱(付款有問題)",
+      "expired": "訂閱已結束",
+      "inactive": "目前還不需要訂閱。"
+    },
+    "loading": "載入中...",
+    "subscribe": "訂閱",
+    "restore": "還原購買",
+    "unavailable": {
+      "disabled": "目前無法使用訂閱。",
+      "store": "無法連線至商店。請檢查網路後再試一次。",
+      "product": "此訂閱目前在商店中無法使用。",
+      "platform": "此裝置尚不支援訂閱。"
+    },
+    "result": {
+      "verified": "謝謝!您的訂閱已確認。",
+      "pending": "您的付款仍在處理中。完成後您的使用狀態會更新。",
+      "notEntitled": "此次購買不會授予使用權限。",
+      "alreadyOwned": "您已擁有此訂閱。請點選「還原購買」將其連結到此帳號。",
+      "temporary": "暫時無法確認您的購買。請稍後再試或還原購買。",
+      "anotherAccount": "此購買屬於另一個 Juple 帳號。",
+      "failed": "無法完成購買。"
+    },
+    "restoreResult": {
+      "restored": "已還原您的訂閱。",
+      "nothingFound": "找不到可還原的購買。",
+      "anotherAccount": "該購買屬於另一個 Juple 帳號。",
+      "temporary": "目前無法還原購買。請再試一次。"
+    }
   }
 }

@@ -882,5 +882,45 @@
     "awaitingAnswer": "Esperando respuesta.",
     "notFound": "No se encontró esta consulta.",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "Suscripción",
+    "testEntry": "Suscripción (prueba interna)",
+    "planName": "Suscripción a Juple",
+    "pricePerMonth": "{{price}} / mes",
+    "cadence": "Se cobra cada mes y se renueva automáticamente hasta que la canceles.",
+    "cancelNote": "Puedes cancelar en cualquier momento en los ajustes de suscripción de la tienda. Al cancelar no habrá más renovaciones.",
+    "accessHeading": "Tu acceso",
+    "access": {
+      "trial": "Prueba gratuita",
+      "active": "Suscrito",
+      "gracePeriod": "Suscrito (problema de pago)",
+      "expired": "Suscripción finalizada",
+      "inactive": "Todavía no se necesita una suscripción."
+    },
+    "loading": "Cargando...",
+    "subscribe": "Suscribirse",
+    "restore": "Restaurar compras",
+    "unavailable": {
+      "disabled": "Las suscripciones no están disponibles ahora mismo.",
+      "store": "No se pudo conectar con la tienda. Comprueba tu conexión e inténtalo de nuevo.",
+      "product": "Esta suscripción no está disponible en la tienda ahora mismo.",
+      "platform": "Las suscripciones aún no son compatibles con este dispositivo."
+    },
+    "result": {
+      "verified": "¡Gracias! Tu suscripción está confirmada.",
+      "pending": "Tu pago aún se está procesando. Tu acceso se actualizará cuando termine.",
+      "notEntitled": "Esta compra no concede acceso.",
+      "alreadyOwned": "Ya tienes esta suscripción. Toca Restaurar compras para vincularla a esta cuenta.",
+      "temporary": "Todavía no pudimos confirmar tu compra. Inténtalo de nuevo o restaura las compras en un momento.",
+      "anotherAccount": "Esta compra pertenece a otra cuenta de Juple.",
+      "failed": "No se pudo completar la compra."
+    },
+    "restoreResult": {
+      "restored": "Se restauró tu suscripción.",
+      "nothingFound": "No se encontraron compras para restaurar.",
+      "anotherAccount": "Esa compra pertenece a otra cuenta de Juple.",
+      "temporary": "No se pudieron restaurar las compras ahora. Inténtalo de nuevo."
+    }
   }
 }

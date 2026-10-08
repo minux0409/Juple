@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { isSubscriptionTestEntryEnabled } from '../api/apiConfig';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import { getMyProfile, type UserProfile } from '../api/profileApi';
@@ -242,6 +243,22 @@ export function MyPageScreen() {
             <Text style={styles.settingsRowLabel}>{t('customerCenter.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
+          {isSubscriptionTestEntryEnabled ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => navigation.navigate('Subscription')}
+                style={styles.settingsRow}
+                testID="my-subscription-test"
+              >
+                <View style={styles.settingsRowIcon}>
+                  <screenIcons.subscription color={colors.textSecondary} size={18} />
+                </View>
+                <Text style={styles.settingsRowLabel}>{t('subscription.testEntry')}</Text>
+              </Pressable>
+              <View style={styles.settingsRowDivider} />
+            </>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             onPress={() => setIsSignOutDialogVisible(true)}

@@ -882,5 +882,45 @@
     "awaitingAnswer": "正在等待回复。",
     "notFound": "找不到该咨询。",
     "rowA11y": "{{type}}, {{status}}, {{date}}. {{content}}"
+  },
+  "subscription": {
+    "title": "订阅",
+    "testEntry": "订阅(内部测试)",
+    "planName": "Juple 订阅",
+    "pricePerMonth": "每月 {{price}}",
+    "cadence": "按月计费,在您取消之前会自动续订。",
+    "cancelNote": "您可以随时在商店的订阅设置中取消。取消后将不再续订。",
+    "accessHeading": "您的使用状态",
+    "access": {
+      "trial": "免费试用",
+      "active": "已订阅",
+      "gracePeriod": "已订阅(付款有问题)",
+      "expired": "订阅已结束",
+      "inactive": "暂时还不需要订阅。"
+    },
+    "loading": "正在加载...",
+    "subscribe": "订阅",
+    "restore": "恢复购买",
+    "unavailable": {
+      "disabled": "目前无法使用订阅。",
+      "store": "无法连接商店。请检查网络后重试。",
+      "product": "该订阅目前在商店中不可用。",
+      "platform": "此设备暂不支持订阅。"
+    },
+    "result": {
+      "verified": "谢谢!您的订阅已确认。",
+      "pending": "您的付款仍在处理中。完成后您的使用状态会更新。",
+      "notEntitled": "此次购买不会授予使用权限。",
+      "alreadyOwned": "您已拥有此订阅。请点按“恢复购买”将其关联到此账号。",
+      "temporary": "暂时无法确认您的购买。请稍后重试或恢复购买。",
+      "anotherAccount": "此购买属于另一个 Juple 账号。",
+      "failed": "无法完成购买。"
+    },
+    "restoreResult": {
+      "restored": "已恢复您的订阅。",
+      "nothingFound": "没有找到可恢复的购买。",
+      "anotherAccount": "该购买属于另一个 Juple 账号。",
+      "temporary": "目前无法恢复购买。请重试。"
+    }
   }
 }
