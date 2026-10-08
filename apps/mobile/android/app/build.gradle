@@ -10,11 +10,14 @@ apply plugin: "com.android.application"
 //     Azure Dev Backend - see this file's dogfood buildType comment - so it uses the same
 //     Firebase project as debug; duplicated rather than shared via a symlink/copy task per
 //     explicit instruction to avoid custom build hacks for this).
-// There is deliberately no src/release/google-services.json and no app/google-services.json
-// fallback at the module root: a Production Firebase project does not exist yet, and the plugin
-// itself hard-fails processReleaseGoogleServices ("File google-services.json is missing...") the
-// moment assembleRelease actually needs it, rather than silently reusing Dev's config - this is
-// the plugin's own built-in behavior, not custom code.
+//   - src/playInternal/google-services.json -> the same Dev Firebase project again (Google Play
+//     Internal Testing builds talk to the Azure Dev Backend - see the playInternal buildType), an
+//     identical copy for the same reason: the plugin only looks in src/<buildType>/.
+//   - src/release/google-services.json -> the Production Firebase project (juple-production).
+// There is deliberately no app/google-services.json fallback at the module root: a buildType
+// without its own file hard-fails process<Variant>GoogleServices ("File google-services.json is
+// missing...") rather than silently reusing another project's config - the plugin's own built-in
+// behavior, not custom code.
 apply plugin: "com.google.gms.google-services"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -70,17 +73,29 @@ react {
     /* Autolinking */
     autolinkLibrariesWithApp()
 
-    //   "dogfood" and "release" each need their own Metro config (debug is untouched - it never
-    //   bundles at all, see debuggableVariants above):
-    //   - metro.dogfood.config.js sets JUPLE_API_ENV='dogfood' so
+    //   "dogfood", "playInternal" and "release" bundle JS (debug is untouched - it never bundles at
+    //   all, see debuggableVariants above), each against the right environment:
+    //   - metro.dogfood.config.js (dogfood AND playInternal - both run against the Azure Dev
+    //     environment) sets JUPLE_API_ENV='dogfood' so
     //     babel-plugin-transform-inline-environment-variables inlines it into
-    //     src/api/apiConfig.ts, which then resolves to the Azure Dev Backend.
-    //   - metro.release.config.js refuses to bundle at all (build-time failure) unless a real
-    //     JUPLE_API_BASE_URL is provided - there is no Production Backend yet, and a release
-    //     build must never silently ship without one. See both files for details.
-    if (gradle.startParameter.taskNames.any { it.contains("Dogfood") }) {
+    //     src/api/apiConfig.ts / src/auth/entraAuthConfig.ts, which then resolve to the Dev Backend
+    //     and Dev Entra, and requires a real JUPLE_PUBLIC_WEB_HOST.
+    //   - metro.release.config.js refuses to bundle at all (build-time failure) unless the real
+    //     Production values (JUPLE_API_BASE_URL, JUPLE_PUBLIC_WEB_HOST, JUPLE_ENTRA_PROD_*) are
+    //     provided - a release build must never silently ship without them. See both files.
+    //   bundleConfig is one value per Gradle invocation, so a Dev variant and Production release in
+    //   the SAME invocation would bundle one of them against the other's environment: refused.
+    def requestedTasks = gradle.startParameter.taskNames
+    def requestsDevBundle = requestedTasks.any { it.contains("Dogfood") || it.contains("PlayInternal") }
+    def requestsReleaseBundle = requestedTasks.any { it.contains("Release") }
+    if (requestsDevBundle && requestsReleaseBundle) {
+        throw new GradleException(
+            "Build Dogfood/PlayInternal and Release in separate Gradle invocations - they bundle " +
+            "against different environments (Dev vs Production) and one invocation can use only one.")
+    }
+    if (requestsDevBundle) {
         bundleConfig = file("../../metro.dogfood.config.js")
-    } else if (gradle.startParameter.taskNames.any { it.contains("Release") }) {
+    } else if (requestsReleaseBundle) {
         bundleConfig = file("../../metro.release.config.js")
     }
 }
@@ -258,6 +273,27 @@ android {
             // Backend over HTTPS (see src/api/apiConfig.ts), so cleartext HTTP is never needed.
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
+        playInternal {
+            // Google Play Internal Testing: the AAB uploaded to the Play Console's internal track
+            // (Play-hosted installs are what real Google Play Billing tests need), running against
+            // the Azure Dev environment - Dev Backend, Dev Entra, Dev Firebase (juple-9fa62), Dev
+            // Public Web host - exactly like dogfood (same Metro config, see the react{} block),
+            // but SIGNED WITH THE PLAY UPLOAD KEY (signingConfigs.release), because that is the
+            // only key Play accepts for this app. Never a Production build: Production is
+            // "release", which stays Production-only. Same applicationId / version as every other
+            // buildType; non-debuggable and bundled like release (it is not in react{}'s
+            // debuggableVariants), so it never needs Metro.
+            initWith release
+            // Prebuilt AAR dependencies only publish debug/release variants (see dogfood).
+            matchingFallbacks = ['release']
+            // The upload key - inherited from release by initWith, restated so no later edit to
+            // release can silently move this buildType onto another identity. Never debug's or
+            // dogfood's. Checked by verifyReleaseSigning (wired to prePlayInternalBuild below).
+            signingConfig signingConfigs.release
+            // Auto-filled by the React Native Gradle Plugin only for debug/release/debugOptimized
+            // (see dogfood) - set explicitly; HTTPS-only to the Dev Backend, like dogfood.
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+        }
     }
 }
 
@@ -284,8 +320,8 @@ tasks.register("verifyReleaseSigning") {
     group = "verification"
     description = "Fails with a clear error if any Play App Signing upload-key credential is " +
         "missing, or the keystore file does not exist - see README's \"Production release " +
-        "signing\" section. Runs only when a release-variant task graph is actually built " +
-        "(wired to preReleaseBuild below), never for Debug/Dogfood."
+        "signing\" section. Runs only when a release or playInternal task graph is actually " +
+        "built (wired to preReleaseBuild / prePlayInternalBuild below), never for Debug/Dogfood."
     // All checking happens in doLast (task action / execution time), not here in the
     // configuration block - a Gradle sync or an unrelated assembleDebug/assembleDogfood only
     // configures tasks, it does not execute this task's action, so neither ever sees this fail.
@@ -326,6 +362,10 @@ afterEvaluate {
     // the android {} block above, so it does not exist yet at this file's top level until after
     // that evaluation completes.
     tasks.named('preReleaseBuild') {
+        dependsOn('verifyReleaseSigning')
+    }
+    // playInternal is signed with the same Play upload key, so the same explicit check guards it.
+    tasks.named('prePlayInternalBuild') {
         dependsOn('verifyReleaseSigning')
     }
 }

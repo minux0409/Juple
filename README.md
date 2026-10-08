@@ -194,6 +194,30 @@ Android App Links(`.well-known/assetlinks.json`)에 넣어야 하는 fingerprint
 
 참고로 Dev 환경(`dev.juple.co.kr`)의 `assetlinks.json`에 이미 들어 있는 fingerprint(`infra/azure/README.md`의 "Web custom domain" 섹션, live `ANDROID_ASSETLINKS_SHA256_FINGERPRINTS`)는 이 표의 어느 것과도 값이 다르다 - 어느 keystore가 서명한 것인지 이 repo에 기록되어 있지 않으므로 추측하지 않았고, Production 값을 정할 때 그 값을 재사용해서도 안 된다(Dev/Production은 별개의 fingerprint를 가진다).
 
+### Google Play Internal Testing build (`playInternal`)
+
+Google Play Billing은 Play에서 설치한 앱에서만 실제 구매 테스트가 된다. 그래서 Play Console Internal testing 트랙에 올리는 전용 buildType `playInternal`이 있다. 세 가지 용도를 섞지 않는다:
+
+| buildType | 용도 | 서명 | 환경 |
+| --- | --- | --- | --- |
+| `debug` / `dogfood` | 로컬·기기 개발 (Play에 올리지 않는다) | debug / Dogfood 전용 key | Dev |
+| `playInternal` | Play Internal Testing (Billing 테스트) | **Play upload key** (`signingConfigs.release`) | Dev (Backend, Entra, Firebase `juple-9fa62`, `dev.juple.co.kr`) |
+| `release` | 실제 Production 출시 | **Play upload key** | Production 전용 (`metro.release.config.js`의 Production 값 필수) |
+
+- `playInternal`은 dogfood와 같은 Dev JS 설정(`metro.dogfood.config.js`)으로 번들되고, release처럼 non-debuggable이며 JS를 AAB 안에 포함한다. applicationId(`com.juple.app`)와 versionCode/versionName은 다른 buildType과 같다.
+- 서명은 위 "Production release signing"의 `JUPLE_RELEASE_*` 4개 값(또는 `release-signing.local.properties`)을 그대로 쓰고, `verifyReleaseSigning`이 release와 똑같이 검사한다. Dogfood/debug key로 서명된 빌드는 절대 Play에 올리지 않는다(첫 업로드의 인증서가 upload key로 등록된다).
+- Firebase: `android/app/src/playInternal/google-services.json`은 debug/dogfood와 동일한 Dev 파일의 복사본이다(Google Services 플러그인은 `src/<buildType>/`에서만 찾는다).
+- Dev 변형(dogfood/playInternal)과 release는 같은 Gradle 실행에서 함께 빌드할 수 없다 - JS 번들 설정이 실행당 하나라서 Gradle이 거부한다.
+
+```powershell
+cd apps/mobile/android
+$env:JUPLE_PUBLIC_WEB_HOST = "dev.juple.co.kr"
+./gradlew bundlePlayInternal
+# -> app/build/outputs/bundle/playInternal/app-playInternal.aab
+```
+
+Play에 한 번 올린 versionCode는 다시 쓸 수 없다 - 다음 업로드 전에 `android/app/build.gradle`의 versionCode를 올린다.
+
 ### Android에서 로컬 Backend 연결
 
 Mobile 개발용 API 주소는 `http://localhost:5092`로 고정되어 있으며, Android emulator와 physical device 모두 다음 명령으로 PC의 Backend에 연결한다.
