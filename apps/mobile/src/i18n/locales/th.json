@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} นาทีที่แล้ว",
     "hoursAgo": "{{count}} ชั่วโมงที่แล้ว",
     "moreA11y": "ตัวเลือกความคิดเห็น",
-    "ownerA11y": "{{name}} (เจ้าของ)"
+    "ownerA11y": "{{name}} (เจ้าของ)",
+    "reply": "ตอบกลับ",
+    "replyPlaceholder": "เขียนการตอบกลับ",
+    "replyingTo": "กำลังตอบกลับ {{name}}",
+    "cancelReply": "ยกเลิกการตอบกลับ",
+    "viewReplies": "ดูการตอบกลับ {{count}} รายการ",
+    "hideReplies": "ซ่อนการตอบกลับ",
+    "loadMoreReplies": "ดูการตอบกลับเพิ่มเติม",
+    "repliesLoadError": "โหลดการตอบกลับไม่ได้ แตะเพื่อลองอีกครั้ง",
+    "deleted": "ความคิดเห็นนี้ถูกลบแล้ว",
+    "like": "ถูกใจ",
+    "unlike": "เลิกถูกใจ",
+    "likeCountA11y": "ถูกใจ {{count}} ครั้ง",
+    "likeError": "อัปเดตการถูกใจไม่ได้"
   },
   "reactions": {
     "pickerTitle": "เพิ่มรีแอคชัน",

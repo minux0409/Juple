@@ -607,7 +607,20 @@
     "minutesAgo": "há {{count}} min",
     "hoursAgo": "há {{count}} h",
     "moreA11y": "Opções do comentário",
-    "ownerA11y": "{{name}} (proprietário)"
+    "ownerA11y": "{{name}} (proprietário)",
+    "reply": "Responder",
+    "replyPlaceholder": "Escreva uma resposta",
+    "replyingTo": "Respondendo a {{name}}",
+    "cancelReply": "Cancelar resposta",
+    "viewReplies": "Ver {{count}} respostas",
+    "hideReplies": "Ocultar respostas",
+    "loadMoreReplies": "Ver mais respostas",
+    "repliesLoadError": "Não foi possível carregar as respostas. Toque para tentar de novo.",
+    "deleted": "Este comentário foi excluído.",
+    "like": "Curtir",
+    "unlike": "Descurtir",
+    "likeCountA11y": "{{count}} curtidas",
+    "likeError": "Não foi possível atualizar a curtida."
   },
   "reactions": {
     "pickerTitle": "Adicionar reação",

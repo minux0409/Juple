@@ -26,10 +26,12 @@ public static class NotificationInboxPolicy
         NotificationType.CollectionLinkSubmissionRejected,
         NotificationType.FriendRequestAccepted,
         NotificationType.FriendRequestRejected,
+        NotificationType.CommentReplyReceived,
+        NotificationType.CommentLikeReceived,
     ];
 
     /// <summary>The same set as SQL - the filtered indexes' predicate must match it exactly.</summary>
-    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14)";
+    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)";
 
     public const int DefaultPageSize = 30;
     public const int MaxPageSize = 100;
@@ -45,7 +47,9 @@ public static class NotificationInboxPolicy
             or NotificationType.CollectionItemsAdded
             or NotificationType.CollectionLinkShared
             or NotificationType.CollectionItemReactionReceived
-            or NotificationType.CollectionItemCommentReceived;
+            or NotificationType.CollectionItemCommentReceived
+            or NotificationType.CommentReplyReceived
+            or NotificationType.CommentLikeReceived;
 
     /// <summary>These cannot be worded without the actor's name - with the actor gone, the row is unavailable.</summary>
     public static bool RequiresActor(NotificationType type) =>
@@ -55,7 +59,9 @@ public static class NotificationInboxPolicy
             or NotificationType.CollectionInvitationReceived
             or NotificationType.CollectionLinkShared
             or NotificationType.CollectionItemReactionReceived
-            or NotificationType.CollectionItemCommentReceived;
+            or NotificationType.CollectionItemCommentReceived
+            or NotificationType.CommentReplyReceived
+            or NotificationType.CommentLikeReceived;
 
     /// <summary>
     /// Where tapping the notification leads, decided from the facts as they are now - never from what
@@ -107,6 +113,27 @@ public static class NotificationInboxPolicy
                         Focus: record.Type == NotificationType.CollectionItemCommentReceived ? NotificationTargetFocus.Comments : null)
                     : Collection(record);
 
+            case NotificationType.CommentReplyReceived:
+            case NotificationType.CommentLikeReceived:
+                // The conversation of that link, with the comment in focus - for anyone who still belongs and while the link is still
+                // in the Collection and the comment still exists (any member may open any link of a Collection they belong to). Else the
+                // Collection while they belong, else nothing.
+                if (!record.RecipientBelongs)
+                {
+                    return NotificationTargetDto.Unavailable;
+                }
+
+                // The recipient's own link opens in their own link screen; somebody else's in the read-only shared view of it.
+                return record.LinkInCollection && record.CommentLive && record.ItemId is { } commentItemId && record.SubjectId is { } commentId
+                    ? new NotificationTargetDto(
+                        record.LinkStillOwn ? NotificationTargetKinds.CollectionItem : NotificationTargetKinds.CollectionSharedItem,
+                        CollectionId: record.CollectionId,
+                        ItemId: commentItemId,
+                        Focus: NotificationTargetFocus.Comments,
+                        CommentId: commentId,
+                        RootCommentId: record.ThreadRootCommentId ?? commentId)
+                    : Collection(record);
+
             case NotificationType.CollectionLinkSubmissionReceived:
                 // The 승인 대기 list - only for the Owner of a Collection that still exists.
                 return record.CollectionLive && record.RecipientIsOwner
@@ -142,6 +169,10 @@ public static class NotificationTargetKinds
     public const string CollectionInvitations = "collectionInvitations";
     public const string Collection = "collection";
     public const string CollectionItem = "collectionItem";
+
+    /// <summary>Somebody else's link of a Collection the recipient belongs to: its read-only shared view (a reply / heart on the recipient's comment there).</summary>
+    public const string CollectionSharedItem = "collectionSharedItem";
+
     public const string CollectionSubmissions = "collectionSubmissions";
     public const string PublicCollection = "publicCollection";
     public const string Unavailable = "unavailable";
@@ -162,7 +193,9 @@ public sealed record NotificationTargetDto(
     long? CollectionId = null,
     long? ItemId = null,
     string? PublicId = null,
-    string? Focus = null)
+    string? Focus = null,
+    long? CommentId = null,
+    long? RootCommentId = null)
 {
     public static readonly NotificationTargetDto Unavailable = new(NotificationTargetKinds.Unavailable);
 }
@@ -225,7 +258,11 @@ public sealed record NotificationInboxRecord(
     bool InvitationPending,
     string? PreviewImageUrl = null,
     string? CollectionIconBlobName = null,
-    long CollectionOwnerUserId = 0);
+    long CollectionOwnerUserId = 0,
+    long? ItemId = null,
+    bool LinkInCollection = false,
+    bool CommentLive = false,
+    long? ThreadRootCommentId = null);
 
 public interface INotificationInboxStore
 {

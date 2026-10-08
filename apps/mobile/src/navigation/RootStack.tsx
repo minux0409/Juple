@@ -58,6 +58,8 @@ export type RootStackParamList = {
     collectionContext?: { readonly collectionId: number; readonly canRemove: boolean; readonly isCollectionOwner: boolean; readonly isCollaborative?: boolean };
     /** A comment notification: bring the comments into view once they are laid out (consumed once). */
     initialFocus?: 'comments';
+    /** With initialFocus: the top-level comment whose thread is opened (a reply / heart notification). */
+    initialFocusThreadRootId?: number | null;
     /**
      * Opened from a Home/Archive card gated by a Collection: the link is read IN that Collection's context (the server
      * enforces its lock). Only the Collection id and a one-time key travel here - the grant itself is handed over in
@@ -80,7 +82,14 @@ export type RootStackParamList = {
      * lock / share-password gate passed, as for any visit), that link opens IN this Collection - so
      * its reactions and comments show and the visit's unlock is reused. Consumed once.
      */
-    openItem?: { readonly itemId: number; readonly focus: 'comments' | null };
+    openItem?: {
+      readonly itemId: number;
+      readonly focus: 'comments' | null;
+      /** A reply / heart notification: the top-level comment whose thread is opened once the comments are here. */
+      readonly commentRootId?: number | null;
+      /** Somebody else's link: opened in the read-only shared view instead of the owner's ItemDetails. */
+      readonly shared?: boolean;
+    };
     /** A 승인 요청 notification: opens the Owner's 링크 승인 대기 popup over the Collection once its content is open. Consumed once. */
     openApprovals?: boolean;
   };
@@ -101,7 +110,7 @@ export type RootStackParamList = {
    * ItemDetails) - fetched through that Collection, so it carries no memo or uploaded photos.
    */
   /** isCollectionOwner: the caller owns the Collection (may delete any comment) - the server decides the same. */
-  CollectionSharedItem: { collectionId: number; itemId: number; isCollectionOwner?: boolean };
+  CollectionSharedItem: { collectionId: number; itemId: number; isCollectionOwner?: boolean; focusThreadRootId?: number | null };
   /**
    * Reached only via IncomingShareRouter's explicit navigate call, never a prefilled tab - see that
    * file. preselectedCollectionId/initialTitle are just the starting values for editable fields, not

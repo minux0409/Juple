@@ -170,6 +170,9 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
             => notificationEvent.ActorUserId is not null && notificationEvent.CollectionId is not null && notificationEvent.SubjectId is not null,
         NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected
             => notificationEvent.RecipientUserId is not null && notificationEvent.SubjectId is not null,
+        NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived
+            => notificationEvent.ActorUserId is not null && notificationEvent.RecipientUserId is not null && notificationEvent.CollectionId is not null
+                && notificationEvent.SubjectId is not null && notificationEvent.ItemId is not null,
         _ => false,
     };
 
@@ -392,10 +395,73 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
                     recipient, notificationEvent.Type, null, notificationEvent.CollectionId, submissionId, $"collection-submission-{answer}:{submissionId}", createdAtUtc,
                     itemId: notificationEvent.ItemId);
 
+            case NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived
+                when actor is { } threadActor && notificationEvent.RecipientUserId is { } threadRecipient && notificationEvent.CollectionId is { } threadCollectionId
+                    && notificationEvent.SubjectId is { } commentId && notificationEvent.ItemId is { } threadItemId:
+                return await ResolveThreadNotificationAsync(notificationEvent.Type, threadActor, threadRecipient, threadCollectionId, threadItemId, commentId, createdAtUtc, cancellationToken);
+
             default:
                 // Unreachable for a well-formed event (IsWellFormed is checked first).
                 return null;
         }
+    }
+
+    /// <summary>
+    /// A reply / heart notification, decided from the facts as they are NOW: nobody is told about their own action, and nothing is sent
+    /// once what it was about is gone - the reply deleted, the heart taken back, the link out of the Collection, or the recipient no longer
+    /// in it. The keys make a retried or repeated event one notification: a reply once, a heart once per person and comment for ever.
+    /// </summary>
+    private async Task<Notification?> ResolveThreadNotificationAsync(
+        NotificationType type, long actorUserId, long recipientUserId, long collectionId, long itemId, long commentId, DateTimeOffset createdAtUtc, CancellationToken cancellationToken)
+    {
+        if (recipientUserId == actorUserId)
+        {
+            return null;
+        }
+
+        var comment = await dbContext.CollectionItemComments.AsNoTracking()
+            .Where(entry => entry.Id == commentId && entry.CollectionId == collectionId && entry.ItemId == itemId && entry.DeletedAtUtc == null)
+            .Select(entry => new { entry.UserId, entry.ReplyToUserId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (comment is null)
+        {
+            return null;
+        }
+
+        if (type == NotificationType.CommentReplyReceived)
+        {
+            // The new reply is the actor's own and answers the recipient.
+            if (comment.UserId != actorUserId || comment.ReplyToUserId != recipientUserId)
+            {
+                return null;
+            }
+        }
+        else if (comment.UserId != recipientUserId
+            || !await dbContext.CollectionItemCommentLikes.AsNoTracking().AnyAsync(like => like.CommentId == commentId && like.UserId == actorUserId, cancellationToken))
+        {
+            // A heart on the recipient's comment that still exists.
+            return null;
+        }
+
+        var belongs = await (
+                from membership in dbContext.CollectionItems.AsNoTracking()
+                where membership.CollectionId == collectionId && membership.ItemId == itemId
+                join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
+                where item.DeletedAtUtc == null
+                join collection in dbContext.Collections.AsNoTracking() on membership.CollectionId equals collection.Id
+                where collection.DeletedAtUtc == null
+                select collection.UserId == recipientUserId
+                    || dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collectionId && collaborator.UserId == recipientUserId))
+            .FirstOrDefaultAsync(cancellationToken);
+        if (!belongs)
+        {
+            return null;
+        }
+
+        var dedupKey = type == NotificationType.CommentReplyReceived
+            ? $"comment-reply:{commentId}"
+            : $"comment-like:{commentId}:{actorUserId}";
+        return Notification.Social(recipientUserId, type, actorUserId, collectionId, commentId, dedupKey, createdAtUtc, itemId: itemId);
     }
 
     /// <summary>

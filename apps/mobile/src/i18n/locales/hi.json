@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} मिनट पहले",
     "hoursAgo": "{{count}} घंटे पहले",
     "moreA11y": "टिप्पणी विकल्प",
-    "ownerA11y": "{{name}} (स्वामी)"
+    "ownerA11y": "{{name}} (स्वामी)",
+    "reply": "जवाब दें",
+    "replyPlaceholder": "जवाब लिखें",
+    "replyingTo": "{{name}} को जवाब",
+    "cancelReply": "जवाब रद्द करें",
+    "viewReplies": "{{count}} जवाब देखें",
+    "hideReplies": "जवाब छिपाएँ",
+    "loadMoreReplies": "और जवाब देखें",
+    "repliesLoadError": "जवाब लोड नहीं हो सके। दोबारा कोशिश के लिए टैप करें।",
+    "deleted": "यह टिप्पणी हटा दी गई है।",
+    "like": "पसंद",
+    "unlike": "पसंद हटाएँ",
+    "likeCountA11y": "{{count}} पसंद",
+    "likeError": "पसंद अपडेट नहीं हो सकी।"
   },
   "reactions": {
     "pickerTitle": "प्रतिक्रिया जोड़ें",

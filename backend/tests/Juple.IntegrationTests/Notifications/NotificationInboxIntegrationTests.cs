@@ -501,6 +501,128 @@ public sealed class NotificationInboxIntegrationTests(Xunit.Abstractions.ITestOu
         Assert.Equal(3, page.UnreadCount); // the orphan row is still an unread Inbox row
     }
 
+    // ---------- comment replies and hearts (Types 15-16) ----------
+
+    [Fact]
+    public async Task AReplyOrHeartOnMyComment_OpensTheRecipientsOwnLinkInItsOwnScreen_WithTheThreadToOpen()
+    {
+        var mine = await NewItemAsync(_member, "https://example.test/mine");
+        await AddLinkAsync(mine, _member);
+        var root = await AddCommentAsync(_member, mine, "my comment");
+        var replyId = await AddCommentAsync(_owner, mine, "an answer", root);
+        var reply = await ThreadNotifyAsync(_member, NotificationType.CommentReplyReceived, _owner, mine, replyId);
+        var heart = await ThreadNotifyAsync(_member, NotificationType.CommentLikeReceived, _owner, mine, root);
+
+        var page = await Service().ListAsync(_member, null, 30, "ko");
+
+        var replyRow = page.Items.Single(row => row.Id == reply);
+        Assert.Equal("commentReply", replyRow.Type);
+        Assert.Equal(("새 답글", "Owner님이 회원님의 댓글에 답글을 남겼어요."), (replyRow.Title, replyRow.Body));
+        Assert.Equal(new NotificationTargetDto(NotificationTargetKinds.CollectionItem, _collectionId, mine, null, NotificationTargetFocus.Comments, replyId, root), replyRow.Target);
+        var heartRow = page.Items.Single(row => row.Id == heart);
+        Assert.Equal("commentLike", heartRow.Type);
+        Assert.Equal(("댓글 좋아요", "Owner님이 회원님의 댓글을 좋아합니다."), (heartRow.Title, heartRow.Body));
+        Assert.Equal(new NotificationTargetDto(NotificationTargetKinds.CollectionItem, _collectionId, mine, null, NotificationTargetFocus.Comments, root, root), heartRow.Target);
+        Assert.Equal("Owner", replyRow.Actor!.DisplayName);
+    }
+
+    [Fact]
+    public async Task ARepliesOnSomebodyElsesLink_OpensItsReadOnlySharedView()
+    {
+        var theirs = await NewItemAsync(_owner, "https://example.test/theirs");
+        await AddLinkAsync(theirs, _owner);
+        var root = await AddCommentAsync(_member, theirs, "my comment under their link");
+        var replyId = await AddCommentAsync(_owner, theirs, "answer", root);
+        var id = await ThreadNotifyAsync(_member, NotificationType.CommentReplyReceived, _owner, theirs, replyId);
+
+        var row = (await Service().ListAsync(_member, null, 30, "ko")).Items.Single(entry => entry.Id == id);
+
+        Assert.Equal(NotificationTargetKinds.CollectionSharedItem, row.Target.Kind);
+        Assert.Equal((_collectionId, theirs, replyId, root), (row.Target.CollectionId, row.Target.ItemId, row.Target.CommentId, row.Target.RootCommentId));
+        Assert.Equal(NotificationTargetFocus.Comments, row.Target.Focus);
+    }
+
+    [Fact]
+    public async Task AThreadNotification_FallsBackSafely_WhenTheCommentTheLinkOrTheMembershipIsGone()
+    {
+        var link = await NewItemAsync(_owner, "https://example.test/fading");
+        await AddLinkAsync(link, _owner);
+        var root = await AddCommentAsync(_member, link, "mine");
+        var replyId = await AddCommentAsync(_owner, link, "answer", root);
+        var id = await ThreadNotifyAsync(_member, NotificationType.CommentReplyReceived, _owner, link, replyId);
+
+        // The reply is deleted: the Collection, still reachable, is the place to go - no comment, no thread.
+        await _db.CollectionItemComments.Where(entry => entry.Id == replyId).ExecuteDeleteAsync();
+        var afterDelete = (await Service().ListAsync(_member, null, 30, "ko")).Items.Single(entry => entry.Id == id);
+        Assert.Equal(new NotificationTargetDto(NotificationTargetKinds.Collection, _collectionId), afterDelete.Target);
+
+        // The link leaves the Collection: still the Collection.
+        await new CollectionStore(_db).RemoveAsync(_owner, _collectionId, link);
+        _db.ChangeTracker.Clear();
+        var afterRemoval = (await Service().ListAsync(_member, null, 30, "ko")).Items.Single(entry => entry.Id == id);
+        Assert.Equal(NotificationTargetKinds.Collection, afterRemoval.Target.Kind);
+
+        // The recipient leaves the Collection: nothing to open, and no name of anything is shown.
+        await _db.CollectionCollaborators.Where(entry => entry.CollectionId == _collectionId && entry.UserId == _member).ExecuteDeleteAsync();
+        _db.ChangeTracker.Clear();
+        var afterLeaving = (await Service().ListAsync(_member, null, 30, "ko")).Items.Single(entry => entry.Id == id);
+        Assert.Equal(NotificationTargetKinds.Unavailable, afterLeaving.Target.Kind);
+        Assert.Null(afterLeaving.Title);
+        Assert.Null(afterLeaving.Actor);
+    }
+
+    [Fact]
+    public async Task ThreadNotifications_AreInboxRows_CountedUnread_AndMarkedReadLikeTheOthers()
+    {
+        var link = await NewItemAsync(_owner, "https://example.test/unread");
+        await AddLinkAsync(link, _owner);
+        var root = await AddCommentAsync(_member, link, "mine");
+        var id = await ThreadNotifyAsync(_member, NotificationType.CommentLikeReceived, _owner, link, root);
+
+        Assert.Equal(1, (await Service().ListAsync(_member, null, 30, "ko")).UnreadCount);
+        await Service().MarkReadAsync(_member, id);
+
+        Assert.Equal(0, (await Service().ListAsync(_member, null, 30, "ko")).UnreadCount);
+        Assert.Contains(NotificationType.CommentReplyReceived, NotificationInboxPolicy.InboxTypes);
+        Assert.Contains(NotificationType.CommentLikeReceived, NotificationInboxPolicy.InboxTypes);
+    }
+
+    private async Task AddLinkAsync(long itemId, long addedBy)
+    {
+        _db.CollectionItems.Add(CollectionItem.CreateNew(_collectionId, itemId, addedBy, DateTimeOffset.UtcNow, 0));
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+    }
+
+    private async Task<long> AddCommentAsync(long userId, long itemId, string body, long? parentId = null)
+    {
+        CollectionItemComment comment;
+        if (parentId is { } parent)
+        {
+            var parentComment = await _db.CollectionItemComments.AsNoTracking().SingleAsync(entry => entry.Id == parent);
+            comment = new CollectionItemComment(parentComment, userId, body, DateTimeOffset.UtcNow);
+        }
+        else
+        {
+            comment = new CollectionItemComment(_collectionId, itemId, userId, body, DateTimeOffset.UtcNow);
+        }
+
+        _db.CollectionItemComments.Add(comment);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        return comment.Id;
+    }
+
+    private async Task<long> ThreadNotifyAsync(long recipient, NotificationType type, long actor, long itemId, long commentId)
+    {
+        var notification = Notification.Social(
+            recipient, type, actor, _collectionId, commentId, $"inbox-test:{Guid.NewGuid():N}:{++_keys}", DateTimeOffset.UtcNow, itemId: itemId);
+        _db.Notifications.Add(notification);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+        return notification.Id;
+    }
+
     private async Task<long> NotifyWithItemAsync(long recipient, NotificationType type, long itemId)
     {
         var notification = Notification.Social(

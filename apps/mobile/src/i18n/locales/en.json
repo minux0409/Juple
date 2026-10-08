@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}}m ago",
     "hoursAgo": "{{count}}h ago",
     "moreA11y": "Comment options",
-    "ownerA11y": "{{name}} (owner)"
+    "ownerA11y": "{{name}} (owner)",
+    "reply": "Reply",
+    "replyPlaceholder": "Write a reply",
+    "replyingTo": "Replying to {{name}}",
+    "cancelReply": "Cancel reply",
+    "viewReplies": "View {{count}} replies",
+    "hideReplies": "Hide replies",
+    "loadMoreReplies": "View more replies",
+    "repliesLoadError": "Couldn’t load replies. Tap to try again.",
+    "deleted": "This comment was deleted.",
+    "like": "Like",
+    "unlike": "Unlike",
+    "likeCountA11y": "{{count}} likes",
+    "likeError": "Couldn’t update the like."
   },
   "reactions": {
     "pickerTitle": "Add reaction",

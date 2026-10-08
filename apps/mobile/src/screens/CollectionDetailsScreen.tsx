@@ -897,6 +897,16 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     navigation.setParams({ openItem: undefined });
     const ownsCollection = !isSharedWithMe(collection);
+    if (openItem.shared) {
+      // Somebody else's link (a reply / heart on my comment there): its read-only view, with that thread opened.
+      navigation.navigate('CollectionSharedItem', {
+        collectionId,
+        itemId: openItem.itemId,
+        isCollectionOwner: ownsCollection,
+        focusThreadRootId: openItem.commentRootId ?? null,
+      });
+      return;
+    }
     navigation.navigate('ItemDetails', {
       itemId: openItem.itemId,
       // My own link (the server only targets the recipient's own link): removable from here like any of mine.
@@ -907,6 +917,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         isCollaborative: isSharedWithMe(collection) || collection.hasCollaborators === true,
       },
       ...(openItem.focus === 'comments' ? { initialFocus: 'comments' as const } : {}),
+      ...(openItem.commentRootId ? { initialFocusThreadRootId: openItem.commentRootId } : {}),
     });
   }, [collection, collectionId, isContentOpen, navigation, openItem]);
 

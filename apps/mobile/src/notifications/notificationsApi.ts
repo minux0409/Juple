@@ -13,6 +13,7 @@ export type NotificationTargetKindWire =
   | 'collectionInvitations'
   | 'collection'
   | 'collectionItem'
+  | 'collectionSharedItem'
   | 'collectionSubmissions'
   | 'publicCollection'
   | 'unavailable';
@@ -23,6 +24,9 @@ export interface NotificationTargetWire {
   readonly itemId?: number | null;
   readonly publicId?: string | null;
   readonly focus?: string | null;
+  /** A reply / heart notification: the comment it is about and the top-level comment of its thread. */
+  readonly commentId?: number | null;
+  readonly rootCommentId?: number | null;
 }
 
 export interface NotificationActor {

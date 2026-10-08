@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}}분 전",
     "hoursAgo": "{{count}}시간 전",
     "moreA11y": "댓글 더보기",
-    "ownerA11y": "{{name}}(소유자)"
+    "ownerA11y": "{{name}}(소유자)",
+    "reply": "답글 달기",
+    "replyPlaceholder": "답글을 입력하세요",
+    "replyingTo": "{{name}}님에게 답글",
+    "cancelReply": "답글 취소",
+    "viewReplies": "답글 {{count}}개 보기",
+    "hideReplies": "답글 숨기기",
+    "loadMoreReplies": "답글 더 보기",
+    "repliesLoadError": "답글을 불러오지 못했어요. 눌러서 다시 시도하세요.",
+    "deleted": "삭제된 댓글입니다.",
+    "like": "좋아요",
+    "unlike": "좋아요 취소",
+    "likeCountA11y": "좋아요 {{count}}개",
+    "likeError": "좋아요를 반영하지 못했어요."
   },
   "reactions": {
     "pickerTitle": "리액션 추가",

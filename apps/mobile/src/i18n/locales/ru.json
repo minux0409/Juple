@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} мин назад",
     "hoursAgo": "{{count}} ч назад",
     "moreA11y": "Параметры комментария",
-    "ownerA11y": "{{name}} (владелец)"
+    "ownerA11y": "{{name}} (владелец)",
+    "reply": "Ответить",
+    "replyPlaceholder": "Напишите ответ",
+    "replyingTo": "Ответ для {{name}}",
+    "cancelReply": "Отменить ответ",
+    "viewReplies": "Показать ответы: {{count}}",
+    "hideReplies": "Скрыть ответы",
+    "loadMoreReplies": "Показать ещё ответы",
+    "repliesLoadError": "Не удалось загрузить ответы. Нажмите, чтобы повторить.",
+    "deleted": "Этот комментарий удалён.",
+    "like": "Нравится",
+    "unlike": "Не нравится",
+    "likeCountA11y": "Нравится: {{count}}",
+    "likeError": "Не удалось обновить отметку «Нравится»."
   },
   "reactions": {
     "pickerTitle": "Добавить реакцию",

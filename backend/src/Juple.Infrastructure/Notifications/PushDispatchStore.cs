@@ -142,11 +142,30 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
         var comments = !Has(NotificationType.CollectionItemCommentReceived)
             ? []
             : (await dbContext.CollectionItemComments.AsNoTracking()
-                .Where(comment => collectionIds.Contains(comment.CollectionId) && linkItemIds.Contains(comment.ItemId) && actorIds.Contains(comment.UserId))
-                .Select(comment => new { comment.CollectionId, comment.ItemId, comment.UserId })
+                .Where(comment => collectionIds.Contains(comment.CollectionId) && linkItemIds.Contains(comment.ItemId)
+                    && comment.UserId != null && actorIds.Contains(comment.UserId.Value))
+                .Select(comment => new { comment.CollectionId, comment.ItemId, UserId = comment.UserId!.Value })
                 .Distinct()
                 .ToListAsync(cancellationToken))
                 .Select(entry => (entry.CollectionId, entry.ItemId, entry.UserId))
+                .ToHashSet();
+
+        // A reply / heart: the comment (the new reply, or the hearted one) still exists - one query for the batch - and, for a
+        // heart, the heart does too.
+        var commentIds = SubjectsOf(NotificationType.CommentReplyReceived, NotificationType.CommentLikeReceived);
+        var threadComments = commentIds.Count == 0
+            ? []
+            : await dbContext.CollectionItemComments.AsNoTracking()
+                .Where(comment => commentIds.Contains(comment.Id) && comment.DeletedAtUtc == null)
+                .Select(comment => new { comment.Id, comment.CollectionId, comment.ItemId, comment.UserId, comment.ReplyToUserId })
+                .ToDictionaryAsync(comment => comment.Id, cancellationToken);
+        var hearts = !Has(NotificationType.CommentLikeReceived) || commentIds.Count == 0
+            ? []
+            : (await dbContext.CollectionItemCommentLikes.AsNoTracking()
+                .Where(like => commentIds.Contains(like.CommentId) && actorIds.Contains(like.UserId))
+                .Select(like => new { like.CommentId, like.UserId })
+                .ToListAsync(cancellationToken))
+                .Select(entry => (entry.CommentId, entry.UserId))
                 .ToHashSet();
 
         // A proposal: still waiting.
@@ -192,6 +211,18 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                         && (notification.Type == NotificationType.CollectionItemReactionReceived
                             ? reactions.Contains((collectionId, itemId, actorUserId))
                             : comments.Contains((collectionId, itemId, actorUserId)));
+                case NotificationType.CommentReplyReceived:
+                case NotificationType.CommentLikeReceived:
+                    if (notification.SubjectId is not { } threadCommentId || notification.ActorUserId is not { } threadActorId
+                        || !threadComments.TryGetValue(threadCommentId, out var threadComment)
+                        || threadComment.CollectionId != notification.CollectionId || !Belongs(notification.CollectionId, userId))
+                    {
+                        return false;
+                    }
+
+                    return notification.Type == NotificationType.CommentReplyReceived
+                        ? threadComment.UserId == threadActorId && threadComment.ReplyToUserId == userId
+                        : threadComment.UserId == userId && hearts.Contains((threadCommentId, threadActorId));
                 case NotificationType.CollectionLinkSubmissionReceived:
                     return notification.SubjectId is { } submissionId
                         && waitingSubmissions.TryGetValue(submissionId, out var submissionCollectionId)

@@ -175,6 +175,99 @@ public sealed class CollaborationNotificationsIntegrationTests : IAsyncLifetime
         Assert.All(await RowsAsync(NotificationType.CollectionItemCommentReceived), row => Assert.NotNull(row.DispatchedAtUtc));
     }
 
+    // ---------- comment replies and hearts (Types 15-16) ----------
+
+    [Fact]
+    public async Task AReply_TellsOnlyTheAnsweredPerson_NeverTheLinksOwnerOrTheRoot_AndNeverTheText()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/thread");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "top by the member", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        var first = await _comments.CreateAsync(_submitter, _sharedId, link, "비밀 답글 secret-reply", null, top.Id);
+        await Dispatcher().RunOnceAsync();
+
+        var push = Assert.Single(Sent(_member, "commentReply"));
+        Assert.Equal(("새 답글", "파이리님이 회원님의 댓글에 답글을 남겼어요."), (push.Title, push.Body));
+        Assert.Equal(["collectionId"], push.Data.Keys.Where(key => key != "notificationId"));
+        Assert.DoesNotContain("secret-reply", push.Body);
+        Assert.Empty(Sent(_owner, "commentReply")); // the link's owner is not the answered person
+        Assert.Empty(Sent(_owner, "collectionItemComment")); // and a reply is not a new top-level comment
+        Assert.Empty(Sent(_submitter, "commentReply")); // never the replier
+
+        // A reply to that reply tells ITS author - not the thread's root author.
+        _sender.Clear();
+        await _comments.CreateAsync(_owner, _sharedId, link, "reply to the reply", null, first.Id);
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Single(Sent(_submitter, "commentReply"));
+        Assert.Empty(Sent(_member, "commentReply"));
+        var rows = await RowsAsync(NotificationType.CommentReplyReceived);
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, row => Assert.Equal(link, row.ItemId));
+    }
+
+    [Fact]
+    public async Task ReplyingToMyOwnComment_OrADeletedReply_TellsNobody()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/own-thread");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "mine", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        await _comments.CreateAsync(_member, _sharedId, link, "answering myself", null, top.Id);
+        var regretted = await _comments.CreateAsync(_submitter, _sharedId, link, "oops", null, top.Id);
+        await _comments.DeleteAsync(_submitter, _sharedId, link, regretted.Id, null); // before the Job runs
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Empty(await RowsAsync(NotificationType.CommentReplyReceived));
+        Assert.Empty(_sender.All.Where(sent => sent.Payload.Type == "commentReply"));
+    }
+
+    [Fact]
+    public async Task AHeart_TellsTheCommentsAuthor_OncePerPersonAndComment_NeverOnUnlikeOrForOnesOwn()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/hearts");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "heart me", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, true, null);
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, true, null); // a retry
+        await _comments.SetLikeAsync(_member, _sharedId, link, top.Id, true, null); // my own comment
+        await Dispatcher().RunOnceAsync();
+
+        var push = Assert.Single(Sent(_member, "commentLike"));
+        Assert.Equal(("댓글 좋아요", "파이리님이 회원님의 댓글을 좋아합니다."), (push.Title, push.Body));
+        Assert.Single(await RowsAsync(NotificationType.CommentLikeReceived));
+
+        // Un-hearting tells nobody, and hearting again is not a second notification - not even a window later.
+        _sender.Clear();
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, false, null);
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, true, null);
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Empty(Sent(_member, "commentLike"));
+        Assert.Single(await RowsAsync(NotificationType.CommentLikeReceived));
+    }
+
+    [Fact]
+    public async Task AHeartTakenBackBeforeTheJobRuns_IsNeverAnnounced()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/fleeting");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "fleeting", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, true, null);
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, false, null);
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Empty(await RowsAsync(NotificationType.CommentLikeReceived));
+        Assert.Empty(Sent(_member, "commentLike"));
+    }
+
     // ---------- comments ----------
 
     [Fact]

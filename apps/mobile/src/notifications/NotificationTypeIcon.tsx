@@ -3,6 +3,7 @@ import { BellIcon } from '../icons/BellIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { CommentIcon } from '../icons/CommentIcon';
+import { HeartIcon } from '../icons/HeartIcon';
 import { FolderIcon } from '../icons/FolderIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import { PeopleIcon } from '../icons/PeopleIcon';
@@ -42,7 +43,10 @@ function renderGlyph(type: string | null, size: number, color: string) {
     case 'collectionItemReaction':
       return <SmileyPlusIcon color={color} size={size} />;
     case 'collectionItemComment':
+    case 'commentReply':
       return <CommentIcon color={color} size={size} />;
+    case 'commentLike':
+      return <HeartIcon color={color} filled size={size} />;
     case 'collectionLinkSubmission':
       return <FolderIcon color={color} size={size} />;
     case 'collectionLinkSubmissionApproved':

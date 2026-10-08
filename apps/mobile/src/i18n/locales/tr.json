@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} dk önce",
     "hoursAgo": "{{count}} sa önce",
     "moreA11y": "Yorum seçenekleri",
-    "ownerA11y": "{{name}} (sahip)"
+    "ownerA11y": "{{name}} (sahip)",
+    "reply": "Yanıtla",
+    "replyPlaceholder": "Yanıt yazın",
+    "replyingTo": "{{name}} kişisine yanıt",
+    "cancelReply": "Yanıtı iptal et",
+    "viewReplies": "{{count}} yanıtı gör",
+    "hideReplies": "Yanıtları gizle",
+    "loadMoreReplies": "Daha fazla yanıt gör",
+    "repliesLoadError": "Yanıtlar yüklenemedi. Tekrar denemek için dokunun.",
+    "deleted": "Bu yorum silindi.",
+    "like": "Beğen",
+    "unlike": "Beğenmekten vazgeç",
+    "likeCountA11y": "{{count}} beğeni",
+    "likeError": "Beğeni güncellenemedi."
   },
   "reactions": {
     "pickerTitle": "Tepki ekle",

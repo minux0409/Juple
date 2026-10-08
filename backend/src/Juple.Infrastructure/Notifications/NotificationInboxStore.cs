@@ -178,6 +178,32 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
                 .Select(entry => (entry.CollectionId, entry.ItemId))
                 .ToHashSet();
 
+        // A reply / heart: the link is still in that Collection (live Item) and the comment still exists there - set-based, once per page.
+        var threadRows = rows
+            .Where(row => row.Type is NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived
+                && row.CollectionId is not null && row.ItemId is not null && row.SubjectId is not null)
+            .ToList();
+        var threadItemIds = threadRows.Select(row => row.ItemId!.Value).Distinct().ToList();
+        var threadCommentIds = threadRows.Select(row => row.SubjectId!.Value).Distinct().ToList();
+        var linksInCollection = threadRows.Count == 0 || liveIds.Count == 0
+            ? []
+            : (await (
+                    from membership in dbContext.CollectionItems.AsNoTracking()
+                    where liveIds.Contains(membership.CollectionId) && threadItemIds.Contains(membership.ItemId)
+                    join item in dbContext.Items.AsNoTracking() on membership.ItemId equals item.Id
+                    where item.DeletedAtUtc == null
+                    select new { membership.CollectionId, membership.ItemId, IsOwn = item.UserId == userId })
+                .ToListAsync(cancellationToken))
+                .Select(entry => (entry.CollectionId, entry.ItemId, entry.IsOwn))
+                .ToHashSet();
+        var liveComments = threadRows.Count == 0
+            ? []
+            : (await dbContext.CollectionItemComments.AsNoTracking()
+                .Where(comment => threadCommentIds.Contains(comment.Id) && comment.DeletedAtUtc == null)
+                .Select(comment => new { comment.Id, comment.CollectionId, comment.ItemId, comment.RootCommentId })
+                .ToListAsync(cancellationToken))
+                .ToDictionary(entry => (entry.Id, entry.CollectionId, entry.ItemId), entry => entry.RootCommentId ?? entry.Id);
+
         // The thumbnail of the recipient's OWN link a row is about - the stored preview image, one query for
         // the page: the Item a reaction/comment is on (its SubjectId) or a proposal's result is about (ItemId).
         var previewItemIds = rows
@@ -236,13 +262,23 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
                 RecipientBelongs: belongs,
                 PublicShareId: publicShareId,
                 LinkStillOwn: live
-                    && row.Type is NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived
-                    && row.SubjectId is { } itemId
-                    && ownLinks.Contains((row.CollectionId!.Value, itemId)),
+                    && (row.Type is NotificationType.CollectionItemReactionReceived or NotificationType.CollectionItemCommentReceived
+                        && row.SubjectId is { } itemId
+                        && ownLinks.Contains((row.CollectionId!.Value, itemId))
+                        || row.Type is NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived
+                        && row.ItemId is { } ownItemId
+                        && linksInCollection.Contains((row.CollectionId!.Value, ownItemId, true))),
                 InvitationPending: invitationPending,
                 PreviewImageUrl: PreviewItemId(row) is { } previewItemId ? previews.GetValueOrDefault(previewItemId) : null,
                 CollectionIconBlobName: nameVisible ? collections[row.CollectionId!.Value].IconImageBlobName : null,
-                CollectionOwnerUserId: nameVisible ? collections[row.CollectionId!.Value].UserId : 0);
+                CollectionOwnerUserId: nameVisible ? collections[row.CollectionId!.Value].UserId : 0,
+                ItemId: row.ItemId,
+                LinkInCollection: live && row.ItemId is { } threadItemId
+                    && (linksInCollection.Contains((row.CollectionId!.Value, threadItemId, true)) || linksInCollection.Contains((row.CollectionId!.Value, threadItemId, false))),
+                CommentLive: live && row.SubjectId is { } threadCommentId && row.ItemId is { } commentItemId
+                    && liveComments.ContainsKey((threadCommentId, row.CollectionId!.Value, commentItemId)),
+                ThreadRootCommentId: live && row.SubjectId is { } rootOfCommentId && row.ItemId is { } rootItemId
+                    && liveComments.TryGetValue((rootOfCommentId, row.CollectionId!.Value, rootItemId), out var threadRoot) ? threadRoot : null);
         }).ToList();
 
         static long? PreviewItemId(InboxRow row) =>

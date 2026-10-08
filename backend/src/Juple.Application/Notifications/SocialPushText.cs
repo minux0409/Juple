@@ -80,6 +80,30 @@ public static class SocialPushText
         string ApprovedTitle, string ApprovedBody,
         string RejectedTitle, string RejectedBody);
 
+    /// <summary>Types 15 and 16: {0} = who replied / hearted. Nothing says what the comment or the reply said.</summary>
+    private sealed record ThreadTexts(string ReplyTitle, string ReplyBody, string LikeTitle, string LikeBody);
+
+    private static readonly Dictionary<string, ThreadTexts> ThreadByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new("새 답글", "{0}님이 회원님의 댓글에 답글을 남겼어요.", "댓글 좋아요", "{0}님이 회원님의 댓글을 좋아합니다."),
+        ["en"] = new("New reply", "{0} replied to your comment.", "Comment liked", "{0} liked your comment."),
+        ["ja"] = new("新しい返信", "{0}さんがあなたのコメントに返信しました。", "コメントにいいね", "{0}さんがあなたのコメントにいいねしました。"),
+        ["zh-Hans"] = new("新回复", "{0} 回复了你的评论。", "评论获赞", "{0} 赞了你的评论。"),
+        ["zh-Hant"] = new("新回覆", "{0} 回覆了你的留言。", "留言獲讚", "{0} 說你的留言讚。"),
+        ["es"] = new("Nueva respuesta", "{0} respondió a tu comentario.", "Comentario con me gusta", "A {0} le gustó tu comentario."),
+        ["fr"] = new("Nouvelle réponse", "{0} a répondu à votre commentaire.", "Commentaire aimé", "{0} a aimé votre commentaire."),
+        ["de"] = new("Neue Antwort", "{0} hat auf deinen Kommentar geantwortet.", "Kommentar gefällt", "{0} gefällt dein Kommentar."),
+        ["it"] = new("Nuova risposta", "{0} ha risposto al tuo commento.", "Commento apprezzato", "A {0} è piaciuto il tuo commento."),
+        ["pt-BR"] = new("Nova resposta", "{0} respondeu ao seu comentário.", "Comentário curtido", "{0} curtiu o seu comentário."),
+        ["vi"] = new("Phản hồi mới", "{0} đã phản hồi bình luận của bạn.", "Bình luận được thích", "{0} đã thích bình luận của bạn."),
+        ["th"] = new("การตอบกลับใหม่", "{0} ตอบกลับความคิดเห็นของคุณ", "ความคิดเห็นถูกใจ", "{0} ถูกใจความคิดเห็นของคุณ"),
+        ["id"] = new("Balasan baru", "{0} membalas komentar Anda.", "Komentar disukai", "{0} menyukai komentar Anda."),
+        ["ru"] = new("Новый ответ", "{0} ответил(а) на ваш комментарий.", "Комментарию поставили лайк", "{0} оценил(а) ваш комментарий."),
+        ["tr"] = new("Yeni yanıt", "{0} yorumunuza yanıt verdi.", "Yorum beğenildi", "{0} yorumunuzu beğendi."),
+        ["ar"] = new("رد جديد", "ردّ {0} على تعليقك.", "إعجاب بتعليق", "أُعجب {0} بتعليقك."),
+        ["hi"] = new("नया जवाब", "{0} ने आपकी टिप्पणी का जवाब दिया।", "टिप्पणी पसंद की गई", "{0} को आपकी टिप्पणी पसंद आई।"),
+    };
+
     private static readonly Dictionary<string, CollaborationTexts> CollaborationByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ko"] = new(
@@ -256,6 +280,14 @@ public static class SocialPushText
         {
             var link = Resolve(LinkByLocale, locale);
             return (link.Title, string.Format(CultureInfo.InvariantCulture, link.Body, actorName, Shorten(collectionName)));
+        }
+
+        if (type is NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived)
+        {
+            var thread = Resolve(ThreadByLocale, locale);
+            return type == NotificationType.CommentReplyReceived
+                ? (thread.ReplyTitle, string.Format(CultureInfo.InvariantCulture, thread.ReplyBody, actorName))
+                : (thread.LikeTitle, string.Format(CultureInfo.InvariantCulture, thread.LikeBody, actorName));
         }
 
         if (type is NotificationType.CollectionItemReactionReceived

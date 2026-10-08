@@ -89,6 +89,20 @@ public interface ISocialNotificationPublisher
         Task.CompletedTask;
 
     /// <summary>
+    /// actorUserId replied to recipientUserId's comment (replyCommentId is the NEW reply): only the answered person is told - never
+    /// the link's owner or the thread's root author as such, never the text. One notification per reply.
+    /// </summary>
+    Task CommentReplyReceivedAsync(long actorUserId, long recipientUserId, long collectionId, long itemId, long replyCommentId, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    /// <summary>
+    /// actorUserId hearted recipientUserId's comment: the comment's author is told once per person and comment, however often the
+    /// heart is toggled (the event's key is the pair, not a time window).
+    /// </summary>
+    Task CommentLikeReceivedAsync(long actorUserId, long recipientUserId, long collectionId, long itemId, long commentId, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    /// <summary>
     /// submitterUserId's link (their itemId) now waits for this Collection's Owner (승인 후 추가): the
     /// Owner is told - never by whom, so a proposal through the public link stays anonymous. Only
     /// called for a proposal that was actually recorded (never for a duplicate or a failure).
@@ -219,6 +233,8 @@ public static class SocialNotificationPolicy
         NotificationType.CollectionLinkSubmissionReceived => "collectionLinkSubmission",
         NotificationType.CollectionLinkSubmissionApproved => "collectionLinkSubmissionApproved",
         NotificationType.CollectionLinkSubmissionRejected => "collectionLinkSubmissionRejected",
+        NotificationType.CommentReplyReceived => "commentReply",
+        NotificationType.CommentLikeReceived => "commentLike",
         _ => "unknown",
     };
 

@@ -11,6 +11,8 @@ import type { NotificationTargetWire } from './notificationsApi';
  *  새 링크 / 승인 결과 → that Collection (a non-member proposer: its public link page while it is on)
  *  반응 / 댓글 → my link inside that Collection (댓글: scrolled to the comments) - opened THROUGH the
  *               Collection, so its lock/share-password gate and visit-scoped unlock apply as usual
+ *  답글 / 댓글 좋아요 → the link's conversation with that comment's thread opened - my own link in its own screen,
+ *               somebody else's in the read-only shared view (both THROUGH the Collection, as above)
  *  승인 요청 → that Collection's 승인 대기 list
  *  컬렉션 링크 전달 → the public link page (its own password gate) - never membership
  *  anything no longer reachable → 'unavailable': the caller stays put and says so
@@ -20,7 +22,14 @@ export type NotificationTarget =
   | { readonly kind: 'friends' }
   | { readonly kind: 'collectionInvitations' }
   | { readonly kind: 'collection'; readonly collectionId: number }
-  | { readonly kind: 'collectionItem'; readonly collectionId: number; readonly itemId: number; readonly focus: 'comments' | null }
+  | {
+      readonly kind: 'collectionItem' | 'collectionSharedItem';
+      readonly collectionId: number;
+      readonly itemId: number;
+      readonly focus: 'comments' | null;
+      /** The top-level comment whose thread to open (a reply / heart notification); absent otherwise. */
+      readonly commentRootId?: number;
+    }
   | { readonly kind: 'collectionSubmissions'; readonly collectionId: number }
   | { readonly kind: 'publicCollection'; readonly publicId: string }
   | { readonly kind: 'unavailable' };
@@ -50,13 +59,20 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
       return { kind: 'collectionInvitations' };
     case 'collection':
       return collectionId !== null ? { kind: 'collection', collectionId } : UNAVAILABLE_TARGET;
-    case 'collectionItem': {
+    case 'collectionItem':
+    case 'collectionSharedItem': {
       const itemId = positiveId(wire.itemId);
       if (collectionId === null) {
         return UNAVAILABLE_TARGET;
       }
       return itemId !== null
-        ? { kind: 'collectionItem', collectionId, itemId, focus: wire.focus === 'comments' ? 'comments' : null }
+        ? {
+            kind: wire.kind,
+            collectionId,
+            itemId,
+            focus: wire.focus === 'comments' ? 'comments' : null,
+            ...(positiveId(wire.rootCommentId ?? wire.commentId) !== null ? { commentRootId: positiveId(wire.rootCommentId ?? wire.commentId)! } : {}),
+          }
         : { kind: 'collection', collectionId };
     }
     case 'collectionSubmissions':
@@ -97,6 +113,8 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
     case 'collectionItemsAdded':
     case 'collectionItemReaction':
     case 'collectionItemComment':
+    case 'commentReply':
+    case 'commentLike':
       return event.collectionId !== null ? { kind: 'collection', collectionId: event.collectionId } : null;
     case 'collectionLinkSubmission':
       return event.collectionId !== null ? { kind: 'collectionSubmissions', collectionId: event.collectionId } : null;
@@ -118,7 +136,7 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
 export type NotificationNavigationAction =
   | { readonly name: 'Friends' }
   | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number } } }
-  | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null }; readonly openApprovals?: true } }
+  | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null; readonly commentRootId?: number | null; readonly shared?: boolean }; readonly openApprovals?: true } }
   | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } };
 
 /** Null for 'unavailable' - the caller then stays where it is. */
@@ -132,10 +150,21 @@ export function navigationActionFor(target: NotificationTarget, nowMs: number = 
     case 'collection':
       return { name: 'CollectionDetails', params: { collectionId: target.collectionId, refreshToken: nowMs } };
     case 'collectionItem':
-      // Through the Collection: it opens the link once its content is open (lock gate included).
+    case 'collectionSharedItem':
+      // Through the Collection: it opens the link once its content is open (lock gate included) - the recipient's own
+      // link in their own screen, somebody else's (shared) in its read-only view.
       return {
         name: 'CollectionDetails',
-        params: { collectionId: target.collectionId, refreshToken: nowMs, openItem: { itemId: target.itemId, focus: target.focus } },
+        params: {
+          collectionId: target.collectionId,
+          refreshToken: nowMs,
+          openItem: {
+            itemId: target.itemId,
+            focus: target.focus,
+            ...(target.commentRootId !== undefined ? { commentRootId: target.commentRootId } : {}),
+            ...(target.kind === 'collectionSharedItem' ? { shared: true } : {}),
+          },
+        },
       };
     case 'collectionSubmissions':
       // Through the Collection: its 링크 승인 대기 popup opens once the content is open (lock gate included).

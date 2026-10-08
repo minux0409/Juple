@@ -607,7 +607,20 @@
     "minutesAgo": "hace {{count}} min",
     "hoursAgo": "hace {{count}} h",
     "moreA11y": "Opciones del comentario",
-    "ownerA11y": "{{name}} (propietario)"
+    "ownerA11y": "{{name}} (propietario)",
+    "reply": "Responder",
+    "replyPlaceholder": "Escribe una respuesta",
+    "replyingTo": "Respondiendo a {{name}}",
+    "cancelReply": "Cancelar respuesta",
+    "viewReplies": "Ver {{count}} respuestas",
+    "hideReplies": "Ocultar respuestas",
+    "loadMoreReplies": "Ver más respuestas",
+    "repliesLoadError": "No se pudieron cargar las respuestas. Toca para reintentar.",
+    "deleted": "Este comentario fue eliminado.",
+    "like": "Me gusta",
+    "unlike": "Quitar me gusta",
+    "likeCountA11y": "{{count}} me gusta",
+    "likeError": "No se pudo actualizar el me gusta."
   },
   "reactions": {
     "pickerTitle": "Añadir reacción",

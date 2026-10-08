@@ -34,6 +34,8 @@ const INBOX_PUSH_TYPES = [
   'collectionLinkShared',
   'collectionItemReaction',
   'collectionItemComment',
+  'commentReply',
+  'commentLike',
   'collectionLinkSubmission',
   'collectionLinkSubmissionApproved',
   'collectionLinkSubmissionRejected',

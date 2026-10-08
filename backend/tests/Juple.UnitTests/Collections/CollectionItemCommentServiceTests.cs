@@ -157,6 +157,92 @@ public sealed class CollectionItemCommentServiceTests
     }
 
     [Fact]
+    public async Task AReplyTellsOnlyThePersonItAnswers_NotTheLinksOwnerAsAComment_AndNeverTheReplier()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+
+        // User 1 replies to user 5's comment (the store reports whom the stored parent belongs to).
+        await new CollectionItemCommentService(new FakeAccess(), new FakeStore { ReplyToUserId = 5 }, TimeProvider.System, publisher).CreateAsync(1, 2, 3, "hi", null, 40);
+        // A reply to one's own comment tells nobody.
+        await new CollectionItemCommentService(new FakeAccess(), new FakeStore { ReplyToUserId = 1 }, TimeProvider.System, publisher).CreateAsync(1, 2, 3, "me again", null, 41);
+
+        Assert.Equal(["reply:1->5:2:3:77"], publisher.Events);
+    }
+
+    [Fact]
+    public async Task AReplyToAMissingOrOtherLinksOrDeletedComment_IsNotFound_AndTellsNobody()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore { ParentExists = false, ReplyToUserId = 5 }, TimeProvider.System, publisher).CreateAsync(1, 2, 3, "x", null, 40));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore(), TimeProvider.System, publisher).CreateAsync(1, 2, 3, "x", null, -4));
+
+        Assert.Empty(publisher.Events);
+    }
+
+    [Fact]
+    public async Task TheReplyTargetNeverComesFromTheCaller_OnlyTheParentIdIsAccepted()
+    {
+        var store = new FakeStore { ReplyToUserId = 5 };
+
+        await new CollectionItemCommentService(new FakeAccess(), store, TimeProvider.System).CreateAsync(1, 2, 3, "@someoneElse hi", null, 40);
+
+        Assert.Equal(40, store.LastParent);
+        var request = JsonSerializer.Deserialize<CollectionsController.PostCommentRequest>(
+            """{"body":"hi","parentCommentId":40,"replyToUserId":99,"rootCommentId":1}""", new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        Assert.Equal(40, request.ParentCommentId);
+        Assert.DoesNotContain(typeof(CollectionsController.PostCommentRequest).GetProperties(), property => property.Name is "ReplyToUserId" or "RootCommentId" or "UserId");
+    }
+
+    [Fact]
+    public async Task AHeart_TellsTheCommentsAuthorOnce_ButNeverOnUnlike_ARepeat_OrOnOwnComment()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+        var access = new FakeAccess();
+
+        await new CollectionItemCommentService(access, new FakeStore(), TimeProvider.System, publisher).SetLikeAsync(1, 2, 3, 40, true, null);
+        // A repeat (the store says nothing changed): no second notification.
+        await new CollectionItemCommentService(access, new FakeStore { Like = new CommentLikeOutcome(new CommentLikeStateDto(true, 1), false, 9) }, TimeProvider.System, publisher).SetLikeAsync(1, 2, 3, 40, true, null);
+        // Unlike: nobody is told.
+        await new CollectionItemCommentService(access, new FakeStore(), TimeProvider.System, publisher).SetLikeAsync(1, 2, 3, 40, false, null);
+        // One's own comment: nobody is told.
+        await new CollectionItemCommentService(access, new FakeStore { Like = new CommentLikeOutcome(new CommentLikeStateDto(true, 1), true, 1) }, TimeProvider.System, publisher).SetLikeAsync(1, 2, 3, 40, true, null);
+
+        Assert.Equal(["like:1->9:2:3:40"], publisher.Events);
+    }
+
+    [Fact]
+    public async Task ALikeIsGatedLikeEveryOtherOperation_AndAnUnknownCommentIsNotFound()
+    {
+        var store = new FakeStore();
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess { Throw = new CollectionNotFoundException() }, store, TimeProvider.System).SetLikeAsync(1, 2, 3, 40, true, null));
+        Assert.Equal(0, store.Calls);
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore { IsLink = false }, TimeProvider.System).SetLikeAsync(1, 2, 3, 40, true, null));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore(), TimeProvider.System).SetLikeAsync(1, 2, 3, 0, true, null));
+    }
+
+    [Fact]
+    public async Task ReplyPagesAreGatedAndCapped_LikeTheCommentPages()
+    {
+        var store = new FakeStore();
+        var service = new CollectionItemCommentService(new FakeAccess(), store, TimeProvider.System);
+
+        await service.ListRepliesAsync(1, 2, 3, 40, null, 5000, null);
+        Assert.Equal(100, store.LastLimit);
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => service.ListRepliesAsync(1, 2, 3, 40, -1, 10, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore { IsLink = false }, TimeProvider.System).ListRepliesAsync(1, 2, 3, 40, null, null, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess { Throw = new CollectionNotFoundException() }, new FakeStore(), TimeProvider.System).ListRepliesAsync(1, 2, 3, 40, null, null, null));
+    }
+
+    [Fact]
     public void TheCommentDtosCarryNoEmailProviderOrInternalIdField()
     {
         var names = typeof(CollectionCommentDto).GetProperties().Concat(typeof(CollectionCommentAuthorDto).GetProperties()).Select(property => property.Name);
@@ -199,6 +285,17 @@ public sealed class CollectionItemCommentServiceTests
 
         public CommentDeleteResult Delete { get; init; } = CommentDeleteResult.Deleted;
 
+        /// <summary>For a reply: the person the stored parent belongs to (the store decides it, never the caller).</summary>
+        public long? ReplyToUserId { get; init; }
+
+        public bool ParentExists { get; init; } = true;
+
+        public CommentLikeOutcome? Like { get; init; }
+
+        public long? LastParent { get; private set; }
+
+        public bool? LastLiked { get; private set; }
+
         public int Calls { get; private set; }
 
         public int LastLimit { get; private set; }
@@ -215,13 +312,35 @@ public sealed class CollectionItemCommentServiceTests
             return Task.FromResult<CollectionCommentPageDto?>(IsLink ? new CollectionCommentPageDto([], null, 0) : null);
         }
 
-        public Task<CollectionCommentDto?> CreateAsync(long userId, long collectionId, long itemId, string body, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        public Task<CollectionCommentReplyPageDto?> GetRepliesAsync(long userId, long collectionId, long itemId, long rootCommentId, long? afterId, int limit, CancellationToken cancellationToken = default)
         {
             Calls++;
-            return Task.FromResult<CollectionCommentDto?>(IsLink ? Comment() : null);
+            LastLimit = limit;
+            return Task.FromResult<CollectionCommentReplyPageDto?>(IsLink ? new CollectionCommentReplyPageDto([], null, 0) : null);
         }
 
-        public Task<CommentDeleteResult?> DeleteAsync(long userId, long collectionId, long itemId, long commentId, bool isOwner, CancellationToken cancellationToken = default)
+        public Task<CollectionCommentCreated?> CreateAsync(
+            long userId, long collectionId, long itemId, string body, DateTimeOffset nowUtc, long? parentCommentId = null, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            LastParent = parentCommentId;
+            if (!IsLink || (parentCommentId is not null && !ParentExists))
+            {
+                return Task.FromResult<CollectionCommentCreated?>(null);
+            }
+
+            var comment = Comment() with { Id = 77, RootCommentId = parentCommentId, ParentCommentId = parentCommentId };
+            return Task.FromResult<CollectionCommentCreated?>(new CollectionCommentCreated(comment, parentCommentId is null ? null : ReplyToUserId));
+        }
+
+        public Task<CommentLikeOutcome?> SetLikeAsync(long userId, long collectionId, long itemId, long commentId, bool liked, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            LastLiked = liked;
+            return Task.FromResult(IsLink ? Like ?? new CommentLikeOutcome(new CommentLikeStateDto(liked, liked ? 1 : 0), true, 9) : null);
+        }
+
+        public Task<CommentDeleteResult?> DeleteAsync(long userId, long collectionId, long itemId, long commentId, bool isOwner, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
             Calls++;
             LastIsOwner = isOwner;

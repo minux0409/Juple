@@ -307,6 +307,18 @@ public sealed class CollectionLockScopeTests
             return Task.CompletedTask;
         }
 
+        public Task CommentReplyReceivedAsync(long actorUserId, long recipientUserId, long collectionId, long itemId, long replyCommentId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"reply:{actorUserId}->{recipientUserId}:{collectionId}:{itemId}:{replyCommentId}");
+            return Task.CompletedTask;
+        }
+
+        public Task CommentLikeReceivedAsync(long actorUserId, long recipientUserId, long collectionId, long itemId, long commentId, CancellationToken cancellationToken = default)
+        {
+            Events.Add($"like:{actorUserId}->{recipientUserId}:{collectionId}:{itemId}:{commentId}");
+            return Task.CompletedTask;
+        }
+
         public Task CollectionLinkSubmittedAsync(long submitterUserId, long collectionId, long itemId, CancellationToken cancellationToken = default)
         {
             Events.Add($"submitted:{submitterUserId}:{collectionId}:{itemId}");

@@ -35,7 +35,7 @@ const ADDER_AVATAR_SIZE = 24;
  * edit and no delete here: the Item belongs to someone else.
  */
 export function CollectionSharedItemScreen({ route }: Props) {
-  const { collectionId, itemId, isCollectionOwner = false } = route.params;
+  const { collectionId, itemId, isCollectionOwner = false, focusThreadRootId = null } = route.params;
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const [item, setItem] = useState<SharedCollectionItem | null>(null);
@@ -46,7 +46,7 @@ export function CollectionSharedItemScreen({ route }: Props) {
   // Reactions and comments of this link IN this Collection - the one shared implementation (the owner's
   // ItemDetails uses the same). A link opened here is always one of a Collection the caller belongs to.
   const { openProfile, profileModal } = usePersonProfile();
-  const collaboration = useItemCollaboration({ collectionId, itemId, isCollectionOwner, row: item, enabled: true });
+  const collaboration = useItemCollaboration({ collectionId, itemId, isCollectionOwner, row: item, enabled: true, focusThreadRootId });
 
   const loadItem = useCallback(() => {
       let isActive = true;

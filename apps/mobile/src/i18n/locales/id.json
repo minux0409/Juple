@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} mnt lalu",
     "hoursAgo": "{{count}} jam lalu",
     "moreA11y": "Opsi komentar",
-    "ownerA11y": "{{name}} (pemilik)"
+    "ownerA11y": "{{name}} (pemilik)",
+    "reply": "Balas",
+    "replyPlaceholder": "Tulis balasan",
+    "replyingTo": "Membalas {{name}}",
+    "cancelReply": "Batalkan balasan",
+    "viewReplies": "Lihat {{count}} balasan",
+    "hideReplies": "Sembunyikan balasan",
+    "loadMoreReplies": "Lihat balasan lainnya",
+    "repliesLoadError": "Tidak dapat memuat balasan. Ketuk untuk mencoba lagi.",
+    "deleted": "Komentar ini telah dihapus.",
+    "like": "Suka",
+    "unlike": "Batal suka",
+    "likeCountA11y": "{{count}} suka",
+    "likeError": "Tidak dapat memperbarui suka."
   },
   "reactions": {
     "pickerTitle": "Tambah reaksi",

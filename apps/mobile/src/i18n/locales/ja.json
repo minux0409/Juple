@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}}分前",
     "hoursAgo": "{{count}}時間前",
     "moreA11y": "コメントのオプション",
-    "ownerA11y": "{{name}}(オーナー)"
+    "ownerA11y": "{{name}}(オーナー)",
+    "reply": "返信する",
+    "replyPlaceholder": "返信を入力",
+    "replyingTo": "{{name}}さんに返信",
+    "cancelReply": "返信をキャンセル",
+    "viewReplies": "返信{{count}}件を表示",
+    "hideReplies": "返信を非表示",
+    "loadMoreReplies": "返信をさらに表示",
+    "repliesLoadError": "返信を読み込めませんでした。タップして再試行してください。",
+    "deleted": "削除されたコメントです。",
+    "like": "いいね",
+    "unlike": "いいねを取り消す",
+    "likeCountA11y": "いいね{{count}}件",
+    "likeError": "いいねを更新できませんでした。"
   },
   "reactions": {
     "pickerTitle": "リアクションを追加",

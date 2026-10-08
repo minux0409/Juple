@@ -607,7 +607,20 @@
     "minutesAgo": "منذ {{count}} د",
     "hoursAgo": "منذ {{count}} س",
     "moreA11y": "خيارات التعليق",
-    "ownerA11y": "{{name}} (المالك)"
+    "ownerA11y": "{{name}} (المالك)",
+    "reply": "رد",
+    "replyPlaceholder": "اكتب رداً",
+    "replyingTo": "الرد على {{name}}",
+    "cancelReply": "إلغاء الرد",
+    "viewReplies": "عرض {{count}} ردود",
+    "hideReplies": "إخفاء الردود",
+    "loadMoreReplies": "عرض المزيد من الردود",
+    "repliesLoadError": "تعذّر تحميل الردود. اضغط للمحاولة مرة أخرى.",
+    "deleted": "تم حذف هذا التعليق.",
+    "like": "إعجاب",
+    "unlike": "إلغاء الإعجاب",
+    "likeCountA11y": "{{count}} إعجاب",
+    "likeError": "تعذّر تحديث الإعجاب."
   },
   "reactions": {
     "pickerTitle": "إضافة تفاعل",

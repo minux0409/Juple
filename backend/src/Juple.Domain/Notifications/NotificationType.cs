@@ -69,4 +69,18 @@ public enum NotificationType : byte
 
     /// <summary>Visible: a friend request the recipient sent was declined (SubjectId = the former request's id, ActorUserId = who declined). A cancel by the requester never produces this.</summary>
     FriendRequestRejected = 14,
+
+    /// <summary>
+    /// Visible: someone replied to the recipient's comment or reply (CollectionId, ItemId = the link, SubjectId = the NEW reply's
+    /// comment id, ActorUserId = who replied). Never the reply's text. Sent only while that reply still exists, the link is still
+    /// in the Collection and the recipient still belongs to it.
+    /// </summary>
+    CommentReplyReceived = 15,
+
+    /// <summary>
+    /// Visible: someone hearted the recipient's comment (CollectionId, ItemId = the link, SubjectId = the comment id, ActorUserId =
+    /// who hearted). One per person and comment, ever - un-hearting and hearting again does not tell again. Sent only while the
+    /// heart and the comment still exist and the recipient still belongs to the Collection.
+    /// </summary>
+    CommentLikeReceived = 16,
 }

@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} 分鐘前",
     "hoursAgo": "{{count}} 小時前",
     "moreA11y": "留言選項",
-    "ownerA11y": "{{name}}（擁有者）"
+    "ownerA11y": "{{name}}（擁有者）",
+    "reply": "回覆",
+    "replyPlaceholder": "寫下回覆",
+    "replyingTo": "回覆 {{name}}",
+    "cancelReply": "取消回覆",
+    "viewReplies": "查看 {{count}} 則回覆",
+    "hideReplies": "隱藏回覆",
+    "loadMoreReplies": "查看更多回覆",
+    "repliesLoadError": "無法載入回覆。點按重試。",
+    "deleted": "此留言已被刪除。",
+    "like": "讚",
+    "unlike": "收回讚",
+    "likeCountA11y": "{{count}} 個讚",
+    "likeError": "無法更新按讚。"
   },
   "reactions": {
     "pickerTitle": "新增表情回應",

@@ -37,6 +37,12 @@ public static class NotificationEventKeys
 
     public static string CollectionInvitationAnswered(long invitationId) => $"ev-invitation-answered:{invitationId}";
 
+    /// <summary>A reply is written once, so it tells its answered person once.</summary>
+    public static string CommentReply(long replyCommentId) => $"ev-comment-reply:{replyCommentId}";
+
+    /// <summary>One heart notification per person and comment for ever: un-hearting and hearting again is the same key.</summary>
+    public static string CommentLike(long commentId, long actorUserId) => $"ev-comment-like:{commentId}:{actorUserId}";
+
     public static string CollectionLinkSubmissionAnswered(long submissionId, bool approved) =>
         $"ev-collection-submission-{(approved ? "approved" : "rejected")}:{submissionId}";
 

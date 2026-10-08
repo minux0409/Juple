@@ -407,6 +407,34 @@ public sealed class SocialPushDispatchTests
     }
 
     [Fact]
+    public void ReplyAndHeartText_CoversEveryAppLanguage_NamesTheActorAndNeverTheComment()
+    {
+        var titles = new HashSet<string>();
+        foreach (var locale in new[] { "ko", "en", "ja", "zh-Hans", "zh-Hant", "es", "fr", "de", "it", "pt-BR", "vi", "th", "id", "ru", "tr", "ar", "hi" })
+        {
+            var reply = SocialPushText.For(NotificationType.CommentReplyReceived, locale, "SENDER", "COLL");
+            var heart = SocialPushText.For(NotificationType.CommentLikeReceived, locale, "SENDER", "COLL");
+            Assert.Contains("SENDER", reply.Body);
+            Assert.Contains("SENDER", heart.Body);
+            Assert.NotEqual(reply.Title, heart.Title);
+            // Whose comment it is and where it is are not part of the sentence - only who did it.
+            Assert.DoesNotContain("COLL", reply.Body);
+            Assert.DoesNotContain("COLL", heart.Body);
+            Assert.NotEqual(SocialPushText.For(NotificationType.CollectionItemCommentReceived, locale, "SENDER", "COLL").Title, reply.Title);
+            titles.Add(reply.Title);
+        }
+
+        // Not one English sentence copied into every language.
+        Assert.True(titles.Count >= 15);
+        Assert.Equal(("New reply", "Kim replied to your comment."), SocialPushText.For(NotificationType.CommentReplyReceived, "en", "Kim", "여행"));
+        Assert.Equal(("Comment liked", "Kim liked your comment."), SocialPushText.For(NotificationType.CommentLikeReceived, "en-US", "Kim", "여행"));
+        Assert.Equal("commentReply", SocialNotificationPolicy.WireType(NotificationType.CommentReplyReceived));
+        Assert.Equal("commentLike", SocialNotificationPolicy.WireType(NotificationType.CommentLikeReceived));
+        Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.CommentReplyReceived)); // visible Push
+        Assert.False(SocialNotificationPolicy.IsDataOnly(NotificationType.CommentLikeReceived));
+    }
+
+    [Fact]
     public void NewLinkNotifications_AreOnePerOperation()
     {
         var first = SocialNotificationPolicy.ItemsAddedDedupKey(42, 5, Guid.NewGuid());

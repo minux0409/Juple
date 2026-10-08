@@ -607,7 +607,20 @@
     "minutesAgo": "vor {{count}} Min.",
     "hoursAgo": "vor {{count}} Std.",
     "moreA11y": "Kommentaroptionen",
-    "ownerA11y": "{{name}} (Eigentümer)"
+    "ownerA11y": "{{name}} (Eigentümer)",
+    "reply": "Antworten",
+    "replyPlaceholder": "Antwort schreiben",
+    "replyingTo": "Antwort an {{name}}",
+    "cancelReply": "Antwort abbrechen",
+    "viewReplies": "{{count}} Antworten ansehen",
+    "hideReplies": "Antworten ausblenden",
+    "loadMoreReplies": "Weitere Antworten ansehen",
+    "repliesLoadError": "Antworten konnten nicht geladen werden. Tippen zum Wiederholen.",
+    "deleted": "Dieser Kommentar wurde gelöscht.",
+    "like": "Gefällt mir",
+    "unlike": "Gefällt mir nicht mehr",
+    "likeCountA11y": "{{count}} Mal gefällt mir",
+    "likeError": "„Gefällt mir“ konnte nicht aktualisiert werden."
   },
   "reactions": {
     "pickerTitle": "Reaktion hinzufügen",

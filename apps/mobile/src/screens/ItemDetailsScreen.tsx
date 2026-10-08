@@ -161,7 +161,7 @@ function getImagePickerErrorMessage(errorCode: string | undefined, t: TFunction)
 export function ItemDetailsScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const { showNotificationToast } = useAppToast();
-  const { itemId, collectionContext, initialFocus, openContext } = route.params;
+  const { itemId, collectionContext, initialFocus, initialFocusThreadRootId, openContext } = route.params;
   const authenticatedRequest = useAuthenticatedApi();
   // Opened from a Home/Archive card gated by a Collection: every read of this link goes IN that Collection's context
   // with this opening's grant, taken once from the in-memory hand-off and kept only while this popup is open (closing it
@@ -200,6 +200,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     isCollectionOwner: collectionContext?.isCollectionOwner === true,
     row: collaborationRow,
     enabled: isCollaborative && collaborationRow !== null,
+    focusThreadRootId: initialFocusThreadRootId ?? null,
   });
   // What a save, photo change, delete or open just did when it was not a plain success (or a save that
   // proposed the link to 승인 후 추가 Collections) - the shared message dialog, never a red line that

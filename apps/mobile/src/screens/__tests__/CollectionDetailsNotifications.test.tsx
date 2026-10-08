@@ -111,6 +111,37 @@ describe('CollectionDetailsScreen - notifications', () => {
     expect(navigation.navigate).not.toHaveBeenCalledWith('ItemDetails', expect.anything());
   });
 
+  it('a reply notification on my own link opens it with its thread to open', async () => {
+    jest.mocked(getCollection).mockResolvedValue(collection());
+    jest.mocked(markCollectionNewLinksRead).mockResolvedValue({ markedCount: 0, unreadCount: 0 });
+
+    const navigation = await renderScreen({ openItem: { itemId: 9, focus: 'comments', commentRootId: 41 } });
+
+    expect(navigation.navigate).toHaveBeenCalledWith('ItemDetails', {
+      itemId: 9,
+      collectionContext: { collectionId: 1, canRemove: true, isCollectionOwner: false, isCollaborative: true },
+      initialFocus: 'comments',
+      initialFocusThreadRootId: 41,
+    });
+  });
+
+  it('a reply or heart on my comment under somebody else link opens the read-only shared view, thread open - once', async () => {
+    jest.mocked(getCollection).mockResolvedValue(collection());
+    jest.mocked(markCollectionNewLinksRead).mockResolvedValue({ markedCount: 0, unreadCount: 0 });
+
+    const navigation = await renderScreen({ openItem: { itemId: 9, focus: 'comments', commentRootId: 41, shared: true } });
+
+    expect(navigation.setParams).toHaveBeenCalledWith({ openItem: undefined });
+    expect(navigation.navigate).toHaveBeenCalledWith('CollectionSharedItem', {
+      collectionId: 1,
+      itemId: 9,
+      isCollectionOwner: false,
+      focusThreadRootId: 41,
+    });
+    expect(navigation.navigate).not.toHaveBeenCalledWith('ItemDetails', expect.anything());
+    expect(jest.mocked(navigation.navigate).mock.calls.filter(([name]) => name === 'CollectionSharedItem')).toHaveLength(1);
+  });
+
   it('a comment notification opens my link IN this Collection, scrolled to its comments - once', async () => {
     jest.mocked(getCollection).mockResolvedValue(collection());
     jest.mocked(markCollectionNewLinksRead).mockResolvedValue({ markedCount: 0, unreadCount: 0 });

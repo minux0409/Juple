@@ -1257,8 +1257,55 @@ public sealed class CollectionsController(
         CancellationToken cancellationToken,
         [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
         ExecuteAsync(
-            userId => commentService.CreateAsync(userId, id, itemId, request?.Body, unlockToken, cancellationToken),
+            userId => commentService.CreateAsync(userId, id, itemId, request?.Body, unlockToken, request?.ParentCommentId, cancellationToken),
             comment => StatusCode(StatusCodes.Status201Created, comment),
+            cancellationToken);
+
+    /// <summary>
+    /// One thread's replies, oldest first: `limit` (default 30, at most 100) after `after` (the nextCursor of the last page; omit for the
+    /// first). {commentId} is a TOP-LEVEL comment of the link (404 otherwise). Same access and content gate as the comments themselves.
+    /// </summary>
+    [HttpGet("{id:long}/items/{itemId:long}/comments/{commentId:long}/replies")]
+    public Task<IActionResult> ListCommentRepliesAsync(
+        long id,
+        long itemId,
+        long commentId,
+        [FromQuery] long? after,
+        [FromQuery] int? limit,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.ListRepliesAsync(userId, id, itemId, commentId, after, limit, unlockToken, cancellationToken),
+            page => Ok(page),
+            cancellationToken);
+
+    /// <summary>Hearts a comment for the caller. Idempotent (a repeat is the same answer): {liked: true, likeCount}. 404 for a comment that is not a live one of this link.</summary>
+    [HttpPut("{id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
+    public Task<IActionResult> LikeCommentAsync(
+        long id,
+        long itemId,
+        long commentId,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.SetLikeAsync(userId, id, itemId, commentId, true, unlockToken, cancellationToken),
+            state => Ok(state),
+            cancellationToken);
+
+    /// <summary>Takes the caller's heart back. Idempotent: {liked: false, likeCount}.</summary>
+    [HttpDelete("{id:long}/items/{itemId:long}/comments/{commentId:long}/like")]
+    public Task<IActionResult> UnlikeCommentAsync(
+        long id,
+        long itemId,
+        long commentId,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.SetLikeAsync(userId, id, itemId, commentId, false, unlockToken, cancellationToken),
+            state => Ok(state),
             cancellationToken);
 
     /// <summary>Deletes a comment: its author, or the Collection's Owner for any. 403 for another member; one that is gone already is a success (204).</summary>
@@ -1631,7 +1678,8 @@ public sealed class CollectionsController(
 
     public sealed record SetReactionRequest(string? ReactionKey);
 
-    public sealed record PostCommentRequest(string? Body);
+    /// <summary>ParentCommentId: the comment (or reply) this one answers - optional, additive; the thread root and the answered person are decided server-side.</summary>
+    public sealed record PostCommentRequest(string? Body, long? ParentCommentId = null);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);
 

@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} 分钟前",
     "hoursAgo": "{{count}} 小时前",
     "moreA11y": "评论选项",
-    "ownerA11y": "{{name}}（所有者）"
+    "ownerA11y": "{{name}}（所有者）",
+    "reply": "回复",
+    "replyPlaceholder": "写下回复",
+    "replyingTo": "回复 {{name}}",
+    "cancelReply": "取消回复",
+    "viewReplies": "查看 {{count}} 条回复",
+    "hideReplies": "隐藏回复",
+    "loadMoreReplies": "查看更多回复",
+    "repliesLoadError": "无法加载回复。点按重试。",
+    "deleted": "该评论已被删除。",
+    "like": "赞",
+    "unlike": "取消赞",
+    "likeCountA11y": "{{count}} 个赞",
+    "likeError": "无法更新点赞。"
   },
   "reactions": {
     "pickerTitle": "添加表情回应",

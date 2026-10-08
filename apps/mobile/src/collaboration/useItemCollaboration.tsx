@@ -32,6 +32,8 @@ interface UseItemCollaborationOptions {
   readonly row: CollaborationRow | null;
   /** Off outside a collaborative Collection: nothing is requested and nothing is drawn. */
   readonly enabled: boolean;
+  /** A reply / heart notification: the top-level comment whose thread opens once the comments are loaded. */
+  readonly focusThreadRootId?: number | null;
 }
 
 /**
@@ -46,7 +48,7 @@ interface UseItemCollaborationOptions {
  * null while \`enabled\` is false or \`row\` is unknown. Everything here is its own state: reacting or
  * commenting never reloads the link or touches the screen's drafts.
  */
-export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, row, enabled }: UseItemCollaborationOptions): {
+export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, row, enabled, focusThreadRootId = null }: UseItemCollaborationOptions): {
   readonly reactions: ReactNode;
   readonly comments: ReactNode;
   readonly composer: ReactNode;
@@ -62,8 +64,12 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
     collectionId,
     itemId,
     unlockToken,
-    kind => showNotificationToast(t(kind === 'send' ? 'comments.sendError' : kind === 'delete' ? 'comments.deleteError' : 'comments.loadError')),
+    kind =>
+      showNotificationToast(
+        t(kind === 'send' ? 'comments.sendError' : kind === 'delete' ? 'comments.deleteError' : kind === 'like' ? 'comments.likeError' : 'comments.loadError'),
+      ),
     enabled,
+    focusThreadRootId,
   );
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const rowRef = useRef<CollaborationRow | null>(null);
@@ -108,16 +114,33 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
           onDelete={commentId => {
             comments.remove(commentId).catch(() => undefined);
           }}
+          onLoadMoreReplies={rootId => {
+            comments.loadMoreReplies(rootId).catch(() => undefined);
+          }}
           onLoadPrevious={() => {
             comments.loadPrevious().catch(() => undefined);
           }}
+          onReply={comments.startReply}
           onRetry={() => {
             comments.load().catch(() => undefined);
           }}
+          onRetryReplies={comments.retryReplies}
+          onToggleLike={target => {
+            comments.toggleLike(target).catch(() => undefined);
+          }}
+          onToggleReplies={comments.toggleReplies}
           status={comments.status}
+          threads={comments.threads}
           totalCount={comments.totalCount}
         />
     ),
-    composer: <CommentComposer isSending={comments.isSending} onSubmit={comments.send} />,
+    composer: (
+      <CommentComposer
+        isSending={comments.isSending}
+        onCancelReply={comments.cancelReply}
+        onSubmit={comments.send}
+        replyTarget={comments.replyTarget}
+      />
+    ),
   };
 }

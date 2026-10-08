@@ -607,7 +607,20 @@
     "minutesAgo": "{{count}} phút trước",
     "hoursAgo": "{{count}} giờ trước",
     "moreA11y": "Tùy chọn bình luận",
-    "ownerA11y": "{{name}} (chủ sở hữu)"
+    "ownerA11y": "{{name}} (chủ sở hữu)",
+    "reply": "Trả lời",
+    "replyPlaceholder": "Viết phản hồi",
+    "replyingTo": "Đang trả lời {{name}}",
+    "cancelReply": "Hủy trả lời",
+    "viewReplies": "Xem {{count}} phản hồi",
+    "hideReplies": "Ẩn phản hồi",
+    "loadMoreReplies": "Xem thêm phản hồi",
+    "repliesLoadError": "Không tải được phản hồi. Chạm để thử lại.",
+    "deleted": "Bình luận này đã bị xóa.",
+    "like": "Thích",
+    "unlike": "Bỏ thích",
+    "likeCountA11y": "{{count}} lượt thích",
+    "likeError": "Không cập nhật được lượt thích."
   },
   "reactions": {
     "pickerTitle": "Thêm cảm xúc",

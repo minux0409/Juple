@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Juple.Infrastructure.Users.DeleteAccount;
 
-public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDeletionStore
+public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider? timeProvider = null) : IAccountDeletionStore
 {
     public async Task<long> DeleteAllDataAsync(
         long userId,
@@ -122,9 +122,36 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext) : IAccountDel
             // This user's comments on anyone's links (UserId is NoAction); comments on their own
             // Collections' links would also cascade below. Leaving a Collection does NOT remove a
             // comment - only deleting the account does.
+            // Replies by other people to this user's comments keep their thread: the comment becomes a
+            // placeholder with no author instead of being deleted, and replies that answered this person
+            // forget who (ReplyToUserId is NoAction). Their hearts go first (UserId is NoAction).
+            await dbContext.CollectionItemCommentLikes
+                .Where(like => like.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.CollectionItemComments
+                .Where(comment => comment.ReplyToUserId == userId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(comment => comment.ReplyToUserId, (long?)null), cancellationToken);
+            // Leaves first: a comment of theirs nobody answers goes for good; repeat until only those that others (or their own
+            // placeholders) still answer are left - the thread's depth bounds the passes.
+            while (await dbContext.CollectionItemComments
+                .Where(comment => comment.UserId == userId
+                    && !dbContext.CollectionItemComments.Any(reply => reply.ParentCommentId == comment.Id))
+                .ExecuteDeleteAsync(cancellationToken) > 0)
+            {
+            }
+
+            var deletedAtUtc = (timeProvider ?? TimeProvider.System).GetUtcNow();
+            await dbContext.CollectionItemCommentLikes
+                .Where(like => dbContext.CollectionItemComments.Any(comment => comment.Id == like.CommentId && comment.UserId == userId))
+                .ExecuteDeleteAsync(cancellationToken);
             await dbContext.CollectionItemComments
                 .Where(comment => comment.UserId == userId)
-                .ExecuteDeleteAsync(cancellationToken);
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(comment => comment.Body, string.Empty)
+                        .SetProperty(comment => comment.UserId, (long?)null)
+                        .SetProperty(comment => comment.DeletedAtUtc, deletedAtUtc),
+                    cancellationToken);
 
             // This user's emoji reactions on anyone's links (UserId is NoAction); reactions on their own
             // Collections' links would also cascade below.

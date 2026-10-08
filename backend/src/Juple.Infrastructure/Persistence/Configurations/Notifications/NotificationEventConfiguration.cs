@@ -11,7 +11,7 @@ public sealed class NotificationEventConfiguration : IEntityTypeConfiguration<No
         builder.ToTable("NotificationEvents", "notifications", table =>
         {
             // The same range as CK_Notifications_Type_Valid: an event always becomes Notifications of its Type.
-            table.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)");
+            table.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)");
             table.HasCheckConstraint("CK_NotificationEvents_Status_Valid", "[Status] IN (0, 1, 2)");
         });
 

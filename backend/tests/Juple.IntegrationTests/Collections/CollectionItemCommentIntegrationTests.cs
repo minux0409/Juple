@@ -502,6 +502,330 @@ public sealed class CollectionItemCommentIntegrationTests : IAsyncLifetime
         Assert.DoesNotContain(typeof(CollectionItemEntryDto).GetProperties(), property => property.Name.Contains("Comment", StringComparison.OrdinalIgnoreCase));
     }
 
+    // ---------- threads: replies ----------
+
+    [Fact]
+    public async Task AReplyToATopLevelComment_HangsUnderIt_AndOnlyTopLevelCommentsAreInTheMainPage()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+
+        var reply = await _comments.CreateAsync(_viewer, _sharedId, _item1, "a reply", null, top.Id);
+
+        Assert.Equal(top.Id, reply.RootCommentId);
+        Assert.Equal(top.Id, reply.ParentCommentId);
+        Assert.Null(reply.ReplyTo); // a direct reply is already under its parent - no mention needed
+        var page = await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null);
+        var shown = Assert.Single(page.Items);
+        Assert.Equal(top.Id, shown.Id);
+        Assert.Equal(1, shown.ReplyCount);
+        Assert.Equal(2, page.TotalCount); // the title counts every live comment, replies included
+    }
+
+    [Fact]
+    public async Task AReplyToAReply_KeepsTheSameRoot_AndNamesTheAnsweredPersonFromTheStoredParent()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+        var first = await _comments.CreateAsync(_viewer, _sharedId, _item1, "first reply", null, top.Id);
+
+        var second = await _comments.CreateAsync(_contributor, _sharedId, _item1, "@nobody reply to the reply", null, first.Id);
+
+        Assert.Equal(top.Id, second.RootCommentId); // never a deeper level
+        Assert.Equal(first.Id, second.ParentCommentId);
+        Assert.Equal(await JupleIdOfAsync(_viewer), second.ReplyTo!.JupleId); // from the parent's stored author, not from the typed text
+        var replies = await _comments.ListRepliesAsync(_owner, _sharedId, _item1, top.Id, null, null, null);
+        Assert.Equal([first.Id, second.Id], replies.Items.Select(item => item.Id));
+        Assert.All(replies.Items, item => Assert.Equal(top.Id, item.RootCommentId));
+        Assert.Equal(2, replies.TotalCount);
+        Assert.Null(replies.NextCursor);
+    }
+
+    [Fact]
+    public async Task AReplyIsRejected_ForAMissingParent_AnotherLinksComment_AndANonMember()
+    {
+        var onOne = await _comments.CreateAsync(_owner, _sharedId, _item1, "on one", null);
+        await _comments.CreateAsync(_owner, _sharedId, _item2, "on two", null);
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.CreateAsync(_viewer, _sharedId, _item2, "wrong link", null, onOne.Id));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.CreateAsync(_viewer, _sharedId, _item1, "missing", null, 999_999_999));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.CreateAsync(_outsider, _sharedId, _item1, "not a member", null, onOne.Id));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.ListRepliesAsync(_outsider, _sharedId, _item1, onOne.Id, null, null, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.SetLikeAsync(_outsider, _sharedId, _item1, onOne.Id, true, null));
+        Assert.Equal(1, await _db.CollectionItemComments.CountAsync(entry => entry.ItemId == _item1));
+    }
+
+    [Fact]
+    public async Task ReplyPages_WalkForwardWithAStableCursor_NoDuplicateAndNoMissingReply()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+        var ids = new List<long>();
+        for (var index = 0; index < 7; index++)
+        {
+            ids.Add((await _comments.CreateAsync(index % 2 == 0 ? _viewer : _contributor, _sharedId, _item1, $"reply {index}", null, top.Id)).Id);
+        }
+
+        var seen = new List<long>();
+        long? cursor = null;
+        var pages = 0;
+        do
+        {
+            var page = await _comments.ListRepliesAsync(_owner, _sharedId, _item1, top.Id, cursor, 3, null);
+            seen.AddRange(page.Items.Select(item => item.Id));
+            Assert.Equal(7, page.TotalCount);
+            cursor = page.NextCursor;
+            pages++;
+        }
+        while (cursor is not null);
+
+        Assert.Equal(ids, seen);
+        Assert.Equal(3, pages);
+        // A reply id (or a missing one) is not a thread.
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.ListRepliesAsync(_owner, _sharedId, _item1, ids[0], null, null, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.ListRepliesAsync(_owner, _sharedId, _item1, 999_999_999, null, null, null));
+    }
+
+    // ---------- threads: deletion ----------
+
+    [Fact]
+    public async Task ACommentWithoutReplies_IsDeletedForGood()
+    {
+        var top = await _comments.CreateAsync(_contributor, _sharedId, _item1, "alone", null);
+
+        await _comments.DeleteAsync(_contributor, _sharedId, _item1, top.Id, null);
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.Id == top.Id));
+    }
+
+    [Fact]
+    public async Task DeletingACommentThatHasReplies_LeavesAPlaceholder_AndKeepsTheReplies_UntilTheLastReplyGoes()
+    {
+        var top = await _comments.CreateAsync(_contributor, _sharedId, _item1, "secret opinion", null);
+        var reply = await _comments.CreateAsync(_viewer, _sharedId, _item1, "I disagree", null, top.Id);
+        await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+
+        await _comments.DeleteAsync(_contributor, _sharedId, _item1, top.Id, null);
+
+        _db.ChangeTracker.Clear();
+        var stored = await _db.CollectionItemComments.AsNoTracking().SingleAsync(entry => entry.Id == top.Id);
+        Assert.True(stored.IsTombstone);
+        Assert.Equal(string.Empty, stored.Body); // the words are gone
+        Assert.Null(stored.UserId); // and so is the person
+        Assert.Equal(0, await _db.CollectionItemCommentLikes.CountAsync(like => like.CommentId == top.Id));
+        var page = await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null);
+        var shown = Assert.Single(page.Items);
+        Assert.True(shown.IsDeleted);
+        Assert.Equal(string.Empty, shown.Body);
+        Assert.Equal(string.Empty, shown.Author.JupleId);
+        Assert.Equal(1, shown.ReplyCount);
+        Assert.Equal(1, page.TotalCount); // only the live reply counts as a comment
+        var replies = await _comments.ListRepliesAsync(_owner, _sharedId, _item1, top.Id, null, null, null);
+        Assert.Equal(reply.Id, Assert.Single(replies.Items).Id);
+
+        // Deleting the same one again is a success; a placeholder can be neither answered nor hearted.
+        await _comments.DeleteAsync(_contributor, _sharedId, _item1, top.Id, null);
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.CreateAsync(_viewer, _sharedId, _item1, "too late", null, top.Id));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null));
+
+        // The last reply goes: the finished placeholder goes with it - nothing is left behind.
+        await _comments.DeleteAsync(_viewer, _sharedId, _item1, reply.Id, null);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.ItemId == _item1));
+    }
+
+    [Fact]
+    public async Task AChainOfReplies_KeepsItsPlaceholders_AndCleansThemUpFromTheEnd()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+        var first = await _comments.CreateAsync(_viewer, _sharedId, _item1, "first", null, top.Id);
+        var second = await _comments.CreateAsync(_contributor, _sharedId, _item1, "second", null, first.Id);
+
+        await _comments.DeleteAsync(_viewer, _sharedId, _item1, first.Id, null); // answered by the second: a placeholder
+        await _comments.DeleteAsync(_owner, _sharedId, _item1, top.Id, null); // answered by the first: a placeholder
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(3, await _db.CollectionItemComments.CountAsync(entry => entry.ItemId == _item1));
+        var replies = await _comments.ListRepliesAsync(_owner, _sharedId, _item1, top.Id, null, null, null);
+        Assert.True(replies.Items[0].IsDeleted);
+        Assert.False(replies.Items[1].IsDeleted);
+        Assert.Equal(first.Id, replies.Items[1].ParentCommentId); // the thread keeps its shape
+
+        await _comments.DeleteAsync(_contributor, _sharedId, _item1, second.Id, null);
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.ItemId == _item1));
+    }
+
+    [Fact]
+    public async Task OnlyTheAuthorOrTheOwnerMayDeleteAReply()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+        var reply = await _comments.CreateAsync(_viewer, _sharedId, _item1, "reply", null, top.Id);
+
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => _comments.DeleteAsync(_contributor, _sharedId, _item1, reply.Id, null));
+        await _comments.DeleteAsync(_owner, _sharedId, _item1, reply.Id, null);
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.Id == reply.Id));
+    }
+
+    [Fact]
+    public async Task TakingTheLinkOut_RemovesAWholeThreadWithItsHearts_InOneStatement()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+        var first = await _comments.CreateAsync(_viewer, _sharedId, _item1, "first", null, top.Id);
+        await _comments.CreateAsync(_contributor, _sharedId, _item1, "second", null, first.Id);
+        await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+        var keep = await _comments.CreateAsync(_owner, _sharedId, _item2, "stays", null);
+        await _comments.CreateAsync(_viewer, _sharedId, _item2, "stays too", null, keep.Id);
+
+        await _collections.RemoveAsync(_owner, _sharedId, _item1);
+
+        _db.ChangeTracker.Clear();
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.ItemId == _item1));
+        Assert.Equal(0, await _db.CollectionItemCommentLikes.CountAsync(like => like.CommentId == top.Id));
+        Assert.Equal(2, await _db.CollectionItemComments.CountAsync(entry => entry.ItemId == _item2));
+        // And the whole Item / Collection, threads included.
+        await _db.Items.Where(item => item.Id == _item2).ExecuteDeleteAsync();
+        await _db.Collections.Where(collection => collection.Id == _sharedId).ExecuteDeleteAsync();
+        _db.ChangeTracker.Clear();
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.CollectionId == _sharedId));
+    }
+
+    [Fact]
+    public async Task DeletingAnAccount_KeepsOthersReplies_AsPlaceholdersAndForgottenReplyTargets()
+    {
+        var top = await _comments.CreateAsync(_contributor, _sharedId, _item1, "mine, answered", null);
+        var answer = await _comments.CreateAsync(_viewer, _sharedId, _item1, "answering the contributor", null, top.Id);
+        var alone = await _comments.CreateAsync(_contributor, _sharedId, _item1, "mine, alone", null);
+        var mineReply = await _comments.CreateAsync(_contributor, _sharedId, _item1, "mine, a reply nobody answers", null, answer.Id);
+        await _comments.SetLikeAsync(_contributor, _sharedId, _item1, answer.Id, true, null);
+        await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+
+        await new AccountDeletionStore(_db).DeleteAllDataAsync(_contributor, $"test/{_contributor}/", DateTimeOffset.UtcNow);
+
+        _db.ChangeTracker.Clear();
+        _userIds.Remove(_contributor);
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.Id == alone.Id)); // unanswered: gone
+        Assert.Equal(0, await _db.CollectionItemComments.CountAsync(entry => entry.Id == mineReply.Id));
+        var placeholder = await _db.CollectionItemComments.AsNoTracking().SingleAsync(entry => entry.Id == top.Id);
+        Assert.True(placeholder.IsTombstone); // answered by somebody else: the thread stays
+        Assert.Null(placeholder.UserId);
+        var kept = await _db.CollectionItemComments.AsNoTracking().SingleAsync(entry => entry.Id == answer.Id);
+        Assert.Null(kept.ReplyToUserId); // it no longer says whom it answered
+        Assert.Equal(0, await _db.CollectionItemCommentLikes.CountAsync(like => like.UserId == _contributor));
+        Assert.Equal(0, await _db.CollectionItemCommentLikes.CountAsync(like => like.CommentId == top.Id));
+        Assert.Equal(0, await _db.Users.CountAsync(user => user.Id == _contributor));
+    }
+
+    // ---------- threads: hearts ----------
+
+    [Fact]
+    public async Task AHeart_IsIdempotent_CountsEveryPerson_AndCanBeTakenBack()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+
+        var liked = await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+        var again = await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+        var other = await _comments.SetLikeAsync(_contributor, _sharedId, _item1, top.Id, true, null);
+
+        Assert.Equal(new CommentLikeStateDto(true, 1), liked);
+        Assert.Equal(new CommentLikeStateDto(true, 1), again); // a double tap or a retry is not a second heart
+        Assert.Equal(new CommentLikeStateDto(true, 2), other);
+        var asViewer = (await _comments.ListAsync(_viewer, _sharedId, _item1, null, null, null)).Items[0];
+        var asOwner = (await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null)).Items[0];
+        Assert.Equal((2, true), (asViewer.LikeCount, asViewer.ViewerLiked));
+        Assert.Equal((2, false), (asOwner.LikeCount, asOwner.ViewerLiked));
+
+        var taken = await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, false, null);
+        var takenAgain = await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, false, null);
+
+        Assert.Equal(new CommentLikeStateDto(false, 1), taken);
+        Assert.Equal(new CommentLikeStateDto(false, 1), takenAgain);
+        _db.ChangeTracker.Clear();
+        Assert.Equal(1, await _db.CollectionItemCommentLikes.CountAsync(like => like.CommentId == top.Id));
+    }
+
+    [Fact]
+    public async Task ManyParallelHearts_FromOnePerson_LeaveExactlyOneRow_AndNobodyGetsAnError()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(async _ =>
+        {
+            await using var context = NewContext();
+            var service = new CollectionItemCommentService(
+                new CollectionAccessService(new CollectionAccessStore(context), _tokens, TimeProvider.System),
+                new CollectionItemCommentStore(context, _photos),
+                TimeProvider.System);
+            return await service.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+        }));
+
+        Assert.All(results, state => Assert.True(state.Liked));
+        Assert.All(results, state => Assert.Equal(1, state.LikeCount));
+        _db.ChangeTracker.Clear();
+        Assert.Equal(1, await _db.CollectionItemCommentLikes.CountAsync(like => like.CommentId == top.Id && like.UserId == _viewer));
+    }
+
+    [Fact]
+    public async Task AHeartOnAnotherLinksComment_ThroughThisLink_IsNotFound()
+    {
+        var onTwo = await _comments.CreateAsync(_owner, _sharedId, _item2, "on two", null);
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.SetLikeAsync(_viewer, _sharedId, _item1, onTwo.Id, true, null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.SetLikeAsync(_viewer, _sharedId, _item1, 999_999_999, true, null));
+    }
+
+    [Fact]
+    public async Task ACommentWrittenByAnOlderApiRevision_IsAnOrdinaryTopLevelComment()
+    {
+        // The previous revision's INSERT does not know the thread columns.
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO collections.CollectionItemComments (CollectionId, ItemId, UserId, Body, CreatedAtUtc) VALUES ({_sharedId}, {_item1}, {_viewer}, {"from before replies existed"}, SYSDATETIMEOFFSET())");
+
+        var page = await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null);
+
+        var comment = Assert.Single(page.Items);
+        Assert.Equal("from before replies existed", comment.Body);
+        Assert.Null(comment.RootCommentId);
+        Assert.Equal((0, 0, false, false), (comment.ReplyCount, comment.LikeCount, comment.ViewerLiked, comment.IsDeleted));
+        var reply = await _comments.CreateAsync(_owner, _sharedId, _item1, "now it can be answered", null, comment.Id);
+        Assert.Equal(comment.Id, reply.RootCommentId);
+    }
+
+    [Fact]
+    public async Task APageOfThreadedComments_StillLoadsInAFixedNumberOfStatements()
+    {
+        for (var index = 0; index < 30; index++)
+        {
+            var top = await _comments.CreateAsync(index % 2 == 0 ? _viewer : _owner, _sharedId, _item1, $"comment {index}", null);
+            var reply = await _comments.CreateAsync(_contributor, _sharedId, _item1, $"reply {index}", null, top.Id);
+            await _comments.CreateAsync(_viewer, _sharedId, _item1, $"reply to reply {index}", null, reply.Id);
+            await _comments.SetLikeAsync(_viewer, _sharedId, _item1, top.Id, true, null);
+        }
+
+        var commands = new CommandCounter();
+        await using var counted = NewContext(commands);
+        var service = new CollectionItemCommentService(
+            new CollectionAccessService(new CollectionAccessStore(counted), _tokens, TimeProvider.System),
+            new CollectionItemCommentStore(counted, new FakeProfileImageStorage()),
+            TimeProvider.System);
+        commands.Reset();
+
+        var page = await service.ListAsync(_owner, _sharedId, _item1, null, 30, null);
+        var pageStatements = commands.Count;
+        commands.Reset();
+        var replies = await service.ListRepliesAsync(_owner, _sharedId, _item1, page.Items[0].Id, null, 30, null);
+        var replyStatements = commands.Count;
+
+        Assert.Equal(30, page.Items.Count);
+        Assert.All(page.Items, item => Assert.Equal((2, 1), (item.ReplyCount, item.LikeCount)));
+        Assert.Equal(2, replies.Items.Count);
+        Assert.NotNull(replies.Items[1].ReplyTo);
+        // 30 comments with replies and hearts cost the same few statements as an empty page - never one per comment.
+        Assert.InRange(pageStatements, 1, 12);
+        Assert.InRange(replyStatements, 1, 14);
+    }
+
     // ---------- helpers ----------
 
     private long UserOf(string who) => who switch
