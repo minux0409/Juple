@@ -7,7 +7,11 @@ export interface PendingShare {
   readonly receivedAtEpochMs: number;
   /** Best-effort title from the sharing app's own Intent (EXTRA_SUBJECT/EXTRA_TITLE) - null when it provided none. Never a network-fetched value. */
   readonly initialTitle: string | null;
-  /** Resolved from a matched Direct Share category shortcut at share time; null for the generic Juple target - only consumed by the Quick Save OFF review screen (NewLinkReviewScreen), never applied automatically by the ON immediate-save path. */
+  /**
+   * The Collection a Direct Share row named at share time (one the user pinned); null for the generic Juple target. Only a
+   * CLAIM: every consumer re-validates it with the backend (existence, access, role, lock) before using it - the Quick Save
+   * ON headless save to save into it, the Quick Save OFF router to preselect it in NewLinkReview.
+   */
   readonly preselectedCollectionId: number | null;
   /** Always null - reserved wire-format field, kept for native queue schema compatibility with a since-removed Quick Save composer draft. */
   readonly draftTitle: string | null;
@@ -25,10 +29,26 @@ export interface PendingShare {
   readonly autoSaveOutcome?: string | null;
 }
 
-export interface CategorySnapshotEntry {
+/** A Collection the user explicitly added to the app shortcuts (device-local; see CollectionShortcutService). */
+export interface PinnedCollectionShortcut {
   readonly id: number;
   readonly name: string;
-  readonly isFavorite: boolean;
+  /**
+   * What the Collection's shortcut icon is drawn from - the SAME data its card shows: the configured icon key and the card's tile /
+   * glyph colors, and the version of its own photo (iconImageVersion). Optional: entries stored by an older build have none.
+   */
+  readonly iconKey?: string | null;
+  readonly tileColor?: string | null;
+  readonly glyphColor?: string | null;
+  readonly imageVersion?: string | null;
+}
+
+/** What a launcher-shortcut tap / a failed Direct Share left for JS to act on - consumed exactly once. */
+export interface ShortcutLaunch {
+  /** A launcher shortcut for this Collection was tapped; NOT trusted - the app re-reads the Collection before opening it. */
+  readonly openCollectionId: number | null;
+  /** A notice code for a message to show (see shortcutLaunchNotice.ts), or null. */
+  readonly notice: string | null;
 }
 
 export interface Spec extends TurboModule {
@@ -47,17 +67,42 @@ export interface Spec extends TurboModule {
    * when deciding whether to save immediately or bring the app to the foreground for review.
    */
   setQuickSaveOnShare(enabled: boolean): Promise<void>;
-  /** Native-cached Collection list backing Direct Share category shortcuts - never a live API call. */
-  getCategorySnapshot(): Promise<ReadonlyArray<CategorySnapshotEntry>>;
+  /** The Collections the user pinned as app shortcuts, as stored on this device - never a live API call. */
+  getPinnedCollectionShortcuts(): Promise<ReadonlyArray<PinnedCollectionShortcut>>;
   /**
-   * Overwrites the native category snapshot and republishes Direct Share dynamic shortcuts from
-   * it (see categorySnapshotSync.ts). `categoriesJson` is `JSON.stringify(CategorySnapshotEntry[])`
-   * - a plain string, not a codegen struct array, to keep this parameter direction (JS -> native)
-   * on the one object-passing shape already proven safe in this bridge.
+   * Replaces the whole pinned set and republishes the launcher + Direct Share shortcuts from it (one call, so a removed or
+   * renamed Collection never leaves a stale shortcut). `pinnedJson` is `JSON.stringify(PinnedCollectionShortcut[])` - a plain
+   * string, not a codegen struct array, to keep this parameter direction (JS -> native) on the one object-passing shape
+   * already proven safe in this bridge.
    */
-  setCategorySnapshot(categoriesJson: string): Promise<void>;
-  /** Removes all Direct Share category shortcuts and clears the native category snapshot - called on logout/account deletion so another account never sees a previous user's categories. */
-  clearCategoryShortcuts(): Promise<void>;
+  setPinnedCollectionShortcuts(pinnedJson: string): Promise<void>;
+  /** The platform's limit for shortcuts of this app. */
+  getMaxPinnedCollectionShortcuts(): Promise<number>;
+  /** Removes every pinned shortcut and clears the stored set - on sign-out / account change, so another account never sees a previous user's Collection names. */
+  clearPinnedCollectionShortcuts(): Promise<void>;
+  /** Takes (and forgets) what a launcher-shortcut tap / a failed Direct Share left for the app. */
+  consumeShortcutLaunch(): Promise<ShortcutLaunch>;
+  /** Whether this launcher can add a shortcut to the Home screen (Android's requestPinShortcut). */
+  isHomeShortcutSupported(): Promise<boolean>;
+  /**
+   * Asks the launcher - through Android's own system dialog - for a real 1x1 Home-screen icon of the Collection (its photo, else its
+   * configured icon on its color, else the initial of its name; label = its name). `imageUrl` is the signed read link the card is
+   * showing - used once to prepare the photo, never stored or put in an Intent; empty strings mean "none". Resolves 'requested' once the dialog was shown (NOT that the user accepted) or
+   * 'unsupported'. When `shareable`, the Collection also becomes a Direct Share destination - but only if/when the launcher
+   * reports the user accepted; a cancelled dialog changes nothing.
+   */
+  requestHomeShortcut(
+    collectionId: number,
+    name: string,
+    iconKey: string,
+    tileColor: string,
+    glyphColor: string,
+    imageUrl: string,
+    imageVersion: string,
+    shareable: boolean,
+  ): Promise<string>;
+  /** Leaves a notice code for the app to show next time it is in front (see shortcutLaunchNotice.ts). */
+  setShortcutNotice(code: string): Promise<void>;
 }
 
 const nativeIncomingShare =

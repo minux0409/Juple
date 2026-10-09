@@ -1,5 +1,5 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +12,7 @@ import { LinkSortChips } from '../components/LinkSortChips';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
+import { chunkIntoImageLines, SavedLinkImageRow } from '../components/SavedLinkImageTile';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow } from '../components/swipeableRowCoordinator';
@@ -50,6 +51,10 @@ function toSavedLinkRowItem(entry: ItemTrashEntry): ItemHistoryEntry {
   };
 }
 
+function isImageLine(row: ItemTrashEntry | readonly ItemTrashEntry[]): row is readonly ItemTrashEntry[] {
+  return Array.isArray(row);
+}
+
 function resolveTrashTitle(entry: ItemTrashEntry): string {
   return entry.title?.trim() ? entry.title : entry.url;
 }
@@ -71,6 +76,7 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
 export function TrashScreen() {
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
+  const navigation = useNavigation();
 
   const [items, setItems] = useState<readonly ItemTrashEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,10 +100,29 @@ export function TrashScreen() {
   const [isEmptyingTrash, setIsEmptyingTrash] = useState(false);
   // Synchronous guard: two confirmations in the same frame must not both start a request.
   const isEmptyingRef = useRef(false);
-  // 비우기's own rendered width (it varies by locale/font scale) - mirrored by the header's leading
-  // slot so the limit notice stays on the true center line (see the header's own remarks).
-  const [emptyActionWidth, setEmptyActionWidth] = useState(0);
+  // 비우기 lives in the navigation header's title row (right side) and exists only while there is something to empty.
   const hasEmptyAction = items.length > 0;
+  const isCompact = viewMode === 'compact';
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: hasEmptyAction
+        ? () => (
+            <Pressable
+              accessibilityLabel={t('trash.emptyA11y')}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isEmptyingTrash }}
+              disabled={isEmptyingTrash}
+              onPress={() => setIsEmptyTrashConfirmVisible(true)}
+              style={styles.emptyTrashButton}
+              testID="trash-empty-button"
+            >
+              <EmptyTrashIcon color={colors.danger} size={22} />
+            </Pressable>
+          )
+        : undefined,
+    });
+  }, [hasEmptyAction, isEmptyingTrash, navigation, t]);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -132,6 +157,15 @@ export function TrashScreen() {
     const direction = sortOption === 'oldest' ? 1 : -1;
     return [...items].sort((a, b) => direction * (a.deletedAtUtc.localeCompare(b.deletedAtUtc) || a.id - b.id));
   }, [items, sortOption]);
+
+  // 3-column mode: lines of three links; the screen still has ONE list, so it scrolls through every link (not just nine).
+  const imageLines = useMemo(() => chunkIntoImageLines(displayedItems), [displayedItems]);
+  const openImageTile = (entry: ItemHistoryEntry) => {
+    const found = items.find(candidate => candidate.id === entry.id);
+    if (found) {
+      setActionItem(found);
+    }
+  };
 
   const closeMenuThen = (action: () => void) => afterMenuCloses(() => setActionItem(null), action);
 
@@ -208,33 +242,15 @@ export function TrashScreen() {
   return (
     <StackScreenSafeArea style={styles.screen}>
       {/*
-        One compact header bar above the list: the limit notice (always shown, even when the list is
-        empty - "0개여도 안내문은 표시") centered on the screen's true horizontal center, with 비우기 as
-        a trailing action on the same row only when there is something to empty. A leading mirror
-        slot takes 비우기's own measured width, so the notice's column is symmetric (truly centered)
-        without any hardcoded offset, and a long translation wraps instead of running under 비우기.
-        A sibling of the FlatList (not its ListHeaderComponent) so the list's own padding never opens
-        a gap between the two, and the empty-state message stays centered in the remaining space.
+        The limit notice (always shown, even when the list is empty - "0개여도 안내문은 표시") sits
+        under the title row, which holds 비우기 on its right (see the headerRight above). A sibling of
+        the FlatList (not its ListHeaderComponent) so the list's own padding never opens a gap
+        between the two, and the empty-state message stays centered in the remaining space.
       */}
-      <View style={[styles.header, hasEmptyAction && styles.headerWithAction]}>
-        {hasEmptyAction ? <View style={{ width: emptyActionWidth }} testID="trash-header-mirror-slot" /> : null}
+      <View style={styles.header}>
         <Text style={styles.limitNotice} testID="trash-limit-notice">
           {t('trash.limitNotice', { count: TRASH_LIST_LIMIT })}
         </Text>
-        {hasEmptyAction ? (
-          <Pressable
-            accessibilityLabel={t('trash.emptyA11y')}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isEmptyingTrash }}
-            disabled={isEmptyingTrash}
-            onLayout={event => setEmptyActionWidth(event.nativeEvent.layout.width)}
-            onPress={() => setIsEmptyTrashConfirmVisible(true)}
-            style={styles.emptyTrashButton}
-            testID="trash-empty-button"
-          >
-            <EmptyTrashIcon color={colors.danger} size={22} />
-          </Pressable>
-        ) : null}
       </View>
       {items.length > 0 ? (
         <View style={styles.controlsRow}>
@@ -251,17 +267,17 @@ export function TrashScreen() {
             testIDPrefix="trash-sort"
           />
           <View style={styles.controlsSpacer} />
-          <ViewModeToggle onChange={changeViewMode} value={viewMode} />
+          <ViewModeToggle onChange={changeViewMode} showCompact value={viewMode} />
         </View>
       ) : null}
-      <FlatList
+      <FlatList<ItemTrashEntry | readonly ItemTrashEntry[]>
         key={viewMode}
         contentContainerStyle={styles.content}
-        data={displayedItems}
+        data={isCompact ? imageLines : displayedItems}
         numColumns={viewMode === 'grid' ? 2 : 1}
         onScrollBeginDrag={closeOpenRow}
         style={styles.list}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => isImageLine(item) ? `line-${item[0].id}` : item.id.toString()}
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator style={styles.loading} />
@@ -273,7 +289,12 @@ export function TrashScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => viewMode === 'grid' ? (
+        renderItem={({ item }) => isImageLine(item) ? (
+          // The 3-column mode is Juple's one image-only 9-tile grid (SavedLinkImageRow, the same as Home / the Archive /
+          // Collections): squares with the picture or the site fallback and nothing else. Too small for swipe panes, so a tap or
+          // a long press opens the same popup (링크 열기 / 복구 / 영구 삭제), each still asking for confirmation.
+          <SavedLinkImageRow items={item.map(toSavedLinkRowItem)} onLongPress={openImageTile} onPress={openImageTile} testID={`trash-image-line-${item[0].id}`} />
+        ) : viewMode === 'grid' ? (
           // The same SavedLinkGridCard as Home/History/Collections, in the same swipe row as the List (compact: slim,
           // icon-only actions): right reveals 복구, left reveals 영구 삭제 - both still ask first. Tap and long-press open
           // the titleless action popup.
@@ -413,22 +434,12 @@ const styles = StyleSheet.create({
   },
   // Same horizontal inset as the list content below, so the notice and the rows line up.
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
   },
-  // Only while 비우기 is shown - the row must be tall enough for its 44dp touch target; without it
-  // the notice alone needs no extra height.
-  headerWithAction: {
-    minHeight: minTouchTarget,
-  },
-  // flex:1 between two equal-width side slots (mirror slot + 비우기) = the true center column; the
-  // full width when 비우기 is hidden. Wraps for a long translation.
+  // Wraps for a long translation.
   limitNotice: {
     color: colors.textSecondary,
-    flex: 1,
     fontSize: 12,
     textAlign: 'center',
   },
@@ -437,9 +448,7 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-  // No top inset of its own - the header bar directly above already provides the separation
-  // (header paddingTop + the vertically centered notice inside the 44dp action row), so the first
-  // row sits a small, natural distance below the notice rather than stacking two gaps.
+  // No top inset of its own - the notice's paddingTop above already provides the separation.
   content: {
     flexGrow: 1,
     paddingBottom: spacing.xl,

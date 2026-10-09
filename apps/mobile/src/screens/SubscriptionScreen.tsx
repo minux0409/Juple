@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useAuth } from '../auth/AuthContext';
 import { useSubscriptionStore } from '../billing/useSubscriptionStore';
 import type { SubscriptionOffer } from '../billing/subscriptionStore';
+import { describeEntitlement } from '../billing/subscriptionStatus';
 import type { OfferUnavailableReason, PurchaseResult, RestoreResult } from '../billing/types';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -18,13 +19,13 @@ type OfferState =
 const MONTHLY_PERIOD = 'P1M';
 
 /**
- * Subscription: the monthly plan, the localized price exactly as the store reports it, the account's current access, Subscribe and
- * Restore purchases. Store-neutral: it talks only to useSubscriptionStore (Google Play today, the App Store later) and never decides
+ * Subscription: the monthly plan, the localized price exactly as the store reports it, the account's current access, Subscribe,
+ * Manage (only while subscribed, where the store has a page for it) and Restore purchases. Store-neutral: it talks only to useSubscriptionStore (Google Play today, the App Store later) and never decides
  * access - a purchase or restore resolves only after the Backend verified it, and the access line shown is the account entitlement
  * the Backend reports. The price is never hardcoded: with no store price there is no price and no Subscribe, only a retry.
  */
 export function SubscriptionScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const store = useSubscriptionStore();
   const { entitlement } = useAuth();
   const { showMessage, messageDialog } = useMessageDialog();
@@ -145,7 +146,47 @@ export function SubscriptionScreen() {
   const subscribe = () => runExclusive(async () => purchaseText(await store.purchase()));
   const restore = () => runExclusive(async () => restoreText(await store.restore()));
 
-  const accessLabel = entitlement?.programEnabled && entitlement.status ? t(`subscription.access.${entitlement.status}`) : t('subscription.access.inactive');
+  const manage = () => runExclusive(async () => {
+    try {
+      await store.openSubscriptionManagement();
+      return null;
+    } catch {
+      return t('subscription.manageFailed');
+    }
+  });
+
+  // Everything about the account's access comes from the Backend's entitlement (never a local purchase flag or the device clock).
+  const status = describeEntitlement(entitlement ?? null);
+  const formatDate = (iso: string | null) => (iso ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(new Date(iso)) : null);
+  const accessLabel = status.kind === 'unknown'
+    ? t('subscription.access.unknown')
+    : status.kind === 'notRequired'
+      ? t('subscription.access.inactive')
+      : t(`subscription.access.${status.kind}`);
+  const accessDetails: string[] = [];
+  if (status.kind === 'trial') {
+    if (status.lessThanDay) {
+      accessDetails.push(t('subscription.detail.trialLessThanDay'));
+    } else if (status.daysLeft !== null) {
+      accessDetails.push(t('subscription.detail.trialDaysLeft', { days: status.daysLeft }));
+    }
+    const endDate = formatDate(status.endsAtUtc);
+    if (endDate) {
+      accessDetails.push(t('subscription.detail.trialEndsOn', { date: endDate }));
+    }
+  } else if (status.kind === 'active') {
+    accessDetails.push(t('subscription.detail.activeManage'));
+  } else if (status.kind === 'gracePeriod') {
+    accessDetails.push(t('subscription.detail.grace'));
+  } else if (status.kind === 'expired') {
+    const endedDate = formatDate(status.endedAtUtc);
+    if (endedDate) {
+      accessDetails.push(t('subscription.detail.expiredOn', { date: endedDate }));
+    }
+    accessDetails.push(t('subscription.detail.expired'));
+  }
+  const isSubscribed = status.kind === 'active' || status.kind === 'gracePeriod';
+  const showManage = isSubscribed && store.canManageSubscription;
   const isReady = offerState.kind === 'ready';
 
   return (
@@ -168,6 +209,9 @@ export function SubscriptionScreen() {
             ) : (
               <ActivityIndicator accessibilityLabel={t('subscription.loading')} color={colors.textSecondary} style={styles.loader} testID="subscription-loading" />
             )}
+            <View style={styles.trialInfo} testID="subscription-trial-info">
+              <Text style={styles.trialInfoText}>{t('subscription.trialInfo')}</Text>
+            </View>
             <Text style={styles.body}>{t('subscription.cadence')}</Text>
             <Text style={styles.body}>{t('subscription.cancelNote')}</Text>
           </View>
@@ -176,18 +220,35 @@ export function SubscriptionScreen() {
         <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.accessHeading')}</Text>
         <View style={[styles.card, styles.accessCard]}>
           <Text style={styles.accessLabel} testID="subscription-access">{accessLabel}</Text>
+          {accessDetails.map((detail, index) => (
+            <Text key={index} style={styles.accessDetail} testID="subscription-access-detail">{detail}</Text>
+          ))}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !isReady || isBusy, busy: isBusy }}
-          disabled={!isReady || isBusy}
-          onPress={() => { subscribe().catch(() => undefined); }}
-          style={[styles.primaryButton, (!isReady || isBusy) && styles.disabledButton]}
-          testID="subscription-subscribe"
-        >
-          {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryLabel}>{t('subscription.subscribe')}</Text>}
-        </Pressable>
+        {isSubscribed ? null : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isReady || isBusy, busy: isBusy }}
+            disabled={!isReady || isBusy}
+            onPress={() => { subscribe().catch(() => undefined); }}
+            style={[styles.primaryButton, (!isReady || isBusy) && styles.disabledButton]}
+            testID="subscription-subscribe"
+          >
+            {isBusy ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.primaryLabel}>{t('subscription.subscribe')}</Text>}
+          </Pressable>
+        )}
+        {showManage ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isBusy }}
+            disabled={isBusy}
+            onPress={() => { manage().catch(() => undefined); }}
+            style={[styles.primaryButton, isBusy && styles.disabledButton]}
+            testID="subscription-manage"
+          >
+            <Text style={styles.primaryLabel}>{t('subscription.manage')}</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: isBusy }}
@@ -198,6 +259,16 @@ export function SubscriptionScreen() {
         >
           <Text style={styles.secondaryLabel}>{t('subscription.restore')}</Text>
         </Pressable>
+
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.infoHeading')}</Text>
+        <View style={[styles.card, styles.infoCard]} testID="subscription-info">
+          {(['account', 'store', 'data'] as const).map((row, index) => (
+            <View key={row} style={[styles.infoRow, index > 0 && styles.infoRowDivider]}>
+              <Text style={styles.infoTitle}>{t(`subscription.info.${row}Title`)}</Text>
+              <Text style={styles.infoBody}>{t(`subscription.info.${row}Body`)}</Text>
+            </View>
+          ))}
+        </View>
       </ScrollView>
       {messageDialog}
     </StackScreenSafeArea>
@@ -214,7 +285,15 @@ const styles = StyleSheet.create({
   loader: { alignSelf: 'flex-start', marginTop: spacing.md },
   body: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: spacing.sm },
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.xl },
-  accessLabel: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  accessLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+  accessDetail: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: spacing.xs },
+  trialInfo: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, marginTop: spacing.md, padding: spacing.md },
+  trialInfoText: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
+  infoCard: { paddingVertical: spacing.xs },
+  infoRow: { paddingVertical: spacing.md },
+  infoRowDivider: { borderTopColor: colors.inputBorder, borderTopWidth: StyleSheet.hairlineWidth },
+  infoTitle: { color: colors.textPrimary, fontSize: 14, fontWeight: '700' },
+  infoBody: { color: colors.textSecondary, fontSize: 13, lineHeight: 19, marginTop: 2 },
   primaryButton: { alignItems: 'center', backgroundColor: colors.brand, borderRadius: radii.lg, justifyContent: 'center', marginTop: spacing.xl, minHeight: minTouchTarget, paddingHorizontal: spacing.md },
   primaryLabel: { color: colors.surface, fontSize: 16, fontWeight: '700', textAlign: 'center' },
   secondaryButton: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, minHeight: minTouchTarget, paddingHorizontal: spacing.md },

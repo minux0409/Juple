@@ -5,6 +5,8 @@ import { FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
 import i18n from '../../i18n';
 import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
+import { ActionMenuDialog } from '../../components/ActionMenuDialog';
+import { SwipeableItemRow } from '../../components/SwipeableItemRow';
 import { buildFlatRows } from '../DateHistoryScreen';
 import {
   buildHistoryRows,
@@ -597,6 +599,22 @@ describe('DateHistoryScreen grid', () => {
 });
 
 describe('DateHistoryScreen swipe actions', () => {
+  // The same long-press menu Home has (useSavedLinkActions): 링크 열기 / 수정 / 컬렉션 변경 / 삭제 last.
+  it('long-pressing a link opens the shared link menu - 삭제 last and destructive - and a locked card has none', async () => {
+    installFakeServer([{ kind: 'today', key: '2026-09-30', items: [makeItem({ id: 40, title: 'Menu link' }), makeItem({ id: 41, title: null, url: '', isCollectionLocked: true })] }]);
+    const renderer = await renderScreen();
+
+    const row = getItemRow(renderer, 40).root.findAllByType(SwipeableItemRow)[0];
+    await act(async () => row.props.onLongPress());
+
+    const menu = renderer.root.findAllByType(ActionMenuDialog)[0];
+    expect((menu.props.actions as { label: string }[]).map(action => action.label)).toEqual(['링크 열기', '수정', '컬렉션 변경', '삭제']);
+    expect((menu.props.actions as { destructive?: boolean }[]).at(-1)!.destructive).toBe(true);
+
+    const locked = getItemRow(renderer, 41).root.findAllByType(SwipeableItemRow)[0];
+    expect(locked.props.onLongPress).toBeUndefined();
+  });
+
   // Regression test: SwipeableItemRow's contentPressable used to force flexDirection: 'row' on
   // itself, which stopped the wrapped row content (title/URL/time) from stretching to full width.
   it('renders the row content (title) through the SwipeableItemRow wrapper', async () => {

@@ -1,0 +1,568 @@
+{
+ "Folder": [
+  {
+   "t": "path",
+   "d": "M3 6.5a1.5 1.5 0 0 1 1.5-1.5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v8.5A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Heart": [
+  {
+   "t": "path",
+   "d": "M12 20.5s-7.5-4.6-9.8-9.3C.6 7.9 2 4.5 5.3 3.7c2-.5 3.9.3 5 1.9l1.7 2.4 1.7-2.4c1.1-1.6 3-2.4 5-1.9 3.3.8 4.7 4.2 3.1 7.5-2.3 4.7-9.8 9.3-9.8 9.3Z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Plane": [
+  {
+   "t": "path",
+   "d": "M21 3 3 10.5l6.5 2.2 2.2 6.5L21 3Z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M11.7 12.3 21 3",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "miter"
+  }
+ ],
+ "Gamepad": [
+  {
+   "t": "path",
+   "d": "M6.5 8h11a3.5 3.5 0 0 1 3.4 4.3l-.8 3.4a2.2 2.2 0 0 1-3.9.8L15 15H9l-1.2 1.5a2.2 2.2 0 0 1-3.9-.8l-.8-3.4A3.5 3.5 0 0 1 6.5 8Z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "line",
+   "x1": 6.5,
+   "y1": 12,
+   "x2": 9,
+   "y2": 12,
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "miter"
+  },
+  {
+   "t": "line",
+   "x1": 7.75,
+   "y1": 10.75,
+   "x2": 7.75,
+   "y2": 13.25,
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "miter"
+  },
+  {
+   "t": "circle",
+   "cx": 15.5,
+   "cy": 11,
+   "r": 0.9,
+   "fill": true
+  },
+  {
+   "t": "circle",
+   "cx": 17.5,
+   "cy": 13,
+   "r": 0.9,
+   "fill": true
+  }
+ ],
+ "Utensils": [
+  {
+   "t": "path",
+   "d": "M8 3v6a2 2 0 0 1-2 2 2 2 0 0 1-2-2V3M7 11v10",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M17 3c-1.7 0-3 2-3 5s1.3 5 3 5v8",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "ShoppingBag": [
+  {
+   "t": "path",
+   "d": "M5.5 8h13l1 12a1.5 1.5 0 0 1-1.5 1.6H6a1.5 1.5 0 0 1-1.5-1.6z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M8 8V6.5a4 4 0 0 1 8 0V8",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Home": [
+  {
+   "t": "path",
+   "d": "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-4.5a1 1 0 0 1-1-1v-5h-5v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Laptop": [
+  {
+   "t": "path",
+   "d": "M5 5.5A1 1 0 0 1 6 4.5h12a1 1 0 0 1 1 1V16H5Z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M2.5 16h19l-1.4 2.8a1.5 1.5 0 0 1-1.4.9H5.3a1.5 1.5 0 0 1-1.4-.9z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Globe": [
+  {
+   "t": "circle",
+   "cx": 12,
+   "cy": 12,
+   "r": 9,
+   "stroke": true,
+   "sw": 1.6,
+   "cap": "butt",
+   "join": "miter"
+  },
+  {
+   "t": "ellipse",
+   "cx": 12,
+   "cy": 12,
+   "rx": 3.6,
+   "ry": 9,
+   "stroke": true,
+   "sw": 1.6,
+   "cap": "butt",
+   "join": "miter"
+  },
+  {
+   "t": "line",
+   "x1": 3,
+   "y1": 12,
+   "x2": 21,
+   "y2": 12,
+   "stroke": true,
+   "sw": 1.6,
+   "cap": "butt",
+   "join": "miter"
+  }
+ ],
+ "Tag": [
+  {
+   "t": "path",
+   "d": "M12.6 3.5h6.9a1 1 0 0 1 1 1v6.9a1 1 0 0 1-.3.7l-9 9a1 1 0 0 1-1.4 0l-7.2-7.2a1 1 0 0 1 0-1.4l9-9a1 1 0 0 1 .7-.3Z",
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 16.5,
+   "cy": 7.5,
+   "r": 1.4,
+   "stroke": true,
+   "sw": 1.75,
+   "cap": "butt",
+   "join": "miter"
+  }
+ ],
+ "Travel": [
+  {
+   "t": "path",
+   "d": "M22 2L11 13M22 2L15 22L11 13L2 9L22 2z",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Fitness": [
+  {
+   "t": "rect",
+   "x": 2,
+   "y": 8,
+   "width": 3,
+   "height": 8,
+   "rx": 1,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "rect",
+   "x": 5.5,
+   "y": 10,
+   "width": 2,
+   "height": 4,
+   "rx": 0.5,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M7.5 12h9",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "rect",
+   "x": 16.5,
+   "y": 10,
+   "width": 2,
+   "height": 4,
+   "rx": 0.5,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "rect",
+   "x": 19,
+   "y": 8,
+   "width": 3,
+   "height": 8,
+   "rx": 1,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Book": [
+  {
+   "t": "path",
+   "d": "M4 5.5A2.5 2.5 0 016.5 3H20v17H6.5A2.5 2.5 0 014 17.5z",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M4 17.5A2.5 2.5 0 016.5 15H20",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Music": [
+  {
+   "t": "path",
+   "d": "M9 18V6l10-2v12",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 6.5,
+   "cy": 18,
+   "r": 2.5,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 16.5,
+   "cy": 16,
+   "r": 2.5,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Camera": [
+  {
+   "t": "path",
+   "d": "M4 8h4l1.5-2h5L16 8h4v11H4z",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 12,
+   "cy": 13.5,
+   "r": 3.5,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Movie": [
+  {
+   "t": "rect",
+   "x": 3,
+   "y": 5,
+   "width": 18,
+   "height": 14,
+   "rx": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M3 9h18M7 5l3 4m2-4 3 4m2-4 3 4",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Briefcase": [
+  {
+   "t": "rect",
+   "x": 3,
+   "y": 7,
+   "width": 18,
+   "height": 12,
+   "rx": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M9 7V5h6v2m-12 5h18M10 12v2h4v-2",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Car": [
+  {
+   "t": "path",
+   "d": "M4 15l1.5-5h13l1.5 5v4H4z",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M3 15h18M7 19v2m10-2v2",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 7,
+   "cy": 16,
+   "r": 1,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 17,
+   "cy": 16,
+   "r": 1,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Gift": [
+  {
+   "t": "rect",
+   "x": 4,
+   "y": 9,
+   "width": 16,
+   "height": 11,
+   "rx": 1,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M3 9h18v4H3zM12 9v11M12 9C8 8 7 3 10 4c2 1 2 5 2 5zm0 0c4-1 5-6 2-5-2 1-2 5-2 5z",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Coffee": [
+  {
+   "t": "path",
+   "d": "M5 8h12v9a3 3 0 01-3 3H8a3 3 0 01-3-3zM17 10h1a2 2 0 010 4h-1M7 4v2m4-2v2m4-2v2",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Calendar": [
+  {
+   "t": "rect",
+   "x": 4,
+   "y": 5,
+   "width": 16,
+   "height": 15,
+   "rx": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M8 3v4m8-4v4M4 10h16",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Pet": [
+  {
+   "t": "circle",
+   "cx": 12,
+   "cy": 14,
+   "r": 4,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 6.5,
+   "cy": 9,
+   "r": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 10,
+   "cy": 5.5,
+   "r": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 14,
+   "cy": 5.5,
+   "r": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "circle",
+   "cx": 17.5,
+   "cy": 9,
+   "r": 2,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Sports": [
+  {
+   "t": "circle",
+   "cx": 12,
+   "cy": 12,
+   "r": 8,
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  },
+  {
+   "t": "path",
+   "d": "M7 5.5c2 2 2 11 0 13M17 5.5c-2 2-2 11 0 13",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Map": [
+  {
+   "t": "path",
+   "d": "M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ],
+ "Study": [
+  {
+   "t": "path",
+   "d": "M3 9l9-5 9 5-9 5zM7 11v5c3 2 7 2 10 0v-5M21 9v6",
+   "stroke": true,
+   "sw": 1.8,
+   "cap": "round",
+   "join": "round"
+  }
+ ]
+}

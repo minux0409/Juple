@@ -270,6 +270,8 @@ export function SwipeableItemRow({
         accessibilityActions={[
           ...(onDelete ? [{ name: 'delete', label: deleteActionLabel }] : []),
           ...(startAction ? [{ name: 'start', label: startAction.label }] : onShare ? [{ name: 'share', label: t('common.share') }] : []),
+          // The long-press menu is also an accessibility action, so it never depends on discovering a gesture.
+          ...(onLongPress ? [{ name: 'options', label: t('collections.linkActionsA11y') }] : []),
         ]}
         onAccessibilityAction={event => {
           if (event.nativeEvent.actionName === 'delete') {
@@ -278,6 +280,8 @@ export function SwipeableItemRow({
             startAction?.onPress();
           } else if (event.nativeEvent.actionName === 'share') {
             onShare?.();
+          } else if (event.nativeEvent.actionName === 'options') {
+            onLongPress?.();
           }
         }}
         style={[styles.content, { transform: [{ translateX }] }]}

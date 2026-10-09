@@ -1,10 +1,12 @@
 using Juple.Api.Authentication;
 using Juple.Api.Billing;
+using Juple.Api.Configuration;
 using Juple.Domain.Billing;
 using Juple.Application.Identity;
 using Juple.Application.Users.BootstrapCurrentUser;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Juple.Api.Controllers;
 
@@ -19,6 +21,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
         BootstrapCurrentUserRequest request,
         [FromServices] IExternalIdentityAccessor externalIdentityAccessor,
         [FromServices] ICurrentUserBootstrapService bootstrapService,
+        [FromServices] IOptions<MobileVersionPolicyOptions> versionPolicy,
         CancellationToken cancellationToken)
     {
         try
@@ -27,7 +30,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 externalIdentityAccessor.GetRequired(),
                 new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId),
                 cancellationToken);
-            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement)));
+            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value)));
         }
         catch (InvalidCurrentUserBootstrapRequestException exception)
         {
@@ -44,7 +47,26 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     /// <param name="TimeZoneId">The user's stored IANA time zone - the one the server's date filters and calendar use; clients use it for the same "today" (additive field).</param>
     /// <param name="Plan">LEGACY compatibility only (old installed clients still read it) - never the entitlement source; see UserPlan.</param>
     /// <param name="Entitlement">The account's effective access (additive). Computed from server time; the app only presents it - the backend decides every write.</param>
-    public sealed record BootstrapCurrentUserResponse(string Plan, string TimeZoneId, EntitlementResponse Entitlement);
+    public sealed record BootstrapCurrentUserResponse(string Plan, string TimeZoneId, EntitlementResponse Entitlement, MobileVersionPolicyResponse MobileVersionPolicy);
+
+    /// <summary>
+    /// Which installed builds are current / still supported, per platform (additive; an older client ignores it). Build numbers are
+    /// authoritative. A platform with LatestBuild 0 has no policy. StoreUrl is null when not configured.
+    /// </summary>
+    public sealed record MobileVersionPolicyResponse(MobilePlatformVersionPolicyResponse Android, MobilePlatformVersionPolicyResponse Ios)
+    {
+        public static MobileVersionPolicyResponse From(MobileVersionPolicyOptions options) => new(
+            MobilePlatformVersionPolicyResponse.From(options.Android),
+            MobilePlatformVersionPolicyResponse.From(options.Ios));
+    }
+
+    public sealed record MobilePlatformVersionPolicyResponse(int LatestBuild, int MinimumSupportedBuild, string? StoreUrl)
+    {
+        public static MobilePlatformVersionPolicyResponse From(MobilePlatformVersionPolicy policy) => new(
+            policy.LatestBuild,
+            policy.MinimumSupportedBuild,
+            string.IsNullOrWhiteSpace(policy.StoreUrl) ? null : policy.StoreUrl.Trim());
+    }
 
     /// <summary>
     /// ProgramEnabled false = the subscription program is not launched: Status/Reason are null, CanWrite is true, nothing is restricted

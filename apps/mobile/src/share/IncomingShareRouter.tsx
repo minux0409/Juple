@@ -1,14 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
+import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { navigationRef } from '../navigation/navigationRef';
 import { getActiveNewLinkReviewDraft } from './activeNewLinkReviewDraft';
 import { parseCollectionShareUrl } from './collectionShareUrl';
 import { normalizeShareTextForComparison, resolveIncomingShare } from './resolveIncomingShare';
+import { validateClaimedDestination } from './resolveShareDestination';
 import { useIncomingShare } from './useIncomingShare';
 
 /**
  * Headless (renders nothing - same convention as App.tsx's PushRegistrationSync/
- * CategorySnapshotSync) top-level router for any share PendingShareQueue still holds once the app's
+ * CollectionShortcutSync) top-level router for any share PendingShareQueue still holds once the app's
  * full navigation stack is up: Quick Save OFF always lands here (ShareReceiverActivity opens
  * MainActivity directly - see its own comment), and Quick Save ON's composer can leave a share
  * pending too if its background save needed review/failed. Either way this always navigates
@@ -21,8 +25,16 @@ import { useIncomingShare } from './useIncomingShare';
  * used to would silently strand the new share behind the untouched old draft. When a draft is
  * active this router hands the share off to it instead (see below) - NewLinkReviewScreen owns the
  * conflict dialog/save-or-discard decision from there, never this router.
+ *
+ * A share that arrived through a Collection's Direct Share row carries that Collection as a claim: before the review screen
+ * preselects it, it is checked with the backend (exists for this user, may add links, not locked). A Collection that is no
+ * longer usable is simply NOT preselected - the link is kept, the review opens without it, and a message says why - so a
+ * stale shortcut never loses the shared URL and never files it somewhere the user did not choose.
  */
-export function IncomingShareRouter(): null {
+export function IncomingShareRouter() {
+  const { t } = useTranslation();
+  const request = useAuthenticatedApi();
+  const [destinationNotice, setDestinationNotice] = useState(false);
   const { pendingShare, acknowledgePendingShare } = useIncomingShare();
   // Tracks the last pendingShare id this router has already acted on, so a re-render/poll that
   // still reports the same share (e.g. an unrelated AppState change) never navigates twice - only
@@ -83,18 +95,42 @@ export function IncomingShareRouter(): null {
       });
     }
 
-    navigationRef.navigate('NewLinkReview', {
-      url: resolvedShare.text,
-      initialTitle: resolvedShare.title,
-      preselectedCollectionId: pendingShare.draftCollectionId ?? pendingShare.preselectedCollectionId,
+    const claimedCollectionId = pendingShare.draftCollectionId ?? pendingShare.preselectedCollectionId;
+    const openReview = (preselectedCollectionId: number | null) => {
+      navigationRef.navigate('NewLinkReview', {
+        url: resolvedShare.text,
+        initialTitle: resolvedShare.title,
+        preselectedCollectionId,
+      });
+
+      // Removed from the native queue immediately, not only after the review screen's own Save -
+      // otherwise backing out of that screen without saving would leave this same share pending
+      // forever, re-triggering this same navigation on every later AppState change/app restart. From
+      // here on the review screen's own local draft state is the only copy of this share that matters.
+      acknowledgePendingShare(pendingShare.id).catch(() => undefined);
+    };
+
+    if (claimedCollectionId === null) {
+      openReview(null);
+      return;
+    }
+    // Usable keeps it; unusable drops it (and says so); a failed check keeps the claim - the server judges the real save.
+    validateClaimedDestination(request, claimedCollectionId).then(destination => {
+      if (destination.unavailable) {
+        setDestinationNotice(true);
+      }
+      openReview(destination.collectionId);
     });
+  }, [pendingShare, acknowledgePendingShare, request]);
 
-    // Removed from the native queue immediately, not only after the review screen's own Save -
-    // otherwise backing out of that screen without saving would leave this same share pending
-    // forever, re-triggering this same navigation on every later AppState change/app restart. From
-    // here on the review screen's own local draft state is the only copy of this share that matters.
-    acknowledgePendingShare(pendingShare.id).catch(() => undefined);
-  }, [pendingShare, acknowledgePendingShare]);
-
-  return null;
+  return destinationNotice ? (
+    <ConfirmDialog
+      confirmLabel={t('common.confirm')}
+      destructive={false}
+      message={t('collections.shortcutUnavailable')}
+      onConfirm={() => setDestinationNotice(false)}
+      title={t('common.notice')}
+      visible
+    />
+  ) : null;
 }

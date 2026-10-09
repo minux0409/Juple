@@ -66,6 +66,17 @@ public enum CommentDeleteResult
     NotAllowed,
 }
 
+public enum CommentEditResult
+{
+    Edited,
+
+    /// <summary>It is somebody else's comment - only the author may edit.</summary>
+    NotAllowed,
+}
+
+/// <summary>What the store reports for an edit: the result and - when edited - the comment as stored now (replies and hearts intact).</summary>
+public sealed record CommentEditOutcome(CommentEditResult Result, CollectionCommentDto? Comment);
+
 /// <summary>The one rule for what a comment may say.</summary>
 public static class CollectionCommentBody
 {
@@ -133,6 +144,14 @@ public interface ICollectionItemCommentStore
         long userId, long collectionId, long itemId, long commentId, bool isOwner, DateTimeOffset nowUtc, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Replaces the words of the caller's OWN live comment. Only the body changes (never the author, thread, answered person,
+    /// hearts or creation time). Null when the Item is not a link of the Collection, or the comment does not exist there / is
+    /// only a placeholder.
+    /// </summary>
+    Task<CommentEditOutcome?> EditAsync(
+        long userId, long collectionId, long itemId, long commentId, string body, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Idempotently sets the caller's heart on a comment of this link. Null when the Item is not a link of the
     /// Collection or the comment does not exist there / was deleted. Changed is false when the heart was already as asked
     /// (a retry, a double tap) - so a notification is only ever caused by a real change.
@@ -154,6 +173,10 @@ public interface ICollectionItemCommentService
 
     Task DeleteAsync(
         long userId, long collectionId, long itemId, long commentId, string? unlockToken, CancellationToken cancellationToken = default);
+
+    /// <summary>Edits the caller's own comment's words - same body rule as writing one. 403 for somebody else's, 404 for a missing / deleted one.</summary>
+    Task<CollectionCommentDto> EditAsync(
+        long userId, long collectionId, long itemId, long commentId, string? body, string? unlockToken, CancellationToken cancellationToken = default);
 
     Task<CommentLikeStateDto> SetLikeAsync(
         long userId, long collectionId, long itemId, long commentId, bool liked, string? unlockToken, CancellationToken cancellationToken = default);
@@ -246,6 +269,27 @@ public sealed class CollectionItemCommentService(
         {
             throw new CollectionForbiddenException();
         }
+    }
+
+    /// <summary>
+    /// An edit is not a new event: it tells nobody (no new-comment, no reply notification - not even the answered person
+    /// again), and the hearts stay where they are. Only the author may edit, even the Owner cannot edit another's words.
+    /// </summary>
+    public async Task<CollectionCommentDto> EditAsync(
+        long userId, long collectionId, long itemId, long commentId, string? body, string? unlockToken, CancellationToken cancellationToken = default)
+    {
+        if (commentId <= 0)
+        {
+            throw new InvalidCollectionException("commentId", "commentId must be positive.");
+        }
+
+        var normalized = CollectionCommentBody.Normalize(body);
+        await accessService.RequireContentAsync(userId, collectionId, unlockToken, cancellationToken);
+        var outcome = await store.EditAsync(userId, collectionId, itemId, commentId, normalized, cancellationToken)
+            ?? throw new CollectionNotFoundException();
+        return outcome.Result == CommentEditResult.Edited
+            ? outcome.Comment!
+            : throw new CollectionForbiddenException();
     }
 
     public async Task<CommentLikeStateDto> SetLikeAsync(

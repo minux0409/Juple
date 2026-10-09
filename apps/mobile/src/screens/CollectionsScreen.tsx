@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
+import { reconcileCollectionShortcuts } from '../categories/collectionShortcutSync';
 import {
   createCollection,
   getCollections,
@@ -28,6 +28,8 @@ import {
 } from '../collections/api/collectionsApi';
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
+import { useCollectionLongPressMenu } from '../collections/useCollectionLongPressMenu';
+import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
 import { useLiveRefresh } from '../push/useLiveRefresh';
@@ -295,10 +297,10 @@ export function CollectionsScreen() {
       load(current, 'refresh');
       loadReceivedInvitations();
       loadMyPendingTotal();
-      // Best-effort: keeps the native Direct Share/Quick Save composer category snapshot (see
-      // categorySnapshotSync.ts) current on every visit, independently of this screen's own
-      // paginated state - a failure here never affects what this screen shows.
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+      // Best-effort: brings the Collections the user pinned as app shortcuts in line with the server on every visit (a
+      // Collection deleted, left or locked elsewhere leaves the launcher / share sheet) - independent of this screen's own
+      // paginated state, and no request at all when nothing is pinned. A failure never affects what this screen shows.
+      reconcileCollectionShortcuts(authenticatedRequest).catch(() => undefined);
     }, [authenticatedRequest, invalidateOtherFilters, load, loadMyPendingTotal, loadReceivedInvitations]),
   );
 
@@ -454,7 +456,6 @@ export function CollectionsScreen() {
         owned: previous.owned.isLoaded ? { ...previous.owned, items: [created, ...previous.owned.items] } : previous.owned,
       }));
       setIsCreateDialogVisible(false);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       setCreateError(getCreateErrorMessage(caughtError, t));
     } finally {
@@ -506,7 +507,6 @@ export function CollectionsScreen() {
     try {
       const updated = await setCollectionFavorite(authenticatedRequest, collection.id, desiredIsFavorite);
       applyToLists(updated);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       // Roll back to the pre-toggle Collection - never trust the optimistic flip.
       applyToLists(collection);
@@ -532,11 +532,15 @@ export function CollectionsScreen() {
     if (accepted) {
       invalidateOtherFilters(filterRef.current);
       load(filterRef.current, 'refresh');
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     }
   };
 
   const activeList = lists[filter];
+  // The cards on screen are fresh server data: a pinned Collection among them that was renamed gets its new shortcut label,
+  // one that is now locked or read-only is removed from the shortcuts - no request, nothing pinned means nothing to do.
+  useEffect(() => {
+    collectionShortcutService.applyKnownCollections(activeList.items).catch(() => undefined);
+  }, [activeList.items]);
   const isActiveInitialLoading = !activeList.isLoaded && isLoading && !error;
   // Where cards are about to appear - only while that request is actually on its way.
   const renderSkeletons = (rows: number, testID: string) =>
@@ -555,6 +559,12 @@ export function CollectionsScreen() {
     );
   const openCollection = (collection: Collection) =>
     navigation.navigate('CollectionDetails', { collectionId: collection.id });
+  // Long-press on a card: 즐겨찾기 / 알림 / 수정 / 잠금 설정 / 앱 바로가기 / 삭제 or 나가기 (see useCollectionLongPressMenu). Edit, lock,
+  // delete and leave are the Collection's own screen's dialogs, opened there.
+  const collectionMenu = useCollectionLongPressMenu({
+    onToggleFavorite: collection => { toggleFavoriteAction(collection).catch(() => undefined); },
+    onManage: (collection, pendingAction) => navigation.navigate('CollectionDetails', { collectionId: collection.id, pendingAction }),
+  });
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
@@ -697,12 +707,15 @@ export function CollectionsScreen() {
             collection={item}
             isFavoriteToggleDisabled={togglingFavoriteId !== null}
             isTogglingFavorite={togglingFavoriteId === item.id}
+            onLongPress={() => collectionMenu.openMenu(item)}
             onPress={() => openCollection(item)}
             onToggleFavorite={() => toggleFavoriteAction(item)}
           />
-        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
+        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onLongPress={() => collectionMenu.openMenu(item)} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
         ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
       />
+
+      {collectionMenu.element}
 
       <ReceivedInvitationsSheet
         authenticatedRequest={authenticatedRequest}
@@ -748,6 +761,8 @@ interface CollectionTileProps {
   readonly isFavoriteToggleDisabled: boolean;
   readonly isTogglingFavorite: boolean;
   readonly onPress: () => void;
+  /** Long-press / the screen-reader "options" action: the Collection menu (see useCollectionLongPressMenu). */
+  readonly onLongPress: () => void;
   readonly onToggleFavorite: () => void;
 }
 
@@ -765,6 +780,7 @@ function CollectionTile({
   collection,
   isFavoriteToggleDisabled,
   isTogglingFavorite,
+  onLongPress,
   onPress,
   onToggleFavorite,
 }: CollectionTileProps) {
@@ -774,7 +790,16 @@ function CollectionTile({
   // favorite markers - link counts and participant names live on the Collection's own screen.
   return (
     <View style={styles.gridCell}>
-      <Pressable accessibilityLabel={attentionLabel(collection, t)} accessibilityRole="button" onPress={onPress} style={styles.tilePressable}>
+      <Pressable
+        accessibilityActions={[{ name: 'options', label: t('collections.collectionActionsA11y') }]}
+        accessibilityLabel={attentionLabel(collection, t)}
+        accessibilityRole="button"
+        delayLongPress={350}
+        onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'options') { onLongPress(); } }}
+        onLongPress={onLongPress}
+        onPress={onPress}
+        style={styles.tilePressable}
+      >
         <View style={styles.tileIconSlot}>
           <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={56} />
           <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} />
@@ -995,9 +1020,18 @@ const styles = StyleSheet.create({
  * shared at its bottom-start, and every row (owned or shared) has the caller's own favorite star.
  * Like the tile: no link count or participant names - just what identifies the Collection.
  */
-function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onPress, onToggleFavorite }: CollectionTileProps) {
+function CollectionListRow({ collection, isFavoriteToggleDisabled, isTogglingFavorite, onLongPress, onPress, onToggleFavorite }: CollectionTileProps) {
   const { t } = useTranslation();
-  return <Pressable accessibilityLabel={attentionLabel(collection, t)} accessibilityRole="button" onPress={onPress} style={styles.listRow}>
+  return <Pressable
+    accessibilityActions={[{ name: 'options', label: t('collections.collectionActionsA11y') }]}
+    accessibilityLabel={attentionLabel(collection, t)}
+    accessibilityRole="button"
+    delayLongPress={350}
+    onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'options') { onLongPress(); } }}
+    onLongPress={onLongPress}
+    onPress={onPress}
+    style={styles.listRow}
+  >
     <View style={styles.listIconSlot}>
       <CategoryIconTile collectionId={collection.id} color={collection.color} icon={collection.icon} imageUrl={collection.iconImageUrl} imageVersion={collection.iconImageVersion} size={48} />
       <CollectionStatusBadges isLocked={isCollectionLocked(collection)} isShared={isCollaborative(collection)} size={18} />

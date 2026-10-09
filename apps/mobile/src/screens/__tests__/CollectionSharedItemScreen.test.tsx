@@ -68,6 +68,9 @@ async function renderScreen() {
   return renderer;
 }
 
+const commentMenuTrigger = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
+  renderer.root.findAll(node => node.props.testID === `comment-${id}` && typeof node.props.onLongPress === 'function')[0];
+
 describe('CollectionSharedItemScreen', () => {
   it('shows only the shared fields read-only (title, URL) and opens the link', async () => {
     jest.mocked(getSharedCollectionItem).mockResolvedValue({
@@ -370,15 +373,15 @@ describe('CollectionSharedItemScreen - comments', () => {
     expect(addItemComment).not.toHaveBeenCalled();
   });
 
-  it('deleting my own comment: ... → 댓글 삭제 → confirm; the row leaves and the count drops', async () => {
+  it('deleting my own comment: long-press → 삭제하기 → confirm; the row leaves and the count drops', async () => {
     jest.mocked(getSharedCollectionItem).mockResolvedValue(link);
     jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2, { isMe: true })], previousCursor: null, totalCount: 2 });
     jest.mocked(deleteItemComment).mockResolvedValue(undefined);
     const renderer = await renderWith();
-    expect(press(renderer, 'comment-more-1')).toBeUndefined();
+    expect(commentMenuTrigger(renderer, 1)).toBeUndefined();
 
-    await act(async () => press(renderer, 'comment-more-2').props.onPress());
-    await act(async () => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!.props.actions[0].onPress());
+    await act(async () => commentMenuTrigger(renderer, 2).props.onLongPress());
+    await act(async () => renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!.props.actions.find((action: { label: string }) => action.label === '삭제하기').onPress());
     const dialog = renderer.root.findAllByType(ConfirmDialog).find(node => node.props.visible && node.props.title === '댓글을 삭제할까요?')!;
     await act(async () => dialog.props.onConfirm());
 
@@ -393,12 +396,12 @@ describe('CollectionSharedItemScreen - comments', () => {
     jest.mocked(getItemComments).mockResolvedValue({ items: [comment(1), comment(2)], previousCursor: null, totalCount: 2 });
 
     const asMember = await renderWith();
-    expect(press(asMember, 'comment-more-1')).toBeUndefined();
-    expect(press(asMember, 'comment-more-2')).toBeUndefined();
+    expect(commentMenuTrigger(asMember, 1)).toBeUndefined();
+    expect(commentMenuTrigger(asMember, 2)).toBeUndefined();
 
     const asOwner = await renderWith({ isCollectionOwner: true });
-    expect(press(asOwner, 'comment-more-1')).toBeDefined();
-    expect(press(asOwner, 'comment-more-2')).toBeDefined();
+    expect(commentMenuTrigger(asOwner, 1)).toBeDefined();
+    expect(commentMenuTrigger(asOwner, 2)).toBeDefined();
   });
 
   it('older comments: the newest page first, then "이전 댓글 보기" prepends the earlier page without duplicates', async () => {

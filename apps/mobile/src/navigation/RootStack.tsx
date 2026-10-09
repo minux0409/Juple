@@ -30,6 +30,7 @@ import { SignInScreen } from '../screens/SignInScreen';
 import { StartupProgressScreen } from '../screens/StartupProgressScreen';
 import { TrashScreen } from '../screens/TrashScreen';
 import { IncomingShareRouter } from '../share/IncomingShareRouter';
+import { CollectionShortcutRouter } from '../shortcuts/CollectionShortcutRouter';
 import { MainTabs, type MainTabParamList } from './MainTabs';
 
 /**
@@ -92,6 +93,13 @@ export type RootStackParamList = {
     };
     /** A 승인 요청 notification: opens the Owner's 링크 승인 대기 popup over the Collection once its content is open. Consumed once. */
     openApprovals?: boolean;
+    /**
+     * The Collections list's long-press menu: 수정 / 잠금 설정 / 삭제 / 나가기 are this screen's own dialogs (with its
+     * password prompt for a locked Collection, its undo and its navigation back) - the list asks for one and this screen
+     * opens it once the Collection is loaded, so no dialog or API call is duplicated. Consumed once; what the caller may do
+     * is decided here from the Collection itself, never from this param.
+     */
+    pendingAction?: 'edit' | 'lock' | 'delete' | 'leave';
   };
   /**
    * Owner-only sharing of one Collection, as a modal - one screen: 모든 사용자 (the public link),
@@ -120,6 +128,8 @@ export type RootStackParamList = {
     url: string;
     initialTitle: string | null;
     preselectedCollectionId: number | null;
+    /** The Collection a share named was checked and is no longer usable: it was dropped (never replaced) - say so once on opening. */
+    destinationUnavailable?: boolean;
   };
   LanguageSettings: undefined;
   /** Settings > 컬렉션 잠금: the user's own locked Collections and the passwords this device remembers. */
@@ -289,6 +299,7 @@ export function RootStack() {
         NewLinkReview, a screen that only exists in the tree above once isReady is true.
       */}
       {isReady ? <IncomingShareRouter /> : null}
+      {isReady ? <CollectionShortcutRouter /> : null}
       {isReady ? <TutorialLauncher /> : null}
     </>
   );

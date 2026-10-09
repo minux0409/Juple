@@ -51,6 +51,7 @@ import {
 import { formatDateOnly } from '../items/dateOnly';
 import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
+import { useSavedLinkActions } from '../items/useSavedLinkActions';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { isHttpUrl } from '../share/resolveIncomingShare';
 import { parseCollectionShareUrl } from '../share/collectionShareUrl';
@@ -434,6 +435,12 @@ export function DailyInboxScreen() {
     (itemId, openContext) => navigation.navigate('ItemDetails', { itemId, openContext }),
     () => { loadToday('refresh'); },
   );
+  // Long-press on a link card: 링크 열기 / 수정 / 컬렉션 변경 / 삭제 (shared with History - see useSavedLinkActions).
+  const linkActions = useSavedLinkActions({
+    onEdit: item => { itemCardOpen.open(item).catch(() => undefined); },
+    onDelete: item => confirmDelete(item.id),
+    onCollectionsChanged: () => { loadToday('refresh'); },
+  });
 
   // 시간순 ↓ (the server's own newest-first order) pages in as the list scrolls. 시간순 ↑ and 이름순 need
   // the whole day: it is loaded here (largest pages) before anything is shown in that order, never
@@ -600,12 +607,13 @@ export function DailyInboxScreen() {
           ) : (isLoading || isAssemblingOrder) ? renderSkeletons(HOME_FIRST_PAGE_SKELETON_ROWS, 'home-first-page-loading') : <CenteredEmptyState message={t('inbox.empty')} />
         }
         renderItem={({ item }) => isImageLine(item) ? (
-          <SavedLinkImageRow items={item.items} onPress={openItem} testID={`home-image-line-${item.lineKey}`} />
+          <SavedLinkImageRow items={item.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`home-image-line-${item.lineKey}`} />
         ) : viewMode === 'grid' ? (
           <SavedLinkGridCell
             disabled={actionInFlightItemId !== null || isRefreshing}
             isActionInFlight={actionInFlightItemId === item.id}
             item={item}
+            {...linkActions.menuProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
             onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
@@ -615,6 +623,7 @@ export function DailyInboxScreen() {
           <SwipeableItemRow
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null || isRefreshing}
+            {...linkActions.menuProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
             onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
@@ -629,6 +638,7 @@ export function DailyInboxScreen() {
         ListFooterComponent={isLoadingMore ? renderSkeletons(HOME_NEXT_PAGE_SKELETON_ROWS, 'home-next-page-loading') : undefined}
       />
       {itemCardOpen.dialog}
+      {linkActions.element}
       {saveError !== null && (
         <ConfirmDialog
           visible

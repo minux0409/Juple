@@ -22,7 +22,7 @@ describe('bootstrapCurrentUser', () => {
       accessToken: 'a-token',
       body: { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' },
     });
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, mobileVersionPolicy: null });
   });
 
   it('returns the Plus plan when the backend reports it', async () => {
@@ -30,7 +30,20 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, mobileVersionPolicy: null });
+  });
+
+  it('carries the app-version policy of the server from the same bootstrap response - no separate request - and reads it defensively', async () => {
+    const policy = { android: { latestBuild: 12, minimumSupportedBuild: 9, storeUrl: null }, ios: { latestBuild: 0, minimumSupportedBuild: 0, storeUrl: null } };
+    jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Free', mobileVersionPolicy: policy } });
+
+    const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
+
+    expect(requestApi).toHaveBeenCalledTimes(1);
+    expect(result.mobileVersionPolicy).toEqual(policy);
+
+    jest.mocked(requestApi).mockResolvedValue({ status: 200, body: { plan: 'Free', mobileVersionPolicy: { android: 'garbage' } } });
+    expect((await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' })).mobileVersionPolicy).toBeNull();
   });
 
   it('maps a badRequest (invalid device settings) error to invalidDeviceSettings with no plan', async () => {
@@ -38,7 +51,7 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'invalid', timeZoneId: 'Invalid/Zone' });
 
-    expect(result).toEqual({ status: 'invalidDeviceSettings', plan: null, entitlement: null });
+    expect(result).toEqual({ status: 'invalidDeviceSettings', plan: null, entitlement: null, mobileVersionPolicy: null });
   });
 
   it('maps any other failure to unavailable with no plan', async () => {
@@ -46,7 +59,7 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'unavailable', plan: null, entitlement: null });
+    expect(result).toEqual({ status: 'unavailable', plan: null, entitlement: null, mobileVersionPolicy: null });
   });
 });
 
@@ -174,7 +187,7 @@ describe('bootstrapCurrentUser - entitlement', () => {
 
     const result = await bootstrapCurrentUser('a-token', settings);
 
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, mobileVersionPolicy: null });
   });
 });
 

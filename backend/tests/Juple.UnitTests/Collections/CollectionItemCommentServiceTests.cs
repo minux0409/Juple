@@ -39,6 +39,51 @@ public sealed class CollectionItemCommentServiceTests
     }
 
     [Fact]
+    public async Task EditingNeverNotifiesAnybody_NeitherAsANewCommentNorAsAReplyToTheAnsweredPerson()
+    {
+        var publisher = new CollectionLockScopeTests.RecordingSocialPublisher();
+        var service = new CollectionItemCommentService(new FakeAccess(), new FakeStore { ReplyToUserId = 9 }, TimeProvider.System, publisher);
+        await service.CreateAsync(1, 2, 3, "a reply", null, 5);
+        var afterWriting = publisher.Events.Count;
+        Assert.True(afterWriting > 0, "writing the reply notified - the recorder is wired");
+
+        await service.EditAsync(1, 2, 3, 77, "a reply, edited", null);
+
+        Assert.Equal(afterWriting, publisher.Events.Count);
+    }
+
+    [Fact]
+    public async Task EditingUsesTheSameBodyRule_AndAsksNothingForABadBody()
+    {
+        var access = new FakeAccess();
+        var store = new FakeStore();
+        var service = new CollectionItemCommentService(access, store, TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => service.EditAsync(1, 2, 3, 4, "  ", null));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => service.EditAsync(1, 2, 3, 4, new string('a', 1001), null));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => service.EditAsync(1, 2, 3, 0, "ok", null));
+        Assert.Equal(0, access.Calls);
+
+        var edited = await service.EditAsync(1, 2, 3, 4, "  new words \r\n", "grant");
+        Assert.Equal("new words", edited.Body);
+        Assert.Equal("new words", store.LastEditBody);
+        Assert.Equal("grant", access.LastToken);
+    }
+
+    [Fact]
+    public async Task EditingSomebodyElsesCommentIsForbidden_AndAMissingOrDeletedOneIsNotFound_AndTheContentGateComesFirst()
+    {
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() =>
+            new CollectionItemCommentService(new FakeAccess { IsOwner = true }, new FakeStore { Edit = CommentEditResult.NotAllowed }, TimeProvider.System).EditAsync(1, 2, 3, 4, "x", null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess(), new FakeStore { Edit = null }, TimeProvider.System).EditAsync(1, 2, 3, 4, "x", null));
+        var store = new FakeStore();
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() =>
+            new CollectionItemCommentService(new FakeAccess { Throw = new CollectionNotFoundException() }, store, TimeProvider.System).EditAsync(1, 2, 3, 4, "x", null));
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Fact]
     public async Task ABadBodyIsRejectedBeforeAnythingElseIsAsked()
     {
         var access = new FakeAccess();
@@ -331,6 +376,24 @@ public sealed class CollectionItemCommentServiceTests
 
             var comment = Comment() with { Id = 77, RootCommentId = parentCommentId, ParentCommentId = parentCommentId };
             return Task.FromResult<CollectionCommentCreated?>(new CollectionCommentCreated(comment, parentCommentId is null ? null : ReplyToUserId));
+        }
+
+        public CommentEditResult? Edit { get; init; } = CommentEditResult.Edited;
+
+        public string? LastEditBody { get; private set; }
+
+        public Task<CommentEditOutcome?> EditAsync(long userId, long collectionId, long itemId, long commentId, string body, CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            LastEditBody = body;
+            if (!IsLink || Edit is null)
+            {
+                return Task.FromResult<CommentEditOutcome?>(null);
+            }
+
+            return Task.FromResult<CommentEditOutcome?>(Edit == CommentEditResult.Edited
+                ? new CommentEditOutcome(CommentEditResult.Edited, Comment() with { Id = commentId, Body = body })
+                : new CommentEditOutcome(CommentEditResult.NotAllowed, null));
         }
 
         public Task<CommentLikeOutcome?> SetLikeAsync(long userId, long collectionId, long itemId, long commentId, bool liked, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)

@@ -32,7 +32,7 @@ beforeAll(async () => {
   await i18n.changeLanguage('en');
 });
 beforeEach(() => {
-  store = { loadOffer: jest.fn().mockResolvedValue(readyOffer), purchase: jest.fn(), restore: jest.fn() };
+  store = { loadOffer: jest.fn().mockResolvedValue(readyOffer), purchase: jest.fn(), restore: jest.fn(), canManageSubscription: true, openSubscriptionManagement: jest.fn().mockResolvedValue(undefined) };
   jest.mocked(useSubscriptionStore).mockReturnValue(store);
   mockAuth();
 });
@@ -150,12 +150,126 @@ describe('SubscriptionScreen', () => {
     expect(openDialogTexts(renderer)).toContain(i18n.t('subscription.result.failed'));
   });
 
-  it('shows the account access the Backend reports, and "not required yet" while the program is off', async () => {
-    mockAuth({ programEnabled: true, status: 'trial' });
-    expect(texts(await renderScreen())).toContain(i18n.t('subscription.access.trial'));
+  const NOW = '2026-10-01T00:00:00Z';
+  const entitlementOf = (overrides: Record<string, unknown>) => ({
+    programEnabled: true, status: 'trial', reason: null, trialStartedAtUtc: '2026-09-20T00:00:00Z', trialEndsAtUtc: '2026-10-20T00:00:00Z',
+    currentPeriodEndsAtUtc: null, accessFrozenAtUtc: null, canWrite: true, verifiedAtUtc: NOW, ...overrides,
+  });
+  const accessNodes = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+    renderer.root.findAll(node => node.props.testID === testID && node.type === Text);
+  const details = (renderer: ReactTestRenderer.ReactTestRenderer) => accessNodes(renderer, 'subscription-access-detail').map(node => String(node.props.children));
+  const accessOf = async (entitlement: unknown) => {
+    mockAuth(entitlement);
+    const renderer = await renderScreen();
+    return { renderer, label: accessNodes(renderer, 'subscription-access')[0].props.children as string };
+  };
 
-    mockAuth({ programEnabled: false, status: null });
-    expect(texts(await renderScreen())).toContain(i18n.t('subscription.access.inactive'));
+  it('program off: "not required yet", never active, no countdown', async () => {
+    const { renderer, label } = await accessOf(entitlementOf({ programEnabled: false, status: null, trialEndsAtUtc: null }));
+    expect(label).toBe(i18n.t('subscription.access.inactive'));
+    expect(details(renderer)).toEqual([]);
+  });
+
+  it('no entitlement yet is shown conservatively as unknown - not as free, active or inactive', async () => {
+    const { renderer, label } = await accessOf(null);
+    expect(label).toBe(i18n.t('subscription.access.unknown'));
+    expect(details(renderer)).toEqual([]);
+  });
+
+  it('active trial: free access, remaining days from the SERVER timestamps, and the end date', async () => {
+    const { renderer, label } = await accessOf(entitlementOf({}));
+    expect(label).toBe(i18n.t('subscription.access.trial'));
+    expect(details(renderer)[0]).toBe(i18n.t('subscription.detail.trialDaysLeft', { days: 19 }));
+    expect(details(renderer)[1]).toContain(new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date('2026-10-20T00:00:00Z')));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+  });
+
+  it('the remaining time ignores the device clock: it is trialEnds minus the server verification time', async () => {
+    jest.useFakeTimers({ now: new Date('2030-01-01T00:00:00Z') });
+    try {
+      const { renderer } = await accessOf(entitlementOf({}));
+      expect(details(renderer)[0]).toBe(i18n.t('subscription.detail.trialDaysLeft', { days: 19 }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('the final partial day says "less than 1 day", not 0 days', async () => {
+    const { renderer } = await accessOf(entitlementOf({ verifiedAtUtc: '2026-10-19T06:00:00Z' }));
+    expect(details(renderer)[0]).toBe(i18n.t('subscription.detail.trialLessThanDay'));
+  });
+
+  it('a trial without a server verification time shows the end date but no day count', async () => {
+    const { renderer } = await accessOf(entitlementOf({ verifiedAtUtc: null }));
+    expect(details(renderer)).toHaveLength(1);
+    expect(details(renderer)[0]).toContain('2026');
+  });
+
+  it('active subscription: no Subscribe button, store management offered, and no invented renewal date', async () => {
+    const { renderer, label } = await accessOf(entitlementOf({ status: 'active', currentPeriodEndsAtUtc: '2026-11-05T00:00:00Z', trialEndsAtUtc: null }));
+    expect(label).toBe(i18n.t('subscription.access.active'));
+    expect(details(renderer)).toEqual([i18n.t('subscription.detail.activeManage')]);
+    expect(texts(renderer).join('|')).not.toMatch(/Nov 5|2026-11|11\/5/);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    await press(renderer, 'subscription-manage');
+    expect(store.openSubscriptionManagement).toHaveBeenCalledTimes(1);
+    expect(store.purchase).not.toHaveBeenCalled();
+  });
+
+  it('the manage action is absent when the store has no management page, and a failure to open it is a plain message', async () => {
+    store.canManageSubscription = false;
+    const absent = (await accessOf(entitlementOf({ status: 'active' }))).renderer;
+    expect(byId(absent, 'subscription-manage')).toHaveLength(0);
+
+    store.canManageSubscription = true;
+    store.openSubscriptionManagement.mockRejectedValue(new Error('no store'));
+    const renderer = (await accessOf(entitlementOf({ status: 'active' }))).renderer;
+    await press(renderer, 'subscription-manage');
+    expect(openDialogTexts(renderer)).toContain(i18n.t('subscription.manageFailed'));
+  });
+
+  it('grace period: still subscribed, asks to check the payment method, manage offered', async () => {
+    const { renderer, label } = await accessOf(entitlementOf({ status: 'gracePeriod', reason: 'billingIssue' }));
+    expect(label).toBe(i18n.t('subscription.access.gracePeriod'));
+    expect(details(renderer)).toEqual([i18n.t('subscription.detail.grace')]);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+  });
+
+  it('expired: data kept and readable, Subscribe is the primary action, restore stays, no manage', async () => {
+    const { renderer, label } = await accessOf(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z', canWrite: false }));
+    expect(label).toBe(i18n.t('subscription.access.expired'));
+    expect(details(renderer)).toContain(i18n.t('subscription.detail.expired'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-restore')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
+  });
+
+  it('the server entitlement wins: a verified purchase result does not change the shown state by itself', async () => {
+    store.purchase.mockResolvedValue({ kind: 'verified', state: 'active' });
+    const { renderer } = await accessOf(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z' }));
+    await press(renderer, 'subscription-subscribe');
+    expect(accessNodes(renderer, 'subscription-access')[0].props.children).toBe(i18n.t('subscription.access.expired'));
+  });
+
+  it('shows the 30-day information as product information, separate from the state, and never as an active trial', async () => {
+    const { renderer } = await accessOf(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z' }));
+    expect(texts(renderer)).toContain(i18n.t('subscription.trialInfo'));
+    expect(texts(renderer)).not.toContain(i18n.t('subscription.access.trial'));
+  });
+
+  it('shows the compact information rows (account-wide, store billing, data kept)', async () => {
+    const renderer = await renderScreen();
+    expect(texts(renderer)).toEqual(expect.arrayContaining([
+      i18n.t('subscription.infoHeading'), i18n.t('subscription.info.accountBody'), i18n.t('subscription.info.storeBody'), i18n.t('subscription.info.dataBody'),
+    ]));
+  });
+
+  it('Restore is available in every state', async () => {
+    for (const entitlement of [null, entitlementOf({}), entitlementOf({ status: 'active' }), entitlementOf({ status: 'expired' })]) {
+      mockAuth(entitlement);
+      expect(byId(await renderScreen(), 'subscription-restore')).toHaveLength(1);
+    }
   });
 
   it('never mentions a store free trial - the trial is Juple-owned', async () => {

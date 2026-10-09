@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ApiError } from '../api/ApiError';
 import { formatSaveOutcomeMessage, needsSaveOutcomeDialog } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
+import { validateClaimedDestination } from '../share/resolveShareDestination';
 import type { Collection } from '../collections/api/collectionsApi';
 import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
@@ -444,16 +445,29 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
   // navigate) always creates a fresh route with a new key, which remounts this screen with clean state.
   // acknowledgePendingShare only happens here, once the hand-off is actually committed - never earlier, so a save
   // failure (see resolveConflictWithSave) never loses the pending share.
-  const completeConflictHandoff = (share: PendingShare) => {
+  const completeConflictHandoff = async (share: PendingShare) => {
     const resolved = resolveIncomingShare(share);
+    // The Collection a share names is only a claim, here exactly as in IncomingShareRouter: checked again before it is
+    // preselected. An unusable one is dropped (never replaced by another) and the new review says so; the link and the
+    // title already resolved are kept either way.
+    const destination = await validateClaimedDestination(authenticatedRequest, share.draftCollectionId ?? share.preselectedCollectionId);
     setPendingConflictShare(null);
     acknowledgePendingShare(share.id).catch(() => undefined);
     navigation.replace('NewLinkReview', {
       url: resolved.text,
       initialTitle: resolved.title,
-      preselectedCollectionId: share.draftCollectionId ?? share.preselectedCollectionId,
+      preselectedCollectionId: destination.collectionId,
+      ...(destination.unavailable ? { destinationUnavailable: true } : {}),
     });
   };
+
+  // Arrived here with a Collection that was dropped because it is no longer usable: said once.
+  const destinationUnavailable = route.params.destinationUnavailable === true;
+  useEffect(() => {
+    if (destinationUnavailable) {
+      showMessage(t('collections.shortcutUnavailable'));
+    }
+  }, [destinationUnavailable, showMessage, t]);
 
   // "저장 후 계속" - the exact same save() the main Save button uses, with a different onSuccess. On failure save()
   // already shows why and pendingConflictShare stays, so the user can retry either button.
@@ -462,7 +476,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
       return;
     }
     const share = pendingConflictShare;
-    save(() => completeConflictHandoff(share));
+    save(() => { completeConflictHandoff(share).catch(() => undefined); });
   };
 
   // "버리고 계속" - never calls save(); the current draft (nothing persisted) is simply abandoned.
@@ -470,7 +484,7 @@ export function NewLinkReviewScreen({ route, navigation }: Props) {
     if (!pendingConflictShare) {
       return;
     }
-    completeConflictHandoff(pendingConflictShare);
+    completeConflictHandoff(pendingConflictShare).catch(() => undefined);
   };
 
   const site = resolveSiteInfo(url);

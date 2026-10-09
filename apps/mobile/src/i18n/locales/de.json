@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Sammlung verlassen?",
     "leaveConfirmMessage": "Wenn du sie verlässt, wird diese Sammlung aus deiner Liste entfernt.",
     "leaveConfirmButton": "Verlassen",
-    "leaveError": "Die Sammlung konnte nicht verlassen werden. Bitte versuche es später erneut."
+    "leaveError": "Die Sammlung konnte nicht verlassen werden. Bitte versuche es später erneut.",
+    "noCollection": "Keine Sammlung",
+    "changeCollection": "Sammlung ändern",
+    "newLinkNotificationsTurnOn": "Benachrichtigungen für neue Links einschalten",
+    "newLinkNotificationsTurnOff": "Benachrichtigungen für neue Links ausschalten",
+    "shortcutRemove": "Aus den Teilen-Zielen entfernen",
+    "shortcutLimitReached": "Du kannst bis zu {{count}} App-Verknüpfungen hinzufügen. Entferne zuerst eine andere.",
+    "shortcutUnavailable": "Diese Sammlung kann gerade keine Links aufnehmen. Dein Link wurde behalten – bitte wähle selbst eine Sammlung.",
+    "linkActionsA11y": "Link-Optionen",
+    "collectionActionsA11y": "Sammlungsoptionen",
+    "shortcutSavedWithoutCollection": "Dein Link wurde gespeichert, konnte aber nicht zur gewählten Sammlung hinzugefügt werden. Ordne ihn bitte selbst neu zu.",
+    "shortcutOpenUnavailable": "Diese Sammlung kann nicht mehr geöffnet werden. Bitte entferne ihr Symbol selbst vom Startbildschirm.",
+    "homeShortcutAdd": "Verknüpfung zum Startbildschirm hinzufügen",
+    "homeShortcutUnsupported": "Der Launcher dieses Geräts unterstützt keine Startbildschirm-Verknüpfungen.",
+    "homeShortcutLocked": "Eine gesperrte Sammlung verlangt auch vom Startbildschirm aus ihr Passwort. Sie wird nicht als Teilen-Ziel hinzugefügt."
   },
   "toast": {
     "moveSuccess": "Verschoben.",
@@ -606,7 +620,6 @@
     "justNow": "Gerade eben",
     "minutesAgo": "vor {{count}} Min.",
     "hoursAgo": "vor {{count}} Std.",
-    "moreA11y": "Kommentaroptionen",
     "ownerA11y": "{{name}} (Eigentümer)",
     "reply": "Antworten",
     "replyPlaceholder": "Antwort schreiben",
@@ -620,7 +633,15 @@
     "like": "Gefällt mir",
     "unlike": "Gefällt mir nicht mehr",
     "likeCountA11y": "{{count}} Mal gefällt mir",
-    "likeError": "„Gefällt mir“ konnte nicht aktualisiert werden."
+    "likeError": "„Gefällt mir“ konnte nicht aktualisiert werden.",
+    "edit": "Bearbeiten",
+    "deleteAction": "Löschen",
+    "editing": "Kommentar bearbeiten",
+    "cancelEdit": "Bearbeiten abbrechen",
+    "editSave": "Speichern",
+    "editError": "Der Kommentar konnte nicht bearbeitet werden. Dein Text bleibt erhalten.",
+    "optionsA11y": "Kommentaroptionen",
+    "profileA11y": "Profil von {{name}} ansehen"
   },
   "reactions": {
     "pickerTitle": "Reaktion hinzufügen",
@@ -905,11 +926,12 @@
     "cancelNote": "Du kannst jederzeit in den Abo-Einstellungen des Stores kündigen. Nach der Kündigung gibt es keine weiteren Verlängerungen.",
     "accessHeading": "Dein Zugang",
     "access": {
-      "trial": "Kostenlose Testphase",
+      "trial": "Kostenlose Nutzung",
       "active": "Abonniert",
       "gracePeriod": "Abonniert (Zahlungsproblem)",
       "expired": "Abonnement beendet",
-      "inactive": "Ein Abonnement ist noch nicht erforderlich."
+      "inactive": "Ein Abonnement ist noch nicht erforderlich.",
+      "unknown": "Dein Zugriffsstatus konnte nicht geprüft werden."
     },
     "loading": "Wird geladen...",
     "subscribe": "Abonnieren",
@@ -934,6 +956,36 @@
       "nothingFound": "Es wurden keine Käufe zum Wiederherstellen gefunden.",
       "anotherAccount": "Dieser Kauf gehört zu einem anderen Juple-Konto.",
       "temporary": "Käufe konnten gerade nicht wiederhergestellt werden. Bitte versuche es erneut."
+    },
+    "trialInfo": "Die ersten 30 Tage sind kostenlos. Dieser kostenlose Zeitraum wird von Juple bereitgestellt und ist unabhängig von der Abrechnung im Store.",
+    "detail": {
+      "trialDaysLeft": "Verbleibende Tage: {{days}}",
+      "trialLessThanDay": "Weniger als 1 Tag übrig",
+      "trialEndsOn": "Kostenlos bis {{date}}",
+      "activeManage": "Du kannst dein Abo im Store verwalten.",
+      "grace": "Bei deiner Zahlung gibt es ein Problem. Prüfe im Store deine Zahlungsmethode, um den Zugriff zu behalten.",
+      "expired": "Schließe ein Abo ab, um wieder zu speichern und zu bearbeiten. Deine gespeicherten Links bleiben erhalten und können weiter angesehen werden.",
+      "expiredOn": "Zugriff endete am {{date}}"
+    },
+    "manage": "Abo verwalten",
+    "manageFailed": "Der Store konnte nicht geöffnet werden. Bitte versuche es erneut.",
+    "infoHeading": "Gut zu wissen",
+    "info": {
+      "accountTitle": "Gilt für dein Konto",
+      "accountBody": "Dein Abo gehört zu deinem Juple-Konto, nicht zu einem einzelnen Gerät.",
+      "storeTitle": "Zahlung und Kündigung",
+      "storeBody": "Zahlung, Verlängerung und Kündigung laufen über den Store, in dem du das Abo abgeschlossen hast.",
+      "dataTitle": "Deine Links bleiben dein",
+      "dataBody": "Gespeicherte Links werden nicht gelöscht, wenn ein Abo endet."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "Ein Update ist verfügbar",
+    "optionalMessage": "Eine neue Version von Juple ist verfügbar.",
+    "requiredTitle": "Ein Update ist erforderlich",
+    "requiredMessage": "Um Juple weiter zu nutzen, aktualisiere bitte auf die neueste Version.",
+    "later": "Später",
+    "action": "Aktualisieren",
+    "openStoreFailed": "Der Store konnte nicht geöffnet werden. Bitte versuche es gleich noch einmal."
   }
 }

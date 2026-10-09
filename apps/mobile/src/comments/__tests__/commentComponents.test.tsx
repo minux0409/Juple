@@ -23,6 +23,9 @@ const create = (element: React.ReactElement): Renderer => {
   });
   return renderer;
 };
+/** The comment's long-press handler (the row's Pressable), or undefined when the comment has none. */
+const longPressOf = (renderer: Renderer, testID: string): (() => void) | undefined =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onLongPress === 'function')[0]?.props.onLongPress;
 const byId = (renderer: Renderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
 const texts = (renderer: Renderer) => renderer.root.findAllByType(Text).map(node => [node.props.children].flat().join(''));
@@ -56,7 +59,7 @@ describe('formatCommentTime', () => {
 
 describe('CommentRow', () => {
   const row = (overrides: Partial<React.ComponentProps<typeof CommentRow>> = {}) =>
-    create(<CommentRow canDelete={false} comment={comment(1)} onOpenMenu={jest.fn()} {...overrides} />);
+    create(<CommentRow comment={comment(1)} {...overrides} />);
 
   it('draws the avatar, the nickname, the time and the text - no card around it', () => {
     const renderer = row();
@@ -98,14 +101,18 @@ describe('CommentRow', () => {
     expect(renderer.root.findAll(node => typeof node.props.onPress === 'function')).toHaveLength(0);
   });
 
-  it('shows the "..." only where the caller may delete, and opens the menu with that comment', () => {
-    const onOpenMenu = jest.fn();
-    expect(byId(row(), 'comment-more-1')).toBeUndefined();
+  it('has no visible "..." button at all; the menu is a long-press on the comment, offered only where there is something to do', () => {
+    const onLongPress = jest.fn();
+    expect(byId(row({ onLongPress }), 'comment-more-1')).toBeUndefined();
+    expect(row({ onLongPress }).root.findAll(node => node.props.accessibilityLabel === '댓글 더보기')).toHaveLength(0);
 
-    const renderer = row({ canDelete: true, onOpenMenu });
-    expect(byId(renderer, 'comment-more-1').props.accessibilityLabel).toBe('댓글 더보기');
-    act(() => byId(renderer, 'comment-more-1').props.onPress());
-    expect(onOpenMenu).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    expect(longPressOf(row(), 'comment-1')).toBeUndefined();
+    const renderer = row({ onLongPress });
+    act(() => longPressOf(renderer, 'comment-1')!());
+    expect(onLongPress).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    // Offered to a screen reader too, without needing the gesture.
+    const block = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    expect(block.props.accessibilityActions).toEqual([{ name: 'options', label: '댓글 옵션' }]);
   });
 });
 
@@ -228,30 +235,32 @@ describe('CommentList', () => {
     expect(onLoadPrevious).toHaveBeenCalledTimes(1);
   });
 
-  it('a member may delete only their own: the other comment has no "..."', () => {
+  it('a member may delete only their own: the other comment has no long-press and no menu', () => {
     const renderer = list({ comments: [comment(1), comment(2, { isMe: true })], totalCount: 2 });
 
-    expect(byId(renderer, 'comment-more-1')).toBeUndefined();
-    expect(byId(renderer, 'comment-more-2')).toBeDefined();
+    expect(longPressOf(renderer, 'comment-1')).toBeUndefined();
+    expect(longPressOf(renderer, 'comment-2')).toBeDefined();
   });
 
   it('the Owner may delete any comment', () => {
     const renderer = list({ canDeleteAny: true, comments: [comment(1), comment(2)], totalCount: 2 });
 
-    expect(byId(renderer, 'comment-more-1')).toBeDefined();
-    expect(byId(renderer, 'comment-more-2')).toBeDefined();
+    expect(longPressOf(renderer, 'comment-1')).toBeDefined();
+    expect(longPressOf(renderer, 'comment-2')).toBeDefined();
   });
 
-  it('delete: "..." → 댓글 삭제 → 댓글을 삭제할까요? → 삭제 removes it; 취소 does nothing', () => {
+  it('delete: long-press → 삭제하기 → 댓글을 삭제할까요? → 삭제 removes it; 취소 does nothing', () => {
     const onDelete = jest.fn();
     const renderer = list({ canDeleteAny: true, comments: [comment(7)], totalCount: 1, onDelete });
     const menu = () => renderer.root.findByType(ActionMenuDialog);
     const confirm = () => renderer.root.findByType(ConfirmDialog);
 
     expect(menu().props.visible).toBe(false);
-    act(() => byId(renderer, 'comment-more-7').props.onPress());
+    act(() => longPressOf(renderer, 'comment-7')!());
     expect(menu().props.visible).toBe(true);
-    expect(menu().props.actions.map((action: { label: string }) => action.label)).toEqual(['댓글 삭제']);
+    expect(menu().props.actions.map((action: { label: string }) => action.label)).toEqual(['삭제하기']);
+    expect(menu().props.actions[0].destructive).toBe(true);
+    expect(menu().props.actions[0].icon).toBeDefined();
 
     act(() => menu().props.actions[0].onPress());
     expect(menu().props.visible).toBe(false);
@@ -262,7 +271,7 @@ describe('CommentList', () => {
     expect(onDelete).not.toHaveBeenCalled();
     expect(confirm().props.visible).toBe(false);
 
-    act(() => byId(renderer, 'comment-more-7').props.onPress());
+    act(() => longPressOf(renderer, 'comment-7')!());
     act(() => menu().props.actions[0].onPress());
     act(() => confirm().props.onConfirm());
     expect(onDelete).toHaveBeenCalledWith(7);

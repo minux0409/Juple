@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Koleksiyondan ayrılmak istiyor musun?",
     "leaveConfirmMessage": "Ayrılırsan bu koleksiyon listenden kaldırılır.",
     "leaveConfirmButton": "Ayrıl",
-    "leaveError": "Koleksiyondan ayrılamadı. Lütfen daha sonra tekrar dene."
+    "leaveError": "Koleksiyondan ayrılamadı. Lütfen daha sonra tekrar dene.",
+    "noCollection": "Koleksiyon yok",
+    "changeCollection": "Koleksiyonu değiştir",
+    "newLinkNotificationsTurnOn": "Yeni bağlantı bildirimlerini aç",
+    "newLinkNotificationsTurnOff": "Yeni bağlantı bildirimlerini kapat",
+    "shortcutRemove": "Paylaşım hedeflerinden kaldır",
+    "shortcutLimitReached": "En fazla {{count}} uygulama kısayolu ekleyebilirsiniz. Önce başka birini kaldırın.",
+    "shortcutUnavailable": "Bu koleksiyon şu anda bağlantı alamıyor. Bağlantınız korundu — lütfen koleksiyonu kendiniz seçin.",
+    "linkActionsA11y": "Bağlantı seçenekleri",
+    "collectionActionsA11y": "Koleksiyon seçenekleri",
+    "shortcutSavedWithoutCollection": "Bağlantınız kaydedildi ancak seçtiğiniz koleksiyona eklenemedi. Lütfen koleksiyonu yeniden kendiniz seçin.",
+    "shortcutOpenUnavailable": "Bu koleksiyon artık açılamıyor. Ana ekrandaki simgesini lütfen kendiniz kaldırın.",
+    "homeShortcutAdd": "Ana ekrana kısayol ekle",
+    "homeShortcutUnsupported": "Bu cihazın başlatıcısı ana ekrana kısayol eklemeyi desteklemiyor.",
+    "homeShortcutLocked": "Kilitli bir koleksiyon ana ekrandan açıldığında da parola ister. Paylaşım hedefi olarak eklenmez."
   },
   "toast": {
     "moveSuccess": "Taşındı.",
@@ -606,7 +620,6 @@
     "justNow": "Az önce",
     "minutesAgo": "{{count}} dk önce",
     "hoursAgo": "{{count}} sa önce",
-    "moreA11y": "Yorum seçenekleri",
     "ownerA11y": "{{name}} (sahip)",
     "reply": "Yanıtla",
     "replyPlaceholder": "Yanıt yazın",
@@ -620,7 +633,15 @@
     "like": "Beğen",
     "unlike": "Beğenmekten vazgeç",
     "likeCountA11y": "{{count}} beğeni",
-    "likeError": "Beğeni güncellenemedi."
+    "likeError": "Beğeni güncellenemedi.",
+    "edit": "Düzenle",
+    "deleteAction": "Sil",
+    "editing": "Yorum düzenleniyor",
+    "cancelEdit": "Düzenlemeyi iptal et",
+    "editSave": "Kaydet",
+    "editError": "Yorum düzenlenemedi. Yazdığınız metin korundu.",
+    "optionsA11y": "Yorum seçenekleri",
+    "profileA11y": "{{name}} profilini görüntüle"
   },
   "reactions": {
     "pickerTitle": "Tepki ekle",
@@ -905,11 +926,12 @@
     "cancelNote": "Mağazanın abonelik ayarlarından istediğiniz zaman iptal edebilirsiniz. İptal etmek sonraki yenilemeleri durdurur.",
     "accessHeading": "Erişiminiz",
     "access": {
-      "trial": "Ücretsiz deneme",
+      "trial": "Ücretsiz kullanım",
       "active": "Abone",
       "gracePeriod": "Abone (ödeme sorunu)",
       "expired": "Abonelik sona erdi",
-      "inactive": "Abonelik henüz gerekli değil."
+      "inactive": "Abonelik henüz gerekli değil.",
+      "unknown": "Erişim durumun kontrol edilemedi."
     },
     "loading": "Yükleniyor...",
     "subscribe": "Abone ol",
@@ -934,6 +956,36 @@
       "nothingFound": "Geri yüklenecek satın alım bulunamadı.",
       "anotherAccount": "Bu satın alım başka bir Juple hesabına ait.",
       "temporary": "Satın alımlar şu anda geri yüklenemedi. Lütfen tekrar deneyin."
+    },
+    "trialInfo": "İlk 30 gün ücretsizdir. Bu ücretsiz dönemi Juple sağlar ve mağaza faturalandırmasından ayrıdır.",
+    "detail": {
+      "trialDaysLeft": "Kalan gün: {{days}}",
+      "trialLessThanDay": "1 günden az kaldı",
+      "trialEndsOn": "{{date}} tarihine kadar ücretsiz",
+      "activeManage": "Aboneliğini mağazada yönetebilirsin.",
+      "grace": "Ödemenle ilgili bir sorun var. Erişimini sürdürmek için mağazada ödeme yöntemini kontrol et.",
+      "expired": "Tekrar kaydedip düzenleyebilmek için abone ol. Kaydettiğin bağlantılar korunur ve görüntülenmeye devam eder.",
+      "expiredOn": "Erişim {{date}} tarihinde sona erdi"
+    },
+    "manage": "Aboneliği yönet",
+    "manageFailed": "Mağaza açılamadı. Lütfen tekrar dene.",
+    "infoHeading": "Bilmeye değer",
+    "info": {
+      "accountTitle": "Hesabına uygulanır",
+      "accountBody": "Aboneliğin tek bir cihaza değil, Juple hesabına aittir.",
+      "storeTitle": "Ödeme ve iptal",
+      "storeBody": "Ödeme, yenileme ve iptal, abone olduğun mağaza üzerinden yönetilir.",
+      "dataTitle": "Bağlantıların sende kalır",
+      "dataBody": "Abonelik sona erdiğinde kaydettiğin bağlantılar silinmez."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "Güncelleme mevcut",
+    "optionalMessage": "Juple’ın yeni bir sürümü mevcut.",
+    "requiredTitle": "Güncelleme gerekli",
+    "requiredMessage": "Juple’ı kullanmaya devam etmek için lütfen en son sürüme güncelleyin.",
+    "later": "Daha sonra",
+    "action": "Güncelle",
+    "openStoreFailed": "Mağaza açılamadı. Lütfen biraz sonra tekrar deneyin."
   }
 }

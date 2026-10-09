@@ -22,4 +22,8 @@ export interface SubscriptionStore {
   loadOffer: () => Promise<SubscriptionOfferResult>;
   purchase: () => Promise<PurchaseResult>;
   restore: () => Promise<RestoreResult>;
+  /** True when this platform's store has a subscription-management page the app can open (Google Play today; the App Store is a Mac follow-up). */
+  canManageSubscription: boolean;
+  /** Opens that store page. Never changes any access: only the Backend's entitlement does. */
+  openSubscriptionManagement: () => Promise<void>;
 }

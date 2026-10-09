@@ -29,6 +29,11 @@ export function chunkIntoImageLines<T>(items: readonly T[]): readonly (readonly 
 interface SavedLinkImageTileProps {
   readonly item: ItemHistoryEntry;
   readonly onPress: (item: ItemHistoryEntry) => void;
+  /**
+   * Long-press / the screen-reader "options" action: the same link menu every other view has (see useSavedLinkActions).
+   * Pass a STABLE callback (the tile is memoized). A locked Collection's redacted tile never has one.
+   */
+  readonly onLongPress?: (item: ItemHistoryEntry) => void;
 }
 
 /**
@@ -38,7 +43,7 @@ interface SavedLinkImageTileProps {
  * plain link glyph, on a neutral square. A locked Collection's link (redacted by the server) is a lock on
  * a neutral square - never its thumbnail, site or text, in the accessibility label either.
  */
-function SavedLinkImageTileView({ item, onPress }: SavedLinkImageTileProps) {
+function SavedLinkImageTileView({ item, onPress, onLongPress }: SavedLinkImageTileProps) {
   const { t } = useTranslation();
   // The URL that failed, not a flag: a refresh brings a fresh signed URL that deserves its own attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -55,7 +60,17 @@ function SavedLinkImageTileView({ item, onPress }: SavedLinkImageTileProps) {
   const showImage = imageUrl !== null && imageUrl !== failedUrl;
   const siteId = resolveSiteInfo(item.url).id;
   return (
-    <Pressable accessibilityLabel={resolveSavedLinkDisplayTitle(item.title, item.url, t).text} accessibilityRole="button" onPress={() => onPress(item)} style={styles.tile} testID="saved-link-image-tile">
+    <Pressable
+      accessibilityActions={onLongPress ? [{ name: 'options', label: t('collections.linkActionsA11y') }] : undefined}
+      accessibilityLabel={resolveSavedLinkDisplayTitle(item.title, item.url, t).text}
+      accessibilityRole="button"
+      delayLongPress={350}
+      onAccessibilityAction={onLongPress ? event => { if (event.nativeEvent.actionName === 'options') { onLongPress(item); } } : undefined}
+      onLongPress={onLongPress ? () => onLongPress(item) : undefined}
+      onPress={() => onPress(item)}
+      style={styles.tile}
+      testID="saved-link-image-tile"
+    >
       {showImage ? (
         <Image onError={() => setFailedUrl(imageUrl)} resizeMode="cover" source={{ uri: imageUrl }} style={styles.picture} testID="saved-link-image-tile-picture" />
       ) : (
@@ -72,6 +87,7 @@ export const SavedLinkImageTile = memo(SavedLinkImageTileView);
 interface SavedLinkImageRowProps {
   readonly items: readonly ItemHistoryEntry[];
   readonly onPress: (item: ItemHistoryEntry) => void;
+  readonly onLongPress?: (item: ItemHistoryEntry) => void;
   readonly testID?: string;
 }
 
@@ -80,12 +96,12 @@ interface SavedLinkImageRowProps {
  * below the line. A short last line keeps the same square size (empty slots hold the width), and the
  * whole grid is just such lines inside the screen's ONE virtualized list.
  */
-export function SavedLinkImageRow({ items, onPress, testID }: SavedLinkImageRowProps) {
+export function SavedLinkImageRow({ items, onPress, onLongPress, testID }: SavedLinkImageRowProps) {
   return (
     <View style={styles.row} testID={testID}>
       {Array.from({ length: SAVED_LINK_IMAGE_COLUMNS }, (_, index) => {
         const item = items[index];
-        return item ? <SavedLinkImageTile item={item} key={item.id} onPress={onPress} /> : <View key={`empty-${index}`} style={styles.slot} />;
+        return item ? <SavedLinkImageTile item={item} key={item.id} onLongPress={onLongPress} onPress={onPress} /> : <View key={`empty-${index}`} style={styles.slot} />;
       })}
     </View>
   );

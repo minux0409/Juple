@@ -3,7 +3,6 @@ import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import type { LoadFailureInfo } from '../components/LoadFailureState';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { createCollection, getCollections, type Collection } from './api/collectionsApi';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, KEEP_ICON_IMAGE, type CollectionIconImageChange } from './collectionIconImage';
 import { canAddItemsTo, contentGateOf } from './collectionAccess';
@@ -350,7 +349,6 @@ export function useCategoryPickerModal(
       setCollectionPool(previous => [...previous, created]);
       setIsCreateDialogVisible(false);
       onCollectionCreated?.(created);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
       return true;
     } catch (caughtError) {
       setCreateError(getCreateErrorMessage(caughtError, t));

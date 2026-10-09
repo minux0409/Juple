@@ -3,11 +3,14 @@ import NativeIncomingShare from './specs/NativeIncomingShare';
 import { notifyAutoSaveSettled } from './autoSaveInFlight';
 import { resolveIncomingShare } from './resolveIncomingShare';
 import { COLLECTION_SHARE_URL_NOT_SAVABLE_CODE, parseCollectionShareUrl } from './collectionShareUrl';
+import { resolveShareDestination } from './resolveShareDestination';
+import { SHORTCUT_NOTICE_SAVED_WITHOUT_COLLECTION } from '../shortcuts/shortcutLaunchNotice';
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
 import { ApiError } from '../api/ApiError';
 import { EntraAuthError, isEntraSessionInvalidError } from '../auth/entraAuthClient';
 import { AuthSessionError } from '../auth/session/authSessionErrors';
+import { addItemToCollection } from '../collections/api/collectionsApi';
 import { saveInboxEntry } from '../inbox/api/inboxApi';
 import { updateItemDetails } from '../items/api/itemsApi';
 import { getHostnameFromUrl } from '../items/savedLinkPrimaryText';
@@ -116,9 +119,16 @@ async function reportOutcome(
  * Quick Save ON share (see ShareReceiverActivity/IncomingShareSaveScheduler). When the sharing
  * app itself provided a title (resolveIncomingShare - the same resolver Quick Save OFF's review
  * flow prefills from), it is applied post-save via the same updateItemDetails call the review
- * screen's Save uses, so ON/OFF produce identically-titled Items; no category is ever applied
- * here (a shortcut-resolved preselectedCollectionId stays review-only), and no title is ever
- * guessed - a title-less share simply saves a title-less Item.
+ * screen's Save uses, so ON/OFF produce identically-titled Items, and no title is ever guessed - a
+ * title-less share simply saves a title-less Item.
+ *
+ * A share that came through a Collection's Direct Share row carries that Collection as a CLAIM
+ * (preselectedCollectionId). It is re-validated before anything is saved (resolveShareDestination: exists
+ * for this user, may add links, not locked); only then is the link saved and put into it, through the same
+ * addItemToCollection call everywhere else uses (a Submitter's link becomes a proposal, exactly as usual).
+ * When the Collection is no longer usable NOTHING is saved on the user's behalf - not into another
+ * Collection, not silently into none: the share stays pending for the review screen, which says so (see
+ * IncomingShareRouter).
  *
  * saveInboxEntry is already idempotent (POST /inbox replays by clientRequestId), so a retried
  * attempt after a failure safely resolves to the same Item without ever creating a second one.
@@ -171,6 +181,25 @@ async function incomingShareHeadlessTask(
     return;
   }
 
+  const targetCollectionId = pendingShare.preselectedCollectionId;
+  if (targetCollectionId !== null) {
+    try {
+      const destination = await resolveShareDestination(requestAuthenticatedApi, targetCollectionId);
+      if (destination.status !== 'usable') {
+        await reportOutcome(pendingShareId, 'reviewRequired');
+        return;
+      }
+    } catch (error) {
+      console.warn('[IncomingShareHeadlessTask] destination check failed', {
+        outcome: classifySaveFailure(error),
+        errorKind: error instanceof ApiError ? error.kind : undefined,
+        errorStatus: error instanceof ApiError ? error.status : undefined,
+      });
+      await reportOutcome(pendingShareId, classifySaveFailure(error));
+      return;
+    }
+  }
+
   let savedEntryId: number;
   try {
     const savedEntry = await saveInboxEntry(requestAuthenticatedApi, resolvedShare.text, pendingShare.id);
@@ -189,6 +218,34 @@ async function incomingShareHeadlessTask(
     });
     await reportOutcome(pendingShareId, outcome);
     return;
+  }
+
+  // Into the chosen Collection (Direct Share). A temporary failure leaves the share pending for the retry Worker - the
+  // save above and this call are both idempotent, so a replay can only finish the job. A permanent one (the Collection
+  // stopped accepting links between the check and now) cannot be fixed by retrying: the link IS saved, so the share is
+  // done, and the user is told it landed without the Collection instead of it being lost or put somewhere else.
+  let addedToCollectionFailed = false;
+  if (targetCollectionId !== null) {
+    try {
+      await addItemToCollection(requestAuthenticatedApi, targetCollectionId, savedEntryId);
+    } catch (error) {
+      // Already in it / already waiting for its Owner: that is the goal reached, not a failure.
+      const alreadyThere = error instanceof ApiError && error.kind === 'conflict'
+        && (error.code === 'linkAlreadyInCollection' || error.code === 'linkAlreadyPending');
+      if (!alreadyThere) {
+        const outcome = classifySaveFailure(error);
+        console.warn('[IncomingShareHeadlessTask] add to collection failed', {
+          outcome,
+          errorKind: error instanceof ApiError ? error.kind : undefined,
+          errorStatus: error instanceof ApiError ? error.status : undefined,
+        });
+        if (outcome !== 'permanentFailure') {
+          await reportOutcome(pendingShareId, outcome);
+          return;
+        }
+        addedToCollectionFailed = true;
+      }
+    }
   }
 
   // Applies the share-time resolved title (same resolveIncomingShare result Quick Save OFF's
@@ -236,6 +293,9 @@ async function incomingShareHeadlessTask(
   }
 
   console.log('[IncomingShareHeadlessTask] success');
+  if (addedToCollectionFailed) {
+    await NativeIncomingShare.setShortcutNotice(SHORTCUT_NOTICE_SAVED_WITHOUT_COLLECTION).catch(() => undefined);
+  }
   await NativeIncomingShare.acknowledgePendingShare(pendingShare.id);
   notifyAutoSaveSettled();
 

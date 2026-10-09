@@ -5,6 +5,7 @@ import {
   addItemComment,
   COMMENT_PAGE_SIZE,
   deleteItemComment,
+  editItemComment,
   getCommentReplies,
   getItemComments,
   setCommentLike,
@@ -18,8 +19,6 @@ export interface ReplyTarget {
   readonly commentId: number;
   readonly rootCommentId: number;
   readonly name: string;
-  /** "@name" to put in front of the text - only for an answer to another REPLY (a direct answer is already under its parent). */
-  readonly mention: string | null;
 }
 
 /** One thread's replies as the screen shows them. Lazy: nothing is fetched until the thread is opened. */
@@ -35,13 +34,19 @@ export interface ThreadState {
   readonly moreFailed: boolean;
 }
 
+/** The comment being edited: its id and the words it had when editing started. */
+export interface EditTarget {
+  readonly commentId: number;
+  readonly body: string;
+}
+
 const EMPTY_THREAD: ThreadState = { expanded: false, status: 'idle', replies: [], nextCursor: null, isLoadingMore: false, moreFailed: false };
 
 /** The most older pages a notification's "bring me to that thread" will walk back through to find its root. */
 const MAX_FOCUS_PAGES = 10;
 
 type Threads = Readonly<Record<number, ThreadState>>;
-type FailureKind = 'send' | 'delete' | 'older' | 'like';
+type FailureKind = 'send' | 'delete' | 'older' | 'like' | 'edit';
 
 /** A deleted comment keeps its row (its replies hang under it) but nothing of it: no words, no hearts. */
 const toPlaceholder = (comment: ItemComment): ItemComment => ({ ...comment, body: '', isDeleted: true, likeCount: 0, viewerLiked: false });
@@ -80,6 +85,9 @@ export function useItemComments(
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const editTargetRef = useRef<EditTarget | null>(null);
+  editTargetRef.current = editTarget;
   const commentsRef = useRef<readonly ItemComment[]>([]);
   commentsRef.current = comments;
   const threadsRef = useRef<Threads>({});
@@ -228,11 +236,62 @@ export function useItemComments(
       return;
     }
     const name = personLabel({ jupleId: comment.author.jupleId, displayName: comment.author.displayName });
-    const isReply = comment.rootCommentId !== null && comment.rootCommentId !== undefined;
-    setReplyTarget({ commentId: comment.id, rootCommentId: comment.rootCommentId ?? comment.id, name, mention: isReply ? `@${name}` : null });
+    setEditTarget(null);
+    setReplyTarget({ commentId: comment.id, rootCommentId: comment.rootCommentId ?? comment.id, name });
   }, []);
 
   const cancelReply = useCallback(() => setReplyTarget(null), []);
+
+  // ---- editing (the author's own live comment; words only) ----
+
+  const startEdit = useCallback((comment: ItemComment) => {
+    if (comment.isDeleted || !comment.author.isMe) {
+      return;
+    }
+    // Editing and answering are separate modes of the one composer.
+    setReplyTarget(null);
+    setEditTarget({ commentId: comment.id, body: comment.body });
+  }, []);
+
+  const cancelEdit = useCallback(() => setEditTarget(null), []);
+
+  /**
+   * Saves the new words of the comment being edited, in place: only its body changes in the state - replies, hearts, whether
+   * the person hearted it, the thread's open/closed state and the reply target stay exactly as they were (the answered
+   * person is metadata, never part of the editable text). Resolves true when saved; on failure nothing changes, false is
+   * returned (the composer keeps what was typed and stays in edit mode) and onFailure('edit') reports it.
+   */
+  const saveEdit = useCallback(
+    async (body: string): Promise<boolean> => {
+      const target = editTargetRef.current;
+      if (!target || isSendingRef.current) {
+        return false;
+      }
+      isSendingRef.current = true;
+      setIsSending(true);
+      try {
+        const saved = await editItemComment(authenticatedRequest, collectionId, itemId, target.commentId, body, tokenRef.current());
+        const change = (entry: ItemComment): ItemComment => (entry.id === target.commentId ? { ...entry, body: saved.body } : entry);
+        setComments(current => current.map(change));
+        setThreads(current => {
+          const next: Record<number, ThreadState> = {};
+          for (const key of Object.keys(current).map(Number)) {
+            next[key] = { ...current[key], replies: current[key].replies.map(change) };
+          }
+          return next;
+        });
+        setEditTarget(null);
+        return true;
+      } catch {
+        failureRef.current('edit');
+        return false;
+      } finally {
+        isSendingRef.current = false;
+        setIsSending(false);
+      }
+    },
+    [authenticatedRequest, collectionId, itemId],
+  );
 
   const send = useCallback(
     async (body: string): Promise<boolean> => {
@@ -369,6 +428,7 @@ export function useItemComments(
     isLoadingPrevious,
     isSending,
     replyTarget,
+    editTarget,
     load,
     loadPrevious,
     send,
@@ -379,6 +439,9 @@ export function useItemComments(
     retryReplies,
     startReply,
     cancelReply,
+    startEdit,
+    cancelEdit,
+    saveEdit,
   } as const;
 }
 

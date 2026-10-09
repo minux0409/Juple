@@ -59,6 +59,8 @@ interface CategoryPickerModalProps {
   readonly createLabel?: string;
   /** What a screen reader says for the create tile when its visible label is short ("추가"). */
   readonly createAccessibilityLabel?: string;
+  /** "컬렉션 없음" right after "+ 새로 만들기": an explicit choice of no Collection (see CollectionChoiceGrid). Absent = no such tile. */
+  readonly noneTile?: { readonly label: string; readonly isSelected: boolean; readonly onPress: () => void };
   /** An order control (최신순 | 이름순) under the title; absent = none. */
   readonly sort?: { readonly value: 'newest' | 'title'; readonly onChange: (next: 'newest' | 'title') => void };
   /** Shown but not choosable, marked 이미 포함됨 (e.g. a Collection the link is already in). */
@@ -67,7 +69,13 @@ interface CategoryPickerModalProps {
    * A confirming action instead of the plain 닫기: "N개 선택됨" and [취소] [label], the action only
    * with something chosen. Absent = the sheet applies each tap itself and only offers 닫기.
    */
-  readonly submit?: { readonly label: string; readonly onSubmit: () => void; readonly isSubmitting: boolean };
+  readonly submit?: {
+    readonly label: string;
+    readonly onSubmit: () => void;
+    readonly isSubmitting: boolean;
+    /** Whether the action is available at all (default: only with something chosen). 컬렉션 변경 lets an empty choice be saved. */
+    readonly enabled?: boolean;
+  };
   /**
    * The Collection list could not be loaded. Nothing listed yet: a centered load-failure state INSIDE the sheet (the
    * sheet stays open). Some already listed (a next page failed): they stay, with a compact non-blocking retry row.
@@ -114,6 +122,7 @@ export function CategoryPickerModal({
   showCreateTile = true,
   createLabel,
   createAccessibilityLabel,
+  noneTile,
   sort,
   disabledIds,
   submit,
@@ -121,6 +130,7 @@ export function CategoryPickerModal({
   onRetryLoad,
 }: CategoryPickerModalProps) {
   const { t } = useTranslation();
+  const submitEnabled = submit ? (submit.enabled ?? selectedIds.size > 0) : false;
   const sheetTranslateY = useRef(new Animated.Value(SHEET_ENTER_OFFSET)).current;
   // Dragging the sheet down closes it like 닫기 / back (onClose) - not while a Collection is being created or the
   // confirming action runs (its close is unavailable then too).
@@ -161,6 +171,7 @@ export function CategoryPickerModal({
               isLoadingOptions={isLoadingOptions}
               listStyle={styles.optionList}
               loadFailure={loadFailure}
+              noneTile={noneTile}
               onLoadMore={onLoadMore}
               onOpenCreateDialog={onOpenCreateDialog}
               onRetryLoad={onRetryLoad}
@@ -188,10 +199,10 @@ export function CategoryPickerModal({
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: selectedIds.size === 0 || submit.isSubmitting, busy: submit.isSubmitting }}
-                  disabled={selectedIds.size === 0 || submit.isSubmitting}
+                  accessibilityState={{ disabled: !submitEnabled || submit.isSubmitting, busy: submit.isSubmitting }}
+                  disabled={!submitEnabled || submit.isSubmitting}
                   onPress={submit.onSubmit}
-                  style={[styles.primaryButton, styles.submitButton, (selectedIds.size === 0 || submit.isSubmitting) && styles.primaryDisabled]}
+                  style={[styles.primaryButton, styles.submitButton, (!submitEnabled || submit.isSubmitting) && styles.primaryDisabled]}
                   testID="category-picker-submit"
                 >
                   {submit.isSubmitting ? <ActivityIndicator color={colors.surface} size="small" /> : <Text numberOfLines={2} style={styles.primaryLabel}>{submit.label}</Text>}

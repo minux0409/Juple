@@ -73,6 +73,8 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
   readonly onPress: () => void;
   readonly onDelete: () => void;
   readonly onShare?: () => void;
+  /** Long-press / the screen-reader "options" action - see SwipeableItemRow. Absent: no menu. */
+  readonly onLongPress?: () => void;
 }
 
 /**
@@ -81,9 +83,9 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
  * lives on the outer cell, outside SwipeableItemRow's clipped wrapper - padding inside that wrapper is
  * exactly the area the swipe action panes would otherwise paint as a blue/red frame around the card.
  */
-export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, ...cardProps }: SavedLinkGridCellProps) {
+export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, onLongPress, ...cardProps }: SavedLinkGridCellProps) {
   return <View style={savedLinkGridLayout.cell}>
-    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onDelete={onDelete} onPress={onPress} onShare={onShare}>
+    <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
       <SavedLinkGridCard {...cardProps} />
     </SwipeableItemRow>
   </View>;

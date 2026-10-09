@@ -114,7 +114,7 @@ jest.mock('../../collections/api/collectionsApi', () => ({
   MAX_ITEMS_PER_COPY: 200,
   MAX_LINK_SHARE_RECIPIENTS: 20,
 }));
-jest.mock('../../categories/categorySnapshotSync', () => ({ syncCategorySnapshotToNative: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../../categories/collectionShortcutSync', () => ({ reconcileCollectionShortcuts: jest.fn().mockResolvedValue(undefined) }));
 
 beforeEach(() => {
   jest.mocked(getCollectionNotificationPreference).mockResolvedValue({ newItemNotificationsEnabled: true });
@@ -804,7 +804,7 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
       await openMenu(renderer, other);
 
       expect(bar(renderer)).toHaveLength(1);
-      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('collections.copyToMine')]);
+      expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine')]);
     });
 
     it('and for my own link in someone else\'s Collection - 복제 and 이동 stay as they were', async () => {
@@ -816,7 +816,7 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
 
       expect(bar(renderer)).toHaveLength(1);
       expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label))
-        .toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+        .toEqual([i18n.t('item.goToUrlA11y'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
     });
 
     it('every accepted role gets it - Viewer, Submitter, Contributor - and so does the Owner of a Collection with members', async () => {
@@ -845,7 +845,7 @@ describe('CollectionDetailsScreen - emoji reactions to the links of a shared Col
       expect(chips(renderer, mine)).toHaveLength(0);
       expect(visibleMenu(renderer)!.props.header).toBeUndefined();
       expect(visibleMenu(renderer)!.props.actions.map((action: { label: string }) => action.label))
-        .toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+        .toEqual([i18n.t('item.goToUrlA11y'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
     });
 
     it('marks my current reaction in the quick row', async () => {
@@ -1259,7 +1259,7 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
       return (renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
         .map((action: { label: string }) => action.label);
     };
-    expect(await menuOf(theirs)).toEqual([i18n.t('collections.copyToMine')]);
+    expect(await menuOf(theirs)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine'), i18n.t('collections.removeFromCollection')]);
   });
 
   it('copies a member\'s link into one of my own Collections through the shared copy API - never a link of their Item', async () => {
@@ -1270,7 +1270,7 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
     const onTheirLongPress = row(renderer, theirs).root.findByType(SwipeableItemRow).props.onLongPress;
     await act(async () => onTheirLongPress());
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions[0].onPress());
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.copyToMine')).onPress());
     await chooseDestinations(renderer, 9);
 
     expect(copyCollectionItems).toHaveBeenCalledWith(expect.anything(), COLLECTION_ID, [theirs.itemId], 9, null);
@@ -1279,7 +1279,7 @@ describe('CollectionDetailsScreen - Owner viewing a Contributor\'s link', () => 
     const onMyLongPress = row(renderer, mine).root.findByType(SwipeableItemRow).props.onLongPress;
     await act(async () => onMyLongPress());
     expect((renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)?.props.actions ?? [])
-      .map((action: { label: string }) => action.label)).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+      .map((action: { label: string }) => action.label)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
   });
 });
 
@@ -1408,11 +1408,11 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, othersLink)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('collections.copyToMine')]);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('collections.copyToMine')]);
     expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.moveToOther'));
 
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions[0].onPress());
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.copyToMine')).onPress());
     expect(destinationPicker(renderer).props.visible).toBe(true);
     await chooseDestinations(renderer, 7);
 
@@ -1430,7 +1430,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, myLinkHere)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
     expect(visibleMenuLabels(renderer)).not.toContain(i18n.t('collections.copyToMine'));
     // The swipe remove stays (the server lets a member remove only their own links).
     expect(row(renderer, myLinkHere).root.findByType(SwipeableItemRow).props.onDelete).toEqual(expect.any(Function));
@@ -1448,7 +1448,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
 
     await longPress(renderer, myLinkHere);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions[0].onPress());
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.addToOther')).onPress());
     await chooseDestinations(renderer, 7, 8);
 
     expect(addItemToCollections).toHaveBeenCalledWith(expect.anything(), 1, [7, 8], {});
@@ -1468,7 +1468,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
 
     await longPress(renderer, myLinkHere);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions[1].onPress());
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.moveToOther')).onPress());
     await chooseDestinations(renderer, 7);
 
     expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 7, 1, { unlockToken: null });
@@ -1488,7 +1488,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
 
     await longPress(renderer, myLinkHere);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions[1].onPress());
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.moveToOther')).onPress());
     await chooseDestinations(renderer, 7);
 
     // The picker stays open with the reason; the link was only added, never lost.
@@ -1502,7 +1502,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
     const renderer = await renderScreen();
 
     expect(await longPress(renderer, myLinkHere)).toBe(true);
-    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+    expect(visibleMenuLabels(renderer)).toEqual([i18n.t('item.goToUrlA11y'), i18n.t('common.edit'), i18n.t('collections.addToOther'), i18n.t('collections.moveToOther'), i18n.t('collections.removeFromCollection')]);
   });
 
   it('cancelling the picker copies nothing, and a later selection copy is not affected by it', async () => {
@@ -1512,7 +1512,7 @@ describe('CollectionDetailsScreen - long press on a link: 내 컬렉션으로 �
 
     await longPress(renderer, othersLink);
     const menu = renderer.root.findAllByType(ActionMenuDialog).find(dialog => dialog.props.visible)!;
-    await act(async () => menu.props.actions[0].onPress());
+    await act(async () => menu.props.actions.find((action: { label: string }) => action.label === i18n.t('collections.copyToMine')).onPress());
     await act(async () => destinationPicker(renderer).props.onClose());
 
     expect(destinationPicker(renderer).props.visible).toBe(false);

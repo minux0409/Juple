@@ -13,6 +13,7 @@ import { CollectionUnlockDialog } from '../../collections/CollectionUnlockDialog
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { KeyboardSafeView } from '../../components/KeyboardSafeView';
 import { getActiveNewLinkReviewDraft } from '../../share/activeNewLinkReviewDraft';
+import { ApiError } from '../../api/ApiError';
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev.juple.co.kr' } }));
@@ -303,6 +304,59 @@ describe('링크 저장 - the existing 컬렉션 선택 chooser, many Collection
     await save(tree);
     expect(saveInboxEntryToCollections).not.toHaveBeenCalled();
     expect(navigation.replace).toHaveBeenCalledWith('SharedCollection', expect.any(Object));
+  });
+
+  describe('open-draft conflict hand-off re-validates the Collection the next share names', () => {
+    const conflicting = (draftCollectionId: number | null, preselectedCollectionId: number | null = null) => ({
+      id: 'next', text: 'https://youtu.be/abc?si=xyz', receivedAtEpochMs: Date.now(), initialTitle: 'Next title', preselectedCollectionId, draftTitle: null, draftCollectionId,
+    });
+    async function handOff(share: ReturnType<typeof conflicting>) {
+      const { tree, navigation } = await render();
+      await act(async () => { getActiveNewLinkReviewDraft()!.onConflictingShare(share); });
+      const dialog = tree.root.findAllByType(ConfirmDialog).find(item => item.props.visible && item.props.title === i18n.t('item.activeDraftConflictTitle'))!;
+      await act(async () => { dialog.props.onConfirm(); });
+      return navigation.replace;
+    }
+
+    it('a usable target is carried into the new review', async () => {
+      const replace = await handOff(conflicting(null, 3));
+
+      expect(jest.mocked(getCollection)).toHaveBeenCalledWith(expect.anything(), 3);
+      expect(replace).toHaveBeenCalledWith('NewLinkReview', { url: 'https://youtu.be/abc?si=xyz', initialTitle: 'Next title', preselectedCollectionId: 3 });
+    });
+
+    it.each([
+      ['now locked', async () => { jest.mocked(getCollection).mockResolvedValue(make(5, 'Vault', { isLocked: true }) as never); }],
+      ['view-only now', async () => { jest.mocked(getCollection).mockResolvedValue(make(6, 'RO', { accessRole: 'viewer' }) as never); }],
+      ['deleted / no access', async () => { jest.mocked(getCollection).mockRejectedValue(new ApiError('notFound', 404)); }],
+    ])('a target that is %s is dropped - the URL and title are kept, no other Collection is chosen, and the new review says so', async (_name, arrange) => {
+      await arrange();
+
+      const replace = await handOff(conflicting(7));
+
+      expect(replace).toHaveBeenCalledWith('NewLinkReview', {
+        url: 'https://youtu.be/abc?si=xyz',
+        initialTitle: 'Next title',
+        preselectedCollectionId: null,
+        destinationUnavailable: true,
+      });
+    });
+
+    it('a share without a Collection never asks the backend about one', async () => {
+      jest.mocked(getCollection).mockClear();
+
+      const replace = await handOff(conflicting(null, null));
+
+      expect(getCollection).not.toHaveBeenCalled();
+      expect(replace).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ preselectedCollectionId: null }));
+    });
+
+    it('the new review shows the destination-unavailable notice once, over the kept draft', async () => {
+      const { tree } = await render({ destinationUnavailable: true } as never);
+
+      const notice = tree.root.findAllByType(ConfirmDialog).find(item => item.props.visible && item.props.message === i18n.t('collections.shortcutUnavailable'));
+      expect(notice).toBeDefined();
+    });
   });
 
   it('keeps an incoming share conflict visible when Save is not possible yet, and can discard the draft', async () => {

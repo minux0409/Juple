@@ -1,3 +1,4 @@
+import type { MobileVersionPolicy } from '../appUpdate/versionPolicy';
 import type { GetValidAccessTokenOptions, SessionRestoreStep } from './session/authSessionManager';
 
 export type { SessionRestoreStep };
@@ -58,6 +59,8 @@ export interface AuthState {
   readonly plan: UserPlan | null;
   /** Null until bootstrap reaches 'ready' at least once, or when the backend (an older one) sent none. Never guessed client-side; nothing branches on it yet. */
   readonly entitlement: Entitlement | null;
+  /** The server's app-version policy from the last successful bootstrap (see appUpdate/versionPolicy.ts). Null: none received or not understood - which never prompts or blocks. */
+  readonly mobileVersionPolicy?: MobileVersionPolicy | null;
 }
 
 export type { GetValidAccessTokenOptions };

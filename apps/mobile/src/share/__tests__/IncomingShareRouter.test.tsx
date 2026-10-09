@@ -3,6 +3,15 @@ import { IncomingShareRouter } from '../IncomingShareRouter';
 import { useIncomingShare } from '../useIncomingShare';
 import { getActiveNewLinkReviewDraft } from '../activeNewLinkReviewDraft';
 import { navigationRef } from '../../navigation/navigationRef';
+import i18n from '../../i18n';
+import { validateClaimedDestination } from '../resolveShareDestination';
+
+jest.mock('../../api/useAuthenticatedApi', () => {
+  const request = jest.fn();
+  return { useAuthenticatedApi: () => request };
+});
+// The shared decision is unit-tested in resolveShareDestination.test.ts; here only what the router does with it.
+jest.mock('../resolveShareDestination', () => ({ validateClaimedDestination: jest.fn() }));
 
 // A build with the Dev public web host: a Collection share link on it is a Collection, never a saved link.
 jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev.juple.co.kr' } }));
@@ -51,6 +60,14 @@ async function render() {
 }
 
 describe('IncomingShareRouter', () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage('ko');
+  });
+
+  beforeEach(() => {
+    jest.mocked(validateClaimedDestination).mockImplementation(async (_request, id) => ({ collectionId: id, unavailable: false }));
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -113,6 +130,55 @@ describe('IncomingShareRouter', () => {
       'NewLinkReview',
       expect.objectContaining({ initialTitle: 'Edited in composer', preselectedCollectionId: 9 }),
     );
+  });
+
+  describe('a Collection named by a Direct Share row is re-validated before the review preselects it', () => {
+    it('usable: preselected, and the share is consumed', async () => {
+      mockPendingShare(makePendingShare({ id: 'share-d1', preselectedCollectionId: 7 }));
+      const { acknowledgePendingShare } = jest.mocked(useIncomingShare)();
+
+      const renderer = await render();
+
+      expect(validateClaimedDestination).toHaveBeenCalledWith(expect.anything(), 7);
+      expect(navigationRef.navigate).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ preselectedCollectionId: 7 }));
+      expect(acknowledgePendingShare).toHaveBeenCalledWith('share-d1');
+      expect(renderer.root.findAll(node => typeof node.props.onConfirm === 'function')).toHaveLength(0);
+    });
+
+    it('no longer usable (deleted, locked, view-only): the review opens WITHOUT it, the link is kept, and a message says why', async () => {
+      jest.mocked(validateClaimedDestination).mockResolvedValue({ collectionId: null, unavailable: true });
+      mockPendingShare(makePendingShare({ id: 'share-d2', text: 'https://youtu.be/abc?si=xyz', preselectedCollectionId: 7 }));
+      const { acknowledgePendingShare } = jest.mocked(useIncomingShare)();
+
+      const renderer = await render();
+
+      expect(navigationRef.navigate).toHaveBeenCalledWith('NewLinkReview', {
+        url: 'https://youtu.be/abc?si=xyz',
+        initialTitle: null,
+        preselectedCollectionId: null,
+      });
+      expect(acknowledgePendingShare).toHaveBeenCalledWith('share-d2');
+      const dialog = renderer.root.findAll(node => typeof node.props.onConfirm === 'function' && node.props.visible === true)[0];
+      expect(dialog.props.message).toBe(i18n.t('collections.shortcutUnavailable'));
+    });
+
+    it('the check itself failing (offline) keeps the claim - the review own save is verified by the server anyway', async () => {
+      jest.mocked(validateClaimedDestination).mockResolvedValue({ collectionId: 7, unavailable: false });
+      mockPendingShare(makePendingShare({ id: 'share-d3', preselectedCollectionId: 7 }));
+
+      await render();
+
+      expect(navigationRef.navigate).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ preselectedCollectionId: 7 }));
+    });
+
+    it('a share without a Collection never asks the backend about one', async () => {
+      mockPendingShare(makePendingShare({ id: 'share-d4' }));
+
+      await render();
+
+      expect(validateClaimedDestination).not.toHaveBeenCalled();
+      expect(navigationRef.navigate).toHaveBeenCalledWith('NewLinkReview', expect.objectContaining({ preselectedCollectionId: null }));
+    });
   });
 
   it('extracts a title candidate from leading text before a single URL when no other title is available', async () => {

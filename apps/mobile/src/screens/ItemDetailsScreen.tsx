@@ -23,12 +23,17 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
-import { linkProposalErrorMessage } from '../collections/linkProposals';
+import {
+  applyItemMembershipChanges,
+  clearItemCollectionSelection,
+  getCollectionMembershipErrorMessage,
+  getItemCollectionsListErrorMessage,
+  isRemovalOwnerOnly,
+  loadItemMemberships,
+} from '../collections/itemMemberships';
 import { formatSaveOutcomeMessage } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
-  addItemToCollection,
-  getCollections,
   removeItemFromCollection,
   type Collection,
   getSharedCollectionItem,
@@ -76,8 +81,6 @@ import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
 
-const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
-
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
 function getLoadErrorMessage(error: unknown, t: TFunction): string {
@@ -97,20 +100,6 @@ function getSaveErrorMessage(error: unknown, t: TFunction): string {
     }
   }
   return t('item.errorSaveFallback');
-}
-
-function getItemCollectionsListErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return t('collections.errorListFallback');
-}
-
-function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): string {
-  if (error instanceof ApiError && error.kind === 'unauthorized') {
-    return t('errors.unauthorized');
-  }
-  return linkProposalErrorMessage(error, t) ?? t('collections.errorMembershipFallback');
 }
 
 function getImageListErrorMessage(error: unknown, t: TFunction): string {
@@ -421,24 +410,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsLoadingItemCollections(true);
     setItemCollectionsError(null);
     try {
-      let cursor: string | null = null;
-      let allItems: Collection[] = [];
-      do {
-        // scope 'all': the Item's own Collections AND the ones shared with me it was added to - the
-        // default (owned) scope silently left the shared ones out of this screen, so the summary
-        // disagreed with the Collections themselves and a save could never remove the Item there.
-        const page = await getCollections(authenticatedRequest, {
-          itemId,
-          scope: 'all',
-          limit: COLLECTION_OPTIONS_PAGE_LIMIT,
-          cursor: cursor ?? undefined,
-        });
-        if (itemCollectionsRequestIdRef.current !== requestId) {
-          return;
-        }
-        allItems = allItems.concat(page.items);
-        cursor = page.nextCursor;
-      } while (cursor);
+      // The Item's own Collections AND the ones shared with me it was added to (see loadItemMemberships).
+      const allItems = await loadItemMemberships(authenticatedRequest, itemId, () => itemCollectionsRequestIdRef.current !== requestId);
+      if (allItems === null) {
+        return;
+      }
       setSelectedCategories(allItems);
       setOriginalCategoryIds(new Set(allItems.map(option => option.id)));
     } catch (caughtError) {
@@ -722,40 +698,23 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     // selection again (the link is not in those Collections until approved). A Collection that
     // already has this link, or already has it waiting for its Owner, is settled the same way: there
     // is nothing left to save for it, so it must not keep Save on (a retry could only fail again).
-    const proposedIds = new Set<number>();
-    const settledIds = new Set<number>();
-    let addedCount = 0;
-    for (const option of categoriesToAdd) {
-      try {
-        // Each locked Collection travels with the grant this screen's picker obtained for it.
-        const outcome = await addItemToCollection(authenticatedRequest, option.id, itemId, { unlockToken: categoryPicker.unlockTokenFor(option.id) });
-        if (outcome === 'submitted') {
-          proposedIds.add(option.id);
-        } else {
-          addedCount += 1;
-          setOriginalCategoryIds(previous => new Set(previous).add(option.id));
-        }
-      } catch (caughtError) {
-        if (linkProposalErrorMessage(caughtError, t) !== null) {
-          settledIds.add(option.id);
-        }
-        failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
-      }
+    // Each locked Collection travels with the grant this screen's picker obtained for it (the same call a link
+    // card's long-press 컬렉션 변경 makes - see itemMemberships.ts).
+    const membership = await applyItemMembershipChanges(authenticatedRequest, itemId, categoriesToAdd, categoryIdsToRemove, categoryPicker.unlockTokenFor, t);
+    const proposedIds = new Set(membership.proposedIds);
+    const settledIds = new Set(membership.settledIds);
+    const addedCount = membership.addedIds.length;
+    failureMessages.push(...membership.failureMessages);
+    if (membership.addedIds.length > 0 || membership.removedIds.length > 0) {
+      setOriginalCategoryIds(previous => {
+        const next = new Set(previous);
+        membership.addedIds.forEach(id => next.add(id));
+        membership.removedIds.forEach(id => next.delete(id));
+        return next;
+      });
     }
     if (proposedIds.size > 0 || settledIds.size > 0) {
       setSelectedCategories(previous => previous.filter(option => !proposedIds.has(option.id) && !settledIds.has(option.id)));
-    }
-    for (const collectionId of categoryIdsToRemove) {
-      try {
-        await removeItemFromCollection(authenticatedRequest, collectionId, itemId, { unlockToken: categoryPicker.unlockTokenFor(collectionId) });
-        setOriginalCategoryIds(previous => {
-          const next = new Set(previous);
-          next.delete(collectionId);
-          return next;
-        });
-      } catch (caughtError) {
-        failureMessages.push(getCollectionMembershipErrorMessage(caughtError, t));
-      }
     }
 
     setIsSaving(false);
@@ -1128,12 +1087,24 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         onToggle={option => {
           // Only a Collection's Owner may take a link out of it (a server rule): once this link is
           // in a Collection shared with me, deselecting it here would only fail on save.
-          if (selectedCategoryIds.has(option.id) && originalCategoryIds.has(option.id) && option.accessRole != null && option.accessRole !== 'owner') {
+          if (selectedCategoryIds.has(option.id) && originalCategoryIds.has(option.id) && isRemovalOwnerOnly(option)) {
             showNotificationToast(t('collections.removeFromSharedOwnerOnly'));
             return;
           }
           categoryPicker.requestToggle(option, () =>
             selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option));
+        }}
+        // 컬렉션 없음: an explicit empty choice, the same tile the long-press 컬렉션 변경 offers.
+        noneTile={{
+          label: t('collections.noCollection'),
+          isSelected: selectedCategories.length === 0,
+          onPress: () => clearItemCollectionSelection(
+            selectedCategories,
+            originalCategoryIds,
+            categoryPicker.requestToggle,
+            stageRemoveCategory,
+            () => showNotificationToast(t('collections.removeFromSharedOwnerOnly')),
+          ),
         }}
         onUnlockCancel={categoryPicker.cancelUnlock}
         onUnlockGranted={categoryPicker.onUnlockGranted}

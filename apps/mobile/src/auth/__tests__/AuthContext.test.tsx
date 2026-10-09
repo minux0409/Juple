@@ -8,6 +8,7 @@ import { EntraAuthError } from '../entraAuthClient';
 import { getValidAccessToken } from '../session/authSessionManager';
 import { validateBackendSession } from '../authSessionApi';
 import { bootstrapCurrentUser } from '../userBootstrapApi';
+import { collectionShortcutService } from '../../shortcuts/CollectionShortcutService';
 
 jest.mock('react-native-app-auth', () => ({
   authorize: jest.fn(),
@@ -32,6 +33,11 @@ jest.mock('../userBootstrapApi', () => ({
 
 jest.mock('../../device/regionalSettings', () => ({
   getDeviceRegionalSettings: jest.fn(() => ({})),
+}));
+
+// The app shortcuts carry Collection names: every way out of a session must clear them.
+jest.mock('../../shortcuts/CollectionShortcutService', () => ({
+  collectionShortcutService: { clear: jest.fn().mockResolvedValue(undefined) },
 }));
 
 jest.mock('../../push/pushLogoutUnregister', () => ({
@@ -102,6 +108,23 @@ describe('AuthProvider bootstrap - session restore failure handling', () => {
     const renderer = await renderAuthProvider();
 
     expect(readProbeText(renderer)).toBe('false:notChecked:sessionRestore');
+  });
+
+  it('clears the Collection app shortcuts whenever the session ends, so the next account never sees their names', async () => {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
+
+    await renderAuthProvider();
+
+    expect(collectionShortcutService.clear).toHaveBeenCalled();
+  });
+
+  it('keeps the Collection app shortcuts while the session is valid', async () => {
+    jest.mocked(getValidAccessToken).mockResolvedValue('a-valid-token');
+    jest.mocked(validateBackendSession).mockResolvedValue('valid');
+
+    await renderAuthProvider();
+
+    expect(collectionShortcutService.clear).not.toHaveBeenCalled();
   });
 
   it('keeps existing behavior for a normal, successful refresh', async () => {

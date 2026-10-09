@@ -47,6 +47,7 @@ import { shareItem } from '../../items/shareItem';
 import { deleteItem, restoreItem } from '../../items/api/itemsApi';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { collectionShortcutService } from '../../shortcuts/CollectionShortcutService';
 import { leaveCollection } from '../../collections/api/collaborationApi';
 import { CategoryPickerModal } from '../../collections/CategoryPickerModal';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
@@ -1495,10 +1496,9 @@ describe('CollectionDetailsScreen', () => {
       await act(async () => tile.props.onPress());
       expect((navigation as { navigate: jest.Mock }).navigate).toHaveBeenCalledWith('ItemDetails', { itemId: 9, collectionContext: { collectionId: 1, canRemove: true, isCollectionOwner: true, isCollaborative: false } });
     });
-    // Full item delete used to live in this same menu (see the removed "CollectionDetailsScreen
-    // item delete undo" test block) - product policy now restricts general item delete to
-    // Home/History only, so this menu goes back to offering only Add/Move.
-    it('offers only Add/Move in the link More menu - no Delete option', async () => {
+    // The menu's destructive row only takes the link out of THIS Collection (never deletes the saved link) - the
+    // same action as the swipe, for exactly whom the swipe offers it.
+    it('long-press menu: 링크 열기 / 수정 / 복제 / 이동, then the destructive 컬렉션에서 제거 last', async () => {
       const item = makeItemEntry({ itemId: 9 });
       const renderer = await renderScreen();
       await longPressRow(getRowElement(renderer, item));
@@ -1508,9 +1508,9 @@ describe('CollectionDetailsScreen', () => {
       );
       expect(itemMenu).toBeTruthy();
       const labels = itemMenu!.props.actions.map((action: { label: string }) => action.label);
-      expect(labels).toEqual([i18n.t('collections.addToOther'), i18n.t('collections.moveToOther')]);
+      expect(labels).toEqual(['링크 열기', '수정', '다른 컬렉션에 복제', '다른 컬렉션으로 이동', '컬렉션에서 삭제']);
+      expect(itemMenu!.props.actions.at(-1).destructive).toBe(true);
       // 복제 (the same add-to-another-collection action as before, only named for what it does) and 이동, each with its icon.
-      expect(labels).toEqual(['다른 컬렉션에 복제', '다른 컬렉션으로 이동']);
       expect(itemMenu!.findAllByType(CopyIcon)).toHaveLength(1);
       expect(itemMenu!.findAllByType(MoveIcon)).toHaveLength(1);
     });
@@ -1981,5 +1981,108 @@ describe('CollectionDetailsScreen', () => {
       await openReplicate(renderer);
       expect(picker(renderer).props.selectedIds.size).toBe(0);
     });
+  });
+});
+
+describe('CollectionDetailsScreen - an action asked for by the Collections list (pendingAction)', () => {
+  beforeEach(() => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection());
+    jest.mocked(getCollectionShare).mockResolvedValue(null);
+    jest.mocked(getCollections).mockResolvedValue({ items: [], nextCursor: null });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  async function renderForAction(pendingAction: 'edit' | 'lock' | 'delete' | 'leave') {
+    const setParams = jest.fn();
+    const actionNavigation = { navigate: jest.fn(), goBack: jest.fn(), replace: jest.fn(), popTo: jest.fn(), setParams } as never;
+    const actionRoute = { key: 'CollectionDetails', name: 'CollectionDetails', params: { collectionId: 1, pendingAction } } as never;
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(
+        <AppToastProvider>
+          <CollectionDetailsScreen navigation={actionNavigation} route={actionRoute} />
+        </AppToastProvider>,
+      );
+    });
+    await act(async () => {
+      await new Promise<void>(resolve => setImmediate(() => resolve()));
+    });
+    return { renderer, setParams };
+  }
+
+  const visibleConfirm = (renderer: ReactTestRenderer.ReactTestRenderer, titleKey: string) =>
+    renderer.root.findAll(node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t(titleKey));
+
+  it('delete (Owner): the Collection own centered confirmation opens - nothing is deleted until it is confirmed - and the request is consumed once', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner' }));
+
+    const { renderer, setParams } = await renderForAction('delete');
+
+    expect(visibleConfirm(renderer, 'collections.deleteConfirmTitle')).toHaveLength(1);
+    expect(deleteCollection).not.toHaveBeenCalled();
+    expect(setParams).toHaveBeenCalledWith({ pendingAction: undefined });
+  });
+
+  it('leave (member): the Collection own leave confirmation opens - nothing happens until confirmed', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor' }));
+
+    const { renderer } = await renderForAction('leave');
+
+    expect(visibleConfirm(renderer, 'collections.leaveConfirmTitle')).toHaveLength(1);
+    expect(leaveCollection).not.toHaveBeenCalled();
+  });
+
+  it('lock (Owner): the Collection own lock dialog opens; edit (Owner): its own editor opens', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner' }));
+
+    const lock = await renderForAction('lock');
+    expect(lock.renderer.root.findAll(node => node.props.mode === 'lock' && node.props.visible === true && node.props.collectionId === 1)).not.toHaveLength(0);
+
+    const edit = await renderForAction('edit');
+    expect(edit.renderer.root.findAll(node => node.props.mode === 'edit' && node.props.visible === true)).not.toHaveLength(0);
+  });
+
+  it('what the caller may do is decided from the Collection itself - a member asking for delete, edit or lock opens nothing, and an Owner asking to leave opens nothing', async () => {
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor' }));
+    for (const action of ['delete', 'edit', 'lock'] as const) {
+      const { renderer } = await renderForAction(action);
+      expect(visibleConfirm(renderer, 'collections.deleteConfirmTitle')).toHaveLength(0);
+      expect(renderer.root.findAll(node => (node.props.mode === 'edit' || node.props.mode === 'lock') && node.props.visible === true)).toHaveLength(0);
+    }
+
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner' }));
+    const owner = await renderForAction('leave');
+    expect(visibleConfirm(owner.renderer, 'collections.leaveConfirmTitle')).toHaveLength(0);
+  });
+
+  it('a deleted Collection leaves the app shortcuts at once', async () => {
+    const unpin = jest.spyOn(collectionShortcutService, 'unpin').mockResolvedValue(undefined);
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner' }));
+    jest.mocked(deleteCollection).mockResolvedValue(undefined);
+    const { renderer } = await renderForAction('delete');
+
+    const confirm = visibleConfirm(renderer, 'collections.deleteConfirmTitle')[0];
+    await act(async () => confirm.props.onConfirm());
+
+    expect(deleteCollection).toHaveBeenCalledWith(expect.anything(), 1);
+    expect(unpin).toHaveBeenCalledWith(1);
+    unpin.mockRestore();
+  });
+
+  it('a Collection the member leaves leaves the app shortcuts at once', async () => {
+    const unpin = jest.spyOn(collectionShortcutService, 'unpin').mockResolvedValue(undefined);
+    jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor' }));
+    jest.mocked(leaveCollection).mockResolvedValue(undefined);
+    const { renderer } = await renderForAction('leave');
+
+    const confirm = visibleConfirm(renderer, 'collections.leaveConfirmTitle')[0];
+    await act(async () => confirm.props.onConfirm());
+
+    expect(leaveCollection).toHaveBeenCalledWith(expect.anything(), 1);
+    expect(unpin).toHaveBeenCalledWith(1);
+    unpin.mockRestore();
   });
 });

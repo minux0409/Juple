@@ -213,6 +213,48 @@ public sealed class CollectionItemCommentStore(JupleDbContext dbContext, IUserPr
         return CommentDeleteResult.Deleted;
     }
 
+    public async Task<CommentEditOutcome?> EditAsync(
+        long userId, long collectionId, long itemId, long commentId, string body, CancellationToken cancellationToken = default)
+    {
+        if (!await IsLinkAsync(collectionId, itemId, cancellationToken))
+        {
+            return null;
+        }
+
+        // ONE conditional statement: the words change only if, at this very moment, it is the caller's own LIVE comment of this
+        // link. A read-then-save could write words into a placeholder that was deleted in between (or that a stale tracked copy
+        // still showed as live) - this cannot, and it needs no concurrency token. Nothing but Body is ever written.
+        var changed = await dbContext.CollectionItemComments
+            .Where(entry => entry.Id == commentId && entry.CollectionId == collectionId && entry.ItemId == itemId
+                && entry.UserId == userId && entry.DeletedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(entry => entry.Body, body), cancellationToken);
+        if (changed == 0)
+        {
+            // Not the caller's live comment: somebody else's live one (forbidden), or missing / a placeholder (simply not there).
+            var isSomebodyElses = await dbContext.CollectionItemComments.AsNoTracking()
+                .AnyAsync(entry => entry.Id == commentId && entry.CollectionId == collectionId && entry.ItemId == itemId && entry.DeletedAtUtc == null, cancellationToken);
+            return isSomebodyElses ? new CommentEditOutcome(CommentEditResult.NotAllowed, null) : null;
+        }
+
+        var comment = await dbContext.CollectionItemComments.AsNoTracking()
+            .FirstAsync(entry => entry.Id == commentId, cancellationToken);
+
+        var row = new CommentRow(
+            comment.Id,
+            comment.Body,
+            comment.CreatedAtUtc,
+            comment.UserId,
+            comment.RootCommentId,
+            comment.ParentCommentId,
+            comment.ReplyToUserId,
+            false,
+            await dbContext.CollectionItemComments.CountAsync(reply => reply.RootCommentId == commentId && reply.DeletedAtUtc == null, cancellationToken),
+            await dbContext.CollectionItemCommentLikes.CountAsync(like => like.CommentId == commentId, cancellationToken),
+            await dbContext.CollectionItemCommentLikes.AnyAsync(like => like.CommentId == commentId && like.UserId == userId, cancellationToken));
+        var dto = (await ToDtosAsync(userId, collectionId, [row], cancellationToken))[0];
+        return new CommentEditOutcome(CommentEditResult.Edited, dto);
+    }
+
     public async Task<CommentLikeOutcome?> SetLikeAsync(
         long userId, long collectionId, long itemId, long commentId, bool liked, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
     {

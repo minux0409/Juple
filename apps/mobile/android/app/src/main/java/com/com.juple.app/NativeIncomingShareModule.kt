@@ -7,7 +7,6 @@ import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.turbomodule.core.interfaces.TurboModule
-import org.json.JSONArray
 
 private fun WritableMap.putNullableLong(key: String, value: Long?) {
   if (value != null) putDouble(key, value.toDouble()) else putNull(key)
@@ -18,6 +17,8 @@ class NativeIncomingShareModule(
     private val reactContext: ReactApplicationContext,
 ) : NativeIncomingShareSpec(reactContext), TurboModule {
   override fun getName(): String = Name
+
+  private val background = java.util.concurrent.Executors.newSingleThreadExecutor()
 
   override fun getPendingShares(promise: Promise) {
     val shares: WritableArray = Arguments.createArray()
@@ -56,45 +57,119 @@ class NativeIncomingShareModule(
     promise.resolve(null)
   }
 
-  override fun getCategorySnapshot(promise: Promise) {
-    val snapshot: WritableArray = Arguments.createArray()
-    CategorySnapshotStore.get(reactContext).forEach { category ->
-      snapshot.pushMap(
+  override fun getPinnedCollectionShortcuts(promise: Promise) {
+    ShortcutSyncManager.migrateLegacy(reactContext)
+    val pinned: WritableArray = Arguments.createArray()
+    CollectionShortcutPreferenceStore.get(reactContext).forEach { entry ->
+      pinned.pushMap(
         Arguments.createMap().apply {
-          putDouble("id", category.id.toDouble())
-          putString("name", category.name)
-          putBoolean("isFavorite", category.isFavorite)
+          putDouble("id", entry.id.toDouble())
+          putString("name", entry.name)
+          putString("iconKey", entry.iconKey)
+          putString("tileColor", entry.tileColor)
+          putString("glyphColor", entry.glyphColor)
+          putString("imageVersion", entry.imageVersion)
         },
       )
     }
-    promise.resolve(snapshot)
+    promise.resolve(pinned)
   }
 
-  override fun setCategorySnapshot(categoriesJson: String, promise: Promise) {
-    val entries = try {
-      val array = JSONArray(categoriesJson)
-      buildList {
-        for (index in 0 until array.length()) {
-          val entry = array.optJSONObject(index) ?: continue
-          val id = entry.optLong("id", -1)
-          if (id < 0 || !entry.has("name")) {
-            continue
+  override fun setPinnedCollectionShortcuts(pinnedJson: String, promise: Promise) {
+    // The photos (a short, capped fetch per NEW version) are prepared first, off the JS and UI threads; then the whole set is
+    // stored and republished in one go. A photo that cannot be prepared only means that icon is drawn from its configured glyph.
+    background.execute {
+      try {
+        val entries = CollectionShortcutPreferenceStore.parse(pinnedJson)
+        val urls = imageUrlsOf(pinnedJson)
+        entries.forEach { entry ->
+          if (entry.imageVersion != null) {
+            CollectionIconImages.prepare(reactContext, entry.id, entry.imageVersion, urls[entry.id])
           }
-          add(CategorySnapshotEntry(id, entry.optString("name"), entry.optBoolean("isFavorite")))
         }
+        CollectionShortcutPreferenceStore.set(reactContext, entries)
+        ShortcutSyncManager.sync(reactContext, entries)
+        promise.resolve(null)
+      } catch (error: Exception) {
+        promise.reject("shortcut_sync_failed", error.javaClass.simpleName)
       }
+    }
+  }
+
+  /** The transient signed photo links that came with the set - used only to prepare the photos, never stored. */
+  private fun imageUrlsOf(pinnedJson: String): Map<Long, String> =
+    try {
+      val array = org.json.JSONArray(pinnedJson)
+      (0 until array.length()).mapNotNull { index ->
+        val entry = array.optJSONObject(index) ?: return@mapNotNull null
+        val url = entry.optString("imageUrl")
+        if (url.isNullOrBlank() || !entry.has("id")) null else entry.optLong("id") to url
+      }.toMap()
     } catch (_: Exception) {
-      emptyList()
+      emptyMap()
     }
 
-    CategorySnapshotStore.set(reactContext, entries)
-    ShortcutSyncManager.sync(reactContext, entries)
+  override fun getMaxPinnedCollectionShortcuts(promise: Promise) {
+    promise.resolve(ShortcutSyncManager.maxShortcuts(reactContext).toDouble())
+  }
+
+  override fun clearPinnedCollectionShortcuts(promise: Promise) {
+    ShortcutSyncManager.clear(reactContext)
+    CollectionShortcutPreferenceStore.clear(reactContext)
+    ShortcutLaunchStore.clear(reactContext)
     promise.resolve(null)
   }
 
-  override fun clearCategoryShortcuts(promise: Promise) {
-    ShortcutSyncManager.clear(reactContext)
-    CategorySnapshotStore.clear(reactContext)
+  override fun consumeShortcutLaunch(promise: Promise) {
+    val launch = ShortcutLaunchStore.consume(reactContext)
+    promise.resolve(
+      Arguments.createMap().apply {
+        putNullableLong("openCollectionId", launch.openCollectionId)
+        putString("notice", launch.notice)
+      },
+    )
+  }
+
+  override fun isHomeShortcutSupported(promise: Promise) {
+    promise.resolve(HomeShortcutPinner.isSupported(reactContext))
+  }
+
+  override fun requestHomeShortcut(
+    collectionId: Double,
+    name: String,
+    iconKey: String,
+    tileColor: String,
+    glyphColor: String,
+    imageUrl: String,
+    imageVersion: String,
+    shareable: Boolean,
+    promise: Promise,
+  ) {
+    // The launcher shows its own confirmation; this only reports whether the request could be made. Whether the user
+    // accepted is reported later, to PinShortcutResultReceiver - never assumed here. Preparing a photo may take a moment, so
+    // this never runs on the UI thread; empty strings mean "none".
+    background.execute {
+      val result = try {
+        HomeShortcutPinner.request(
+          reactContext,
+          collectionId.toLong(),
+          name,
+          iconKey.ifBlank { null },
+          tileColor.ifBlank { null },
+          glyphColor.ifBlank { null },
+          imageUrl.ifBlank { null },
+          imageVersion.ifBlank { null },
+          shareable,
+        )
+      } catch (_: Exception) {
+        HomeShortcutPinner.Unsupported
+      }
+      promise.resolve(result)
+    }
+  }
+
+  override fun setShortcutNotice(code: String, promise: Promise) {
+    ShortcutLaunchStore.setNotice(reactContext, code)
     promise.resolve(null)
   }
 

@@ -3,6 +3,7 @@ import { FlatList, Linking, Modal, StyleSheet, Text } from 'react-native';
 import { ActionMenuDialog } from '../../components/ActionMenuDialog';
 import { LinkSortChips } from '../../components/LinkSortChips';
 import { SavedLinkGridCard } from '../../components/SavedLinkGridCard';
+import { SavedLinkImageRow } from '../../components/SavedLinkImageTile';
 import { SavedLinkRow } from '../../components/SavedLinkRow';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 import i18n from '../../i18n';
@@ -17,10 +18,14 @@ import {
   getTrashItems,
   permanentlyDeleteItem,
   restoreItem,
+  type ItemHistoryEntry,
   type ItemTrashEntry,
 } from '../../items/api/itemsApi';
 
+const mockSetOptions = jest.fn();
+const mockNavigation = { setOptions: mockSetOptions };
 jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => mockNavigation,
   useFocusEffect: (callback: () => void | (() => void)) => {
     const React = require('react');
     React.useEffect(() => {
@@ -88,9 +93,11 @@ function openRowPopup(renderer: ReactTestRenderer.ReactTestRenderer, itemId: num
   row.findAll(node => typeof node.props.onPress === 'function')[0].props.onPress();
 }
 
-/** The icon-only red trash-bin button that empties the trash. */
-function findEmptyButton(renderer: ReactTestRenderer.ReactTestRenderer) {
-  return renderer.root.findAll(node => node.props.testID === 'trash-empty-button' && typeof node.props.onPress === 'function')[0];
+/** The icon-only red trash-bin button element in the navigation header's title row (the latest headerRight the screen set), or undefined. */
+function findEmptyButton() {
+  const calls = mockSetOptions.mock.calls;
+  const headerRight = calls.length > 0 ? calls[calls.length - 1][0].headerRight : undefined;
+  return headerRight ? (headerRight() as { props: Record<string, any> }) : undefined;
 }
 
 /** Opens a row's action popup, picks an action, and lets iOS's menu-dismissed hook run. */
@@ -244,46 +251,26 @@ describe('TrashScreen header layout', () => {
     jest.clearAllMocks();
   });
 
-  it('centers the limit notice and puts 비우기 on the same header row, outside the list', async () => {
+  it('puts 비우기 in the navigation title row (headerRight) and keeps the limit notice below it, outside the list', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
     const renderer = await renderScreen();
 
+    expect(findEmptyButton()).toBeDefined();
+    // Not inside the screen body any more: only the notice is in the header block of the screen.
+    expect(renderer.root.findAll(node => node.props.testID === 'trash-empty-button')).toHaveLength(0);
     const notice = renderer.root.findByProps({ testID: 'trash-limit-notice' });
-    expect(StyleSheet.flatten(notice.props.style)).toMatchObject({ textAlign: 'center', flex: 1 });
-    const headerRow = notice.parent!;
-    expect(StyleSheet.flatten(headerRow.props.style)).toMatchObject({ flexDirection: 'row' });
-    const emptyButton = findEmptyButton(renderer);
-    expect(headerRow.findAll(node => node === emptyButton)).toHaveLength(1);
-    expect(StyleSheet.flatten(headerRow.props.style).minHeight).toBe(44);
-    // Never inside the FlatList (whose own padding used to open the big gap under the notice).
+    expect(notice.props.children).toBe(i18n.t('trash.limitNotice', { count: 50 }));
+    expect(StyleSheet.flatten(notice.props.style).textAlign).toBe('center');
     expect(renderer.root.findByType(FlatList).props.ListHeaderComponent).toBeUndefined();
     expect(StyleSheet.flatten(renderer.root.findByType(FlatList).props.contentContainerStyle).paddingTop).toBe(0);
   });
 
-  it('centers the notice on the true center line: a leading mirror slot always matches 비우기\'s measured width', async () => {
-    jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
-    const renderer = await renderScreen();
-
-    const emptyButton = findEmptyButton(renderer)!;
-    await act(async () => {
-      emptyButton.props.onLayout({ nativeEvent: { layout: { width: 57, height: 44, x: 0, y: 0 } } });
-    });
-
-    const notice = renderer.root.findByProps({ testID: 'trash-limit-notice' });
-    const mirrorSlot = renderer.root.findByProps({ testID: 'trash-header-mirror-slot' });
-    const headerChildren = notice.parent!.children as ReactTestRenderer.ReactTestInstance[];
-    // [mirror slot][notice (flex:1, centered)][비우기] - equal-width sides => symmetric center column.
-    expect(headerChildren.indexOf(mirrorSlot)).toBeLessThan(headerChildren.indexOf(notice));
-    expect(StyleSheet.flatten(mirrorSlot.props.style).width).toBe(57);
-  });
-
-  it('keeps the centered notice but hides 비우기 (and its mirror slot) when there is nothing to empty', async () => {
+  it('keeps the notice but removes 비우기 from the title row when there is nothing to empty', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([]);
     const renderer = await renderScreen();
 
     expect(renderer.root.findByProps({ testID: 'trash-limit-notice' }).props.children).toBe(i18n.t('trash.limitNotice', { count: 50 }));
-    expect(findEmptyButton(renderer)).toBeUndefined();
-    expect(renderer.root.findAllByProps({ testID: 'trash-header-mirror-slot' })).toHaveLength(0);
+    expect(findEmptyButton()).toBeUndefined();
     expect(findTextValues(renderer)).toContain(i18n.t('trash.empty'));
   });
 });
@@ -298,7 +285,7 @@ describe('TrashScreen empty trash', () => {
     jest.mocked(emptyTrash).mockResolvedValue(undefined);
     const renderer = await renderScreen();
 
-    const emptyButton = findEmptyButton(renderer);
+    const emptyButton = findEmptyButton();
     await act(async () => {
       emptyButton!.props.onPress();
     });
@@ -318,7 +305,7 @@ describe('TrashScreen empty trash', () => {
 
   async function startEmpty(renderer: ReactTestRenderer.ReactTestRenderer) {
     await act(async () => {
-      findEmptyButton(renderer)!.props.onPress();
+      findEmptyButton()!.props.onPress();
     });
     await act(async () => {
       await getConfirmDialogButton(renderer, i18n.t('common.delete')).props.onPress();
@@ -337,7 +324,7 @@ describe('TrashScreen empty trash', () => {
     expect(progress(renderer)!.props.visible).toBe(true);
     expect(progress(renderer)!.props.message).toBe(i18n.t('trash.deleting'));
     // The Empty button is disabled and the confirmation is gone - nothing can start a second request.
-    expect(findEmptyButton(renderer)!.props.disabled).toBe(true);
+    expect(findEmptyButton()!.props.disabled).toBe(true);
     expect(renderer.root.findAll(node => node.type === Modal && node.props.visible === true)).toHaveLength(1);
     expect(emptyTrash).toHaveBeenCalledTimes(1);
 
@@ -451,6 +438,111 @@ describe('TrashScreen List / Grid, sort and persistence', () => {
     expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
     expect(renderer.root.findAllByType(SavedLinkGridCard)).toHaveLength(4);
     expect(renderer.root.findAllByType(SavedLinkRow)).toHaveLength(0);
+  });
+
+  // The tiles of every line, as the line hands them over: { item, onPress, onLongPress }.
+  const imageTiles = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAllByType(SavedLinkImageRow).flatMap(row => (row.props.items as ItemHistoryEntry[]).map(item => ({ props: { item, onPress: row.props.onPress, onLongPress: row.props.onLongPress } })));
+
+  it('offers a third, 3-column image-tile mode on the same toggle, with a persisted, Trash-only preference', async () => {
+    const renderer = await renderScreen();
+    expect(renderer.root.findByType(ViewModeToggle).props.showCompact).toBe(true);
+    expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
+
+    await act(async () => {
+      renderer.root.findByType(ViewModeToggle).props.onChange('compact');
+    });
+    // Juple's one image-only 9-tile primitive (as on Home / the Archive / Collections), three squares per line.
+    expect(renderer.root.findAllByType(SavedLinkImageRow)).toHaveLength(2);
+    expect(imageTiles(renderer)).toHaveLength(4);
+    expect(renderer.root.findAllByType(SavedLinkGridCard)).toHaveLength(0);
+    expect(renderer.root.findAllByType(SavedLinkRow)).toHaveLength(0);
+    expect(mockPrefs.get('juple.trashViewMode')).toBe('compact');
+    // No other surface's preference is touched.
+    expect([...mockPrefs.keys()].filter(key => key.endsWith('ViewMode'))).toEqual(['juple.trashViewMode']);
+
+    const restored = await renderScreen();
+    expect(restored.root.findAllByType(SavedLinkImageRow)).toHaveLength(2);
+  });
+
+  it('the 3-column tiles are the picture only: no title, date or metadata under them, and the shared site fallback without a picture', async () => {
+    mockPrefs.set('juple.trashViewMode', 'compact');
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findAllByType(Text).filter(node => ['Banana', 'cherry', 'Apple'].includes(String(node.props.children)))).toHaveLength(0);
+    expect(findTextValues(renderer).some(value => /2026|9\/2\d\/26|Sep/.test(String(value)))).toBe(false);
+    expect(renderer.root.findAll(node => typeof node.type === 'string' && node.props.testID === 'saved-link-image-tile-fallback')).toHaveLength(4);
+  });
+
+  it('shows every link by scrolling, not just nine', async () => {
+    mockPrefs.set('juple.trashViewMode', 'compact');
+    jest.mocked(getTrashItems).mockResolvedValue(Array.from({ length: 14 }, (_, index) => makeEntry({ id: index + 1, title: `T${index}`, deletedAtUtc: `2026-09-${10 + index}T00:00:00Z` })));
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByType(FlatList).props.data).toHaveLength(5);
+    expect(imageTiles(renderer).length).toBe(14);
+  });
+
+  it('switches freely between List, 2-column Grid and the 3-column tiles without losing the list', async () => {
+    const renderer = await renderScreen();
+    for (const mode of ['grid', 'compact', 'list', 'compact', 'grid'] as const) {
+      await act(async () => {
+        renderer.root.findByType(ViewModeToggle).props.onChange(mode);
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(mode === 'grid' ? 2 : 1);
+      expect(imageTiles(renderer)).toHaveLength(mode === 'compact' ? 4 : 0);
+    }
+  });
+
+  it('an unknown stored mode falls back to List', async () => {
+    mockPrefs.set('juple.trashViewMode', 'image');
+    const renderer = await renderScreen();
+    expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
+  });
+
+  it('3-column tiles: a tap and a long press open the same popup, and restore / permanent delete still ask first', async () => {
+    mockPrefs.set('juple.trashViewMode', 'compact');
+    jest.mocked(restoreItem).mockResolvedValue(undefined);
+    jest.mocked(permanentlyDeleteItem).mockResolvedValue(undefined);
+    const renderer = await renderScreen();
+    const tileOf = (id: number) => imageTiles(renderer).find(tile => tile.props.item.id === id)!;
+
+    await act(async () => {
+      tileOf(2).props.onPress(tileOf(2).props.item);
+    });
+    expect(renderer.root.findByType(ActionMenuDialog).props.visible).toBe(true);
+    await act(async () => {
+      renderer.root.findByType(ActionMenuDialog).props.onCancel();
+    });
+    await act(async () => {
+      tileOf(2).props.onLongPress(tileOf(2).props.item);
+    });
+    const menu = renderer.root.findByType(ActionMenuDialog);
+    expect(menu.props.actions.map((entry: { label: string }) => entry.label)).toEqual([i18n.t('trash.openLink'), i18n.t('trash.restoreConfirmAction'), i18n.t('trash.permanentDeleteA11y')]);
+
+    await act(async () => {
+      menu.props.actions[1].onPress();
+    });
+    await act(async () => {
+      renderer.root.findByType(ActionMenuDialog).props.onDismiss();
+    });
+    expect(restoreItem).not.toHaveBeenCalled();
+    await act(async () => {
+      await getConfirmDialogButton(renderer, i18n.t('trash.restoreConfirmAction')).props.onPress();
+    });
+    expect(restoreItem).toHaveBeenCalledTimes(1);
+    expect(imageTiles(renderer).map(tile => tile.props.item.id).sort()).toEqual([1, 3, 4]);
+
+    await act(async () => {
+      tileOf(1).props.onLongPress(tileOf(1).props.item);
+    });
+    await act(async () => {
+      renderer.root.findByType(ActionMenuDialog).props.actions[2].onPress();
+    });
+    await act(async () => {
+      renderer.root.findByType(ActionMenuDialog).props.onDismiss();
+    });
+    expect(permanentlyDeleteItem).not.toHaveBeenCalled();
   });
 
   it('the controls are not shown for an empty list', async () => {
@@ -688,14 +780,13 @@ describe('TrashScreen gestures, titleless popup and icon-only empty button', () 
   it('empty trash is an icon-only red trash button with a localized label and a 44dp target', async () => {
     jest.mocked(getTrashItems).mockResolvedValue([makeEntry({ id: 1 })]);
     const renderer = await renderScreen();
-    const button = findEmptyButton(renderer);
+    const button = findEmptyButton()!;
     expect(button.props.accessibilityLabel).toBe(i18n.t('trash.emptyA11y'));
-    expect(button.findAllByType(Text)).toHaveLength(0);
     expect(StyleSheet.flatten(button.props.style).minWidth).toBe(44);
     expect(findTextValues(renderer)).not.toContain(i18n.t('trash.emptyAction'));
-    // A distinct clear-all bin (with sweep lines), never the same glyph as deleting a single item.
-    expect(button.findAllByType(EmptyTrashIcon)).toHaveLength(1);
-    expect(button.findAllByType(TrashIcon)).toHaveLength(0);
-    expect(button.findByType(EmptyTrashIcon).props.color).toBe(colors.danger);
+    // A distinct clear-all bin (with sweep lines), never the same glyph as deleting a single item; no text child.
+    expect(button.props.children.type).toBe(EmptyTrashIcon);
+    expect(button.props.children.type).not.toBe(TrashIcon);
+    expect(button.props.children.props.color).toBe(colors.danger);
   });
 });

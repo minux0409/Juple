@@ -1,5 +1,6 @@
 package com.juple.app
 
+import android.content.Intent
 import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -20,6 +21,19 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     supportFragmentManager.fragmentFactory = RNScreensFragmentFactory()
     super.onCreate(savedInstanceState)
+    // Drops what the earlier "publish every Collection" build left in the launcher, once (see ShortcutSyncManager).
+    ShortcutSyncManager.migrateLegacy(this)
+    // A launcher-shortcut tap that started the app. Not on a restore (savedInstanceState != null): the same Intent is
+    // redelivered then and must not open the Collection a second time.
+    if (savedInstanceState == null) {
+      ShortcutLaunchStore.captureOpenCollection(this, intent)
+    }
+  }
+
+  /** A launcher-shortcut tap while the app already runs (singleTask): left for JS to open once it is in front. */
+  override fun onNewIntent(intent: Intent) {
+    ShortcutLaunchStore.captureOpenCollection(this, intent)
+    super.onNewIntent(intent)
   }
 
   /**

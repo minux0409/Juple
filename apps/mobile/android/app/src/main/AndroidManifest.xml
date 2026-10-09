@@ -71,6 +71,10 @@
             android:name="android.app.shortcuts"
             android:resource="@xml/shortcuts" />
       </activity>
+      <!-- The launcher's answer to a Home-screen shortcut request (see HomeShortcutPinner): internal only. -->
+      <receiver
+        android:name=".PinShortcutResultReceiver"
+        android:exported="false" />
       <service
         android:name=".IncomingShareHeadlessService"
         android:exported="false" />

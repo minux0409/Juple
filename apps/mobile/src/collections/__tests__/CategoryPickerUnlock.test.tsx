@@ -11,7 +11,7 @@ jest.mock('../../api/useAuthenticatedApi', () => {
   const request = jest.fn();
   return { useAuthenticatedApi: () => request };
 });
-jest.mock('../../categories/categorySnapshotSync', () => ({ syncCategorySnapshotToNative: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../../categories/collectionShortcutSync', () => ({ reconcileCollectionShortcuts: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../api/collectionsApi', () => ({
   ...jest.requireActual('../api/collectionsApi'),
   getCollections: jest.fn(),

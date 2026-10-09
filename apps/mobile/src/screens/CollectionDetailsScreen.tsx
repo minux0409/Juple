@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,7 +20,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
-import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
+import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
+import { getCollectionCapabilities } from '../collections/collectionCapabilities';
 import {
   deleteCollection,
   addItemToCollection,
@@ -112,6 +114,7 @@ import { BellOffIcon } from '../icons/BellOffIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { CopyIcon } from '../icons/CopyIcon';
 import { EditIcon } from '../icons/EditIcon';
+import { ExternalLinkIcon } from '../icons/ExternalLinkIcon';
 import { LockIcon } from '../icons/LockIcon';
 import { MergeIcon } from '../icons/MergeIcon';
 import { MoveIcon } from '../icons/MoveIcon';
@@ -341,6 +344,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   const { recent: recentReactions, recordRecent: recordRecentReaction } = useRecentReactions();
   const [reactionPickerItem, setReactionPickerItem] = useState<CollectionItemEntry | null>(null);
   const pendingReactionPickerRef = useRef<CollectionItemEntry | null>(null);
+  // iOS cannot present a dialog while the link menu is still closing: such a follow-up waits here for its onDismiss.
+  const pendingAfterItemMenuRef = useRef<(() => void) | null>(null);
   // Everyone accepted into a shared Collection (the avatars under its title) - null while unknown or not shared.
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [participantsFailed, setParticipantsFailed] = useState(false);
@@ -537,6 +542,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       openCollectionItemRef.current(entry);
     }
   }, []);
+  // An image tile's long-press opens this screen's own link menu (the one a List row / Grid tile opens) - set each render
+  // from the same rule: no menu while the content is locked.
+  const openImageTileMenuRef = useRef<(item: CollectionItemEntry) => void>(() => undefined);
+  const openImageTileMenu = useCallback((rowItem: ItemHistoryEntry) => {
+    const entry = entryByRowItem.get(rowItem);
+    if (entry) {
+      openImageTileMenuRef.current(entry);
+    }
+  }, []);
   const toggleDateSection = (dateKey: string) => {
     setExpandedDateKeys(previous => {
       const next = new Set(previous ?? []);
@@ -641,6 +655,14 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // Owner-only control below is hidden for a Contributor, and the server independently refuses
   // them (403) regardless.
   const isOwner = collection !== null && !isSharedWithMe(collection);
+
+  // Whatever this screen learns about the Collection (opened, renamed, locked, role changed) also keeps its app shortcut
+  // right - a renamed one gets the new label, a locked or read-only one is removed - with no request of its own.
+  useEffect(() => {
+    if (collection) {
+      collectionShortcutService.applyKnownCollections([collection]).catch(() => undefined);
+    }
+  }, [collection]);
 
   // 새 링크 알림 is offered wherever someone else can add links: a Collection shared with the caller,
   // or the caller's own one that has members or a public link. It is the header's bell - one tap
@@ -1029,7 +1051,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
 
     setIsEditDialogVisible(false);
-    syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     setIsSavingEdit(false);
   };
 
@@ -1041,13 +1062,13 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setIsDeletingCollection(true);
     try {
       await deleteCollection(authenticatedRequest, collectionId);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+      // A deleted Collection leaves the app shortcuts at once (a restore does not bring it back - that is the user's choice).
+      collectionShortcutService.unpin(collectionId).catch(() => undefined);
       showUndoToast({
         actionLabel: t('toast.undoAction'),
         message: t('toast.collectionDeleteSuccess'),
         onUndo: async () => {
           await restoreCollection(authenticatedRequest, collectionId);
-          syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
           navigation.popTo('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
         },
         undoErrorMessage: t('toast.undoCollectionDeleteError'), noticeTitle: t('common.notice'), confirmLabel: t('common.confirm'),
@@ -1074,7 +1095,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     setIsLeaving(true);
     try {
       await leaveCollection(authenticatedRequest, collectionId);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
+      collectionShortcutService.unpin(collectionId).catch(() => undefined);
       navigation.popTo('MainTabs', { screen: 'Collections', params: { refreshToken: Date.now() } });
     } catch {
       setNotice(t('collections.leaveError'));
@@ -1089,6 +1110,29 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
     setIsDeleteConfirmVisible(true);
   };
+
+  // The Collections list's long-press menu asked for one of this screen's own actions (see RootStack's pendingAction): it
+  // runs once the Collection is loaded, through exactly what this screen's ⋯ menu runs (including the password prompt for
+  // a locked Collection), and only if the caller may do it - a stale or tampered param opens nothing.
+  const pendingAction = route.params.pendingAction;
+  useEffect(() => {
+    if (!pendingAction || collection === null) {
+      return;
+    }
+    navigation.setParams({ pendingAction: undefined });
+    const capabilities = getCollectionCapabilities(collection);
+    if (pendingAction === 'edit' && capabilities.canEdit) {
+      runUnlocked(openEditDialog);
+    } else if (pendingAction === 'lock' && capabilities.canChangeLock) {
+      setLockDialogMode(isCollectionLocked(collection) ? 'remove' : 'lock');
+    } else if (pendingAction === 'delete' && capabilities.canDelete) {
+      runUnlocked(confirmDeleteCollection);
+    } else if (pendingAction === 'leave' && capabilities.canLeave) {
+      setIsLeaveConfirmVisible(true);
+    }
+    // The handlers are re-created every render; this reacts only to the request itself and the loaded Collection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collection, navigation, pendingAction]);
 
   const removeItemAction = async (itemId: number) => {
     if (itemActionInFlightId !== null) {
@@ -1147,7 +1191,6 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     try {
       const updated = await setCollectionFavorite(authenticatedRequest, collectionId, desiredIsFavorite);
       setCollection(updated);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
     } catch (caughtError) {
       // Roll back the optimistic flip - never trust it once the request has failed.
       setCollection(previous => (previous ? { ...previous, isFavorite: !desiredIsFavorite } : previous));
@@ -1159,6 +1202,22 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const confirmUnlinkItem = (itemId: number) => {
     setPendingUnlinkItemId(previous => previous ?? itemId);
+  };
+
+  /** The link menu's rows that open a dialog of their own: close the menu, then (on iOS: once it has gone) run the action. */
+  const afterItemMenu = (action: () => void) => {
+    setIsItemActionMenuVisible(false);
+    setActionMenuItem(null);
+    if (Platform.OS === 'ios') {
+      pendingAfterItemMenuRef.current = action;
+    } else {
+      action();
+    }
+  };
+
+  const openLinkInBrowser = (url: string) => {
+    // No Linking.canOpenURL pre-check - see ItemDetailsScreen.openOriginalUrl (Android package visibility).
+    Linking.openURL(url).catch(() => setNotice(t('item.urlOpenFailed')));
   };
 
   /** 병합: one target Collection from the plain list (unchanged - the destination picker below is for links). */
@@ -1428,6 +1487,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   };
   openCollectionItemRef.current = openCollectionItem;
+  openImageTileMenuRef.current = entry => {
+    if (!isContentLocked) {
+      setActionMenuItem(entry);
+      setIsItemActionMenuVisible(true);
+    }
+  };
 
   const renderCollectionItem = (item: CollectionItemEntry, containerStyle?: StyleProp<ViewStyle>) => {
     // Another member's link: opened as the read-only shared view (the owner-only ItemDetails
@@ -1521,6 +1586,26 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       </SwipeableItemRow>
     );
   };
+
+  /**
+   * A link's long-press menu in this Collection: 링크 열기 first; my own link - 수정 (the same Item Details a tap opens),
+   * 복제 / 이동 (this Collection's way of changing a link's Collection); another member's link - 내 컬렉션으로 복사;
+   * then the destructive 컬렉션에서 제거 last, for exactly whom the swipe offers it (the Owner any link, a member their own).
+   * It never deletes anyone's link - the server enforces the same.
+   */
+  const linkMenuActions = (menuItem: CollectionItemEntry): ActionMenuDialogAction[] => [
+    { label: t('item.goToUrlA11y'), icon: ExternalLinkIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openLinkInBrowser(menuItem.url); } },
+    ...(menuItem.isMine === false
+      ? [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker }]
+      : [
+        { label: t('common.edit'), icon: EditIcon, onPress: () => { setIsItemActionMenuVisible(false); setActionMenuItem(null); openCollectionItem(menuItem); } },
+        { label: t('collections.addToOther'), icon: CopyIcon, onPress: openReplicatePicker },
+        { label: t('collections.moveToOther'), icon: MoveIcon, onPress: openMovePicker },
+      ]),
+    ...(isOwner || menuItem.isMine !== false
+      ? [{ label: t('collections.removeFromCollection'), destructive: true, icon: TrashIcon, onPress: () => afterItemMenu(() => confirmUnlinkItem(menuItem.itemId)) }]
+      : []),
+  ];
 
   const closeCollectionMenuThen = (action: () => void) => () => {
     setIsCollectionMenuVisible(false);
@@ -1744,7 +1829,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           </View>
         );
       case 'flatImageRow':
-        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onPress={openImageTile} testID={`collection-flat-image-row-${row.key}`} />;
+        return <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} testID={`collection-flat-image-row-${row.key}`} />;
     }
   };
 
@@ -1776,7 +1861,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         // Image view inside a date card: lines of tiles as the card's body (one virtualized list row per line).
         return (
           <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} style={[DATE_SECTION_IMAGE_LINE_STYLE, row.isLast && styles.imageSectionLast]} testID={`collection-date-image-${row.section.key}-${row.position}`}>
-            <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onPress={openImageTile} testID={`collection-image-line-${row.section.key}-${row.position}`} />
+            <SavedLinkImageRow items={row.items.map(toSavedLinkRowItem)} onLongPress={openImageTileMenu} onPress={openImageTile} testID={`collection-image-line-${row.section.key}-${row.position}`} />
           </DateSectionGridRow>
         );
       case 'skeleton':
@@ -2016,17 +2101,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           />
         ) : undefined}
         onDismiss={() => {
+          const afterMenu = pendingAfterItemMenuRef.current;
+          pendingAfterItemMenuRef.current = null;
+          afterMenu?.();
           if (pendingReactionPickerRef.current) {
             setReactionPickerItem(pendingReactionPickerRef.current);
             pendingReactionPickerRef.current = null;
           }
         }}
-        actions={actionMenuItem?.isMine === false
-          ? [{ label: t('collections.copyToMine'), icon: CopyIcon, onPress: openSingleCopyPicker }]
-          : [
-            { label: t('collections.addToOther'), icon: CopyIcon, onPress: openReplicatePicker },
-            { label: t('collections.moveToOther'), icon: MoveIcon, onPress: openMovePicker },
-          ]}
+        actions={actionMenuItem ? linkMenuActions(actionMenuItem) : []}
         cancelLabel={t('common.cancel')}
         onCancel={() => { setIsItemActionMenuVisible(false); setActionMenuItem(null); }}
         visible={isItemActionMenuVisible}

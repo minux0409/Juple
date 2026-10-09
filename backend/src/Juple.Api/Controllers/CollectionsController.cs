@@ -1308,6 +1308,24 @@ public sealed class CollectionsController(
             state => Ok(state),
             cancellationToken);
 
+    /// <summary>
+    /// Edits the words of the caller's OWN comment (same 1..1000 rule); answers it as stored now, replies and hearts intact.
+    /// 403 for somebody else's comment (the Owner included), 404 for a missing or deleted one. Never notifies anybody.
+    /// </summary>
+    [HttpPut("{id:long}/items/{itemId:long}/comments/{commentId:long}")]
+    public Task<IActionResult> EditCommentAsync(
+        long id,
+        long itemId,
+        long commentId,
+        EditCommentRequest request,
+        [FromServices] Juple.Application.Collections.Comments.ICollectionItemCommentService commentService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => commentService.EditAsync(userId, id, itemId, commentId, request?.Body, unlockToken, cancellationToken),
+            comment => Ok(comment),
+            cancellationToken);
+
     /// <summary>Deletes a comment: its author, or the Collection's Owner for any. 403 for another member; one that is gone already is a success (204).</summary>
     [HttpDelete("{id:long}/items/{itemId:long}/comments/{commentId:long}")]
     public Task<IActionResult> DeleteCommentAsync(
@@ -1679,6 +1697,8 @@ public sealed class CollectionsController(
     public sealed record SetReactionRequest(string? ReactionKey);
 
     /// <summary>ParentCommentId: the comment (or reply) this one answers - optional, additive; the thread root and the answered person are decided server-side.</summary>
+    public sealed record EditCommentRequest(string? Body);
+
     public sealed record PostCommentRequest(string? Body, long? ParentCommentId = null);
 
     public sealed record CollectionShareStatusResponse(bool IsShared, CollectionShareResponse? Share);

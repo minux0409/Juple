@@ -4,7 +4,7 @@ import i18n from '../../i18n';
 import { HeartIcon } from '../../icons/HeartIcon';
 import { CommentComposer } from '../CommentComposer';
 import { CommentList } from '../CommentList';
-import { CommentRow, REPLY_INDENT } from '../CommentRow';
+import { CommentRow, REPLY_ACTION_OVERLAP, REPLY_INDENT } from '../CommentRow';
 import type { ItemComment } from '../commentsApi';
 import type { ReplyTarget, ThreadState } from '../useItemComments';
 
@@ -20,6 +20,9 @@ const create = (element: React.ReactElement): Renderer => {
   });
   return renderer;
 };
+/** The comment's long-press handler (the row's Pressable), or undefined when the comment has none. */
+const longPressOf = (renderer: Renderer, testID: string): (() => void) | undefined =>
+  renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onLongPress === 'function')[0]?.props.onLongPress;
 const byId = (renderer: Renderer, testID: string) =>
   renderer.root.findAll(node => node.props.testID === testID && typeof node.props.onPress === 'function')[0];
 const exists = (renderer: Renderer, testID: string) => renderer.root.findAll(node => node.props.testID === testID).length > 0;
@@ -45,7 +48,7 @@ const thread = (overrides: Partial<ThreadState> = {}): ThreadState => ({
 
 describe('CommentRow - hearts, replies and placeholders', () => {
   const row = (props: Partial<React.ComponentProps<typeof CommentRow>> = {}) =>
-    create(<CommentRow canDelete={false} comment={comment(1)} onOpenMenu={jest.fn()} {...props} />);
+    create(<CommentRow comment={comment(1)} {...props} />);
 
   it('shows 답글 달기 and a heart only where the screen handles them (an older list has neither)', () => {
     const plain = row();
@@ -102,18 +105,53 @@ describe('CommentRow - hearts, replies and placeholders', () => {
     expect(exists(direct, 'comment-mention-2')).toBe(false);
   });
 
+  const bodyText = (renderer: Renderer, id: number) => renderer.root.findAll(node => node.props.testID === `comment-body-${id}` && node.type === Text)[0];
+  const mentionCount = (renderer: Renderer, id: number) => renderer.root.findAll(node => node.props.testID === `comment-mention-${id}` && node.type === Text).length;
+  const replyToJiwoo = { jupleId: 'WXYZ6789', displayName: '지우' };
+
+  it('a clean new reply shows the blue @target once, then exactly what was written', () => {
+    const renderer = row({ isReply: true, comment: reply(3, 1, { parentCommentId: 2, replyTo: replyToJiwoo, body: 'agreed' }) });
+    expect(mentionCount(renderer, 3)).toBe(1);
+    expect(texts(renderer).filter(text => text.includes('@지우'))).toHaveLength(1);
+    expect(bodyText(renderer, 3).props.children[1]).toBe('agreed');
+  });
+
+  it('an older reply that stored the same leading "@name " shows it only once', () => {
+    const renderer = row({ isReply: true, comment: reply(3, 1, { parentCommentId: 2, replyTo: replyToJiwoo, body: '@지우 agreed' }) });
+    expect(mentionCount(renderer, 3)).toBe(1);
+    expect(bodyText(renderer, 3).props.children[1]).toBe('agreed');
+    expect(renderer.root.findAll(node => node.props.accessibilityLabel?.includes?.('@지우 agreed')).length).toBeGreaterThan(0);
+    expect(renderer.root.findAll(node => node.props.accessibilityLabel?.includes?.('@지우 @지우')).length).toBe(0);
+  });
+
+  it('a different leading @name or one in the middle of the text is kept as written', () => {
+    const different = row({ isReply: true, comment: reply(3, 1, { parentCommentId: 2, replyTo: replyToJiwoo, body: '@하늘 look' }) });
+    expect(bodyText(different, 3).props.children[1]).toBe('@하늘 look');
+    const middle = row({ isReply: true, comment: reply(4, 1, { parentCommentId: 2, replyTo: replyToJiwoo, body: 'thanks @지우 for this' }) });
+    expect(bodyText(middle, 4).props.children[1]).toBe('thanks @지우 for this');
+  });
+
+  it('the reply label sits close under the body but keeps a 44dp touch box', () => {
+    const renderer = row({ onReply: jest.fn(), onToggleLike: jest.fn() });
+    expect(StyleSheet.flatten(byId(renderer, 'comment-reply-1').props.style).minHeight).toBeGreaterThanOrEqual(44);
+    expect(StyleSheet.flatten(byId(renderer, 'comment-like-1').props.style)).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }));
+    // The line holding them reaches up over the body's bottom slack - the compact visual gap, not a big margin.
+    expect(StyleSheet.flatten(renderer.root.findAll(node => node.props.testID === 'comment-actions-1')[0].props.style).marginTop).toBe(-REPLY_ACTION_OVERLAP);
+    expect(REPLY_ACTION_OVERLAP).toBeGreaterThan(0);
+  });
+
   it('without a nickname the answered person is shown by Juple ID', () => {
     const renderer = row({ isReply: true, comment: reply(3, 1, { parentCommentId: 2, replyTo: { jupleId: 'WXYZ6789', displayName: null } }) });
     expect(texts(renderer)).toContain('@WXYZ-6789 ');
   });
 
   it('a deleted comment is only "삭제된 댓글입니다." - no avatar, name, words, heart or answer button', () => {
-    const renderer = row({ comment: comment(1, { isDeleted: true, body: '', author: { jupleId: '', displayName: null, profileImageUrl: null, profileImageVersion: null, isCollectionOwner: false, isMe: false } }), canDelete: true, onReply: jest.fn(), onToggleLike: jest.fn() });
+    const renderer = row({ comment: comment(1, { isDeleted: true, body: '', author: { jupleId: '', displayName: null, profileImageUrl: null, profileImageVersion: null, isCollectionOwner: false, isMe: false } }), onLongPress: jest.fn(), onReply: jest.fn(), onToggleLike: jest.fn() });
 
     expect(texts(renderer)).toEqual(['삭제된 댓글입니다.']);
     expect(exists(renderer, 'comment-reply-1')).toBe(false);
     expect(exists(renderer, 'comment-like-1')).toBe(false);
-    expect(exists(renderer, 'comment-more-1')).toBe(false);
+    expect(longPressOf(renderer, 'comment-1')).toBeUndefined();
   });
 });
 
@@ -223,7 +261,7 @@ describe('CommentList - threads', () => {
 
     expect(texts(renderer)).toContain('삭제된 댓글입니다.');
     expect(texts(renderer)).toContain('답글 1개 보기');
-    expect(exists(renderer, 'comment-more-1')).toBe(false);
+    expect(longPressOf(renderer, 'comment-1')).toBeUndefined();
     expect(exists(renderer, 'comment-reply-1')).toBe(false);
   });
 
@@ -235,7 +273,7 @@ describe('CommentList - threads', () => {
       threads: { 1: thread({ replies: [reply(10, 1, { author: { jupleId: 'ME', displayName: '나', profileImageUrl: null, profileImageVersion: null, isCollectionOwner: false, isMe: true } })] }) },
     });
 
-    act(() => byId(renderer, 'comment-more-10').props.onPress());
+    act(() => longPressOf(renderer, 'comment-10')!());
     const menu = renderer.root.findAll(node => Array.isArray(node.props.actions) && node.props.visible === true)[0];
     act(() => menu.props.actions[0].onPress());
     const confirm = renderer.root.findAll(node => typeof node.props.onConfirm === 'function' && node.props.visible === true)[0];
@@ -246,7 +284,7 @@ describe('CommentList - threads', () => {
 });
 
 describe('CommentComposer - reply mode', () => {
-  const target = (overrides: Partial<ReplyTarget> = {}): ReplyTarget => ({ commentId: 1, rootCommentId: 1, name: '민욱', mention: null, ...overrides });
+  const target = (overrides: Partial<ReplyTarget> = {}): ReplyTarget => ({ commentId: 1, rootCommentId: 1, name: '민욱', ...overrides });
   const composer = (props: Partial<React.ComponentProps<typeof CommentComposer>> = {}) =>
     create(<CommentComposer isSending={false} onSubmit={jest.fn().mockResolvedValue(true)} {...props} />);
   const inputText = (renderer: Renderer) => renderer.root.findByType(TextInput).props.value;
@@ -271,41 +309,29 @@ describe('CommentComposer - reply mode', () => {
     expect(renderer.root.findByType(TextInput).props.placeholder).toBe('댓글을 입력하세요');
   });
 
-  it('an answer to another reply starts the text with "@name " - an answer to a top-level comment starts empty', () => {
-    expect(inputText(composer({ replyTarget: target({ commentId: 10, mention: '@지우' }) }))).toBe('@지우 ');
+  it('reply mode never puts a mention into the field - the person writes only their own words', () => {
+    expect(inputText(composer({ replyTarget: target({ commentId: 10, name: '지우' }) }))).toBe('');
     expect(inputText(composer({ replyTarget: target() }))).toBe('');
   });
 
-  it('switching to another reply replaces the untouched mention; text the person typed is never overwritten', () => {
-    const renderer = composer({ replyTarget: target({ commentId: 10, mention: '@지우' }) });
-    act(() => renderer.update(<CommentComposer isSending={false} onSubmit={jest.fn()} replyTarget={target({ commentId: 11, mention: '@하늘' })} />));
-    expect(inputText(renderer)).toBe('@하늘 ');
-
-    act(() => renderer.root.findByType(TextInput).props.onChangeText('@하늘 I typed this'));
-    act(() => renderer.update(<CommentComposer isSending={false} onSubmit={jest.fn()} replyTarget={target({ commentId: 12, mention: '@바다' })} />));
-    expect(inputText(renderer)).toBe('@하늘 I typed this');
-  });
-
-  it('leaving reply mode drops an untouched mention but keeps typed text', () => {
-    const renderer = composer({ replyTarget: target({ commentId: 10, mention: '@지우' }) });
+  it('switching or leaving reply mode never touches what was typed', () => {
+    const renderer = composer({ replyTarget: target({ commentId: 10, name: '지우' }) });
+    act(() => renderer.root.findByType(TextInput).props.onChangeText('my words'));
+    act(() => renderer.update(<CommentComposer isSending={false} onSubmit={jest.fn()} replyTarget={target({ commentId: 11, name: '하늘' })} />));
+    expect(inputText(renderer)).toBe('my words');
     act(() => renderer.update(<CommentComposer isSending={false} onSubmit={jest.fn()} replyTarget={null} />));
-    expect(inputText(renderer)).toBe('');
-
-    const typed = composer({ replyTarget: target({ commentId: 10, mention: '@지우' }) });
-    act(() => typed.root.findByType(TextInput).props.onChangeText('@지우 my words'));
-    act(() => typed.update(<CommentComposer isSending={false} onSubmit={jest.fn()} replyTarget={null} />));
-    expect(inputText(typed)).toBe('@지우 my words');
+    expect(inputText(renderer)).toBe('my words');
   });
 
-  it('the mention alone is not a comment; with words after it the whole text is sent', async () => {
+  it('the text sent is exactly what was typed (trimmed) - no automatic @name', async () => {
     const onSubmit = jest.fn().mockResolvedValue(true);
-    const renderer = composer({ replyTarget: target({ commentId: 10, mention: '@지우' }), onSubmit });
-    expect(byId(renderer, 'comment-send').props.disabled).toBe(true); // the untouched mention is not a comment
-    act(() => renderer.root.findByType(TextInput).props.onChangeText('@지우 맞아요'));
+    const renderer = composer({ replyTarget: target({ commentId: 10, name: '지우' }), onSubmit });
+    expect(byId(renderer, 'comment-send').props.disabled).toBe(true);
+    act(() => renderer.root.findByType(TextInput).props.onChangeText('  맞아요 '));
     expect(byId(renderer, 'comment-send').props.disabled).toBe(false);
 
     await act(async () => byId(renderer, 'comment-send').props.onPress());
 
-    expect(onSubmit).toHaveBeenCalledWith('@지우 맞아요');
+    expect(onSubmit).toHaveBeenCalledWith('맞아요');
   });
 });

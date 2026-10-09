@@ -1,5 +1,6 @@
 import { ApiError } from '../api/ApiError';
 import { requestApi } from '../api/apiClient';
+import { parseMobileVersionPolicy, type MobileVersionPolicy } from '../appUpdate/versionPolicy';
 import type { DeviceRegionalSettings } from '../device/regionalSettings';
 import type { Entitlement, EntitlementReason, EntitlementStatus, UserBootstrapStatus, UserPlan } from './types';
 
@@ -8,11 +9,14 @@ export interface UserBootstrapResult {
   readonly plan: UserPlan | null;
   /** Null when the response carried none (an older backend) or it was not understood - never a guessed default. */
   readonly entitlement: Entitlement | null;
+  /** Null when the response carried none (an older backend) or it was not understood - never a guessed default. */
+  readonly mobileVersionPolicy?: MobileVersionPolicy | null;
 }
 
 interface BootstrapCurrentUserResponseBody {
   readonly plan: UserPlan;
   readonly entitlement?: unknown;
+  readonly mobileVersionPolicy?: unknown;
 }
 
 const ENTITLEMENT_STATUSES: readonly EntitlementStatus[] = ['trial', 'active', 'gracePeriod', 'expired'];
@@ -56,12 +60,17 @@ export async function bootstrapCurrentUser(
       accessToken,
       body: regionalSettings,
     });
-    return { status: 'ready', plan: response.body?.plan ?? null, entitlement: parseEntitlement(response.body?.entitlement) };
+    return {
+      status: 'ready',
+      plan: response.body?.plan ?? null,
+      entitlement: parseEntitlement(response.body?.entitlement),
+      mobileVersionPolicy: parseMobileVersionPolicy(response.body?.mobileVersionPolicy),
+    };
   } catch (error) {
     if (error instanceof ApiError && error.kind === 'badRequest') {
-      return { status: 'invalidDeviceSettings', plan: null, entitlement: null };
+      return { status: 'invalidDeviceSettings', plan: null, entitlement: null, mobileVersionPolicy: null };
     }
 
-    return { status: 'unavailable', plan: null, entitlement: null };
+    return { status: 'unavailable', plan: null, entitlement: null, mobileVersionPolicy: null };
   }
 }

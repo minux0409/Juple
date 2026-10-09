@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Quitter la collection ?",
     "leaveConfirmMessage": "Si vous quittez, cette collection sera retirée de votre liste.",
     "leaveConfirmButton": "Quitter",
-    "leaveError": "Impossible de quitter la collection. Réessayez plus tard."
+    "leaveError": "Impossible de quitter la collection. Réessayez plus tard.",
+    "noCollection": "Aucune collection",
+    "changeCollection": "Changer de collection",
+    "newLinkNotificationsTurnOn": "Activer les alertes de nouveaux liens",
+    "newLinkNotificationsTurnOff": "Désactiver les alertes de nouveaux liens",
+    "shortcutRemove": "Retirer des destinations de partage",
+    "shortcutLimitReached": "Vous pouvez ajouter jusqu’à {{count}} raccourcis de l’app. Retirez-en d’abord un autre.",
+    "shortcutUnavailable": "Cette collection ne peut pas recevoir de liens pour le moment. Votre lien a été conservé : choisissez une collection vous-même.",
+    "linkActionsA11y": "Options du lien",
+    "collectionActionsA11y": "Options de la collection",
+    "shortcutSavedWithoutCollection": "Votre lien a été enregistré, mais n’a pas pu être ajouté à la collection choisie. Classez-le à nouveau vous-même.",
+    "shortcutOpenUnavailable": "Cette collection ne peut plus être ouverte. Supprimez vous-même son icône de l’écran d’accueil.",
+    "homeShortcutAdd": "Ajouter un raccourci à l’écran d’accueil",
+    "homeShortcutUnsupported": "Le lanceur de cet appareil ne permet pas d’ajouter des raccourcis à l’écran d’accueil.",
+    "homeShortcutLocked": "Une collection verrouillée demande toujours son mot de passe depuis l’écran d’accueil. Elle n’est pas ajoutée comme destination de partage."
   },
   "toast": {
     "moveSuccess": "Déplacé.",
@@ -606,7 +620,6 @@
     "justNow": "À l’instant",
     "minutesAgo": "il y a {{count}} min",
     "hoursAgo": "il y a {{count}} h",
-    "moreA11y": "Options du commentaire",
     "ownerA11y": "{{name}} (propriétaire)",
     "reply": "Répondre",
     "replyPlaceholder": "Écrire une réponse",
@@ -620,7 +633,15 @@
     "like": "J’aime",
     "unlike": "Je n’aime plus",
     "likeCountA11y": "{{count}} J’aime",
-    "likeError": "Impossible de mettre à jour le J’aime."
+    "likeError": "Impossible de mettre à jour le J’aime.",
+    "edit": "Modifier",
+    "deleteAction": "Supprimer",
+    "editing": "Modification du commentaire",
+    "cancelEdit": "Annuler la modification",
+    "editSave": "Enregistrer",
+    "editError": "Impossible de modifier le commentaire. Votre texte est conservé.",
+    "optionsA11y": "Options du commentaire",
+    "profileA11y": "Voir le profil de {{name}}"
   },
   "reactions": {
     "pickerTitle": "Ajouter une réaction",
@@ -905,11 +926,12 @@
     "cancelNote": "Vous pouvez résilier à tout moment dans les réglages d’abonnement du store. La résiliation arrête les renouvellements futurs.",
     "accessHeading": "Votre accès",
     "access": {
-      "trial": "Essai gratuit",
+      "trial": "Accès gratuit",
       "active": "Abonné",
       "gracePeriod": "Abonné (problème de paiement)",
       "expired": "Abonnement terminé",
-      "inactive": "L’abonnement n’est pas encore nécessaire."
+      "inactive": "L’abonnement n’est pas encore nécessaire.",
+      "unknown": "Impossible de vérifier l'état de votre accès."
     },
     "loading": "Chargement...",
     "subscribe": "S’abonner",
@@ -934,6 +956,36 @@
       "nothingFound": "Aucun achat à restaurer n’a été trouvé.",
       "anotherAccount": "Cet achat appartient à un autre compte Juple.",
       "temporary": "Impossible de restaurer les achats pour le moment. Réessayez."
+    },
+    "trialInfo": "Vos 30 premiers jours sont gratuits. Cette période gratuite est offerte par Juple et distincte de la facturation du store.",
+    "detail": {
+      "trialDaysLeft": "Jours restants : {{days}}",
+      "trialLessThanDay": "Moins de 1 jour restant",
+      "trialEndsOn": "Gratuit jusqu'au {{date}}",
+      "activeManage": "Vous pouvez gérer votre abonnement dans le store.",
+      "grace": "Un problème est survenu avec votre paiement. Vérifiez votre moyen de paiement dans le store pour conserver l'accès.",
+      "expired": "Abonnez-vous pour enregistrer et modifier à nouveau. Vos liens enregistrés sont conservés et restent consultables.",
+      "expiredOn": "L'accès a pris fin le {{date}}"
+    },
+    "manage": "Gérer l'abonnement",
+    "manageFailed": "Impossible d'ouvrir le store. Veuillez réessayer.",
+    "infoHeading": "Bon à savoir",
+    "info": {
+      "accountTitle": "S'applique à votre compte",
+      "accountBody": "Votre abonnement est lié à votre compte Juple, et non à un seul appareil.",
+      "storeTitle": "Paiement et résiliation",
+      "storeBody": "Le paiement, le renouvellement et la résiliation sont gérés par le store où vous vous êtes abonné.",
+      "dataTitle": "Vos liens restent à vous",
+      "dataBody": "Vos liens enregistrés ne sont pas supprimés à la fin d'un abonnement."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "Une mise à jour est disponible",
+    "optionalMessage": "Une nouvelle version de Juple est disponible.",
+    "requiredTitle": "Une mise à jour est requise",
+    "requiredMessage": "Pour continuer à utiliser Juple, mettez à jour vers la dernière version.",
+    "later": "Plus tard",
+    "action": "Mettre à jour",
+    "openStoreFailed": "Impossible d’ouvrir la boutique. Réessayez dans un instant."
   }
 }

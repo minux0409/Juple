@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Leave this collection?",
     "leaveConfirmMessage": "If you leave, this collection is removed from your list.",
     "leaveConfirmButton": "Leave",
-    "leaveError": "Could not leave the collection. Please try again later."
+    "leaveError": "Could not leave the collection. Please try again later.",
+    "noCollection": "No collection",
+    "changeCollection": "Change collection",
+    "newLinkNotificationsTurnOn": "Turn on new link notifications",
+    "newLinkNotificationsTurnOff": "Turn off new link notifications",
+    "shortcutRemove": "Remove from share targets",
+    "shortcutLimitReached": "You can add up to {{count}} app shortcuts. Remove another one first.",
+    "shortcutUnavailable": "This collection can’t take links right now. Your link was kept — please choose a collection yourself.",
+    "linkActionsA11y": "Link options",
+    "collectionActionsA11y": "Collection options",
+    "shortcutSavedWithoutCollection": "Your link was saved, but it couldn’t be added to the collection you chose. Please file it again yourself.",
+    "shortcutOpenUnavailable": "This collection can no longer be opened. Please remove its Home-screen icon yourself.",
+    "homeShortcutAdd": "Add shortcut to Home screen",
+    "homeShortcutUnsupported": "This device’s launcher doesn’t support adding Home-screen shortcuts.",
+    "homeShortcutLocked": "A locked collection still asks for its password when opened from the Home screen. It is not added as a share destination."
   },
   "toast": {
     "moveSuccess": "Moved.",
@@ -606,7 +620,6 @@
     "justNow": "Just now",
     "minutesAgo": "{{count}}m ago",
     "hoursAgo": "{{count}}h ago",
-    "moreA11y": "Comment options",
     "ownerA11y": "{{name}} (owner)",
     "reply": "Reply",
     "replyPlaceholder": "Write a reply",
@@ -620,7 +633,15 @@
     "like": "Like",
     "unlike": "Unlike",
     "likeCountA11y": "{{count}} likes",
-    "likeError": "Couldn’t update the like."
+    "likeError": "Couldn’t update the like.",
+    "edit": "Edit",
+    "deleteAction": "Delete",
+    "editing": "Editing comment",
+    "cancelEdit": "Cancel editing",
+    "editSave": "Save",
+    "editError": "Couldn’t edit the comment. What you typed is still here.",
+    "optionsA11y": "Comment options",
+    "profileA11y": "View {{name}}’s profile"
   },
   "reactions": {
     "pickerTitle": "Add reaction",
@@ -905,11 +926,12 @@
     "cancelNote": "You can cancel anytime in your store subscription settings. Cancelling stops future renewals.",
     "accessHeading": "Your access",
     "access": {
-      "trial": "Free trial",
+      "trial": "Free access",
       "active": "Subscribed",
       "gracePeriod": "Subscribed (payment issue)",
       "expired": "Subscription ended",
-      "inactive": "Subscriptions are not required yet."
+      "inactive": "Subscriptions are not required yet.",
+      "unknown": "Couldn't check your access status."
     },
     "loading": "Loading...",
     "subscribe": "Subscribe",
@@ -934,6 +956,36 @@
       "nothingFound": "No purchases were found to restore.",
       "anotherAccount": "That purchase belongs to another Juple account.",
       "temporary": "Could not restore purchases right now. Please try again."
+    },
+    "trialInfo": "Your first 30 days are free. This free period is provided by Juple and is separate from store billing.",
+    "detail": {
+      "trialDaysLeft": "Days left: {{days}}",
+      "trialLessThanDay": "Less than 1 day left",
+      "trialEndsOn": "Free until {{date}}",
+      "activeManage": "You can manage your subscription in the store.",
+      "grace": "There's a problem with your payment. Check your payment method in the store to keep your access.",
+      "expired": "Subscribe to save and edit again. Your saved links are kept and you can still view them.",
+      "expiredOn": "Access ended {{date}}"
+    },
+    "manage": "Manage subscription",
+    "manageFailed": "Couldn't open the store. Please try again.",
+    "infoHeading": "Good to know",
+    "info": {
+      "accountTitle": "Applies to your account",
+      "accountBody": "Your subscription belongs to your Juple account, not to a single device.",
+      "storeTitle": "Billing and cancellation",
+      "storeBody": "Payment, renewal and cancellation are handled by the store you subscribed through.",
+      "dataTitle": "Your links stay yours",
+      "dataBody": "Your saved links are not deleted when a subscription ends."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "An update is available",
+    "optionalMessage": "A new version of Juple is available.",
+    "requiredTitle": "An update is required",
+    "requiredMessage": "To keep using Juple, please update to the latest version.",
+    "later": "Later",
+    "action": "Update",
+    "openStoreFailed": "Couldn’t open the store. Please try again in a moment."
   }
 }

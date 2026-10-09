@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "コレクションから退出しますか？",
     "leaveConfirmMessage": "退出すると、このコレクションはあなたのリストから削除されます。",
     "leaveConfirmButton": "退出",
-    "leaveError": "コレクションから退出できませんでした。しばらくしてからもう一度お試しください。"
+    "leaveError": "コレクションから退出できませんでした。しばらくしてからもう一度お試しください。",
+    "noCollection": "コレクションなし",
+    "changeCollection": "コレクションを変更",
+    "newLinkNotificationsTurnOn": "新しいリンクの通知をオンにする",
+    "newLinkNotificationsTurnOff": "新しいリンクの通知をオフにする",
+    "shortcutRemove": "共有先から削除",
+    "shortcutLimitReached": "アプリのショートカットは最大{{count}}件まで追加できます。先に別のショートカットを削除してください。",
+    "shortcutUnavailable": "選んだコレクションには今は保存できません。リンクはそのまま残してあるので、保存先を自分で選んでください。",
+    "linkActionsA11y": "リンクのオプション",
+    "collectionActionsA11y": "コレクションのオプション",
+    "shortcutSavedWithoutCollection": "リンクは保存しましたが、選んだコレクションには追加できませんでした。もう一度コレクションを指定してください。",
+    "shortcutOpenUnavailable": "このコレクションは開けなくなりました。ホーム画面のアイコンはご自身で削除してください。",
+    "homeShortcutAdd": "ホーム画面にショートカットを追加",
+    "homeShortcutUnsupported": "この端末のランチャーはホーム画面へのショートカット追加に対応していません。",
+    "homeShortcutLocked": "ロックされたコレクションは、ホーム画面から開く際もパスワードが必要です。共有先（Direct Share）には追加されません。"
   },
   "toast": {
     "moveSuccess": "移動しました。",
@@ -606,7 +620,6 @@
     "justNow": "たった今",
     "minutesAgo": "{{count}}分前",
     "hoursAgo": "{{count}}時間前",
-    "moreA11y": "コメントのオプション",
     "ownerA11y": "{{name}}(オーナー)",
     "reply": "返信する",
     "replyPlaceholder": "返信を入力",
@@ -620,7 +633,15 @@
     "like": "いいね",
     "unlike": "いいねを取り消す",
     "likeCountA11y": "いいね{{count}}件",
-    "likeError": "いいねを更新できませんでした。"
+    "likeError": "いいねを更新できませんでした。",
+    "edit": "編集する",
+    "deleteAction": "削除する",
+    "editing": "コメントを編集中",
+    "cancelEdit": "編集をキャンセル",
+    "editSave": "保存",
+    "editError": "コメントを編集できませんでした。入力した内容はそのまま残してあります。",
+    "optionsA11y": "コメントのオプション",
+    "profileA11y": "{{name}}のプロフィールを見る"
   },
   "reactions": {
     "pickerTitle": "リアクションを追加",
@@ -905,11 +926,12 @@
     "cancelNote": "ストアのサブスクリプション設定からいつでも解約できます。解約すると次回以降は更新されません。",
     "accessHeading": "ご利用状況",
     "access": {
-      "trial": "無料トライアル",
+      "trial": "無料でご利用中",
       "active": "登録中",
       "gracePeriod": "登録中(お支払いに問題があります)",
       "expired": "サブスクリプション終了",
-      "inactive": "まだサブスクリプションは必要ありません。"
+      "inactive": "まだサブスクリプションは必要ありません。",
+      "unknown": "ご利用状況を確認できませんでした。"
     },
     "loading": "読み込み中...",
     "subscribe": "登録する",
@@ -934,6 +956,36 @@
       "nothingFound": "復元できる購入が見つかりませんでした。",
       "anotherAccount": "その購入は別の Juple アカウントに紐づいています。",
       "temporary": "現在購入を復元できません。もう一度お試しください。"
+    },
+    "trialInfo": "最初の30日間は無料でご利用いただけます。この無料期間はJupleが提供するもので、ストアの課金とは別です。",
+    "detail": {
+      "trialDaysLeft": "残り{{days}}日",
+      "trialLessThanDay": "残り1日未満",
+      "trialEndsOn": "{{date}}まで無料",
+      "activeManage": "ストアでサブスクリプションを管理できます。",
+      "grace": "お支払いに問題があります。ご利用を続けるには、ストアでお支払い方法をご確認ください。",
+      "expired": "サブスクリプションに登録すると、再び保存や編集ができます。保存したリンクはそのまま残り、閲覧もできます。",
+      "expiredOn": "{{date}}にご利用が終了しました"
+    },
+    "manage": "サブスクリプションを管理",
+    "manageFailed": "ストアを開けませんでした。もう一度お試しください。",
+    "infoHeading": "ご案内",
+    "info": {
+      "accountTitle": "アカウントに適用されます",
+      "accountBody": "サブスクリプションは端末ではなく、Jupleアカウントに適用されます。",
+      "storeTitle": "お支払いと解約",
+      "storeBody": "お支払い、更新、解約は、登録したストアで管理されます。",
+      "dataTitle": "保存したリンクはそのまま",
+      "dataBody": "サブスクリプションが終了しても、保存したリンクは削除されません。"
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "アップデートがあります",
+    "optionalMessage": "Jupleの新しいバージョンが利用できます。",
+    "requiredTitle": "アップデートが必要です",
+    "requiredMessage": "Jupleを引き続きご利用いただくには、最新バージョンにアップデートしてください。",
+    "later": "あとで",
+    "action": "アップデート",
+    "openStoreFailed": "ストアを開けませんでした。しばらくしてからもう一度お試しください。"
   }
 }

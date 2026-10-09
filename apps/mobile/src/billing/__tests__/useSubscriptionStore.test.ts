@@ -47,4 +47,23 @@ describe('createGoogleSubscriptionStore', () => {
     expect(billing.purchase).toHaveBeenCalledTimes(1);
     expect(billing.restore).toHaveBeenCalledTimes(1);
   });
+
+  it('offers Google Play subscription management on Android only, opening the Play page without any product or account id', async () => {
+    const { Linking, Platform } = require('react-native');
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    const original = Platform.OS;
+    try {
+      Platform.OS = 'android';
+      const store = createGoogleSubscriptionStore(fakeBilling());
+      expect(store.canManageSubscription).toBe(true);
+      await store.openSubscriptionManagement();
+      expect(openURL).toHaveBeenCalledWith('https://play.google.com/store/account/subscriptions');
+
+      Platform.OS = 'ios';
+      expect(createGoogleSubscriptionStore(fakeBilling()).canManageSubscription).toBe(false);
+    } finally {
+      Platform.OS = original;
+      openURL.mockRestore();
+    }
+  });
 });

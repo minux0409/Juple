@@ -5,8 +5,10 @@ import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { CommentComposer } from '../comments/CommentComposer';
 import { CommentList } from '../comments/CommentList';
+import { usePersonProfile } from '../friends/PersonProfileModal';
 import { useItemComments } from '../comments/useItemComments';
 import { useAppToast } from '../components/AppToast';
+import { useMessageDialog } from '../components/useMessageDialog';
 import { ReactionChips } from '../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
@@ -56,6 +58,8 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
   const { t } = useTranslation();
   const authenticatedRequest = useAuthenticatedApi();
   const { showNotificationToast } = useAppToast();
+  // A failed EDIT is the result of something the person just did with text they typed: a centered message, not a toast.
+  const { showMessage, messageDialog } = useMessageDialog();
   const unlockToken = () => getCollectionUnlockToken(collectionId);
   const reactions = useItemReactions(authenticatedRequest, collectionId, unlockToken, () => showNotificationToast(t('reactions.error')));
   const { recent: recentReactions, recordRecent: recordRecentReaction } = useRecentReactions();
@@ -64,14 +68,21 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
     collectionId,
     itemId,
     unlockToken,
-    kind =>
+    kind => {
+      if (kind === 'edit') {
+        showMessage(t('comments.editError'));
+        return;
+      }
       showNotificationToast(
         t(kind === 'send' ? 'comments.sendError' : kind === 'delete' ? 'comments.deleteError' : kind === 'like' ? 'comments.likeError' : 'comments.loadError'),
-      ),
+      );
+    },
     enabled,
     focusThreadRootId,
   );
   const [isPickerVisible, setIsPickerVisible] = useState(false);
+  // An author's profile on tap: ONE rule for every avatar in the app (me / friend / not yet a friend, resolved on demand - never per comment).
+  const { openProfile, profileModal } = usePersonProfile();
   const rowRef = useRef<CollaborationRow | null>(null);
   rowRef.current = row;
 
@@ -106,6 +117,7 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
       </>
     ),
     comments: (
+      <>
         <CommentList
           canDeleteAny={isCollectionOwner}
           comments={comments.comments}
@@ -114,6 +126,14 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
           onDelete={commentId => {
             comments.remove(commentId).catch(() => undefined);
           }}
+          onEdit={comments.startEdit}
+          onOpenProfile={comment => openProfile({
+            jupleId: comment.author.jupleId,
+            displayName: comment.author.displayName,
+            profileImageUrl: comment.author.profileImageUrl,
+            profileImageVersion: comment.author.profileImageVersion,
+            isSelf: comment.author.isMe,
+          })}
           onLoadMoreReplies={rootId => {
             comments.loadMoreReplies(rootId).catch(() => undefined);
           }}
@@ -133,12 +153,17 @@ export function useItemCollaboration({ collectionId, itemId, isCollectionOwner, 
           threads={comments.threads}
           totalCount={comments.totalCount}
         />
+        {profileModal}
+        {messageDialog}
+      </>
     ),
     composer: (
       <CommentComposer
+        editTarget={comments.editTarget}
         isSending={comments.isSending}
+        onCancelEdit={comments.cancelEdit}
         onCancelReply={comments.cancelReply}
-        onSubmit={comments.send}
+        onSubmit={comments.editTarget ? comments.saveEdit : comments.send}
         replyTarget={comments.replyTarget}
       />
     ),

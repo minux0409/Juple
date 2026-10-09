@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Sair da coleção?",
     "leaveConfirmMessage": "Se você sair, esta coleção será removida da sua lista.",
     "leaveConfirmButton": "Sair",
-    "leaveError": "Não foi possível sair da coleção. Tente novamente mais tarde."
+    "leaveError": "Não foi possível sair da coleção. Tente novamente mais tarde.",
+    "noCollection": "Sem coleção",
+    "changeCollection": "Alterar coleção",
+    "newLinkNotificationsTurnOn": "Ativar avisos de novos links",
+    "newLinkNotificationsTurnOff": "Desativar avisos de novos links",
+    "shortcutRemove": "Remover dos destinos de compartilhamento",
+    "shortcutLimitReached": "Você pode adicionar até {{count}} atalhos do app. Remova outro primeiro.",
+    "shortcutUnavailable": "Esta coleção não pode receber links agora. Seu link foi mantido — escolha uma coleção você mesmo.",
+    "linkActionsA11y": "Opções do link",
+    "collectionActionsA11y": "Opções da coleção",
+    "shortcutSavedWithoutCollection": "Seu link foi salvo, mas não pôde ser adicionado à coleção escolhida. Atribua-o novamente você mesmo.",
+    "shortcutOpenUnavailable": "Esta coleção não pode mais ser aberta. Remova você mesmo o ícone dela da tela inicial.",
+    "homeShortcutAdd": "Adicionar atalho à tela inicial",
+    "homeShortcutUnsupported": "O launcher deste dispositivo não permite adicionar atalhos à tela inicial.",
+    "homeShortcutLocked": "Uma coleção bloqueada continua pedindo a senha ao ser aberta pela tela inicial. Ela não é adicionada como destino de compartilhamento."
   },
   "toast": {
     "moveSuccess": "Movido.",
@@ -606,7 +620,6 @@
     "justNow": "Agora mesmo",
     "minutesAgo": "há {{count}} min",
     "hoursAgo": "há {{count}} h",
-    "moreA11y": "Opções do comentário",
     "ownerA11y": "{{name}} (proprietário)",
     "reply": "Responder",
     "replyPlaceholder": "Escreva uma resposta",
@@ -620,7 +633,15 @@
     "like": "Curtir",
     "unlike": "Descurtir",
     "likeCountA11y": "{{count}} curtidas",
-    "likeError": "Não foi possível atualizar a curtida."
+    "likeError": "Não foi possível atualizar a curtida.",
+    "edit": "Editar",
+    "deleteAction": "Excluir",
+    "editing": "Editando comentário",
+    "cancelEdit": "Cancelar edição",
+    "editSave": "Salvar",
+    "editError": "Não foi possível editar o comentário. O que você digitou continua aqui.",
+    "optionsA11y": "Opções do comentário",
+    "profileA11y": "Ver o perfil de {{name}}"
   },
   "reactions": {
     "pickerTitle": "Adicionar reação",
@@ -905,11 +926,12 @@
     "cancelNote": "Você pode cancelar a qualquer momento nas configurações de assinaturas da loja. Cancelar interrompe as renovações futuras.",
     "accessHeading": "Seu acesso",
     "access": {
-      "trial": "Teste gratuito",
+      "trial": "Uso gratuito",
       "active": "Assinante",
       "gracePeriod": "Assinante (problema de pagamento)",
       "expired": "Assinatura encerrada",
-      "inactive": "A assinatura ainda não é necessária."
+      "inactive": "A assinatura ainda não é necessária.",
+      "unknown": "Não foi possível verificar seu status de acesso."
     },
     "loading": "Carregando...",
     "subscribe": "Assinar",
@@ -934,6 +956,36 @@
       "nothingFound": "Nenhuma compra para restaurar foi encontrada.",
       "anotherAccount": "Essa compra pertence a outra conta do Juple.",
       "temporary": "Não foi possível restaurar as compras agora. Tente novamente."
+    },
+    "trialInfo": "Seus primeiros 30 dias são grátis. Este período gratuito é oferecido pelo Juple e é separado da cobrança da loja.",
+    "detail": {
+      "trialDaysLeft": "Dias restantes: {{days}}",
+      "trialLessThanDay": "Falta menos de 1 dia",
+      "trialEndsOn": "Grátis até {{date}}",
+      "activeManage": "Você pode gerenciar sua assinatura na loja.",
+      "grace": "Há um problema com seu pagamento. Verifique a forma de pagamento na loja para manter o acesso.",
+      "expired": "Assine para voltar a salvar e editar. Seus links salvos são mantidos e você ainda pode vê-los.",
+      "expiredOn": "O acesso terminou em {{date}}"
+    },
+    "manage": "Gerenciar assinatura",
+    "manageFailed": "Não foi possível abrir a loja. Tente novamente.",
+    "infoHeading": "Bom saber",
+    "info": {
+      "accountTitle": "Vale para sua conta",
+      "accountBody": "Sua assinatura pertence à sua conta Juple, não a um único dispositivo.",
+      "storeTitle": "Pagamento e cancelamento",
+      "storeBody": "Pagamento, renovação e cancelamento são tratados pela loja em que você assinou.",
+      "dataTitle": "Seus links continuam seus",
+      "dataBody": "Seus links salvos não são excluídos quando uma assinatura termina."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "Há uma atualização disponível",
+    "optionalMessage": "Uma nova versão do Juple está disponível.",
+    "requiredTitle": "É necessária uma atualização",
+    "requiredMessage": "Para continuar usando o Juple, atualize para a versão mais recente.",
+    "later": "Mais tarde",
+    "action": "Atualizar",
+    "openStoreFailed": "Não foi possível abrir a loja. Tente novamente em instantes."
   }
 }

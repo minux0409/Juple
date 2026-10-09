@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Rời khỏi bộ sưu tập?",
     "leaveConfirmMessage": "Nếu rời đi, bộ sưu tập này sẽ bị xóa khỏi danh sách của bạn.",
     "leaveConfirmButton": "Rời khỏi",
-    "leaveError": "Không thể rời khỏi bộ sưu tập. Vui lòng thử lại sau."
+    "leaveError": "Không thể rời khỏi bộ sưu tập. Vui lòng thử lại sau.",
+    "noCollection": "Không có bộ sưu tập",
+    "changeCollection": "Đổi bộ sưu tập",
+    "newLinkNotificationsTurnOn": "Bật thông báo liên kết mới",
+    "newLinkNotificationsTurnOff": "Tắt thông báo liên kết mới",
+    "shortcutRemove": "Xóa khỏi đích chia sẻ",
+    "shortcutLimitReached": "Bạn có thể thêm tối đa {{count}} lối tắt ứng dụng. Hãy xóa một lối tắt khác trước.",
+    "shortcutUnavailable": "Bộ sưu tập này hiện không nhận được liên kết. Liên kết của bạn vẫn được giữ — hãy tự chọn bộ sưu tập.",
+    "linkActionsA11y": "Tùy chọn liên kết",
+    "collectionActionsA11y": "Tùy chọn bộ sưu tập",
+    "shortcutSavedWithoutCollection": "Liên kết đã được lưu nhưng không thể thêm vào bộ sưu tập bạn chọn. Hãy tự chọn lại bộ sưu tập.",
+    "shortcutOpenUnavailable": "Không thể mở bộ sưu tập này nữa. Hãy tự xóa biểu tượng của nó khỏi màn hình chính.",
+    "homeShortcutAdd": "Thêm lối tắt vào màn hình chính",
+    "homeShortcutUnsupported": "Trình khởi chạy của thiết bị này không hỗ trợ thêm lối tắt vào màn hình chính.",
+    "homeShortcutLocked": "Bộ sưu tập đã khóa vẫn yêu cầu mật khẩu khi mở từ màn hình chính. Nó không được thêm làm đích chia sẻ."
   },
   "toast": {
     "moveSuccess": "Đã chuyển.",
@@ -606,7 +620,6 @@
     "justNow": "Vừa xong",
     "minutesAgo": "{{count}} phút trước",
     "hoursAgo": "{{count}} giờ trước",
-    "moreA11y": "Tùy chọn bình luận",
     "ownerA11y": "{{name}} (chủ sở hữu)",
     "reply": "Trả lời",
     "replyPlaceholder": "Viết phản hồi",
@@ -620,7 +633,15 @@
     "like": "Thích",
     "unlike": "Bỏ thích",
     "likeCountA11y": "{{count}} lượt thích",
-    "likeError": "Không cập nhật được lượt thích."
+    "likeError": "Không cập nhật được lượt thích.",
+    "edit": "Chỉnh sửa",
+    "deleteAction": "Xóa",
+    "editing": "Đang sửa bình luận",
+    "cancelEdit": "Hủy chỉnh sửa",
+    "editSave": "Lưu",
+    "editError": "Không thể sửa bình luận. Nội dung bạn nhập vẫn được giữ.",
+    "optionsA11y": "Tùy chọn bình luận",
+    "profileA11y": "Xem hồ sơ của {{name}}"
   },
   "reactions": {
     "pickerTitle": "Thêm cảm xúc",
@@ -905,11 +926,12 @@
     "cancelNote": "Bạn có thể hủy bất cứ lúc nào trong phần cài đặt đăng ký của cửa hàng. Hủy sẽ dừng các lần gia hạn sau.",
     "accessHeading": "Quyền truy cập của bạn",
     "access": {
-      "trial": "Dùng thử miễn phí",
+      "trial": "Đang dùng miễn phí",
       "active": "Đã đăng ký",
       "gracePeriod": "Đã đăng ký (sự cố thanh toán)",
       "expired": "Gói đăng ký đã kết thúc",
-      "inactive": "Chưa cần đăng ký."
+      "inactive": "Chưa cần đăng ký.",
+      "unknown": "Không thể kiểm tra trạng thái truy cập của bạn."
     },
     "loading": "Đang tải...",
     "subscribe": "Đăng ký",
@@ -934,6 +956,36 @@
       "nothingFound": "Không tìm thấy giao dịch mua nào để khôi phục.",
       "anotherAccount": "Giao dịch mua đó thuộc về tài khoản Juple khác.",
       "temporary": "Hiện chưa thể khôi phục giao dịch mua. Vui lòng thử lại."
+    },
+    "trialInfo": "30 ngày đầu tiên là miễn phí. Thời gian miễn phí này do Juple cung cấp và tách biệt với việc thanh toán trên cửa hàng ứng dụng.",
+    "detail": {
+      "trialDaysLeft": "Số ngày còn lại: {{days}}",
+      "trialLessThanDay": "Còn chưa đến 1 ngày",
+      "trialEndsOn": "Miễn phí đến {{date}}",
+      "activeManage": "Bạn có thể quản lý gói đăng ký trên cửa hàng ứng dụng.",
+      "grace": "Thanh toán của bạn đang gặp sự cố. Hãy kiểm tra phương thức thanh toán trên cửa hàng ứng dụng để giữ quyền truy cập.",
+      "expired": "Hãy đăng ký để lưu và chỉnh sửa lại. Các liên kết đã lưu vẫn được giữ và bạn vẫn có thể xem.",
+      "expiredOn": "Quyền truy cập đã kết thúc vào {{date}}"
+    },
+    "manage": "Quản lý đăng ký",
+    "manageFailed": "Không mở được cửa hàng ứng dụng. Vui lòng thử lại.",
+    "infoHeading": "Cần biết",
+    "info": {
+      "accountTitle": "Áp dụng cho tài khoản của bạn",
+      "accountBody": "Gói đăng ký thuộc về tài khoản Juple của bạn, không phải một thiết bị riêng lẻ.",
+      "storeTitle": "Thanh toán và hủy",
+      "storeBody": "Thanh toán, gia hạn và hủy được xử lý bởi cửa hàng ứng dụng nơi bạn đăng ký.",
+      "dataTitle": "Liên kết vẫn là của bạn",
+      "dataBody": "Các liên kết đã lưu không bị xóa khi gói đăng ký kết thúc."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "Có bản cập nhật",
+    "optionalMessage": "Đã có phiên bản Juple mới.",
+    "requiredTitle": "Cần cập nhật",
+    "requiredMessage": "Để tiếp tục dùng Juple, vui lòng cập nhật lên phiên bản mới nhất.",
+    "later": "Để sau",
+    "action": "Cập nhật",
+    "openStoreFailed": "Không thể mở cửa hàng ứng dụng. Vui lòng thử lại sau."
   }
 }

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 export type ViewMode = 'list' | 'grid';
 /** Saved-link browsing adds a third, image-only presentation (see SavedLinkImageTile) - only on the screens listed below. */
 export type SavedLinkViewMode = ViewMode | 'image';
+/** The deleted-links screen adds a compact 3-column grid; no other surface may store it. */
+export type TrashViewMode = ViewMode | 'compact';
 export type ViewModePreferenceKey =
   | 'homeViewMode'
   | 'historyViewMode'
@@ -26,17 +28,18 @@ const storageKey = (key: ViewModePreferenceKey) => `juple.${key}`;
  * show the participants) must agree at once, even while both are mounted in the navigation stack -
  * so a change is also announced in memory to every other hook instance using the same key.
  */
-const changeListeners = new Map<ViewModePreferenceKey, Set<(mode: SavedLinkViewMode) => void>>();
+const changeListeners = new Map<ViewModePreferenceKey, Set<(mode: SavedLinkViewMode | TrashViewMode) => void>>();
 
 export function useViewModePreference(key: ImageViewModePreferenceKey, defaultValue?: SavedLinkViewMode): { readonly viewMode: SavedLinkViewMode; readonly changeViewMode: (next: SavedLinkViewMode) => void };
+export function useViewModePreference(key: 'trashViewMode', defaultValue?: TrashViewMode): { readonly viewMode: TrashViewMode; readonly changeViewMode: (next: TrashViewMode) => void };
 export function useViewModePreference(key: ViewModePreferenceKey, defaultValue?: ViewMode): { readonly viewMode: ViewMode; readonly changeViewMode: (next: ViewMode) => void };
-export function useViewModePreference(key: ViewModePreferenceKey, defaultValue: SavedLinkViewMode = 'list'): { readonly viewMode: SavedLinkViewMode; readonly changeViewMode: (next: never) => void } {
-  const [viewMode, setViewMode] = useState<SavedLinkViewMode>(defaultValue);
+export function useViewModePreference(key: ViewModePreferenceKey, defaultValue: SavedLinkViewMode | TrashViewMode = 'list'): { readonly viewMode: SavedLinkViewMode | TrashViewMode; readonly changeViewMode: (next: never) => void } {
+  const [viewMode, setViewMode] = useState<SavedLinkViewMode | TrashViewMode>(defaultValue);
 
   useEffect(() => {
     let active = true;
     void AsyncStorage.getItem(storageKey(key)).then(value => {
-      if (active && (value === 'list' || value === 'grid' || (value === 'image' && IMAGE_CAPABLE_KEYS.has(key)))) {
+      if (active && (value === 'list' || value === 'grid' || (value === 'image' && IMAGE_CAPABLE_KEYS.has(key)) || (value === 'compact' && key === 'trashViewMode'))) {
         setViewMode(value);
       } else if (value !== null && value !== undefined) {
         // A value this build does not know - the retired 'calendar' view mode of an earlier Round 36 build (the date
@@ -54,7 +57,7 @@ export function useViewModePreference(key: ViewModePreferenceKey, defaultValue: 
     return () => { listeners.delete(setViewMode); };
   }, [key]);
 
-  const changeViewMode = (next: SavedLinkViewMode) => {
+  const changeViewMode = (next: SavedLinkViewMode | TrashViewMode) => {
     setViewMode(next);
     changeListeners.get(key)?.forEach(listener => listener(next));
     void AsyncStorage.setItem(storageKey(key), next).catch(() => undefined);

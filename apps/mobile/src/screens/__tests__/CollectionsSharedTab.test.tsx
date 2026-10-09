@@ -30,8 +30,8 @@ jest.mock('../../settings/viewModePreference', () => ({
 }));
 
 jest.mock('../../collections/api/collectionsApi');
-jest.mock('../../categories/categorySnapshotSync', () => ({
-  syncCategorySnapshotToNative: jest.fn().mockResolvedValue(undefined),
+jest.mock('../../categories/collectionShortcutSync', () => ({
+  reconcileCollectionShortcuts: jest.fn().mockResolvedValue(undefined),
 }));
 
 beforeAll(async () => {

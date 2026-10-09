@@ -208,6 +208,15 @@ builder.Services.AddSingleton<ICollectionUnlockTokenProtector, CollectionUnlockT
 builder.Services.AddSingleton<ICollectionSharePasswordProtector, CollectionSharePasswordProtector>();
 builder.Services.AddScoped<ICollectionSharePasswordService, CollectionSharePasswordService>();
 builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("PublicWeb"));
+builder.Services.Configure<MobileVersionPolicyOptions>(builder.Configuration.GetSection("MobileVersionPolicy"));
+{
+    // A broken policy would tell users to update to nothing (or block them): refuse to start instead.
+    var mobileVersionPolicyProblem = (builder.Configuration.GetSection("MobileVersionPolicy").Get<MobileVersionPolicyOptions>() ?? new MobileVersionPolicyOptions()).Validate();
+    if (mobileVersionPolicyProblem is not null)
+    {
+        throw new InvalidOperationException(mobileVersionPolicyProblem);
+    }
+}
 builder.Services.Configure<PublicCollectionCursorOptions>(
     builder.Configuration.GetSection("PublicCollectionCursor"));
 builder.Services.Configure<CollectionUnlockGrantOptions>(

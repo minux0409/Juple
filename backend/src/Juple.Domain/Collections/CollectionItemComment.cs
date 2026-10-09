@@ -70,6 +70,21 @@ public sealed class CollectionItemComment
 
     public bool IsTombstone => DeletedAtUtc is not null;
 
+    /// <summary>
+    /// Replaces the words of a live comment. Nothing else about it changes: not the author, the thread (root / parent), the
+    /// answered person (a reply's "@name" is metadata, never part of the text), the hearts or the time it was written.
+    /// A tombstone has no words to edit.
+    /// </summary>
+    public void EditBody(string body)
+    {
+        if (IsTombstone)
+        {
+            throw new InvalidOperationException("A deleted comment cannot be edited.");
+        }
+
+        Body = body;
+    }
+
     /// <summary>Turns the comment into a tombstone: no words, no author, nothing a reader could attribute.</summary>
     public void Tombstone(DateTimeOffset deletedAtUtc)
     {

@@ -185,6 +185,9 @@ function findVisibleConfirmDialog(renderer: ReactTestRenderer.ReactTestRenderer,
 
 
 
+const commentMenuTrigger = (renderer: ReactTestRenderer.ReactTestRenderer, id: number) =>
+  renderer.root.findAll(node => node.props.testID === `comment-${id}` && typeof node.props.onLongPress === 'function')[0];
+
 describe('ItemDetailsScreen', () => {
   beforeEach(() => {
     jest.mocked(getItemDetails).mockResolvedValue(makeItemDetails());
@@ -817,6 +820,30 @@ describe('ItemDetailsScreen', () => {
       expect(latestPreventRemoveIsDirty()).toBe(false);
     });
 
+    it('the picker offers 컬렉션 없음: choosing it stages removing every membership (nothing is saved yet), and Save removes only the memberships', async () => {
+      // The link is in Wishlist (the same list serves the picker's options).
+      jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null });
+      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+      const renderer = await renderScreen();
+      await openCategoryModal(renderer);
+
+      const picker = renderer.root.findByType(CategoryPickerModal);
+      expect(picker.props.noneTile.label).toBe('컬렉션 없음');
+      expect(picker.props.noneTile.isSelected).toBe(false);
+      await act(async () => picker.props.noneTile.onPress());
+
+      expect(renderer.root.findByType(CategoryPickerModal).props.noneTile.isSelected).toBe(true);
+      expect(removeItemFromCollection).not.toHaveBeenCalled();
+      expect(isSaveDisabled(renderer)).toBe(false);
+
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, { unlockToken: null });
+      expect(addItemToCollection).not.toHaveBeenCalled();
+    });
+
     it('Save calls addItemToCollection/removeItemFromCollection for exactly the staged diff', async () => {
       jest.mocked(getCollections).mockImplementation(
         async (_request, options: GetCollectionsOptions = {}) => {
@@ -1328,9 +1355,9 @@ describe('ItemDetailsScreen', () => {
       await act(async () => composerInput(renderer).props.onChangeText('new one'));
       await act(async () => press(renderer, 'comment-send').props.onPress());
       expect(shown(renderer)).toContain('댓글 2');
-      await act(async () => press(renderer, 'comment-more-2').props.onPress());
+      await act(async () => commentMenuTrigger(renderer, 2).props.onLongPress());
       const { ActionMenuDialog } = require('../../components/ActionMenuDialog');
-      await act(async () => renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!.props.actions[0].onPress());
+      await act(async () => renderer.root.findAllByType(ActionMenuDialog).find((dialog: ReactTestRenderer.ReactTestInstance) => dialog.props.visible)!.props.actions.find((action: { label: string }) => action.label === '삭제하기').onPress());
       await act(async () => findVisibleConfirmDialog(renderer, '댓글을 삭제할까요?')!.props.onConfirm());
 
       expect(addItemComment).toHaveBeenCalledWith(expect.anything(), 9, 1, 'new one', null);
@@ -1375,25 +1402,25 @@ describe('ItemDetailsScreen', () => {
         const renderer = await renderFrom({ collectionId: 9, canRemove: true, isCollectionOwner: false, isCollaborative: true });
 
         expect(has(renderer, 'comment-composer')).toBe(true);
-        expect(press(renderer, 'comment-more-1')).toBeUndefined();
-        expect(press(renderer, 'comment-more-2')).toBeDefined();
+        expect(commentMenuTrigger(renderer, 1)).toBeUndefined();
+        expect(commentMenuTrigger(renderer, 2)).toBeDefined();
       });
 
       it('my own collaborative Collection: I may delete any comment, my link or not', async () => {
         thread();
         const renderer = await renderFrom({ collectionId: 9, canRemove: true, isCollectionOwner: true, isCollaborative: true });
 
-        expect(press(renderer, 'comment-more-1')).toBeDefined();
-        expect(press(renderer, 'comment-more-2')).toBeDefined();
+        expect(commentMenuTrigger(renderer, 1)).toBeDefined();
+        expect(commentMenuTrigger(renderer, 2)).toBeDefined();
       });
 
       it('canRemove alone changes nothing: owner without canRemove still moderates, canRemove without ownership never does', async () => {
         thread();
         const ownerOnly = await renderFrom({ collectionId: 9, canRemove: false, isCollectionOwner: true, isCollaborative: true });
-        expect(press(ownerOnly, 'comment-more-1')).toBeDefined();
+        expect(commentMenuTrigger(ownerOnly, 1)).toBeDefined();
 
         const removeOnly = await renderFrom({ collectionId: 9, canRemove: true, isCollectionOwner: false, isCollaborative: true });
-        expect(press(removeOnly, 'comment-more-1')).toBeUndefined();
+        expect(commentMenuTrigger(removeOnly, 1)).toBeUndefined();
       });
     });
   });

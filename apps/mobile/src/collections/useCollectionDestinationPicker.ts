@@ -3,7 +3,6 @@ import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import type { LoadFailureInfo } from '../components/LoadFailureState';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
-import { syncCategorySnapshotToNative } from '../categories/categorySnapshotSync';
 import { useSortPreference } from '../settings/sortPreference';
 import {
   createCollection,
@@ -429,7 +428,6 @@ export function useCollectionDestinationPicker(
       let created = await createCollection(authenticatedRequest, trimmedName, icon, color);
       // Created either way; a failed photo upload only leaves the built-in icon.
       created = await applyCollectionIconImageChange(authenticatedRequest, created, imageChange).catch(() => created);
-      syncCategorySnapshotToNative(authenticatedRequest).catch(() => undefined);
       // At the top, already chosen - the user never has to find what they just made.
       setCollections(previous => [created, ...previous.filter(collection => collection.id !== created.id)]);
       select(created.id);

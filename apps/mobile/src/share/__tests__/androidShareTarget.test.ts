@@ -40,11 +40,35 @@ describe('Android share target (ShareReceiverActivity)', () => {
     expect(manifest).toMatch(/<application[\s\S]*?android:icon="@mipmap\/ic_launcher"/);
   });
 
-  it('Direct Share targets are only the user\'s own Collections, bound to the same text/plain filter', () => {
+  it('Direct Share targets are only Collections the user pinned (published dynamically), bound to the same text/plain filter', () => {
     expect(receiver).toMatch(/android:name="android\.app\.shortcuts"[\s\S]*?android:resource="@xml\/shortcuts"/);
     expect(shortcuts).toMatch(/<share-target android:targetClass="com\.juple\.app\.ShareReceiverActivity">/);
     expect(shortcuts).toMatch(/<data android:mimeType="text\/plain"\s*\/>/);
     // No static shortcuts: nothing is published just to push Juple up the Sharesheet.
     expect(shortcuts.replace(/<!--[\s\S]*?-->/g, '')).not.toMatch(/<shortcut[\s>]/);
+  });
+});
+
+describe('Collection sharing shortcuts (ShortcutSyncManager.kt) vs the share-target', () => {
+  const manager = readFileSync(`${androidMain}/java/com/com.juple.app/ShortcutSyncManager.kt`, 'utf8');
+  const declaredCategory = /<share-target[\s\S]*?<category android:name="([^"]+)"/.exec(shortcuts)?.[1];
+  const publishedCategory = /const val ShareTargetCategory = "([^"]+)"/.exec(manager)?.[1];
+
+  it('every published Collection shortcut carries EXACTLY the category the text/plain share-target declares', () => {
+    expect(declaredCategory).toBeDefined();
+    expect(publishedCategory).toBe(declaredCategory);
+    expect(manager).toMatch(/\.setCategories\(setOf\(ShareTargetCategory\)\)/);
+  });
+
+  it('they are long-lived sharing shortcuts, and whatever is no longer wanted is removed including cached copies', () => {
+    expect(manager).toMatch(/\.setLongLived\(true\)/);
+    expect(manager).toMatch(/removeLongLivedShortcuts\(context, stale\)/);
+    // sign-out / account change: the same removal for everything this app published.
+    expect(manager).toMatch(/fun clear\([\s\S]*?removeLongLivedShortcuts\(context, owned\.toList\(\)\)[\s\S]*?removeAllDynamicShortcuts/);
+  });
+
+  it('the share-target points at the receiver that resolves the shortcut id', () => {
+    expect(shortcuts).toMatch(/android:targetClass="com\.juple\.app\.ShareReceiverActivity"/);
+    expect(readFileSync(`${androidMain}/java/com/com.juple.app/ShareReceiverActivity.kt`, 'utf8')).toMatch(/EXTRA_SHORTCUT_ID/);
   });
 });

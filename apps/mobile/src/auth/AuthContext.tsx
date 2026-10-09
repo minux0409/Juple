@@ -22,7 +22,7 @@ import { validateBackendSession } from './authSessionApi';
 import { bootstrapCurrentUser, type UserBootstrapResult } from './userBootstrapApi';
 import { getDeviceRegionalSettings } from '../device/regionalSettings';
 import { unregisterCurrentPushDeviceBestEffort } from '../push/pushLogoutUnregister';
-import { clearCategoryShortcutsOnLogoutBestEffort } from '../share/clearCategoryShortcutsOnLogout';
+import { clearCollectionShortcutsOnLogoutBestEffort } from '../share/clearCollectionShortcutsOnLogout';
 import { purgeLegacyCollectionLockSecrets } from '../collections/legacyCollectionLockSecrets';
 import type { AuthContextValue, AuthState } from './types';
 
@@ -36,6 +36,7 @@ const INITIAL_STATE: AuthState = {
   sessionRestoreStep: 'sessionRestore',
   plan: null,
   entitlement: null,
+  mobileVersionPolicy: null,
 };
 
 const SIGNED_OUT_STATE: AuthState = {
@@ -48,6 +49,7 @@ const SIGNED_OUT_STATE: AuthState = {
   sessionRestoreStep: 'sessionRestore',
   plan: null,
   entitlement: null,
+  mobileVersionPolicy: null,
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -70,7 +72,7 @@ async function bootstrapUserAccount(
   try {
     return await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
   } catch {
-    return { status: 'invalidDeviceSettings', plan: null, entitlement: null };
+    return { status: 'invalidDeviceSettings', plan: null, entitlement: null, mobileVersionPolicy: null };
   }
 }
 
@@ -104,6 +106,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
   const setSignedOut = useCallback(() => {
+    // Every way out of a session (sign-out, an invalidated session, a rejected restore): the shortcuts carry Collection
+    // names, so none may survive for whoever signs in next. Fire-and-forget; signOut also awaits it explicitly.
+    clearCollectionShortcutsOnLogoutBestEffort().catch(() => undefined);
     setState(SIGNED_OUT_STATE);
   }, []);
 
@@ -158,7 +163,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
-              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement }
+              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
               : previous,
           );
         }
@@ -211,7 +216,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const result = await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
       if (result.status === 'ready') {
         setState(previous =>
-          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement } : previous,
+          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement, mobileVersionPolicy: result.mobileVersionPolicy ?? previous.mobileVersionPolicy } : previous,
         );
       }
     } catch {
@@ -276,7 +281,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         );
         setState(previous =>
           previous.isAuthenticated
-            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement }
+            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
             : previous,
         );
       }
@@ -291,13 +296,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         userBootstrapStatus: 'notStarted',
         plan: null,
         entitlement: null,
+        mobileVersionPolicy: null,
       }));
     }
   }, [t]);
 
   const signOut = useCallback(async () => {
     await unregisterCurrentPushDeviceBestEffort();
-    await clearCategoryShortcutsOnLogoutBestEffort();
+    await clearCollectionShortcutsOnLogoutBestEffort();
     await purgeLegacyCollectionLockSecrets();
     await clearSession();
     setSignedOut();

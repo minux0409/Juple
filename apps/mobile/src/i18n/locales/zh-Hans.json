@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "要退出此收藏集吗？",
     "leaveConfirmMessage": "退出后，此收藏集将从你的列表中移除。",
     "leaveConfirmButton": "退出",
-    "leaveError": "无法退出收藏集，请稍后重试。"
+    "leaveError": "无法退出收藏集，请稍后重试。",
+    "noCollection": "不放入任何合集",
+    "changeCollection": "更改合集",
+    "newLinkNotificationsTurnOn": "开启新链接通知",
+    "newLinkNotificationsTurnOff": "关闭新链接通知",
+    "shortcutRemove": "从分享目标中移除",
+    "shortcutLimitReached": "应用快捷方式最多可添加 {{count}} 个，请先移除其他快捷方式。",
+    "shortcutUnavailable": "目前无法将链接保存到所选合集。链接已保留，请自行选择合集。",
+    "linkActionsA11y": "链接选项",
+    "collectionActionsA11y": "合集选项",
+    "shortcutSavedWithoutCollection": "链接已保存，但无法加入所选合集。请重新指定合集。",
+    "shortcutOpenUnavailable": "此合集已无法打开，请自行删除主屏幕上的图标。",
+    "homeShortcutAdd": "添加到主屏幕",
+    "homeShortcutUnsupported": "此设备的启动器不支持添加主屏幕快捷方式。",
+    "homeShortcutLocked": "已锁定的合集从主屏幕打开时仍需输入密码，且不会添加为共享目标。"
   },
   "toast": {
     "moveSuccess": "已移动。",
@@ -606,7 +620,6 @@
     "justNow": "刚刚",
     "minutesAgo": "{{count}} 分钟前",
     "hoursAgo": "{{count}} 小时前",
-    "moreA11y": "评论选项",
     "ownerA11y": "{{name}}（所有者）",
     "reply": "回复",
     "replyPlaceholder": "写下回复",
@@ -620,7 +633,15 @@
     "like": "赞",
     "unlike": "取消赞",
     "likeCountA11y": "{{count}} 个赞",
-    "likeError": "无法更新点赞。"
+    "likeError": "无法更新点赞。",
+    "edit": "编辑",
+    "deleteAction": "删除",
+    "editing": "正在编辑评论",
+    "cancelEdit": "取消编辑",
+    "editSave": "保存",
+    "editError": "无法编辑评论，你输入的内容仍保留。",
+    "optionsA11y": "评论选项",
+    "profileA11y": "查看{{name}}的资料"
   },
   "reactions": {
     "pickerTitle": "添加表情回应",
@@ -905,11 +926,12 @@
     "cancelNote": "您可以随时在商店的订阅设置中取消。取消后将不再续订。",
     "accessHeading": "您的使用状态",
     "access": {
-      "trial": "免费试用",
+      "trial": "免费使用中",
       "active": "已订阅",
       "gracePeriod": "已订阅(付款有问题)",
       "expired": "订阅已结束",
-      "inactive": "暂时还不需要订阅。"
+      "inactive": "暂时还不需要订阅。",
+      "unknown": "无法确认你的使用状态。"
     },
     "loading": "正在加载...",
     "subscribe": "订阅",
@@ -934,6 +956,36 @@
       "nothingFound": "没有找到可恢复的购买。",
       "anotherAccount": "该购买属于另一个 Juple 账号。",
       "temporary": "目前无法恢复购买。请重试。"
+    },
+    "trialInfo": "前 30 天可免费使用。此免费期由 Juple 提供，与应用商店的扣费无关。",
+    "detail": {
+      "trialDaysLeft": "剩余 {{days}} 天",
+      "trialLessThanDay": "剩余不到 1 天",
+      "trialEndsOn": "免费至 {{date}}",
+      "activeManage": "你可以在应用商店中管理订阅。",
+      "grace": "你的付款出现问题。请在应用商店中检查付款方式，以继续使用。",
+      "expired": "订阅后即可再次保存和编辑。已保存的链接会保留，仍可查看。",
+      "expiredOn": "使用已于 {{date}} 结束"
+    },
+    "manage": "管理订阅",
+    "manageFailed": "无法打开应用商店，请重试。",
+    "infoHeading": "温馨提示",
+    "info": {
+      "accountTitle": "适用于你的账号",
+      "accountBody": "订阅属于你的 Juple 账号，而不是某一台设备。",
+      "storeTitle": "付款与取消",
+      "storeBody": "付款、续订和取消都在你订阅时使用的应用商店中处理。",
+      "dataTitle": "你的链接依然保留",
+      "dataBody": "订阅结束后，已保存的链接不会被删除。"
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "有可用更新",
+    "optionalMessage": "Juple 有新版本可用。",
+    "requiredTitle": "需要更新",
+    "requiredMessage": "要继续使用 Juple，请更新到最新版本。",
+    "later": "稍后",
+    "action": "更新",
+    "openStoreFailed": "无法打开应用商店，请稍后再试。"
   }
 }

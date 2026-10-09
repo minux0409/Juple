@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "Keluar dari koleksi?",
     "leaveConfirmMessage": "Jika keluar, koleksi ini akan dihapus dari daftarmu.",
     "leaveConfirmButton": "Keluar",
-    "leaveError": "Tidak dapat keluar dari koleksi. Coba lagi nanti."
+    "leaveError": "Tidak dapat keluar dari koleksi. Coba lagi nanti.",
+    "noCollection": "Tanpa koleksi",
+    "changeCollection": "Ubah koleksi",
+    "newLinkNotificationsTurnOn": "Aktifkan notifikasi tautan baru",
+    "newLinkNotificationsTurnOff": "Matikan notifikasi tautan baru",
+    "shortcutRemove": "Hapus dari tujuan berbagi",
+    "shortcutLimitReached": "Anda dapat menambahkan hingga {{count}} pintasan aplikasi. Hapus yang lain terlebih dahulu.",
+    "shortcutUnavailable": "Koleksi ini tidak dapat menerima tautan saat ini. Tautan Anda tetap disimpan — silakan pilih koleksi sendiri.",
+    "linkActionsA11y": "Opsi tautan",
+    "collectionActionsA11y": "Opsi koleksi",
+    "shortcutSavedWithoutCollection": "Tautan Anda sudah disimpan, tetapi tidak dapat ditambahkan ke koleksi yang dipilih. Silakan pilih koleksi lagi sendiri.",
+    "shortcutOpenUnavailable": "Koleksi ini tidak dapat dibuka lagi. Hapus sendiri ikonnya dari layar Utama.",
+    "homeShortcutAdd": "Tambahkan pintasan ke layar Utama",
+    "homeShortcutUnsupported": "Launcher perangkat ini tidak mendukung penambahan pintasan ke layar Utama.",
+    "homeShortcutLocked": "Koleksi yang dikunci tetap meminta kata sandi saat dibuka dari layar Utama. Koleksi ini tidak ditambahkan sebagai tujuan berbagi."
   },
   "toast": {
     "moveSuccess": "Dipindahkan.",
@@ -606,7 +620,6 @@
     "justNow": "Baru saja",
     "minutesAgo": "{{count}} mnt lalu",
     "hoursAgo": "{{count}} jam lalu",
-    "moreA11y": "Opsi komentar",
     "ownerA11y": "{{name}} (pemilik)",
     "reply": "Balas",
     "replyPlaceholder": "Tulis balasan",
@@ -620,7 +633,15 @@
     "like": "Suka",
     "unlike": "Batal suka",
     "likeCountA11y": "{{count}} suka",
-    "likeError": "Tidak dapat memperbarui suka."
+    "likeError": "Tidak dapat memperbarui suka.",
+    "edit": "Edit",
+    "deleteAction": "Hapus",
+    "editing": "Mengedit komentar",
+    "cancelEdit": "Batalkan pengeditan",
+    "editSave": "Simpan",
+    "editError": "Komentar tidak dapat diedit. Teks yang Anda ketik masih ada.",
+    "optionsA11y": "Opsi komentar",
+    "profileA11y": "Lihat profil {{name}}"
   },
   "reactions": {
     "pickerTitle": "Tambah reaksi",
@@ -905,11 +926,12 @@
     "cancelNote": "Anda dapat membatalkan kapan saja di pengaturan langganan toko. Pembatalan menghentikan perpanjangan berikutnya.",
     "accessHeading": "Akses Anda",
     "access": {
-      "trial": "Uji coba gratis",
+      "trial": "Akses gratis",
       "active": "Berlangganan",
       "gracePeriod": "Berlangganan (masalah pembayaran)",
       "expired": "Langganan berakhir",
-      "inactive": "Langganan belum diperlukan."
+      "inactive": "Langganan belum diperlukan.",
+      "unknown": "Status aksesmu tidak dapat diperiksa."
     },
     "loading": "Memuat...",
     "subscribe": "Berlangganan",
@@ -934,6 +956,36 @@
       "nothingFound": "Tidak ada pembelian yang dapat dipulihkan.",
       "anotherAccount": "Pembelian itu milik akun Juple lain.",
       "temporary": "Pembelian tidak dapat dipulihkan saat ini. Silakan coba lagi."
+    },
+    "trialInfo": "30 hari pertama gratis. Masa gratis ini disediakan oleh Juple dan terpisah dari penagihan di toko aplikasi.",
+    "detail": {
+      "trialDaysLeft": "Sisa hari: {{days}}",
+      "trialLessThanDay": "Kurang dari 1 hari lagi",
+      "trialEndsOn": "Gratis hingga {{date}}",
+      "activeManage": "Kamu dapat mengelola langgananmu di toko aplikasi.",
+      "grace": "Ada masalah dengan pembayaranmu. Periksa metode pembayaran di toko aplikasi agar aksesmu tetap berjalan.",
+      "expired": "Berlangganan untuk dapat menyimpan dan mengedit lagi. Tautan yang tersimpan tetap ada dan masih bisa dilihat.",
+      "expiredOn": "Akses berakhir pada {{date}}"
+    },
+    "manage": "Kelola langganan",
+    "manageFailed": "Tidak dapat membuka toko aplikasi. Coba lagi.",
+    "infoHeading": "Perlu diketahui",
+    "info": {
+      "accountTitle": "Berlaku untuk akunmu",
+      "accountBody": "Langgananmu terkait dengan akun Juple, bukan satu perangkat saja.",
+      "storeTitle": "Pembayaran dan pembatalan",
+      "storeBody": "Pembayaran, perpanjangan, dan pembatalan dikelola oleh toko tempat kamu berlangganan.",
+      "dataTitle": "Tautanmu tetap milikmu",
+      "dataBody": "Tautan yang tersimpan tidak dihapus saat langganan berakhir."
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "Tersedia pembaruan",
+    "optionalMessage": "Versi baru Juple tersedia.",
+    "requiredTitle": "Pembaruan diperlukan",
+    "requiredMessage": "Untuk terus menggunakan Juple, perbarui ke versi terbaru.",
+    "later": "Nanti",
+    "action": "Perbarui",
+    "openStoreFailed": "Toko aplikasi tidak dapat dibuka. Coba lagi sebentar lagi."
   }
 }

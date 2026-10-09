@@ -6,6 +6,7 @@ import { formatJupleId, personLabel } from '../collections/api/collaborationApi'
 import { AppModal } from '../components/AppModal';
 import { getFriendSearchEmptyState } from './friendSearchEmptyState';
 import { LoadFailureState } from '../components/LoadFailureState';
+import { SelectionIndicator } from '../components/SelectionIndicator';
 import { UserAvatar } from '../components/UserAvatar';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 
@@ -171,9 +172,7 @@ export function FriendPickerModal({ visible, authenticatedRequest, unavailable, 
               style={[styles.row, disabled && styles.disabled]}
               testID={`friend-picker-${item.jupleId}`}
             >
-              <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
-                {isSelected ? <Text style={styles.checkmark}>✓</Text> : null}
-              </View>
+              <SelectionIndicator selected={isSelected} testID={`friend-picker-indicator-${item.jupleId}`} />
               {/* The friend's photo (from the friend list itself - no request per row), else the shared initial / person fallback. */}
               <UserAvatar
                 displayName={item.displayName}
@@ -217,9 +216,6 @@ const styles = StyleSheet.create({
   list: { flex: 1, marginTop: spacing.sm },
   row: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.sm },
   rowText: { flex: 1, minWidth: 0 },
-  checkbox: { alignItems: 'center', borderColor: colors.border, borderRadius: 6, borderWidth: 2, height: 22, justifyContent: 'center', width: 22 },
-  checkboxChecked: { backgroundColor: colors.brand, borderColor: colors.brand },
-  checkmark: { color: colors.surface, fontSize: 13, fontWeight: '800' },
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   note: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   meta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },

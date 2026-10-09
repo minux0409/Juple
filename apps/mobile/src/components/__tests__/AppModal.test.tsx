@@ -4,6 +4,7 @@ import i18n from '../../i18n';
 import { AppModal, APP_MODAL_BACKDROP } from '../AppModal';
 import { UserAvatar } from '../UserAvatar';
 import { FriendPickerModal } from '../../friends/FriendPickerModal';
+import { SelectionIndicator } from '../SelectionIndicator';
 import { getFriends, type Friend } from '../../friends/api/friendsApi';
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -99,6 +100,22 @@ describe('FriendPickerModal (Share › 친구 선택)', () => {
     });
     return renderer;
   }
+
+  it('marks friends with the shared SelectionIndicator: ring, check once chosen, ring when unavailable', async () => {
+    const renderer = await renderPicker();
+    const indicator = (jupleId: string) => renderer.root.findByProps({ testID: `friend-picker-indicator-${jupleId}` });
+
+    expect(renderer.root.findAllByType(SelectionIndicator).length).toBeGreaterThan(0);
+    expect(indicator('F0002345').props.selected).toBe(false);
+
+    act(() => renderer.root.findByProps({ testID: 'friend-picker-F0002345' }).props.onPress());
+    expect(indicator('F0002345').props.selected).toBe(true);
+    expect(renderer.root.findByProps({ testID: 'friend-picker-F0002345' }).props.accessibilityState).toEqual({ checked: true, disabled: false });
+
+    const unavailable = renderer.root.findByProps({ testID: 'friend-picker-F0012345' });
+    expect(unavailable.props.accessibilityState).toEqual({ checked: false, disabled: true });
+    expect(indicator('F0012345').props.selected).toBe(false);
+  });
 
   it('is the large centered modal with a searchable, virtualized list', async () => {
     const renderer = await renderPicker();

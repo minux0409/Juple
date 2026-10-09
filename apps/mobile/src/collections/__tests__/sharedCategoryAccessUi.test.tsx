@@ -12,8 +12,8 @@ jest.mock('../api/collectionsApi', () => ({
   createCollection: jest.fn(),
 }));
 
-jest.mock('../../categories/categorySnapshotSync', () => ({
-  syncCategorySnapshotToNative: jest.fn().mockResolvedValue(undefined),
+jest.mock('../../categories/collectionShortcutSync', () => ({
+  reconcileCollectionShortcuts: jest.fn().mockResolvedValue(undefined),
 }));
 
 function makeCollection(id: number, overrides: Partial<Collection> = {}): Collection {

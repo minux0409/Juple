@@ -1,13 +1,17 @@
 import type { ReactElement } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import type { SavedLinkViewMode } from '../settings/viewModePreference';
+import type { SavedLinkViewMode, TrashViewMode } from '../settings/viewModePreference';
 import { colors, radii } from '../theme/tokens';
 
-interface ViewModeToggleProps<Mode extends SavedLinkViewMode> {
+type ToggleMode = SavedLinkViewMode | TrashViewMode;
+
+interface ViewModeToggleProps<Mode extends ToggleMode> {
   readonly value: Mode;
   readonly onChange: (value: Mode) => void;
   /** Adds the third, image-only option (Home and the Archive); every other screen keeps List / Grid. */
   readonly showImage?: boolean;
+  /** Adds the third, compact 3-column Grid option (deleted links only), drawn with the same nine-block glyph as Image view. */
+  readonly showCompact?: boolean;
   readonly style?: StyleProp<ViewStyle>;
 }
 
@@ -25,15 +29,16 @@ function ImageGlyph({ selected }: { readonly selected: boolean }) {
 }
 
 /** Compact List / Grid (/ Image) presentation switch shared by link and Collection screens. */
-export function ViewModeToggle<Mode extends SavedLinkViewMode = SavedLinkViewMode>({ value, onChange, showImage = false, style }: ViewModeToggleProps<Mode>) {
-  const option = (mode: SavedLinkViewMode, label: string, glyph: ReactElement) => (
+export function ViewModeToggle<Mode extends ToggleMode = ToggleMode>({ value, onChange, showImage = false, showCompact = false, style }: ViewModeToggleProps<Mode>) {
+  const hasThird = showImage || showCompact;
+  const option = (mode: ToggleMode, label: string, glyph: ReactElement) => (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ selected: value === mode }}
-      hitSlop={showImage ? { bottom: 4, top: 4 } : undefined}
+      hitSlop={hasThird ? { bottom: 4, top: 4 } : undefined}
       onPress={() => onChange(mode as Mode)}
-      style={[styles.button, showImage && styles.buttonWide, value === mode && styles.buttonSelected]}
+      style={[styles.button, hasThird && styles.buttonWide, value === mode && styles.buttonSelected]}
     >
       {glyph}
     </Pressable>
@@ -42,6 +47,7 @@ export function ViewModeToggle<Mode extends SavedLinkViewMode = SavedLinkViewMod
     {option('list', 'List view', <ListGlyph selected={value === 'list'} />)}
     {option('grid', 'Grid view', <GridGlyph selected={value === 'grid'} />)}
     {showImage ? option('image', 'Image view', <ImageGlyph selected={value === 'image'} />) : null}
+    {showCompact ? option('compact', 'Compact grid view', <ImageGlyph selected={value === 'compact'} />) : null}
   </View>;
 }
 

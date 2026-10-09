@@ -1,9 +1,13 @@
 import { useMemo } from 'react';
+import { Linking, Platform } from 'react-native';
 import type { GoogleBilling } from './googleBilling';
 import type { SubscriptionStore } from './subscriptionStore';
 import { useGoogleBilling } from './useGoogleBilling';
 
 /** Google Play behind the store-neutral contract: only the localized price facts leave; the offer token and account id stay inside. */
+/** Google Play's own subscription-management page (no product or account id needed - it lists the person's subscriptions). */
+const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
 export function createGoogleSubscriptionStore(billing: GoogleBilling): SubscriptionStore {
   return {
     loadOffer: async () => {
@@ -16,6 +20,8 @@ export function createGoogleSubscriptionStore(billing: GoogleBilling): Subscript
     },
     purchase: () => billing.purchase(),
     restore: () => billing.restore(),
+    canManageSubscription: Platform.OS === 'android',
+    openSubscriptionManagement: () => Linking.openURL(PLAY_SUBSCRIPTIONS_URL),
   };
 }
 

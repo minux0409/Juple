@@ -120,7 +120,25 @@ describe('SwipeableItemRow without a share action (a friend row)', () => {
     });
     expect(onDelete).toHaveBeenCalledTimes(1);
     const layer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
-    expect(layer.props.accessibilityActions.map((action: { name: string }) => action.name)).toEqual(['delete']);
+    // The long-press menu (renderDeleteOnly passes one) is an accessibility action too, so it never needs the gesture.
+    expect(layer.props.accessibilityActions.map((action: { name: string }) => action.name)).toEqual(['delete', 'options']);
+  });
+
+  it('offers the options accessibility action only when there is a long-press menu, and it opens that menu', async () => {
+    const onLongPress = jest.fn();
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<SwipeableItemRow onLongPress={onLongPress} onPress={jest.fn()}><Text>Row</Text></SwipeableItemRow>);
+    });
+    const layer = renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0];
+    expect(layer.props.accessibilityActions).toEqual([{ name: 'options', label: i18n.t('collections.linkActionsA11y') }]);
+    act(() => layer.props.onAccessibilityAction({ nativeEvent: { actionName: 'options' } }));
+    expect(onLongPress).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      renderer.update(<SwipeableItemRow onPress={jest.fn()}><Text>Row</Text></SwipeableItemRow>);
+    });
+    expect(renderer.root.findAll(node => Array.isArray(node.props.accessibilityActions))[0].props.accessibilityActions).toEqual([]);
   });
 
   it('forwards the long press to the row content (the tap and the long press are separate)', async () => {

@@ -3,10 +3,10 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, type St
 import { CategoryIconTile } from './CategoryIconTile';
 import { contentGateOf, isCollaborative, isCollectionLocked } from './collectionAccess';
 import { CollectionStatusBadges } from './CollectionStatusBadges';
-import { CheckIcon } from '../icons/CheckIcon';
 import { CloseIcon } from '../icons/CloseIcon';
 import { FolderPlusIcon } from '../icons/FolderPlusIcon';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { SelectionIndicator } from '../components/SelectionIndicator';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { useViewModePreference, type ViewModePreferenceKey } from '../settings/viewModePreference';
 import type { Collection } from './api/collectionsApi';
@@ -124,11 +124,7 @@ export function CollectionChoiceGrid({
           <View style={[styles.specialTile, isNone && styles.noneTile]}>
             {isNone ? <CloseIcon color={colors.textSecondary} size={22} strokeWidth={2} /> : <FolderPlusIcon color={colors.brand} size={24} strokeWidth={2} />}
           </View>
-          {isSelected ? (
-            <View style={styles.selectedBadge}>
-              <CheckIcon color={colors.surface} size={11} strokeWidth={3} />
-            </View>
-          ) : null}
+          {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID="category-picker-selected-none" /> : null}
         </View>
         <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>{label}</Text>
       </Pressable>
@@ -207,11 +203,7 @@ export function CollectionChoiceGrid({
                   <CategoryIconTile collectionId={option.id} color={option.color} icon={option.icon} imageUrl={option.iconImageUrl} imageVersion={option.iconImageVersion} size={48} />
                   {/* Same start-side markers as the Categories screen, so a shared Category is recognizable here too. */}
                   <CollectionStatusBadges isLocked={isCollectionLocked(option)} isShared={isCollaborative(option)} size={18} />
-                  {isSelected ? (
-                    <View style={styles.selectedBadge}>
-                      <CheckIcon color={colors.surface} size={11} strokeWidth={3} />
-                    </View>
-                  ) : null}
+                  {isSelected ? <SelectionIndicator selected style={styles.selectedBadge} testID={`category-picker-selected-${option.id}`} /> : null}
                 </View>
                 <View style={isGrid ? styles.gridText : styles.listText}>
                   <Text numberOfLines={1} style={[styles.tileLabel, !isGrid && styles.listLabel]}>
@@ -269,20 +261,8 @@ const styles = StyleSheet.create({
   tileIconSlot: { position: 'relative' },
   specialTile: { alignItems: 'center', backgroundColor: colors.brandSoft, borderRadius: radii.md + 6, height: 48, justifyContent: 'center', width: 48 },
   noneTile: { backgroundColor: colors.surfaceMuted },
-  // A small brand-filled circle badge at the tile's corner - never a full-tile background tint.
-  selectedBadge: {
-    alignItems: 'center',
-    backgroundColor: colors.brand,
-    borderColor: colors.surface,
-    borderRadius: 9,
-    borderWidth: 2,
-    bottom: -2,
-    height: 18,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: -2,
-    width: 18,
-  },
+  // The shared SelectionIndicator, placed at the tile's corner - never a full-tile background tint.
+  selectedBadge: { bottom: -2, position: 'absolute', right: -2 },
   tileLabel: { color: colors.textPrimary, fontSize: 12, fontWeight: '600', marginTop: spacing.xs + 2, maxWidth: 76, textAlign: 'center' },
   listLabel: { maxWidth: undefined, textAlign: 'start' },
   gridText: { alignItems: 'center' },

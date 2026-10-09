@@ -331,7 +331,21 @@
     "leaveConfirmTitle": "要退出此收藏集嗎？",
     "leaveConfirmMessage": "退出後，此收藏集將從你的列表中移除。",
     "leaveConfirmButton": "退出",
-    "leaveError": "無法退出收藏集，請稍後重試。"
+    "leaveError": "無法退出收藏集，請稍後重試。",
+    "noCollection": "不放入任何合集",
+    "changeCollection": "變更合集",
+    "newLinkNotificationsTurnOn": "開啟新連結通知",
+    "newLinkNotificationsTurnOff": "關閉新連結通知",
+    "shortcutRemove": "從分享目標移除",
+    "shortcutLimitReached": "應用程式捷徑最多可加入 {{count}} 個，請先移除其他捷徑。",
+    "shortcutUnavailable": "目前無法將連結儲存到所選合集。連結已保留，請自行選擇合集。",
+    "linkActionsA11y": "連結選項",
+    "collectionActionsA11y": "合集選項",
+    "shortcutSavedWithoutCollection": "連結已儲存，但無法加入所選合集。請重新指定合集。",
+    "shortcutOpenUnavailable": "此合集已無法開啟，請自行刪除主畫面上的圖示。",
+    "homeShortcutAdd": "加入主畫面捷徑",
+    "homeShortcutUnsupported": "此裝置的啟動器不支援加入主畫面捷徑。",
+    "homeShortcutLocked": "已鎖定的合集從主畫面開啟時仍需輸入密碼，且不會加入為分享目標。"
   },
   "toast": {
     "moveSuccess": "已移動。",
@@ -606,7 +620,6 @@
     "justNow": "剛剛",
     "minutesAgo": "{{count}} 分鐘前",
     "hoursAgo": "{{count}} 小時前",
-    "moreA11y": "留言選項",
     "ownerA11y": "{{name}}（擁有者）",
     "reply": "回覆",
     "replyPlaceholder": "寫下回覆",
@@ -620,7 +633,15 @@
     "like": "讚",
     "unlike": "收回讚",
     "likeCountA11y": "{{count}} 個讚",
-    "likeError": "無法更新按讚。"
+    "likeError": "無法更新按讚。",
+    "edit": "編輯",
+    "deleteAction": "刪除",
+    "editing": "正在編輯留言",
+    "cancelEdit": "取消編輯",
+    "editSave": "儲存",
+    "editError": "無法編輯留言，你輸入的內容仍保留。",
+    "optionsA11y": "留言選項",
+    "profileA11y": "查看{{name}}的個人檔案"
   },
   "reactions": {
     "pickerTitle": "新增表情回應",
@@ -905,11 +926,12 @@
     "cancelNote": "您可以隨時在商店的訂閱設定中取消。取消後將不再續訂。",
     "accessHeading": "您的使用狀態",
     "access": {
-      "trial": "免費試用",
+      "trial": "免費使用中",
       "active": "已訂閱",
       "gracePeriod": "已訂閱(付款有問題)",
       "expired": "訂閱已結束",
-      "inactive": "目前還不需要訂閱。"
+      "inactive": "目前還不需要訂閱。",
+      "unknown": "無法確認你的使用狀態。"
     },
     "loading": "載入中...",
     "subscribe": "訂閱",
@@ -934,6 +956,36 @@
       "nothingFound": "找不到可還原的購買。",
       "anotherAccount": "該購買屬於另一個 Juple 帳號。",
       "temporary": "目前無法還原購買。請再試一次。"
+    },
+    "trialInfo": "前 30 天可免費使用。此免費期由 Juple 提供，與應用程式商店的扣款無關。",
+    "detail": {
+      "trialDaysLeft": "剩餘 {{days}} 天",
+      "trialLessThanDay": "剩餘不到 1 天",
+      "trialEndsOn": "免費至 {{date}}",
+      "activeManage": "你可以在應用程式商店中管理訂閱。",
+      "grace": "你的付款發生問題。請在應用程式商店中檢查付款方式，以繼續使用。",
+      "expired": "訂閱後即可再次儲存與編輯。已儲存的連結會保留，仍可檢視。",
+      "expiredOn": "使用已於 {{date}} 結束"
+    },
+    "manage": "管理訂閱",
+    "manageFailed": "無法開啟應用程式商店，請再試一次。",
+    "infoHeading": "溫馨提示",
+    "info": {
+      "accountTitle": "適用於你的帳號",
+      "accountBody": "訂閱屬於你的 Juple 帳號，而不是某一台裝置。",
+      "storeTitle": "付款與取消",
+      "storeBody": "付款、續訂與取消都在你訂閱時使用的應用程式商店中處理。",
+      "dataTitle": "你的連結依然保留",
+      "dataBody": "訂閱結束後，已儲存的連結不會被刪除。"
     }
+  },
+  "appUpdate": {
+    "optionalTitle": "有可用更新",
+    "optionalMessage": "Juple 有新版本可用。",
+    "requiredTitle": "需要更新",
+    "requiredMessage": "要繼續使用 Juple，請更新至最新版本。",
+    "later": "稍後",
+    "action": "更新",
+    "openStoreFailed": "無法開啟應用程式商店，請稍後再試。"
   }
 }

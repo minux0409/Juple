@@ -224,6 +224,96 @@ public sealed class CollectionItemCommentIntegrationTests : IAsyncLifetime
         Assert.Equal(0, (await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null)).TotalCount);
     }
 
+    // ---------- editing ----------
+
+    [Fact]
+    public async Task TheAuthorEditsTheirOwnWords_NothingElseChanges_HeartsAndRepliesStay()
+    {
+        var top = await _comments.CreateAsync(_contributor, _sharedId, _item1, "first words", null);
+        await _comments.CreateAsync(_viewer, _sharedId, _item1, "an answer", null, top.Id);
+        await _comments.SetLikeAsync(_owner, _sharedId, _item1, top.Id, true, null);
+
+        var edited = await _comments.EditAsync(_contributor, _sharedId, _item1, top.Id, "  better words  ", null);
+
+        Assert.Equal("better words", edited.Body);
+        Assert.Equal(top.Id, edited.Id);
+        Assert.Equal(top.CreatedAtUtc, edited.CreatedAtUtc);
+        Assert.Equal(1, edited.ReplyCount);
+        Assert.Equal(1, edited.LikeCount);
+        Assert.True(edited.Author.IsMe);
+        var stored = (await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null)).Items.Single();
+        Assert.Equal("better words", stored.Body);
+        Assert.Equal(1, stored.LikeCount);
+    }
+
+    [Fact]
+    public async Task EditingAReply_ChangesOnlyItsBody_TheThreadAndTheAnsweredPersonStay()
+    {
+        var top = await _comments.CreateAsync(_owner, _sharedId, _item1, "top", null);
+        var first = await _comments.CreateAsync(_viewer, _sharedId, _item1, "first reply", null, top.Id);
+        var nested = await _comments.CreateAsync(_contributor, _sharedId, _item1, "to the viewer", null, first.Id);
+
+        var edited = await _comments.EditAsync(_contributor, _sharedId, _item1, nested.Id, "to the viewer, edited", null);
+
+        Assert.Equal("to the viewer, edited", edited.Body);
+        Assert.Equal(top.Id, edited.RootCommentId);
+        Assert.Equal(first.Id, edited.ParentCommentId);
+        Assert.NotNull(edited.ReplyTo);
+        Assert.Equal(nested.ReplyTo!.JupleId, edited.ReplyTo!.JupleId);
+    }
+
+    [Fact]
+    public async Task OnlyTheAuthorMayEdit_NotEvenTheOwner_AndNothingChanges()
+    {
+        var byViewer = await _comments.CreateAsync(_viewer, _sharedId, _item1, "mine", null);
+
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => _comments.EditAsync(_owner, _sharedId, _item1, byViewer.Id, "hijacked", null));
+        await Assert.ThrowsAsync<CollectionForbiddenException>(() => _comments.EditAsync(_contributor, _sharedId, _item1, byViewer.Id, "hijacked", null));
+
+        Assert.Equal("mine", (await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null)).Items.Single().Body);
+        // A Viewer may edit their own (writing a comment never needed more than reading).
+        Assert.Equal("still mine", (await _comments.EditAsync(_viewer, _sharedId, _item1, byViewer.Id, "still mine", null)).Body);
+    }
+
+    [Fact]
+    public async Task ADeletedComment_CannotBeEdited_AndAnotherLinksCommentIsNeverReachedThroughThisLink()
+    {
+        var top = await _comments.CreateAsync(_viewer, _sharedId, _item1, "words", null);
+        await _comments.CreateAsync(_owner, _sharedId, _item1, "answer", null, top.Id);
+        await _comments.DeleteAsync(_viewer, _sharedId, _item1, top.Id, null);   // answered, so a tombstone
+        var other = await _comments.CreateAsync(_viewer, _sharedId, _item2, "on the other link", null);
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.EditAsync(_viewer, _sharedId, _item1, top.Id, "revived", null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.EditAsync(_viewer, _sharedId, _item1, other.Id, "wrong link", null));
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.EditAsync(_viewer, _sharedId, _item1, 987654321, "missing", null));
+
+        var tombstone = (await _comments.ListAsync(_owner, _sharedId, _item1, null, null, null)).Items.Single();
+        Assert.True(tombstone.IsDeleted);
+        Assert.Equal(string.Empty, tombstone.Body);
+    }
+
+    [Theory]
+    [InlineData("pending")]
+    [InlineData("outsider")]
+    public async Task APendingInviteeAndANonMember_CannotEdit(string who)
+    {
+        var mine = await _comments.CreateAsync(_viewer, _sharedId, _item1, "words", null);
+        var caller = who == "pending" ? _pending : _outsider;
+
+        await Assert.ThrowsAsync<CollectionNotFoundException>(() => _comments.EditAsync(caller, _sharedId, _item1, mine.Id, "x", null));
+    }
+
+    [Fact]
+    public async Task EditingValidatesTheBodyLikeWriting()
+    {
+        var mine = await _comments.CreateAsync(_viewer, _sharedId, _item1, "words", null);
+
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => _comments.EditAsync(_viewer, _sharedId, _item1, mine.Id, "   ", null));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => _comments.EditAsync(_viewer, _sharedId, _item1, mine.Id, new string('a', 1001), null));
+        await Assert.ThrowsAsync<InvalidCollectionException>(() => _comments.EditAsync(_viewer, _sharedId, _item1, mine.Id, "bell\a", null));
+        Assert.Equal(1000, (await _comments.EditAsync(_viewer, _sharedId, _item1, mine.Id, new string('a', 1000), null)).Body.Length);
+    }
+
     [Fact]
     public async Task DeletingOneThatIsAlreadyGone_IsASuccess_ButAnotherLinksCommentIsNeverReachedThroughThisLink()
     {

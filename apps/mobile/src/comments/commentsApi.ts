@@ -156,6 +156,30 @@ export async function setCommentLike(
   return response.body;
 }
 
+/**
+ * Replaces the words of the caller's OWN comment (PUT, like the project's other updates). Only the body can be sent: the server keeps the author, thread,
+ * answered person, hearts and time, and tells nobody. Resolves to the comment as stored.
+ */
+export async function editItemComment(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+  itemId: number,
+  commentId: number,
+  body: string,
+  unlockToken?: string | null,
+): Promise<ItemComment> {
+  const response = await request<ItemComment>({
+    method: 'PUT',
+    path: `${commentsPath(collectionId, itemId)}/${commentId}`,
+    body: { body },
+    headers: headers(collectionId, unlockToken),
+  });
+  if (!response.body) {
+    throw new Error('Juple API returned no comment body.');
+  }
+  return response.body;
+}
+
 /** Deletes a comment (its author, or the Collection's Owner); one that is gone already is a success. */
 export async function deleteItemComment(
   request: AuthenticatedApiRequest,

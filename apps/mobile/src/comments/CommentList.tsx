@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { ActionMenuDialog } from '../components/ActionMenuDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { EditIcon } from '../icons/EditIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import { CommentRow, REPLY_INDENT } from './CommentRow';
@@ -21,6 +22,10 @@ interface CommentListProps {
   readonly onLoadPrevious: () => void;
   readonly onRetry: () => void;
   readonly onDelete: (commentId: number) => void;
+  /** 수정하기: starts editing the caller's OWN comment. Without it nothing can be edited from this list. */
+  readonly onEdit?: (comment: ItemComment) => void;
+  /** Tap on a comment's avatar or name: that author's profile. */
+  readonly onOpenProfile?: (comment: ItemComment) => void;
   /** The opened / loaded replies per thread (keyed by the top-level comment's id). Omitted: a list without threads. */
   readonly threads?: Readonly<Record<number, ThreadState>>;
   readonly onReply?: (comment: ItemComment) => void;
@@ -35,8 +40,9 @@ interface CommentListProps {
  * above them while older ones exist. Under a comment that has replies, "답글 N개 보기" opens its thread (replies load
  * only then, a page at a time, all at ONE indent level) and "답글 숨기기" folds it again. Loading, a failed load and an
  * empty conversation each say so in this section only (the link above is already on screen); a reply page that fails
- * leaves the replies already shown where they are and offers a compact retry under them. Deleting goes through the
- * row's "..." menu and a confirmation, for the author's own comments and - for the Owner - any.
+ * leaves the replies already shown where they are and offers a compact retry under them. A long-press on a comment opens its
+ * menu - 수정하기 for the author's own, 삭제하기 (after a confirmation) for the author's own and, for the Owner, any - and
+ * a comment the caller may not change has none.
  */
 export function CommentList({
   comments,
@@ -48,6 +54,8 @@ export function CommentList({
   onLoadPrevious,
   onRetry,
   onDelete,
+  onEdit,
+  onOpenProfile,
   threads,
   onReply,
   onToggleLike,
@@ -59,13 +67,26 @@ export function CommentList({
   const [menuFor, setMenuFor] = useState<ItemComment | null>(null);
   const [confirmFor, setConfirmFor] = useState<ItemComment | null>(null);
 
+  // What the caller may do to a comment - the server decides the same: only the author edits their own live comment; the author
+  // deletes their own and the Collection's Owner any. A deleted placeholder has neither.
+  const canEdit = (comment: ItemComment) => onEdit !== undefined && !comment.isDeleted && comment.author.isMe;
+  const canDelete = (comment: ItemComment) => !comment.isDeleted && (canDeleteAny || comment.author.isMe);
+  const menuActions = (comment: ItemComment | null) =>
+    comment === null
+      ? []
+      : [
+          ...(canEdit(comment) ? [{ label: t('comments.edit'), icon: EditIcon, onPress: () => { setMenuFor(null); onEdit?.(comment); } }] : []),
+          ...(canDelete(comment) ? [{ label: t('comments.deleteAction'), destructive: true, icon: TrashIcon, onPress: () => { setConfirmFor(comment); setMenuFor(null); } }] : []),
+        ];
+
   const row = (comment: ItemComment, isReply: boolean) => (
     <CommentRow
-      canDelete={!comment.isDeleted && (canDeleteAny || comment.author.isMe)}
       comment={comment}
       isReply={isReply}
       key={comment.id}
-      onOpenMenu={setMenuFor}
+      // No long-press (and never an empty menu) on a comment the caller may not change.
+      onLongPress={canEdit(comment) || canDelete(comment) ? setMenuFor : undefined}
+      onOpenProfile={onOpenProfile}
       onReply={onReply}
       onToggleLike={onToggleLike}
     />
@@ -153,7 +174,7 @@ export function CommentList({
       })}
 
       <ActionMenuDialog
-        actions={[{ label: t('comments.delete'), destructive: true, icon: TrashIcon, onPress: () => { setConfirmFor(menuFor); setMenuFor(null); } }]}
+        actions={menuActions(menuFor)}
         cancelLabel={t('common.cancel')}
         onCancel={() => setMenuFor(null)}
         visible={menuFor !== null}

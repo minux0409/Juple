@@ -159,15 +159,15 @@ describe('useItemComments - replies', () => {
 });
 
 describe('useItemComments - answering', () => {
-  it('answering a top-level comment targets it (no mention); answering a reply targets that reply and mentions its author', async () => {
+  it('answering a top-level comment or a reply targets exactly that comment (no mention is built)', async () => {
     jest.mocked(getItemComments).mockResolvedValue(page([top(1, { replyCount: 1 })]));
     const { holder } = await renderHook();
 
     act(() => holder.api!.startReply(top(1)));
-    expect(holder.api!.replyTarget).toEqual({ commentId: 1, rootCommentId: 1, name: '민욱', mention: null });
+    expect(holder.api!.replyTarget).toEqual({ commentId: 1, rootCommentId: 1, name: '민욱' });
 
     act(() => holder.api!.startReply(reply(10, 1)));
-    expect(holder.api!.replyTarget).toEqual({ commentId: 10, rootCommentId: 1, name: '민욱', mention: '@민욱' });
+    expect(holder.api!.replyTarget).toEqual({ commentId: 10, rootCommentId: 1, name: '민욱' });
 
     act(() => holder.api!.cancelReply());
     expect(holder.api!.replyTarget).toBeNull();

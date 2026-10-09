@@ -51,6 +51,7 @@ import { useHistorySections, type HistorySectionPage } from '../items/useHistory
 import { deleteItem, restoreItem, type ItemHistoryEntry, type ItemHistorySection } from '../items/api/itemsApi';
 import { shareItem } from '../items/shareItem';
 import { useItemCardOpen } from '../items/useItemCardOpen';
+import { useSavedLinkActions } from '../items/useSavedLinkActions';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, spacing } from '../theme/tokens';
 import { isNameSort, useSortPreference, type LinkSortOption } from '../settings/sortPreference';
@@ -216,6 +217,13 @@ export function DateHistoryScreen() {
     () => { refresh(); search.refresh(); },
   );
 
+  // Long-press on a link card: 링크 열기 / 수정 / 컬렉션 변경 / 삭제 (shared with Home - see useSavedLinkActions).
+  const linkActions = useSavedLinkActions({
+    onEdit: item => { itemCardOpen.open(item).catch(() => undefined); },
+    onDelete: item => confirmDelete(item.id),
+    onCollectionsChanged: () => { refresh(); search.refresh(); },
+  });
+
   // One stable open callback for every image tile (the tiles are memoized) - the same open path as a card.
   const itemCardOpenRef = useRef(itemCardOpen);
   itemCardOpenRef.current = itemCardOpen;
@@ -282,6 +290,7 @@ export function DateHistoryScreen() {
           <SwipeableItemRow
             containerStyle={savedLinkLayout.card}
             disabled={actionInFlightItemId !== null}
+            {...linkActions.menuProps(row.item)}
             onDelete={() => confirmDelete(row.item.id)}
             onPress={() => { itemCardOpen.open(row.item).catch(() => undefined); }}
             onShare={row.item.isCollectionLocked ? undefined : () => runShare(row.item)}
@@ -299,6 +308,7 @@ export function DateHistoryScreen() {
                 isActionInFlight={actionInFlightItemId === item.id}
                 item={item}
                 key={item.id}
+                {...linkActions.menuProps(item)}
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
                 onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
@@ -309,7 +319,7 @@ export function DateHistoryScreen() {
           </View>
         );
       case 'flatImageRow':
-        return <SavedLinkImageRow items={row.items} onPress={openItem} testID={`history-flat-image-row-${row.key}`} />;
+        return <SavedLinkImageRow items={row.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`history-flat-image-row-${row.key}`} />;
       case 'searchStatus':
         return row.status === 'loading' ? (
           <ActivityIndicator style={styles.searchStatus} testID="history-search-loading" />
@@ -343,6 +353,7 @@ export function DateHistoryScreen() {
           <SwipeableItemRow
             containerStyle={[dateAccordionStyles.row, row.isLast && dateAccordionStyles.rowLast]}
             disabled={actionInFlightItemId !== null}
+            {...linkActions.menuProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
             onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
@@ -369,6 +380,7 @@ export function DateHistoryScreen() {
                 isActionInFlight={actionInFlightItemId === item.id}
                 item={item}
                 key={item.id}
+                {...linkActions.menuProps(item)}
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
                 onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
@@ -381,7 +393,7 @@ export function DateHistoryScreen() {
         // Image view inside a date card: lines of tiles as the card's body (one virtualized list row per line).
         return (
           <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} style={[DATE_SECTION_IMAGE_LINE_STYLE, row.isLast && styles.imageSectionLast]} testID={`history-image-row-${row.section.key}-${row.position}`}>
-            <SavedLinkImageRow items={row.items} onPress={openItem} testID={`history-image-line-${row.section.key}-${row.position}`} />
+            <SavedLinkImageRow items={row.items} onLongPress={linkActions.openMenu} onPress={openItem} testID={`history-image-line-${row.section.key}-${row.position}`} />
           </DateSectionGridRow>
         );
       case 'skeleton':
@@ -478,6 +490,7 @@ export function DateHistoryScreen() {
         windowSize={7}
       />
       {itemCardOpen.dialog}
+      {linkActions.element}
       <ConfirmDialog
         cancelLabel={t('common.cancel')}
         confirmLabel={t('common.delete')}
