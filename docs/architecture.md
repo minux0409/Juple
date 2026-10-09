@@ -68,6 +68,16 @@ Push는 transactional outbox + Service Bus 방식이다(Round 33).
 
 Firebase credential은 worker와 이 Job에만 있다. 친구 신청/공유 초대는 tray 알림, 초대 응답/내용 변경은 열려 있는 화면만 새로 고치는 data-only 메시지다(`infra/azure/README.md`의 "Social Push" 참고).
 
+## Collection notification delivery semantics (R40-C)
+
+A Collection's 알림 켜기/끄기 (`CollectionNotificationPreferences`, per user and Collection; the column is still named `NewItemNotificationsEnabled`, no row = ON) controls **immediate delivery only**, never the history:
+
+- The durable Inbox `Notification` row is **always** recorded for every recipient, ON or OFF - unread, counted by the bell, listed and openable like any other. The outbox materialization no longer drops opted-out recipients.
+- The preference is read **at dispatch** (`PushDispatchStore.GetContextsAsync`, one batched query per batch, no per-notification query): an OFF Collection makes the notification irrelevant for Push, the row is marked dispatched without sending (decided, not retried), so a push queued while ON and dropped after OFF is never sent. Access removed (left, revoked, Collection deleted) is checked at the same point.
+- Gated types (`SocialNotificationPolicy.IsCollectionPreferenceGated`): `CollectionItemsAdded`, `CollectionItemReactionReceived`, `CollectionItemCommentReceived`, `CommentReplyReceived`, `CommentLikeReceived`, `CollectionLinkSubmissionReceived`. Not gated: friend requests/answers, Collection invitations, a passed-on public link, the result (approved/declined) of the recipient's own proposal, and data-only refresh signals (`CollectionContentChanged`, `CollectionInvitationAnswered`, no banner).
+- The in-app top banner is only ever built from a foreground FCM message, so server-side suppression is the enforcement; the client keeps no preference cache and adds no second guard (a push that left the server just before OFF can still show one banner).
+- Rollout: the behavior lives in the notification worker and push-dispatch Job (and the API's inline processor) - deploy those runtimes with the API; the mobile change is only the menu/bell wording.
+
 ## Collection app shortcuts and Direct Share (R40-B)
 
 "홈 화면에 바로가기 추가" (Collection long-press) asks Android's own system dialog (`ShortcutManagerCompat.requestPinShortcut`) for a real 1x1 Home-screen icon of the Collection: its tile color with the initial of its name, labelled with the name (drawn locally; nothing is downloaded). Rules, enforced in `src/shortcuts` and the Android native module:

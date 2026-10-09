@@ -226,17 +226,8 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
         var recipients = page
             .Where(userId => userId != notificationEvent.ActorUserId && userId != notificationEvent.SkipUserId)
             .ToList();
-        if (notificationEvent.Type == NotificationType.CollectionItemsAdded && recipients.Count > 0)
-        {
-            var optedOut = (await dbContext.CollectionNotificationPreferences.AsNoTracking()
-                    .Where(preference => preference.CollectionId == collectionId
-                        && !preference.NewItemNotificationsEnabled
-                        && recipients.Contains(preference.UserId))
-                    .Select(preference => preference.UserId)
-                    .ToListAsync(cancellationToken))
-                .ToHashSet();
-            recipients.RemoveAll(optedOut.Contains);
-        }
+        // Turning a Collection's 알림 off never removes a recipient here: the Inbox row (history, unread) is always recorded.
+        // Only the Push is decided later, at dispatch (PushDispatchStore), from the preference as it is then.
 
         var rows = recipients.Select(userId => notificationEvent.Type == NotificationType.CollectionItemsAdded
                 ? Notification.Social(

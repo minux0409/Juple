@@ -125,7 +125,8 @@ public interface ISocialNotificationPublisher
 /// <param name="PublicShareId">CollectionLinkShared, and a proposal result for someone who is no member: the Collection's public link as it is right now (the push opens it).</param>
 /// <param name="RecipientBelongs">Proposal results only: the recipient owns or belongs to the Collection now, so the push may open it by its id.</param>
 /// <remarks>
-/// For CollectionItemsAdded, IsRelevant is also false once the recipient turned 새 링크 알림 off; for
+/// For the Collection-scoped activity types (SocialNotificationPolicy.IsCollectionPreferenceGated), IsRelevant is also false once the
+/// recipient turned the Collection's 알림 off - only the Push is dropped, the Inbox row is kept; for
 /// CollectionLinkShared, once the public link was turned off (or the Collection deleted).
 /// </remarks>
 public sealed record PushDispatchContext(
@@ -213,6 +214,21 @@ public static class SocialNotificationPolicy
         type is NotificationType.CollectionInvitationAnswered
             or NotificationType.CollectionContentChanged
             or NotificationType.FriendRequestAnswered; // legacy: only rows recorded before 13/14 existed
+
+    /// <summary>
+    /// Visible, Collection-scoped activity whose IMMEDIATE DELIVERY (Push, and with it the in-app banner) the recipient can turn off per
+    /// Collection (알림 끄기). The Inbox row is always recorded and stays unread - the setting is "don't interrupt me", never "don't keep
+    /// the history". Everything else is not covered: account-scoped alerts (friend requests, invitations, a passed-on public link), the
+    /// result of the recipient's own proposal (a response to their action, also sent to non-members), and data-only refresh signals
+    /// (no banner, they only keep an open screen current).
+    /// </summary>
+    public static bool IsCollectionPreferenceGated(NotificationType type) =>
+        type is NotificationType.CollectionItemsAdded
+            or NotificationType.CollectionItemReactionReceived
+            or NotificationType.CollectionItemCommentReceived
+            or NotificationType.CommentReplyReceived
+            or NotificationType.CommentLikeReceived
+            or NotificationType.CollectionLinkSubmissionReceived;
 
     public static TimeSpan MaxAge(NotificationType type) => IsDataOnly(type) ? DataOnlyMaxAge : VisibleMaxAge;
 

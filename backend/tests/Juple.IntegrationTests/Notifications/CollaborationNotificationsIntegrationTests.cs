@@ -310,20 +310,113 @@ public sealed class CollaborationNotificationsIntegrationTests : IAsyncLifetime
         Assert.Single(await RowsAsync(NotificationType.CollectionItemCommentReceived));
     }
 
+    private async Task SetCollectionNotificationsAsync(long userId, bool enabled)
+    {
+        await new CollectionNotificationPreferenceService(_access, new CollectionNotificationPreferenceStore(_db), TimeProvider.System)
+            .SetAsync(userId, _sharedId, enabled);
+        _db.ChangeTracker.Clear();
+    }
+
+    /// <summary>The Collection's 알림 setting is about DELIVERY: the Inbox row is recorded and stays unread, only the Push is dropped.</summary>
+    private void AssertHistoryKeptButNotPushed(IReadOnlyList<Notification> rows, int expected, long recipient, string pushType)
+    {
+        var mine = rows.Where(row => row.UserId == recipient).ToList();
+        Assert.Equal(expected, mine.Count);
+        Assert.All(mine, row => Assert.Null(row.ReadAtUtc)); // unread, counts toward the badge
+        Assert.All(mine, row => Assert.NotNull(row.DispatchedAtUtc)); // decided on (skipped), not retried forever
+        Assert.Empty(Sent(recipient, pushType));
+    }
+
     [Fact]
-    public async Task ReactionsAndComments_IgnoreThe새링크알림Setting_WhichIsOnlyAboutNewLinks()
+    public async Task ReactionsAndComments_WithTheCollectionOff_KeepTheInboxRow_ButSendNoPush()
     {
         var link = await AddLinkAsync(_owner, "https://example.test/muted");
-        await new CollectionNotificationPreferenceService(_access, new CollectionNotificationPreferenceStore(_db), TimeProvider.System)
-            .SetAsync(_owner, _sharedId, false);
-        _db.ChangeTracker.Clear();
+        await SetCollectionNotificationsAsync(_owner, false);
 
         await _reactions.SetAsync(_member, _sharedId, link, "heart", null);
         await _comments.CreateAsync(_member, _sharedId, link, "hi", null);
         await Dispatcher().RunOnceAsync();
 
+        AssertHistoryKeptButNotPushed(await RowsAsync(NotificationType.CollectionItemReactionReceived), 1, _owner, "collectionItemReaction");
+        AssertHistoryKeptButNotPushed(await RowsAsync(NotificationType.CollectionItemCommentReceived), 1, _owner, "collectionItemComment");
+    }
+
+    [Fact]
+    public async Task RepliesAndHearts_WithTheCollectionOff_KeepTheInboxRow_ButSendNoPush_AndOthersAreUnaffected()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/muted-thread");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "top", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+        await SetCollectionNotificationsAsync(_member, false);
+
+        await _comments.CreateAsync(_submitter, _sharedId, link, "answer", null, top.Id);
+        await _comments.SetLikeAsync(_submitter, _sharedId, link, top.Id, true, null);
+        await Dispatcher().RunOnceAsync();
+
+        AssertHistoryKeptButNotPushed(await RowsAsync(NotificationType.CommentReplyReceived), 1, _member, "commentReply");
+        AssertHistoryKeptButNotPushed(await RowsAsync(NotificationType.CommentLikeReceived), 1, _member, "commentLike");
+
+        // Per user: the member's choice does not mute the Owner for the Owner's own comment thread.
+        _sender.Clear();
+        var ownersTop = await _comments.CreateAsync(_owner, _sharedId, link, "owner top", null);
+        await _comments.CreateAsync(_submitter, _sharedId, link, "to the owner", null, ownersTop.Id);
+        await Dispatcher().RunOnceAsync();
+        Assert.Single(Sent(_owner, "commentReply"));
+    }
+
+    [Fact]
+    public async Task TurnedOffBetweenTheEventAndTheDispatch_TheRowStays_ButTheQueuedPushIsDropped()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/race");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "top", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        await _comments.CreateAsync(_submitter, _sharedId, link, "answer", null, top.Id); // recorded while ON
+        await SetCollectionNotificationsAsync(_member, false); // then OFF before the dispatcher runs
+        await Dispatcher().RunOnceAsync();
+
+        AssertHistoryKeptButNotPushed(await RowsAsync(NotificationType.CommentReplyReceived), 1, _member, "commentReply");
+    }
+
+    [Fact]
+    public async Task AMemberWhoLostAccessBeforeTheDispatch_GetsNoPush()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/revoked");
+        var top = await _comments.CreateAsync(_member, _sharedId, link, "top", null);
+        await Dispatcher().RunOnceAsync();
+        _sender.Clear();
+
+        await _comments.CreateAsync(_submitter, _sharedId, link, "answer", null, top.Id);
+        await _db.CollectionCollaborators.Where(entry => entry.CollectionId == _sharedId && entry.UserId == _member).ExecuteDeleteAsync();
+        await Dispatcher().RunOnceAsync();
+
+        Assert.Empty(Sent(_member, "commentReply"));
+    }
+
+    [Fact]
+    public async Task AProposalToTheOwner_WithTheCollectionOff_KeepsTheInboxRow_ButSendsNoPush()
+    {
+        await SetCollectionNotificationsAsync(_owner, false);
+        var item = await NewItemAsync(_submitter, "https://example.test/muted-proposal-to-owner");
+        Assert.Equal(CollectionLinkAddOutcome.Submitted, await Add().AddAsync(_submitter, _sharedId, item));
+        await Dispatcher().RunOnceAsync();
+
+        AssertHistoryKeptButNotPushed(await RowsAsync(NotificationType.CollectionLinkSubmissionReceived), 1, _owner, "collectionLinkSubmission");
+    }
+
+    [Fact]
+    public async Task WithTheCollectionOnAgain_ANewEventIsPushedNormally()
+    {
+        var link = await AddLinkAsync(_owner, "https://example.test/on-again");
+        await SetCollectionNotificationsAsync(_owner, false);
+        await SetCollectionNotificationsAsync(_owner, true);
+
+        await _reactions.SetAsync(_member, _sharedId, link, "heart", null);
+        await Dispatcher().RunOnceAsync();
+
         Assert.Single(Sent(_owner, "collectionItemReaction"));
-        Assert.Single(Sent(_owner, "collectionItemComment"));
     }
 
     // ---------- proposals ----------

@@ -681,14 +681,14 @@ describe('CollectionDetailsScreen', () => {
       jest.mocked(setCollectionNotificationPreference).mockResolvedValue({ newItemNotificationsEnabled: true });
       const renderer = await renderScreen();
 
-      expect(bell(renderer).props.accessibilityLabel).toBe('새 링크 알림 꺼짐. 두 번 탭하여 켜기');
+      expect(bell(renderer).props.accessibilityLabel).toBe('알림 꺼짐. 두 번 탭하여 켜기');
       // Off is its own shape - a slashed bell - so the state reads without color.
       expect(bell(renderer).findByType(BellOffIcon).props.color).toBe(colors.textSecondary);
       expect(bell(renderer).findAllByType(BellIcon)).toHaveLength(0);
 
       await pressBell(renderer);
       expect(setCollectionNotificationPreference).toHaveBeenLastCalledWith(expect.anything(), 1, true);
-      expect(bell(renderer).props.accessibilityLabel).toBe('새 링크 알림 켜짐. 두 번 탭하여 끄기');
+      expect(bell(renderer).props.accessibilityLabel).toBe('알림 켜짐. 두 번 탭하여 끄기');
       expect(bell(renderer).findByType(BellIcon).props.color).toBe(colors.textPrimary);
       expect(bell(renderer).findAllByType(BellOffIcon)).toHaveLength(0);
       // Just the icon: no tinted circle or box behind it, in either state.
@@ -701,7 +701,7 @@ describe('CollectionDetailsScreen', () => {
 
       await pressBell(renderer);
       expect(setCollectionNotificationPreference).toHaveBeenLastCalledWith(expect.anything(), 1, false);
-      expect(bell(renderer).props.accessibilityLabel).toBe('새 링크 알림 꺼짐. 두 번 탭하여 켜기');
+      expect(bell(renderer).props.accessibilityLabel).toBe('알림 꺼짐. 두 번 탭하여 켜기');
     });
 
     it('a failed save puts the bell back and says so briefly', async () => {
@@ -712,7 +712,7 @@ describe('CollectionDetailsScreen', () => {
 
       await pressBell(renderer);
 
-      expect(bell(renderer).props.accessibilityLabel).toBe('새 링크 알림 켜짐. 두 번 탭하여 끄기');
+      expect(bell(renderer).props.accessibilityLabel).toBe('알림 켜짐. 두 번 탭하여 끄기');
       expect(bell(renderer).findAllByType(BellIcon)).toHaveLength(1); // rolled back to the on bell
       expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.newLinkNotificationsError'))).toBe(true);
     });

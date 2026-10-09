@@ -154,7 +154,11 @@ public sealed class CollectionItemsAddedIntegrationTests : IAsyncLifetime
 
         var item = await NewItemAsync(_owner, "https://example.test/muted");
         await _addItem.AddAsync(_owner, _sharedId, item);
-        Assert.False(await _db.Notifications.AnyAsync(entry => entry.UserId == _member && entry.Type == NotificationType.CollectionItemsAdded));
+        // Off = no interruption, NOT no history: the Inbox row is recorded (unread); only the Push is dropped at dispatch.
+        await Dispatcher().RunOnceAsync();
+        var kept = await _db.Notifications.AsNoTracking().SingleAsync(entry => entry.UserId == _member && entry.Type == NotificationType.CollectionItemsAdded);
+        Assert.Null(kept.ReadAtUtc);
+        Assert.Empty(Visible(_member));
 
         // Turned off after it was enqueued but before the dispatcher ran: skipped, never sent.
         await _preferences.SetAsync(_member, _sharedId, true);

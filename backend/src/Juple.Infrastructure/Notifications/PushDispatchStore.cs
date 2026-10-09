@@ -93,8 +93,9 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 .Select(invitation => new { invitation.Id, invitation.InvitedUserId })
                 .ToDictionaryAsync(invitation => invitation.Id, invitation => invitation.InvitedUserId, cancellationToken);
 
-        // 새 링크 알림 turned off since the notification was recorded.
-        var optedOut = !Has(NotificationType.CollectionItemsAdded)
+        // 알림 turned off for the Collection since the notification was recorded (read now, at dispatch, so a queued push after
+        // "off" is dropped). One query for the whole batch; the Inbox row itself is untouched.
+        var optedOut = !notifications.Any(notification => SocialNotificationPolicy.IsCollectionPreferenceGated(notification.Type))
             ? []
             : (await dbContext.CollectionNotificationPreferences.AsNoTracking()
                 .Where(preference => collectionIds.Contains(preference.CollectionId)
@@ -180,6 +181,12 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
         bool IsRelevant(Notification notification)
         {
             var userId = notification.UserId;
+            if (SocialNotificationPolicy.IsCollectionPreferenceGated(notification.Type)
+                && notification.CollectionId is { } gatedCollectionId && optedOut.Contains((gatedCollectionId, userId)))
+            {
+                return false;
+            }
+
             switch (notification.Type)
             {
                 case NotificationType.FriendRequestReceived:
@@ -196,7 +203,7 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 case NotificationType.CollectionContentChanged:
                     return Belongs(notification.CollectionId, userId);
                 case NotificationType.CollectionItemsAdded:
-                    return Belongs(notification.CollectionId, userId) && !optedOut.Contains((notification.CollectionId!.Value, userId));
+                    return Belongs(notification.CollectionId, userId);
                 case NotificationType.CollectionLinkShared:
                     return IsLive(notification.CollectionId) && activeShares.ContainsKey(notification.CollectionId!.Value);
                 case NotificationType.CollectionItemReactionReceived:
