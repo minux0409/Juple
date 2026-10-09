@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Esta coleção não pode mais ser aberta. Remova você mesmo o ícone dela da tela inicial.",
     "homeShortcutAdd": "Adicionar atalho à tela inicial",
     "homeShortcutUnsupported": "O launcher deste dispositivo não permite adicionar atalhos à tela inicial.",
-    "homeShortcutLocked": "Uma coleção bloqueada continua pedindo a senha ao ser aberta pela tela inicial. Ela não é adicionada como destino de compartilhamento."
+    "homeShortcutLocked": "Uma coleção bloqueada continua pedindo a senha ao ser aberta pela tela inicial. Ela não é adicionada como destino de compartilhamento.",
+    "joinPending": "Aguardando aprovação",
+    "joinRequestsA11y": "Pedidos {{count}}",
+    "joinRequests": "Pedidos {{count}}"
   },
   "toast": {
     "moveSuccess": "Movido.",
@@ -530,7 +533,28 @@
     "addDone": "Link adicionado.",
     "addInvalidUrl": "Não é possível adicionar este link.",
     "addNotAllowed": "No momento não é possível adicionar links a esta coleção.",
-    "addFallback": "Não foi possível adicionar o link."
+    "addFallback": "Não foi possível adicionar o link.",
+    "joinRequestAction": "Pedir para participar",
+    "joinRequestSentMessage": "Seu pedido foi enviado. Avisaremos quando o proprietário responder.",
+    "joinNotAllowed": "Esta coleção não está aceitando novos participantes agora.",
+    "joinLocked": "Esta coleção exige senha, então você não pode participar agora.",
+    "joinFailed": "Não foi possível concluir. Tente novamente.",
+    "lockedTitle": "Esta coleção está bloqueada",
+    "lockedMessage": "Digite a senha para ver esta coleção.",
+    "passwordLabel": "Senha",
+    "unlockAction": "Desbloquear",
+    "wrongPassword": "A senha não está correta.",
+    "tooManyAttempts": "Muitas tentativas. Tente novamente mais tarde.",
+    "unlockFailed": "Não foi possível desbloquear. Tente novamente.",
+    "privateQuestion": "Deseja participar desta coleção?",
+    "privateHint": "Quando o proprietário aprovar, você será participante e poderá ver a coleção.",
+    "privateSignIn": "Entre no Juple para pedir para participar.",
+    "joinPendingTitle": "Aguardando aprovação",
+    "joinPendingMessage": "Avisaremos quando o proprietário aprovar.",
+    "addTitle": "Adicionar coleção",
+    "requestTitle": "Pedir para participar",
+    "requestSend": "Pedir",
+    "signInRequired": "Entre no Juple para adicionar esta coleção ou pedir para participar."
   },
   "quickSaveComposer": {
     "titleLabel": "Título",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} selecionados",
     "addPersonToInviteList": "Adicionar {{name}} à lista de convites",
     "publicInfo": "Qualquer pessoa que conheça o link da coleção pode acessá-la.\nVocê pode definir uma permissão comum para quem acessa e dar separadamente uma permissão maior a quem for convidado diretamente.\nAs permissões também podem ser alteradas na lista de participantes.",
-    "publicInfoA11y": "Sobre a coleção pública"
+    "publicInfoA11y": "Sobre a coleção pública",
+    "requestsEmpty": "Nenhum pedido aguardando.",
+    "joinRequestApprove": "Aprovar",
+    "joinRequestReject": "Recusar",
+    "joinRequestApproveA11y": "Aprovar o pedido de {{name}}",
+    "joinRequestRejectA11y": "Recusar o pedido de {{name}}",
+    "joinRequestApproveTitle": "Aprovar este pedido?",
+    "joinRequestApproveMessage": "{{name}} será participante desta coleção.",
+    "joinRequestRejectTitle": "Recusar este pedido?",
+    "joinRequestRejectMessage": "O pedido de {{name}} será recusado. Ela(e) poderá pedir de novo mais tarde.",
+    "joinRequestNotActionable": "Este pedido não pode mais ser respondido.",
+    "allUsersPrivateDescription": "Quem receber o link pode pedir para participar da coleção.",
+    "joinRequestsTitle": "Pedidos"
   },
   "linkShare": {
     "description": "Repasse o link da coleção pública. Quem recebe não passa a participar desta coleção.",

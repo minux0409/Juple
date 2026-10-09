@@ -10,7 +10,8 @@ public sealed class PublicCollectionService(
     CollectionPasswordVerifier passwordVerifier,
     ICollectionUnlockTokenProtector unlockTokenProtector,
     TimeProvider timeProvider,
-    ICollectionSharePasswordStore? sharePasswordStore = null)
+    ICollectionSharePasswordStore? sharePasswordStore = null,
+    Juple.Application.Collections.SetCollectionIconImage.ICollectionIconImageStorage? iconImageStorage = null)
     : IPublicCollectionService
 {
     public async Task<PublicCollectionDto?> GetCollectionAsync(
@@ -18,7 +19,8 @@ public sealed class PublicCollectionService(
         string? unlockToken = null,
         CancellationToken cancellationToken = default)
     {
-        var state = await publicCollectionShareStore.GetStateAsync(publicId, cancellationToken);
+        // Any active link: a private one answers too (with its name only, after any password) so the app can offer a join request.
+        var state = await publicCollectionShareStore.GetLinkStateAsync(publicId, cancellationToken);
         if (state is null)
         {
             return null;
@@ -26,9 +28,27 @@ public sealed class PublicCollectionService(
 
         // IsLocked on the wire: a password stands before this link's content (whichever one).
         var isProtected = PublicShareGate.RequirementOf(state) != PublicShareRequirement.None;
-        return IsUnlocked(state, unlockToken)
-            ? new PublicCollectionDto(state.Name, isProtected, PublicSharePermissions.ToWire(state.Permission))
-            : new PublicCollectionDto(Name: null, IsLocked: true);
+        if (!IsUnlocked(state, unlockToken))
+        {
+            return new PublicCollectionDto(Name: null, IsLocked: true);
+        }
+
+        // The Collection's own photo (when it has one) signed for its Owner's prefix - the same mechanism and version as the Collection list.
+        string? iconImageUrl = null;
+        string? iconImageVersion = null;
+        if (iconImageStorage is not null && state.IconImageBlobName is not null)
+        {
+            var signed = await iconImageStorage.CreateCollectionIconReadUrlAsync(state.OwnerUserId, state.IconImageBlobName, cancellationToken);
+            if (signed is not null)
+            {
+                iconImageUrl = signed.ToString();
+                iconImageVersion = Juple.Application.Collections.SetCollectionIconImage.CollectionIconImageVersion.From(state.IconImageBlobName);
+            }
+        }
+
+        return state.IsPublic
+            ? new PublicCollectionDto(state.Name, isProtected, PublicSharePermissions.ToWire(state.Permission), Icon: state.Icon, Color: state.Color, IconImageUrl: iconImageUrl, IconImageVersion: iconImageVersion)
+            : new PublicCollectionDto(state.Name, isProtected, Permission: null, IsPublic: false, Icon: state.Icon, Color: state.Color, IconImageUrl: iconImageUrl, IconImageVersion: iconImageVersion);
     }
 
     public async Task<PublicCollectionItemPage?> GetItemsAsync(
@@ -58,7 +78,8 @@ public sealed class PublicCollectionService(
         string? clientAttemptId = null,
         CancellationToken cancellationToken = default)
     {
-        var share = await publicCollectionShareStore.GetStateAsync(publicId, cancellationToken);
+        // Private links have a password gate too (the join-request landing needs it proven first).
+        var share = await publicCollectionShareStore.GetLinkStateAsync(publicId, cancellationToken);
         if (share is null)
         {
             return null;

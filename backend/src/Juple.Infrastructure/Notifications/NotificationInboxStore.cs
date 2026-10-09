@@ -151,18 +151,23 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
             .Where(row => row.CollectionId is { } id && collections.ContainsKey(id)
                 && row.Type is NotificationType.CollectionLinkShared
                     or NotificationType.CollectionLinkSubmissionApproved
-                    or NotificationType.CollectionLinkSubmissionRejected)
+                    or NotificationType.CollectionLinkSubmissionRejected
+                    or NotificationType.JoinRequestRejected)
             .Select(row => row.CollectionId!.Value)
             .Distinct()
             .ToList();
-        var activeShares = shareCollectionIds.Count == 0
+        var linkRows = shareCollectionIds.Count == 0
             ? []
             : (await dbContext.CollectionShares.AsNoTracking()
                 .Where(share => shareCollectionIds.Contains(share.CollectionId) && share.IsActive)
-                .Select(share => new { share.CollectionId, share.PublicId })
+                .Select(share => new { share.CollectionId, share.PublicId, share.IsPublic })
                 .ToListAsync(cancellationToken))
                 .GroupBy(share => share.CollectionId)
-                .ToDictionary(group => group.Key, group => group.First().PublicId);
+                .Select(group => group.First())
+                .ToList();
+        // The link with public contents (a passed-on link, a proposal result) versus any link (a declined join request lands on the private link).
+        var activeShares = linkRows.Where(row => row.IsPublic).ToDictionary(row => row.CollectionId, row => row.PublicId);
+        var anyLinks = linkRows.ToDictionary(row => row.CollectionId, row => row.PublicId);
 
         // A reaction/comment: the link is still in that Collection and still the recipient's own live Item.
         var linkItemIds = SubjectsOf(NotificationType.CollectionItemReactionReceived, NotificationType.CollectionItemCommentReceived);
@@ -242,7 +247,7 @@ public sealed class NotificationInboxStore(JupleDbContext dbContext) : INotifica
             var belongs = isOwner || (live && memberOf.Contains(row.CollectionId!.Value));
             var invitationPending = row.Type == NotificationType.CollectionInvitationReceived
                 && row.SubjectId is { } invitationId && pendingInvitations.Contains(invitationId);
-            var publicShareId = live ? activeShares.GetValueOrDefault(row.CollectionId!.Value) : null;
+            var publicShareId = live ? (row.Type is NotificationType.JoinRequestRejected or NotificationType.CollectionLinkShared ? anyLinks : activeShares).GetValueOrDefault(row.CollectionId!.Value) : null;
             // The name only where the recipient may still see it: they belong, the invitation still
             // waits for them, or the Collection's public link is on.
             var nameVisible = belongs || (live && (invitationPending || publicShareId is not null));

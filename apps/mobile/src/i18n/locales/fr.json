@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Cette collection ne peut plus être ouverte. Supprimez vous-même son icône de l’écran d’accueil.",
     "homeShortcutAdd": "Ajouter un raccourci à l’écran d’accueil",
     "homeShortcutUnsupported": "Le lanceur de cet appareil ne permet pas d’ajouter des raccourcis à l’écran d’accueil.",
-    "homeShortcutLocked": "Une collection verrouillée demande toujours son mot de passe depuis l’écran d’accueil. Elle n’est pas ajoutée comme destination de partage."
+    "homeShortcutLocked": "Une collection verrouillée demande toujours son mot de passe depuis l’écran d’accueil. Elle n’est pas ajoutée comme destination de partage.",
+    "joinPending": "En attente d'approbation",
+    "joinRequestsA11y": "Demandes {{count}}",
+    "joinRequests": "Demandes {{count}}"
   },
   "toast": {
     "moveSuccess": "Déplacé.",
@@ -530,7 +533,28 @@
     "addDone": "Lien ajouté.",
     "addInvalidUrl": "Ce lien ne peut pas être ajouté.",
     "addNotAllowed": "Impossible d'ajouter des liens à cette collection pour le moment.",
-    "addFallback": "Impossible d'ajouter le lien."
+    "addFallback": "Impossible d'ajouter le lien.",
+    "joinRequestAction": "Demander à participer",
+    "joinRequestSentMessage": "Votre demande a été envoyée. Nous vous préviendrons quand le propriétaire répondra.",
+    "joinNotAllowed": "Cette collection n'accepte pas de nouveaux participants pour le moment.",
+    "joinLocked": "Cette collection nécessite un mot de passe : vous ne pouvez pas la rejoindre maintenant.",
+    "joinFailed": "Impossible de terminer. Veuillez réessayer.",
+    "lockedTitle": "Cette collection est verrouillée",
+    "lockedMessage": "Saisissez le mot de passe pour voir cette collection.",
+    "passwordLabel": "Mot de passe",
+    "unlockAction": "Déverrouiller",
+    "wrongPassword": "Ce mot de passe n'est pas correct.",
+    "tooManyAttempts": "Trop de tentatives. Réessayez plus tard.",
+    "unlockFailed": "Impossible de déverrouiller. Veuillez réessayer.",
+    "privateQuestion": "Voulez-vous participer à cette collection ?",
+    "privateHint": "Une fois approuvée par le propriétaire, vous deviendrez participant et pourrez voir la collection.",
+    "privateSignIn": "Connectez-vous à Juple pour demander à participer.",
+    "joinPendingTitle": "En attente d'approbation",
+    "joinPendingMessage": "Nous vous préviendrons dès que le propriétaire aura approuvé.",
+    "addTitle": "Ajouter la collection",
+    "requestTitle": "Demander à participer",
+    "requestSend": "Demander",
+    "signInRequired": "Connectez-vous à Juple pour ajouter cette collection ou demander à participer."
   },
   "quickSaveComposer": {
     "titleLabel": "Titre",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} sélectionné(s)",
     "addPersonToInviteList": "Ajouter {{name}} à la liste d’invitation",
     "publicInfo": "Toute personne qui connaît le lien de la collection peut y accéder.\nVous pouvez définir une autorisation commune pour ces personnes et accorder séparément une autorisation supérieure aux personnes invitées directement.\nLes autorisations peuvent aussi être modifiées dans la liste des participants.",
-    "publicInfoA11y": "À propos de la collection publique"
+    "publicInfoA11y": "À propos de la collection publique",
+    "requestsEmpty": "Aucune demande en attente.",
+    "joinRequestApprove": "Approuver",
+    "joinRequestReject": "Refuser",
+    "joinRequestApproveA11y": "Approuver la demande de {{name}}",
+    "joinRequestRejectA11y": "Refuser la demande de {{name}}",
+    "joinRequestApproveTitle": "Approuver cette demande ?",
+    "joinRequestApproveMessage": "{{name}} deviendra participant de cette collection.",
+    "joinRequestRejectTitle": "Refuser cette demande ?",
+    "joinRequestRejectMessage": "La demande de {{name}} sera refusée. Cette personne pourra la renouveler plus tard.",
+    "joinRequestNotActionable": "Cette demande ne peut plus être traitée.",
+    "allUsersPrivateDescription": "Les personnes qui reçoivent le lien peuvent demander à participer à la collection.",
+    "joinRequestsTitle": "Demandes"
   },
   "linkShare": {
     "description": "Transmettez le lien de la collection publique. Les destinataires ne deviennent pas participants de cette collection.",

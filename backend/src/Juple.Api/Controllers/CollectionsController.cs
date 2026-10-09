@@ -549,8 +549,9 @@ public sealed class CollectionsController(
             var currentUser = await currentUserAccessor.GetRequiredAsync(
                 externalIdentityAccessor.GetRequired(), cancellationToken);
             var share = await getCollectionShareService.GetAsync(currentUser.UserId, id, cancellationToken);
+            // IsShared keeps its old meaning (public contents on) for older clients; Share is present whenever a link exists, private or not.
             return Ok(new CollectionShareStatusResponse(
-                share is not null, share is null ? null : ToShareResponse(share)));
+                share is { IsPublic: true }, share is null ? null : ToShareResponse(share)));
         }
         catch (CurrentJupleUserNotFoundException)
         {
@@ -598,7 +599,7 @@ public sealed class CollectionsController(
         CancellationToken cancellationToken) =>
         ExecuteAsync(
             userId => shareLinkService.ShareAsync(userId, id, request.JupleIds, cancellationToken),
-            result => Ok(new SendShareLinkResponse(result.Sent, result.NotFound)),
+            result => Ok(new SendShareLinkResponse(result.Sent, result.NotFound, result.Skipped ?? [])),
             cancellationToken);
 
     /// <summary>
@@ -635,6 +636,70 @@ public sealed class CollectionsController(
             cancellationToken);
     }
 
+    /// <summary>
+    /// 공용 컬렉션 OFF: the link keeps existing (same URL and publicId) but no longer shows the Collection's contents; a signed-in non-member
+    /// who opens it is only asked whether to request joining. Creates the (private) link when there is none, which is how the Owner passes on
+    /// a private Collection's link. Idempotent. Owner only.
+    /// </summary>
+    [HttpPost("{id:long}/share/private")]
+    [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
+    public Task<IActionResult> MakeSharePrivateAsync(long id, CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => enableCollectionShareService.MakePrivateAsync(userId, id, cancellationToken),
+            share => Ok(ToShareResponse(share)),
+            cancellationToken);
+
+    /// <summary>The caller's OWN waiting join requests, for the "승인 대기 중" placeholders in their Collections. Not memberships.</summary>
+    [HttpGet("join-requests/mine")]
+    public Task<IActionResult> ListMyJoinRequestsAsync(
+        [FromServices] Juple.Application.Collections.Join.ICollectionJoinService joinService,
+        CancellationToken cancellationToken) =>
+        ExecuteAsync(
+            userId => joinService.ListMineAsync(userId, cancellationToken),
+            items => Ok(new MyJoinRequestsResponse(items)),
+            cancellationToken);
+
+    /// <summary>The Owner's list of people waiting to join, oldest first (cursor = the last row's requestId). Owner only.</summary>
+    [HttpGet("{id:long}/join-requests")]
+    public Task<IActionResult> ListJoinRequestsAsync(
+        long id,
+        [FromQuery] long? cursor,
+        [FromQuery] int? limit,
+        [FromServices] Juple.Application.Collections.Join.ICollectionJoinService joinService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => joinService.ListAsync(userId, id, cursor, limit ?? Juple.Application.Collections.Join.CollectionJoinService.MaxPageSize, unlockToken, cancellationToken),
+            page => Ok(page),
+            cancellationToken);
+
+    /// <summary>
+    /// Owner only: the requester becomes a member with the role of the link's permission NOW. 404 when the request no longer waits (so a
+    /// second approve adds nothing); 409 joinNotAllowed when the link is off or no longer takes requests.
+    /// </summary>
+    [HttpPost("{id:long}/join-requests/{requestId:long}/approve")]
+    public Task<IActionResult> ApproveJoinRequestAsync(
+        long id,
+        long requestId,
+        [FromServices] Juple.Application.Collections.Join.ICollectionJoinService joinService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => joinService.ApproveAsync(userId, id, requestId, unlockToken, cancellationToken),
+            cancellationToken);
+
+    /// <summary>Owner only: declines the request - no membership. Idempotent: 204 also when it was no longer waiting.</summary>
+    [HttpPost("{id:long}/join-requests/{requestId:long}/reject")]
+    public Task<IActionResult> RejectJoinRequestAsync(
+        long id,
+        long requestId,
+        [FromServices] Juple.Application.Collections.Join.ICollectionJoinService joinService,
+        CancellationToken cancellationToken,
+        [FromHeader(Name = UnlockTokenHeader)] string? unlockToken = null) =>
+        ExecuteAsync(
+            userId => joinService.RejectAsync(userId, id, requestId, unlockToken, cancellationToken),
+            cancellationToken);
+
     private IActionResult InvalidSharePermission() =>
         BadRequest(new ValidationProblemDetails(new Dictionary<string, string[]>
         {
@@ -646,7 +711,7 @@ public sealed class CollectionsController(
     /// assembles this itself or needs to know the Public Web's base URL.
     /// </summary>
     private CollectionShareResponse ToShareResponse(CollectionShareDto share) =>
-        new(share.PublicId, ShareUrlFor(share.PublicId), share.CreatedAtUtc, PublicSharePermissions.ToWire(share.Permission));
+        new(share.PublicId, ShareUrlFor(share.PublicId), share.CreatedAtUtc, PublicSharePermissions.ToWire(share.Permission), share.IsPublic);
 
     private string ShareUrlFor(string publicId) => $"{publicWebOptions.Value.BaseUrl.TrimEnd('/')}/c/{publicId}";
 
@@ -1627,6 +1692,10 @@ public sealed class CollectionsController(
         {
             return NotFound();
         }
+        catch (Juple.Application.Collections.Join.CollectionJoinRequestNotFoundException)
+        {
+            return NotFound();
+        }
         catch (CollectionLinkSubmissionNotFoundException)
         {
             return NotFound();
@@ -1685,7 +1754,10 @@ public sealed class CollectionsController(
 
     public sealed record CollectionItemSectionsResponse(IReadOnlyList<CollectionItemSectionDto> Sections);
 
-    public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc, string Permission);
+    /// <summary>IsPublic false: the link exists but is private (공용 컬렉션 OFF) - Permission is then only remembered, not in effect.</summary>
+    public sealed record CollectionShareResponse(string PublicId, string ShareUrl, DateTimeOffset CreatedAtUtc, string Permission, bool IsPublic = true);
+
+    public sealed record MyJoinRequestsResponse(IReadOnlyList<Juple.Application.Collections.Join.MyCollectionJoinRequestDto> Items);
 
     /// <summary>
     /// "read", "submit" or "write". RaiseLowerRoles (absent = false): the Owner confirmed raising every
@@ -1711,5 +1783,5 @@ public sealed class CollectionsController(
 
     public sealed record SendShareLinkRequest(IReadOnlyList<string>? JupleIds);
 
-    public sealed record SendShareLinkResponse(IReadOnlyList<string> Sent, IReadOnlyList<string> NotFound);
+    public sealed record SendShareLinkResponse(IReadOnlyList<string> Sent, IReadOnlyList<string> NotFound, IReadOnlyList<string> Skipped);
 }

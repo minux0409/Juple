@@ -106,7 +106,7 @@ public sealed class CollectionStore(
             CollectionListScope.Shared => owned
                 .Where(collection =>
                     dbContext.CollectionCollaborators.Any(collaborator => collaborator.CollectionId == collection.Id)
-                    || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive))
+                    || dbContext.CollectionShares.Any(share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic))
                 .Concat(sharedWithMe),
             // Member Collections with a proposal of the caller's own still waiting: one EXISTS on the
             // indexed CollectionLinkSubmissions (CollectionId / SubmittedByUserId), inside the same statement.
@@ -215,10 +215,14 @@ public sealed class CollectionStore(
             HasCollaborators = dbContext.CollectionCollaborators.Any(
                 collaborator => collaborator.CollectionId == collection.Id),
             IsPublicShareActive = dbContext.CollectionShares.Any(
-                share => share.CollectionId == collection.Id && share.IsActive),
+                share => share.CollectionId == collection.Id && share.IsActive && share.IsPublic),
             // The Owner's 승인 대기 count only (indexed by CollectionId) - never counted for anyone else.
             PendingSubmissionCount = collection.UserId == userId
                 ? dbContext.CollectionLinkSubmissions.Count(submission => submission.CollectionId == collection.Id)
+                : 0,
+            // The Owner's 참여 요청 count only: people waiting to join (the filtered unique index covers Pending).
+            PendingJoinRequestCount = collection.UserId == userId
+                ? dbContext.CollectionJoinRequests.Count(joinRequest => joinRequest.CollectionId == collection.Id && joinRequest.Status == CollectionJoinRequestStatus.Pending)
                 : 0,
             // A submitter's own waiting proposals (indexed by CollectionId / SubmittedByUserId) - never the Owner's.
             MyPendingSubmissionCount = collection.UserId == userId
@@ -342,8 +346,9 @@ public sealed class CollectionStore(
                 IsSharePasswordProtected: row.SharePasswordMode == CollectionSharePasswordMode.PerCollection,
                 PendingSubmissionCount: isOwner ? row.PendingSubmissionCount : 0,
                 UnreadNewLinkCount: row.UnreadNewLinkCount,
-                AttentionCount: (isOwner ? row.PendingSubmissionCount : 0) + row.UnreadNewLinkCount,
-                MyPendingSubmissionCount: isOwner ? 0 : row.MyPendingSubmissionCount);
+                AttentionCount: (isOwner ? row.PendingSubmissionCount + row.PendingJoinRequestCount : 0) + row.UnreadNewLinkCount,
+                MyPendingSubmissionCount: isOwner ? 0 : row.MyPendingSubmissionCount,
+                PendingJoinRequestCount: isOwner ? row.PendingJoinRequestCount : 0);
         }).ToList();
     }
 
@@ -378,6 +383,8 @@ public sealed class CollectionStore(
         public int PendingSubmissionCount { get; init; }
 
         public int MyPendingSubmissionCount { get; init; }
+
+        public int PendingJoinRequestCount { get; init; }
 
         public int UnreadNewLinkCount { get; init; }
 
@@ -637,11 +644,14 @@ public sealed class CollectionStore(
             return;
         }
 
-        collection.SoftDelete(DateTimeOffset.UtcNow);
+        var deletedAtUtc = DateTimeOffset.UtcNow;
+        collection.SoftDelete(deletedAtUtc);
 
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            // A deleted Collection takes no more members: its waiting join requests are obsolete (a restore never revives them).
+            await JoinRequestHousekeeping.ObsoleteAllPendingAsync(dbContext, collectionId, deletedAtUtc, cancellationToken);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -1064,7 +1074,7 @@ public sealed class CollectionStore(
         if (addedByUserIds.Select(Normalize).Contains(userId)
             && (others.Count > 0
                 || await dbContext.CollectionCollaborators.AsNoTracking().AnyAsync(collaborator => collaborator.CollectionId == collectionId, cancellationToken)
-                || await dbContext.CollectionShares.AsNoTracking().AnyAsync(share => share.CollectionId == collectionId && share.IsActive, cancellationToken)))
+                || await dbContext.CollectionShares.AsNoTracking().AnyAsync(share => share.CollectionId == collectionId && share.IsActive && share.IsPublic, cancellationToken)))
         {
             visibleIds.Add(userId);
         }
@@ -1137,7 +1147,7 @@ public sealed class CollectionStore(
     {
         var share = await dbContext.CollectionShares
             .AsNoTracking()
-            .Where(entry => entry.PublicId == publicId && entry.IsActive)
+            .Where(entry => entry.PublicId == publicId && entry.IsActive && entry.IsPublic)
             .Select(entry => new { entry.CollectionId })
             .FirstOrDefaultAsync(cancellationToken);
         if (share is null)
@@ -1156,7 +1166,7 @@ public sealed class CollectionStore(
 
         var permission = await dbContext.CollectionShares
             .AsNoTracking()
-            .Where(entry => entry.PublicId == publicId && entry.IsActive)
+            .Where(entry => entry.PublicId == publicId && entry.IsActive && entry.IsPublic)
             .Select(entry => (CollectionSharePermission?)entry.Permission)
             .FirstOrDefaultAsync(cancellationToken);
         if (permission is null)

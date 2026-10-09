@@ -31,6 +31,8 @@ export type NotificationTarget =
       readonly commentRootId?: number;
     }
   | { readonly kind: 'collectionSubmissions'; readonly collectionId: number }
+  /** The Owner's list of people waiting to join (the 참여 요청 bottom sheet). */
+  | { readonly kind: 'collectionJoinRequests'; readonly collectionId: number }
   | { readonly kind: 'publicCollection'; readonly publicId: string }
   | { readonly kind: 'unavailable' };
 
@@ -77,6 +79,8 @@ export function parseNotificationTarget(wire: NotificationTargetWire | null | un
     }
     case 'collectionSubmissions':
       return collectionId !== null ? { kind: 'collectionSubmissions', collectionId } : UNAVAILABLE_TARGET;
+    case 'collectionJoinRequests':
+      return collectionId !== null ? { kind: 'collectionJoinRequests', collectionId } : UNAVAILABLE_TARGET;
     case 'publicCollection':
       return typeof wire.publicId === 'string' && PUBLIC_ID_PATTERN.test(wire.publicId)
         ? { kind: 'publicCollection', publicId: wire.publicId }
@@ -118,8 +122,12 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
       return event.collectionId !== null ? { kind: 'collection', collectionId: event.collectionId } : null;
     case 'collectionLinkSubmission':
       return event.collectionId !== null ? { kind: 'collectionSubmissions', collectionId: event.collectionId } : null;
+    case 'joinRequest':
+      return event.collectionId !== null ? { kind: 'collectionJoinRequests', collectionId: event.collectionId } : null;
     case 'collectionLinkSubmissionApproved':
     case 'collectionLinkSubmissionRejected':
+    case 'joinRequestApproved':
+    case 'joinRequestRejected':
       if (event.collectionId !== null) {
         return { kind: 'collection', collectionId: event.collectionId };
       }
@@ -136,7 +144,7 @@ export function legacyPushTarget(data: Readonly<Record<string, unknown>> | null 
 export type NotificationNavigationAction =
   | { readonly name: 'Friends' }
   | { readonly name: 'MainTabs'; readonly params: { readonly screen: 'Collections'; readonly params: { readonly filter: 'shared'; readonly openShareRequests: true; readonly refreshToken: number } } }
-  | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null; readonly commentRootId?: number | null; readonly shared?: boolean }; readonly openApprovals?: true } }
+  | { readonly name: 'CollectionDetails'; readonly params: { readonly collectionId: number; readonly refreshToken: number; readonly openItem?: { readonly itemId: number; readonly focus: 'comments' | null; readonly commentRootId?: number | null; readonly shared?: boolean }; readonly openApprovals?: true; readonly openJoinRequests?: true } }
   | { readonly name: 'SharedCollection'; readonly params: { readonly publicId: string } };
 
 /** Null for 'unavailable' - the caller then stays where it is. */
@@ -169,6 +177,10 @@ export function navigationActionFor(target: NotificationTarget, nowMs: number = 
     case 'collectionSubmissions':
       // Through the Collection: its 링크 승인 대기 popup opens once the content is open (lock gate included).
       return { name: 'CollectionDetails', params: { collectionId: target.collectionId, refreshToken: nowMs, openApprovals: true } };
+    case 'collectionJoinRequests':
+      // Through the Collection, like every other member entry: its lock / share-password gate comes first, and only once the content
+      // is open does the Collection open the 참여 요청 sheet. Never a separate management screen.
+      return { name: 'CollectionDetails', params: { collectionId: target.collectionId, refreshToken: nowMs, openJoinRequests: true } };
     case 'publicCollection':
       return { name: 'SharedCollection', params: { publicId: target.publicId } };
     case 'unavailable':

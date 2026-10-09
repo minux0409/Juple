@@ -1,4 +1,5 @@
 using Juple.Application.Notifications;
+using Juple.Domain.Collections;
 using Juple.Domain.Friends;
 using Juple.Domain.Notifications;
 using Juple.Infrastructure.Persistence;
@@ -170,6 +171,9 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
             => notificationEvent.ActorUserId is not null && notificationEvent.CollectionId is not null && notificationEvent.SubjectId is not null,
         NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected
             => notificationEvent.RecipientUserId is not null && notificationEvent.SubjectId is not null,
+        NotificationType.JoinRequestReceived or NotificationType.JoinRequestApproved or NotificationType.JoinRequestRejected
+            => notificationEvent.ActorUserId is not null && notificationEvent.RecipientUserId is not null
+                && notificationEvent.CollectionId is not null && notificationEvent.SubjectId is not null,
         NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived
             => notificationEvent.ActorUserId is not null && notificationEvent.RecipientUserId is not null && notificationEvent.CollectionId is not null
                 && notificationEvent.SubjectId is not null && notificationEvent.ItemId is not null,
@@ -386,6 +390,12 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
                     recipient, notificationEvent.Type, null, notificationEvent.CollectionId, submissionId, $"collection-submission-{answer}:{submissionId}", createdAtUtc,
                     itemId: notificationEvent.ItemId);
 
+            // A join request: told to the Owner only while it still waits; the answer to the requester only for the answer it got.
+            case NotificationType.JoinRequestReceived or NotificationType.JoinRequestApproved or NotificationType.JoinRequestRejected
+                when actor is { } joinActor && notificationEvent.RecipientUserId is { } joinRecipient
+                    && notificationEvent.CollectionId is { } joinCollectionId && notificationEvent.SubjectId is { } joinRequestId:
+                return await ResolveJoinRequestNotificationAsync(notificationEvent.Type, joinActor, joinRecipient, joinCollectionId, joinRequestId, createdAtUtc, cancellationToken);
+
             case NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived
                 when actor is { } threadActor && notificationEvent.RecipientUserId is { } threadRecipient && notificationEvent.CollectionId is { } threadCollectionId
                     && notificationEvent.SubjectId is { } commentId && notificationEvent.ItemId is { } threadItemId:
@@ -394,6 +404,40 @@ public sealed class NotificationEventStore(JupleDbContext dbContext) : INotifica
             default:
                 // Unreachable for a well-formed event (IsWellFormed is checked first).
                 return null;
+        }
+    }
+
+    private async Task<Notification?> ResolveJoinRequestNotificationAsync(
+        NotificationType type, long actorUserId, long recipientUserId, long collectionId, long requestId, DateTimeOffset createdAtUtc, CancellationToken cancellationToken)
+    {
+        var request = await dbContext.CollectionJoinRequests.AsNoTracking()
+            .Where(entry => entry.Id == requestId && entry.CollectionId == collectionId)
+            .Select(entry => new { entry.RequesterUserId, entry.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+        var ownerUserId = await dbContext.Collections.AsNoTracking()
+            .Where(collection => collection.Id == collectionId && collection.DeletedAtUtc == null)
+            .Select(collection => (long?)collection.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (request is null || ownerUserId is null)
+        {
+            return null;
+        }
+
+        switch (type)
+        {
+            case NotificationType.JoinRequestReceived:
+                // The requester asked and nobody has answered yet; the Owner is the recipient.
+                return request.Status == CollectionJoinRequestStatus.Pending && request.RequesterUserId == actorUserId && ownerUserId == recipientUserId
+                    ? Notification.Social(recipientUserId, type, actorUserId, collectionId, requestId, $"join-request:{requestId}", createdAtUtc)
+                    : null;
+            case NotificationType.JoinRequestApproved:
+                return request.Status == CollectionJoinRequestStatus.Approved && request.RequesterUserId == recipientUserId
+                    ? Notification.Social(recipientUserId, type, actorUserId, collectionId, requestId, $"join-request-approved:{requestId}", createdAtUtc)
+                    : null;
+            default:
+                return request.Status == CollectionJoinRequestStatus.Rejected && request.RequesterUserId == recipientUserId
+                    ? Notification.Social(recipientUserId, type, actorUserId, collectionId, requestId, $"join-request-rejected:{requestId}", createdAtUtc)
+                    : null;
         }
     }
 

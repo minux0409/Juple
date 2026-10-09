@@ -121,6 +121,9 @@ public sealed class PublicCollectionWriteServiceTests
         public PublicShareState? State { get; set; }
 
         public Task<PublicShareState?> GetStateAsync(string publicId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(State is { IsPublic: true } ? State : null);
+
+        public Task<PublicShareState?> GetLinkStateAsync(string publicId, CancellationToken cancellationToken = default) =>
             Task.FromResult(State);
 
         public Task<PublicCollectionItemPage?> GetItemsAsync(string publicId, CollectionItemPageCursor? cursor, int limit, CancellationToken cancellationToken = default) =>

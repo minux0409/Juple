@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
+  ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
@@ -22,9 +23,11 @@ import {
   createCollection,
   getCollections,
   getMyPendingSubmissionTotal,
+  listMyJoinRequests,
   setCollectionFavorite,
   type Collection,
   type CollectionListScope,
+  type MyJoinRequest,
 } from '../collections/api/collectionsApi';
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
@@ -40,6 +43,7 @@ import { subscribeCollectionNewLinksRead } from '../notifications/notificationSt
 import { CollectionStatusBadges } from '../collections/CollectionStatusBadges';
 import { CategoryEditorDialog } from '../collections/CategoryEditorDialog';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { shareEntryTileKey } from '../collections/shareEntryTileKey';
 import { CollectionCardSkeleton } from '../collections/CollectionCardSkeleton';
 import { applyCollectionIconImageChange, getIconImageSaveErrorMessage, type CollectionIconImageChange } from '../collections/collectionIconImage';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
@@ -211,6 +215,9 @@ export function CollectionsScreen() {
   const [myPendingTotal, setMyPendingTotal] = useState(0);
   // 내 링크 승인 대기: a popup of those links (not a filter and not a screen).
   const [isMyPendingSheetVisible, setIsMyPendingSheetVisible] = useState(false);
+  // My own join requests waiting for an Owner (server state): drawn as dimmed "승인 대기 중" placeholders among my shared Collections.
+  // Not memberships - they open no Collection and offer no member action.
+  const [pendingJoins, setPendingJoins] = useState<readonly MyJoinRequest[]>([]);
 
   const loadRequestIdRef = useRef(0);
   // Guards onEndReached firing multiple times before state updates are visible to new calls.
@@ -243,6 +250,11 @@ export function CollectionsScreen() {
         }
         // Card metadata only - each card's photo loads when that card mounts (nothing is prefetched).
         setLists(previous => ({ ...previous, [target]: { items: page.items, nextCursor: page.nextCursor, isLoaded: true } }));
+        // The waiting requests are read AFTER the Collections: an approval in between can then only make a placeholder vanish a moment
+        // late or the real card appear a moment late - never both at once. A failure keeps what is shown.
+        listMyJoinRequests(authenticatedRequest)
+          .then(rows => { if (loadRequestIdRef.current === requestId) { setPendingJoins(rows); } })
+          .catch(() => undefined);
       } catch (caughtError) {
         if (loadRequestIdRef.current !== requestId) {
           return;
@@ -341,7 +353,7 @@ export function CollectionsScreen() {
     },
     // 새 링크 and 승인 요청 also change a card's attention badge, and a proposal's result (approved /
     // declined) changes the 내 승인 대기 chip (reactions/comments never do).
-    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered', 'collectionItemsAdded', 'collectionLinkSubmission', 'collectionLinkSubmissionApproved', 'collectionLinkSubmissionRejected'],
+    ['collectionContentChanged', 'collectionInvitation', 'collectionInvitationAnswered', 'collectionItemsAdded', 'collectionLinkSubmission', 'collectionLinkSubmissionApproved', 'collectionLinkSubmissionRejected', 'joinRequest', 'joinRequestApproved', 'joinRequestRejected'],
   );
 
   // Opening a Collection read its 새 링크: its card drops that part of the badge at once (its
@@ -557,6 +569,12 @@ export function CollectionsScreen() {
         ))}
       </View>
     );
+  // The placeholders belong with 전체 and 공유 컬렉션 (they are people-shared things I asked into), ahead of the loaded cards.
+  const listData: readonly (Collection | PendingJoinEntry)[] =
+    filter === 'all' || filter === 'shared'
+      ? [...pendingJoins.map<PendingJoinEntry>(join => ({ pendingJoin: join })), ...activeList.items]
+      : activeList.items;
+  const openPendingJoin = (join: MyJoinRequest) => navigation.navigate('SharedCollection', { publicId: join.publicId });
   const openCollection = (collection: Collection) =>
     navigation.navigate('CollectionDetails', { collectionId: collection.id });
   // Long-press on a card: 즐겨찾기 / 알림 / 수정 / 잠금 설정 / 앱 바로가기 / 삭제 or 나가기 (see useCollectionLongPressMenu). Edit, lock,
@@ -571,8 +589,8 @@ export function CollectionsScreen() {
       <FlatList
         key={viewMode}
         contentContainerStyle={styles.content}
-        data={activeList.items}
-        keyExtractor={collection => collection.id.toString()}
+        data={listData}
+        keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         refreshControl={
@@ -702,7 +720,9 @@ export function CollectionsScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => viewMode === 'grid' ? (
+        renderItem={({ item }) => 'pendingJoin' in item ? (
+          <PendingJoinCard join={item.pendingJoin} onPress={() => openPendingJoin(item.pendingJoin)} variant={viewMode} />
+        ) : viewMode === 'grid' ? (
           <CollectionTile
             collection={item}
             isFavoriteToggleDisabled={togglingFavoriteId !== null}
@@ -837,7 +857,58 @@ function CollectionTile({
   );
 }
 
+/** A waiting join request drawn among the Collections. */
+interface PendingJoinEntry {
+  readonly pendingJoin: MyJoinRequest;
+}
+
+/**
+ * "승인 대기 중": my own request to join a private Collection, waiting for its Owner. The Collection's normal look, dimmed, with a
+ * centered progress and a readable status - never the blue/active styling, no favorite, no menu, and tapping it does NOT open the
+ * Collection (it opens the private link's status screen). It is not a membership; it disappears once the request is answered.
+ */
+function PendingJoinCard({ join, onPress, variant }: { readonly join: MyJoinRequest; readonly onPress: () => void; readonly variant: 'grid' | 'list' }) {
+  const { t } = useTranslation();
+  const label = t('collections.joinPending');
+  const a11yLabel = `${join.name}, ${label}`;
+  if (variant === 'list') {
+    return (
+      <Pressable accessibilityLabel={a11yLabel} accessibilityRole="button" onPress={onPress} style={[styles.listRow, styles.pendingJoinRow]} testID={`collection-join-pending-${join.requestId}`}>
+        <View style={[styles.listIconSlot, styles.pendingJoinDim]}>
+          <CategoryIconTile collectionId={shareEntryTileKey(join.publicId)} color={join.color} icon={join.icon as Collection['icon']} imageUrl={join.iconImageUrl ?? null} imageVersion={join.iconImageVersion ?? null} size={48} />
+        </View>
+        <View style={styles.listText}>
+          <Text numberOfLines={2} style={[styles.listName, styles.pendingJoinName]}>{join.name}</Text>
+        </View>
+        <ActivityIndicator color={colors.textSecondary} size="small" />
+        <Text numberOfLines={2} style={styles.pendingJoinLabel}>{label}</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.gridCell}>
+      <Pressable accessibilityLabel={a11yLabel} accessibilityRole="button" onPress={onPress} style={styles.tilePressable} testID={`collection-join-pending-${join.requestId}`}>
+        <View style={styles.tileIconSlot}>
+          <View style={styles.pendingJoinDim}>
+            <CategoryIconTile collectionId={shareEntryTileKey(join.publicId)} color={join.color} icon={join.icon as Collection['icon']} imageUrl={join.iconImageUrl ?? null} imageVersion={join.iconImageVersion ?? null} size={56} />
+          </View>
+          <View pointerEvents="none" style={styles.pendingJoinOverlay}>
+            <ActivityIndicator color={colors.textSecondary} />
+          </View>
+        </View>
+        <Text numberOfLines={2} style={[styles.tileLabel, styles.pendingJoinName]}>{join.name}</Text>
+        <Text numberOfLines={2} style={styles.pendingJoinLabel}>{label}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  pendingJoinDim: { opacity: 0.45 },
+  pendingJoinOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
+  pendingJoinRow: { backgroundColor: colors.surfaceMuted },
+  pendingJoinName: { color: colors.textSecondary },
+  pendingJoinLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   safeArea: {
     backgroundColor: colors.background,
     flex: 1,

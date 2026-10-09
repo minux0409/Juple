@@ -83,4 +83,16 @@ public enum NotificationType : byte
     /// heart and the comment still exist and the recipient still belongs to the Collection.
     /// </summary>
     CommentLikeReceived = 16,
+
+    /// <summary>
+    /// Visible: someone asked to join the recipient's - the Owner's - Collection through its public link (CollectionId, SubjectId =
+    /// the join request id, ActorUserId = the requester). Sent only while the request still waits.
+    /// </summary>
+    JoinRequestReceived = 17,
+
+    /// <summary>Visible: the Owner approved the recipient's join request (CollectionId, SubjectId = the request id). The result of the recipient's own action.</summary>
+    JoinRequestApproved = 18,
+
+    /// <summary>Visible: the Owner declined the recipient's join request (CollectionId, SubjectId = the request id). The result of the recipient's own action.</summary>
+    JoinRequestRejected = 19,
 }

@@ -182,7 +182,7 @@ public sealed class CollectionCollaborationStore(
         CancellationToken cancellationToken)
     {
         var activePermission = await dbContext.CollectionShares
-            .Where(share => share.CollectionId == collectionId && share.IsActive)
+            .Where(share => share.CollectionId == collectionId && share.IsActive && share.IsPublic)
             .Select(share => (CollectionSharePermission?)share.Permission)
             .FirstOrDefaultAsync(cancellationToken);
         if (activePermission is { } permission && !PublicShareRoles.Allows(permission, role))
@@ -427,6 +427,13 @@ public sealed class CollectionCollaborationStore(
             dbContext.CollectionCollaborators.Add(new CollectionCollaborator(
                 collectionId, userId, invitation.Role, invitation.InvitedByUserId, nowUtc));
         }
+
+        // Now a member another way: a waiting join request of theirs has nothing left to decide.
+        await dbContext.CollectionJoinRequests
+            .Where(request => request.CollectionId == collectionId && request.RequesterUserId == userId && request.Status == CollectionJoinRequestStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(request => request.Status, CollectionJoinRequestStatus.Obsolete)
+                .SetProperty(request => request.ResolvedAtUtc, nowUtc), cancellationToken);
 
         try
         {

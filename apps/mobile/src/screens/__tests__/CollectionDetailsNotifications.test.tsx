@@ -1,6 +1,7 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
+import { JoinRequestsSheet } from '../../collections/JoinRequestsSheet';
 import { AppToastProvider } from '../../components/AppToast';
 import { CollectionDetailsScreen } from '../CollectionDetailsScreen';
 import { getCollection, getCollectionItemSections, getCollectionItems, type Collection } from '../../collections/api/collectionsApi';
@@ -155,5 +156,48 @@ describe('CollectionDetailsScreen - notifications', () => {
       initialFocus: 'comments',
     });
     expect(jest.mocked(navigation.navigate).mock.calls.filter(([name]) => name === 'ItemDetails')).toHaveLength(1);
+  });
+
+  describe('a 참여 요청 notification (openJoinRequests)', () => {
+    /** The 참여 요청 bottom sheet of the screen just rendered, and any navigation to a management screen (there is none any more). */
+    const sheetOf = () => ({ props: { visible: mounted[mounted.length - 1].root.findAllByType(JoinRequestsSheet).some(sheet => sheet.props.visible === true) } });
+    const managementNavigations = (navigation: Awaited<ReturnType<typeof renderScreen>>) =>
+      jest.mocked(navigation.navigate).mock.calls.filter(([name]) => name === 'CollectionJoinRequests' || name === 'CollectionShare');
+
+    it('an unlocked Collection of mine opens the 참여 요청 bottom sheet over it - once, with no navigation', async () => {
+      jest.mocked(getCollection).mockResolvedValue(collection({ accessRole: 'owner' }));
+      jest.mocked(markCollectionNewLinksRead).mockResolvedValue({ markedCount: 0, unreadCount: 0 });
+
+      const navigation = await renderScreen({ openJoinRequests: true });
+
+      expect(navigation.setParams).toHaveBeenCalledWith({ openJoinRequests: undefined });
+      expect(sheetOf().props.visible).toBe(true);
+      expect(managementNavigations(navigation)).toHaveLength(0);
+    });
+
+    it('behind its lock / share password the gate comes first and no sheet opens', async () => {
+      jest.mocked(getCollection).mockResolvedValue(collection({ accessRole: 'owner', isLocked: true }));
+      jest.mocked(getCollectionItemSections).mockRejectedValueOnce(new ApiError('forbidden', 403, 'collectionLocked'));
+      jest.mocked(getCollectionItems).mockRejectedValueOnce(new ApiError('forbidden', 403, 'collectionLocked'));
+
+      const navigation = await renderScreen({ openJoinRequests: true });
+
+      expect(sheetOf().props.visible).toBe(false);
+      expect(managementNavigations(navigation)).toHaveLength(0);
+      expect(navigation.setParams).not.toHaveBeenCalledWith({ openJoinRequests: undefined }); // still pending: it waits for the gate
+    });
+
+    it('a Collection that is gone, or not mine to manage, opens nothing', async () => {
+      jest.mocked(getCollection).mockRejectedValue(new ApiError('notFound', 404));
+      const gone = await renderScreen({ openJoinRequests: true });
+      expect(managementNavigations(gone)).toHaveLength(0);
+      expect(sheetOf().props.visible).toBe(false);
+
+      jest.mocked(getCollection).mockResolvedValue(collection({ accessRole: 'contributor' }));
+      jest.mocked(markCollectionNewLinksRead).mockResolvedValue({ markedCount: 0, unreadCount: 0 });
+      const member = await renderScreen({ openJoinRequests: true });
+      expect(managementNavigations(member)).toHaveLength(0);
+      expect(sheetOf().props.visible).toBe(false);
+    });
   });
 });

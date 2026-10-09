@@ -5,6 +5,7 @@ import { colors, radii } from '../../theme/tokens';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { ApprovalSubmissionSheet } from '../../collections/ApprovalSubmissionSheet';
+import { JoinRequestsSheet } from '../../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../../collections/CollectionParticipantsSheet';
 import { ParticipantAvatarStack } from '../../components/ParticipantAvatarStack';
 import { QuickReactionBar } from '../../reactions/QuickReactionBar';
@@ -1039,7 +1040,6 @@ describe('the public link\'s own surface carries no reactions at all', () => {
 
     expect(read('../SharedCollectionScreen.tsx')).not.toMatch(/reaction/i);
     expect(read('../../collections/api/publicCollectionsApi.ts')).not.toMatch(/reaction/i);
-    expect(read('../../collections/usePublicCollectionItems.ts')).not.toMatch(/reaction/i);
   });
 });
 
@@ -1629,6 +1629,87 @@ describe('CollectionDetailsScreen - 승인 대기 (links proposed for the Owner)
       .map(node => node.props.testID)
       .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
     expect(order).toEqual(['collection-details-title', 'collection-details-favorite', 'collection-details-pending', 'collection-sort-date']);
+  });
+
+  describe('참여 요청 N (people waiting to join) - a row of its own beside 받은 승인 요청', () => {
+    const joinEntry = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      header(renderer).root.findAll(node => node.props.testID === 'collection-details-join-requests' && typeof node.props.onPress === 'function')[0];
+
+    it('the Owner sees 참여 요청 N as a separate row of the same family - and both rows can be there together, each with its own number', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 4, pendingJoinRequestCount: 1 }));
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      const renderer = await renderScreen();
+
+      expect(pendingEntry(renderer).findByType(Text).props.children).toBe('받은 승인 요청 4');
+      const entry = joinEntry(renderer);
+      expect(entry.findByType(Text).props.children).toBe('참여 요청 1');
+      expect(entry.type).toBe(PendingActionRow);
+      expect(StyleSheet.flatten(rowStyle(entry))).toEqual(expect.objectContaining({ minHeight: 44, flexDirection: 'row' }));
+      // Order in the header: the link approvals, then the applicants, then the sort chips.
+      const order = header(renderer).root
+        .findAll(node => typeof node.type === 'string' && ['collection-details-pending', 'collection-details-join-requests', 'collection-sort-date'].includes(node.props.testID))
+        .map(node => node.props.testID)
+        .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index);
+      expect(order).toEqual(['collection-details-pending', 'collection-details-join-requests', 'collection-sort-date']);
+    });
+
+    it('it is hidden at zero, and for anyone but the Owner', async () => {
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 0 }));
+      expect(joinEntry(await renderScreen())).toBeUndefined();
+
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'contributor', hasCollaborators: true, pendingJoinRequestCount: 2 }));
+      expect(joinEntry(await renderScreen())).toBeUndefined();
+    });
+
+    it('it opens the 참여 요청 BOTTOM SHEET over the Collection - no navigation anywhere, and the approval popup stays closed', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingSubmissionCount: 2, pendingJoinRequestCount: 1 }));
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      const renderer = await renderScreen();
+      const entry = joinEntry(renderer);
+      const sheet = () => renderer.root.findByType(JoinRequestsSheet);
+      expect(sheet().props.visible).toBe(false);
+      mockNavigate.mockClear();
+
+      await act(async () => {
+        entry.props.onPress();
+      });
+
+      expect(sheet().props.visible).toBe(true);
+      expect(sheet().props.collectionId).toBe(COLLECTION_ID);
+      expect(sheet().props.expectedCount).toBe(1);
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(renderer.root.findAllByType(ApprovalSubmissionSheet).every(approval => approval.props.visible !== true)).toBe(true);
+
+      await act(async () => {
+        sheet().props.onClose();
+      });
+      expect(sheet().props.visible).toBe(false);
+    });
+
+    it('an answered applicant refreshes the Collection (count, row and badge source) without leaving it', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 1 }));
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      const renderer = await renderScreen();
+      const before = jest.mocked(getCollection).mock.calls.length;
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 0 }));
+
+      await act(async () => {
+        renderer.root.findByType(JoinRequestsSheet).props.onChanged();
+      });
+
+      expect(jest.mocked(getCollection).mock.calls.length).toBeGreaterThan(before);
+      expect(joinEntry(renderer)).toBeUndefined();
+    });
+
+    it('the Participants section holds no 참여 요청 - they are not participants yet', async () => {
+      jest.mocked(getCollection).mockResolvedValue(makeCollection({ accessRole: 'owner', hasCollaborators: true, pendingJoinRequestCount: 3 }));
+      jest.mocked(getCollectionItems).mockResolvedValue({ items: [mine], nextCursor: null });
+      const renderer = await renderScreen();
+
+      const participantsText = renderer.root.findAll(node => String(node.props.testID ?? '').startsWith('collection-details-participants')).flatMap(node => node.findAllByType(Text).map(text => String(text.props.children)));
+      expect(participantsText.join(' ')).not.toContain('참여 요청');
+    });
   });
 
   it('a link in a date section is framed by the very same accordion row History uses', async () => {

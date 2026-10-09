@@ -15,6 +15,7 @@ export type NotificationTargetKindWire =
   | 'collectionItem'
   | 'collectionSharedItem'
   | 'collectionSubmissions'
+  | 'collectionJoinRequests'
   | 'publicCollection'
   | 'unavailable';
 

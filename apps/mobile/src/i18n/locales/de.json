@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Diese Sammlung kann nicht mehr geöffnet werden. Bitte entferne ihr Symbol selbst vom Startbildschirm.",
     "homeShortcutAdd": "Verknüpfung zum Startbildschirm hinzufügen",
     "homeShortcutUnsupported": "Der Launcher dieses Geräts unterstützt keine Startbildschirm-Verknüpfungen.",
-    "homeShortcutLocked": "Eine gesperrte Sammlung verlangt auch vom Startbildschirm aus ihr Passwort. Sie wird nicht als Teilen-Ziel hinzugefügt."
+    "homeShortcutLocked": "Eine gesperrte Sammlung verlangt auch vom Startbildschirm aus ihr Passwort. Sie wird nicht als Teilen-Ziel hinzugefügt.",
+    "joinPending": "Wartet auf Genehmigung",
+    "joinRequestsA11y": "Anfragen {{count}}",
+    "joinRequests": "Anfragen {{count}}"
   },
   "toast": {
     "moveSuccess": "Verschoben.",
@@ -530,7 +533,28 @@
     "addDone": "Link hinzugefügt.",
     "addInvalidUrl": "Dieser Link kann nicht hinzugefügt werden.",
     "addNotAllowed": "Dieser Sammlung können gerade keine Links hinzugefügt werden.",
-    "addFallback": "Link konnte nicht hinzugefügt werden."
+    "addFallback": "Link konnte nicht hinzugefügt werden.",
+    "joinRequestAction": "Beitritt anfragen",
+    "joinRequestSentMessage": "Deine Anfrage wurde gesendet. Wir benachrichtigen dich, sobald der Eigentümer antwortet.",
+    "joinNotAllowed": "Diese Sammlung nimmt gerade keine neuen Teilnehmer auf.",
+    "joinLocked": "Diese Sammlung braucht ein Passwort, daher kannst du ihr gerade nicht beitreten.",
+    "joinFailed": "Das hat nicht geklappt. Bitte versuche es erneut.",
+    "lockedTitle": "Diese Sammlung ist gesperrt",
+    "lockedMessage": "Gib das Passwort ein, um diese Sammlung zu sehen.",
+    "passwordLabel": "Passwort",
+    "unlockAction": "Entsperren",
+    "wrongPassword": "Das Passwort ist nicht korrekt.",
+    "tooManyAttempts": "Zu viele Versuche. Bitte versuche es später erneut.",
+    "unlockFailed": "Entsperren hat nicht geklappt. Bitte versuche es erneut.",
+    "privateQuestion": "Möchtest du dieser Sammlung beitreten?",
+    "privateHint": "Sobald der Eigentümer zustimmt, wirst du Teilnehmer und kannst die Sammlung sehen.",
+    "privateSignIn": "Melde dich bei Juple an, um den Beitritt anzufragen.",
+    "joinPendingTitle": "Wartet auf Genehmigung",
+    "joinPendingMessage": "Wir benachrichtigen dich, sobald der Eigentümer zustimmt.",
+    "addTitle": "Sammlung hinzufügen",
+    "requestTitle": "Beitritt anfragen",
+    "requestSend": "Anfragen",
+    "signInRequired": "Melde dich bei Juple an, um diese Sammlung hinzuzufügen oder den Beitritt anzufragen."
   },
   "quickSaveComposer": {
     "titleLabel": "Titel",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} ausgewählt",
     "addPersonToInviteList": "{{name}} zur Einladungsliste hinzufügen",
     "publicInfo": "Jeder, der den Link der Sammlung kennt, kann darauf zugreifen.\nDu kannst eine gemeinsame Berechtigung für alle festlegen, die darüber zugreifen, und direkt eingeladenen Personen separat eine höhere Berechtigung geben.\nBerechtigungen lassen sich auch in der Teilnehmerliste ändern.",
-    "publicInfoA11y": "Info zur öffentlichen Sammlung"
+    "publicInfoA11y": "Info zur öffentlichen Sammlung",
+    "requestsEmpty": "Keine Beitrittsanfragen offen.",
+    "joinRequestApprove": "Genehmigen",
+    "joinRequestReject": "Ablehnen",
+    "joinRequestApproveA11y": "Anfrage von {{name}} genehmigen",
+    "joinRequestRejectA11y": "Anfrage von {{name}} ablehnen",
+    "joinRequestApproveTitle": "Diese Anfrage genehmigen?",
+    "joinRequestApproveMessage": "{{name}} wird Teilnehmer dieser Sammlung.",
+    "joinRequestRejectTitle": "Diese Anfrage ablehnen?",
+    "joinRequestRejectMessage": "Die Anfrage von {{name}} wird abgelehnt. Später kann erneut angefragt werden.",
+    "joinRequestNotActionable": "Diese Anfrage kann nicht mehr bearbeitet werden.",
+    "allUsersPrivateDescription": "Wer den Link erhält, kann den Beitritt zur Sammlung anfragen.",
+    "joinRequestsTitle": "Anfragen"
   },
   "linkShare": {
     "description": "Gib den Link zur öffentlichen Sammlung weiter. Empfänger werden dadurch nicht Teilnehmer dieser Sammlung.",

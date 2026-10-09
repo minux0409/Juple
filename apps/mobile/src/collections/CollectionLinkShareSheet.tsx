@@ -10,7 +10,7 @@ import { FriendPickerModal, type FriendUnavailableReason } from '../friends/Frie
 import { CloseIcon } from '../icons/CloseIcon';
 import { ShareIcon } from '../icons/ShareIcon';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
-import { formatJupleId, lookupJupleId, personLabel } from './api/collaborationApi';
+import { formatJupleId, getCollectionParticipants, lookupJupleId, personLabel } from './api/collaborationApi';
 import { MAX_LINK_SHARE_RECIPIENTS, sendCollectionShareLink } from './api/collectionsApi';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
 
@@ -67,6 +67,9 @@ export function CollectionLinkShareSheet({
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  // Who already belongs to this Collection (its Owner, every member) or holds a pending invitation: never a candidate. The server re-checks
+  // at send time, so a stale list here can only ever cost a skipped name, never a link sent to a member.
+  const [inside, setInside] = useState<ReadonlyMap<string, FriendUnavailableReason>>(() => new Map());
 
   // Every opening starts clean.
   useEffect(() => {
@@ -79,6 +82,28 @@ export function CollectionLinkShareSheet({
     }
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible) {
+      return undefined;
+    }
+    let active = true;
+    getCollectionParticipants(authenticatedRequest, collectionId)
+      .then(loaded => {
+        if (!active) {
+          return;
+        }
+        const next = new Map<string, FriendUnavailableReason>();
+        loaded.pendingInvitations.forEach(invitation => next.set(normalizeJupleId(invitation.jupleId), 'pending'));
+        loaded.participants.forEach(participant => next.set(normalizeJupleId(participant.jupleId), 'member'));
+        setInside(next);
+      })
+      // Best-effort: without the list the picker offers everyone and the server still skips whoever is inside.
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [authenticatedRequest, collectionId, visible]);
+
   const hasRoomFor = (count: number) => {
     if (recipients.length + count > MAX_LINK_SHARE_RECIPIENTS) {
       setSendError(t('linkShare.limit', { max: MAX_LINK_SHARE_RECIPIENTS }));
@@ -89,7 +114,7 @@ export function CollectionLinkShareSheet({
 
   const addFriends = (picked: readonly { jupleId: string; displayName: string | null; profileImageUrl?: string | null; profileImageVersion?: string | null }[]) => {
     setIsPickingFriends(false);
-    const fresh = picked.filter(friend => !recipients.some(recipient => recipient.jupleId === friend.jupleId));
+    const fresh = picked.filter(friend => !recipients.some(recipient => recipient.jupleId === friend.jupleId) && !inside.has(normalizeJupleId(friend.jupleId)));
     if (!hasRoomFor(fresh.length)) {
       return;
     }
@@ -127,6 +152,11 @@ export function CollectionLinkShareSheet({
         setIdError(t('linkShare.cannotSendSelf'));
         return;
       }
+      const alreadyInside = inside.get(normalizeJupleId(found.jupleId));
+      if (alreadyInside) {
+        setIdError(alreadyInside === 'pending' ? t('collaboration.invitationAlreadyPending') : t('collaboration.alreadyCollaborator'));
+        return;
+      }
       setRecipients(previous => previous.some(recipient => recipient.jupleId === found.jupleId)
         ? previous
         : [...previous, {
@@ -158,8 +188,23 @@ export function CollectionLinkShareSheet({
     setSendError(null);
     try {
       const result = await sendCollectionShareLink(authenticatedRequest, collectionId, recipients.map(recipient => recipient.jupleId));
-      if (result.notFound.length === 0) {
+      const skipped = new Set((result.skipped ?? []).map(normalizeJupleId));
+      if (result.notFound.length === 0 && skipped.size === 0) {
         onSent(result.sent.length);
+        return;
+      }
+      if (skipped.size > 0) {
+        // The server skipped people who are inside (the list was stale): they stay listed with the reason, the rest were sent.
+        const notFoundSet = new Set(result.notFound.map(normalizeJupleId));
+        setRecipients(previous => previous
+          .filter(recipient => notFoundSet.has(recipient.jupleId) || skipped.has(recipient.jupleId))
+          .map(recipient => ({
+            ...recipient,
+            error: skipped.has(recipient.jupleId) ? t('collaboration.alreadyCollaborator') : t('collaboration.lookupNotFound'),
+          })));
+        if (result.sent.length > 0) {
+          setSendError(t('linkShare.sent', { count: result.sent.length }));
+        }
         return;
       }
       // Some IDs belong to nobody any more: those stay listed with their reason; the rest were sent.
@@ -185,7 +230,7 @@ export function CollectionLinkShareSheet({
     }
   };
 
-  const unavailable = new Map<string, FriendUnavailableReason>(recipients.map(recipient => [recipient.jupleId, 'added']));
+  const unavailable = new Map<string, FriendUnavailableReason>([...inside, ...recipients.map(recipient => [recipient.jupleId, 'added'] as const)]);
   // Dragging the sheet down closes it, exactly like X / the backdrop / back (onClose).
   const isOpen = visible && !isPickingFriends;
   const isOpenRef = useRef(isOpen);

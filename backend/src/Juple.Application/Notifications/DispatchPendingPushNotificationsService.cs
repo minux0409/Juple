@@ -65,6 +65,7 @@ public sealed class DispatchPendingPushNotificationsService(
         var data = new Dictionary<string, string>();
         var opensPublicLink = notification.Type == NotificationType.CollectionLinkShared
             || (notification.Type is NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected
+                or NotificationType.JoinRequestRejected
                 && !context.RecipientBelongs);
         if (opensPublicLink)
         {

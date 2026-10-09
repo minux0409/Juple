@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Koleksi ini tidak dapat dibuka lagi. Hapus sendiri ikonnya dari layar Utama.",
     "homeShortcutAdd": "Tambahkan pintasan ke layar Utama",
     "homeShortcutUnsupported": "Launcher perangkat ini tidak mendukung penambahan pintasan ke layar Utama.",
-    "homeShortcutLocked": "Koleksi yang dikunci tetap meminta kata sandi saat dibuka dari layar Utama. Koleksi ini tidak ditambahkan sebagai tujuan berbagi."
+    "homeShortcutLocked": "Koleksi yang dikunci tetap meminta kata sandi saat dibuka dari layar Utama. Koleksi ini tidak ditambahkan sebagai tujuan berbagi.",
+    "joinPending": "Menunggu persetujuan",
+    "joinRequestsA11y": "Permintaan {{count}}",
+    "joinRequests": "Permintaan {{count}}"
   },
   "toast": {
     "moveSuccess": "Dipindahkan.",
@@ -530,7 +533,28 @@
     "addDone": "Tautan ditambahkan.",
     "addInvalidUrl": "Tautan ini tidak dapat ditambahkan.",
     "addNotAllowed": "Saat ini tautan tidak dapat ditambahkan ke koleksi ini.",
-    "addFallback": "Tidak dapat menambahkan tautan."
+    "addFallback": "Tidak dapat menambahkan tautan.",
+    "joinRequestAction": "Minta bergabung",
+    "joinRequestSentMessage": "Permintaan Anda terkirim. Kami akan memberi tahu saat pemilik menjawab.",
+    "joinNotAllowed": "Koleksi ini sedang tidak menerima peserta baru.",
+    "joinLocked": "Koleksi ini memerlukan kata sandi, jadi saat ini Anda tidak bisa bergabung.",
+    "joinFailed": "Tidak dapat menyelesaikannya. Coba lagi.",
+    "lockedTitle": "Koleksi ini terkunci",
+    "lockedMessage": "Masukkan kata sandi untuk melihat koleksi ini.",
+    "passwordLabel": "Kata sandi",
+    "unlockAction": "Buka kunci",
+    "wrongPassword": "Kata sandi tidak benar.",
+    "tooManyAttempts": "Terlalu banyak percobaan. Coba lagi nanti.",
+    "unlockFailed": "Tidak dapat membuka kunci. Coba lagi.",
+    "privateQuestion": "Ingin bergabung dengan koleksi ini?",
+    "privateHint": "Setelah pemilik menyetujui, kamu menjadi peserta dan dapat melihat koleksi.",
+    "privateSignIn": "Masuk ke Juple untuk meminta bergabung.",
+    "joinPendingTitle": "Menunggu persetujuan",
+    "joinPendingMessage": "Kami akan memberi tahu saat pemilik menyetujui.",
+    "addTitle": "Tambahkan koleksi",
+    "requestTitle": "Minta bergabung",
+    "requestSend": "Minta",
+    "signInRequired": "Masuk ke Juple untuk menambahkan koleksi ini atau meminta bergabung."
   },
   "quickSaveComposer": {
     "titleLabel": "Judul",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} dipilih",
     "addPersonToInviteList": "Tambahkan {{name}} ke daftar undangan",
     "publicInfo": "Siapa pun yang mengetahui tautan koleksi dapat mengaksesnya.\nAnda dapat menetapkan izin umum untuk pengguna yang mengakses, dan memberi izin yang lebih tinggi secara terpisah kepada pengguna yang diundang langsung.\nIzin juga dapat diubah di daftar peserta.",
-    "publicInfoA11y": "Tentang koleksi publik"
+    "publicInfoA11y": "Tentang koleksi publik",
+    "requestsEmpty": "Tidak ada permintaan bergabung yang menunggu.",
+    "joinRequestApprove": "Setujui",
+    "joinRequestReject": "Tolak",
+    "joinRequestApproveA11y": "Setujui permintaan {{name}}",
+    "joinRequestRejectA11y": "Tolak permintaan {{name}}",
+    "joinRequestApproveTitle": "Setujui permintaan ini?",
+    "joinRequestApproveMessage": "{{name}} akan menjadi peserta koleksi ini.",
+    "joinRequestRejectTitle": "Tolak permintaan ini?",
+    "joinRequestRejectMessage": "Permintaan {{name}} akan ditolak. Mereka bisa meminta lagi nanti.",
+    "joinRequestNotActionable": "Permintaan ini tidak dapat diproses lagi.",
+    "allUsersPrivateDescription": "Orang yang menerima tautan dapat meminta bergabung ke koleksi.",
+    "joinRequestsTitle": "Permintaan"
   },
   "linkShare": {
     "description": "Teruskan tautan koleksi publik. Penerima tidak menjadi peserta koleksi ini.",

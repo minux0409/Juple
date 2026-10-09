@@ -79,6 +79,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
             "ALTER TABLE [collections].[CollectionItems] ADD [AddedViaPublicShare] bit NOT NULL CONSTRAINT [DF_RollingDeploy_AddedViaPublicShare] DEFAULT CAST(0 AS bit)");
         await ExecuteAsync(
             "ALTER TABLE [collections].[CollectionItems] ADD [VisibleSinceUtc] datetimeoffset NOT NULL CONSTRAINT [DF_RollingDeploy_VisibleSinceUtc] DEFAULT SYSUTCDATETIME()");
+        await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] ADD [IsPublic] bit NOT NULL CONSTRAINT [DF_RollingDeploy_IsPublic] DEFAULT CAST(1 AS bit)");
         await using (var db = NewContext())
         {
             var store = new CollectionStore(db);
@@ -95,6 +96,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
                 $"SELECT [AddedByUserId] AS [Value] FROM [collections].[CollectionItems] WHERE [CollectionId] = {collection} AND [ItemId] = {newItem}"));
         }
 
+        await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] DROP CONSTRAINT [DF_RollingDeploy_IsPublic]; ALTER TABLE [collections].[CollectionShares] DROP COLUMN [IsPublic]");
         await ExecuteAsync(
             "ALTER TABLE [collections].[CollectionItems] DROP CONSTRAINT [DF_RollingDeploy_AddedViaPublicShare]; ALTER TABLE [collections].[CollectionItems] DROP COLUMN [AddedViaPublicShare]");
         await ExecuteAsync(
@@ -172,6 +174,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // (a later nullable column - the caller's unread 새 링크 count on each card): all are added here the
         // way those migrations add them and given back before the real migrations run in step 10.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] ADD [IconImageBlobName] nvarchar(400) NULL");
+        await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] ADD [IsPublic] bit NOT NULL CONSTRAINT [DF_RollingDeploy_IsPublic] DEFAULT CAST(1 AS bit)");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] ADD [CollectionId] bigint NULL");
         await ExecuteAsync(
             """
@@ -179,6 +182,13 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
                 [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [CollectionId] bigint NOT NULL, [Mode] varchar(20) NOT NULL,
                 [PasswordHash] nvarchar(512) NULL, [EncryptedPassword] varchar(512) NULL, [PasswordVersion] int NOT NULL,
                 [CreatedAtUtc] datetimeoffset NOT NULL, [UpdatedAtUtc] datetimeoffset NOT NULL)
+            """);
+        // ...and CollectionJoinRequests (AddCollectionJoinRequestsAndShareJoinMode - the Owner's 참여 요청 count on the Collection card).
+        await ExecuteAsync(
+            """
+            CREATE TABLE [collections].[CollectionJoinRequests] (
+                [Id] bigint NOT NULL IDENTITY PRIMARY KEY, [CollectionId] bigint NOT NULL, [RequesterUserId] bigint NOT NULL,
+                [Status] varchar(10) NOT NULL, [CreatedAtUtc] datetimeoffset NOT NULL, [ResolvedAtUtc] datetimeoffset NULL, [ResolvedByUserId] bigint NULL)
             """);
         await ExecuteAsync(
             """
@@ -227,8 +237,10 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // legacy column (the stale backfilled row of the un-starred Collection goes, the
         // legacy-only star gets its row) and leaves the Contributor's row alone.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] DROP COLUMN [IconImageBlobName]");
+        await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] DROP CONSTRAINT [DF_RollingDeploy_IsPublic]; ALTER TABLE [collections].[CollectionShares] DROP COLUMN [IsPublic]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionSharePasswords]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionLinkSubmissions]");
+        await ExecuteAsync("DROP TABLE [collections].[CollectionJoinRequests]");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] DROP COLUMN [CollectionId]");
         await MigrateToAsync(null);
         Assert.False(await HasFavoriteRowAsync(owner, unstarredLater));

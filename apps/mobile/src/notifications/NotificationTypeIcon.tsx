@@ -49,9 +49,13 @@ function renderGlyph(type: string | null, size: number, color: string) {
       return <HeartIcon color={color} filled size={size} />;
     case 'collectionLinkSubmission':
       return <FolderIcon color={color} size={size} />;
+    case 'joinRequest':
+      return <PeopleIcon color={color} size={size} />;
     case 'collectionLinkSubmissionApproved':
+    case 'joinRequestApproved':
       return <CheckIcon color={color} size={size} />;
     case 'collectionLinkSubmissionRejected':
+    case 'joinRequestRejected':
       return <CloseIcon color={color} size={size} />;
     default:
       return <BellIcon color={color} size={size} />;

@@ -14,6 +14,7 @@ public sealed class CollectionNotificationDeliveryPolicyTests
         NotificationType.CommentReplyReceived,
         NotificationType.CommentLikeReceived,
         NotificationType.CollectionLinkSubmissionReceived,
+        NotificationType.JoinRequestReceived,
     };
 
     [Theory]
@@ -29,6 +30,8 @@ public sealed class CollectionNotificationDeliveryPolicyTests
     [InlineData(NotificationType.CollectionLinkShared)]
     [InlineData(NotificationType.CollectionLinkSubmissionApproved)]
     [InlineData(NotificationType.CollectionLinkSubmissionRejected)]
+    [InlineData(NotificationType.JoinRequestApproved)]
+    [InlineData(NotificationType.JoinRequestRejected)]
     [InlineData(NotificationType.CollectionContentChanged)]
     [InlineData(NotificationType.CollectionInvitationAnswered)]
     [InlineData(NotificationType.RepeatPurchaseDue)]

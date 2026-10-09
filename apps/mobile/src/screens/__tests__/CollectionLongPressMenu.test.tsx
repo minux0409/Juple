@@ -7,6 +7,7 @@ import {
   getCollectionNotificationPreference,
   getCollections,
   getMyPendingSubmissionTotal,
+  listMyJoinRequests,
   setCollectionFavorite,
   setCollectionNotificationPreference,
   type Collection,
@@ -77,6 +78,7 @@ beforeEach(() => {
   maxShortcuts = 4;
   jest.clearAllMocks();
   jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(0);
+  jest.mocked(listMyJoinRequests).mockResolvedValue([]);
   jest.mocked(getCollectionNotificationPreference).mockResolvedValue({ newItemNotificationsEnabled: true });
   jest.mocked(setCollectionNotificationPreference).mockResolvedValue(undefined as never);
   jest.mocked(native.getPinnedCollectionShortcuts).mockImplementation(async () => stored);

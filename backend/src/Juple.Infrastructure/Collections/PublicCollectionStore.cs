@@ -15,13 +15,17 @@ namespace Juple.Infrastructure.Collections;
 /// </summary>
 public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCollectionShareStore
 {
-    public async Task<PublicShareState?> GetStateAsync(
-        string publicId,
-        CancellationToken cancellationToken = default)
+    public Task<PublicShareState?> GetStateAsync(string publicId, CancellationToken cancellationToken = default) =>
+        QueryStateAsync(publicId, publicOnly: true, cancellationToken);
+
+    public Task<PublicShareState?> GetLinkStateAsync(string publicId, CancellationToken cancellationToken = default) =>
+        QueryStateAsync(publicId, publicOnly: false, cancellationToken);
+
+    private async Task<PublicShareState?> QueryStateAsync(string publicId, bool publicOnly, CancellationToken cancellationToken)
     {
         return await (
             from share in dbContext.CollectionShares.AsNoTracking()
-            where share.PublicId == publicId && share.IsActive
+            where share.PublicId == publicId && share.IsActive && (!publicOnly || share.IsPublic)
             join collection in dbContext.Collections.AsNoTracking()
                 on share.CollectionId equals collection.Id
             where collection.DeletedAtUtc == null
@@ -37,7 +41,14 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
                 collection.LockVersion,
                 share.Permission,
                 sharePassword == null ? CollectionSharePasswordMode.None : sharePassword.Mode,
-                sharePassword == null ? 0 : sharePassword.PasswordVersion)
+                sharePassword == null ? 0 : sharePassword.PasswordVersion,
+                share.IsPublic,
+                // The Collection's own look for the add / request dialogs - never a picture or content.
+                collection.Icon.ToString(),
+                collection.Color,
+                // Server-side only (never serialized): the Collection's OWN icon photo is signed for its Owner's prefix by the service.
+                collection.UserId,
+                collection.IconImageBlobName)
         ).FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -49,7 +60,7 @@ public sealed class PublicCollectionStore(JupleDbContext dbContext) : IPublicCol
     {
         var activeShare = await (
             from share in dbContext.CollectionShares.AsNoTracking()
-            where share.PublicId == publicId && share.IsActive
+            where share.PublicId == publicId && share.IsActive && share.IsPublic
             join collection in dbContext.Collections.AsNoTracking().Where(collection => collection.DeletedAtUtc == null)
                 on share.CollectionId equals collection.Id
             select new { share.CollectionId, OwnerUserId = collection.UserId })

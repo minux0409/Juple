@@ -147,6 +147,20 @@ export function PendingSubmissionCard({ row, variant, trailing, actionStrip, emb
 }
 
 /**
+ * The card SHELL and action-strip layout of the waiting popups, for content that is not a link - e.g. a person asking to join a Collection
+ * (JoinRequestsSheet): the same frame, padding, hairline border, radius and the full-width strip of equal zones under a hairline.
+ * It carries no link content (no thumbnail, title or host); the caller supplies its own information and strip.
+ */
+export function PendingActionCardShell({ children, actionStrip, testID }: { readonly children: ReactNode; readonly actionStrip?: ReactNode; readonly testID?: string }) {
+  return (
+    <View style={styles.card} testID={testID}>
+      <View style={styles.top}>{children}</View>
+      {actionStrip ? <View style={styles.actionStrip}>{actionStrip}</View> : null}
+    </View>
+  );
+}
+
+/**
  * Where a card is about to appear, inside the sheet's final geometry (same frame, thumbnail and line
  * heights), so the sheet opens at its real size and the cards land in place instead of the sheet
  * resizing. Static, hidden from accessibility.

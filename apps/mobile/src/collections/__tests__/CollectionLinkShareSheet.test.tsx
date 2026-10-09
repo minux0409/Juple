@@ -4,7 +4,7 @@ import i18n from '../../i18n';
 import { ApiError } from '../../api/ApiError';
 import { FriendPickerModal } from '../../friends/FriendPickerModal';
 import { CollectionLinkShareSheet } from '../CollectionLinkShareSheet';
-import { lookupJupleId } from '../api/collaborationApi';
+import { getCollectionParticipants, lookupJupleId } from '../api/collaborationApi';
 import { sendCollectionShareLink } from '../api/collectionsApi';
 import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
 import { StyleSheet } from 'react-native';
@@ -15,6 +15,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../api/collaborationApi', () => ({
   ...jest.requireActual('../api/collaborationApi'),
   lookupJupleId: jest.fn(),
+  getCollectionParticipants: jest.fn(),
 }));
 jest.mock('../api/collectionsApi', () => ({
   sendCollectionShareLink: jest.fn(),
@@ -26,6 +27,10 @@ jest.mock('../../friends/api/friendsApi', () => ({
 
 beforeAll(async () => {
   await i18n.changeLanguage('ko');
+});
+
+beforeEach(() => {
+  jest.mocked(getCollectionParticipants).mockResolvedValue({ participants: [], pendingInvitations: [], canManage: false });
 });
 
 afterEach(() => jest.clearAllMocks());
@@ -141,6 +146,80 @@ describe('CollectionLinkShareSheet', () => {
     expect(callbacks.onSent).not.toHaveBeenCalled();
     expect(exists(renderer, 'link-share-recipient-AAAA2345')).toBe(false);
     expect(textOf(renderer, 'link-share-recipient-error-CCCC2345')).toBe(i18n.t('collaboration.lookupNotFound'));
+  });
+
+  describe('nobody who already belongs is a candidate', () => {
+    const inside = {
+      participants: [
+        { jupleId: 'OWNR2345', displayName: '주인', role: 'owner', isMe: false },
+        { jupleId: 'VIEW2345', displayName: '보기', role: 'viewer', isMe: false },
+        { jupleId: 'SUBM2345', displayName: '제안', role: 'submitter', isMe: false },
+        { jupleId: 'CNTR2345', displayName: '작성', role: 'contributor', isMe: false },
+      ],
+      pendingInvitations: [{ invitationId: 9, jupleId: 'INVT2345', displayName: '초대중', role: 'Viewer', expiresAtUtc: '' }],
+      canManage: false,
+    };
+
+    it('the friend picker marks the Owner, every member role and a pending invitee as unavailable - a plain friend stays eligible', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(inside as never);
+      const { renderer } = await renderSheet();
+
+      const unavailable = renderer.root.findByType(FriendPickerModal).props.unavailable as ReadonlyMap<string, string>;
+      expect(unavailable.get('OWNR2345')).toBe('member');
+      expect(unavailable.get('VIEW2345')).toBe('member');
+      expect(unavailable.get('SUBM2345')).toBe('member');
+      expect(unavailable.get('CNTR2345')).toBe('member');
+      expect(unavailable.get('INVT2345')).toBe('pending');
+      expect(unavailable.has('FRND2345')).toBe(false);
+    });
+
+    it('a stale confirm of the picker never lists someone who is inside', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(inside as never);
+      const { renderer } = await renderSheet();
+      await act(async () => byId(renderer, 'link-share-choose-friends').props.onPress());
+
+      await act(async () => renderer.root.findByType(FriendPickerModal).props.onConfirm([
+        { jupleId: 'OWNR2345', displayName: '주인', friendshipId: 1, myNote: null, friendsSinceUtc: '' },
+        { jupleId: 'FRND2345', displayName: '친구', friendshipId: 2, myNote: null, friendsSinceUtc: '' },
+      ]));
+
+      expect(exists(renderer, 'link-share-recipient-OWNR2345')).toBe(false);
+      expect(exists(renderer, 'link-share-recipient-FRND2345')).toBe(true);
+    });
+
+    it('typing the ID of someone inside says so and lists nobody', async () => {
+      jest.mocked(getCollectionParticipants).mockResolvedValue(inside as never);
+      jest.mocked(lookupJupleId).mockResolvedValue({ jupleId: 'VIEW2345', isSelf: false, displayName: '보기' });
+      const { renderer } = await renderSheet();
+
+      await addId(renderer, 'view-2345');
+
+      expect(textOf(renderer, 'link-share-id-error')).toBe(i18n.t('collaboration.alreadyCollaborator'));
+      expect(exists(renderer, 'link-share-recipient-VIEW2345')).toBe(false);
+    });
+
+    it('the server has the last word: someone it skipped stays listed with the reason, the rest were sent', async () => {
+      jest.mocked(lookupJupleId)
+        .mockResolvedValueOnce({ jupleId: 'AAAA2345', isSelf: false })
+        .mockResolvedValueOnce({ jupleId: 'LATE2345', isSelf: false });
+      jest.mocked(sendCollectionShareLink).mockResolvedValue({ sent: ['AAAA2345'], notFound: [], skipped: ['LATE2345'] });
+      const { renderer, callbacks } = await renderSheet();
+      await addId(renderer, 'AAAA2345');
+      await addId(renderer, 'LATE2345');
+
+      await act(async () => byId(renderer, 'link-share-send').props.onPress());
+
+      expect(callbacks.onSent).not.toHaveBeenCalled();
+      expect(exists(renderer, 'link-share-recipient-AAAA2345')).toBe(false);
+      expect(textOf(renderer, 'link-share-recipient-error-LATE2345')).toBe(i18n.t('collaboration.alreadyCollaborator'));
+    });
+
+    it('a failed participants lookup does not block the sheet', async () => {
+      jest.mocked(getCollectionParticipants).mockRejectedValue(new Error('network'));
+      const { renderer } = await renderSheet();
+
+      expect((renderer.root.findByType(FriendPickerModal).props.unavailable as ReadonlyMap<string, string>).size).toBe(0);
+    });
   });
 
   it('all sent: reports how many; the link turned off meanwhile: reports that instead - nothing was sent', async () => {

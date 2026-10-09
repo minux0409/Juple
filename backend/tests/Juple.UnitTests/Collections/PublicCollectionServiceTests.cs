@@ -51,6 +51,147 @@ public sealed class PublicCollectionServiceTests
     }
 
     [Fact]
+    public async Task APrivateLink_AnswersWithItsNameOnly_AndNeverServesItsItems()
+    {
+        var (service, store, _) = Create();
+        store.State = store.State! with { IsPublic = false, Permission = Juple.Domain.Collections.CollectionSharePermission.Write };
+
+        var collection = await service.GetCollectionAsync("abc123");
+
+        // The name (for "이 컬렉션에 참여하시겠습니까?") and the lock flag - no permission, and the link is marked private.
+        Assert.Equal(new PublicCollectionDto("Books to read", false, null, IsPublic: false), collection);
+        Assert.Null(await service.GetItemsAsync("abc123", null, 20));
+        Assert.Null(store.LastGetItemsPublicId); // the item query was never even reached
+    }
+
+    [Fact]
+    public async Task APrivateLinkPayload_CarriesOnlyTheNameAndTheCollectionsLook_NothingOfItsContent()
+    {
+        var (service, store, _) = Create();
+        store.State = store.State! with { IsPublic = false, Icon = "Folder", Color = "#3366FF" };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(await service.GetCollectionAsync("abc123"), new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web));
+        var keys = System.Text.Json.JsonDocument.Parse(json).RootElement.EnumerateObject().Select(property => property.Name).Order().ToList();
+
+        Assert.Equal(["color", "icon", "iconImageUrl", "iconImageVersion", "isLocked", "isPublic", "name", "permission"], keys);
+        Assert.Contains("\"isPublic\":false", json);
+        Assert.Contains("\"permission\":null", json);
+        foreach (var forbidden in new[] { "items", "\"url\"", "memo", "member", "preview", "title", "addedBy", "collectionId", "publicId" })
+        {
+            Assert.DoesNotContain(forbidden, json, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private sealed class FakeIconStorage(Uri? url) : Juple.Application.Collections.SetCollectionIconImage.ICollectionIconImageStorage
+    {
+        public (long Owner, string Blob)? LastSigned { get; private set; }
+
+        public Task<string> UploadCollectionIconAsync(long ownerUserId, long collectionId, Juple.Application.Images.ImageFormat format, byte[] content, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task DeleteCollectionIconAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+
+        public Task<Uri?> CreateCollectionIconReadUrlAsync(long ownerUserId, string blobName, CancellationToken cancellationToken = default)
+        {
+            LastSigned = (ownerUserId, blobName);
+            return Task.FromResult(url);
+        }
+    }
+
+    private static PublicCollectionService WithIconStorage(FakeStore store, FakeIconStorage storage)
+    {
+        var locks = new InMemoryCollectionLockStore();
+        locks.Unlocked(CollectionId);
+        return new PublicCollectionService(
+            store, locks, new CollectionPasswordVerifier(locks, new FakePasswordHasher()), new FakeUnlockTokenProtector(), new MutableTimeProvider(Now), null, storage);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task TheCollectionsOwnPhoto_IsSignedForItsOwner_ForPublicAndPrivateLinksAlike_WithTheSameVersionTheListUses(bool isPublic)
+    {
+        var store = new FakeStore { State = new PublicShareState(ShareId, CollectionId, "Books to read", false, 1, IsPublic: isPublic, Icon: "Folder", Color: "blue", OwnerUserId: 9, IconImageBlobName: "items/9/collections/5/cover-1.jpg") };
+        var storage = new FakeIconStorage(new Uri("https://blob.test/cover?sig=abc"));
+
+        var collection = await WithIconStorage(store, storage).GetCollectionAsync("abc123");
+
+        Assert.Equal("https://blob.test/cover?sig=abc", collection!.IconImageUrl);
+        Assert.Equal(Juple.Application.Collections.SetCollectionIconImage.CollectionIconImageVersion.From("items/9/collections/5/cover-1.jpg"), collection.IconImageVersion);
+        Assert.Equal((9L, "items/9/collections/5/cover-1.jpg"), storage.LastSigned);
+        // The blob name and the owner id never leave the server.
+        var json = System.Text.Json.JsonSerializer.Serialize(collection);
+        Assert.DoesNotContain("cover-1.jpg", json);
+        Assert.DoesNotContain("OwnerUserId", json);
+    }
+
+    [Fact]
+    public async Task ACollectionWithoutAPhoto_OrWhoseUrlCannotBeSigned_FallsBackToIconAndColor_NeverToAnItemImage()
+    {
+        var withoutPhoto = new FakeStore { State = new PublicShareState(ShareId, CollectionId, "Books to read", false, 1, Icon: "Folder", Color: "blue", OwnerUserId: 9) };
+        var storage = new FakeIconStorage(new Uri("https://blob.test/never"));
+        var plain = await WithIconStorage(withoutPhoto, storage).GetCollectionAsync("abc123");
+        Assert.Null(plain!.IconImageUrl);
+        Assert.Null(plain.IconImageVersion);
+        Assert.Null(storage.LastSigned); // nothing was even asked of storage
+
+        var unsignable = new FakeStore { State = withoutPhoto.State! with { IconImageBlobName = "items/9/collections/5/cover-1.jpg" } };
+        var fallback = await WithIconStorage(unsignable, new FakeIconStorage(null)).GetCollectionAsync("abc123");
+        Assert.Null(fallback!.IconImageUrl);
+        Assert.Equal("Folder", fallback.Icon);
+    }
+
+    [Fact]
+    public async Task APasswordLinkNotYetUnlocked_RevealsNoPhotoEither()
+    {
+        var store = new FakeStore
+        {
+            State = new PublicShareState(ShareId, CollectionId, "Books to read", true, 1,
+                SharePasswordMode: Juple.Domain.Collections.CollectionSharePasswordMode.PerCollection, SharePasswordVersion: 1, OwnerUserId: 9, IconImageBlobName: "items/9/collections/5/cover-1.jpg"),
+        };
+        var storage = new FakeIconStorage(new Uri("https://blob.test/never"));
+
+        var collection = await WithIconStorage(store, storage).GetCollectionAsync("abc123");
+
+        Assert.Equal(new PublicCollectionDto(Name: null, IsLocked: true), collection);
+        Assert.Null(storage.LastSigned);
+    }
+
+    [Fact]
+    public async Task APublicLink_CarriesTheSameSafeLook_ForTheAddDialog_AndStillNoContent()
+    {
+        var (service, store, _) = Create();
+        store.State = store.State! with { Icon = "Folder", Color = "#3366FF" };
+
+        var collection = await service.GetCollectionAsync("abc123");
+
+        Assert.Equal(new PublicCollectionDto("Books to read", false, "read", true, "Folder", "#3366FF"), collection);
+    }
+
+    [Fact]
+    public async Task APrivateLinkWithAPassword_RevealsNothing_EvenThatItIsPrivate_UntilUnlocked()
+    {
+        var (service, store, _) = Create(isLocked: true);
+        store.State = store.State! with { IsPublic = false };
+
+        Assert.Equal(new PublicCollectionDto(Name: null, IsLocked: true), await service.GetCollectionAsync("abc123"));
+        var unlocked = await service.GetCollectionAsync("abc123", ShareToken());
+        Assert.Equal("Books to read", unlocked!.Name);
+        Assert.False(unlocked.IsPublic);
+    }
+
+    [Fact]
+    public async Task APrivateLinkWithAPassword_CanBeUnlocked_SoTheRequestToJoinCanFollow()
+    {
+        var (service, store, _) = Create(isLocked: true);
+        store.State = store.State! with { IsPublic = false };
+
+        var grant = await service.UnlockAsync("abc123", "correct-horse");
+
+        Assert.NotNull(grant);
+    }
+
+    [Fact]
     public async Task GetCollectionAsync_UnknownShare_ReturnsNull()
     {
         var (service, store, _) = Create();
@@ -232,7 +373,11 @@ public sealed class PublicCollectionServiceTests
 
         public int? LastGetItemsLimit { get; private set; }
 
+        // The PUBLIC state only: a private link never answers here (so no content path can reach it).
         public Task<PublicShareState?> GetStateAsync(string publicId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(State is { IsPublic: true } ? State : null);
+
+        public Task<PublicShareState?> GetLinkStateAsync(string publicId, CancellationToken cancellationToken = default) =>
             Task.FromResult(State);
 
         public Task<PublicCollectionItemPage?> GetItemsAsync(

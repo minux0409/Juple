@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "此合集已無法開啟，請自行刪除主畫面上的圖示。",
     "homeShortcutAdd": "加入主畫面捷徑",
     "homeShortcutUnsupported": "此裝置的啟動器不支援加入主畫面捷徑。",
-    "homeShortcutLocked": "已鎖定的合集從主畫面開啟時仍需輸入密碼，且不會加入為分享目標。"
+    "homeShortcutLocked": "已鎖定的合集從主畫面開啟時仍需輸入密碼，且不會加入為分享目標。",
+    "joinPending": "等待核准",
+    "joinRequestsA11y": "加入申請 {{count}}",
+    "joinRequests": "加入申請 {{count}}"
   },
   "toast": {
     "moveSuccess": "已移動。",
@@ -530,7 +533,28 @@
     "addDone": "已新增連結。",
     "addInvalidUrl": "無法新增此連結。",
     "addNotAllowed": "目前無法在此合集新增連結。",
-    "addFallback": "無法新增連結。"
+    "addFallback": "無法新增連結。",
+    "joinRequestAction": "申請加入",
+    "joinRequestSentMessage": "加入申請已送出。擁有者回覆後會通知你。",
+    "joinNotAllowed": "這個合集目前不接受新參與者。",
+    "joinLocked": "這個合集需要密碼，暫時無法加入。",
+    "joinFailed": "未能完成，請再試一次。",
+    "lockedTitle": "這個合集已上鎖",
+    "lockedMessage": "輸入密碼以查看這個合集。",
+    "passwordLabel": "密碼",
+    "unlockAction": "解鎖",
+    "wrongPassword": "密碼不正確。",
+    "tooManyAttempts": "嘗試次數過多，請稍後再試。",
+    "unlockFailed": "無法解鎖，請再試一次。",
+    "privateQuestion": "要加入此合集嗎？",
+    "privateHint": "擁有者核准後，你將成為參與者並可查看合集。",
+    "privateSignIn": "請登入 Juple 以申請加入。",
+    "joinPendingTitle": "等待核准",
+    "joinPendingMessage": "擁有者核准後我們會通知你。",
+    "addTitle": "新增合集",
+    "requestTitle": "申請加入",
+    "requestSend": "申請",
+    "signInRequired": "請登入 Juple 以新增此合集或申請加入。"
   },
   "quickSaveComposer": {
     "titleLabel": "標題",
@@ -706,7 +730,19 @@
     "selectedCount": "已選擇 {{count}} 人",
     "addPersonToInviteList": "將 {{name}} 加入邀請清單",
     "publicInfo": "任何知道合集連結的人都可以存取該合集。\n你可以為存取者設定統一權限，並為直接邀請的使用者另外指定更高的權限。\n也可以在參與者清單中修改。",
-    "publicInfoA11y": "關於公開合集"
+    "publicInfoA11y": "關於公開合集",
+    "requestsEmpty": "沒有待處理的加入申請。",
+    "joinRequestApprove": "批准",
+    "joinRequestReject": "拒絕",
+    "joinRequestApproveA11y": "批准 {{name}} 的申請",
+    "joinRequestRejectA11y": "拒絕 {{name}} 的申請",
+    "joinRequestApproveTitle": "要批准這個申請嗎?",
+    "joinRequestApproveMessage": "{{name}} 將成為這個合集的參與者。",
+    "joinRequestRejectTitle": "要拒絕這個申請嗎?",
+    "joinRequestRejectMessage": "將拒絕 {{name}} 的申請，對方之後可以再次申請。",
+    "joinRequestNotActionable": "此申請已無法處理。",
+    "allUsersPrivateDescription": "收到連結的人可以申請加入合集。",
+    "joinRequestsTitle": "加入申請"
   },
   "linkShare": {
     "description": "轉傳公開合集的連結。接收者不會成為此合集的參與者。",

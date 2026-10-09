@@ -38,17 +38,15 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         }
 
         var existing = await dbContext.CollectionShares
-            .AsNoTracking()
             .Where(share => share.CollectionId == collectionId && share.IsActive)
             .FirstOrDefaultAsync(cancellationToken);
-        if (existing is not null)
+        if (existing is { IsPublic: true })
         {
             return ToDto(existing);
         }
 
-        // A new public link is a new recipient: never under the legacy mode, which only keeps the
-        // Owner's lock password for the recipients this Collection already had (see
-        // CollectionSharePasswordMode.LegacyCommonLock). An already-active link above is not new.
+        // A new public link - or an existing private one made public - is a new audience: never under the legacy mode, which only keeps
+        // the Owner's lock password for the recipients this Collection already had (see CollectionSharePasswordMode.LegacyCommonLock).
         if (await dbContext.CollectionSharePasswords.AsNoTracking().AnyAsync(
                 sharePassword => sharePassword.CollectionId == collectionId
                     && sharePassword.Mode == CollectionSharePasswordMode.LegacyCommonLock,
@@ -66,9 +64,22 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
             await RequireEveryoneMatchesAsync(collectionId, permission, enabledAtUtc, cancellationToken);
         }
 
-        var share = new CollectionShare(collectionId, candidatePublicId, enabledAtUtc);
-        share.SetPermission(permission, enabledAtUtc);
-        dbContext.CollectionShares.Add(share);
+        CollectionShare share;
+        if (existing is not null)
+        {
+            // The private link becomes public: same URL, same publicId. Anyone still waiting to join no longer needs the Owner's
+            // approval to see it - their requests are obsolete (nobody becomes a member, nobody is told "declined").
+            share = existing;
+            share.SetPublic(true, enabledAtUtc);
+            share.SetPermission(permission, enabledAtUtc);
+            await JoinRequestHousekeeping.ObsoleteAllPendingAsync(dbContext, collectionId, enabledAtUtc, cancellationToken);
+        }
+        else
+        {
+            share = new CollectionShare(collectionId, candidatePublicId, enabledAtUtc);
+            share.SetPermission(permission, enabledAtUtc);
+            dbContext.CollectionShares.Add(share);
+        }
 
         try
         {
@@ -126,11 +137,9 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         DateTimeOffset revokedAtUtc,
         CancellationToken cancellationToken = default)
     {
-        var collectionOwned = await dbContext.Collections
-            .AsNoTracking()
-            .AnyAsync(
-                collection => collection.Id == collectionId && collection.UserId == userId && collection.DeletedAtUtc == null, cancellationToken);
-        if (!collectionOwned)
+        // Under the Collection lock (like every join and mode change): the revoke and the end of the waiting join requests are one operation.
+        await using var transaction = await dbContext.Database.BeginOrJoinTransactionAsync(cancellationToken);
+        if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) != userId)
         {
             throw new CollectionNotFoundException();
         }
@@ -143,16 +152,70 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
         }
 
         share.Revoke(revokedAtUtc);
+        await JoinRequestHousekeeping.ObsoleteAllPendingAsync(dbContext, collectionId, revokedAtUtc, cancellationToken);
 
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException)
         {
             // A concurrent Revoke already got there first - the desired end state (unshared) was
             // already reached.
         }
+    }
+
+    public async Task<CollectionShareDto> MakePrivateAsync(
+        long userId,
+        long collectionId,
+        string candidatePublicId,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        if (await CollectionRowLock.LockActiveAsync(dbContext, collectionId, cancellationToken) != userId)
+        {
+            throw new CollectionNotFoundException();
+        }
+
+        var share = await dbContext.CollectionShares
+            .Where(candidate => candidate.CollectionId == collectionId && candidate.IsActive)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (share is null)
+        {
+            // No link yet: the Owner passes on the link of a private Collection - it exists, but shows no content and only takes join requests.
+            share = new CollectionShare(collectionId, candidatePublicId, nowUtc);
+            share.SetPublic(false, nowUtc);
+            dbContext.CollectionShares.Add(share);
+        }
+        else
+        {
+            // Public -> private: same URL and publicId, the contents simply stop being public. (Waiting join requests do not exist while
+            // public, and none are touched here.)
+            share.SetPublic(false, nowUtc);
+        }
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new CollectionConcurrencyException(exception);
+        }
+        catch (DbUpdateException exception) when (SqlServerUniqueConstraintViolationDetector.IsUniqueConstraintViolation(exception))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            var winner = await dbContext.CollectionShares.AsNoTracking()
+                .Where(candidate => candidate.CollectionId == collectionId && candidate.IsActive)
+                .FirstAsync(cancellationToken);
+            return ToDto(winner);
+        }
+
+        return ToDto(share);
     }
 
     public async Task<CollectionShareDto?> SetPermissionAsync(
@@ -177,7 +240,8 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
             return null;
         }
 
-        if (share.Permission != permission)
+        // The role invariant only matters while the contents are public; a private link just remembers the permission.
+        if (share.IsPublic && share.Permission != permission)
         {
             if (raiseLowerRoles)
             {
@@ -275,5 +339,5 @@ public sealed class CollectionShareStore(JupleDbContext dbContext) : ICollection
     }
 
     private static CollectionShareDto ToDto(CollectionShare share) =>
-        new(share.CollectionId, share.PublicId, share.CreatedAtUtc, share.Permission);
+        new(share.CollectionId, share.PublicId, share.CreatedAtUtc, share.Permission, share.IsPublic);
 }

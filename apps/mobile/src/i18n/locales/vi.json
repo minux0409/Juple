@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Không thể mở bộ sưu tập này nữa. Hãy tự xóa biểu tượng của nó khỏi màn hình chính.",
     "homeShortcutAdd": "Thêm lối tắt vào màn hình chính",
     "homeShortcutUnsupported": "Trình khởi chạy của thiết bị này không hỗ trợ thêm lối tắt vào màn hình chính.",
-    "homeShortcutLocked": "Bộ sưu tập đã khóa vẫn yêu cầu mật khẩu khi mở từ màn hình chính. Nó không được thêm làm đích chia sẻ."
+    "homeShortcutLocked": "Bộ sưu tập đã khóa vẫn yêu cầu mật khẩu khi mở từ màn hình chính. Nó không được thêm làm đích chia sẻ.",
+    "joinPending": "Đang chờ phê duyệt",
+    "joinRequestsA11y": "Yêu cầu {{count}}",
+    "joinRequests": "Yêu cầu {{count}}"
   },
   "toast": {
     "moveSuccess": "Đã chuyển.",
@@ -530,7 +533,28 @@
     "addDone": "Đã thêm liên kết.",
     "addInvalidUrl": "Không thể thêm liên kết này.",
     "addNotAllowed": "Hiện không thể thêm liên kết vào bộ sưu tập này.",
-    "addFallback": "Không thể thêm liên kết."
+    "addFallback": "Không thể thêm liên kết.",
+    "joinRequestAction": "Yêu cầu tham gia",
+    "joinRequestSentMessage": "Đã gửi yêu cầu của bạn. Chúng tôi sẽ báo khi chủ sở hữu trả lời.",
+    "joinNotAllowed": "Bộ sưu tập này hiện không nhận người tham gia mới.",
+    "joinLocked": "Bộ sưu tập này cần mật khẩu nên hiện bạn chưa thể tham gia.",
+    "joinFailed": "Không thể hoàn tất. Vui lòng thử lại.",
+    "lockedTitle": "Bộ sưu tập này đã bị khóa",
+    "lockedMessage": "Nhập mật khẩu để xem bộ sưu tập này.",
+    "passwordLabel": "Mật khẩu",
+    "unlockAction": "Mở khóa",
+    "wrongPassword": "Mật khẩu không đúng.",
+    "tooManyAttempts": "Quá nhiều lần thử. Vui lòng thử lại sau.",
+    "unlockFailed": "Không thể mở khóa. Vui lòng thử lại.",
+    "privateQuestion": "Bạn có muốn tham gia bộ sưu tập này không?",
+    "privateHint": "Khi chủ sở hữu chấp thuận, bạn sẽ trở thành người tham gia và xem được bộ sưu tập.",
+    "privateSignIn": "Đăng nhập Juple để yêu cầu tham gia.",
+    "joinPendingTitle": "Đang chờ phê duyệt",
+    "joinPendingMessage": "Chúng tôi sẽ báo khi chủ sở hữu chấp thuận.",
+    "addTitle": "Thêm bộ sưu tập",
+    "requestTitle": "Yêu cầu tham gia",
+    "requestSend": "Yêu cầu",
+    "signInRequired": "Đăng nhập Juple để thêm bộ sưu tập này hoặc yêu cầu tham gia."
   },
   "quickSaveComposer": {
     "titleLabel": "Tiêu đề",
@@ -706,7 +730,19 @@
     "selectedCount": "Đã chọn {{count}} người",
     "addPersonToInviteList": "Thêm {{name}} vào danh sách mời",
     "publicInfo": "Bất kỳ ai biết liên kết của bộ sưu tập đều có thể truy cập.\nBạn có thể đặt quyền chung cho người truy cập và đặt riêng quyền cao hơn cho người được mời trực tiếp.\nQuyền cũng có thể thay đổi trong danh sách người tham gia.",
-    "publicInfoA11y": "Giới thiệu bộ sưu tập công khai"
+    "publicInfoA11y": "Giới thiệu bộ sưu tập công khai",
+    "requestsEmpty": "Không có yêu cầu tham gia nào đang chờ.",
+    "joinRequestApprove": "Duyệt",
+    "joinRequestReject": "Từ chối",
+    "joinRequestApproveA11y": "Duyệt yêu cầu của {{name}}",
+    "joinRequestRejectA11y": "Từ chối yêu cầu của {{name}}",
+    "joinRequestApproveTitle": "Duyệt yêu cầu này?",
+    "joinRequestApproveMessage": "{{name}} sẽ trở thành người tham gia bộ sưu tập này.",
+    "joinRequestRejectTitle": "Từ chối yêu cầu này?",
+    "joinRequestRejectMessage": "Yêu cầu của {{name}} sẽ bị từ chối. Họ có thể yêu cầu lại sau.",
+    "joinRequestNotActionable": "Yêu cầu này không thể xử lý nữa.",
+    "allUsersPrivateDescription": "Người nhận liên kết có thể yêu cầu tham gia bộ sưu tập.",
+    "joinRequestsTitle": "Yêu cầu"
   },
   "linkShare": {
     "description": "Chuyển tiếp liên kết bộ sưu tập công khai. Người nhận không trở thành người tham gia bộ sưu tập này.",

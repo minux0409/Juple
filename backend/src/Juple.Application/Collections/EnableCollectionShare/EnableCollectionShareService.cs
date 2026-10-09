@@ -29,6 +29,12 @@ public sealed class EnableCollectionShareService(
         return collectionShareStore.SetPermissionAsync(userId, collectionId, permission, timeProvider.GetUtcNow(), raiseLowerRoles, cancellationToken);
     }
 
+    public Task<CollectionShareDto> MakePrivateAsync(
+        long userId,
+        long collectionId,
+        CancellationToken cancellationToken = default) =>
+        collectionShareStore.MakePrivateAsync(userId, collectionId, CollectionSharePublicIdGenerator.Generate(), timeProvider.GetUtcNow(), cancellationToken);
+
     private static void RequireKnown(CollectionSharePermission permission)
     {
         if (!Enum.IsDefined(permission))

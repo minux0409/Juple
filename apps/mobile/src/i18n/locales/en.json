@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "This collection can no longer be opened. Please remove its Home-screen icon yourself.",
     "homeShortcutAdd": "Add shortcut to Home screen",
     "homeShortcutUnsupported": "This device’s launcher doesn’t support adding Home-screen shortcuts.",
-    "homeShortcutLocked": "A locked collection still asks for its password when opened from the Home screen. It is not added as a share destination."
+    "homeShortcutLocked": "A locked collection still asks for its password when opened from the Home screen. It is not added as a share destination.",
+    "joinPending": "Waiting for approval",
+    "joinRequestsA11y": "Join requests {{count}}",
+    "joinRequests": "Join requests {{count}}"
   },
   "toast": {
     "moveSuccess": "Moved.",
@@ -530,7 +533,28 @@
     "addDone": "Link added.",
     "addInvalidUrl": "This link can't be added.",
     "addNotAllowed": "Links can't be added to this collection right now.",
-    "addFallback": "Couldn't add the link."
+    "addFallback": "Couldn't add the link.",
+    "joinRequestAction": "Request to join",
+    "joinRequestSentMessage": "Your request was sent. We'll let you know when the owner answers.",
+    "joinNotAllowed": "This collection isn't accepting new participants right now.",
+    "joinLocked": "This collection needs a password, so you can’t join it right now.",
+    "joinFailed": "Couldn't complete that. Please try again.",
+    "lockedTitle": "This collection is locked",
+    "lockedMessage": "Enter the password to see this collection.",
+    "passwordLabel": "Password",
+    "unlockAction": "Unlock",
+    "wrongPassword": "That password isn't correct.",
+    "tooManyAttempts": "Too many attempts. Please try again later.",
+    "unlockFailed": "Couldn't unlock it. Please try again.",
+    "privateQuestion": "Do you want to join this collection?",
+    "privateHint": "Once the owner approves, you become a participant and can see the collection.",
+    "privateSignIn": "Sign in to Juple to request to join.",
+    "joinPendingTitle": "Waiting for approval",
+    "joinPendingMessage": "We'll let you know when the owner approves.",
+    "addTitle": "Add collection",
+    "requestTitle": "Request to join",
+    "requestSend": "Request",
+    "signInRequired": "Sign in to Juple to add this collection or ask to join."
   },
   "quickSaveComposer": {
     "titleLabel": "Title",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} selected",
     "addPersonToInviteList": "Add {{name}} to the invite list",
     "publicInfo": "Anyone who knows the collection’s link can access it.\nYou can set a common permission for people who access it, and give directly invited people a higher permission separately.\nPermissions can also be changed in the participants list.",
-    "publicInfoA11y": "About public collections"
+    "publicInfoA11y": "About public collections",
+    "requestsEmpty": "No join requests are waiting.",
+    "joinRequestApprove": "Approve",
+    "joinRequestReject": "Decline",
+    "joinRequestApproveA11y": "Approve {{name}}’s request",
+    "joinRequestRejectA11y": "Decline {{name}}’s request",
+    "joinRequestApproveTitle": "Approve this request?",
+    "joinRequestApproveMessage": "{{name}} will become a participant of this collection.",
+    "joinRequestRejectTitle": "Decline this request?",
+    "joinRequestRejectMessage": "{{name}}'s request will be declined. They can ask again later.",
+    "joinRequestNotActionable": "This request can no longer be answered.",
+    "allUsersPrivateDescription": "People who receive the link can request to join the collection.",
+    "joinRequestsTitle": "Join requests"
   },
   "linkShare": {
     "description": "Pass on the public collection link. Recipients don’t become participants of this collection.",

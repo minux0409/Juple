@@ -104,6 +104,30 @@ public static class SocialPushText
         ["hi"] = new("नया जवाब", "{0} ने आपकी टिप्पणी का जवाब दिया।", "टिप्पणी पसंद की गई", "{0} को आपकी टिप्पणी पसंद आई।"),
     };
 
+    /// <summary>Types 17-19: {0} = who asked, {1} = the Collection. The result texts never name the Owner.</summary>
+    private sealed record JoinTexts(string RequestTitle, string RequestBody, string ApprovedTitle, string ApprovedBody, string RejectedTitle, string RejectedBody);
+
+    private static readonly Dictionary<string, JoinTexts> JoinByLocale = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ko"] = new("참여 요청", "{0}님이 '{1}' 컬렉션에 참여를 요청했어요.", "참가 승인", "'{1}'에 참가할 수 있게 됐어요.", "참가 미승인", "'{1}' 참가 요청이 승인되지 않았어요."),
+        ["en"] = new("Join request", "{0} asked to join '{1}'.", "Request approved", "You can now join '{1}'.", "Request declined", "Your request to join '{1}' was not approved."),
+        ["ja"] = new("参加リクエスト", "{0}さんが'{1}'への参加をリクエストしました。", "参加が承認されました", "'{1}'に参加できるようになりました。", "参加が承認されませんでした", "'{1}'への参加リクエストは承認されませんでした。"),
+        ["zh-Hans"] = new("加入请求", "{0} 请求加入“{1}”。", "加入已获批准", "你现在可以加入“{1}”了。", "加入未获批准", "你加入“{1}”的请求未获批准。"),
+        ["zh-Hant"] = new("加入請求", "{0} 請求加入「{1}」。", "加入已獲批准", "你現在可以加入「{1}」了。", "加入未獲批准", "你加入「{1}」的請求未獲批准。"),
+        ["es"] = new("Solicitud de unión", "{0} pidió unirse a «{1}».", "Solicitud aprobada", "Ya puedes unirte a «{1}».", "Solicitud rechazada", "Tu solicitud para unirte a «{1}» no fue aprobada."),
+        ["fr"] = new("Demande de participation", "{0} a demandé à rejoindre « {1} ».", "Demande approuvée", "Vous pouvez maintenant rejoindre « {1} ».", "Demande refusée", "Votre demande pour rejoindre « {1} » n'a pas été approuvée."),
+        ["de"] = new("Beitrittsanfrage", "{0} möchte „{1}“ beitreten.", "Anfrage genehmigt", "Du kannst „{1}“ jetzt beitreten.", "Anfrage abgelehnt", "Deine Anfrage für „{1}“ wurde nicht genehmigt."),
+        ["it"] = new("Richiesta di partecipazione", "{0} ha chiesto di unirsi a «{1}».", "Richiesta approvata", "Ora puoi unirti a «{1}».", "Richiesta rifiutata", "La tua richiesta per «{1}» non è stata approvata."),
+        ["pt-BR"] = new("Pedido para participar", "{0} pediu para participar de \"{1}\".", "Pedido aprovado", "Agora você pode participar de \"{1}\".", "Pedido recusado", "Seu pedido para participar de \"{1}\" não foi aprovado."),
+        ["vi"] = new("Yêu cầu tham gia", "{0} muốn tham gia \"{1}\".", "Yêu cầu được duyệt", "Bây giờ bạn có thể tham gia \"{1}\".", "Yêu cầu bị từ chối", "Yêu cầu tham gia \"{1}\" của bạn không được duyệt."),
+        ["th"] = new("คำขอเข้าร่วม", "{0} ขอเข้าร่วม \"{1}\"", "อนุมัติคำขอแล้ว", "ตอนนี้คุณเข้าร่วม \"{1}\" ได้แล้ว", "คำขอไม่ได้รับอนุมัติ", "คำขอเข้าร่วม \"{1}\" ของคุณไม่ได้รับอนุมัติ"),
+        ["id"] = new("Permintaan bergabung", "{0} meminta bergabung ke \"{1}\".", "Permintaan disetujui", "Sekarang Anda dapat bergabung ke \"{1}\".", "Permintaan ditolak", "Permintaan Anda untuk bergabung ke \"{1}\" tidak disetujui."),
+        ["ru"] = new("Запрос на вступление", "{0} просит вступить в «{1}».", "Запрос одобрен", "Теперь вы можете вступить в «{1}».", "Запрос отклонён", "Ваш запрос на вступление в «{1}» не одобрен."),
+        ["tr"] = new("Katılma isteği", "{0}, \"{1}\" koleksiyonuna katılmak istiyor.", "İstek onaylandı", "Artık \"{1}\" koleksiyonuna katılabilirsiniz.", "İstek reddedildi", "\"{1}\" koleksiyonuna katılma isteğiniz onaylanmadı."),
+        ["ar"] = new("طلب انضمام", "طلب {0} الانضمام إلى «{1}».", "تمت الموافقة على الطلب", "يمكنك الآن الانضمام إلى «{1}».", "تم رفض الطلب", "لم تتم الموافقة على طلبك للانضمام إلى «{1}»."),
+        ["hi"] = new("जुड़ने का अनुरोध", "{0} ने \"{1}\" से जुड़ने का अनुरोध किया है।", "अनुरोध स्वीकृत", "अब आप \"{1}\" से जुड़ सकते हैं।", "अनुरोध अस्वीकृत", "\"{1}\" से जुड़ने का आपका अनुरोध स्वीकृत नहीं हुआ।"),
+    };
+
     private static readonly Dictionary<string, CollaborationTexts> CollaborationByLocale = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ko"] = new(
@@ -280,6 +304,18 @@ public static class SocialPushText
         {
             var link = Resolve(LinkByLocale, locale);
             return (link.Title, string.Format(CultureInfo.InvariantCulture, link.Body, actorName, Shorten(collectionName)));
+        }
+
+        if (type is NotificationType.JoinRequestReceived or NotificationType.JoinRequestApproved or NotificationType.JoinRequestRejected)
+        {
+            var join = Resolve(JoinByLocale, locale);
+            var (joinTitle, joinBody) = type switch
+            {
+                NotificationType.JoinRequestReceived => (join.RequestTitle, join.RequestBody),
+                NotificationType.JoinRequestApproved => (join.ApprovedTitle, join.ApprovedBody),
+                _ => (join.RejectedTitle, join.RejectedBody),
+            };
+            return (joinTitle, string.Format(CultureInfo.InvariantCulture, joinBody, actorName, Shorten(collectionName)));
         }
 
         if (type is NotificationType.CommentReplyReceived or NotificationType.CommentLikeReceived)

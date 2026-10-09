@@ -1,127 +1,133 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
-import { linkProposalErrorMessage } from '../collections/linkProposals';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
 import {
   getPublicCollection,
+  unlockPublicCollection,
   type PublicCollection,
-  type PublicCollectionItem,
 } from '../collections/api/publicCollectionsApi';
-import { addLinkToPublicCollection, getMyPublicSubmissions } from '../collections/api/publicShareWriteApi';
-import { ChevronIcon } from '../icons/ChevronIcon';
-import { usePublicCollectionItems } from '../collections/usePublicCollectionItems';
-import type { RootStackParamList } from '../navigation/RootStack';
-import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import {
+  getPublicShareMembership,
+  requestToJoinPublicShare,
+  savePublicCollection,
+  type PublicShareJoinResult,
+  type PublicShareMembership,
+} from '../collections/api/publicShareWriteApi';
+import { CategoryIconTile } from '../collections/CategoryIconTile';
+import { shareEntryTileKey } from '../collections/shareEntryTileKey';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { useMessageDialog } from '../components/useMessageDialog';
+import type { RootStackParamList } from '../navigation/RootStack';
+import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SharedCollection'>;
 
 /**
- * The read-only counterpart to CollectionDetailsScreen for a Collection Sharing link
- * (https://<host>/c/{publicId} or the Web Viewer's own "open in app" - see navigation/linking.ts).
- * Reachable with or without authentication (see RootStack.tsx) and backed entirely by the
- * anonymous Public API (see collections/api/publicCollectionsApi.ts) - never the authenticated
- * Collection API, even when the viewer happens to be signed in. Deliberately does not reuse
- * CollectionDetailsScreen: that screen's owner actions (rename/delete/favorite/membership/share
- * management) and private fields (Memo/Category/Purchase/RepeatPurchase) have no anonymous
- * equivalent and must never be reachable from a link handed to someone else.
- *
- * The one exception to "anonymous only": when the link is writable (모든 사용자: 작성) and the
- * viewer is signed in, they may add a link of their own - that single call uses their session (see
- * publicShareWriteApi); reading still never does. Signed out, the add area only says to sign in.
+ * The ONE entry for every canonical Collection link (https://<host>/c/{publicId}) inside the installed app - an App Link from KakaoTalk or a
+ * browser, a "컬렉션 링크를 보냈어요" notification, a link pasted into the URL field or shared into Juple; cold or warm start. The route name is
+ * kept for the existing linking / notification / paste code, but this screen is no longer a list of the Collection's links: it resolves the
+ * link and shows exactly one of
+ *   - a member (Owner, Contributor, Submitter, Viewer)        -> the normal CollectionDetails
+ *   - a nonmember of a PUBLIC link (공용 컬렉션 ON)             -> a centered "컬렉션 추가" dialog: [취소] [저장] (저장 = Viewer at once)
+ *   - a nonmember of a PRIVATE link (공용 컬렉션 OFF)           -> a centered "참가 요청" dialog: [취소] [요청] (the Owner approves)
+ *   - a nonmember whose request is waiting                      -> "승인 대기 중"
+ * The dialogs show only the Collection's own profile (tile and name) - never an item, a URL, a preview or a member - and opening the link
+ * creates nothing: membership or a request exists only after the explicit 저장 / 요청. A password-protected link asks for its password first
+ * (which by itself saves and requests nothing). The web landing is a separate thing and is untouched.
  */
 export function SharedCollectionScreen({ route, navigation }: Props) {
   const { publicId } = route.params;
   const { t } = useTranslation();
-  // A stack screen, not a tab screen - see CollectionDetailsScreen's identical remark.
-  const insets = useSafeAreaInsets();
 
   const [collection, setCollection] = useState<PublicCollection | null>(null);
   const [isLoadingCollection, setIsLoadingCollection] = useState(true);
   const [isUnavailable, setIsUnavailable] = useState(false);
 
-  const { items, isLoading: isLoadingItems, isLoadingMore, loadMore, reload } =
-    usePublicCollectionItems(publicId);
+  // A protected link's grant after its password was verified: memory only (never stored, never in a URL), bound to this link, and it
+  // grants no membership and no identity. The password itself lives only in the field while it is typed.
+  const [unlockToken, setUnlockToken] = useState<string | undefined>(undefined);
+  const [password, setPassword] = useState('');
+  const [unlockError, setUnlockError] = useState<'wrong' | 'throttled' | null>(null);
+  const [isUnlocking, setIsUnlocking] = useState(false);
+  const isUnlockingRef = useRef(false);
+
   const { isAuthenticated } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
-  const [newUrl, setNewUrl] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const isAddingRef = useRef(false);
-  // A signed-in viewer's OWN links waiting for the Owner through this link (승인 후 추가) - the one number
-  // this public view may show beyond the links: never the Owner's queue, never anyone else's.
-  const [myPendingCount, setMyPendingCount] = useState(0);
-  const [addMessage, setAddMessage] = useState<{ kind: 'error' | 'done'; text: string } | null>(null);
 
-  const addErrorMessage = (error: unknown): string => {
-    const proposalMessage = linkProposalErrorMessage(error, t);
-    if (proposalMessage) {
-      return proposalMessage;
-    }
-    if (error instanceof ApiError) {
-      if (error.kind === 'badRequest') {
-        return t('sharedCollection.addInvalidUrl');
-      }
-      if (error.kind === 'forbidden' || error.kind === 'notFound') {
-        return t('sharedCollection.addNotAllowed');
-      }
-      if (error.kind === 'tooManyRequests') {
-        return t('collaboration.tooManyRequests');
-      }
-    }
-    return t('sharedCollection.addFallback');
-  };
+  // A signed-in Owner / member never sees an add or request dialog: the link opens their normal Collection. Decided before anything else is
+  // shown - cold and warm links take the same path. Anything but a clear "member" (not signed in, not a member, a failed lookup) continues.
+  const [isCheckingMembership, setIsCheckingMembership] = useState(isAuthenticated);
+  const [membership, setMembership] = useState<PublicShareMembership | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
+  const isBusyRef = useRef(false);
+  const { showMessage, messageDialog } = useMessageDialog();
 
-  /** Saves the URL to the viewer's own library, then adds it here - one tap, never twice at once. */
-  const addLink = async () => {
-    const url = newUrl.trim();
-    if (!url || isAddingRef.current) {
-      return;
+  const refreshMembership = useCallback(() => {
+    if (!isAuthenticated) {
+      return Promise.resolve();
     }
-    isAddingRef.current = true;
-    setIsAdding(true);
-    setAddMessage(null);
-    try {
-      const outcome = await addLinkToPublicCollection(authenticatedRequest, publicId, url);
-      setNewUrl('');
-      if (outcome === 'submitted') {
-        // 승인 후 추가: it waits for the Owner - nothing new in the list yet.
-        setAddMessage({ kind: 'done', text: t('collections.linkSubmitted') });
-        loadMyPending().catch(() => undefined);
-      } else {
-        setAddMessage({ kind: 'done', text: t('sharedCollection.addDone') });
-        await reload();
-      }
-    } catch (caughtError) {
-      setAddMessage({ kind: 'error', text: addErrorMessage(caughtError) });
-    } finally {
-      isAddingRef.current = false;
-      setIsAdding(false);
+    return getPublicShareMembership(authenticatedRequest, publicId)
+      .then(found => {
+        if (found?.isMember && found.collectionId) {
+          navigation.replace('CollectionDetails', { collectionId: found.collectionId });
+        } else {
+          setMembership(found);
+        }
+      })
+      .catch(() => undefined);
+  }, [authenticatedRequest, isAuthenticated, navigation, publicId]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsCheckingMembership(false);
+      return undefined;
     }
-  };
+    let active = true;
+    setIsCheckingMembership(true);
+    getPublicShareMembership(authenticatedRequest, publicId)
+      .then(found => {
+        if (!active) {
+          return;
+        }
+        if (found?.isMember && found.collectionId) {
+          navigation.replace('CollectionDetails', { collectionId: found.collectionId });
+        } else {
+          setMembership(found);
+          setIsCheckingMembership(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setIsCheckingMembership(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [authenticatedRequest, isAuthenticated, navigation, publicId]);
 
   const loadCollection = useCallback(async () => {
     setIsLoadingCollection(true);
     try {
-      const fetched = await getPublicCollection(publicId);
+      const fetched = await getPublicCollection(publicId, unlockToken);
       setCollection(fetched);
       setIsUnavailable(false);
     } catch {
-      // Unknown publicId, revoked share, or any other load failure - a read-only public viewer
-      // has no owner to notify and no retry affordance beyond navigating back to the link again,
-      // so every failure collapses to the same "unavailable" state (mirrors the Web Viewer and
-      // the Backend's own unknown/revoked -> 404 rule).
+      // Unknown publicId, revoked share, or any other load failure: one "unavailable" state, never distinguishing them (mirrors the Web
+      // Viewer and the Backend's own unknown/revoked -> 404 rule).
       setCollection(null);
       setIsUnavailable(true);
     } finally {
       setIsLoadingCollection(false);
     }
-  }, [publicId]);
+  }, [publicId, unlockToken]);
 
   useFocusEffect(
     useCallback(() => {
@@ -129,38 +135,96 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     }, [loadCollection]),
   );
 
-  // Own pending count: only for a signed-in viewer of a link that is open to them (not password-locked
-  // here). Any failure - the link was switched off, no session - simply shows nothing (never an error).
-  const isOpenToViewer = isAuthenticated && collection !== null && !collection.isLocked;
-  const loadMyPending = useCallback(async () => {
-    if (!isOpenToViewer) {
-      setMyPendingCount(0);
-      return;
-    }
-    try {
-      const page = await getMyPublicSubmissions(authenticatedRequest, publicId);
-      setMyPendingCount(page.totalCount ?? page.items.length);
-    } catch {
-      setMyPendingCount(0);
-    }
-  }, [authenticatedRequest, isOpenToViewer, publicId]);
-  useFocusEffect(
-    useCallback(() => {
-      loadMyPending().catch(() => undefined);
-    }, [loadMyPending]),
-  );
-
-  const openItem = async (item: PublicCollectionItem) => {
-    try {
-      await Linking.openURL(item.url);
-    } catch {
-      // Nothing else to do from a read-only public viewer if the OS can't open it - no owner
-      // error banner state exists here to report into (see ItemDetailsScreen for the owned
-      // equivalent, which does have one).
+  /** 취소: back where the link was opened from (or Home when it was the first screen, e.g. a cold start). */
+  const cancel = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('MainTabs');
     }
   };
 
-  if (isLoadingCollection && !collection && !isUnavailable) {
+  const joinErrorMessage = (error: unknown): string => {
+    if (error instanceof ApiError) {
+      if (error.kind === 'conflict' && error.code === 'joinNotAllowed') {
+        return t('sharedCollection.joinNotAllowed');
+      }
+      if (error.kind === 'forbidden') {
+        return t('sharedCollection.joinLocked');
+      }
+      if (error.kind === 'notFound') {
+        return t('sharedCollection.unavailableMessage');
+      }
+      if (error.kind === 'tooManyRequests') {
+        return t('collaboration.tooManyRequests');
+      }
+    }
+    return t('sharedCollection.joinFailed');
+  };
+
+  /** One explicit action at a time (저장 or 요청): never repeated while one runs, never automatic. */
+  const run = async (action: () => Promise<PublicShareJoinResult>) => {
+    if (isBusyRef.current) {
+      return;
+    }
+    isBusyRef.current = true;
+    setIsBusy(true);
+    try {
+      const result = await action();
+      if ((result.outcome === 'joined' || result.outcome === 'alreadyMember') && result.collectionId) {
+        // A member now: the normal Collection (the Collections list refetches when it regains focus).
+        navigation.replace('CollectionDetails', { collectionId: result.collectionId });
+        return;
+      }
+      setMembership(previous => ({ isMember: false, collectionId: null, role: null, ...previous, joinRequestPending: true }));
+    } catch (caughtError) {
+      if (caughtError instanceof ApiError && caughtError.kind === 'forbidden') {
+        // The grant ran out (or the link's password changed): back to the locked state, which asks again.
+        setUnlockToken(undefined);
+      }
+      showMessage(joinErrorMessage(caughtError));
+      // The Owner may have switched 공용 컬렉션 meanwhile: show the dialog that fits what the link is NOW.
+      loadCollection().catch(() => undefined);
+      refreshMembership().catch(() => undefined);
+    } finally {
+      isBusyRef.current = false;
+      setIsBusy(false);
+    }
+  };
+
+  const save = () => run(() => savePublicCollection(authenticatedRequest, publicId, unlockToken));
+  const requestJoin = () => run(() => requestToJoinPublicShare(authenticatedRequest, publicId, unlockToken));
+
+  /** Verifies the typed password with the Backend; on success the grant (not the password) is kept in memory and the link reloads. */
+  const unlock = async () => {
+    if (!password || isUnlockingRef.current) {
+      return;
+    }
+    isUnlockingRef.current = true;
+    setIsUnlocking(true);
+    setUnlockError(null);
+    try {
+      const grant = await unlockPublicCollection(publicId, password);
+      setPassword('');
+      setUnlockToken(grant.unlockToken);
+    } catch (caughtError) {
+      if (caughtError instanceof ApiError && caughtError.kind === 'forbidden') {
+        setUnlockError('wrong');
+        setPassword('');
+      } else if (caughtError instanceof ApiError && caughtError.kind === 'tooManyRequests') {
+        setUnlockError('throttled');
+      } else if (caughtError instanceof ApiError && caughtError.kind === 'notFound') {
+        setIsUnavailable(true);
+      } else {
+        showMessage(t('sharedCollection.unlockFailed'));
+      }
+    } finally {
+      isUnlockingRef.current = false;
+      setIsUnlocking(false);
+    }
+  };
+
+  if (isCheckingMembership || (isLoadingCollection && !collection && !isUnavailable)) {
     return (
       <SafeAreaView edges={['top']} style={styles.centerContainer}>
         <ActivityIndicator />
@@ -168,7 +232,56 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     );
   }
 
-  if (isUnavailable || !collection) {
+  // A protected link before its password was proven: nothing of the Collection is known or shown, not even its name.
+  if (collection !== null && !isUnavailable && collection.name === null && collection.isLocked) {
+    return (
+      <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <KeyboardSafeView>
+          <View style={styles.lockedPanel} testID="shared-collection-locked">
+            <Text style={styles.lockedTitle}>{t('sharedCollection.lockedTitle')}</Text>
+            <Text style={styles.hint}>{t('sharedCollection.lockedMessage')}</Text>
+            <TextInput
+              accessibilityLabel={t('sharedCollection.passwordLabel')}
+              autoCapitalize="none"
+              autoComplete="off"
+              autoCorrect={false}
+              editable={!isUnlocking}
+              importantForAutofill="no"
+              onChangeText={value => {
+                setPassword(value);
+                setUnlockError(null);
+              }}
+              onSubmitEditing={() => { unlock().catch(() => undefined); }}
+              placeholder={t('sharedCollection.passwordLabel')}
+              secureTextEntry
+              style={[styles.input, unlockError === 'wrong' && styles.inputError]}
+              testID="shared-collection-unlock-password"
+              textContentType="none"
+              value={password}
+            />
+            {unlockError ? (
+              <Text style={styles.error} testID="shared-collection-unlock-error">
+                {unlockError === 'wrong' ? t('sharedCollection.wrongPassword') : t('sharedCollection.tooManyAttempts')}
+              </Text>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isUnlocking || !password, busy: isUnlocking }}
+              disabled={isUnlocking || !password}
+              onPress={() => { unlock().catch(() => undefined); }}
+              style={[styles.primaryButton, (isUnlocking || !password) && styles.disabled]}
+              testID="shared-collection-unlock"
+            >
+              {isUnlocking ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.primaryLabel}>{t('sharedCollection.unlockAction')}</Text>}
+            </Pressable>
+          </View>
+        </KeyboardSafeView>
+        {messageDialog}
+      </SafeAreaView>
+    );
+  }
+
+  if (isUnavailable || !collection || collection.name === null) {
     return (
       <SafeAreaView edges={['top']} style={styles.centerContainer}>
         <Text style={styles.unavailableTitle}>{t('sharedCollection.unavailableTitle')}</Text>
@@ -177,106 +290,84 @@ export function SharedCollectionScreen({ route, navigation }: Props) {
     );
   }
 
-  return (
-    <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <KeyboardSafeView>
-      <FlatList
-        contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
-        data={items}
-        keyExtractor={(item, index) => `${item.url}-${index}`}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        // No numberOfLines - a long or foreign-language category name must be fully readable
-        // here too (this is the read-only public counterpart of CollectionDetailsScreen, which
-        // dropped its own title truncation for the same reason).
-        ListHeaderComponent={
-          <View>
-            <Text style={styles.title}>{collection.name}</Text>
-            {myPendingCount > 0 ? (
-              <Pressable
-                accessibilityLabel={t('collections.myPendingSubmissionsA11y', { count: myPendingCount })}
-                accessibilityRole="button"
-                onPress={() => navigation.navigate('MyCollectionSubmissions', { publicId })}
-                style={styles.myPendingRow}
-                testID="shared-collection-my-pending"
-              >
-                <Text numberOfLines={2} style={styles.myPendingLabel}>{t('collections.myPendingSubmissions', { count: myPendingCount })}</Text>
-                <ChevronIcon color={colors.textSecondary} direction="right" size={16} />
-              </Pressable>
-            ) : null}
-            {(collection.permission === 'write' || collection.permission === 'submit') && !collection.isLocked ? (
-              <View style={styles.addCard} testID="shared-collection-add">
-                {isAuthenticated ? (
-                  <>
-                    <View style={styles.addRow}>
-                      <TextInput
-                        accessibilityLabel={t('sharedCollection.addUrlLabel')}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        editable={!isAdding}
-                        keyboardType="url"
-                        onChangeText={setNewUrl}
-                        onSubmitEditing={addLink}
-                        placeholder={t('sharedCollection.addUrlPlaceholder')}
-                        style={[styles.addInput, ltrTextStyle]}
-                        testID="shared-collection-add-url"
-                        value={newUrl}
-                      />
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ disabled: isAdding || !newUrl.trim(), busy: isAdding }}
-                        disabled={isAdding || !newUrl.trim()}
-                        onPress={addLink}
-                        style={[styles.addButton, (isAdding || !newUrl.trim()) && styles.disabled]}
-                        testID="shared-collection-add-submit"
-                      >
-                        {isAdding ? <ActivityIndicator color={colors.surface} size="small" /> : <Text style={styles.addButtonLabel}>{t('sharedCollection.addAction')}</Text>}
-                      </Pressable>
-                    </View>
-                    <Text style={styles.addHelp}>
-                      {collection.permission === 'submit' ? t('sharedCollection.addSubmitNote') : t('sharedCollection.addVisibilityNote')}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={styles.addHelp} testID="shared-collection-add-sign-in">{t('sharedCollection.addSignInRequired')}</Text>
-                )}
-                {addMessage ? (
-                  <Text style={addMessage.kind === 'error' ? styles.addError : styles.addDone} testID="shared-collection-add-message">{addMessage.text}</Text>
-                ) : null}
-              </View>
-            ) : null}
+  const isPublic = collection.isPublic !== false;
+  const isWaiting = membership?.joinRequestPending === true;
+  const profile = (dim: boolean) => (
+    <View style={styles.profile} testID="shared-collection-profile">
+      <View style={styles.tileWrap}>
+        <View style={dim ? styles.dim : undefined}>
+          <CategoryIconTile
+            collectionId={shareEntryTileKey(publicId)}
+            color={collection.color ?? null}
+            icon={collection.icon ?? 'Folder'}
+            imageUrl={collection.iconImageUrl ?? null}
+            imageVersion={collection.iconImageVersion ?? null}
+            size={72}
+          />
+        </View>
+        {dim ? (
+          <View pointerEvents="none" style={styles.tileOverlay}>
+            <ActivityIndicator color={colors.textSecondary} />
           </View>
-        }
-        ListEmptyComponent={
-          !isLoadingItems ? <Text style={styles.empty}>{t('sharedCollection.itemsEmpty')}</Text> : undefined
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              openItem(item);
-            }}
-            style={styles.row}
-          >
-            <Text numberOfLines={2} style={[styles.itemTitle, !item.title && ltrTextStyle]}>
-              {item.title ?? item.url}
-            </Text>
-            {item.title ? (
-              <Text numberOfLines={1} style={[styles.itemUrl, ltrTextStyle]}>
-                {item.url}
-              </Text>
-            ) : null}
-          </Pressable>
-        )}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.footerLoading}>
-              <ActivityIndicator />
-            </View>
-          ) : undefined
-        }
-      />
-      </KeyboardSafeView>
+        ) : null}
+      </View>
+      <Text style={styles.profileName} testID="shared-collection-name">{collection.name}</Text>
+    </View>
+  );
+
+  // The plain background behind the dialog - never any of the Collection's content.
+  return (
+    <SafeAreaView edges={['top']} style={styles.safeArea} testID="shared-collection-entry">
+      {!isAuthenticated ? (
+        <ConfirmDialog
+          confirmLabel={t('common.confirm')}
+          destructive={false}
+          message={t('sharedCollection.signInRequired')}
+          onConfirm={cancel}
+          title={isPublic ? t('sharedCollection.addTitle') : t('sharedCollection.requestTitle')}
+          visible
+        >
+          {profile(false)}
+        </ConfirmDialog>
+      ) : isWaiting ? (
+        <ConfirmDialog
+          confirmLabel={t('common.confirm')}
+          destructive={false}
+          message={t('sharedCollection.joinPendingMessage')}
+          onConfirm={cancel}
+          title={t('sharedCollection.joinPendingTitle')}
+          visible
+        >
+          {profile(true)}
+        </ConfirmDialog>
+      ) : isPublic ? (
+        <ConfirmDialog
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('common.save')}
+          destructive={false}
+          message=""
+          onCancel={() => { if (!isBusy) { cancel(); } }}
+          onConfirm={() => { save().catch(() => undefined); }}
+          title={t('sharedCollection.addTitle')}
+          visible
+        >
+          {profile(false)}
+        </ConfirmDialog>
+      ) : (
+        <ConfirmDialog
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('sharedCollection.requestSend')}
+          destructive={false}
+          message={t('sharedCollection.privateQuestion')}
+          onCancel={() => { if (!isBusy) { cancel(); } }}
+          onConfirm={() => { requestJoin().catch(() => undefined); }}
+          title={t('sharedCollection.requestTitle')}
+          visible
+        >
+          {profile(false)}
+        </ConfirmDialog>
+      )}
+      {messageDialog}
     </SafeAreaView>
   );
 }
@@ -286,107 +377,64 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   centerContainer: {
-    flex: 1,
     alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
     padding: 24,
   },
-  content: {
-    flexGrow: 1,
+  profile: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  tileWrap: { alignItems: 'center', justifyContent: 'center' },
+  dim: { opacity: 0.45 },
+  tileOverlay: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
+  profileName: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  lockedPanel: {
+    gap: spacing.sm,
     padding: 24,
   },
-  title: {
-    fontSize: 22,
+  lockedTitle: {
+    color: colors.textPrimary,
+    fontSize: 20,
     fontWeight: '700',
-    marginBottom: 16,
   },
-  empty: {
-    color: '#666666',
-    fontSize: 14,
-    paddingVertical: 16,
-  },
-  row: {
-    borderTopColor: '#E0E0E0',
-    borderTopWidth: 1,
-    paddingVertical: 14,
-  },
-  itemTitle: {
-    color: '#111111',
-    fontSize: 15,
-  },
-  itemUrl: {
-    color: '#666666',
+  hint: {
+    color: colors.textSecondary,
     fontSize: 13,
-    marginTop: 3,
   },
-  footerLoading: {
-    paddingVertical: 20,
-  },
-  myPendingRow: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.inputBorder,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-    minHeight: minTouchTarget,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  myPendingLabel: { color: colors.textPrimary, flex: 1, fontSize: 15, fontWeight: '600', minWidth: 0 },
-  addCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-  },
-  addRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  addInput: {
+  input: {
     borderColor: colors.inputBorder,
     borderRadius: radii.md,
     borderWidth: 1,
     color: colors.textPrimary,
-    flex: 1,
     fontSize: 15,
     minHeight: minTouchTarget,
     minWidth: 0,
     paddingHorizontal: spacing.md,
   },
-  addButton: {
+  inputError: {
+    borderColor: colors.danger,
+  },
+  error: {
+    color: colors.danger,
+    fontSize: 14,
+  },
+  primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.brand,
     borderRadius: radii.md,
     justifyContent: 'center',
+    marginTop: spacing.sm,
     minHeight: minTouchTarget,
-    minWidth: 72,
     paddingHorizontal: spacing.md,
   },
-  addButtonLabel: {
+  primaryLabel: {
     color: colors.surface,
     fontSize: 15,
     fontWeight: '700',
-  },
-  addHelp: {
-    color: colors.textSecondary,
-    fontSize: 13,
-  },
-  addError: {
-    color: colors.danger,
-    fontSize: 14,
-  },
-  addDone: {
-    color: colors.brand,
-    fontSize: 14,
-    fontWeight: '600',
+    textAlign: 'center',
   },
   disabled: {
     opacity: 0.45,

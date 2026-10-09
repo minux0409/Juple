@@ -37,6 +37,11 @@ public static class NotificationEventKeys
 
     public static string CollectionInvitationAnswered(long invitationId) => $"ev-invitation-answered:{invitationId}";
 
+    /// <summary>One notification per join request to the Owner, one per answer to the requester.</summary>
+    public static string JoinRequest(long requestId) => $"ev-join-request:{requestId}";
+
+    public static string JoinRequestAnswered(long requestId, bool approved) => $"ev-join-request-{(approved ? "approved" : "rejected")}:{requestId}";
+
     /// <summary>A reply is written once, so it tells its answered person once.</summary>
     public static string CommentReply(long replyCommentId) => $"ev-comment-reply:{replyCommentId}";
 

@@ -44,6 +44,8 @@ export interface Collection {
   readonly isSharePasswordProtected?: boolean;
   /** Owner view only: how many proposed links (승인 후 추가) wait for the Owner's approval. */
   readonly pendingSubmissionCount?: number;
+  /** Owner only: how many people wait to join (참여 요청). Part of attentionCount; 0 / absent for anyone else. */
+  readonly pendingJoinRequestCount?: number;
   /**
    * A submitter's view (승인 후 추가): how many of the CALLER's OWN proposed links still wait for the
    * Owner. A different number from pendingSubmissionCount (the Owner's queue) - never combined with it.
@@ -51,7 +53,7 @@ export interface Collection {
   readonly myPendingSubmissionCount?: number;
   /** The caller's own unread 새 링크 notifications about this Collection - cleared by opening it. */
   readonly unreadNewLinkCount?: number;
-  /** The card's attention badge: pendingSubmissionCount (Owner only) + unreadNewLinkCount - never reactions/comments. */
+  /** The card's attention badge: pendingSubmissionCount + pendingJoinRequestCount (Owner only) + unreadNewLinkCount - never reactions/comments. */
   readonly attentionCount?: number;
   /** Contributor view only: the Owner's public Juple ID. */
   readonly ownerJupleId?: string | null;
@@ -1018,6 +1020,11 @@ export interface CollectionShare {
    * Juple may add their own links - never anonymously. Absent from an older server = 'read'.
    */
   readonly permission?: PublicSharePermission;
+  /**
+   * 공용 컬렉션: true = anyone with the link sees the Collection's contents (and `permission` applies); false = the link still exists
+   * (same URL) but shows no content - a signed-in non-member can only ask the Owner to join. Absent from an older server = true.
+   */
+  readonly isPublic?: boolean;
 }
 
 export type PublicSharePermission = 'read' | 'submit' | 'write';
@@ -1086,6 +1093,101 @@ export async function setCollectionSharePermission(
 }
 
 /**
+ * 공용 컬렉션 OFF: the link keeps its URL but stops showing contents; creates the (private) link when there is none. Idempotent.
+ * Turning it back ON is enableCollectionShare (which also makes any waiting join request obsolete).
+ */
+export async function makeCollectionSharePrivate(request: AuthenticatedApiRequest, collectionId: number): Promise<CollectionShare> {
+  const response = await request<CollectionShare>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/share/private`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+
+  if (!response.body) {
+    throw new Error('Juple API returned no Collection share body.');
+  }
+
+  return response.body;
+}
+
+/** My OWN waiting join request, for the "승인 대기 중" placeholder in my Collections. Not a membership: name and look only. */
+export interface MyJoinRequest {
+  readonly requestId: number;
+  readonly publicId: string;
+  readonly name: string;
+  readonly icon: string;
+  readonly color: string | null;
+  readonly requestedAtUtc: string;
+  /** The Collection's own profile photo (signed read URL + stable version), when it has one. */
+  readonly iconImageUrl?: string | null;
+  readonly iconImageVersion?: string | null;
+}
+
+/** The caller's own waiting join requests (server state, so the placeholders survive a restart or another device). */
+export async function listMyJoinRequests(request: AuthenticatedApiRequest): Promise<readonly MyJoinRequest[]> {
+  const response = await request<{ items: readonly MyJoinRequest[] }>({ method: 'GET', path: '/api/v1/collections/join-requests/mine' });
+  return response.body?.items ?? [];
+}
+
+/** One person waiting to join, as the Owner sees them: public identity only. */
+export interface CollectionJoinRequest {
+  readonly requestId: number;
+  readonly jupleId: string;
+  readonly displayName: string | null;
+  readonly profileImageUrl: string | null;
+  readonly profileImageVersion: string | null;
+  readonly requestedAtUtc: string;
+}
+
+interface CollectionJoinRequestPage {
+  readonly items: readonly CollectionJoinRequest[];
+  readonly nextCursor: number | null;
+}
+
+/** The Owner's waiting join requests, oldest first (every page, so the count and the list agree). Owner only. */
+export async function listCollectionJoinRequests(
+  request: AuthenticatedApiRequest,
+  collectionId: number,
+): Promise<readonly CollectionJoinRequest[]> {
+  const all: CollectionJoinRequest[] = [];
+  let cursor: number | null = null;
+  for (let page = 0; page < 20; page += 1) {
+    const response: { body?: CollectionJoinRequestPage | null } = await request<CollectionJoinRequestPage>({
+      method: 'GET',
+      path: `/api/v1/collections/${collectionId}/join-requests${cursor ? `?cursor=${cursor}` : ''}`,
+      headers: storedUnlockHeaders(collectionId),
+    });
+    if (!response.body) {
+      break;
+    }
+    all.push(...response.body.items);
+    if (response.body.nextCursor === null) {
+      break;
+    }
+    cursor = response.body.nextCursor;
+  }
+  return all;
+}
+
+/** Owner only: the requester becomes a Viewer (always). 404 when it no longer waits; 409 joinNotAllowed once the contents are public. */
+export async function approveCollectionJoinRequest(request: AuthenticatedApiRequest, collectionId: number, requestId: number): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/join-requests/${requestId}/approve`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+}
+
+/** Owner only: declines it - no membership. Idempotent. */
+export async function rejectCollectionJoinRequest(request: AuthenticatedApiRequest, collectionId: number, requestId: number): Promise<void> {
+  await request<void>({
+    method: 'POST',
+    path: `/api/v1/collections/${collectionId}/join-requests/${requestId}/reject`,
+    headers: storedUnlockHeaders(collectionId),
+  });
+}
+
+/**
  * The active 모든 사용자 link's URL for anyone who may view the Collection (an accepted member too),
  * to pass on with the native share sheet - null while the link is off. Read-only: never the link's
  * settings or its password (those stay in the Owner's getCollectionShare).
@@ -1110,12 +1212,14 @@ export interface CollectionLinkShareResult {
   readonly sent: readonly string[];
   /** Juple IDs that belong to nobody (or are malformed) - nothing was sent to them. */
   readonly notFound: readonly string[];
+  /** Already inside (Owner, member) or holding an invitation - the server skipped them; nothing was sent. Absent from an older server. */
+  readonly skipped?: readonly string[];
 }
 
 /**
- * 친구에게 / ID로 공유: passes the Collection's public link on to these Juple users as a Juple
- * notification - never an invitation or a membership. The server sends only while the public link
- * is still on: otherwise it rejects with ApiError conflict 'publicLinkInactive' and sends nothing.
+ * 친구에게 / ID로 공유: passes the Collection's link (public or private) on to these Juple users as a Juple
+ * notification - never an invitation or a membership. The server skips anyone already inside and sends only while the link
+ * still exists: otherwise it rejects with ApiError conflict 'publicLinkInactive' and sends nothing.
  */
 export async function sendCollectionShareLink(
   request: AuthenticatedApiRequest,

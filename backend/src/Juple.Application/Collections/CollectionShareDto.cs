@@ -9,4 +9,5 @@ public sealed record CollectionShareDto(
     long CollectionId,
     string PublicId,
     DateTimeOffset CreatedAtUtc,
-    Juple.Domain.Collections.CollectionSharePermission Permission = Juple.Domain.Collections.CollectionSharePermission.Read);
+    Juple.Domain.Collections.CollectionSharePermission Permission = Juple.Domain.Collections.CollectionSharePermission.Read,
+    bool IsPublic = true);

@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "이 컬렉션은 더 이상 열 수 없어요. 홈 화면의 아이콘은 직접 삭제해 주세요.",
     "homeShortcutAdd": "홈 화면에 바로가기 추가",
     "homeShortcutUnsupported": "이 기기의 런처는 홈 화면 바로가기 추가를 지원하지 않아요.",
-    "homeShortcutLocked": "잠긴 컬렉션은 홈 화면 바로가기를 눌러도 비밀번호를 먼저 입력해야 열려요. 공유 대상(Direct Share)에는 추가되지 않아요."
+    "homeShortcutLocked": "잠긴 컬렉션은 홈 화면 바로가기를 눌러도 비밀번호를 먼저 입력해야 열려요. 공유 대상(Direct Share)에는 추가되지 않아요.",
+    "joinPending": "승인 대기 중",
+    "joinRequestsA11y": "참여 요청 {{count}}건 확인",
+    "joinRequests": "참여 요청 {{count}}"
   },
   "toast": {
     "moveSuccess": "이동했습니다.",
@@ -530,7 +533,28 @@
     "addDone": "링크를 추가했어요.",
     "addInvalidUrl": "추가할 수 없는 링크 주소예요.",
     "addNotAllowed": "이 컬렉션에는 지금 링크를 추가할 수 없어요.",
-    "addFallback": "링크를 추가하지 못했어요."
+    "addFallback": "링크를 추가하지 못했어요.",
+    "joinRequestAction": "참가 요청",
+    "joinRequestSentMessage": "참가 요청을 보냈어요. 소유자가 승인하면 알려 드릴게요.",
+    "joinNotAllowed": "이 컬렉션은 지금 참여를 받지 않아요.",
+    "joinLocked": "비밀번호가 필요한 컬렉션이라 지금은 참여할 수 없어요.",
+    "joinFailed": "처리하지 못했어요. 다시 시도해 주세요.",
+    "lockedTitle": "잠긴 컬렉션입니다",
+    "lockedMessage": "이 컬렉션을 보려면 비밀번호를 입력하세요.",
+    "passwordLabel": "비밀번호",
+    "unlockAction": "잠금 해제",
+    "wrongPassword": "비밀번호가 올바르지 않아요.",
+    "tooManyAttempts": "시도 횟수가 너무 많아요. 잠시 후 다시 시도해 주세요.",
+    "unlockFailed": "잠금을 해제하지 못했어요. 다시 시도해 주세요.",
+    "privateQuestion": "이 컬렉션에 참여하시겠습니까?",
+    "privateHint": "소유자가 승인하면 참여자가 되어 컬렉션을 볼 수 있어요.",
+    "privateSignIn": "참가를 요청하려면 Juple에 로그인해 주세요.",
+    "joinPendingTitle": "승인 대기 중",
+    "joinPendingMessage": "소유자가 승인하면 알려 드릴게요.",
+    "addTitle": "컬렉션 추가",
+    "requestTitle": "참가 요청",
+    "requestSend": "요청",
+    "signInRequired": "컬렉션을 추가하거나 참가를 요청하려면 Juple에 로그인해 주세요."
   },
   "quickSaveComposer": {
     "titleLabel": "제목",
@@ -706,7 +730,19 @@
     "selectedCount": "선택 {{count}}명",
     "addPersonToInviteList": "{{name}} 초대 목록에 추가",
     "publicInfo": "컬렉션의 링크를 알고 있는 사람은 누구나 컬렉션에 접근할 수 있습니다.\n접근하는 사용자에 대한 공통 권한을 설정할 수 있으며, 직접 초대한 사용자에 대해서는 상위 권한을 별도로 지정할 수 있습니다.\n참여자 목록에서도 수정할 수 있습니다.",
-    "publicInfoA11y": "공용 컬렉션 안내"
+    "publicInfoA11y": "공용 컬렉션 안내",
+    "requestsEmpty": "기다리는 참여 요청이 없어요.",
+    "joinRequestApprove": "승인",
+    "joinRequestReject": "거절",
+    "joinRequestApproveA11y": "{{name}} 님의 참여 요청 승인",
+    "joinRequestRejectA11y": "{{name}} 님의 참여 요청 거절",
+    "joinRequestApproveTitle": "참여 요청을 승인할까요?",
+    "joinRequestApproveMessage": "{{name}} 님이 이 컬렉션의 참여자가 돼요.",
+    "joinRequestRejectTitle": "참여 요청을 거절할까요?",
+    "joinRequestRejectMessage": "{{name}} 님의 요청을 거절해요. 나중에 다시 요청할 수 있어요.",
+    "joinRequestNotActionable": "이 요청은 더 이상 처리할 수 없어요.",
+    "allUsersPrivateDescription": "링크를 받은 사용자는 컬렉션 참여를 요청할 수 있어요.",
+    "joinRequestsTitle": "참여 요청"
   },
   "linkShare": {
     "description": "공용 컬렉션 링크를 전달해요. 받는 사람이 이 컬렉션의 참여자가 되지는 않아요.",

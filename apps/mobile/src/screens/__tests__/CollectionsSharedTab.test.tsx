@@ -2,7 +2,7 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { FlatList, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CollectionsScreen } from '../CollectionsScreen';
-import { getCollections, getMyPendingSubmissionTotal, type Collection, type GetCollectionsOptions } from '../../collections/api/collectionsApi';
+import { getCollections, getMyPendingSubmissionTotal, listMyJoinRequests, type Collection, type GetCollectionsOptions } from '../../collections/api/collectionsApi';
 
 const mockNavigate = jest.fn();
 const mockViewMode = { current: 'grid' as 'grid' | 'list' };
@@ -69,6 +69,7 @@ const sharedOpen = makeCollection({
 
 function mockLists(shared: readonly Collection[] = [sharedLocked, sharedOpen]) {
   jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(0);
+  jest.mocked(listMyJoinRequests).mockResolvedValue([]);
   jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => {
     const owned = [ownedPlain, ownedLockedShared];
     switch (options.scope) {

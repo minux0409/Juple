@@ -11,11 +11,20 @@ public sealed record PublicShareState(
     int LockVersion,
     Juple.Domain.Collections.CollectionSharePermission Permission = Juple.Domain.Collections.CollectionSharePermission.Read,
     Juple.Domain.Collections.CollectionSharePasswordMode SharePasswordMode = Juple.Domain.Collections.CollectionSharePasswordMode.None,
-    int SharePasswordVersion = 0);
+    int SharePasswordVersion = 0,
+    bool IsPublic = true,
+    string? Icon = null,
+    string? Color = null,
+    long OwnerUserId = 0,
+    string? IconImageBlobName = null);
 
 public interface IPublicCollectionShareStore
 {
+    /// <summary>The PUBLIC state of an active link (IsPublic): every anonymous read and every public write goes through this and so can never reach a private link.</summary>
     Task<PublicShareState?> GetStateAsync(string publicId, CancellationToken cancellationToken = default);
+
+    /// <summary>The state of an active link whether or not its contents are public - only for the password gate and the join-request landing, never for content.</summary>
+    Task<PublicShareState?> GetLinkStateAsync(string publicId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Items of the share's Collection that belong to the Collection's Owner, plus links signed-in

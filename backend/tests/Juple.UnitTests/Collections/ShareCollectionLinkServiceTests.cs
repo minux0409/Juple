@@ -83,6 +83,20 @@ public sealed class ShareCollectionLinkServiceTests
     }
 
     [Fact]
+    public async Task ThePrivateOrPublicLink_IsNeverSentToSomeoneWhoAlreadyBelongs_TheServerDecides()
+    {
+        // 20 is already a member / the Owner / holds an invitation (the store knows, under its lock); 21 is a plain friend.
+        _store.AlreadyInside.Add(20);
+
+        var result = await Service().ShareAsync(Member, Shared, ["AAAA2345", "BBBB2345"]);
+
+        Assert.Equal(["BBBB2345"], result.Sent);
+        Assert.Equal(["AAAA2345"], result.Skipped);
+        Assert.Empty(result.NotFound);
+        Assert.Equal([21L], _store.LastRecipients);
+    }
+
+    [Fact]
     public async Task ALinkTurnedOff_FailsTheWholeSend()
     {
         _store.Inactive = true;
@@ -99,16 +113,18 @@ public sealed class ShareCollectionLinkServiceTests
 
         public (long Sender, long Collection)? LastCall { get; private set; }
 
-        public Task EnqueueAsync(long senderUserId, long collectionId, IReadOnlyCollection<long> recipientUserIds, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
+        public HashSet<long> AlreadyInside { get; } = [];
+
+        public Task<IReadOnlyCollection<long>> EnqueueAsync(long senderUserId, long collectionId, IReadOnlyCollection<long> recipientUserIds, DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
         {
             if (Inactive)
             {
                 throw new CollectionCollaborationConflictException(CollectionCollaborationConflictException.PublicLinkInactive);
             }
 
-            LastRecipients = recipientUserIds;
+            LastRecipients = recipientUserIds.Where(id => !AlreadyInside.Contains(id)).ToList();
             LastCall = (senderUserId, collectionId);
-            return Task.CompletedTask;
+            return Task.FromResult<IReadOnlyCollection<long>>(recipientUserIds.Where(AlreadyInside.Contains).ToList());
         }
     }
 

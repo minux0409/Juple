@@ -38,7 +38,7 @@ public sealed class CollectionLinkSubmissionStore(
             // Under the same lock a revoke or permission change takes: this exact link must still be on
             // and still take proposals.
             var permission = await dbContext.CollectionShares.AsNoTracking()
-                .Where(share => share.PublicId == requiredPublicId && share.CollectionId == collectionId && share.IsActive)
+                .Where(share => share.PublicId == requiredPublicId && share.CollectionId == collectionId && share.IsActive && share.IsPublic)
                 .Select(share => (CollectionSharePermission?)share.Permission)
                 .FirstOrDefaultAsync(cancellationToken);
             if (permission is null)

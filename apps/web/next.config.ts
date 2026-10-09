@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { securityHeaders } from './lib/securityHeaders.ts';
 
 const nextConfig: NextConfig = {
   // Server Components render server-side (no client bundle secret exposure), but the "load more"
@@ -10,6 +11,10 @@ const nextConfig: NextConfig = {
   // the production Docker image (see Dockerfile) copies just that output, not the full
   // node_modules/Next.js compiler.
   output: 'standalone',
+
+  async headers() {
+    return [{ source: '/:path*', headers: [...securityHeaders] }];
+  },
 };
 
 export default nextConfig;

@@ -31,5 +31,8 @@ public sealed class CollectionCollaborationConflictException(string code) : Exce
     /// <summary>The proposal can no longer be approved - its link was deleted by the person who proposed it.</summary>
     public const string SubmissionUnavailable = "submissionUnavailable";
 
+    /// <summary>The public link does not (any more) allow joining this way - its join setting is off or another mode, or the link is gone.</summary>
+    public const string JoinNotAllowed = "joinNotAllowed";
+
     public string Code { get; } = code;
 }

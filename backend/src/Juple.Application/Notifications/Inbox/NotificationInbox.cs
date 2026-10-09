@@ -28,10 +28,13 @@ public static class NotificationInboxPolicy
         NotificationType.FriendRequestRejected,
         NotificationType.CommentReplyReceived,
         NotificationType.CommentLikeReceived,
+        NotificationType.JoinRequestReceived,
+        NotificationType.JoinRequestApproved,
+        NotificationType.JoinRequestRejected,
     ];
 
     /// <summary>The same set as SQL - the filtered indexes' predicate must match it exactly.</summary>
-    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)";
+    public const string InboxTypesSql = "[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)";
 
     public const int DefaultPageSize = 30;
     public const int MaxPageSize = 100;
@@ -49,7 +52,8 @@ public static class NotificationInboxPolicy
             or NotificationType.CollectionItemReactionReceived
             or NotificationType.CollectionItemCommentReceived
             or NotificationType.CommentReplyReceived
-            or NotificationType.CommentLikeReceived;
+            or NotificationType.CommentLikeReceived
+            or NotificationType.JoinRequestReceived;
 
     /// <summary>These cannot be worded without the actor's name - with the actor gone, the row is unavailable.</summary>
     public static bool RequiresActor(NotificationType type) =>
@@ -61,7 +65,8 @@ public static class NotificationInboxPolicy
             or NotificationType.CollectionItemReactionReceived
             or NotificationType.CollectionItemCommentReceived
             or NotificationType.CommentReplyReceived
-            or NotificationType.CommentLikeReceived;
+            or NotificationType.CommentLikeReceived
+            or NotificationType.JoinRequestReceived;
 
     /// <summary>
     /// Where tapping the notification leads, decided from the facts as they are now - never from what
@@ -134,6 +139,27 @@ public static class NotificationInboxPolicy
                         RootCommentId: record.ThreadRootCommentId ?? commentId)
                     : Collection(record);
 
+            case NotificationType.JoinRequestReceived:
+                // The Owner's list of waiting join requests - only for the Owner of a Collection that still exists.
+                return record.CollectionLive && record.RecipientIsOwner && record.Actor is not null
+                    ? new NotificationTargetDto(NotificationTargetKinds.CollectionJoinRequests, CollectionId: record.CollectionId)
+                    : NotificationTargetDto.Unavailable;
+
+            case NotificationType.JoinRequestApproved:
+                // The requester is a member now: the normal Collection screen.
+                return record.RecipientBelongs ? Collection(record) : NotificationTargetDto.Unavailable;
+
+            case NotificationType.JoinRequestRejected:
+                // Declined: not a member - the public link while it is on (they may ask again if the Owner still takes requests), else nothing.
+                if (record.RecipientBelongs)
+                {
+                    return Collection(record);
+                }
+
+                return record.CollectionLive && record.PublicShareId is { } declinedPublicId
+                    ? new NotificationTargetDto(NotificationTargetKinds.PublicCollection, PublicId: declinedPublicId)
+                    : NotificationTargetDto.Unavailable;
+
             case NotificationType.CollectionLinkSubmissionReceived:
                 // The 승인 대기 list - only for the Owner of a Collection that still exists.
                 return record.CollectionLive && record.RecipientIsOwner
@@ -174,6 +200,9 @@ public static class NotificationTargetKinds
     public const string CollectionSharedItem = "collectionSharedItem";
 
     public const string CollectionSubmissions = "collectionSubmissions";
+
+    /// <summary>The Owner's list of people waiting to join the Collection.</summary>
+    public const string CollectionJoinRequests = "collectionJoinRequests";
     public const string PublicCollection = "publicCollection";
     public const string Unavailable = "unavailable";
 }

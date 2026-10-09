@@ -40,6 +40,18 @@ public interface ICollectionShareStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 공용 컬렉션 OFF: the link keeps existing (same URL and publicId) but its contents are no longer public - it only offers a signed-in
+    /// non-member to ask the Owner to join. With no link yet it creates a private one (candidatePublicId); an already private link is
+    /// returned unchanged. CollectionNotFoundException for a missing or other-user's Collection.
+    /// </summary>
+    Task<CollectionShareDto> MakePrivateAsync(
+        long userId,
+        long collectionId,
+        string candidatePublicId,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns null when the Collection is owned but currently has no active share - that is a
     /// valid state, not an error. Throws CollectionNotFoundException for a missing or
     /// other-user's Collection.

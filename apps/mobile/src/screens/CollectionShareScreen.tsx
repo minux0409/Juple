@@ -41,7 +41,7 @@ import {
   enableCollectionShare,
   getCollection,
   getCollectionShare,
-  revokeCollectionShare,
+  makeCollectionSharePrivate,
   setCollectionSharePermission,
   type Collection,
   type CollectionShare,
@@ -434,9 +434,10 @@ function SectionCard({
 /**
  * The one place for sharing a Collection (Owner only). The ways of sharing are independent and can
  * be used together, so each is its own card, always shown (never tabs that look like a choice):
- * - 공용 컬렉션 설정: the public link and its 권한 - [읽기 전용] (anyone with the link views, signed in
- *   or not) or [링크 추가 가능] (additionally, holders SIGNED IN to Juple may add their own links -
- *   never anonymously). "공유 중" on the card while the link is on.
+ * - 공용 컬렉션 설정: [switch][share icon]. ON = anyone with the link views the contents and its 권한 applies
+ *   ([읽기 전용] / [승인 후 추가] / [링크 추가]; link adding needs a signed-in holder - never anonymous). OFF = the
+ *   SAME link stays but shows no contents: a signed-in non-member can only ask to join, and the Owner approves
+ *   it under 참여 요청 in the Collection (always as a Viewer). There is no "join" setting and no self-join.
  * - 친구 초대: [친구] | [ID] tabs feeding one batch of any size; each person gets 읽기 전용 (viewer)
  *   or 링크 추가 가능 (contributor); sent a few at a time, they must accept.
  * - 접근 비밀번호: one setting for both ways above (SharePasswordCard).
@@ -574,15 +575,18 @@ export function CollectionShareScreen({ route }: Props) {
 
   // ---------- 모든 사용자 (public link: 읽기 or 작성) ----------
 
+  // 공용 컬렉션 ON = the link exists AND its contents are public. A private link (OFF) still exists - same URL - but is only a way to ask to join;
+  // its stored permission is remembered for when the switch goes ON again and has no effect (and no minimum role) until then.
+  const isPublicOn = !!share && share.isPublic !== false;
   const publicPermission: PublicSharePermission = share ? share.permission ?? 'read' : pendingPublicPermission;
-  // While the link is on, nobody may be below its level (승인 후 추가 or 링크 추가); under 읽기 전용 each keeps their own choice.
-  const minimumRole: InvitationRole | null = share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
+  // While the contents are public, nobody may be below the link's level (승인 후 추가 or 링크 추가); under 읽기 전용 each keeps their own choice.
+  const minimumRole: InvitationRole | null = isPublicOn && share ? minimumRoleForPublicPermission(share.permission ?? 'read') : null;
   // Still protected by the Owner's lock password for the recipients it already had (legacy): no new
   // recipient - neither a new link nor an invitation - until the Owner sets this Collection's own
   // share password or removes the protection in the card below. The server refuses it as well.
   const needsSharePasswordMigration = sharePasswordMode === 'legacyCommonLock';
   // Off → on is held back while it would be refused; on → off (stopping) is always possible.
-  const isPublicToggleDisabled = isManagingShare || (!share && needsSharePasswordMigration);
+  const isPublicToggleDisabled = isManagingShare || (!isPublicOn && needsSharePasswordMigration);
 
   /** Keeps the Juple ID field and its result above the keyboard (edge-to-edge Android no longer resizes). */
   const scrollToIdArea = () => {
@@ -652,24 +656,25 @@ export function CollectionShareScreen({ route }: Props) {
     }
   };
 
-  /** 공유 시작: only this explicit action creates (or, idempotently, returns) the public link. */
+  /** 공용 컬렉션 ON: only this explicit action makes the contents public (creating the link when there is none, keeping its URL when there is). */
   const startPublicShare = async () => {
     if (isManagingShare || publicToggleBusyRef.current) {
       return;
     }
-    if (hasRoleMismatch(pendingPublicPermission)) {
-      setRaiseRolesPrompt({ permission: pendingPublicPermission, isStart: true });
+    if (hasRoleMismatch(publicPermission)) {
+      setRaiseRolesPrompt({ permission: publicPermission, isStart: true });
       return;
     }
     // Rapid taps in one frame must not send two enable requests (state would still read "idle").
     publicToggleBusyRef.current = true;
     try {
-      await applyPublicShare(pendingPublicPermission, true, false);
+      await applyPublicShare(publicPermission, true, false);
     } finally {
       publicToggleBusyRef.current = false;
     }
   };
 
+  /** 공용 컬렉션 OFF (after the confirmation). */
   const stopPublicShare = async () => {
     if (isManagingShare || publicToggleBusyRef.current) {
       return;
@@ -678,8 +683,8 @@ export function CollectionShareScreen({ route }: Props) {
     setIsManagingShare(true);
     setShareError(null);
     try {
-      await revokeCollectionShare(authenticatedRequest, collectionId);
-      setShare(null);
+      // OFF keeps the link (same URL): its contents just stop being public and it becomes a way to ask to join.
+      setShare(await makeCollectionSharePrivate(authenticatedRequest, collectionId));
     } catch (caughtError) {
       setShareError(getShareManagementErrorMessage(caughtError, t, null));
     } finally {
@@ -708,14 +713,26 @@ export function CollectionShareScreen({ route }: Props) {
     await applyPublicShare(permission, false, false);
   };
 
+  /** Passing the link on works for a public AND a private link; with none yet, a private one is created first (nothing becomes public). */
   const shareLink = async () => {
-    if (!share || !collection) {
+    if (!collection || isManagingShare || publicToggleBusyRef.current) {
       return;
     }
+    publicToggleBusyRef.current = true;
     try {
-      await shareItem(share.shareUrl, collection.name);
-    } catch {
-      setShareError(t('item.shareError'));
+      let current = share;
+      if (!current) {
+        setIsManagingShare(true);
+        current = await makeCollectionSharePrivate(authenticatedRequest, collectionId);
+        setShare(current);
+        setIsManagingShare(false);
+      }
+      await shareItem(current.shareUrl, collection.name);
+    } catch (caughtError) {
+      setIsManagingShare(false);
+      setShareError(caughtError instanceof ApiError ? getShareManagementErrorMessage(caughtError, t, null) : t('item.shareError'));
+    } finally {
+      publicToggleBusyRef.current = false;
     }
   };
 
@@ -996,7 +1013,7 @@ export function CollectionShareScreen({ route }: Props) {
               titleAccessory={<InfoCallout accessibilityLabel={t('shareSheet.publicInfoA11y')} message={t('shareSheet.publicInfo')} testID="share-public-info" />}
               trailing={
                 <View style={styles.headerTrailing}>
-                  {/* On creates the link (the server's own enable), off stops it after a confirmation. */}
+                  {/* ON makes the contents public (creating the link when there is none); OFF keeps the link but hides the contents, after a confirmation. */}
                   <PublicToggle
                     disabled={isPublicToggleDisabled}
                     label={t('shareSheet.allUsersTitle')}
@@ -1008,52 +1025,54 @@ export function CollectionShareScreen({ route }: Props) {
                       }
                     }}
                     testID="share-public-toggle"
-                    value={share !== null}
+                    value={isPublicOn}
                   />
-                  {/* Passing the link on, only while it is on: right next to the switch (its end side). While
-                      it is off nothing is reserved for it, so the switch sits at the card's end edge and moves
-                      toward the start as the share icon appears. */}
-                  {share ? (
-                    <Pressable
-                      accessibilityLabel={t('shareSheet.shareLink')}
-                      accessibilityRole="button"
-                      onPress={shareLink}
-                      style={styles.headerShare}
-                      testID="share-link-action"
-                    >
-                      <ShareIcon color={colors.textPrimary} size={20} />
-                    </Pressable>
-                  ) : null}
+                  {/* Passing the link on, public or private: right next to the switch (its end side). */}
+                  <Pressable
+                    accessibilityLabel={t('shareSheet.shareLink')}
+                    accessibilityRole="button"
+                    onPress={() => { shareLink().catch(() => undefined); }}
+                    style={styles.headerShare}
+                    testID="share-link-action"
+                  >
+                    <ShareIcon color={colors.textPrimary} size={20} />
+                  </Pressable>
                 </View>
               }
             >
-              <View style={styles.field}>
-                {/* No separate 권한 heading: the options themselves (읽기 전용 / 승인 후 추가 / 링크 추가) say what this is. */}
-                <Segmented
-                  accessibilityLabel={t('shareSheet.permissionLabel')}
-                  disabled={isManagingShare}
-                  kind="radio"
-                  onChange={changePublicPermission}
-                  // Re-choosing the current permission (e.g. 읽기 전용 after a refused 링크 추가) clears
-                  // that attempt's reason - it never stays under a choice it was not about.
-                  onReselect={() => setShareError(null)}
-                  options={[
-                    { key: 'read', label: t('shareSheet.permissionRead') },
-                    { key: 'submit', label: t('shareSheet.permissionSubmit') },
-                    { key: 'write', label: t('shareSheet.permissionWrite') },
-                  ]}
-                  testID="share-all-users-permission"
-                  value={publicPermission}
-                />
-              </View>
-              <Text style={styles.help} testID="share-all-users-description">
-                {publicPermission === 'write'
-                  ? t('shareSheet.allUsersWriteDescription')
-                  : publicPermission === 'submit'
-                    ? t('shareSheet.allUsersSubmitDescription')
-                    : t('shareSheet.allUsersDescription')}
-              </Text>
-              {!share ? (
+              {isPublicOn ? (
+                <>
+                  <View style={styles.field}>
+                    {/* No separate 권한 heading: the options themselves (읽기 전용 / 승인 후 추가 / 링크 추가) say what this is. */}
+                    <Segmented
+                      accessibilityLabel={t('shareSheet.permissionLabel')}
+                      disabled={isManagingShare}
+                      kind="radio"
+                      onChange={changePublicPermission}
+                      // Re-choosing the current permission (e.g. 읽기 전용 after a refused 링크 추가) clears
+                      // that attempt's reason - it never stays under a choice it was not about.
+                      onReselect={() => setShareError(null)}
+                      options={[
+                        { key: 'read', label: t('shareSheet.permissionRead') },
+                        { key: 'submit', label: t('shareSheet.permissionSubmit') },
+                        { key: 'write', label: t('shareSheet.permissionWrite') },
+                      ]}
+                      testID="share-all-users-permission"
+                      value={publicPermission}
+                    />
+                  </View>
+                  <Text style={styles.help} testID="share-all-users-description">
+                    {publicPermission === 'write'
+                      ? t('shareSheet.allUsersWriteDescription')
+                      : publicPermission === 'submit'
+                        ? t('shareSheet.allUsersSubmitDescription')
+                        : t('shareSheet.allUsersDescription')}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.help} testID="share-private-description">{t('shareSheet.allUsersPrivateDescription')}</Text>
+              )}
+              {!isPublicOn ? (
                 <>
                   {needsSharePasswordMigration ? (
                     <View style={styles.noticeBox} testID="share-public-migration-required">
@@ -1516,6 +1535,7 @@ const styles = StyleSheet.create({
   rowLine: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
   listRowDivider: { borderTopColor: colors.divider, borderTopWidth: 1 },
   personText: { flex: 1, minWidth: 0 },
+  subHeading: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: spacing.md },
   personName: { color: colors.textPrimary, fontSize: 14, fontWeight: '600' },
   jupleId: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', letterSpacing: 1 },
   pendingStatus: { color: colors.textSecondary, fontSize: 12 },

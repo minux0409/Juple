@@ -119,6 +119,11 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
                 .Where(submission => submission.SubmittedByUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // Join requests this user made to anyone's Collection (RequesterUserId is NoAction); requests to their own Collections cascade below.
+            await dbContext.CollectionJoinRequests
+                .Where(request => request.RequesterUserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
             // This user's comments on anyone's links (UserId is NoAction); comments on their own
             // Collections' links would also cascade below. Leaving a Collection does NOT remove a
             // comment - only deleting the account does.

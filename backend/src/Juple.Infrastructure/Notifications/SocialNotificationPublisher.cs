@@ -123,6 +123,16 @@ public sealed class SocialNotificationPublisher(
             NotificationType.CommentLikeReceived, actorUserId, recipientUserId, collectionId, commentId, null, false, null,
             NotificationEventKeys.CommentLike(commentId, actorUserId), Now(), itemId), cancellationToken);
 
+    public Task JoinRequestReceivedAsync(long requesterUserId, long ownerUserId, long collectionId, long requestId, CancellationToken cancellationToken = default) =>
+        RecordAsync(new NotificationEvent(
+            NotificationType.JoinRequestReceived, requesterUserId, ownerUserId, collectionId, requestId, null, false, null,
+            NotificationEventKeys.JoinRequest(requestId), Now()), cancellationToken);
+
+    public Task JoinRequestAnsweredAsync(long ownerUserId, long requesterUserId, long collectionId, long requestId, bool approved, CancellationToken cancellationToken = default) =>
+        RecordAsync(new NotificationEvent(
+            approved ? NotificationType.JoinRequestApproved : NotificationType.JoinRequestRejected, ownerUserId, requesterUserId, collectionId, requestId, null, true, null,
+            NotificationEventKeys.JoinRequestAnswered(requestId, approved), Now()), cancellationToken);
+
     /// <summary>The proposer is kept on the event only to find the proposal - the Owner's notification never names them.</summary>
     public Task CollectionLinkSubmittedAsync(long submitterUserId, long collectionId, long itemId, CancellationToken cancellationToken = default) =>
         RecordAsync(new NotificationEvent(

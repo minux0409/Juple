@@ -12,6 +12,12 @@ public interface IEnableCollectionShareService
         bool raiseLowerRoles = false,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Idempotent: the link (created if there is none) stays but its contents stop being public - see ICollectionShareStore.MakePrivateAsync.</summary>
+    Task<CollectionShareDto> MakePrivateAsync(
+        long userId,
+        long collectionId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Null when there is no active share to change. raiseLowerRoles raises every member/pending
     /// invitation below the new permission's minimum role to it, atomically with the change.

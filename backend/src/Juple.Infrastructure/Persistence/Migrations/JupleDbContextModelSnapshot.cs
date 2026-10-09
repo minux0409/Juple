@@ -625,6 +625,50 @@ namespace Juple.Infrastructure.Persistence.Migrations
                     b.ToTable("CollectionItemReactions", "collections");
                 });
 
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionJoinRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CollectionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("RequesterUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("ResolvedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("varchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequesterUserId")
+                        .HasDatabaseName("IX_CollectionJoinRequests_RequesterUserId");
+
+                    b.HasIndex("CollectionId", "Id")
+                        .HasDatabaseName("IX_CollectionJoinRequests_CollectionId_Id_Pending")
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.HasIndex("CollectionId", "RequesterUserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CollectionJoinRequests_CollectionId_RequesterUserId_Pending")
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.ToTable("CollectionJoinRequests", "collections");
+                });
+
             modelBuilder.Entity("Juple.Domain.Collections.CollectionLinkSubmission", b =>
                 {
                     b.Property<long>("Id")
@@ -798,6 +842,11 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsPublic")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Permission")
                         .IsRequired()
@@ -1378,7 +1427,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Id")
                         .HasDatabaseName("IX_Notifications_Inbox")
-                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)");
+                        .HasFilter("[Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
 
                     b.HasIndex("Type", "RepeatPurchaseId", "DueDate")
                         .IsUnique()
@@ -1390,13 +1439,13 @@ namespace Juple.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Type", "CollectionId")
                         .HasDatabaseName("IX_Notifications_Unread")
-                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)");
+                        .HasFilter("[ReadAtUtc] IS NULL AND [Type] IN (1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
 
                     SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("UserId", "Type", "CollectionId"), new[] { "ReadAtUtc" });
 
                     b.ToTable("Notifications", "notifications", t =>
                         {
-                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)");
+                            t.HasCheckConstraint("CK_Notifications_Type_Valid", "[Type] IN (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
                         });
                 });
 
@@ -1540,7 +1589,7 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_NotificationEvents_Status_Valid", "[Status] IN (0, 1, 2)");
 
-                            t.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)");
+                            t.HasCheckConstraint("CK_NotificationEvents_Type_Valid", "[Type] IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19)");
                         });
                 });
 
@@ -2053,6 +2102,21 @@ namespace Juple.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CollectionId", "ItemId")
                         .HasPrincipalKey("CollectionId", "ItemId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Juple.Domain.Collections.CollectionJoinRequest", b =>
+                {
+                    b.HasOne("Juple.Domain.Collections.Collection", null)
+                        .WithMany()
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Juple.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("RequesterUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });
 

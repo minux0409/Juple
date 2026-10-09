@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "此合集已无法打开，请自行删除主屏幕上的图标。",
     "homeShortcutAdd": "添加到主屏幕",
     "homeShortcutUnsupported": "此设备的启动器不支持添加主屏幕快捷方式。",
-    "homeShortcutLocked": "已锁定的合集从主屏幕打开时仍需输入密码，且不会添加为共享目标。"
+    "homeShortcutLocked": "已锁定的合集从主屏幕打开时仍需输入密码，且不会添加为共享目标。",
+    "joinPending": "等待批准",
+    "joinRequestsA11y": "加入申请 {{count}}",
+    "joinRequests": "加入申请 {{count}}"
   },
   "toast": {
     "moveSuccess": "已移动。",
@@ -530,7 +533,28 @@
     "addDone": "已添加链接。",
     "addInvalidUrl": "无法添加此链接。",
     "addNotAllowed": "目前无法向此合集添加链接。",
-    "addFallback": "无法添加链接。"
+    "addFallback": "无法添加链接。",
+    "joinRequestAction": "申请加入",
+    "joinRequestSentMessage": "加入申请已发送。所有者回复后会通知你。",
+    "joinNotAllowed": "这个合集目前不接受新参与者。",
+    "joinLocked": "这个合集需要密码，暂时无法加入。",
+    "joinFailed": "未能完成，请重试。",
+    "lockedTitle": "这个合集已上锁",
+    "lockedMessage": "输入密码以查看这个合集。",
+    "passwordLabel": "密码",
+    "unlockAction": "解锁",
+    "wrongPassword": "密码不正确。",
+    "tooManyAttempts": "尝试次数过多，请稍后再试。",
+    "unlockFailed": "无法解锁，请重试。",
+    "privateQuestion": "要加入此合集吗？",
+    "privateHint": "所有者批准后，你将成为参与者并可查看合集。",
+    "privateSignIn": "请登录 Juple 以申请加入。",
+    "joinPendingTitle": "等待批准",
+    "joinPendingMessage": "所有者批准后我们会通知你。",
+    "addTitle": "添加合集",
+    "requestTitle": "申请加入",
+    "requestSend": "申请",
+    "signInRequired": "请登录 Juple 以添加此合集或申请加入。"
   },
   "quickSaveComposer": {
     "titleLabel": "标题",
@@ -706,7 +730,19 @@
     "selectedCount": "已选择 {{count}} 人",
     "addPersonToInviteList": "将 {{name}} 加入邀请列表",
     "publicInfo": "任何知道合集链接的人都可以访问该合集。\n你可以为访问者设置统一权限，并为直接邀请的用户单独指定更高的权限。\n也可以在参与者列表中修改。",
-    "publicInfoA11y": "关于公开合集"
+    "publicInfoA11y": "关于公开合集",
+    "requestsEmpty": "没有待处理的加入申请。",
+    "joinRequestApprove": "批准",
+    "joinRequestReject": "拒绝",
+    "joinRequestApproveA11y": "批准 {{name}} 的申请",
+    "joinRequestRejectA11y": "拒绝 {{name}} 的申请",
+    "joinRequestApproveTitle": "要批准这个申请吗?",
+    "joinRequestApproveMessage": "{{name}} 将成为这个合集的参与者。",
+    "joinRequestRejectTitle": "要拒绝这个申请吗?",
+    "joinRequestRejectMessage": "将拒绝 {{name}} 的申请，对方之后可以再次申请。",
+    "joinRequestNotActionable": "此申请已无法处理。",
+    "allUsersPrivateDescription": "收到链接的人可以申请加入合集。",
+    "joinRequestsTitle": "加入申请"
   },
   "linkShare": {
     "description": "转发公开合集的链接。接收者不会成为此合集的参与者。",

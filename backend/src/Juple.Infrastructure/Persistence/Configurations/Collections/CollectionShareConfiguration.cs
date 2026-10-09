@@ -48,6 +48,14 @@ public sealed class CollectionShareConfiguration : IEntityTypeConfiguration<Coll
             .HasDefaultValue(CollectionSharePermission.Read)
             .HasSentinel(CollectionSharePermission.Read);
 
+        // Public contents (true, the default - so existing rows and rows an older revision inserts stay public) or a private link that
+        // only offers a join request. An explicit false is written; the sentinel keeps EF from treating false as "use the default".
+        builder.Property(share => share.IsPublic)
+            .HasColumnType("bit")
+            .IsRequired()
+            .HasDefaultValue(true)
+            .HasSentinel(true);
+
         // The Public Web Viewer's sole lookup path (GET /api/v1/public/collections/{publicId}) -
         // must be unique so a PublicId can never resolve to more than one Collection.
         builder.HasIndex(share => share.PublicId)

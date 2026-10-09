@@ -451,6 +451,5 @@ describe('CollectionSharedItemScreen - comments', () => {
 
     expect(read('../SharedCollectionScreen.tsx')).not.toMatch(/comment/i);
     expect(read('../../collections/api/publicCollectionsApi.ts')).not.toMatch(/comment/i);
-    expect(read('../../collections/usePublicCollectionItems.ts')).not.toMatch(/comment/i);
   });
 });

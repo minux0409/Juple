@@ -48,13 +48,16 @@ public sealed record CollectionDto(
     // Collection - read state of the caller's own notifications, never inferred from link dates, so
     // their own adds and muted/suppressed ones never count. Cleared by opening the Collection.
     int UnreadNewLinkCount = 0,
-    // What the card's attention badge shows: PendingSubmissionCount (a task - stays until each proposal
-    // is answered) + UnreadNewLinkCount. Reactions, comments and other activity are the Inbox's, not this.
+    // What the card's attention badge shows: PendingSubmissionCount + PendingJoinRequestCount (tasks - they stay until each is
+    // answered) + UnreadNewLinkCount. Reactions, comments and other activity are the Inbox's, not this.
     int AttentionCount = 0,
     // A submitter's view (승인 후 추가): how many of the CALLER's OWN proposed links still wait for the
     // Owner. 0 for the Owner (who has PendingSubmissionCount) and for anyone with nothing waiting - a
     // different number from the Owner's, never combined with it, and not part of AttentionCount.
-    int MyPendingSubmissionCount = 0);
+    int MyPendingSubmissionCount = 0,
+    // Owner view only: how many people wait for the Owner to let them join (a CollectionJoinRequest, 참여 요청). A task like
+    // PendingSubmissionCount and part of AttentionCount; always 0 for anyone else. Not a notification and never counted twice.
+    int PendingJoinRequestCount = 0);
 
 /// <summary>
 /// A member of a collaborative Collection as other members see them: public Juple ID and the

@@ -103,6 +103,20 @@ public interface ISocialNotificationPublisher
         Task.CompletedTask;
 
     /// <summary>
+    /// requesterUserId asked to join ownerUserId's Collection through its public link (requestId is the CollectionJoinRequest): the
+    /// Owner is told, naming the requester. Collection-scoped activity - the Owner's Collection setting silences only the push.
+    /// </summary>
+    Task JoinRequestReceivedAsync(long requesterUserId, long ownerUserId, long collectionId, long requestId, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    /// <summary>
+    /// The Owner answered requesterUserId's join request: the requester is told the result (never who decided). A result of the
+    /// requester's own action, so the Collection's notification setting does not apply.
+    /// </summary>
+    Task JoinRequestAnsweredAsync(long ownerUserId, long requesterUserId, long collectionId, long requestId, bool approved, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    /// <summary>
     /// submitterUserId's link (their itemId) now waits for this Collection's Owner (승인 후 추가): the
     /// Owner is told - never by whom, so a proposal through the public link stays anonymous. Only
     /// called for a proposal that was actually recorded (never for a duplicate or a failure).
@@ -228,7 +242,8 @@ public static class SocialNotificationPolicy
             or NotificationType.CollectionItemCommentReceived
             or NotificationType.CommentReplyReceived
             or NotificationType.CommentLikeReceived
-            or NotificationType.CollectionLinkSubmissionReceived;
+            or NotificationType.CollectionLinkSubmissionReceived
+            or NotificationType.JoinRequestReceived;
 
     public static TimeSpan MaxAge(NotificationType type) => IsDataOnly(type) ? DataOnlyMaxAge : VisibleMaxAge;
 
@@ -251,6 +266,9 @@ public static class SocialNotificationPolicy
         NotificationType.CollectionLinkSubmissionRejected => "collectionLinkSubmissionRejected",
         NotificationType.CommentReplyReceived => "commentReply",
         NotificationType.CommentLikeReceived => "commentLike",
+        NotificationType.JoinRequestReceived => "joinRequest",
+        NotificationType.JoinRequestApproved => "joinRequestApproved",
+        NotificationType.JoinRequestRejected => "joinRequestRejected",
         _ => "unknown",
     };
 

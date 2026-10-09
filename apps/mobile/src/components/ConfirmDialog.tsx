@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../theme/tokens';
 import { DialogActions } from './DialogActions';
@@ -13,6 +14,8 @@ interface ConfirmDialogProps {
   readonly onConfirm: () => void;
   /** Styles the confirm button as the destructive action (default). Set false for a neutral confirm. */
   readonly destructive?: boolean;
+  /** Optional content between the message and the buttons (e.g. a Collection's profile) - the dialog stays the one shared shape. */
+  readonly children?: ReactNode;
 }
 
 /**
@@ -35,6 +38,7 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
   destructive = true,
+  children,
 }: ConfirmDialogProps) {
   const dismiss = onCancel ?? onConfirm;
 
@@ -51,6 +55,7 @@ export function ConfirmDialog({
           <Text style={styles.title}>{title}</Text>
           {/* An empty message means a title-only confirmation. */}
           {message ? <Text style={styles.message}>{message}</Text> : null}
+          {children}
           <View style={styles.actions}>
             <DialogActions
               actions={[

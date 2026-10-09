@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "このコレクションは開けなくなりました。ホーム画面のアイコンはご自身で削除してください。",
     "homeShortcutAdd": "ホーム画面にショートカットを追加",
     "homeShortcutUnsupported": "この端末のランチャーはホーム画面へのショートカット追加に対応していません。",
-    "homeShortcutLocked": "ロックされたコレクションは、ホーム画面から開く際もパスワードが必要です。共有先（Direct Share）には追加されません。"
+    "homeShortcutLocked": "ロックされたコレクションは、ホーム画面から開く際もパスワードが必要です。共有先（Direct Share）には追加されません。",
+    "joinPending": "承認待ち",
+    "joinRequestsA11y": "参加リクエスト {{count}}",
+    "joinRequests": "参加リクエスト {{count}}"
   },
   "toast": {
     "moveSuccess": "移動しました。",
@@ -530,7 +533,28 @@
     "addDone": "リンクを追加しました。",
     "addInvalidUrl": "このリンクは追加できません。",
     "addNotAllowed": "現在このコレクションにはリンクを追加できません。",
-    "addFallback": "リンクを追加できませんでした。"
+    "addFallback": "リンクを追加できませんでした。",
+    "joinRequestAction": "参加をリクエスト",
+    "joinRequestSentMessage": "参加リクエストを送りました。オーナーが承認したらお知らせします。",
+    "joinNotAllowed": "このコレクションは現在、参加を受け付けていません。",
+    "joinLocked": "パスワードが必要なコレクションのため、現在は参加できません。",
+    "joinFailed": "処理できませんでした。もう一度お試しください。",
+    "lockedTitle": "ロックされたコレクションです",
+    "lockedMessage": "このコレクションを見るにはパスワードを入力してください。",
+    "passwordLabel": "パスワード",
+    "unlockAction": "ロック解除",
+    "wrongPassword": "パスワードが正しくありません。",
+    "tooManyAttempts": "試行回数が多すぎます。しばらくしてからもう一度お試しください。",
+    "unlockFailed": "ロックを解除できませんでした。もう一度お試しください。",
+    "privateQuestion": "このコレクションに参加しますか？",
+    "privateHint": "オーナーが承認すると参加者になり、コレクションを見られます。",
+    "privateSignIn": "参加をリクエストするにはJupleにログインしてください。",
+    "joinPendingTitle": "承認待ち",
+    "joinPendingMessage": "オーナーが承認したらお知らせします。",
+    "addTitle": "コレクションを追加",
+    "requestTitle": "参加をリクエスト",
+    "requestSend": "リクエスト",
+    "signInRequired": "コレクションを追加または参加をリクエストするにはJupleにログインしてください。"
   },
   "quickSaveComposer": {
     "titleLabel": "タイトル",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}}人を選択",
     "addPersonToInviteList": "{{name}}を招待リストに追加",
     "publicInfo": "コレクションのリンクを知っている人は誰でもコレクションにアクセスできます。\nアクセスするユーザーに共通の権限を設定でき、直接招待したユーザーにはより高い権限を別途指定できます。\n参加者リストからも変更できます。",
-    "publicInfoA11y": "公開コレクションについて"
+    "publicInfoA11y": "公開コレクションについて",
+    "requestsEmpty": "待機中の参加リクエストはありません。",
+    "joinRequestApprove": "承認",
+    "joinRequestReject": "拒否",
+    "joinRequestApproveA11y": "{{name}}さんの参加リクエストを承認",
+    "joinRequestRejectA11y": "{{name}}さんの参加リクエストを拒否",
+    "joinRequestApproveTitle": "参加リクエストを承認しますか?",
+    "joinRequestApproveMessage": "{{name}}さんがこのコレクションの参加者になります。",
+    "joinRequestRejectTitle": "参加リクエストを拒否しますか?",
+    "joinRequestRejectMessage": "{{name}}さんのリクエストを拒否します。後でもう一度リクエストできます。",
+    "joinRequestNotActionable": "このリクエストはもう処理できません。",
+    "allUsersPrivateDescription": "リンクを受け取った人はコレクションへの参加をリクエストできます。",
+    "joinRequestsTitle": "参加リクエスト"
   },
   "linkShare": {
     "description": "公開コレクションのリンクを送ります。受け取った人がこのコレクションの参加者になることはありません。",

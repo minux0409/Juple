@@ -93,6 +93,8 @@ export type RootStackParamList = {
     };
     /** A 승인 요청 notification: opens the Owner's 링크 승인 대기 popup over the Collection once its content is open. Consumed once. */
     openApprovals?: boolean;
+    /** A join-request notification: once the content is open (lock gate passed), the 참여 요청 bottom sheet opens over the Collection. Consumed once. */
+    openJoinRequests?: boolean;
     /**
      * The Collections list's long-press menu: 수정 / 잠금 설정 / 삭제 / 나가기 are this screen's own dialogs (with its
      * password prompt for a locked Collection, its undo and its navigation back) - the list asks for one and this screen

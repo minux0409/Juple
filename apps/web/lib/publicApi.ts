@@ -5,6 +5,8 @@
 export interface PublicCollection {
   readonly name: string | null;
   readonly isLocked: boolean;
+  /** false: a PRIVATE link (공용 컬렉션 OFF) - only the name is known and no content is served. Absent (older API) = public. */
+  readonly isPublic?: boolean;
 }
 
 /**

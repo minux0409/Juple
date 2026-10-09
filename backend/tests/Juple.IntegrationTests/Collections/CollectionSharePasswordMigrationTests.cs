@@ -66,10 +66,12 @@ public sealed class CollectionSharePasswordMigrationTests : IAsyncLifetime
             _db.CollectionCollaborators.Add(new CollectionCollaborator(collectionId, member, CollectionCollaboratorRole.Viewer, owner, now));
         }
 
-        _db.CollectionShares.Add(new CollectionShare(lockedLink, Guid.NewGuid().ToString("N"), now));
-        var revokedLink = new CollectionShare(lockedEndedSharing, Guid.NewGuid().ToString("N"), now);
-        revokedLink.Revoke(now);
-        _db.CollectionShares.Add(revokedLink);
+        await _db.SaveChangesAsync();
+        // Raw SQL, on purpose: the database is at the PREVIOUS migration, so the current model's later columns (IsPublic) do not exist yet.
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO collections.CollectionShares (CollectionId, PublicId, IsActive, CreatedAtUtc, UpdatedAtUtc, RevokedAtUtc) VALUES ({lockedLink}, {Guid.NewGuid().ToString("N")}, 1, {now}, {now}, NULL)");
+        await _db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO collections.CollectionShares (CollectionId, PublicId, IsActive, CreatedAtUtc, UpdatedAtUtc, RevokedAtUtc) VALUES ({lockedEndedSharing}, {Guid.NewGuid().ToString("N")}, 0, {now}, {now}, {now})");
         _db.CollectionInvitations.Add(new CollectionInvitation(lockedInvited, invitee, owner, CollectionCollaboratorRole.Viewer, now));
         _db.CollectionInvitations.Add(new CollectionInvitation(lockedExpiredInvite, invitee, owner, CollectionCollaboratorRole.Viewer, now));
         var declined = new CollectionInvitation(lockedEndedSharing, invitee, owner, CollectionCollaboratorRole.Viewer, now);

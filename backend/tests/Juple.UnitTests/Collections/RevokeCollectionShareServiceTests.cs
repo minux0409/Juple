@@ -64,6 +64,10 @@ public sealed class RevokeCollectionShareServiceTests
             return Task.CompletedTask;
         }
 
+        public Task<CollectionShareDto> MakePrivateAsync(
+            long userId, long collectionId, string candidatePublicId, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<CollectionShareDto?> SetPermissionAsync(
             long userId, long collectionId, Juple.Domain.Collections.CollectionSharePermission permission, DateTimeOffset updatedAtUtc,
             bool raiseLowerRoles = false,

@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Bu koleksiyon artık açılamıyor. Ana ekrandaki simgesini lütfen kendiniz kaldırın.",
     "homeShortcutAdd": "Ana ekrana kısayol ekle",
     "homeShortcutUnsupported": "Bu cihazın başlatıcısı ana ekrana kısayol eklemeyi desteklemiyor.",
-    "homeShortcutLocked": "Kilitli bir koleksiyon ana ekrandan açıldığında da parola ister. Paylaşım hedefi olarak eklenmez."
+    "homeShortcutLocked": "Kilitli bir koleksiyon ana ekrandan açıldığında da parola ister. Paylaşım hedefi olarak eklenmez.",
+    "joinPending": "Onay bekliyor",
+    "joinRequestsA11y": "İstekler {{count}}",
+    "joinRequests": "İstekler {{count}}"
   },
   "toast": {
     "moveSuccess": "Taşındı.",
@@ -530,7 +533,28 @@
     "addDone": "Bağlantı eklendi.",
     "addInvalidUrl": "Bu bağlantı eklenemez.",
     "addNotAllowed": "Bu koleksiyona şu anda bağlantı eklenemez.",
-    "addFallback": "Bağlantı eklenemedi."
+    "addFallback": "Bağlantı eklenemedi.",
+    "joinRequestAction": "Katılma isteği gönder",
+    "joinRequestSentMessage": "İsteğin gönderildi. Sahibi yanıtlayınca sana haber vereceğiz.",
+    "joinNotAllowed": "Bu koleksiyon şu anda yeni katılımcı kabul etmiyor.",
+    "joinLocked": "Bu koleksiyon için parola gerekiyor, bu yüzden şu anda katılamazsın.",
+    "joinFailed": "İşlem tamamlanamadı. Lütfen tekrar dene.",
+    "lockedTitle": "Bu koleksiyon kilitli",
+    "lockedMessage": "Bu koleksiyonu görmek için parolayı gir.",
+    "passwordLabel": "Parola",
+    "unlockAction": "Kilidi aç",
+    "wrongPassword": "Parola doğru değil.",
+    "tooManyAttempts": "Çok fazla deneme yapıldı. Lütfen daha sonra tekrar dene.",
+    "unlockFailed": "Kilit açılamadı. Lütfen tekrar dene.",
+    "privateQuestion": "Bu koleksiyona katılmak istiyor musun?",
+    "privateHint": "Sahibi onayladığında katılımcı olursun ve koleksiyonu görebilirsin.",
+    "privateSignIn": "Katılma isteği göndermek için Juple'a giriş yap.",
+    "joinPendingTitle": "Onay bekliyor",
+    "joinPendingMessage": "Sahibi onaylayınca sana haber vereceğiz.",
+    "addTitle": "Koleksiyon ekle",
+    "requestTitle": "Katılma isteği gönder",
+    "requestSend": "İste",
+    "signInRequired": "Bu koleksiyonu eklemek veya katılma isteği göndermek için Juple'a giriş yap."
   },
   "quickSaveComposer": {
     "titleLabel": "Başlık",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} kişi seçildi",
     "addPersonToInviteList": "{{name}} kişisini davet listesine ekle",
     "publicInfo": "Koleksiyonun bağlantısını bilen herkes koleksiyona erişebilir.\nErişen kullanıcılar için ortak bir izin belirleyebilir, doğrudan davet ettiğiniz kullanıcılara ayrıca daha yüksek bir izin verebilirsiniz.\nİzinler katılımcı listesinden de değiştirilebilir.",
-    "publicInfoA11y": "Herkese açık koleksiyon hakkında"
+    "publicInfoA11y": "Herkese açık koleksiyon hakkında",
+    "requestsEmpty": "Bekleyen katılma isteği yok.",
+    "joinRequestApprove": "Onayla",
+    "joinRequestReject": "Reddet",
+    "joinRequestApproveA11y": "{{name}} kişisinin isteğini onayla",
+    "joinRequestRejectA11y": "{{name}} kişisinin isteğini reddet",
+    "joinRequestApproveTitle": "Bu istek onaylansın mı?",
+    "joinRequestApproveMessage": "{{name}} bu koleksiyonun katılımcısı olacak.",
+    "joinRequestRejectTitle": "Bu istek reddedilsin mi?",
+    "joinRequestRejectMessage": "{{name}} kişisinin isteği reddedilecek. Daha sonra tekrar isteyebilir.",
+    "joinRequestNotActionable": "Bu istek artık yanıtlanamaz.",
+    "allUsersPrivateDescription": "Bağlantıyı alanlar koleksiyona katılma isteği gönderebilir.",
+    "joinRequestsTitle": "İstekler"
   },
   "linkShare": {
     "description": "Herkese açık koleksiyon bağlantısını iletin. Alıcılar bu koleksiyonun katılımcısı olmaz.",

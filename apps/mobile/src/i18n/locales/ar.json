@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "لم يعد بالإمكان فتح هذه المجموعة. يرجى حذف أيقونتها من الشاشة الرئيسية بنفسك.",
     "homeShortcutAdd": "إضافة اختصار إلى الشاشة الرئيسية",
     "homeShortcutUnsupported": "لا يدعم مشغّل هذا الجهاز إضافة اختصارات إلى الشاشة الرئيسية.",
-    "homeShortcutLocked": "ستظل المجموعة المقفلة تطلب كلمة المرور عند فتحها من الشاشة الرئيسية، ولا تُضاف كوجهة مشاركة."
+    "homeShortcutLocked": "ستظل المجموعة المقفلة تطلب كلمة المرور عند فتحها من الشاشة الرئيسية، ولا تُضاف كوجهة مشاركة.",
+    "joinPending": "بانتظار الموافقة",
+    "joinRequestsA11y": "الطلبات {{count}}",
+    "joinRequests": "الطلبات {{count}}"
   },
   "toast": {
     "moveSuccess": "تم النقل.",
@@ -530,7 +533,28 @@
     "addDone": "تمت إضافة الرابط.",
     "addInvalidUrl": "لا يمكن إضافة هذا الرابط.",
     "addNotAllowed": "لا يمكن إضافة روابط إلى هذه المجموعة حاليًا.",
-    "addFallback": "تعذّرت إضافة الرابط."
+    "addFallback": "تعذّرت إضافة الرابط.",
+    "joinRequestAction": "طلب الانضمام",
+    "joinRequestSentMessage": "تم إرسال طلبك. سنبلغك عندما يردّ المالك.",
+    "joinNotAllowed": "هذه المجموعة لا تقبل مشاركين جددًا الآن.",
+    "joinLocked": "هذه المجموعة تتطلب كلمة مرور، لذا لا يمكنك الانضمام الآن.",
+    "joinFailed": "تعذّر إكمال ذلك. حاول مرة أخرى.",
+    "lockedTitle": "هذه المجموعة مقفلة",
+    "lockedMessage": "أدخل كلمة المرور لعرض هذه المجموعة.",
+    "passwordLabel": "كلمة المرور",
+    "unlockAction": "إلغاء القفل",
+    "wrongPassword": "كلمة المرور غير صحيحة.",
+    "tooManyAttempts": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
+    "unlockFailed": "تعذّر إلغاء القفل. حاول مرة أخرى.",
+    "privateQuestion": "هل تريد الانضمام إلى هذه المجموعة؟",
+    "privateHint": "عندما يوافق المالك ستصبح مشاركًا وتستطيع رؤية المجموعة.",
+    "privateSignIn": "سجّل الدخول إلى Juple لطلب الانضمام.",
+    "joinPendingTitle": "بانتظار الموافقة",
+    "joinPendingMessage": "سنخبرك عندما يوافق المالك.",
+    "addTitle": "إضافة المجموعة",
+    "requestTitle": "طلب الانضمام",
+    "requestSend": "طلب",
+    "signInRequired": "سجّل الدخول إلى Juple لإضافة هذه المجموعة أو طلب الانضمام."
   },
   "quickSaveComposer": {
     "titleLabel": "العنوان",
@@ -706,7 +730,19 @@
     "selectedCount": "تم اختيار {{count}}",
     "addPersonToInviteList": "إضافة {{name}} إلى قائمة الدعوات",
     "publicInfo": "يمكن لأي شخص يعرف رابط المجموعة الوصول إليها.\nيمكنك تعيين إذن موحّد للمستخدمين الذين يصلون إليها، ومنح المدعوين مباشرةً إذنًا أعلى بشكل منفصل.\nيمكن أيضًا تعديل الأذونات من قائمة المشاركين.",
-    "publicInfoA11y": "حول المجموعة العامة"
+    "publicInfoA11y": "حول المجموعة العامة",
+    "requestsEmpty": "لا توجد طلبات انضمام قيد الانتظار.",
+    "joinRequestApprove": "موافقة",
+    "joinRequestReject": "رفض",
+    "joinRequestApproveA11y": "الموافقة على طلب {{name}}",
+    "joinRequestRejectA11y": "رفض طلب {{name}}",
+    "joinRequestApproveTitle": "هل تريد الموافقة على هذا الطلب؟",
+    "joinRequestApproveMessage": "سيصبح {{name}} مشاركًا في هذه المجموعة.",
+    "joinRequestRejectTitle": "هل تريد رفض هذا الطلب؟",
+    "joinRequestRejectMessage": "سيُرفض طلب {{name}}. يمكنه الطلب مرة أخرى لاحقًا.",
+    "joinRequestNotActionable": "لم يعد بالإمكان الرد على هذا الطلب.",
+    "allUsersPrivateDescription": "يمكن لمن يستلم الرابط طلب الانضمام إلى المجموعة.",
+    "joinRequestsTitle": "الطلبات"
   },
   "linkShare": {
     "description": "مرّر رابط المجموعة العامة. لا يصبح المستلمون مشاركين في هذه المجموعة.",

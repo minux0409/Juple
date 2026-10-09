@@ -345,7 +345,10 @@
     "shortcutOpenUnavailable": "Questa raccolta non può più essere aperta. Rimuovi tu stesso la sua icona dalla schermata Home.",
     "homeShortcutAdd": "Aggiungi scorciatoia alla schermata Home",
     "homeShortcutUnsupported": "Il launcher di questo dispositivo non supporta l’aggiunta di scorciatoie alla schermata Home.",
-    "homeShortcutLocked": "Una raccolta bloccata chiede comunque la password se aperta dalla schermata Home. Non viene aggiunta come destinazione di condivisione."
+    "homeShortcutLocked": "Una raccolta bloccata chiede comunque la password se aperta dalla schermata Home. Non viene aggiunta come destinazione di condivisione.",
+    "joinPending": "In attesa di approvazione",
+    "joinRequestsA11y": "Richieste {{count}}",
+    "joinRequests": "Richieste {{count}}"
   },
   "toast": {
     "moveSuccess": "Spostato.",
@@ -530,7 +533,28 @@
     "addDone": "Link aggiunto.",
     "addInvalidUrl": "Questo link non può essere aggiunto.",
     "addNotAllowed": "Al momento non è possibile aggiungere link a questa raccolta.",
-    "addFallback": "Impossibile aggiungere il link."
+    "addFallback": "Impossibile aggiungere il link.",
+    "joinRequestAction": "Chiedi di partecipare",
+    "joinRequestSentMessage": "La richiesta è stata inviata. Ti avviseremo quando il proprietario risponde.",
+    "joinNotAllowed": "Questa raccolta non accetta nuovi partecipanti al momento.",
+    "joinLocked": "Questa raccolta richiede una password, quindi ora non puoi unirti.",
+    "joinFailed": "Operazione non riuscita. Riprova.",
+    "lockedTitle": "Questa raccolta è bloccata",
+    "lockedMessage": "Inserisci la password per vedere questa raccolta.",
+    "passwordLabel": "Password",
+    "unlockAction": "Sblocca",
+    "wrongPassword": "La password non è corretta.",
+    "tooManyAttempts": "Troppi tentativi. Riprova più tardi.",
+    "unlockFailed": "Impossibile sbloccare. Riprova.",
+    "privateQuestion": "Vuoi partecipare a questa raccolta?",
+    "privateHint": "Quando il proprietario approva, diventi partecipante e puoi vedere la raccolta.",
+    "privateSignIn": "Accedi a Juple per chiedere di partecipare.",
+    "joinPendingTitle": "In attesa di approvazione",
+    "joinPendingMessage": "Ti avviseremo quando il proprietario approva.",
+    "addTitle": "Aggiungi raccolta",
+    "requestTitle": "Chiedi di partecipare",
+    "requestSend": "Chiedi",
+    "signInRequired": "Accedi a Juple per aggiungere questa raccolta o chiedere di partecipare."
   },
   "quickSaveComposer": {
     "titleLabel": "Titolo",
@@ -706,7 +730,19 @@
     "selectedCount": "{{count}} selezionati",
     "addPersonToInviteList": "Aggiungi {{name}} all’elenco degli inviti",
     "publicInfo": "Chiunque conosca il link della raccolta può accedervi.\nPuoi impostare un permesso comune per chi accede e assegnare separatamente un permesso superiore alle persone invitate direttamente.\nI permessi si possono modificare anche dall’elenco dei partecipanti.",
-    "publicInfoA11y": "Info sulla raccolta pubblica"
+    "publicInfoA11y": "Info sulla raccolta pubblica",
+    "requestsEmpty": "Nessuna richiesta in attesa.",
+    "joinRequestApprove": "Approva",
+    "joinRequestReject": "Rifiuta",
+    "joinRequestApproveA11y": "Approva la richiesta di {{name}}",
+    "joinRequestRejectA11y": "Rifiuta la richiesta di {{name}}",
+    "joinRequestApproveTitle": "Approvare questa richiesta?",
+    "joinRequestApproveMessage": "{{name}} diventerà partecipante di questa raccolta.",
+    "joinRequestRejectTitle": "Rifiutare questa richiesta?",
+    "joinRequestRejectMessage": "La richiesta di {{name}} sarà rifiutata. Potrà richiederlo di nuovo più tardi.",
+    "joinRequestNotActionable": "Questa richiesta non può più essere gestita.",
+    "allUsersPrivateDescription": "Chi riceve il link può chiedere di partecipare alla raccolta.",
+    "joinRequestsTitle": "Richieste"
   },
   "linkShare": {
     "description": "Inoltra il link della raccolta pubblica. Chi lo riceve non diventa partecipante di questa raccolta.",

@@ -62,6 +62,7 @@ import { emitCollectionNewLinksRead, setUnreadCount } from '../notifications/not
 import { CollectionLinkShareSheet } from '../collections/CollectionLinkShareSheet';
 import { getCollectionParticipants, leaveCollection, type CollectionParticipants } from '../collections/api/collaborationApi';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
+import { JoinRequestsSheet } from '../collections/JoinRequestsSheet';
 import { CollectionParticipantsSheet } from '../collections/CollectionParticipantsSheet';
 import { CollectionUnlockPanel } from '../collections/CollectionUnlockPanel';
 import { CategoryIconTile } from '../collections/CategoryIconTile';
@@ -290,6 +291,8 @@ const LIVE_REFRESH_EVENTS: readonly SocialPushEventType[] = [
   'collectionLinkSubmissionApproved',
   'collectionLinkSubmissionRejected',
   'collectionInvitationAnswered',
+  // A new / answered 참여 요청 changes the Owner's 참여 요청 N row.
+  'joinRequest',
 ];
 
 /** 전체 선택 reads the Collection with the item API's largest page (its maximum is 100). */
@@ -332,6 +335,8 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
 
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
   const [isOwnerApprovalSheetVisible, setIsOwnerApprovalSheetVisible] = useState(false);
+  // 참여 요청 (people waiting to join): a bottom sheet of its own, opened from its row or from a 참여 요청 notification.
+  const [isJoinRequestsSheetVisible, setIsJoinRequestsSheetVisible] = useState(false);
   const [isMyApprovalSheetVisible, setIsMyApprovalSheetVisible] = useState(false);
   // Emoji reactions to the Collection's links (shared Collections only): the optimistic per-link state,
   // this device's recent picks, and the full picker (opened from the menu's "+", one modal at a time).
@@ -908,6 +913,19 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
       setIsOwnerApprovalSheetVisible(true);
     }
   }, [collection, isContentOpen, navigation, openApprovals]);
+
+  // A 참여 요청 notification: once the content is open (the lock / share-password gate passed, as for any visit) the Owner is taken
+  // to the 참여 요청 bottom sheet - the same one the 참여 요청 N row opens. Once per notification; nothing opens if the gate is not passed or it is not the Owner's.
+  const openJoinRequests = route.params.openJoinRequests === true;
+  useEffect(() => {
+    if (!openJoinRequests || !isContentOpen || collection === null) {
+      return;
+    }
+    navigation.setParams({ openJoinRequests: undefined });
+    if (!isSharedWithMe(collection)) {
+      setIsJoinRequestsSheetVisible(true);
+    }
+  }, [collection, isContentOpen, navigation, openJoinRequests]);
 
   // A reaction/comment notification on my link here: once the content is open (so the gate and the
   // visit's unlock apply exactly as for any visit), the link opens IN this Collection - its reactions
@@ -1750,6 +1768,17 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
           testID="collection-details-pending"
         />
       ) : null}
+      {/* The Owner's 참여 요청: people waiting to be let in (a CollectionJoinRequest) - an action row of the same family as 받은 승인 요청 above,
+          but a separate row with its own list (applicants, never links), only while there are any. Not a participant list. */}
+      {isOwner && (collection.pendingJoinRequestCount ?? 0) > 0 ? (
+        <PendingActionRow
+          accessibilityLabel={t('collections.joinRequestsA11y', { count: collection.pendingJoinRequestCount })}
+          label={t('collections.joinRequests', { count: collection.pendingJoinRequestCount })}
+          onPress={() => runUnlocked(() => setIsJoinRequestsSheetVisible(true))}
+          style={styles.pendingRowSpacing}
+          testID="collection-details-join-requests"
+        />
+      ) : null}
       {/* View mode (List/Grid) and sort are two independent, separately-persisted
           preferences (see useViewModePreference/useSortPreference) - switching one never
           resets the other, this round's explicit requirement. */}
@@ -2240,6 +2269,15 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         onClose={() => setIsOwnerApprovalSheetVisible(false)}
         variant="owner"
         visible={isOwnerApprovalSheetVisible && isOwner && pendingUnlockAction === null}
+      />
+      {/* 참여 요청: the applicants waiting to join - its own sheet in the same family as the approval queue above. */}
+      <JoinRequestsSheet
+        authenticatedRequest={authenticatedRequest}
+        collectionId={collectionId}
+        expectedCount={collection.pendingJoinRequestCount ?? 0}
+        onChanged={refreshAll}
+        onClose={() => setIsJoinRequestsSheetVisible(false)}
+        visible={isJoinRequestsSheetVisible && isOwner && pendingUnlockAction === null}
       />
       <ApprovalSubmissionSheet
         authenticatedRequest={authenticatedRequest}

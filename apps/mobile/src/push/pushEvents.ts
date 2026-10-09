@@ -18,6 +18,9 @@ export type SocialPushEventType =
   | 'collectionItemComment'
   | 'commentReply'
   | 'commentLike'
+  | 'joinRequest'
+  | 'joinRequestApproved'
+  | 'joinRequestRejected'
   | 'collectionLinkSubmission'
   | 'collectionLinkSubmissionApproved'
   | 'collectionLinkSubmissionRejected';
@@ -46,6 +49,9 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set<SocialPushEventType>([
   'collectionItemComment',
   'commentReply',
   'commentLike',
+  'joinRequest',
+  'joinRequestApproved',
+  'joinRequestRejected',
   'collectionLinkSubmission',
   'collectionLinkSubmissionApproved',
   'collectionLinkSubmissionRejected',

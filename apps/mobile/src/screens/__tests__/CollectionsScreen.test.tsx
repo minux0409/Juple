@@ -15,11 +15,13 @@ import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import { resolveCollectionColorTile } from '../../collections/collectionColors';
 import i18n from '../../i18n';
+import { CategoryIconTile } from '../../collections/CategoryIconTile';
 import { CollectionsScreen } from '../CollectionsScreen';
 import {
   createCollection,
   getCollections,
   getMyPendingSubmissionTotal,
+  listMyJoinRequests,
   setCollectionFavorite,
   type Collection,
   type GetCollectionsOptions,
@@ -107,6 +109,7 @@ const favoriteCollections = [ownedCollection];
 /** The server does the scoping - the screen only ever asks for one scope per filter. */
 function setUpGetCollectionsMock(): void {
   jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(0);
+  jest.mocked(listMyJoinRequests).mockResolvedValue([]);
   jest.mocked(getCollections).mockImplementation(
     async (_request, options: GetCollectionsOptions = {}) => {
       switch (options.scope) {
@@ -1413,6 +1416,128 @@ describe('CollectionsScreen load failure', () => {
     expect(jest.mocked(getCollections).mock.calls[callsBeforeRetry][1]).toEqual(jest.mocked(getCollections).mock.calls[0][1]);
     expect(renderer.root.findAllByType(LoadFailureState)).toHaveLength(0);
     expect(renderer.root.findAllByProps({ children: ownedCollection.name }).length).toBeGreaterThan(0);
+    act(() => renderer.unmount());
+  });
+});
+
+describe('CollectionsScreen - 승인 대기 중 placeholders (my own waiting join requests)', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+    mockRouteParams = undefined;
+  });
+
+  const waiting = { requestId: 41, publicId: 'pub-private', name: '비공개 여행', icon: 'Folder', color: null, requestedAtUtc: '2026-10-09T00:00:00Z' };
+  const cardById = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => node.props.testID === 'collection-join-pending-41' && typeof node.props.onPress === 'function')[0];
+  const allText = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(text => String(text.props.children));
+
+  async function renderWaiting(mode: 'grid' | 'list') {
+    setUpGetCollectionsMock();
+    jest.mocked(listMyJoinRequests).mockResolvedValue([waiting]);
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    if (mode === 'list') {
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      await act(async () => {
+        listToggle.props.onPress();
+      });
+    }
+    return renderer;
+  }
+
+  it.each(['grid', 'list'] as const)('%s: shows the Collection name with a readable 승인 대기 중, and the other Collections stay', async mode => {
+    const renderer = await renderWaiting(mode);
+
+    expect(allText(renderer)).toEqual(expect.arrayContaining(['비공개 여행', i18n.t('collections.joinPending'), ownedCollection.name]));
+    expect(cardById(renderer).props.accessibilityLabel).toBe(`비공개 여행, ${i18n.t('collections.joinPending')}`);
+    act(() => renderer.unmount());
+  });
+
+  it.each(['grid', 'list'] as const)('%s: tapping opens the private link status - never CollectionDetails - and there is no long-press menu or favorite', async mode => {
+    const renderer = await renderWaiting(mode);
+    const card = cardById(renderer);
+
+    await act(async () => {
+      card.props.onPress();
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('SharedCollection', { publicId: 'pub-private' });
+    expect(mockNavigate).not.toHaveBeenCalledWith('CollectionDetails', expect.anything());
+    expect(card.props.onLongPress).toBeUndefined();
+    expect(card.findAll(node => node.props.accessibilityLabel === i18n.t('collections.addFavorite'))).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('the waiting requests are read AFTER the Collections, so an approval in between can never show the placeholder and the real card together', async () => {
+    const renderer = await renderWaiting('grid');
+
+    const firstListOrder = jest.mocked(getCollections).mock.invocationCallOrder[0];
+    const firstPendingOrder = jest.mocked(listMyJoinRequests).mock.invocationCallOrder[0];
+    expect(firstPendingOrder).toBeGreaterThan(firstListOrder);
+
+    // The real Collection arrives and the server no longer lists the request: exactly one card for it, no placeholder.
+    jest.mocked(listMyJoinRequests).mockResolvedValue([]);
+    await act(async () => {
+      renderer.root.findAllByType(FlatList)[0].props.refreshControl.props.onRefresh();
+    });
+    expect(cardById(renderer)).toBeUndefined();
+    expect(renderer.root.findByType(FlatList).props.data.filter((entry: { pendingJoin?: unknown }) => entry.pendingJoin)).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('a rejected request leaves nothing behind: no placeholder and no card', async () => {
+    jest.mocked(listMyJoinRequests).mockResolvedValue([]);
+    setUpGetCollectionsMock();
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'shared');
+
+    expect(cardById(renderer)).toBeUndefined();
+    expect(allText(renderer)).not.toContain('비공개 여행');
+    act(() => renderer.unmount());
+  });
+
+  it.each(['grid', 'list'] as const)('%s: a Collection with its own photo keeps it under the dim - and the tile is keyed per share link, not by the request id', async mode => {
+    setUpGetCollectionsMock();
+    jest.mocked(listMyJoinRequests).mockResolvedValue([{ ...waiting, iconImageUrl: 'https://blob.test/cover?sig=1', iconImageVersion: 'v1' }]);
+    const renderer = await renderScreen();
+    await selectFilter(renderer, 'all');
+    if (mode === 'list') {
+      const listToggle = renderer.root.findAll(node => node.props.accessibilityLabel === 'List view' && typeof node.props.onPress === 'function')[0];
+      await act(async () => {
+        listToggle.props.onPress();
+      });
+    }
+
+    const tile = cardById(renderer).findAllByType(CategoryIconTile)[0];
+    expect(tile.props).toMatchObject({ imageUrl: 'https://blob.test/cover?sig=1', imageVersion: 'v1' });
+    expect(tile.props.collectionId).toBe(require('../../collections/shareEntryTileKey').shareEntryTileKey('pub-private'));
+    act(() => renderer.unmount());
+  });
+
+  it('a pending placeholder carries no red owner-action badge - the requester sees 승인 대기 중 only', async () => {
+    const renderer = await renderWaiting('grid');
+
+    expect(renderer.root.findAll(node => String(node.props.testID).startsWith('collection-attention-') && node.props.testID.includes(String(waiting.requestId)))).toHaveLength(0);
+    expect(cardById(renderer).findAll(node => String(node.props.testID).startsWith('collection-attention'))).toHaveLength(0);
+    act(() => renderer.unmount());
+  });
+
+  it('appears under 전체 and 공유 컬렉션 only, and is gone once the server no longer lists it', async () => {
+    const renderer = await renderWaiting('grid');
+    expect(cardById(renderer)).toBeDefined();
+
+    await selectFilter(renderer, 'owned');
+    expect(cardById(renderer)).toBeUndefined();
+    await selectFilter(renderer, 'favorites');
+    expect(cardById(renderer)).toBeUndefined();
+    await selectFilter(renderer, 'shared');
+    expect(cardById(renderer)).toBeDefined();
+
+    jest.mocked(listMyJoinRequests).mockResolvedValue([]);
+    await act(async () => {
+      renderer.root.findAllByType(FlatList)[0].props.refreshControl.props.onRefresh();
+    });
+    expect(cardById(renderer)).toBeUndefined();
     act(() => renderer.unmount());
   });
 });

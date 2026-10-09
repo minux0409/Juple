@@ -48,6 +48,25 @@ public sealed class CollectionShare
     /// <summary>Read (default, anonymous viewing) or Write (signed-in holders may also add their own links).</summary>
     public CollectionSharePermission Permission { get; private set; } = CollectionSharePermission.Read;
 
+    /// <summary>
+    /// Whether the Collection's CONTENTS are public through this link (공용 컬렉션 ON). The link itself (IsActive) can exist while this is
+    /// false: then the same canonical URL only offers a signed-in non-member to ask the Owner to join (CollectionJoinRequest) and shows
+    /// no content. Defaults to true, so every link created before this existed - and every row an older revision inserts - is public
+    /// exactly as before.
+    /// </summary>
+    public bool IsPublic { get; private set; } = true;
+
+    public void SetPublic(bool isPublic, DateTimeOffset updatedAtUtc)
+    {
+        if (IsPublic == isPublic)
+        {
+            return;
+        }
+
+        IsPublic = isPublic;
+        UpdatedAtUtc = updatedAtUtc;
+    }
+
     public void SetPermission(CollectionSharePermission permission, DateTimeOffset updatedAtUtc)
     {
         if (Permission == permission)

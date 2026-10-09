@@ -107,14 +107,18 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 .ToHashSet();
 
         // The public link as it is right now (a passed-on link; a proposal result for a non-member).
-        var activeShares = !Has(NotificationType.CollectionLinkShared, NotificationType.CollectionLinkSubmissionApproved, NotificationType.CollectionLinkSubmissionRejected)
+        var linkRows = !Has(NotificationType.CollectionLinkShared, NotificationType.CollectionLinkSubmissionApproved, NotificationType.CollectionLinkSubmissionRejected, NotificationType.JoinRequestRejected)
             ? []
             : (await dbContext.CollectionShares.AsNoTracking()
                 .Where(share => collectionIds.Contains(share.CollectionId) && share.IsActive)
-                .Select(share => new { share.CollectionId, share.PublicId })
+                .Select(share => new { share.CollectionId, share.PublicId, share.IsPublic })
                 .ToListAsync(cancellationToken))
                 .GroupBy(share => share.CollectionId)
-                .ToDictionary(group => group.Key, group => group.First().PublicId);
+                .Select(group => group.First())
+                .ToList();
+        // The link whose CONTENTS are public (a passed-on link, a proposal result), and any link (a declined join request: the private link).
+        var activeShares = linkRows.Where(row => row.IsPublic).ToDictionary(row => row.CollectionId, row => row.PublicId);
+        var anyLinks = linkRows.ToDictionary(row => row.CollectionId, row => row.PublicId);
 
         // A reaction/comment: the link is still in the Collection, still the recipient's own live Item,
         // and what the actor left there still exists.
@@ -169,6 +173,15 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 .Select(entry => (entry.CommentId, entry.UserId))
                 .ToHashSet();
 
+        // A join request: still waiting (for the Owner's notification); the requester's result needs nothing more than the Collection.
+        var joinRequestIds = SubjectsOf(NotificationType.JoinRequestReceived);
+        var waitingJoinRequests = joinRequestIds.Count == 0
+            ? []
+            : await dbContext.CollectionJoinRequests.AsNoTracking()
+                .Where(request => joinRequestIds.Contains(request.Id) && request.Status == CollectionJoinRequestStatus.Pending)
+                .Select(request => new { request.Id, request.CollectionId, request.RequesterUserId })
+                .ToDictionaryAsync(request => request.Id, cancellationToken);
+
         // A proposal: still waiting.
         var submissionIds = SubjectsOf(NotificationType.CollectionLinkSubmissionReceived);
         var waitingSubmissions = submissionIds.Count == 0
@@ -205,7 +218,7 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                 case NotificationType.CollectionItemsAdded:
                     return Belongs(notification.CollectionId, userId);
                 case NotificationType.CollectionLinkShared:
-                    return IsLive(notification.CollectionId) && activeShares.ContainsKey(notification.CollectionId!.Value);
+                    return IsLive(notification.CollectionId) && anyLinks.ContainsKey(notification.CollectionId!.Value);
                 case NotificationType.CollectionItemReactionReceived:
                 case NotificationType.CollectionItemCommentReceived:
                     if (notification.CollectionId is not { } collectionId || notification.SubjectId is not { } itemId || notification.ActorUserId is not { } actorUserId)
@@ -230,6 +243,18 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
                     return notification.Type == NotificationType.CommentReplyReceived
                         ? threadComment.UserId == threadActorId && threadComment.ReplyToUserId == userId
                         : threadComment.UserId == userId && hearts.Contains((threadCommentId, threadActorId));
+                case NotificationType.JoinRequestReceived:
+                    return notification.SubjectId is { } joinRequestId
+                        && waitingJoinRequests.TryGetValue(joinRequestId, out var joinRequest)
+                        && joinRequest.CollectionId == notification.CollectionId
+                        && joinRequest.RequesterUserId == notification.ActorUserId
+                        && IsLive(notification.CollectionId)
+                        && collections[notification.CollectionId!.Value].UserId == userId;
+                // The result of the requester's own request: it stays true; only a deleted Collection makes it moot.
+                case NotificationType.JoinRequestApproved:
+                    return Belongs(notification.CollectionId, userId);
+                case NotificationType.JoinRequestRejected:
+                    return IsLive(notification.CollectionId);
                 case NotificationType.CollectionLinkSubmissionReceived:
                     return notification.SubjectId is { } submissionId
                         && waitingSubmissions.TryGetValue(submissionId, out var submissionCollectionId)
@@ -293,13 +318,14 @@ public sealed class PushDispatchStore(JupleDbContext dbContext) : IPushDispatchS
         {
             var actor = notification.ActorUserId is { } actorUserId && actors.TryGetValue(actorUserId, out var found) ? found : null;
             var isProposalResult = notification.Type
-                is NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected;
+                is NotificationType.CollectionLinkSubmissionApproved or NotificationType.CollectionLinkSubmissionRejected
+                or NotificationType.JoinRequestRejected;
             // A proposal's result may open the Collection itself only for someone who belongs to it,
             // else its public link while that is on, else nothing.
             var recipientBelongs = !isProposalResult || Belongs(notification.CollectionId, notification.UserId);
             var publicShareId = (notification.Type == NotificationType.CollectionLinkShared || (isProposalResult && !recipientBelongs))
                 && notification.CollectionId is { } shareCollectionId
-                    ? activeShares.GetValueOrDefault(shareCollectionId)
+                    ? (notification.Type is NotificationType.JoinRequestRejected or NotificationType.CollectionLinkShared ? anyLinks : activeShares).GetValueOrDefault(shareCollectionId)
                     : null;
             contexts[notification.Id] = new PushDispatchContext(
                 true,
