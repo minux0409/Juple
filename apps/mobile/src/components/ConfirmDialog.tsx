@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../theme/tokens';
 import { DialogActions } from './DialogActions';
@@ -42,8 +42,21 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const dismiss = onCancel ?? onConfirm;
 
+  // A single-button NOTICE with nothing to say (an empty message) is nothing to show. A caller whose failure was already explained
+  // elsewhere - the subscription prompt - passes '' as its message (see isHandledSubscriptionRefusal); the dialog is answered as
+  // dismissed at once, so the caller's own state closes and its next message opens normally. Not time based: it is the message.
+  const isEmptyNotice = visible && !onCancel && !message;
+  const isShown = visible && !isEmptyNotice;
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
+  useEffect(() => {
+    if (isEmptyNotice) {
+      onConfirmRef.current();
+    }
+  }, [isEmptyNotice]);
+
   return (
-    <Modal animationType="fade" onRequestClose={dismiss} transparent visible={visible}>
+    <Modal animationType="fade" onRequestClose={dismiss} transparent visible={isShown}>
       <View style={styles.overlay}>
         <Pressable
           accessibilityElementsHidden

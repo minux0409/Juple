@@ -990,7 +990,16 @@
       "dataTitle": "Vos liens restent à vous",
       "dataBody": "Vos liens enregistrés ne sont pas supprimés à la fin d'un abonnement."
     },
-    "stateHeading": "État de l'abonnement"
+    "stateHeading": "État de l'abonnement",
+    "required": {
+      "title": "Un abonnement est nécessaire",
+      "message": "Enregistrer et modifier nécessitent un abonnement. Vos liens et collections enregistrés restent consultables.",
+      "later": "Plus tard"
+    },
+    "ownerRequired": {
+      "title": "Modification impossible pour le moment",
+      "message": "Le propriétaire de cette collection n’a plus d’abonnement actif : il est impossible d’ajouter ou de modifier des liens pour l’instant. Vous pouvez toujours la consulter."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Une mise à jour est disponible",

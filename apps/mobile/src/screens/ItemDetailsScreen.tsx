@@ -75,10 +75,14 @@ import { takeItemOpenGrant } from '../items/itemOpenGrant';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ItemDetails'>;
 
 function getLoadErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -86,6 +90,9 @@ function getLoadErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getSaveErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('errors.invalidInput');
@@ -98,6 +105,9 @@ function getSaveErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getImageListErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -106,6 +116,9 @@ function getImageListErrorMessage(error: unknown, t: TFunction): string {
 
 /** Never surfaces raw server/credential/token detail - only a short, actionable localized message. */
 function getImageUploadErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('item.errorImageUploadInvalid');
@@ -121,6 +134,9 @@ function getImageUploadErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -128,6 +144,9 @@ function getImageDeleteErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getItemDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }

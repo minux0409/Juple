@@ -36,6 +36,7 @@ import type { ItemHistoryEntry } from '../items/api/itemsApi';
 import { isNameSort, nextDateSort, nextNameSort, useSortPreference } from '../settings/sortPreference';
 import { useViewModePreference } from '../settings/viewModePreference';
 import { colors, minTouchTarget, spacing } from '../theme/tokens';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** Adapts an ItemTrashEntry to SavedLinkRow's expected shape - deletedAtUtc stands in for savedAtUtc (the row's own time display), matching the same display-shape-adapter pattern CollectionDetailsScreen already uses for its own Item list. */
 function toSavedLinkRowItem(entry: ItemTrashEntry): ItemHistoryEntry {
@@ -60,6 +61,9 @@ function resolveTrashTitle(entry: ItemTrashEntry): string {
 }
 
 function getLoadErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }

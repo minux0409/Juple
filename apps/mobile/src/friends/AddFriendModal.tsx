@@ -11,8 +11,12 @@ import { UserAvatar } from '../components/UserAvatar';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { sendFriendRequest, type Friend, type FriendRequest } from './api/friendsApi';
 import { atJupleId, friendPrimaryLabel, jupleIdForLookup } from './friendIdentity';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 function getLookupErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
       return t('collaboration.lookupNotFound');
@@ -37,6 +41,9 @@ export function getFriendRequestErrorMessage(
   t: TFunction,
   intent: 'send' | 'answer' | 'cancel' = 'send',
 ): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'notFound' && error.code === FRIEND_REQUEST_NO_LONGER_PENDING) {
       return intent === 'cancel' ? t('friends.requestNoLongerPending') : t('friends.requestCancelledByRequester');

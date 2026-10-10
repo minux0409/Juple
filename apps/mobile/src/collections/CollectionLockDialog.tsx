@@ -10,6 +10,7 @@ import { removeCollectionLock, setCollectionLock } from './api/collectionsApi';
 import { getCollectionLockPasswordStatus } from './api/collectionLockPasswordApi';
 import { forgetCollectionUnlock } from './collectionUnlockGrants';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** Mirrors the backend CollectionLockPasswordPolicy (6-64 characters) - the server re-checks it. */
 export const LOCK_PASSWORD_MIN_LENGTH = 6;
@@ -18,6 +19,9 @@ export const LOCK_PASSWORD_MAX_LENGTH = 64;
 export const LOCK_PASSWORD_NOT_CONFIGURED_CODE = 'collectionLockPasswordNotConfigured';
 
 export function getLockErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'forbidden' && error.code === 'invalidCollectionPassword') {
       return t('collections.lockWrongPassword');

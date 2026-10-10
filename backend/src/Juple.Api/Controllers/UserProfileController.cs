@@ -17,6 +17,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/users/me/profile")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class UserProfileController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

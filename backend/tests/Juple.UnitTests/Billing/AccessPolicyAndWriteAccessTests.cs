@@ -7,6 +7,8 @@ using Juple.Application.Identity;
 using Juple.Application.Users.CurrentUser;
 using Juple.Domain.Billing;
 using Juple.Domain.Collections;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -206,6 +208,24 @@ public sealed class WriteAccessFilterTests
         public ExternalIdentityPrincipal GetRequired() => new(Guid.NewGuid(), Guid.NewGuid());
     }
 
+    private sealed class NoUsers : Juple.Application.Users.CurrentUser.ICurrentJupleUserAccessor
+    {
+        public Task<Juple.Application.Users.CurrentUser.CurrentJupleUser> GetRequiredAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("No Collection-owned metadata in these tests - the actor lookup must not be needed.");
+    }
+
+    private sealed class NoOwners : ICollectionOwnerLookup
+    {
+        public Task<long?> FindOwnerUserIdAsync(long collectionId, CancellationToken cancellationToken = default) => Task.FromResult<long?>(null);
+
+        public Task<long?> FindOwnerUserIdByPublicIdAsync(string publicId, CancellationToken cancellationToken = default) => Task.FromResult<long?>(null);
+
+        public Task<long?> FindOwnerUserIdByInvitationAsync(long invitationId, CancellationToken cancellationToken = default) => Task.FromResult<long?>(null);
+
+        public Task<IReadOnlyCollection<long>> FindOwnerUserIdsByMergeOperationAsync(Guid operationToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<long>>([]);
+    }
+
     private sealed class FixedEntitlements(Entitlement? entitlement, bool notBootstrapped = false) : IEntitlementService
     {
         public int Reads { get; private set; }
@@ -224,11 +244,20 @@ public sealed class WriteAccessFilterTests
         }
     }
 
-    private static ActionExecutingContext Context(params object[] endpointMetadata)
+    private static ActionExecutingContext Context(params object[] endpointMetadata) => ContextFor("POST", authenticated: true, endpointMetadata);
+
+    private static ActionExecutingContext ContextFor(string method, bool authenticated, params object[] endpointMetadata)
     {
         var descriptor = new ActionDescriptor { EndpointMetadata = endpointMetadata };
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = method;
+        if (authenticated)
+        {
+            httpContext.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity("test"));
+        }
+
         return new ActionExecutingContext(
-            new ActionContext(new DefaultHttpContext(), new RouteData(), descriptor),
+            new ActionContext(httpContext, new RouteData(), descriptor),
             new List<IFilterMetadata>(),
             new Dictionary<string, object?>(),
             controller: new object());
@@ -237,7 +266,7 @@ public sealed class WriteAccessFilterTests
     private static async Task<(bool NextCalled, IActionResult? Result)> RunAsync(BillingOptions options, FixedEntitlements entitlements, ActionExecutingContext context)
     {
         var nextCalled = false;
-        await new RequireWriteAccessFilter(options, new FixedIdentity(), entitlements).OnActionExecutionAsync(
+        await new RequireWriteAccessFilter(options, new FixedIdentity(), entitlements, new NoUsers(), new NoOwners()).OnActionExecutionAsync(
             context,
             () =>
             {
@@ -287,6 +316,48 @@ public sealed class WriteAccessFilterTests
         Assert.Equal("subscriptionRequired", problem.Extensions["code"]);
     }
 
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("HEAD")]
+    [InlineData("OPTIONS")]
+    public async Task ProgramEnabled_AnExpiredAccount_KeepsEveryRead_ANeverGatedMethod(string method)
+    {
+        var entitlements = new FixedEntitlements(Entitlement.ForTrial(Window, Now));
+
+        var (nextCalled, result) = await RunAsync(Enabled(), entitlements, ContextFor(method, authenticated: true));
+
+        Assert.True(nextCalled);
+        Assert.Null(result);
+        Assert.Equal(0, entitlements.Reads);
+    }
+
+    [Theory]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("PATCH")]
+    [InlineData("DELETE")]
+    public async Task ProgramEnabled_AnExpiredAccount_IsStoppedOnEveryMutatingMethod(string method)
+    {
+        var entitlements = new FixedEntitlements(Entitlement.ForTrial(Window, Now));
+
+        var (nextCalled, result) = await RunAsync(Enabled(), entitlements, ContextFor(method, authenticated: true));
+
+        Assert.False(nextCalled);
+        Assert.IsType<ObjectResult>(result);
+    }
+
+    [Fact]
+    public async Task ProgramEnabled_AnAnonymousRequest_IsNeverGatedHere()
+    {
+        var entitlements = new FixedEntitlements(Entitlement.ForTrial(Window, Now));
+
+        var (nextCalled, result) = await RunAsync(Enabled(), entitlements, ContextFor("POST", authenticated: false));
+
+        Assert.True(nextCalled);
+        Assert.Null(result);
+        Assert.Equal(0, entitlements.Reads);
+    }
+
     [Fact]
     public async Task ProgramEnabled_AnEndpointMarkedAllowWhenExpired_StaysUsable_TheEscapeHatch()
     {
@@ -317,8 +388,16 @@ public sealed class ExpiredWriteAllowlistTests
     private static IEnumerable<Type> Controllers() => typeof(AccountController).Assembly.GetTypes()
         .Where(type => typeof(ControllerBase).IsAssignableFrom(type) && !type.IsAbstract);
 
+    private static readonly Type[] MutatingVerbs = [typeof(HttpPostAttribute), typeof(HttpPutAttribute), typeof(HttpPatchAttribute), typeof(HttpDeleteAttribute)];
+
+    private static IEnumerable<MethodInfo> MutatingActions(Type controller) => controller
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        .Where(method => MutatingVerbs.Any(verb => method.GetCustomAttribute(verb) is not null));
+
+    private static bool IsAuthenticatedController(Type controller) => controller.GetCustomAttribute<AuthorizeAttribute>() is not null;
+
     [Fact]
-    public void TheEndpointsThatStayUsableWhenExpired_AreExactlyTheseControllers()
+    public void TheControllersWhoseWholeSurfaceStaysUsableWhenExpired_AreExactlyTheseControllers()
     {
         var allowed = Controllers()
             .Where(type => type.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is not null)
@@ -326,25 +405,492 @@ public sealed class ExpiredWriteAllowlistTests
             .Order()
             .ToArray();
 
-        // account deletion, support inquiries, the bootstrap/session plumbing and push-device registration.
-        // Billing verify / restore / manage controllers join this list in R39-B/C.
+        // account deletion, support, the bootstrap/session plumbing, push-device registration and billing - plus the settings and
+        // read-state controllers (lock password, per-Collection notification preference, notifications, recently opened links,
+        // URL metadata lookup, profile) that change no shared content.
         Assert.Equal(
-            ["AccountController", "AuthSessionController", "CurrentUserBootstrapController", "GoogleBillingController", "PushDevicesController", "SupportInquiriesController"],
+            [
+                "AccountController", "AuthSessionController", "CollectionLockSettingsController", "CollectionNotificationPreferencesController",
+                "CurrentUserBootstrapController", "GoogleBillingController", "NotificationsController", "PushDevicesController",
+                "RecentlyOpenedLinksController", "SupportInquiriesController", "UrlMetadataController", "UserProfileController",
+            ],
             allowed);
     }
 
     [Fact]
-    public void EnforcementIsNotAppliedToAnyEndpointYet()
+    public void TheControllersThatGateContentWrites_AreExactlyTheseControllers()
     {
         var gated = Controllers()
-            .SelectMany(type => type.GetCustomAttributes<RequireWriteAccessAttribute>().Select(_ => type.Name)
-                .Concat(type.GetMethods().Where(method => method.GetCustomAttribute<RequireWriteAccessAttribute>() is not null).Select(method => $"{type.Name}.{method.Name}")))
+            .Where(type => type.GetCustomAttribute<RequireWriteAccessAttribute>() is not null)
+            .Select(type => type.Name)
+            .Order()
             .ToArray();
 
-        // R39-D (after the stores are proven) is what applies it to content writes - add, edit, delete, restore, Collection and
-        // item mutations, sharing, invitations, collaborators, reactions, comments, friends, image uploads, copy/import and
-        // public-share writes into an expired owner's Collection. Until then this must stay empty.
-        Assert.Empty(gated);
+        Assert.Equal(
+            [
+                "CollectionInvitationsController", "CollectionItemCopyController", "CollectionsController", "FriendsController", "InboxController",
+                "ItemCollectionsController", "ItemImagesController", "ItemsController", "PublicShareWriteController",
+            ],
+            gated);
+    }
+
+    private static bool IsAnonymousAction(Type controller, MethodInfo method) =>
+        controller.GetCustomAttribute<AuthorizeAttribute>() is null || method.GetCustomAttribute<AllowAnonymousAttribute>() is not null;
+
+    [Fact]
+    public void EveryAnonymousMutatingAction_HasBeenReviewedAndIsListedHere()
+    {
+        var anonymous = Controllers()
+            .SelectMany(controller => MutatingActions(controller).Where(method => IsAnonymousAction(controller, method)).Select(method => (controller, method)))
+            .ToArray();
+
+        // The filter never gates an anonymous caller (there is no account to check), so each anonymous mutation must be a reviewed,
+        // deliberate exception - never an endpoint that merely slipped past the decision.
+        var unreviewed = anonymous
+            .Where(entry => entry.method.GetCustomAttribute<AnonymousMutationReviewedAttribute>() is null)
+            .Select(entry => $"{entry.controller.Name}.{entry.method.Name}")
+            .ToArray();
+        Assert.Empty(unreviewed);
+
+        Assert.Equal(
+            ["GoogleRtdnController", "PublicCollectionsController"],
+            anonymous.Select(entry => entry.controller.Name).Distinct().Order(StringComparer.Ordinal).ToArray());
+        Assert.All(anonymous, entry => Assert.False(string.IsNullOrWhiteSpace(entry.method.GetCustomAttribute<AnonymousMutationReviewedAttribute>()!.Reason)));
+    }
+
+    [Fact]
+    public void TheWritesThatActOnACollection_NameWhereTheCollectionComesFrom()
+    {
+        var owned = Controllers()
+            .Where(type => type.GetCustomAttribute<CollectionOwnedWriteAttribute>() is not null)
+            .Select(type => type.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            ["CollectionItemCopyController", "CollectionsController", "InboxController", "ItemCollectionsController", "PublicShareWriteController"],
+            owned);
+        // Every Collection-owned controller is also an actor-gated one: the owner check only ever ADDS to the actor check.
+        Assert.All(
+            Controllers().Where(type => type.GetCustomAttribute<CollectionOwnedWriteAttribute>() is not null),
+            type => Assert.NotNull(type.GetCustomAttribute<RequireWriteAccessAttribute>()));
+    }
+
+    [Fact]
+    public void EveryMutatingActionOfAnAuthenticatedController_IsEitherGatedOrExplicitlyAllowed()
+    {
+        var undecided = Controllers()
+            .Where(IsAuthenticatedController)
+            .SelectMany(controller => MutatingActions(controller).Select(method => (controller, method)))
+            .Where(entry =>
+            {
+                var gated = entry.controller.GetCustomAttribute<RequireWriteAccessAttribute>() is not null;
+                var allowed = entry.controller.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is not null
+                    || entry.method.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is not null;
+                return !gated && !allowed;
+            })
+            .Select(entry => $"{entry.controller.Name}.{entry.method.Name}")
+            .ToArray();
+
+        // A new write endpoint must choose: gate it (class-level RequireWriteAccess) or mark it AllowWhenSubscriptionExpired.
+        Assert.Empty(undecided);
+    }
+
+    [Fact]
+    public void TheContentWritesAnExpiredPersonStillMayDo_AreExactlyThese()
+    {
+        var allowedInsideGatedControllers = Controllers()
+            .Where(type => type.GetCustomAttribute<RequireWriteAccessAttribute>() is not null)
+            .SelectMany(controller => MutatingActions(controller)
+                .Where(method => method.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>() is not null)
+                .Select(method => $"{controller.Name[..^"Controller".Length]}: {method.GetCustomAttributes().OfType<HttpMethodAttribute>().First().HttpMethods.First()} {method.GetCustomAttributes().OfType<HttpMethodAttribute>().First().Template}"))
+            .Order()
+            .ToArray();
+
+        // Reading-like POSTs (unlock, reveal, lookup, open), protective or personal choices (favorite, lock, stop sharing, decline,
+        // cancel my own request, leave) - none of them adds or changes anyone's links or Collections.
+        Assert.Equal(
+            new[]
+            {
+                "CollectionInvitations: POST collection-invitations/{invitationId:long}/decline",
+                "CollectionInvitations: POST users/lookup-by-juple-id",
+                "Collections: DELETE submissions/mine/{submissionId:long}",
+                "Collections: DELETE {id:long}/collaborators/me",
+                "Collections: DELETE {id:long}/share",
+                "Collections: POST {id:long}/lock/remove",
+                "Collections: POST {id:long}/share-password/reveal",
+                "Collections: POST {id:long}/share-password/unlock",
+                "Collections: POST {id:long}/unlock",
+                "Collections: PUT {id:long}/favorite",
+                "Collections: PUT {id:long}/lock",
+                "Friends: DELETE requests/{requestId:long}",
+                "Friends: DELETE {friendshipId:long}",
+                "Friends: POST requests/{requestId:long}/decline",
+                "Items: POST {id:long}/open",
+                "PublicShareWrite: DELETE submissions/mine/{submissionId:long}",
+            }.Order(StringComparer.Ordinal).ToArray(),
+            allowedInsideGatedControllers.Order(StringComparer.Ordinal).ToArray());
+    }
+}
+
+public sealed class OwnerLevelWriteGateTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 12, 5, 0, 0, 0, TimeSpan.Zero);
+    private static readonly Entitlement Active = Entitlement.ForTrial(new TrialWindow(Now.AddDays(-1), Now.AddDays(29)), Now);
+    private static readonly Entitlement Expired = Entitlement.ForTrial(new TrialWindow(Now.AddDays(-40), Now.AddDays(-10)), Now);
+
+    private const long ActorId = 1;
+    private const long OwnerId = 2;
+    private const long CollectionId = 50;
+
+    private sealed class Identity : IExternalIdentityAccessor
+    {
+        public ExternalIdentityPrincipal GetRequired() => new(Guid.NewGuid(), Guid.NewGuid());
+    }
+
+    private sealed class Users : Juple.Application.Users.CurrentUser.ICurrentJupleUserAccessor
+    {
+        public Task<Juple.Application.Users.CurrentUser.CurrentJupleUser> GetRequiredAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Juple.Application.Users.CurrentUser.CurrentJupleUser(ActorId, "UTC", default));
+    }
+
+    private sealed class Entitlements(Entitlement actor, Entitlement owner) : IEntitlementService
+    {
+        public List<long> UserReads { get; } = [];
+
+        public Task<Entitlement> GetForUserAsync(long userId, CancellationToken cancellationToken = default)
+        {
+            UserReads.Add(userId);
+            return Task.FromResult(userId == OwnerId ? owner : actor);
+        }
+
+        public Task<Entitlement> GetForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) => Task.FromResult(actor);
+
+        public Task<StoreSubscriptionOwnership> GetStoreSubscriptionForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(StoreSubscriptionOwnership.None);
+    }
+
+    private sealed class Owners(long? collectionOwner, long? publicOwner = null, long? invitationOwner = null, long[]? mergeOwners = null) : ICollectionOwnerLookup
+    {
+        public Task<long?> FindOwnerUserIdByInvitationAsync(long invitationId, CancellationToken cancellationToken = default) => Task.FromResult(invitationOwner);
+
+        public Task<IReadOnlyCollection<long>> FindOwnerUserIdsByMergeOperationAsync(Guid operationToken, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<long>>(mergeOwners ?? []);
+
+        public Task<long?> FindOwnerUserIdAsync(long collectionId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(collectionId == CollectionId ? collectionOwner : null);
+
+        public Task<long?> FindOwnerUserIdByPublicIdAsync(string publicId, CancellationToken cancellationToken = default) => Task.FromResult(publicOwner);
+    }
+
+    private sealed record TransferRequest(long TargetCollectionId);
+
+    private sealed record ManyRequest(IReadOnlyList<long>? CollectionIds);
+
+    private static async Task<(bool NextCalled, IActionResult? Result)> RunAsync(
+        Entitlement actor,
+        Entitlement owner,
+        long? collectionOwner,
+        string method = "POST",
+        long? invitationOwner = null,
+        long[]? mergeOwners = null,
+        Action<ActionExecutingContext>? configure = null,
+        BillingOptions? options = null,
+        params object[] metadata)
+    {
+        var allMetadata = metadata.Length == 0
+            ? [new CollectionOwnedWriteAttribute { RouteIds = ["id"], RequestProperties = ["TargetCollectionId", "CollectionIds"], PublicIdRoute = "publicId" }]
+            : metadata;
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = method;
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity("test"));
+        var context = new ActionExecutingContext(
+            new ActionContext(httpContext, new RouteData(), new ActionDescriptor { EndpointMetadata = allMetadata }),
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller: new object());
+        context.RouteData.Values["id"] = CollectionId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        configure?.Invoke(context);
+
+        var nextCalled = false;
+        await new RequireWriteAccessFilter(
+            options ?? new BillingOptions { ProgramEnabled = true, ProgramStartAtUtc = DateTimeOffset.UnixEpoch },
+            new Identity(),
+            new Entitlements(actor, owner),
+            new Users(),
+            new Owners(collectionOwner, invitationOwner: invitationOwner, mergeOwners: mergeOwners)).OnActionExecutionAsync(
+            context,
+            () =>
+            {
+                nextCalled = true;
+                return Task.FromResult(new ActionExecutedContext(context, context.Filters, context.Controller));
+            });
+        return (nextCalled, context.Result);
+    }
+
+    private static string CodeOf(IActionResult? result) =>
+        (string)Assert.IsType<ProblemDetails>(Assert.IsType<ObjectResult>(result).Value).Extensions["code"]!;
+
+    [Fact]
+    public async Task ProgramDisabled_EveryCombination_StaysAllowed()
+    {
+        foreach (var actor in new[] { Active, Expired })
+        {
+            foreach (var owner in new[] { Active, Expired })
+            {
+                var (nextCalled, result) = await RunAsync(actor, owner, OwnerId, options: new BillingOptions());
+                Assert.True(nextCalled);
+                Assert.Null(result);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ActiveActor_ActiveOwner_IsAllowed()
+    {
+        var (nextCalled, result) = await RunAsync(Active, Active, OwnerId);
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ActiveActor_ExpiredOwner_IsBlocked_WithTheOwnerSpecificCode()
+    {
+        var (nextCalled, result) = await RunAsync(Active, Expired, OwnerId);
+        Assert.False(nextCalled);
+        Assert.Equal(StatusCodes.Status403Forbidden, Assert.IsType<ObjectResult>(result).StatusCode);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task ExpiredActor_ActiveOwner_IsBlocked_WithTheActorsOwnCode()
+    {
+        var (nextCalled, result) = await RunAsync(Expired, Active, OwnerId);
+        Assert.False(nextCalled);
+        Assert.Equal("subscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task TheOwnerWritingToTheirOwnCollection_NeedsOnlyOneCheck()
+    {
+        // actor == owner: the same person, so the actor's entitlement alone decides - the (here expired) owner entry is never consulted.
+        var (nextCalled, result) = await RunAsync(Active, Expired, ActorId);
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ExpiredOwnerOwnWrite_IsBlockedByTheActorCheck()
+    {
+        var (nextCalled, result) = await RunAsync(Expired, Expired, ActorId);
+        Assert.False(nextCalled);
+        Assert.Equal("subscriptionRequired", CodeOf(result));
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("HEAD")]
+    public async Task ExpiredOwner_ReadsOfTheirCollection_StayAllowed(string method)
+    {
+        var (nextCalled, result) = await RunAsync(Active, Expired, OwnerId, method);
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task AllowlistedAction_StaysUsable_EvenWithAnExpiredOwner_AndAnExpiredActor()
+    {
+        // leave / decline / cancel / stop sharing / unlock: neither the actor's nor the owner's state matters.
+        var (nextCalled, result) = await RunAsync(
+            Expired, Expired, OwnerId,
+            metadata: [new CollectionOwnedWriteAttribute { RouteIds = ["id"] }, new AllowWhenSubscriptionExpiredAttribute()]);
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ATargetCollectionInTheRequestBody_IsChecked_NotJustTheRoute()
+    {
+        // The route Collection is the actor's own; the TARGET (move / merge / copy destination) belongs to an expired owner.
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, collectionOwner: OwnerId,
+            configure: context =>
+            {
+                context.RouteData.Values.Remove("id");
+                context.ActionArguments["request"] = new TransferRequest(CollectionId);
+            });
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task EveryCollectionInAListOfIds_IsChecked()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, collectionOwner: OwnerId,
+            configure: context =>
+            {
+                context.RouteData.Values.Remove("id");
+                context.ActionArguments["request"] = new ManyRequest([999, CollectionId]);
+            });
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task AnUnknownCollection_IsLeftToTheActionsOwn404()
+    {
+        var (nextCalled, result) = await RunAsync(Active, Expired, collectionOwner: null);
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task APublicLinkWrite_IsGatedOnTheLinksOwner()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Method = "POST";
+        httpContext.User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity("test"));
+        var context = new ActionExecutingContext(
+            new ActionContext(httpContext, new RouteData(), new ActionDescriptor { EndpointMetadata = [new CollectionOwnedWriteAttribute { PublicIdRoute = "publicId" }] }),
+            new List<IFilterMetadata>(),
+            new Dictionary<string, object?>(),
+            controller: new object());
+        context.RouteData.Values["publicId"] = "AbCdEf";
+
+        var nextCalled = false;
+        await new RequireWriteAccessFilter(
+            new BillingOptions { ProgramEnabled = true, ProgramStartAtUtc = DateTimeOffset.UnixEpoch },
+            new Identity(),
+            new Entitlements(Active, Expired),
+            new Users(),
+            new Owners(collectionOwner: null, publicOwner: OwnerId)).OnActionExecutionAsync(
+            context,
+            () =>
+            {
+                nextCalled = true;
+                return Task.FromResult(new ActionExecutedContext(context, context.Filters, context.Controller));
+            });
+
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(context.Result));
+    }
+
+    private sealed record UndoRequest(Guid UndoOperationId);
+
+    [Fact]
+    public async Task AcceptingAnInvitation_ActiveActor_ActiveOwner_IsAllowed()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Active, Active, null, invitationOwner: OwnerId,
+            metadata: [new CollectionOwnedWriteAttribute { InvitationIdRoute = "invitationId" }],
+            configure: context => context.RouteData.Values["invitationId"] = "7");
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task AcceptingAnInvitation_ActiveActor_ExpiredOwner_IsBlocked_WithTheOwnerCode()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, invitationOwner: OwnerId,
+            metadata: [new CollectionOwnedWriteAttribute { InvitationIdRoute = "invitationId" }],
+            configure: context => context.RouteData.Values["invitationId"] = "7");
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task AcceptingAnInvitation_ExpiredActor_IsBlocked_WithTheActorCode()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Expired, Active, null, invitationOwner: OwnerId,
+            metadata: [new CollectionOwnedWriteAttribute { InvitationIdRoute = "invitationId" }],
+            configure: context => context.RouteData.Values["invitationId"] = "7");
+        Assert.False(nextCalled);
+        Assert.Equal("subscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task DecliningAnInvitation_StaysAllowed_EvenIfOwnerAndActorAreExpired()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Expired, Expired, null, invitationOwner: OwnerId,
+            metadata: [new CollectionOwnedWriteAttribute { InvitationIdRoute = "invitationId" }, new AllowWhenSubscriptionExpiredAttribute()],
+            configure: context => context.RouteData.Values["invitationId"] = "7");
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task AnUnknownInvitation_IsLeftToTheActionsOwn404()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, invitationOwner: null,
+            metadata: [new CollectionOwnedWriteAttribute { InvitationIdRoute = "invitationId" }],
+            configure: context => context.RouteData.Values["invitationId"] = "7");
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UndoingAMerge_IsGatedOnTheOwnersOfTheCollectionsThatMergeTouched()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, mergeOwners: [OwnerId],
+            metadata: [new CollectionOwnedWriteAttribute { MergeOperationProperty = "UndoOperationId" }],
+            configure: context => context.ActionArguments["request"] = new UndoRequest(Guid.NewGuid()));
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task UndoingAMerge_OnTheActorsOwnCollections_NeedsOnlyTheActorCheck()
+    {
+        // A merge only ever runs on the caller's own Collections: source and target resolve to the actor - checked once, not twice.
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, mergeOwners: [ActorId],
+            metadata: [new CollectionOwnedWriteAttribute { MergeOperationProperty = "UndoOperationId" }],
+            configure: context => context.ActionArguments["request"] = new UndoRequest(Guid.NewGuid()));
+        Assert.True(nextCalled);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UndoingAMerge_ByAnExpiredActor_IsBlocked()
+    {
+        var (nextCalled, result) = await RunAsync(
+            Expired, Active, null, mergeOwners: [ActorId],
+            metadata: [new CollectionOwnedWriteAttribute { MergeOperationProperty = "UndoOperationId" }],
+            configure: context => context.ActionArguments["request"] = new UndoRequest(Guid.NewGuid()));
+        Assert.False(nextCalled);
+        Assert.Equal("subscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public async Task AMethodLevelDeclaration_WinsOverTheControllersOwn()
+    {
+        // Controller-level metadata comes first, the action's last: the action's own description of where its Collection comes from is used.
+        var (nextCalled, result) = await RunAsync(
+            Active, Expired, null, invitationOwner: OwnerId,
+            metadata: [new CollectionOwnedWriteAttribute { RouteIds = ["id"] }, new CollectionOwnedWriteAttribute { InvitationIdRoute = "invitationId" }],
+            configure: context => context.RouteData.Values["invitationId"] = "7");
+        Assert.False(nextCalled);
+        Assert.Equal("collectionOwnerSubscriptionRequired", CodeOf(result));
+    }
+
+    [Fact]
+    public void AcceptInvitation_AndUndoMerge_AreOwnerGated_NotJustActorGated()
+    {
+        var accept = typeof(CollectionInvitationsController).GetMethods()
+            .Single(method => method.GetCustomAttributes<HttpMethodAttribute>().Any(http => http.Template == "collection-invitations/{invitationId:long}/accept"));
+        var undo = typeof(CollectionsController).GetMethods()
+            .Single(method => method.GetCustomAttributes<HttpMethodAttribute>().Any(http => http.Template == "merge/undo"));
+
+        Assert.Equal("invitationId", accept.GetCustomAttribute<CollectionOwnedWriteAttribute>()!.InvitationIdRoute);
+        Assert.Equal("UndoOperationId", undo.GetCustomAttribute<CollectionOwnedWriteAttribute>()!.MergeOperationProperty);
+        Assert.Null(accept.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>());
+        Assert.Null(undo.GetCustomAttribute<AllowWhenSubscriptionExpiredAttribute>());
     }
 }
 

@@ -14,6 +14,8 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/inbox")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
+[Juple.Api.Billing.CollectionOwnedWrite(RequestProperties = new[] { "CollectionIds" })]
 public sealed class InboxController : ControllerBase
 {
     /// <summary>

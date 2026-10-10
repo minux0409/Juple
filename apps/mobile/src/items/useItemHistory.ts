@@ -5,10 +5,14 @@ import type { TFunction } from 'i18next';
 import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getItemHistory, type ItemHistoryEntry } from './api/itemsApi';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 const PAGE_LIMIT = 50;
 
 function getItemHistoryErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
       return t('errors.accountNotReady');

@@ -990,7 +990,16 @@
       "dataTitle": "Tautanmu tetap milikmu",
       "dataBody": "Tautan yang tersimpan tidak dihapus saat langganan berakhir."
     },
-    "stateHeading": "Status langganan"
+    "stateHeading": "Status langganan",
+    "required": {
+      "title": "Perlu berlangganan",
+      "message": "Menyimpan dan mengedit memerlukan langganan. Tautan dan koleksi yang sudah disimpan tetap bisa dibaca.",
+      "later": "Nanti saja"
+    },
+    "ownerRequired": {
+      "title": "Belum bisa diubah sekarang",
+      "message": "Pemilik koleksi ini tidak lagi memiliki langganan aktif, jadi tautan belum bisa ditambah atau diubah untuk sementara. Anda masih bisa membaca koleksi dan tautannya."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Tersedia pembaruan",

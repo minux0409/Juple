@@ -17,6 +17,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/url-metadata")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class UrlMetadataController : ControllerBase
 {
     [HttpPost("resolve")]

@@ -990,7 +990,16 @@
       "dataTitle": "Your links stay yours",
       "dataBody": "Your saved links are not deleted when a subscription ends."
     },
-    "stateHeading": "Subscription status"
+    "stateHeading": "Subscription status",
+    "required": {
+      "title": "A subscription is needed",
+      "message": "Saving and editing need a subscription. Your saved links and Collections stay available to read.",
+      "later": "Not now"
+    },
+    "ownerRequired": {
+      "title": "Can't be changed right now",
+      "message": "This Collection's owner no longer has an active subscription, so links can't be added or changed for now. You can still read the Collection and its links."
+    }
   },
   "appUpdate": {
     "optionalTitle": "An update is available",

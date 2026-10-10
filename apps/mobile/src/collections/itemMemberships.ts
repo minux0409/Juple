@@ -3,6 +3,7 @@ import { ApiError } from '../api/ApiError';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { addItemToCollection, getCollections, removeItemFromCollection, type Collection } from './api/collectionsApi';
 import { linkProposalErrorMessage } from './linkProposals';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /**
  * The one place a link's Collection memberships are read and changed from the app, shared by Item Details (staged,
@@ -14,6 +15,9 @@ import { linkProposalErrorMessage } from './linkProposals';
 const MEMBERSHIP_PAGE_LIMIT = 50;
 
 export function getItemCollectionsListErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -21,6 +25,9 @@ export function getItemCollectionsListErrorMessage(error: unknown, t: TFunction)
 }
 
 export function getCollectionMembershipErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }

@@ -83,6 +83,28 @@ describe('incomingShareHeadlessTask', () => {
     expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
   });
 
+  it('a write refused for lack of a subscription is a "needs the app" outcome - the link is kept and the review screen opens, never a lost share', async () => {
+    const pendingShare = makePendingShare({ text: 'https://example.com/article' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('forbidden', 403, 'subscriptionRequired'));
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'reviewRequired');
+    expect(NativeIncomingShare!.reportAttemptOutcome).not.toHaveBeenCalledWith(pendingShare.id, 'permanentFailure');
+    expect(NativeIncomingShare!.acknowledgePendingShare).not.toHaveBeenCalled();
+  });
+
+  it('any other 403 is still a permanent failure', async () => {
+    const pendingShare = makePendingShare({ text: 'https://example.com/article' });
+    jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);
+    jest.mocked(saveInboxEntry).mockRejectedValue(new ApiError('forbidden', 403, 'collectionForbidden'));
+
+    await task({ pendingShareId: pendingShare.id });
+
+    expect(NativeIncomingShare!.reportAttemptOutcome).toHaveBeenCalledWith(pendingShare.id, 'permanentFailure');
+  });
+
   it('the server\'s Collection-share-link guard is a "needs the app" outcome - never retried, never given up on', async () => {
     const pendingShare = makePendingShare({ text: 'https://unknown-build-host.test/c/AbCdEfGh_ijkLMNOpqrSTUV-wxyz0123' });
     jest.mocked(NativeIncomingShare!.getPendingShares).mockResolvedValue([pendingShare]);

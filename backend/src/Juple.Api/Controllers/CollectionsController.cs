@@ -44,6 +44,8 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/collections")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
+[Juple.Api.Billing.CollectionOwnedWrite(RouteIds = new[] { "id", "sourceCollectionId" }, RequestProperties = new[] { "TargetCollectionId" })]
 public sealed class CollectionsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
@@ -284,6 +286,7 @@ public sealed class CollectionsController(
     /// latest CollectionDto (not 204 like Rename/Delete) so the caller can reconcile its optimistic
     /// UI state - e.g. ItemCount/UpdatedAtUtc - against the server's actual result in one round trip.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPut("{id:long}/favorite")]
     [CollectionPermission(CollectionPermission.Favorite)]
     public async Task<IActionResult> SetFavoriteAsync(
@@ -607,6 +610,7 @@ public sealed class CollectionsController(
     /// PublicId is never reactivated by a later EnableShareAsync call (see
     /// CollectionShareStore.EnableAsync, which always mints a fresh one when no active row exists).
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}/share")]
     [CollectionPermission(CollectionPermission.ManageShare, requireUnlock: true)]
     public Task<IActionResult> RevokeShareAsync(long id, CancellationToken cancellationToken) =>
@@ -928,6 +932,7 @@ public sealed class CollectionsController(
     /// app still sending a per-Collection password gets 409 collectionLockUsesAccountPassword instead
     /// of a lock that would not open with the password it just typed.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPut("{id:long}/lock")]
     [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
     public async Task<IActionResult> SetLockAsync(
@@ -955,6 +960,7 @@ public sealed class CollectionsController(
     }
 
     /// <summary>Owner only. Removes the lock after verifying the Owner's lock password (no bypass).</summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPost("{id:long}/lock/remove")]
     [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
     public Task<IActionResult> RemoveLockAsync(
@@ -970,6 +976,7 @@ public sealed class CollectionsController(
     /// Owner or Contributor. Verifies the password (throttled) and returns a short-lived grant for
     /// this user and this Collection - sent back in the X-Juple-Collection-Unlock header.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPost("{id:long}/unlock")]
     [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
     public Task<IActionResult> UnlockAsync(
@@ -1033,6 +1040,7 @@ public sealed class CollectionsController(
     /// Owner only, same gates. The share password itself, only on this explicit request (a POST, so
     /// nothing caches or prefetches it) - never stored by any cache (Cache-Control: no-store).
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPost("{id:long}/share-password/reveal")]
     public async Task<IActionResult> RevealSharePasswordAsync(
         long id,
@@ -1054,6 +1062,7 @@ public sealed class CollectionsController(
     /// X-Juple-Collection-Unlock header. A stranger gets 404 whatever the password: it never grants
     /// access, a role or a membership.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPost("{id:long}/share-password/unlock")]
     [EnableRateLimiting(RateLimitPolicies.CollectionUnlock)]
     public Task<IActionResult> UnlockSharePasswordAsync(
@@ -1222,6 +1231,7 @@ public sealed class CollectionsController(
     /// the Owner removes them (see ICollectionCollaborationService.LeaveAsync). 204; 403 for the Owner; 404 for anyone
     /// who is not a member (a stranger, a public-link visitor, a pending invitee). A literal "me" - never a Juple ID.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{id:long}/collaborators/me")]
     public Task<IActionResult> LeaveAsync(
         long id,
@@ -1439,6 +1449,7 @@ public sealed class CollectionsController(
     /// authenticated caller - never a client-supplied user id. 204; 404 (non-disclosing) for anything that
     /// is not the caller's own waiting proposal (someone else's, already approved/rejected, unknown).
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("submissions/mine/{submissionId:long}")]
     public Task<IActionResult> CancelMySubmissionAsync(
         long submissionId,
@@ -1583,6 +1594,7 @@ public sealed class CollectionsController(
     /// is a safe no-op. Ownership is resolved server-side from undoOperationId; no other collection
     /// or membership state is accepted from the client.
     /// </summary>
+    [Juple.Api.Billing.CollectionOwnedWrite(MergeOperationProperty = "UndoOperationId")]
     [HttpPost("merge/undo")]
     public Task<IActionResult> UndoMergeAsync(
         UndoMergeCollectionsRequest request, CancellationToken cancellationToken) =>

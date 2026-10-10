@@ -9,6 +9,7 @@ import {
   type CollectionIconImageAsset,
 } from './api/collectionsApi';
 import { forgetCollectionIcon, rememberLocalCollectionIcon } from './collectionIconImageCache';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /**
  * What the Collection editor decided about the icon photo: leave it, use a newly picked one, or go
@@ -86,6 +87,9 @@ export async function applyCollectionIconImageChange(
 }
 
 export function getIconImageSaveErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'badRequest') {
     return t('collections.iconPhotoInvalid');
   }

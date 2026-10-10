@@ -11,6 +11,7 @@ import {
   setCommentLike,
   type ItemComment,
 } from './commentsApi';
+import { unlessRefusalHandled } from '../billing/subscriptionRequired';
 
 export type CommentsStatus = 'loading' | 'ready' | 'error';
 
@@ -144,8 +145,8 @@ export function useItemComments(
       });
       setTotalCount(page.totalCount);
       setPreviousCursor(page.previousCursor);
-    } catch {
-      failureRef.current('older');
+    } catch (caughtError) {
+      unlessRefusalHandled(caughtError, () => failureRef.current('older'));
     } finally {
       isLoadingPreviousRef.current = false;
       setIsLoadingPrevious(false);
@@ -282,8 +283,8 @@ export function useItemComments(
         });
         setEditTarget(null);
         return true;
-      } catch {
-        failureRef.current('edit');
+      } catch (caughtError) {
+        unlessRefusalHandled(caughtError, () => failureRef.current('edit'));
         return false;
       } finally {
         isSendingRef.current = false;
@@ -328,8 +329,8 @@ export function useItemComments(
         }
         setTotalCount(current => current + 1);
         return true;
-      } catch {
-        failureRef.current('send');
+      } catch (caughtError) {
+        unlessRefusalHandled(caughtError, () => failureRef.current('send'));
         return false;
       } finally {
         isSendingRef.current = false;
@@ -373,12 +374,12 @@ export function useItemComments(
       setTotalCount(current => Math.max(0, current - 1));
       try {
         await deleteItemComment(authenticatedRequest, collectionId, itemId, commentId, tokenRef.current());
-      } catch {
+      } catch (caughtError) {
         // Put everything back where it was and say so.
         setComments(snapshot.comments);
         setThreads(snapshot.threads);
         setTotalCount(snapshot.totalCount);
-        failureRef.current('delete');
+        unlessRefusalHandled(caughtError, () => failureRef.current('delete'));
       } finally {
         pendingDeletesRef.current.delete(commentId);
       }
@@ -409,9 +410,9 @@ export function useItemComments(
       try {
         const state = await setCommentLike(authenticatedRequest, collectionId, itemId, target.id, wanted, tokenRef.current());
         apply(state.liked, state.likeCount);
-      } catch {
+      } catch (caughtError) {
         apply(before.liked, before.count);
-        failureRef.current('like');
+        unlessRefusalHandled(caughtError, () => failureRef.current('like'));
       } finally {
         pendingLikesRef.current.delete(target.id);
       }

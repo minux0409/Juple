@@ -990,7 +990,16 @@
       "dataTitle": "I tuoi link restano tuoi",
       "dataBody": "I link salvati non vengono eliminati quando un abbonamento termina."
     },
-    "stateHeading": "Stato dell'abbonamento"
+    "stateHeading": "Stato dell'abbonamento",
+    "required": {
+      "title": "Serve un abbonamento",
+      "message": "Per salvare e modificare serve un abbonamento. I link e le raccolte salvati restano disponibili in lettura.",
+      "later": "Non ora"
+    },
+    "ownerRequired": {
+      "title": "Al momento non modificabile",
+      "message": "Il proprietario di questa raccolta non ha più un abbonamento attivo, quindi per ora non è possibile aggiungere o modificare link. Puoi comunque leggere la raccolta e i suoi link."
+    }
   },
   "appUpdate": {
     "optionalTitle": "È disponibile un aggiornamento",

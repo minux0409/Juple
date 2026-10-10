@@ -990,7 +990,16 @@
       "dataTitle": "Liên kết vẫn là của bạn",
       "dataBody": "Các liên kết đã lưu không bị xóa khi gói đăng ký kết thúc."
     },
-    "stateHeading": "Trạng thái gói đăng ký"
+    "stateHeading": "Trạng thái gói đăng ký",
+    "required": {
+      "title": "Cần có gói đăng ký",
+      "message": "Lưu và chỉnh sửa cần có gói đăng ký. Bạn vẫn xem được các liên kết và bộ sưu tập đã lưu.",
+      "later": "Để sau"
+    },
+    "ownerRequired": {
+      "title": "Hiện chưa thể thay đổi",
+      "message": "Chủ sở hữu bộ sưu tập này không còn gói đăng ký đang hoạt động, nên tạm thời không thể thêm hoặc thay đổi liên kết. Bạn vẫn xem được bộ sưu tập và các liên kết."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Có bản cập nhật",

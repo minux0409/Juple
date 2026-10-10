@@ -19,6 +19,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/recently-opened-links")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class RecentlyOpenedLinksController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

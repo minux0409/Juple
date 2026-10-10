@@ -11,8 +11,12 @@ import { unlockCollection } from './api/collectionsApi';
 import { unlockSharePassword } from './api/sharePasswordApi';
 import { rememberCollectionUnlock } from './collectionUnlockGrants';
 import { isUnlockStateChangedError } from './freshCollectionAccess';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 export function getUnlockErrorMessage(error: unknown, t: TFunction, kind: 'lock' | 'sharePassword' = 'lock'): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'forbidden' && error.code === 'invalidCollectionPassword') {
       return t(kind === 'sharePassword' ? 'collections.sharePasswordWrong' : 'collections.lockWrongPassword');

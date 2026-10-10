@@ -27,6 +27,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/items")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
 public sealed class ItemsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
@@ -446,6 +447,7 @@ public sealed class ItemsController(
     /// Linking.openURL actually succeeds, and only best-effort - a failure here must never be
     /// surfaced as a failure to open the URL itself.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPost("{id:long}/open")]
     public Task<IActionResult> RecordOpenAsync(long id, CancellationToken cancellationToken) =>
         TransitionAsync(

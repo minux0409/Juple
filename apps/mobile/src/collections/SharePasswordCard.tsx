@@ -23,6 +23,7 @@ import { beginCollectionVisit } from './collectionUnlockGrants';
 import { CollectionUnlockPanel } from './CollectionUnlockPanel';
 import { isCollectionLockedError } from './useCollectionItems';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** One dot per character while the password is hidden. */
 const PASSWORD_MASK = '•';
@@ -49,6 +50,9 @@ export function validateSharePassword(password: string, t: TFunction): string | 
 }
 
 function getErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }

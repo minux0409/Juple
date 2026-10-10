@@ -42,6 +42,7 @@ public sealed class PublicCollectionsController(
     /// Public Web (never from the browser), which keeps the grant in an HttpOnly cookie. The
     /// response never distinguishes "wrong password" beyond a generic code.
     /// </summary>
+    [Juple.Api.Billing.AnonymousMutationReviewed("Unlocking a password-protected public Collection for reading: it writes no content and grants no membership.")]
     [HttpPost("{publicId}/unlock")]
     [EnableRateLimiting(RateLimitPolicies.PublicCollectionUnlock)]
     public async Task<IActionResult> UnlockAsync(

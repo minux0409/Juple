@@ -25,6 +25,8 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/public-shares/{publicId}")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
+[Juple.Api.Billing.CollectionOwnedWrite(PublicIdRoute = "publicId")]
 public sealed class PublicShareWriteController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
@@ -148,6 +150,7 @@ public sealed class PublicShareWriteController(
     /// it does not depend on this link still being active, so a revoked link never traps a pending request).
     /// 204; 404 (non-disclosing) for anything that is not the caller's own waiting proposal.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("submissions/mine/{submissionId:long}")]
     public async Task<IActionResult> CancelMyProposalAsync(
         string publicId,

@@ -1,5 +1,6 @@
 import { ApiError } from '../ApiError';
 import { requestApi } from '../apiClient';
+import { subscribeSubscriptionRequired } from '../../billing/subscriptionRequired';
 
 jest.mock('../apiConfig', () => ({
   apiConfig: { baseUrl: 'https://api.test' },
@@ -20,6 +21,26 @@ describe('requestApi extra headers and problem codes', () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     return fetchMock;
   }
+
+  it('a 403 subscriptionRequired is still a forbidden ApiError with its code - and announces itself once', async () => {
+    respondWith(403, { code: 'subscriptionRequired' });
+    const listener = jest.fn();
+    const unsubscribe = subscribeSubscriptionRequired(listener);
+
+    await expect(requestApi({ method: 'POST', path: '/x', accessToken: 't' })).rejects.toMatchObject({ kind: 'forbidden', status: 403, code: 'subscriptionRequired' });
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it('any other 403 announces nothing', async () => {
+    respondWith(403, { code: 'collectionLocked' });
+    const listener = jest.fn();
+    const unsubscribe = subscribeSubscriptionRequired(listener);
+
+    await expect(requestApi({ method: 'GET', path: '/x', accessToken: 't' })).rejects.toMatchObject({ kind: 'forbidden', code: 'collectionLocked' });
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+  });
 
   it('sends extra headers, but never lets them replace the Authorization header', async () => {
     const fetchMock = respondWith(204);

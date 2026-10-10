@@ -8,6 +8,7 @@ import { SHORTCUT_NOTICE_SAVED_WITHOUT_COLLECTION } from '../shortcuts/shortcutL
 import { isDetailedShareDiagnosticsEnabled } from '../api/apiConfig';
 import { requestAuthenticatedApi } from '../api/authenticatedApiClient';
 import { ApiError } from '../api/ApiError';
+import { subscriptionRequiredKindOf } from '../billing/subscriptionRequired';
 import { EntraAuthError, isEntraSessionInvalidError } from '../auth/entraAuthClient';
 import { AuthSessionError } from '../auth/session/authSessionErrors';
 import { addItemToCollection } from '../collections/api/collectionsApi';
@@ -67,6 +68,11 @@ function classifySaveFailure(error: unknown): AttemptOutcome {
   if (error instanceof ApiError) {
     // The server's Collection-share-link invariant: nothing to retry or give up on - the app opens the Collection.
     if (error.kind === 'badRequest' && error.code === COLLECTION_SHARE_URL_NOT_SAVABLE_CODE) {
+      return 'reviewRequired';
+    }
+    // The free period ended and no subscription is owned: nothing is lost - the app opens the review screen with the link, where
+    // saving explains and offers the subscription.
+    if (error.kind === 'forbidden' && subscriptionRequiredKindOf(error.code) !== null) {
       return 'reviewRequired';
     }
     switch (error.kind) {

@@ -39,6 +39,7 @@ import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
 import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
+import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice';
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { getSavedLinkSwipeActions, hasSavedLinkSwipeActions } from '../items/savedLinkSwipeActions';
@@ -66,6 +67,7 @@ import { sortLinksByName } from '../collections/sortCollectionItems';
 import { NAME_ORDER_MAX_LINKS } from '../collections/useCollectionItems';
 import { ScreenTitleGlyph } from '../components/ScreenTitle';
 import { ClockIcon } from '../icons/ClockIcon';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** Image view's line of up to three links (see chunkIntoImageLines) - one row of the Home list. */
 interface ImageLine {
@@ -95,6 +97,9 @@ function todayWindowStartUtc(now: Date): string {
 }
 
 function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');
@@ -117,6 +122,9 @@ function getInboxErrorMessage(error: unknown, isSave: boolean, t: TFunction): st
 }
 
 function getDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -554,6 +562,7 @@ export function DailyInboxScreen() {
               {/* 알림 - Home's top end, the one place it lives (not on every screen). */}
               <NotificationBellButton onPress={() => navigation.navigate('Notifications')} />
             </View>
+            <SubscriptionExpiredNotice />
             <View style={styles.inputWrapper}>
               <View pointerEvents="none" style={styles.inputIconContainer}>
                 <LinkIcon color={colors.textSecondary} size={18} />

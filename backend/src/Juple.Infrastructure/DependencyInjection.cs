@@ -61,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
         services.AddScoped<Juple.Application.Billing.IEntitlementStore, Juple.Infrastructure.Billing.EntitlementStore>();
+        services.AddScoped<Juple.Application.Billing.ICollectionOwnerLookup, Juple.Infrastructure.Billing.CollectionOwnerLookup>();
         // Google Play billing (R39-B1). Everything here is inert until Billing:Google:Enabled: nothing reads a credential at startup.
         services.AddScoped<Juple.Application.Billing.GooglePlay.IGoogleBillingStore, Juple.Infrastructure.Billing.GoogleBillingStore>();
         services.AddSingleton<Juple.Infrastructure.Billing.IGoogleCredentialSource, Juple.Infrastructure.Billing.ConfiguredServiceAccountCredentialSource>();

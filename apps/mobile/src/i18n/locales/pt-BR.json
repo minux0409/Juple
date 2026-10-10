@@ -990,7 +990,16 @@
       "dataTitle": "Seus links continuam seus",
       "dataBody": "Seus links salvos não são excluídos quando uma assinatura termina."
     },
-    "stateHeading": "Status da assinatura"
+    "stateHeading": "Status da assinatura",
+    "required": {
+      "title": "É necessária uma assinatura",
+      "message": "Salvar e editar exigem uma assinatura. Seus links e coleções salvos continuam disponíveis para leitura.",
+      "later": "Agora não"
+    },
+    "ownerRequired": {
+      "title": "Não pode ser alterada agora",
+      "message": "O proprietário desta coleção não tem mais uma assinatura ativa, então, por enquanto, não é possível adicionar ou alterar links. Você ainda pode ler a coleção e seus links."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Há uma atualização disponível",

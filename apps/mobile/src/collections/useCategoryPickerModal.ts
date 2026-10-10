@@ -9,6 +9,7 @@ import { canAddItemsTo, contentGateOf } from './collectionAccess';
 import { resolveFreshCollectionAccess, withFreshCollection } from './freshCollectionAccess';
 import type { CollectionColorValue } from './collectionColors';
 import type { CollectionIconKey } from './collectionIcons';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 const COLLECTION_OPTIONS_PAGE_LIMIT = 50;
 
@@ -18,6 +19,9 @@ function listLoadFailure(error: unknown, t: TFunction): LoadFailureInfo {
 }
 
 function getCreateErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
       return t('collections.errorNameConflict');

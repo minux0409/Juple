@@ -990,7 +990,16 @@
       "dataTitle": "Bağlantıların sende kalır",
       "dataBody": "Abonelik sona erdiğinde kaydettiğin bağlantılar silinmez."
     },
-    "stateHeading": "Abonelik durumu"
+    "stateHeading": "Abonelik durumu",
+    "required": {
+      "title": "Abonelik gerekli",
+      "message": "Kaydetmek ve düzenlemek için abonelik gerekir. Kayıtlı bağlantılarınız ve koleksiyonlarınız okunmaya devam eder.",
+      "later": "Şimdi değil"
+    },
+    "ownerRequired": {
+      "title": "Şu anda değiştirilemez",
+      "message": "Bu koleksiyonun sahibinin etkin bir aboneliği kalmadığından şimdilik bağlantı eklenemez veya değiştirilemez. Koleksiyonu ve bağlantılarını okumaya devam edebilirsiniz."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Güncelleme mevcut",

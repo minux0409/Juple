@@ -61,10 +61,14 @@ import { isNameSort, useSortPreference, type LinkSortOption } from '../settings/
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 export { FIRST_PAGE_SKELETON_ROWS, NEAR_END_ROWS, NEXT_PAGE_SKELETON_ROWS } from '../components/DateSectionList';
 
 function getHistoryDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }

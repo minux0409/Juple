@@ -2,7 +2,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isSubscriptionTestEntryEnabled } from '../api/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import { AccountManagementScreen } from '../screens/AccountManagementScreen';
 import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
@@ -16,6 +15,7 @@ import { SupportInquiryDetailScreen } from '../screens/SupportInquiryDetailScree
 import { SupportInquiryScreen } from '../screens/SupportInquiryScreen';
 import { TutorialScreen } from '../screens/TutorialScreen';
 import { TutorialLauncher } from '../support/TutorialLauncher';
+import { SubscriptionRequiredPrompt } from '../billing/SubscriptionRequiredPrompt';
 import { MyCollectionSubmissionsScreen } from '../screens/MyCollectionSubmissionsScreen';
 import { headerTitleWithIcon, screenIcons } from './screenIcons';
 import { FriendsScreen } from '../screens/FriendsScreen';
@@ -276,9 +276,8 @@ export function RootStack() {
             <Stack.Screen component={HelpGuideScreen} name="HelpGuide" options={{ title: t('guide.title'), ...headerTitleWithIcon(screenIcons.help, t('guide.title')) }} />
             <Stack.Screen component={HelpGuideSectionScreen} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`) })} />
             <Stack.Screen component={CustomerCenterScreen} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
-            {isSubscriptionTestEntryEnabled ? (
-              <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
-            ) : null}
+            {/* Always registered: an account whose free period ended is sent here to subscribe or restore. Only the My Page ENTRY is limited to internal-test builds. */}
+            <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />
             <Stack.Screen component={SupportInquiryScreen} name="SupportInquiry" options={{ title: t('inquiry.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.title')) }} />
             <Stack.Screen component={SupportInquiryDetailScreen} name="SupportInquiryDetail" options={{ title: t('inquiry.detailTitle'), ...headerTitleWithIcon(screenIcons.customerCenter, t('inquiry.detailTitle')) }} />
             {/* Full-screen, no header: its own skip/close and Android back (see TutorialScreen); no swipe-back gesture, so a first run is always recorded. */}
@@ -311,6 +310,7 @@ export function RootStack() {
       {isReady ? <IncomingShareRouter /> : null}
       {isReady ? <CollectionShortcutRouter /> : null}
       {isReady ? <TutorialLauncher /> : null}
+      {isReady ? <SubscriptionRequiredPrompt /> : null}
     </>
   );
 }

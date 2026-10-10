@@ -44,6 +44,7 @@ import {
 } from '../urlMetadata/instagramDeviceFallback';
 import { fetchInstagramOpenGraphCandidate, type InstagramOpenGraphFetchResult } from '../urlMetadata/instagramOpenGraphFetch';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 
 /**
@@ -67,6 +68,9 @@ function isKnownYouTubePlaceholderTitle(url: string, title: string): boolean {
 type Props = NativeStackScreenProps<RootStackParamList, 'NewLinkReview'>;
 
 function getSaveErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'badRequest') {
       return t('inbox.errorBadRequest');

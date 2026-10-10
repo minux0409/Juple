@@ -18,6 +18,7 @@ import {
   type ReceivedCollectionInvitation,
 } from './api/collaborationApi';
 import { CategoryIconTile } from './CategoryIconTile';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** What accepting an invitation with this role gives, in the invited person's words. */
 const RECEIVED_ROLE_LABEL_KEYS: Readonly<Record<InvitationRole, string>> = {
@@ -27,6 +28,9 @@ const RECEIVED_ROLE_LABEL_KEYS: Readonly<Record<InvitationRole, string>> = {
 };
 
 function getResponseErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'conflict' || error.kind === 'notFound') {
       // Expired, revoked, already answered, or the Category is gone - nothing to act on anymore.

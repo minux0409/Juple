@@ -20,6 +20,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
 public sealed class CollectionInvitationsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
@@ -36,6 +37,7 @@ public sealed class CollectionInvitationsController(
     /// Exact match only (no partial search, no listing); rate limited per signed-in user. The
     /// response is the Juple ID itself - never an email or internal id.
     /// </summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpPost("users/lookup-by-juple-id")]
     [EnableRateLimiting(RateLimitPolicies.JupleIdLookup)]
     public Task<IActionResult> LookupAsync(LookupByJupleIdRequest request, CancellationToken cancellationToken) =>
@@ -51,6 +53,8 @@ public sealed class CollectionInvitationsController(
             invitations => Ok(new ReceivedInvitationsResponse(invitations)),
             cancellationToken);
 
+    [Juple.Api.Billing.CollectionOwnedWrite(InvitationIdRoute = "invitationId")]
+
     [HttpPost("collection-invitations/{invitationId:long}/accept")]
     public Task<IActionResult> AcceptAsync(long invitationId, CancellationToken cancellationToken) =>
         ExecuteAsync(
@@ -61,6 +65,8 @@ public sealed class CollectionInvitationsController(
             },
             _ => NoContent(),
             cancellationToken);
+
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
 
     [HttpPost("collection-invitations/{invitationId:long}/decline")]
     public Task<IActionResult> DeclineAsync(long invitationId, CancellationToken cancellationToken) =>

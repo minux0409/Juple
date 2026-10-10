@@ -990,7 +990,16 @@
       "dataTitle": "Tus enlaces siguen siendo tuyos",
       "dataBody": "Tus enlaces guardados no se eliminan cuando termina una suscripción."
     },
-    "stateHeading": "Estado de la suscripción"
+    "stateHeading": "Estado de la suscripción",
+    "required": {
+      "title": "Se necesita una suscripción",
+      "message": "Guardar y editar requieren una suscripción. Tus enlaces y colecciones guardados siguen disponibles para leer.",
+      "later": "Ahora no"
+    },
+    "ownerRequired": {
+      "title": "No se puede cambiar ahora",
+      "message": "El propietario de esta colección ya no tiene una suscripción activa, así que por ahora no se pueden añadir ni cambiar enlaces. Puedes seguir leyendo la colección y sus enlaces."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Hay una actualización disponible",

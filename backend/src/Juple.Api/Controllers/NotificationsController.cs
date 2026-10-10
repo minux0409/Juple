@@ -18,6 +18,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/notifications")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class NotificationsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

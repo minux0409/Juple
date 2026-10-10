@@ -990,7 +990,16 @@
       "dataTitle": "Deine Links bleiben dein",
       "dataBody": "Gespeicherte Links werden nicht gelöscht, wenn ein Abo endet."
     },
-    "stateHeading": "Abo-Status"
+    "stateHeading": "Abo-Status",
+    "required": {
+      "title": "Ein Abo ist nötig",
+      "message": "Zum Speichern und Bearbeiten ist ein Abo nötig. Deine gespeicherten Links und Sammlungen kannst du weiterhin ansehen.",
+      "later": "Nicht jetzt"
+    },
+    "ownerRequired": {
+      "title": "Gerade nicht änderbar",
+      "message": "Die Eigentümerin oder der Eigentümer dieser Sammlung hat kein aktives Abo mehr, deshalb können vorerst keine Links hinzugefügt oder geändert werden. Lesen kannst du die Sammlung und ihre Links weiterhin."
+    }
   },
   "appUpdate": {
     "optionalTitle": "Ein Update ist verfügbar",

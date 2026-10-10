@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { removeItemReaction, setItemReaction } from '../collections/api/collectionsApi';
 import type { AuthenticatedApiRequest } from '../api/useAuthenticatedApi';
 import { toItemReactions, withMyReaction, type ItemReactions } from './reactionCatalog';
+import { unlessRefusalHandled } from '../billing/subscriptionRequired';
 
 interface Override {
   /** The row the value was made for - a refreshed list brings new row objects, which drop it. */
@@ -57,9 +58,9 @@ export function useItemReactions(
             ? await removeItemReaction(authenticatedRequest, collectionId, itemId, getUnlockToken())
             : await setItemReaction(authenticatedRequest, collectionId, itemId, next, getUnlockToken());
         put(toItemReactions(answer.reactions, answer.myReaction));
-      } catch {
+      } catch (caughtError) {
         put(before);
-        failureRef.current();
+        unlessRefusalHandled(caughtError, () => failureRef.current());
       } finally {
         inFlightRef.current.delete(itemId);
       }

@@ -15,6 +15,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/items/{itemId:long}/images")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
 public sealed class ItemImagesController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

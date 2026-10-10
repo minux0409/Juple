@@ -6,6 +6,7 @@ import { ApiError } from '../api/ApiError';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { getCollectionItems, type CollectionItemEntry, type CollectionItemsSort } from './api/collectionsApi';
 import { forgetCollectionUnlock, getCollectionUnlockToken } from './collectionUnlockGrants';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 /** The server's "locked and no valid grant" answer - content is withheld until the password is entered. */
 export function isCollectionLockedError(error: unknown): boolean {
@@ -42,6 +43,9 @@ const WHOLE_COLLECTION_PAGE_LIMIT = 100;
 export type CollectionItemsLoadMode = CollectionItemsSort | 'whole';
 
 export function getCollectionItemsErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
       return t('collections.errorNotFound');

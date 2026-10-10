@@ -24,6 +24,8 @@ public sealed class GoogleRtdnController(
 {
     private const int MaxBodyBytes = 64 * 1024;
 
+    [Juple.Api.Billing.AnonymousMutationReviewed("Google Play's Pub/Sub push, authenticated by its OIDC token before the body is read: store plumbing, not a person's content.")]
+
     [HttpPost]
     public async Task<IActionResult> ReceiveAsync(CancellationToken cancellationToken)
     {

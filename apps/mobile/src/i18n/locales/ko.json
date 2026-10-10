@@ -990,7 +990,16 @@
       "dataTitle": "저장한 링크는 그대로예요",
       "dataBody": "구독이 끝나도 저장한 링크는 삭제되지 않아요."
     },
-    "stateHeading": "구독 상태"
+    "stateHeading": "구독 상태",
+    "required": {
+      "title": "구독이 필요해요",
+      "message": "저장하거나 수정하려면 구독이 필요해요. 저장한 링크와 컬렉션은 그대로 볼 수 있어요.",
+      "later": "나중에"
+    },
+    "ownerRequired": {
+      "title": "지금은 변경할 수 없어요",
+      "message": "이 컬렉션의 소유자의 이용 기간이 끝나 지금은 링크를 추가하거나 바꿀 수 없어요. 컬렉션과 링크는 그대로 볼 수 있어요."
+    }
   },
   "appUpdate": {
     "optionalTitle": "업데이트가 있습니다",

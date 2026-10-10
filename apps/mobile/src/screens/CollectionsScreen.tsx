@@ -32,6 +32,7 @@ import {
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
 import { useCollectionLongPressMenu } from '../collections/useCollectionLongPressMenu';
+import { SubscriptionExpiredNotice } from '../billing/SubscriptionExpiredNotice';
 import { HintBanner } from '../hints/HintBanner';
 import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
@@ -65,6 +66,7 @@ import { useLayoutDirection } from '../i18n/layoutDirection';
 import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 const GRID_COLUMNS = 4;
 
@@ -126,6 +128,9 @@ interface FilterListState {
 const EMPTY_LIST: FilterListState = { items: [], nextCursor: null, isLoaded: false };
 
 function getListErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -133,6 +138,9 @@ function getListErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -140,6 +148,9 @@ function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getCreateErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'conflict') {
       return t('collections.errorNameConflict');
@@ -623,6 +634,7 @@ export function CollectionsScreen() {
         removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={
           <View>
+            <SubscriptionExpiredNotice />
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.collections} textStyle={styles.title} title={t('collections.title')} />
               <View style={styles.headerButtons}>

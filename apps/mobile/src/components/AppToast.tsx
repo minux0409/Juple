@@ -79,6 +79,10 @@ export function AppToastProvider({ children }: { readonly children: React.ReactN
     setToast(null);
   }, []);
   const showNotificationToast = useCallback((message: string) => {
+    if (!message) {
+      // Nothing to say (a failure the subscription prompt already explained).
+      return;
+    }
     isUndoingRef.current = false;
     setIsUndoing(false);
     setToast({ id: ++nextIdRef.current, kind: 'notification', message });

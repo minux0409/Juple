@@ -76,6 +76,7 @@ import { useLiveRefresh } from '../push/useLiveRefresh';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { categoryTilePalette, colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionShare'>;
 
@@ -151,6 +152,9 @@ function memberRoleOf(role: string): BadgeKind {
 const ROLE_ORDER: Record<BadgeKind, number> = { owner: 0, contributor: 1, submitter: 2, viewer: 3 };
 
 function getLookupErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError) {
     if (error.kind === 'notFound') {
       return t('collaboration.lookupNotFound');
@@ -164,6 +168,9 @@ function getLookupErrorMessage(error: unknown, t: TFunction): string {
 
 /** For invites, role changes, removals and revokes - every sharing action on this screen. */
 function getActionErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }
@@ -202,6 +209,9 @@ function getActionErrorMessage(error: unknown, t: TFunction): string {
  * 읽기 전용 is the minimum and never conflicts with anyone.
  */
 function getShareManagementErrorMessage(error: unknown, t: TFunction, attemptedPermission: PublicSharePermission | null): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }

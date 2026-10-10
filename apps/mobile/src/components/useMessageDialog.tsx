@@ -28,6 +28,10 @@ export function useMessageDialog() {
 
   const showMessage = useCallback(
     (text: string, options: MessageOptions = {}) => {
+      if (!text) {
+        // Nothing to say: the failure was already explained (see isHandledSubscriptionRefusal). onDone is for a message that was shown.
+        return;
+      }
       Keyboard.dismiss();
       setShown({ title: options.title ?? t('common.notice'), text, onDone: options.onDone });
     },

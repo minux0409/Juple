@@ -21,6 +21,7 @@ import {
 } from './api/collectionsApi';
 import { PendingActionCardShell, PendingSubmissionCardSkeleton } from './PendingSubmissionCard';
 import { contentGateOfError } from './useCollectionItems';
+import { unlessRefusalHandled } from '../billing/subscriptionRequired';
 
 const AVATAR_SIZE = 44;
 const STRIP_ACTION_HEIGHT = 46;
@@ -136,7 +137,7 @@ export function JoinRequestsSheet({ visible, collectionId, authenticatedRequest,
         removeRow(row.requestId);
       } else {
         // The card stays; the sheet stays open.
-        showMessage(t('submissions.actionError'));
+        unlessRefusalHandled(caughtError, () => showMessage(t('submissions.actionError')));
       }
     } finally {
       answeringRef.current = false;

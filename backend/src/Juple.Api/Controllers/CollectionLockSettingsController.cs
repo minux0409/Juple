@@ -19,6 +19,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/users/me/collection-lock")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.AllowWhenSubscriptionExpired]
 public sealed class CollectionLockSettingsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

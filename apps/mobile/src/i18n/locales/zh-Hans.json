@@ -990,7 +990,16 @@
       "dataTitle": "你的链接依然保留",
       "dataBody": "订阅结束后，已保存的链接不会被删除。"
     },
-    "stateHeading": "订阅状态"
+    "stateHeading": "订阅状态",
+    "required": {
+      "title": "需要订阅",
+      "message": "保存和编辑需要订阅。已保存的链接和合集仍可正常查看。",
+      "later": "以后再说"
+    },
+    "ownerRequired": {
+      "title": "暂时无法更改",
+      "message": "此合集所有者的使用期已结束，暂时无法添加或更改链接。合集和链接仍可正常查看。"
+    }
   },
   "appUpdate": {
     "optionalTitle": "有可用更新",

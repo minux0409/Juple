@@ -1,3 +1,4 @@
+import { notifySubscriptionRequired, subscriptionRequiredKindOf } from '../billing/subscriptionRequired';
 import { ApiError } from './ApiError';
 import { apiConfig } from './apiConfig';
 
@@ -155,8 +156,14 @@ export async function requestApi<T>({
   }
 
   if (response.status === 403) {
-    // e.g. "collectionLocked" / "invalidCollectionPassword" / "collectionForbidden".
-    throw new ApiError('forbidden', response.status, await readProblemCode(response));
+    // e.g. "collectionLocked" / "invalidCollectionPassword" / "collectionForbidden" / "subscriptionRequired".
+    const code = await readProblemCode(response);
+    const refusal = subscriptionRequiredKindOf(code);
+    if (refusal) {
+      // A refused write for lack of a subscription: one calm prompt, whichever screen asked (see SubscriptionRequiredPrompt).
+      notifySubscriptionRequired(refusal);
+    }
+    throw new ApiError('forbidden', response.status, code);
   }
 
   if (response.status === 404) {

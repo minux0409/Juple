@@ -17,6 +17,8 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/collections/{id:long}/items/copy")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
+[Juple.Api.Billing.CollectionOwnedWrite(RouteIds = new[] { "id" }, RequestProperties = new[] { "DestinationCollectionId" })]
 public sealed class CollectionItemCopyController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,

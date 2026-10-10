@@ -139,6 +139,7 @@ import type { SocialPushEventType } from '../push/pushEvents';
 import { useViewModePreference, type SavedLinkViewMode } from '../settings/viewModePreference';
 import { colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 import { KeyboardSafeView } from '../components/KeyboardSafeView';
+import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionDetails'>;
 
@@ -162,6 +163,9 @@ function gateNoticeKey(error: unknown): string | null {
 }
 
 function getRenameErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }
@@ -180,6 +184,9 @@ function getRenameErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getIconUpdateErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }
@@ -190,6 +197,9 @@ function getIconUpdateErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getColorUpdateErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }
@@ -200,6 +210,9 @@ function getColorUpdateErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getDeleteErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (isCollectionLockedError(error)) {
     return t('collections.lockRequiredForAction');
   }
@@ -210,6 +223,9 @@ function getDeleteErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getRemoveItemErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }
@@ -220,6 +236,9 @@ function getRemoveItemErrorMessage(error: unknown, t: TFunction): string {
 }
 
 function getFavoriteToggleErrorMessage(error: unknown, t: TFunction): string {
+  if (isHandledSubscriptionRefusal(error)) {
+    return '';
+  }
   if (error instanceof ApiError && error.kind === 'unauthorized') {
     return t('errors.unauthorized');
   }

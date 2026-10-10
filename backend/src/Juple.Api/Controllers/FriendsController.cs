@@ -21,6 +21,7 @@ namespace Juple.Api.Controllers;
 [ApiController]
 [Route("api/v1/friends")]
 [Authorize(Policy = AuthorizationPolicies.JupleUser)]
+[Juple.Api.Billing.RequireWriteAccess]
 public sealed class FriendsController(
     IExternalIdentityAccessor externalIdentityAccessor,
     ICurrentJupleUserAccessor currentUserAccessor,
@@ -64,6 +65,8 @@ public sealed class FriendsController(
             friend => Ok(friend),
             cancellationToken);
 
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
+
     [HttpPost("requests/{requestId:long}/decline")]
     public Task<IActionResult> DeclineAsync(long requestId, CancellationToken cancellationToken) =>
         ExecuteAsync(
@@ -76,6 +79,7 @@ public sealed class FriendsController(
             cancellationToken);
 
     /// <summary>The requester withdraws their own pending request.</summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("requests/{requestId:long}")]
     public Task<IActionResult> CancelAsync(long requestId, CancellationToken cancellationToken) =>
         ExecuteAsync(
@@ -88,6 +92,7 @@ public sealed class FriendsController(
             cancellationToken);
 
     /// <summary>Removes the friendship (and both private notes). Shared Collections are not affected.</summary>
+    [Juple.Api.Billing.AllowWhenSubscriptionExpired]
     [HttpDelete("{friendshipId:long}")]
     public Task<IActionResult> RemoveAsync(long friendshipId, CancellationToken cancellationToken) =>
         ExecuteAsync(

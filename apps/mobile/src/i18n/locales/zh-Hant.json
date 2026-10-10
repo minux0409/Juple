@@ -990,7 +990,16 @@
       "dataTitle": "你的連結依然保留",
       "dataBody": "訂閱結束後，已儲存的連結不會被刪除。"
     },
-    "stateHeading": "訂閱狀態"
+    "stateHeading": "訂閱狀態",
+    "required": {
+      "title": "需要訂閱",
+      "message": "儲存和編輯需要訂閱。已儲存的連結和合集仍可正常檢視。",
+      "later": "稍後再說"
+    },
+    "ownerRequired": {
+      "title": "暫時無法變更",
+      "message": "此合集擁有者的使用期已結束，暫時無法新增或變更連結。合集和連結仍可正常檢視。"
+    }
   },
   "appUpdate": {
     "optionalTitle": "有可用更新",
