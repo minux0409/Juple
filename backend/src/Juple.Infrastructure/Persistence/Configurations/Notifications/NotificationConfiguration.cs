@@ -127,6 +127,10 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .HasDatabaseName("UX_Notifications_DedupKey");
 
         // The Push dispatcher's only query: not yet dispatched, oldest first.
+        // Retention cleanup of old notifications, oldest first (see RetentionCleanupService).
+        builder.HasIndex(notification => notification.CreatedAtUtc)
+            .HasDatabaseName("IX_Notifications_CreatedAtUtc");
+
         builder.HasIndex(notification => new { notification.CreatedAtUtc, notification.Id })
             .HasFilter("[DispatchedAtUtc] IS NULL AND [DedupKey] IS NOT NULL")
             .HasDatabaseName("IX_Notifications_PendingDispatch");

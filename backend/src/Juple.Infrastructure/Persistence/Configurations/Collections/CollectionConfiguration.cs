@@ -99,6 +99,11 @@ public sealed class CollectionConfiguration : IEntityTypeConfiguration<Collectio
         builder.HasIndex(collection => new { collection.UserId, collection.CreatedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_CreatedAtUtc_Id");
 
+        // Retention cleanup of soft-deleted Collections, across users, oldest first (see RetentionCleanupService).
+        builder.HasIndex(collection => new { collection.DeletedAtUtc, collection.Id })
+            .HasFilter("[DeletedAtUtc] IS NOT NULL")
+            .HasDatabaseName("IX_Collections_DeletedAtUtc_Id");
+
         builder.HasIndex(collection => new { collection.UserId, collection.DeletedAtUtc, collection.Id })
             .HasDatabaseName("IX_Collections_UserId_DeletedAtUtc_Id");
 

@@ -82,6 +82,7 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
                 }
             }
 
+            purchase.RestoreVerificationHandle(command.EncryptedToken);
             purchase.ApplyVerified(command.Normalized, command.BasePlanId, command.PeriodStartUtc, command.NowUtc);
 
             try
@@ -176,7 +177,7 @@ public sealed class GoogleBillingStore(JupleDbContext dbContext) : IGoogleBillin
     public async Task<IReadOnlyList<long>> ClaimDuePurchaseIdsAsync(DateTimeOffset nowUtc, TimeSpan lease, int limit, CancellationToken cancellationToken = default)
     {
         var due = await dbContext.StorePurchases.AsNoTracking()
-            .Where(purchase => purchase.NextReconcileAtUtc <= nowUtc)
+            .Where(purchase => purchase.NextReconcileAtUtc <= nowUtc && purchase.VerificationHandleEncrypted != null)
             .OrderBy(purchase => purchase.NextReconcileAtUtc)
             .Select(purchase => new { purchase.Id, purchase.NextReconcileAtUtc })
             .Take(limit)

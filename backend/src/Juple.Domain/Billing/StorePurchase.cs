@@ -45,8 +45,9 @@ public enum StorePurchaseState
 ///
 /// <see cref="UserId"/> is nullable on purpose: deleting a Juple account does not cancel a store subscription, so the purchase
 /// is DETACHED (UserId null, <see cref="DetachedAtUtc"/> set) rather than deleted - keeping only the identity needed to stop
-/// token reuse and to allow a verified restore. No profile, email or Juple ID is kept. The retention period of detached rows
-/// and its privacy-policy disclosure must be decided before Production (see docs/architecture.md).
+/// token reuse and to allow a verified restore. No profile, email or Juple ID is kept. Retention (working policy, see
+/// RetentionOptions and docs/data-retention.md): the sealed handle goes 180 days after access ended, the rest of the row (hash +
+/// minimal state) at most 5 years after - the 5 years is a legal/accounting-review item, not a final value.
 /// </summary>
 public sealed class StorePurchase
 {
@@ -89,8 +90,17 @@ public sealed class StorePurchase
     /// <summary>SHA-256 of the store's purchase handle (Google: the purchase token). Unique with <see cref="Source"/>.</summary>
     public byte[] ExternalKeyHash { get; private set; } = [];
 
-    /// <summary>The purchase handle, AES-256-GCM sealed (see IPurchaseTokenProtector). Never logged, never returned.</summary>
-    public byte[] VerificationHandleEncrypted { get; private set; } = [];
+    /// <summary>
+    /// The purchase handle, AES-256-GCM sealed (see IPurchaseTokenProtector). Never logged, never returned. NULL once the retention
+    /// cleanup has removed it (<see cref="VerificationHandlePurgedAtUtc"/>), which only ever happens to a purchase whose access ended
+    /// long ago: the row, its <see cref="ExternalKeyHash"/> and its state stay, so a token can still never be linked twice, and a
+    /// verify / restore / store notification that presents the token itself needs nothing from the database for it. Only the
+    /// periodic re-check of the stored token ends - and an ended purchase has nothing left to re-check.
+    /// </summary>
+    public byte[]? VerificationHandleEncrypted { get; private set; } = [];
+
+    /// <summary>When the retention cleanup removed the sealed handle (see <see cref="VerificationHandleEncrypted"/>); null while it is kept.</summary>
+    public DateTimeOffset? VerificationHandlePurgedAtUtc { get; private set; }
 
     public StorePurchaseState State { get; private set; }
 
@@ -148,6 +158,19 @@ public sealed class StorePurchase
         NextReconcileAtUtc = normalized.NextReconcileAtUtc;
         LatestVerifiedAtUtc = nowUtc;
         UpdatedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// A token was presented again for a row whose sealed handle the retention cleanup had removed: keep it from now on, so a purchase
+    /// that turns out to be live is reconciled like any other. A row that still has its handle is left exactly as it is.
+    /// </summary>
+    public void RestoreVerificationHandle(byte[] sealedHandle)
+    {
+        if (VerificationHandleEncrypted is null)
+        {
+            VerificationHandleEncrypted = sealedHandle;
+            VerificationHandlePurgedAtUtc = null;
+        }
     }
 
     public void MarkAcknowledged(DateTimeOffset nowUtc)

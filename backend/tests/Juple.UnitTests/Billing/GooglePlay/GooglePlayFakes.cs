@@ -244,7 +244,13 @@ public sealed class FakeGoogleBillingStore : IGoogleBillingStore
     }
 
     public Task<IReadOnlyList<long>> ClaimDuePurchaseIdsAsync(DateTimeOffset nowUtc, TimeSpan lease, int limit, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<long>>(_purchases.Where(pair => pair.Value.NextReconcileAtUtc <= nowUtc).Select(pair => pair.Key).Take(limit).ToList());
+        Task.FromResult<IReadOnlyList<long>>(_purchases.Where(pair => pair.Value.NextReconcileAtUtc <= nowUtc && pair.Value.VerificationHandleEncrypted is not null).Select(pair => pair.Key).Take(limit).ToList());
+
+    /// <summary>What the retention cleanup does to an ended purchase: the sealed token goes, the row, its hash and its state stay.</summary>
+    public void PurgeSealedToken(long purchaseId)
+    {
+        typeof(StorePurchase).GetProperty(nameof(StorePurchase.VerificationHandleEncrypted))!.SetValue(_purchases[purchaseId], null);
+    }
 
     private static StorePurchaseRecord ToRecord(long id, StorePurchase purchase) => new(
         id, purchase.UserId, purchase.ProductId, purchase.State, purchase.Reason, purchase.AccessEndsAtUtc, purchase.VerificationHandleEncrypted, purchase.AcknowledgementPending);

@@ -85,7 +85,9 @@ var isInstagramMetadataRetryJob = args.Contains("--run-instagram-metadata-retry"
 // re-check is due). --run-billing-worker: the long-running billing-events consumer. Neither authenticates a request.
 var isBillingReconcileJob = args.Contains("--run-billing-reconcile", StringComparer.Ordinal);
 var isBillingWorker = args.Contains("--run-billing-worker", StringComparer.Ordinal);
-var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob;
+// --run-retention-cleanup: one bounded pass of the data-retention cleanup (docs/data-retention.md). No request, no credential beyond SQL and Blob Storage.
+var isRetentionCleanupJob = args.Contains("--run-retention-cleanup", StringComparer.Ordinal);
+var isOneShotJob = isPushDispatchJob || isBlobCleanupRetryJob || isInstagramMetadataRetryJob || isBillingReconcileJob || isRetentionCleanupJob;
 // --run-notification-worker: the long-running notification worker (Service Bus consumer - see
 // NotificationWorkerService). Like the Jobs it authenticates no request and runs no controllers; it
 // serves only /health. Only it and the push-dispatch Job hold the Firebase credential.
@@ -386,6 +388,12 @@ if (isBlobCleanupRetryJob)
     return await RunBlobCleanupRetryOnceAsync(app.Services);
 }
 
+// One-shot data-retention cleanup: removes what has outlived its retention period (see RetentionOptions) in bounded, repeatable batches.
+if (isRetentionCleanupJob)
+{
+    return await RunRetentionCleanupOnceAsync(app.Services);
+}
+
 // One-shot billing reconciliation (the Job that recovers lost wake-ups and re-checks due purchases against Google).
 if (isBillingReconcileJob)
 {
@@ -477,6 +485,34 @@ static async Task<int> RunBlobCleanupRetryOnceAsync(IServiceProvider rootService
         // Same rationale as RunPushDispatchOnceAsync's own catch block - a scheduled Job's exit
         // code is how Azure reports failure.
         logger.LogError(exception, "Blob cleanup retry run failed.");
+        return 1;
+    }
+}
+
+static async Task<int> RunRetentionCleanupOnceAsync(IServiceProvider rootServices)
+{
+    await using var scope = rootServices.CreateAsyncScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("RetentionCleanupJob");
+
+    try
+    {
+        // An invalid period (zero or negative would purge live data) stops the run before anything is touched.
+        Juple.Application.Retention.RetentionOptionsValidator.Validate(scope.ServiceProvider.GetRequiredService<Juple.Application.Retention.RetentionOptions>());
+        var result = await scope.ServiceProvider.GetRequiredService<Juple.Application.Retention.IRetentionCleanupService>().RunAsync();
+        foreach (var category in result.Categories)
+        {
+            logger.LogInformation(
+                "retention.purged Category={Category} Purged={Purged} Batches={Batches} HitBatchLimit={HitBatchLimit} Error={Error}",
+                category.Category, category.Purged, category.Batches, category.HitBatchLimit, category.ErrorType ?? "none");
+        }
+
+        logger.LogInformation("Retention cleanup complete. TotalPurged={TotalPurged} Failures={Failures}", result.TotalPurged, result.Categories.Count(category => category.ErrorType is not null));
+        // Everything that could run did; a failed category is reported through the exit code so the scheduler shows it, and the next run continues.
+        return result.HasFailures ? 1 : 0;
+    }
+    catch (Exception exception)
+    {
+        logger.LogError(exception, "Retention cleanup run failed.");
         return 1;
     }
 }

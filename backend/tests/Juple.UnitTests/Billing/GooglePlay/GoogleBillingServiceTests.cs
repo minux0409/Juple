@@ -307,6 +307,48 @@ public sealed class GoogleBillingServiceTests
     }
 
     [Fact]
+    public async Task APurchaseWhoseSealedTokenWasRemovedByRetention_IsSkippedByARestoreWithNoTokens_AndNeverCallsGoogle()
+    {
+        var harness = new Harness();
+        harness.Google.Set(Token, harness.ActiveFor(UserA, ackPending: false));
+        await harness.Service.VerifyAsync(UserA, Token);
+        var id = harness.Store.Purchases.Keys.Single();
+        harness.Store.PurgeSealedToken(id);
+        var callsBefore = harness.Google.GetCalls;
+
+        var result = await harness.Service.RestoreAsync(UserA, []);
+
+        Assert.Equal(GoogleRestoreOutcome.NothingFound, result.Outcome);
+        Assert.Equal(callsBefore, harness.Google.GetCalls);
+    }
+
+    [Fact]
+    public async Task AfterTheSealedTokenIsRemoved_PresentingTheTokenAgainStillMatchesTheSameRecord_NeverADuplicate()
+    {
+        var harness = new Harness();
+        harness.Google.Set(Token, harness.ActiveFor(UserA, ackPending: false));
+        await harness.Service.VerifyAsync(UserA, Token);
+        harness.Store.PurgeSealedToken(harness.Store.Purchases.Keys.Single());
+
+        var again = await harness.Service.VerifyAsync(UserA, Token);
+
+        Assert.Equal(GoogleVerifyOutcome.Verified, again.Outcome);
+        Assert.Single(harness.Store.Purchases);
+    }
+
+    [Fact]
+    public async Task AfterTheSealedTokenIsRemoved_AnotherAccountStillCannotTakeThePurchase_TheHashIsTheIdentity()
+    {
+        var harness = new Harness();
+        harness.Google.Set(Token, harness.ActiveFor(UserA, ackPending: false));
+        await harness.Service.VerifyAsync(UserA, Token);
+        harness.Store.PurgeSealedToken(harness.Store.Purchases.Keys.Single());
+
+        await Assert.ThrowsAsync<PurchaseBelongsToAnotherAccountException>(() => harness.Service.VerifyAsync(UserB, Token));
+        Assert.Equal(UserA, Assert.Single(harness.Store.Purchases.Values).UserId);
+    }
+
+    [Fact]
     public async Task Restore_ASeverelyLongTokenList_IsBounded()
     {
         var harness = new Harness();

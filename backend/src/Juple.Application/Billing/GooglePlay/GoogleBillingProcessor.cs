@@ -121,16 +121,23 @@ public sealed class GoogleBillingProcessor(
             return ProcessOutcome.NotTaken;
         }
 
+        if (purchase.VerificationHandleEncrypted is not { } sealedHandle)
+        {
+            // The retention cleanup removed the sealed token of a purchase that ended long ago: nothing is left to re-check.
+            return ProcessOutcome.NotTaken;
+        }
+
+        string? token = null;
         try
         {
-            var token = tokens.Open(purchase.VerificationHandleEncrypted);
+            token = tokens.Open(sealedHandle);
             await ApplyFetchedAsync(token, purchase.UserId, purchase, cancellationToken);
             return ProcessOutcome.Processed;
         }
-        catch (GooglePlayPurchaseNotFoundException)
+        catch (GooglePlayPurchaseNotFoundException) when (token is not null)
         {
             // Google forgot the token (it is only kept for a while after expiry): the purchase simply ended.
-            await store.UpsertPurchaseAsync(Lapsed(purchase), cancellationToken);
+            await store.UpsertPurchaseAsync(Lapsed(purchase, token), cancellationToken);
             return ProcessOutcome.Processed;
         }
         catch (Exception exception) when (exception is GooglePlayUnavailableException or GooglePlayMalformedResponseException or PurchaseTokenTamperedException)
@@ -187,7 +194,7 @@ public sealed class GoogleBillingProcessor(
         {
             if (existing is not null)
             {
-                await store.UpsertPurchaseAsync(Lapsed(existing), cancellationToken);
+                await store.UpsertPurchaseAsync(Lapsed(existing, token), cancellationToken);
                 return StoreEventResult.Processed;
             }
 
@@ -291,14 +298,14 @@ public sealed class GoogleBillingProcessor(
     }
 
     /// <summary>The store no longer knows the token: the purchase ended (at its earliest known end, never "now" of the request).</summary>
-    private UpsertPurchaseCommand Lapsed(StorePurchaseRecord purchase)
+    private UpsertPurchaseCommand Lapsed(StorePurchaseRecord purchase, string token)
     {
         var nowUtc = timeProvider.GetUtcNow();
         var end = purchase.AccessEndsAtUtc is { } known && known < nowUtc ? known : nowUtc;
         var normalized = new NormalizedPurchase(StorePurchaseState.Expired, EntitlementReason.None, end, null, AcknowledgementPending: false, nowUtc + TimeSpan.FromDays(365));
         return new UpsertPurchaseCommand(
-            tokens.Hash(tokens.Open(purchase.VerificationHandleEncrypted)),
-            purchase.VerificationHandleEncrypted,
+            tokens.Hash(token),
+            purchase.VerificationHandleEncrypted ?? tokens.Seal(token),
             purchase.ProductId,
             null,
             null,

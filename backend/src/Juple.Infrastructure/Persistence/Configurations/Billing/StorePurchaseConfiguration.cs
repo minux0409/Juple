@@ -25,7 +25,8 @@ public sealed class StorePurchaseConfiguration : IEntityTypeConfiguration<StoreP
 
         // SHA-256 of the purchase token: the identity. The token itself exists ONLY sealed (AES-256-GCM, dedicated billing key).
         builder.Property(purchase => purchase.ExternalKeyHash).HasColumnType("binary(32)").IsRequired();
-        builder.Property(purchase => purchase.VerificationHandleEncrypted).HasColumnType("varbinary(2048)").IsRequired();
+        builder.Property(purchase => purchase.VerificationHandleEncrypted).HasColumnType("varbinary(2048)");
+        builder.Property(purchase => purchase.VerificationHandlePurgedAtUtc).HasColumnType("datetimeoffset");
 
         builder.Property(purchase => purchase.State).HasConversion<string>().HasColumnType("varchar(32)").IsRequired();
         builder.Property(purchase => purchase.Reason).HasConversion<string>().HasColumnType("varchar(32)").IsRequired();

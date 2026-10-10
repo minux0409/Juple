@@ -73,8 +73,8 @@ public sealed class AccountDeletionStore(JupleDbContext dbContext, TimeProvider?
             // Billing. Deleting a Juple account does NOT cancel a store subscription, so its store purchases are DETACHED, not
             // deleted: UserId becomes null and DetachedAtUtc records when, keeping only the minimal identity (the token hash and its
             // sealed handle) needed to stop token reuse, reconcile with the store and allow a verified restore. The opaque Google
-            // account id mapping is removed with the account. Nothing about the person remains on a purchase. (The retention of
-            // detached purchases must be decided before Production - see docs/architecture.md.) billing.TrialLedger is untouched.
+            // account id mapping is removed with the account. Nothing about the person remains on a purchase. (Detached purchases are
+            // purged on schedule by the retention cleanup - see docs/data-retention.md.) billing.TrialLedger is untouched.
             await dbContext.GoogleAccountLinks
                 .Where(link => link.UserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);

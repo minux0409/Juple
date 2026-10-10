@@ -232,12 +232,12 @@ public sealed class GooglePlayBillingIntegrationTests : IAsyncLifetime
 
         var purchase = (await PurchaseOfAsync(token))!;
         var plaintext = Encoding.UTF8.GetBytes(token);
-        Assert.False(purchase.VerificationHandleEncrypted.AsSpan().IndexOf(plaintext) >= 0);
-        Assert.False(purchase.VerificationHandleEncrypted.AsSpan().IndexOf(plaintext[..16]) >= 0);
-        Assert.Equal(token, new PurchaseTokenProtector(_options).Open(purchase.VerificationHandleEncrypted));
+        Assert.False(purchase.VerificationHandleEncrypted!.AsSpan().IndexOf(plaintext) >= 0);
+        Assert.False(purchase.VerificationHandleEncrypted!.AsSpan().IndexOf(plaintext[..16]) >= 0);
+        Assert.Equal(token, new PurchaseTokenProtector(_options).Open(purchase.VerificationHandleEncrypted!));
 
         var columns = await _db.Database.SqlQueryRaw<string>(
-            "SELECT t.name + '.' + c.name + ':' + ty.name AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id JOIN sys.schemas s ON s.schema_id = t.schema_id JOIN sys.types ty ON ty.user_type_id = c.user_type_id WHERE s.name = 'billing' AND (c.name LIKE '%Token%' OR c.name LIKE '%Handle%')")
+            "SELECT t.name + '.' + c.name + ':' + ty.name AS [Value] FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id JOIN sys.schemas s ON s.schema_id = t.schema_id JOIN sys.types ty ON ty.user_type_id = c.user_type_id WHERE s.name = 'billing' AND (c.name LIKE '%Token%' OR c.name LIKE '%Handle%') AND c.name NOT LIKE '%AtUtc'")
             .ToListAsync();
         // Hashes (binary) and sealed handles (varbinary): never a character column that could hold a token.
         Assert.All(columns, column => Assert.Contains("binary", column, StringComparison.Ordinal));

@@ -45,6 +45,38 @@ public sealed class GoogleBillingProcessorTests
     }
 
     [Fact]
+    public async Task ReconcilingAPurchaseWhoseSealedTokenWasRemoved_DoesNothing_AndAsksGoogleNothing()
+    {
+        var harness = new Harness();
+        harness.Google.Set(Token, GoogleTestData.Snapshot(GoogleSubscriptionState.Expired, harness.KeyOf(UserA), Now.AddDays(-400), false));
+        var ingested = await harness.Ingest("m-purged");
+        await harness.Processor.ProcessEventAsync(ingested.Id);
+        var id = harness.Store.Purchases.Keys.Single();
+        harness.Store.PurgeSealedToken(id);
+        var callsBefore = harness.Google.GetCalls;
+
+        var outcome = await harness.Processor.ReconcilePurchaseAsync(id);
+
+        Assert.Equal(ProcessOutcome.NotTaken, outcome);
+        Assert.Equal(callsBefore, harness.Google.GetCalls);
+        Assert.Empty(await harness.Store.ClaimDuePurchaseIdsAsync(Now.AddYears(10), TimeSpan.FromMinutes(5), 10));
+    }
+
+    [Fact]
+    public async Task ANotificationForAPurchaseWhoseSealedTokenWasRemoved_StillWorks_ItCarriesItsOwnToken()
+    {
+        var harness = new Harness();
+        harness.Google.Set(Token, GoogleTestData.Snapshot(GoogleSubscriptionState.Active, harness.KeyOf(UserA), Now.AddDays(30)));
+        await harness.Processor.ProcessEventAsync((await harness.Ingest("m-first")).Id);
+        harness.Store.PurgeSealedToken(harness.Store.Purchases.Keys.Single());
+
+        var result = await harness.Processor.ProcessEventAsync((await harness.Ingest("m-second", type: "subscription:2")).Id);
+
+        Assert.Equal(ProcessOutcome.Processed, result);
+        Assert.Single(harness.Store.Purchases);
+    }
+
+    [Fact]
     public async Task Ingest_PersistsTheEventBeforeAnySignal_AndRecordsTheDispatch()
     {
         var harness = new Harness();

@@ -120,9 +120,15 @@ public sealed class GoogleBillingService(
             // No tokens offered: refresh the account's own known purchases from Google.
             foreach (var purchase in await store.ListPurchasesForUserAsync(userId, cancellationToken))
             {
+                if (purchase.VerificationHandleEncrypted is not { } sealedHandle)
+                {
+                    // Its sealed token was removed by the retention cleanup (the purchase ended long ago): nothing to refresh.
+                    continue;
+                }
+
                 try
                 {
-                    var result = await ReconcileStoredAsync(purchase, cancellationToken);
+                    var result = await ReconcileStoredAsync(purchase, sealedHandle, cancellationToken);
                     restored |= result is StorePurchaseState.Active or StorePurchaseState.GracePeriod or StorePurchaseState.Canceled;
                 }
                 catch (GooglePlayUnavailableException)
@@ -161,9 +167,9 @@ public sealed class GoogleBillingService(
         return new GoogleRestoreResult(outcome);
     }
 
-    private async Task<StorePurchaseState> ReconcileStoredAsync(StorePurchaseRecord purchase, CancellationToken cancellationToken)
+    private async Task<StorePurchaseState> ReconcileStoredAsync(StorePurchaseRecord purchase, byte[] sealedHandle, CancellationToken cancellationToken)
     {
-        var token = tokens.Open(purchase.VerificationHandleEncrypted);
+        var token = tokens.Open(sealedHandle);
         var hash = tokens.Hash(token);
         var snapshot = await FetchAsync(token, cancellationToken);
         var record = await ApplyAsync(token, hash, snapshot, purchase.UserId, allowClaimDetached: false, cancellationToken);

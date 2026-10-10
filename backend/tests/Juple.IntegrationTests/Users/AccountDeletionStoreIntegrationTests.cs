@@ -285,4 +285,27 @@ public sealed class AccountDeletionStoreIntegrationTests : IAsyncLifetime
         Assert.Null(afterDelete);
     }
 
+    [Fact]
+    public async Task DeleteAllDataAsync_KeepsTheTrialLedgerEntry_SoARecreatedAccountCannotRestartTheTrial()
+    {
+        var identityHash = Guid.NewGuid().ToByteArray().Concat(Guid.NewGuid().ToByteArray()).ToArray();
+        var started = DateTimeOffset.UtcNow.AddDays(-5);
+        _dbContext.TrialLedger.Add(new Juple.Domain.Billing.TrialLedgerEntry(identityHash, started, started.AddDays(30), started));
+        await _dbContext.SaveChangesAsync();
+        _dbContext.ChangeTracker.Clear();
+
+        try
+        {
+            await DeleteAllDataAsync(new AccountDeletionStore(_dbContext), _userId);
+            _dbContext.ChangeTracker.Clear();
+
+            // The ledger has no link to the account (only a keyed hash and the window), so deleting the account leaves it untouched.
+            var entry = await _dbContext.TrialLedger.AsNoTracking().SingleAsync(e => e.IdentityHash == identityHash);
+            Assert.Equal(started.AddDays(30), entry.TrialEndsAtUtc);
+        }
+        finally
+        {
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM billing.TrialLedger WHERE IdentityHash = {identityHash}");
+        }
+    }
 }

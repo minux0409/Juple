@@ -1,0 +1,22 @@
+# Production bring-up: prerequisites in order
+
+State at `d20b102`: `rg-juple-prod` exists with only storage, Log Analytics, a managed identity, ACR, SQL (empty `Juple` database) and a Container Apps environment.
+Nothing is deployed, no Entra tenant, Key Vault, Service Bus, domain or secrets exist for production. This is a checklist, not a runbook; do not run it before the
+decisions in step 0 are made.
+
+0. **Decisions (blocking):** production domains (`juple.co.kr` web, `api.juple.co.kr` API are the documented targets), launch model (paid at launch or free first - see `subscription-launch-policy.md`),
+   review of the working retention values (`data-retention.md`: 5-year purchase record, trial ledger) and the privacy/terms text (`docs/legal/*.draft.md`), a support contact and operator information for the legal pages (business registration pending - do not publish placeholders).
+1. **Legal URLs live** (public, no sign-in): `/privacy`, `/terms`, `/account-deletion` on the production web host. Needed by Play Console before review; then set `legalLinks` in the mobile app.
+2. **Microsoft Entra External ID (production tenant)** - create the tenant, API app registration (exposed scope), native app registration (redirect for `com.juple.app` / iOS later), sign-in methods. Collection-lock `auth_time` / `prompt=login` behavior must be measured for each enabled provider (documented production blocker).
+3. **Complete the production Foundation** from `infra/azure/foundation` (`prod.bicepparam`): Key Vault (RBAC, soft delete, purge protection), Service Bus (queues `notification-events`, `push-deliveries`, `billing-events`), the notify-worker and billing identities and role assignments. Add Application Insights/alerts at this point (none exist anywhere yet).
+4. **Secrets into Key Vault** (new values, never reusing DEV): collection cursor key, unlock-grant key, share-password key, billing purchase-token key, Google account-hash key, trial-identity hash key (all distinct), Firebase service account (push), Google Play service account (billing), SQL admin credentials.
+5. **Images:** build and push `juple-api` and `juple-web` to the production ACR with immutable tags.
+6. **Database:** apply the migrations (about 58) to production SQL through a deliberate migration step (bundle or reviewed script), never at app startup. Decide the SQL access path for that step (firewall or private path) and close it again afterwards. Confirm backup/PITR settings and write down the restore procedure.
+7. **Deploy workloads** from `infra/azure`: API (`app/prod.bicepparam`), Web, notify-worker, billing-worker, and the Jobs - push-dispatch, blob-cleanup (a hard prerequisite for account deletion), Instagram-metadata-retry, billing-reconcile and **retention-cleanup** (`infra/azure/retention-cleanup-job`, daily; deploy before the subscription program starts so ledger/purchase retention is actually enforced; check its `retention.purged` logs after the first run). Bind custom domains and managed certificates.
+8. **Public links:** set `JUPLE_PUBLIC_WEB_HOST`, `PublicWeb:BaseUrl`; serve `/.well-known/assetlinks.json` with the **Google Play App Signing** certificate fingerprint; iOS AASA stays 404 until an Apple Team ID exists.
+9. **Google Play billing (production):** Android Publisher API access for the production service account in Play Console (this was the cause of the earlier 401 class of problem - verify with a read call), product/base plan active, Pub/Sub topic + push subscription with OIDC audience = the production RTDN URL, RTDN configured in Play Console, send a test notification.
+10. **Firebase/push:** production FCM credential to the notify-worker and push-dispatch Job; release `google-services.json` (project `juple-production`) is already in the repo.
+11. **Mobile release build:** `JUPLE_API_BASE_URL`, `JUPLE_ENTRA_PROD_*`, `JUPLE_PUBLIC_WEB_HOST`, upload keystore via the `JUPLE_RELEASE_*` settings; build the release AAB; confirm the package, signing and non-debuggable flags.
+12. **Play Console:** store listing, content rating, Data safety, privacy policy URL, account-deletion URL, target audience/ads declaration, subscription disclosure, closed testing, then production.
+13. **Verify end to end on production:** sign-in, save/share, push, account deletion (blob cleanup Job executes), purchase/restore/RTDN, App Links.
+14. **Only then** consider activating the subscription program (`subscription-launch-policy.md`).

@@ -69,6 +69,11 @@ public sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         // Supports both the trash list query (UserId + DeletedAtUtc IS NOT NULL, ordered by
         // DeletedAtUtc) and the per-user deleted-item COUNT the retention purge runs after every
         // delete.
+        // Retention cleanup of trash older than the retention period, across users, oldest first (see RetentionCleanupService).
+        builder.HasIndex(item => new { item.DeletedAtUtc, item.Id })
+            .HasFilter("[DeletedAtUtc] IS NOT NULL")
+            .HasDatabaseName("IX_Items_DeletedAtUtc_Id");
+
         builder.HasIndex(item => new { item.UserId, item.DeletedAtUtc, item.Id })
             .HasDatabaseName("IX_Items_UserId_DeletedAtUtc_Id");
 

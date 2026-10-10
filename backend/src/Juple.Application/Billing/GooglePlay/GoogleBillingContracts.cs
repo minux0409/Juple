@@ -60,7 +60,7 @@ public sealed record StorePurchaseRecord(
     StorePurchaseState State,
     EntitlementReason Reason,
     DateTimeOffset? AccessEndsAtUtc,
-    byte[] VerificationHandleEncrypted,
+    byte[]? VerificationHandleEncrypted,
     bool AcknowledgementPending);
 
 public sealed record UpsertPurchaseCommand(

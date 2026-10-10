@@ -34,6 +34,11 @@ public sealed class StoreEventConfiguration : IEntityTypeConfiguration<StoreEven
             .HasDatabaseName("UX_StoreEvents_Source_ExternalEventId");
 
         // The sweep: events not yet processed, oldest due first.
+        // Retention cleanup of processed events, oldest first (see RetentionCleanupService).
+        builder.HasIndex(storeEvent => storeEvent.ProcessedAtUtc)
+            .HasFilter("[ProcessedAtUtc] IS NOT NULL")
+            .HasDatabaseName("IX_StoreEvents_ProcessedAtUtc");
+
         builder.HasIndex(storeEvent => storeEvent.NextAttemptAtUtc)
             .HasFilter("[ProcessedAtUtc] IS NULL")
             .HasDatabaseName("IX_StoreEvents_Unprocessed_NextAttemptAtUtc");
