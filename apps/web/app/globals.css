@@ -286,3 +286,124 @@ main {
   white-space: nowrap;
   width: 1px;
 }
+
+/* Public legal pages (/privacy, /terms, /account-deletion) */
+main.legalMain {
+  max-width: 760px;
+  line-height: 1.7;
+}
+
+.legalHeader {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.legalBrand {
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.legalNav {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 14px;
+  gap: 4px 16px;
+}
+
+.legalNav a {
+  color: var(--text-muted);
+  padding: 10px 0;
+}
+
+.legalTitle {
+  font-size: 28px;
+  margin: 0 0 8px;
+}
+
+.legalDates {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+
+.legalIntro {
+  margin: 0 0 24px;
+}
+
+.legalFacts {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 16px;
+}
+
+.legalFacts div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.legalFacts dt {
+  color: var(--text-muted);
+  min-width: 112px;
+}
+
+.legalFacts dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.legalToc {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 0 0 24px;
+  padding: 12px 16px;
+}
+
+.legalToc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legalToc a {
+  display: inline-block;
+  padding: 6px 0;
+}
+
+.legalSection {
+  margin-top: 32px;
+}
+
+.legalSection h2 {
+  font-size: 20px;
+  margin: 0 0 12px;
+  scroll-margin-top: 16px;
+}
+
+.legalSection p,
+.legalSection li {
+  overflow-wrap: anywhere;
+}
+
+.legalSection ul,
+.legalSection ol {
+  padding-left: 22px;
+}
+
+.legalSection li {
+  margin-bottom: 8px;
+}
+
+main.legalMain a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,5 +1,7 @@
 # 계정 삭제 안내 (공개 페이지 초안, `/account-deletion`)
 
+> **구현됨:** 공개 페이지는 `apps/web`의 `/account-deletion` 라우트로 구현되었고 실제 게시 문구는 `apps/web/lib/legalContent.ts`가 기준입니다. 이 초안은 법률 검토 메모(`[REVIEW REQUIRED]`)를 남기기 위한 문서이며, 공개 페이지에는 검토 표시와 미확정 사업자 정보를 싣지 않습니다.
+
 > 초안입니다. `[REVIEW REQUIRED]` 표시는 확정 전 검토가 필요한 문구입니다. 보관 기간 숫자는 `docs/data-retention.md`의 작업 기준(working policy)이며, 법률·회계 검토 전 값입니다.
 > 이 페이지는 로그인 없이 열려야 하며, 아래 "앱에서 삭제하는 방법"은 현재 앱의 실제 흐름(`내 페이지 > 계정 관리 > 계정 삭제`)과 같아야 합니다.
 

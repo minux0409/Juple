@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import { securityHeaders } from './lib/securityHeaders.ts';
+import { legalPages, legalPathGroup, legalSecurityHeaders, securityHeaders } from './lib/securityHeaders.ts';
 
 const nextConfig: NextConfig = {
   // Server Components render server-side (no client bundle secret exposure), but the "load more"
@@ -13,7 +13,11 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   async headers() {
-    return [{ source: '/:path*', headers: [...securityHeaders] }];
+    return [
+      // Everything is link-only and noindex, except the public legal pages (Google Play needs to open and index them).
+      { source: `/:path((?!(?:${legalPathGroup})(?:/|$)).*)`, headers: [...securityHeaders] },
+      ...legalPages.map(page => ({ source: `/${page}`, headers: [...legalSecurityHeaders] })),
+    ];
   },
 };
 

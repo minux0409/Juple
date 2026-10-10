@@ -1,5 +1,7 @@
 # Juple 이용약관 (초안, `/terms`)
 
+> **구현됨:** 공개 페이지는 `apps/web`의 `/terms` 라우트로 구현되었고 실제 게시 문구는 `apps/web/lib/legalContent.ts`가 기준입니다. 이 초안은 법률 검토 메모(`[REVIEW REQUIRED]`)를 남기기 위한 문서이며, 공개 페이지에는 검토 표시와 미확정 사업자 정보를 싣지 않습니다.
+
 > 초안입니다. 법률 검토 전이며 `[REVIEW REQUIRED]`는 확정이 필요한 문구입니다. 현재 구현된 기능만 적었습니다.
 
 시행일: [날짜] · 운영자: [REVIEW REQUIRED]
