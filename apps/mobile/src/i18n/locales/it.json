@@ -342,7 +342,7 @@
     "linkActionsA11y": "Opzioni del link",
     "collectionActionsA11y": "Opzioni della raccolta",
     "shortcutSavedWithoutCollection": "Il link è stato salvato, ma non è stato possibile aggiungerlo alla raccolta scelta. Assegnalo di nuovo tu stesso.",
-    "shortcutOpenUnavailable": "Questa raccolta non può più essere aperta. Rimuovi tu stesso la sua icona dalla schermata Home.",
+    "shortcutOpenUnavailable": "Questa raccolta non può più essere aperta. È stata eliminata o non hai più accesso, quindi la sua scorciatoia è stata rimossa.",
     "homeShortcutAdd": "Aggiungi scorciatoia alla schermata Home",
     "homeShortcutUnsupported": "Il launcher di questo dispositivo non supporta l’aggiunta di scorciatoie alla schermata Home.",
     "homeShortcutLocked": "Una raccolta bloccata chiede comunque la password se aperta dalla schermata Home. Non viene aggiunta come destinazione di condivisione.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Pagamento, rinnovo e disdetta sono gestiti dallo store in cui ti sei abbonato.",
       "dataTitle": "I tuoi link restano tuoi",
       "dataBody": "I link salvati non vengono eliminati quando un abbonamento termina."
-    }
+    },
+    "stateHeading": "Stato dell'abbonamento"
   },
   "appUpdate": {
     "optionalTitle": "È disponibile un aggiornamento",

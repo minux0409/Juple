@@ -34,7 +34,8 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   jest.mocked(useAuth).mockReturnValue({
-    signOut: jest.fn(), userEmail: null, plan: 'Free', entitlement: null, refreshEntitlement: jest.fn(),
+    signOut: jest.fn(), userEmail: null, plan: 'Free', entitlement: null,
+    storeSubscription: null, refreshEntitlement: jest.fn(),
     isInitializing: false, isSigningIn: false, isAuthenticated: true, error: null, backendAuthStatus: 'valid',
     userBootstrapStatus: 'ready', sessionRestoreStep: 'sessionRestore', signIn: jest.fn(), getValidAccessToken: jest.fn(), retryBootstrap: jest.fn(),
   });

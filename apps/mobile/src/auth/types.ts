@@ -32,6 +32,24 @@ export type EntitlementReason = 'none' | 'cancelled' | 'billingIssue' | 'refunde
  * `reason` are null and `canWrite` is true - that is NOT "active": nothing is restricted and nothing should be shown.
  * Typed here for later (R39-D) use; no screen reads it yet, so today's behavior is unchanged.
  */
+/**
+ * Whether the account owns a verified store subscription - a DIFFERENT fact from the Entitlement (is a subscription required / granted):
+ * with the program off the entitlement says "not required" while the account may well pay. Presentation state only; the server decides.
+ * No token, order id or internal id is ever part of it.
+ */
+export type StoreSubscriptionState = 'none' | 'active' | 'gracePeriod';
+
+export interface StoreSubscription {
+  readonly state: StoreSubscriptionState;
+  /** 'google' while owned; null otherwise (or a store this build does not know). */
+  readonly platform: 'google' | null;
+  readonly productId: string | null;
+  /** When the paid period ends (server time); null when not owned. */
+  readonly currentPeriodEndsAtUtc: string | null;
+  /** false: cancelled, will not renew. null: not said. */
+  readonly autoRenewing: boolean | null;
+}
+
 export interface Entitlement {
   readonly programEnabled: boolean;
   readonly status: EntitlementStatus | null;
@@ -59,6 +77,8 @@ export interface AuthState {
   readonly plan: UserPlan | null;
   /** Null until bootstrap reaches 'ready' at least once, or when the backend (an older one) sent none. Never guessed client-side; nothing branches on it yet. */
   readonly entitlement: Entitlement | null;
+  /** Null until bootstrap reaches 'ready', or when the backend (an older one) sent none - never guessed. Separate from `entitlement`. */
+  readonly storeSubscription: StoreSubscription | null;
   /** The server's app-version policy from the last successful bootstrap (see appUpdate/versionPolicy.ts). Null: none received or not understood - which never prompts or blocks. */
   readonly mobileVersionPolicy?: MobileVersionPolicy | null;
 }

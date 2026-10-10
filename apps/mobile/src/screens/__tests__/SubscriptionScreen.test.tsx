@@ -24,8 +24,8 @@ const readyOffer = { kind: 'ready', offer: { localizedPrice: '$0.99', currencyCo
 
 let store: jest.Mocked<SubscriptionStore>;
 
-function mockAuth(entitlement: unknown = null) {
-  jest.mocked(useAuth).mockReturnValue({ entitlement } as unknown as ReturnType<typeof useAuth>);
+function mockAuth(entitlement: unknown = null, storeSubscription: unknown = null) {
+  jest.mocked(useAuth).mockReturnValue({ entitlement, storeSubscription } as unknown as ReturnType<typeof useAuth>);
 }
 
 beforeAll(async () => {
@@ -270,6 +270,84 @@ describe('SubscriptionScreen', () => {
       mockAuth(entitlement);
       expect(byId(await renderScreen(), 'subscription-restore')).toHaveLength(1);
     }
+  });
+
+  // ---- store ownership is separate from access ----
+  const owned = (state: 'none' | 'active' | 'gracePeriod', extra: Record<string, unknown> = {}) => ({
+    state, platform: state === 'none' ? null : 'google', productId: state === 'none' ? null : 'juple_monthly',
+    currentPeriodEndsAtUtc: state === 'none' ? null : '2026-10-02T00:00:00Z', autoRenewing: state === 'none' ? null : true, ...extra,
+  });
+  const programOff = () => entitlementOf({ programEnabled: false, status: null, trialEndsAtUtc: null });
+  const withOwnership = async (entitlement: unknown, storeSubscription: unknown) => {
+    mockAuth(entitlement, storeSubscription);
+    return renderScreen();
+  };
+
+  it('program off + no subscription: "not required yet", Subscribe offered', async () => {
+    const renderer = await withOwnership(programOff(), owned('none'));
+    expect(accessNodes(renderer, 'subscription-access')[0].props.children).toBe(i18n.t('subscription.access.inactive'));
+    expect(accessNodes(renderer, 'subscription-store-state')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+  });
+
+  it('program off + active store subscription: still "not required yet" for access, yet subscribed - no Subscribe, Manage offered', async () => {
+    const renderer = await withOwnership(programOff(), owned('active'));
+    expect(accessNodes(renderer, 'subscription-access')[0].props.children).toBe(i18n.t('subscription.access.inactive'));
+    expect(accessNodes(renderer, 'subscription-store-state')[0].props.children).toBe(i18n.t('subscription.access.active'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-restore')).toHaveLength(1);
+    await press(renderer, 'subscription-manage');
+    expect(store.openSubscriptionManagement).toHaveBeenCalledTimes(1);
+    expect(store.purchase).not.toHaveBeenCalled();
+  });
+
+  it('program off + grace period: subscribed with the payment hint, no Subscribe', async () => {
+    const renderer = await withOwnership(programOff(), owned('gracePeriod'));
+    expect(accessNodes(renderer, 'subscription-store-state')[0].props.children).toBe(i18n.t('subscription.access.gracePeriod'));
+    expect(accessNodes(renderer, 'subscription-store-state-detail')[0].props.children).toBe(i18n.t('subscription.detail.grace'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+  });
+
+  it('a cancelled-but-current subscription (autoRenewing false) is still owned', async () => {
+    const renderer = await withOwnership(programOff(), owned('active', { autoRenewing: false }));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+  });
+
+  it('program on + expired access + no ownership: Subscribe returns', async () => {
+    const renderer = await withOwnership(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z' }), owned('none'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
+  });
+
+  it('program on + active access: no duplicate ownership block, Manage offered', async () => {
+    const renderer = await withOwnership(entitlementOf({ status: 'active' }), owned('active'));
+    expect(accessNodes(renderer, 'subscription-store-state')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+  });
+
+  it('an older backend without storeSubscription behaves exactly as before', async () => {
+    const renderer = await withOwnership(programOff(), null);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+  });
+
+  it('ownership updating (purchase / restore refresh) flips the same mounted screen without a restart', async () => {
+    mockAuth(programOff(), owned('none'));
+    let renderer!: ReactTestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = ReactTestRenderer.create(<SubscriptionScreen />);
+    });
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+
+    mockAuth(programOff(), owned('active'));
+    await act(async () => {
+      renderer.update(<SubscriptionScreen />);
+    });
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
   });
 
   it('never mentions a store free trial - the trial is Juple-owned', async () => {

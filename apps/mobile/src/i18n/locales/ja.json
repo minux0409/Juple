@@ -342,7 +342,7 @@
     "linkActionsA11y": "リンクのオプション",
     "collectionActionsA11y": "コレクションのオプション",
     "shortcutSavedWithoutCollection": "リンクは保存しましたが、選んだコレクションには追加できませんでした。もう一度コレクションを指定してください。",
-    "shortcutOpenUnavailable": "このコレクションは開けなくなりました。ホーム画面のアイコンはご自身で削除してください。",
+    "shortcutOpenUnavailable": "このコレクションは開けなくなりました。削除されたかアクセス権がなくなったため、ショートカットを削除しました。",
     "homeShortcutAdd": "ホーム画面にショートカットを追加",
     "homeShortcutUnsupported": "この端末のランチャーはホーム画面へのショートカット追加に対応していません。",
     "homeShortcutLocked": "ロックされたコレクションは、ホーム画面から開く際もパスワードが必要です。共有先（Direct Share）には追加されません。",
@@ -1013,7 +1013,8 @@
       "storeBody": "お支払い、更新、解約は、登録したストアで管理されます。",
       "dataTitle": "保存したリンクはそのまま",
       "dataBody": "サブスクリプションが終了しても、保存したリンクは削除されません。"
-    }
+    },
+    "stateHeading": "サブスクリプションの状態"
   },
   "appUpdate": {
     "optionalTitle": "アップデートがあります",

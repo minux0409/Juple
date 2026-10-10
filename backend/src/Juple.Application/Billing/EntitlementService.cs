@@ -21,6 +21,9 @@ public interface IEntitlementStore
     /// <summary>What each of the account's store purchases currently grants (empty when it never bought). Detached purchases are not the account's.</summary>
     Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default);
 
+    /// <summary>The account's own store purchases as ownership needs them (detached ones are not the account's). Read-only.</summary>
+    Task<IReadOnlyList<OwnedStorePurchase>> GetOwnedPurchasesAsync(long userId, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Atomically and idempotently settles the account's trial. <paramref name="identityHash"/> is the ledger key. If the
     /// ledger already holds that identity, ITS window is used and projected onto the user (never a fresh 30 days);
@@ -44,6 +47,13 @@ public interface IEntitlementService
     Task<Entitlement> GetForUserAsync(long userId, CancellationToken cancellationToken = default);
 
     Task<Entitlement> GetForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the account owns a verified store subscription RIGHT NOW - independent of ProgramEnabled (a program that does not yet require a
+    /// subscription must still not hide one the person already pays for). Persisted server state and the server clock only: no store call,
+    /// no trial started or consumed, nothing about access changes.
+    /// </summary>
+    Task<StoreSubscriptionOwnership> GetStoreSubscriptionForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default);
 }
 
 public sealed class EntitlementService(
@@ -75,6 +85,17 @@ public sealed class EntitlementService(
 
         var state = await store.GetUserStateAsync(externalIdentity, cancellationToken) ?? throw new CurrentJupleUserNotFoundException();
         return await EvaluateAsync(state, nowUtc, cancellationToken);
+    }
+
+    public async Task<StoreSubscriptionOwnership> GetStoreSubscriptionForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default)
+    {
+        var state = await store.GetUserStateAsync(externalIdentity, cancellationToken);
+        if (state is null)
+        {
+            return StoreSubscriptionOwnership.None;
+        }
+
+        return StoreSubscriptionOwnership.From(await store.GetOwnedPurchasesAsync(state.UserId, cancellationToken), timeProvider.GetUtcNow());
     }
 
     private async Task<Entitlement> EvaluateAsync(EntitlementUserState state, DateTimeOffset nowUtc, CancellationToken cancellationToken)

@@ -342,7 +342,7 @@
     "linkActionsA11y": "链接选项",
     "collectionActionsA11y": "合集选项",
     "shortcutSavedWithoutCollection": "链接已保存，但无法加入所选合集。请重新指定合集。",
-    "shortcutOpenUnavailable": "此合集已无法打开，请自行删除主屏幕上的图标。",
+    "shortcutOpenUnavailable": "此合集已无法打开。它已被删除或你已失去访问权限，因此已移除其快捷方式。",
     "homeShortcutAdd": "添加到主屏幕",
     "homeShortcutUnsupported": "此设备的启动器不支持添加主屏幕快捷方式。",
     "homeShortcutLocked": "已锁定的合集从主屏幕打开时仍需输入密码，且不会添加为共享目标。",
@@ -1013,7 +1013,8 @@
       "storeBody": "付款、续订和取消都在你订阅时使用的应用商店中处理。",
       "dataTitle": "你的链接依然保留",
       "dataBody": "订阅结束后，已保存的链接不会被删除。"
-    }
+    },
+    "stateHeading": "订阅状态"
   },
   "appUpdate": {
     "optionalTitle": "有可用更新",

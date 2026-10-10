@@ -27,7 +27,7 @@ const MONTHLY_PERIOD = 'P1M';
 export function SubscriptionScreen() {
   const { t, i18n } = useTranslation();
   const store = useSubscriptionStore();
-  const { entitlement } = useAuth();
+  const { entitlement, storeSubscription } = useAuth();
   const { showMessage, messageDialog } = useMessageDialog();
   const [offerState, setOfferState] = useState<OfferState>({ kind: 'loading' });
   const [isBusy, setIsBusy] = useState(false);
@@ -185,7 +185,12 @@ export function SubscriptionScreen() {
     }
     accessDetails.push(t('subscription.detail.expired'));
   }
-  const isSubscribed = status.kind === 'active' || status.kind === 'gracePeriod';
+  // STORE OWNERSHIP is its own fact (the server's storeSubscription), independent of whether Juple currently REQUIRES a subscription:
+  // with the program off the access line says "not required" while the account may already pay - and then it must not be invited to
+  // buy again. Either source saying "subscribed" hides Subscribe and offers Manage.
+  const ownedState = storeSubscription?.state === 'active' || storeSubscription?.state === 'gracePeriod' ? storeSubscription.state : null;
+  const accessAlreadyShowsSubscription = status.kind === 'active' || status.kind === 'gracePeriod';
+  const isSubscribed = accessAlreadyShowsSubscription || ownedState !== null;
   const showManage = isSubscribed && store.canManageSubscription;
   const isReady = offerState.kind === 'ready';
 
@@ -224,6 +229,18 @@ export function SubscriptionScreen() {
             <Text key={index} style={styles.accessDetail} testID="subscription-access-detail">{detail}</Text>
           ))}
         </View>
+
+        {ownedState !== null && !accessAlreadyShowsSubscription ? (
+          <>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
+            <View style={[styles.card, styles.accessCard]} testID="subscription-store-state-card">
+              <Text style={styles.accessLabel} testID="subscription-store-state">{t(`subscription.access.${ownedState}`)}</Text>
+              <Text style={styles.accessDetail} testID="subscription-store-state-detail">
+                {t(ownedState === 'gracePeriod' ? 'subscription.detail.grace' : 'subscription.detail.activeManage')}
+              </Text>
+            </View>
+          </>
+        ) : null}
 
         {isSubscribed ? null : (
           <Pressable

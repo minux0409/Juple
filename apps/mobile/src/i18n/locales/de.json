@@ -342,7 +342,7 @@
     "linkActionsA11y": "Link-Optionen",
     "collectionActionsA11y": "Sammlungsoptionen",
     "shortcutSavedWithoutCollection": "Dein Link wurde gespeichert, konnte aber nicht zur gewählten Sammlung hinzugefügt werden. Ordne ihn bitte selbst neu zu.",
-    "shortcutOpenUnavailable": "Diese Sammlung kann nicht mehr geöffnet werden. Bitte entferne ihr Symbol selbst vom Startbildschirm.",
+    "shortcutOpenUnavailable": "Diese Sammlung kann nicht mehr geöffnet werden. Sie wurde gelöscht oder du hast keinen Zugriff mehr, daher wurde ihre Verknüpfung entfernt.",
     "homeShortcutAdd": "Verknüpfung zum Startbildschirm hinzufügen",
     "homeShortcutUnsupported": "Der Launcher dieses Geräts unterstützt keine Startbildschirm-Verknüpfungen.",
     "homeShortcutLocked": "Eine gesperrte Sammlung verlangt auch vom Startbildschirm aus ihr Passwort. Sie wird nicht als Teilen-Ziel hinzugefügt.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Zahlung, Verlängerung und Kündigung laufen über den Store, in dem du das Abo abgeschlossen hast.",
       "dataTitle": "Deine Links bleiben dein",
       "dataBody": "Gespeicherte Links werden nicht gelöscht, wenn ein Abo endet."
-    }
+    },
+    "stateHeading": "Abo-Status"
   },
   "appUpdate": {
     "optionalTitle": "Ein Update ist verfügbar",

@@ -214,6 +214,9 @@ public sealed class WriteAccessFilterTests
 
         public Task<Entitlement> GetForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) => Read();
 
+        public Task<StoreSubscriptionOwnership> GetStoreSubscriptionForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(StoreSubscriptionOwnership.None);
+
         private Task<Entitlement> Read()
         {
             Reads++;

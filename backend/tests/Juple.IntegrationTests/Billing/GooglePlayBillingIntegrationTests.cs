@@ -544,6 +544,24 @@ public sealed class GooglePlayBillingIntegrationTests : IAsyncLifetime
         Assert.True(entitlement.CanWrite);
     }
 
+    [Fact]
+    public async Task StoreOwnership_OverRealPurchases_IsOwnedWhileCurrent_AndNeverLeaksAcrossAccounts()
+    {
+        var token = NewToken("ownership");
+        _google.Set(token, Snapshot(GoogleSubscriptionState.Active, KeyOf(_userA), Now.AddDays(30)));
+        await Service(_db).VerifyAsync(_userA, token);
+
+        var mine = StoreSubscriptionOwnership.From(await new EntitlementStore(NewContext()).GetOwnedPurchasesAsync(_userA), Now);
+        var others = StoreSubscriptionOwnership.From(await new EntitlementStore(NewContext()).GetOwnedPurchasesAsync(_userB), Now);
+        var afterEnd = StoreSubscriptionOwnership.From(await new EntitlementStore(NewContext()).GetOwnedPurchasesAsync(_userA), Now.AddDays(31));
+
+        Assert.Equal(StoreSubscriptionState.Active, mine.State);
+        Assert.Equal("juple_monthly", mine.ProductId);
+        Assert.Equal(Now.AddDays(30), mine.CurrentPeriodEndsAtUtc);
+        Assert.Equal(StoreSubscriptionState.None, others.State);
+        Assert.Equal(StoreSubscriptionState.None, afterEnd.State);
+    }
+
     // ---------------------------------------------------------------- migration
 
     [Fact]

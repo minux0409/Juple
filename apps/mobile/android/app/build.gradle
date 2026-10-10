@@ -128,7 +128,7 @@ android {
         applicationId "com.juple.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 16
+        versionCode 17
         versionName "1.0"
         // Captures the Microsoft Entra External ID OAuth redirect (react-native-app-auth).
         // appLinksHost feeds AndroidManifest.xml's App Links intent-filter (see its comment) - no

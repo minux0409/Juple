@@ -2,13 +2,15 @@ import { ApiError } from '../api/ApiError';
 import { requestApi } from '../api/apiClient';
 import { parseMobileVersionPolicy, type MobileVersionPolicy } from '../appUpdate/versionPolicy';
 import type { DeviceRegionalSettings } from '../device/regionalSettings';
-import type { Entitlement, EntitlementReason, EntitlementStatus, UserBootstrapStatus, UserPlan } from './types';
+import type { Entitlement, EntitlementReason, EntitlementStatus, StoreSubscription, StoreSubscriptionState, UserBootstrapStatus, UserPlan } from './types';
 
 export interface UserBootstrapResult {
   readonly status: UserBootstrapStatus;
   readonly plan: UserPlan | null;
   /** Null when the response carried none (an older backend) or it was not understood - never a guessed default. */
   readonly entitlement: Entitlement | null;
+  /** Whether the account owns a verified store subscription (separate from `entitlement`). Null when absent / not understood. */
+  readonly storeSubscription?: StoreSubscription | null;
   /** Null when the response carried none (an older backend) or it was not understood - never a guessed default. */
   readonly mobileVersionPolicy?: MobileVersionPolicy | null;
 }
@@ -16,6 +18,7 @@ export interface UserBootstrapResult {
 interface BootstrapCurrentUserResponseBody {
   readonly plan: UserPlan;
   readonly entitlement?: unknown;
+  readonly storeSubscription?: unknown;
   readonly mobileVersionPolicy?: unknown;
 }
 
@@ -49,6 +52,30 @@ export function parseEntitlement(raw: unknown): Entitlement | null {
   };
 }
 
+const STORE_SUBSCRIPTION_STATES: readonly StoreSubscriptionState[] = ['none', 'active', 'gracePeriod'];
+
+/**
+ * Reads the bootstrap `storeSubscription` defensively: absent or unreadable is null (the screen then falls back to the entitlement alone,
+ * exactly as before), and a state this build does not know is never guessed into "subscribed".
+ */
+export function parseStoreSubscription(raw: unknown): StoreSubscription | null {
+  if (typeof raw !== 'object' || raw === null) {
+    return null;
+  }
+  const value = raw as Record<string, unknown>;
+  const state = STORE_SUBSCRIPTION_STATES.find(candidate => candidate === value.state);
+  if (!state) {
+    return null;
+  }
+  return {
+    state,
+    platform: value.platform === 'google' ? 'google' : null,
+    productId: typeof value.productId === 'string' && value.productId.length > 0 ? value.productId : null,
+    currentPeriodEndsAtUtc: timestampOrNull(value.currentPeriodEndsAtUtc),
+    autoRenewing: typeof value.autoRenewing === 'boolean' ? value.autoRenewing : null,
+  };
+}
+
 export async function bootstrapCurrentUser(
   accessToken: string,
   regionalSettings: DeviceRegionalSettings,
@@ -64,13 +91,14 @@ export async function bootstrapCurrentUser(
       status: 'ready',
       plan: response.body?.plan ?? null,
       entitlement: parseEntitlement(response.body?.entitlement),
+      storeSubscription: parseStoreSubscription(response.body?.storeSubscription),
       mobileVersionPolicy: parseMobileVersionPolicy(response.body?.mobileVersionPolicy),
     };
   } catch (error) {
     if (error instanceof ApiError && error.kind === 'badRequest') {
-      return { status: 'invalidDeviceSettings', plan: null, entitlement: null, mobileVersionPolicy: null };
+      return { status: 'invalidDeviceSettings', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null };
     }
 
-    return { status: 'unavailable', plan: null, entitlement: null, mobileVersionPolicy: null };
+    return { status: 'unavailable', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null };
   }
 }

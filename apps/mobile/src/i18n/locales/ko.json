@@ -342,7 +342,7 @@
     "linkActionsA11y": "링크 옵션",
     "collectionActionsA11y": "컬렉션 옵션",
     "shortcutSavedWithoutCollection": "링크는 저장했지만 선택한 컬렉션에는 넣지 못했어요. 컬렉션을 다시 지정해 주세요.",
-    "shortcutOpenUnavailable": "이 컬렉션은 더 이상 열 수 없어요. 홈 화면의 아이콘은 직접 삭제해 주세요.",
+    "shortcutOpenUnavailable": "이 컬렉션은 더 이상 열 수 없어요. 삭제되었거나 접근 권한이 없어서 바로가기를 제거했어요.",
     "homeShortcutAdd": "홈 화면에 바로가기 추가",
     "homeShortcutUnsupported": "이 기기의 런처는 홈 화면 바로가기 추가를 지원하지 않아요.",
     "homeShortcutLocked": "잠긴 컬렉션은 홈 화면 바로가기를 눌러도 비밀번호를 먼저 입력해야 열려요. 공유 대상(Direct Share)에는 추가되지 않아요.",
@@ -1013,7 +1013,8 @@
       "storeBody": "결제, 갱신, 해지는 구독한 스토어에서 관리돼요.",
       "dataTitle": "저장한 링크는 그대로예요",
       "dataBody": "구독이 끝나도 저장한 링크는 삭제되지 않아요."
-    }
+    },
+    "stateHeading": "구독 상태"
   },
   "appUpdate": {
     "optionalTitle": "업데이트가 있습니다",

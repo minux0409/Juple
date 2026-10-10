@@ -127,6 +127,9 @@ public sealed class CurrentUserBootstrapServiceTests
 
         public Task<Juple.Domain.Billing.Entitlement> GetForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
             Task.FromResult(Juple.Domain.Billing.Entitlement.NotLaunched(DateTimeOffset.UnixEpoch));
+
+        public Task<Juple.Domain.Billing.StoreSubscriptionOwnership> GetStoreSubscriptionForIdentityAsync(ExternalIdentityPrincipal externalIdentity, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Juple.Domain.Billing.StoreSubscriptionOwnership.None);
     }
 
     private sealed record TimeZoneSyncCall(ExternalIdentityPrincipal ExternalIdentity, string TimeZoneId);

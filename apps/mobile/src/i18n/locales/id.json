@@ -342,7 +342,7 @@
     "linkActionsA11y": "Opsi tautan",
     "collectionActionsA11y": "Opsi koleksi",
     "shortcutSavedWithoutCollection": "Tautan Anda sudah disimpan, tetapi tidak dapat ditambahkan ke koleksi yang dipilih. Silakan pilih koleksi lagi sendiri.",
-    "shortcutOpenUnavailable": "Koleksi ini tidak dapat dibuka lagi. Hapus sendiri ikonnya dari layar Utama.",
+    "shortcutOpenUnavailable": "Koleksi ini tidak dapat dibuka lagi. Koleksi telah dihapus atau akses Anda dicabut, sehingga pintasannya dihapus.",
     "homeShortcutAdd": "Tambahkan pintasan ke layar Utama",
     "homeShortcutUnsupported": "Launcher perangkat ini tidak mendukung penambahan pintasan ke layar Utama.",
     "homeShortcutLocked": "Koleksi yang dikunci tetap meminta kata sandi saat dibuka dari layar Utama. Koleksi ini tidak ditambahkan sebagai tujuan berbagi.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Pembayaran, perpanjangan, dan pembatalan dikelola oleh toko tempat kamu berlangganan.",
       "dataTitle": "Tautanmu tetap milikmu",
       "dataBody": "Tautan yang tersimpan tidak dihapus saat langganan berakhir."
-    }
+    },
+    "stateHeading": "Status langganan"
   },
   "appUpdate": {
     "optionalTitle": "Tersedia pembaruan",

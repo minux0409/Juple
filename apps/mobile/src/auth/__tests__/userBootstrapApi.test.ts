@@ -1,6 +1,6 @@
 import { ApiError } from '../../api/ApiError';
 import { requestApi } from '../../api/apiClient';
-import { bootstrapCurrentUser, parseEntitlement } from '../userBootstrapApi';
+import { bootstrapCurrentUser, parseEntitlement, parseStoreSubscription } from '../userBootstrapApi';
 
 jest.mock('../../api/apiClient', () => ({
   requestApi: jest.fn(),
@@ -22,7 +22,7 @@ describe('bootstrapCurrentUser', () => {
       accessToken: 'a-token',
       body: { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' },
     });
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
   });
 
   it('returns the Plus plan when the backend reports it', async () => {
@@ -30,7 +30,7 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Plus', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
   });
 
   it('carries the app-version policy of the server from the same bootstrap response - no separate request - and reads it defensively', async () => {
@@ -51,7 +51,7 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'invalid', timeZoneId: 'Invalid/Zone' });
 
-    expect(result).toEqual({ status: 'invalidDeviceSettings', plan: null, entitlement: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'invalidDeviceSettings', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
   });
 
   it('maps any other failure to unavailable with no plan', async () => {
@@ -59,7 +59,7 @@ describe('bootstrapCurrentUser', () => {
 
     const result = await bootstrapCurrentUser('a-token', { preferredLocale: 'ko-KR', timeZoneId: 'Asia/Seoul' });
 
-    expect(result).toEqual({ status: 'unavailable', plan: null, entitlement: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'unavailable', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
   });
 });
 
@@ -187,7 +187,7 @@ describe('bootstrapCurrentUser - entitlement', () => {
 
     const result = await bootstrapCurrentUser('a-token', settings);
 
-    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, mobileVersionPolicy: null });
+    expect(result).toEqual({ status: 'ready', plan: 'Free', entitlement: null, storeSubscription: null, mobileVersionPolicy: null });
   });
 });
 
@@ -239,5 +239,21 @@ describe('parseEntitlement', () => {
       'trialStartedAtUtc',
       'verifiedAtUtc',
     ]);
+  });
+});
+
+describe('parseStoreSubscription', () => {
+  it('reads an owned subscription and nothing else', () => {
+    expect(parseStoreSubscription({ state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false, orderId: 'x' })).toEqual({
+      state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false,
+    });
+    expect(parseStoreSubscription({ state: 'gracePeriod' })?.state).toBe('gracePeriod');
+    expect(parseStoreSubscription({ state: 'none', platform: null })?.state).toBe('none');
+  });
+
+  it('absent, malformed or unknown states are null - never guessed into subscribed', () => {
+    for (const raw of [undefined, null, 'active', 3, {}, { state: 'premium' }, { state: 'ACTIVE' }]) {
+      expect(parseStoreSubscription(raw)).toBeNull();
+    }
   });
 });

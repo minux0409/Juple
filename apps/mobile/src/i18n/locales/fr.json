@@ -342,7 +342,7 @@
     "linkActionsA11y": "Options du lien",
     "collectionActionsA11y": "Options de la collection",
     "shortcutSavedWithoutCollection": "Votre lien a été enregistré, mais n’a pas pu être ajouté à la collection choisie. Classez-le à nouveau vous-même.",
-    "shortcutOpenUnavailable": "Cette collection ne peut plus être ouverte. Supprimez vous-même son icône de l’écran d’accueil.",
+    "shortcutOpenUnavailable": "Cette collection ne peut plus être ouverte. Elle a été supprimée ou vous n’y avez plus accès ; son raccourci a été retiré.",
     "homeShortcutAdd": "Ajouter un raccourci à l’écran d’accueil",
     "homeShortcutUnsupported": "Le lanceur de cet appareil ne permet pas d’ajouter des raccourcis à l’écran d’accueil.",
     "homeShortcutLocked": "Une collection verrouillée demande toujours son mot de passe depuis l’écran d’accueil. Elle n’est pas ajoutée comme destination de partage.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Le paiement, le renouvellement et la résiliation sont gérés par le store où vous vous êtes abonné.",
       "dataTitle": "Vos liens restent à vous",
       "dataBody": "Vos liens enregistrés ne sont pas supprimés à la fin d'un abonnement."
-    }
+    },
+    "stateHeading": "État de l'abonnement"
   },
   "appUpdate": {
     "optionalTitle": "Une mise à jour est disponible",

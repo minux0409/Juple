@@ -169,6 +169,9 @@ public sealed class EntitlementServiceWithPurchasesTests
         public Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<PurchaseAccess>>(purchases);
 
+        public Task<IReadOnlyList<OwnedStorePurchase>> GetOwnedPurchasesAsync(long userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<OwnedStorePurchase>>([]);
+
         public Task<TrialWindow> EnsureTrialAsync(long userId, byte[] identityHash, TrialWindow newWindow, DateTimeOffset nowUtc, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }

@@ -342,7 +342,7 @@
     "linkActionsA11y": "Link options",
     "collectionActionsA11y": "Collection options",
     "shortcutSavedWithoutCollection": "Your link was saved, but it couldn’t be added to the collection you chose. Please file it again yourself.",
-    "shortcutOpenUnavailable": "This collection can no longer be opened. Please remove its Home-screen icon yourself.",
+    "shortcutOpenUnavailable": "This collection can no longer be opened. It was deleted or you lost access, so its shortcut was removed.",
     "homeShortcutAdd": "Add shortcut to Home screen",
     "homeShortcutUnsupported": "This device’s launcher doesn’t support adding Home-screen shortcuts.",
     "homeShortcutLocked": "A locked collection still asks for its password when opened from the Home screen. It is not added as a share destination.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Payment, renewal and cancellation are handled by the store you subscribed through.",
       "dataTitle": "Your links stay yours",
       "dataBody": "Your saved links are not deleted when a subscription ends."
-    }
+    },
+    "stateHeading": "Subscription status"
   },
   "appUpdate": {
     "optionalTitle": "An update is available",

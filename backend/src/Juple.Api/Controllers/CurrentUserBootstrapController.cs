@@ -30,7 +30,7 @@ public sealed class CurrentUserBootstrapController : ControllerBase
                 externalIdentityAccessor.GetRequired(),
                 new BootstrapCurrentUserCommand(request.PreferredLocale, request.TimeZoneId),
                 cancellationToken);
-            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value)));
+            return Ok(new BootstrapCurrentUserResponse(result.Plan.ToString(), result.TimeZoneId, EntitlementResponse.From(result.Entitlement), MobileVersionPolicyResponse.From(versionPolicy.Value), StoreSubscriptionResponse.From(result.StoreSubscription)));
         }
         catch (InvalidCurrentUserBootstrapRequestException exception)
         {
@@ -47,7 +47,30 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     /// <param name="TimeZoneId">The user's stored IANA time zone - the one the server's date filters and calendar use; clients use it for the same "today" (additive field).</param>
     /// <param name="Plan">LEGACY compatibility only (old installed clients still read it) - never the entitlement source; see UserPlan.</param>
     /// <param name="Entitlement">The account's effective access (additive). Computed from server time; the app only presents it - the backend decides every write.</param>
-    public sealed record BootstrapCurrentUserResponse(string Plan, string TimeZoneId, EntitlementResponse Entitlement, MobileVersionPolicyResponse MobileVersionPolicy);
+    public sealed record BootstrapCurrentUserResponse(
+        string Plan,
+        string TimeZoneId,
+        EntitlementResponse Entitlement,
+        MobileVersionPolicyResponse MobileVersionPolicy,
+        StoreSubscriptionResponse StoreSubscription);
+
+    /// <summary>
+    /// Whether the account owns a verified store subscription (additive; an older client ignores it) - NOT the same as Entitlement: with the
+    /// program off, Entitlement.Status is null ("not required") while this can still be "active". State is none | active | gracePeriod.
+    /// Platform is "google" while owned. CurrentPeriodEndsAtUtc is when the paid period ends; AutoRenewing false means it was cancelled and
+    /// will not renew. No purchase token, order id, internal id or raw store response is ever exposed.
+    /// </summary>
+    public sealed record StoreSubscriptionResponse(string State, string? Platform, string? ProductId, DateTimeOffset? CurrentPeriodEndsAtUtc, bool? AutoRenewing)
+    {
+        public static StoreSubscriptionResponse From(StoreSubscriptionOwnership? ownership) => ownership is null || ownership.State == StoreSubscriptionState.None
+            ? new("none", null, null, null, null)
+            : new(
+                ownership.State == StoreSubscriptionState.GracePeriod ? "gracePeriod" : "active",
+                ownership.Source switch { StoreSource.GooglePlay => "google", _ => null },
+                ownership.ProductId,
+                ownership.CurrentPeriodEndsAtUtc,
+                ownership.AutoRenewing);
+    }
 
     /// <summary>
     /// Which installed builds are current / still supported, per platform (additive; an older client ignores it). Build numbers are

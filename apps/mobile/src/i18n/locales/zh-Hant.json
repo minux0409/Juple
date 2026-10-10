@@ -342,7 +342,7 @@
     "linkActionsA11y": "連結選項",
     "collectionActionsA11y": "合集選項",
     "shortcutSavedWithoutCollection": "連結已儲存，但無法加入所選合集。請重新指定合集。",
-    "shortcutOpenUnavailable": "此合集已無法開啟，請自行刪除主畫面上的圖示。",
+    "shortcutOpenUnavailable": "此合集已無法開啟。它已被刪除或你已失去存取權限，因此已移除其捷徑。",
     "homeShortcutAdd": "加入主畫面捷徑",
     "homeShortcutUnsupported": "此裝置的啟動器不支援加入主畫面捷徑。",
     "homeShortcutLocked": "已鎖定的合集從主畫面開啟時仍需輸入密碼，且不會加入為分享目標。",
@@ -1013,7 +1013,8 @@
       "storeBody": "付款、續訂與取消都在你訂閱時使用的應用程式商店中處理。",
       "dataTitle": "你的連結依然保留",
       "dataBody": "訂閱結束後，已儲存的連結不會被刪除。"
-    }
+    },
+    "stateHeading": "訂閱狀態"
   },
   "appUpdate": {
     "optionalTitle": "有可用更新",

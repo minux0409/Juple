@@ -342,7 +342,7 @@
     "linkActionsA11y": "Tùy chọn liên kết",
     "collectionActionsA11y": "Tùy chọn bộ sưu tập",
     "shortcutSavedWithoutCollection": "Liên kết đã được lưu nhưng không thể thêm vào bộ sưu tập bạn chọn. Hãy tự chọn lại bộ sưu tập.",
-    "shortcutOpenUnavailable": "Không thể mở bộ sưu tập này nữa. Hãy tự xóa biểu tượng của nó khỏi màn hình chính.",
+    "shortcutOpenUnavailable": "Không thể mở bộ sưu tập này nữa. Nó đã bị xóa hoặc bạn không còn quyền truy cập nên lối tắt đã được gỡ.",
     "homeShortcutAdd": "Thêm lối tắt vào màn hình chính",
     "homeShortcutUnsupported": "Trình khởi chạy của thiết bị này không hỗ trợ thêm lối tắt vào màn hình chính.",
     "homeShortcutLocked": "Bộ sưu tập đã khóa vẫn yêu cầu mật khẩu khi mở từ màn hình chính. Nó không được thêm làm đích chia sẻ.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Thanh toán, gia hạn và hủy được xử lý bởi cửa hàng ứng dụng nơi bạn đăng ký.",
       "dataTitle": "Liên kết vẫn là của bạn",
       "dataBody": "Các liên kết đã lưu không bị xóa khi gói đăng ký kết thúc."
-    }
+    },
+    "stateHeading": "Trạng thái gói đăng ký"
   },
   "appUpdate": {
     "optionalTitle": "Có bản cập nhật",

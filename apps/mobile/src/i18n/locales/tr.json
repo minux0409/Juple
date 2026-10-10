@@ -342,7 +342,7 @@
     "linkActionsA11y": "Bağlantı seçenekleri",
     "collectionActionsA11y": "Koleksiyon seçenekleri",
     "shortcutSavedWithoutCollection": "Bağlantınız kaydedildi ancak seçtiğiniz koleksiyona eklenemedi. Lütfen koleksiyonu yeniden kendiniz seçin.",
-    "shortcutOpenUnavailable": "Bu koleksiyon artık açılamıyor. Ana ekrandaki simgesini lütfen kendiniz kaldırın.",
+    "shortcutOpenUnavailable": "Bu koleksiyon artık açılamıyor. Silinmiş veya erişiminiz kaldırılmış olduğundan kısayolu kaldırıldı.",
     "homeShortcutAdd": "Ana ekrana kısayol ekle",
     "homeShortcutUnsupported": "Bu cihazın başlatıcısı ana ekrana kısayol eklemeyi desteklemiyor.",
     "homeShortcutLocked": "Kilitli bir koleksiyon ana ekrandan açıldığında da parola ister. Paylaşım hedefi olarak eklenmez.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Ödeme, yenileme ve iptal, abone olduğun mağaza üzerinden yönetilir.",
       "dataTitle": "Bağlantıların sende kalır",
       "dataBody": "Abonelik sona erdiğinde kaydettiğin bağlantılar silinmez."
-    }
+    },
+    "stateHeading": "Abonelik durumu"
   },
   "appUpdate": {
     "optionalTitle": "Güncelleme mevcut",

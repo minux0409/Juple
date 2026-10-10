@@ -37,7 +37,10 @@ public sealed class CurrentUserBootstrapService(
         if (existingPlan is { } plan)
         {
             return new CurrentUserBootstrapResult(
-                plan, timeZoneId, await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken));
+                plan,
+                timeZoneId,
+                await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken),
+                await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken));
         }
 
         var preferredLocale = NormalizePreferredLocale(command.PreferredLocale);
@@ -51,7 +54,10 @@ public sealed class CurrentUserBootstrapService(
                 utcNow),
             cancellationToken);
         return new CurrentUserBootstrapResult(
-            createdPlan, timeZoneId, await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken));
+            createdPlan,
+            timeZoneId,
+            await entitlementService.GetForIdentityAsync(externalIdentity, cancellationToken),
+            await entitlementService.GetStoreSubscriptionForIdentityAsync(externalIdentity, cancellationToken));
     }
 
     private static string NormalizePreferredLocale(string? preferredLocale)

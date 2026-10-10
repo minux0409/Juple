@@ -342,7 +342,7 @@
     "linkActionsA11y": "Opciones del enlace",
     "collectionActionsA11y": "Opciones de la colección",
     "shortcutSavedWithoutCollection": "Tu enlace se guardó, pero no se pudo añadir a la colección elegida. Vuelve a asignarlo tú mismo.",
-    "shortcutOpenUnavailable": "Esta colección ya no se puede abrir. Elimina tú mismo su icono de la pantalla de inicio.",
+    "shortcutOpenUnavailable": "Esta colección ya no se puede abrir. Se eliminó o perdiste el acceso, así que se quitó su acceso directo.",
     "homeShortcutAdd": "Añadir acceso directo a la pantalla de inicio",
     "homeShortcutUnsupported": "El launcher de este dispositivo no admite añadir accesos directos a la pantalla de inicio.",
     "homeShortcutLocked": "Una colección bloqueada sigue pidiendo su contraseña al abrirla desde la pantalla de inicio. No se añade como destino para compartir.",
@@ -1013,7 +1013,8 @@
       "storeBody": "El pago, la renovación y la cancelación se gestionan en la tienda donde te suscribiste.",
       "dataTitle": "Tus enlaces siguen siendo tuyos",
       "dataBody": "Tus enlaces guardados no se eliminan cuando termina una suscripción."
-    }
+    },
+    "stateHeading": "Estado de la suscripción"
   },
   "appUpdate": {
     "optionalTitle": "Hay una actualización disponible",

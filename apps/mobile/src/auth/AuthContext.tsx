@@ -36,6 +36,7 @@ const INITIAL_STATE: AuthState = {
   sessionRestoreStep: 'sessionRestore',
   plan: null,
   entitlement: null,
+  storeSubscription: null,
   mobileVersionPolicy: null,
 };
 
@@ -49,6 +50,7 @@ const SIGNED_OUT_STATE: AuthState = {
   sessionRestoreStep: 'sessionRestore',
   plan: null,
   entitlement: null,
+  storeSubscription: null,
   mobileVersionPolicy: null,
 };
 
@@ -72,7 +74,7 @@ async function bootstrapUserAccount(
   try {
     return await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
   } catch {
-    return { status: 'invalidDeviceSettings', plan: null, entitlement: null, mobileVersionPolicy: null };
+    return { status: 'invalidDeviceSettings', plan: null, entitlement: null, storeSubscription: null, mobileVersionPolicy: null };
   }
 }
 
@@ -163,7 +165,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (isMountedRef.current) {
           setState(previous =>
             previous.isAuthenticated
-              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
+              ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
               : previous,
           );
         }
@@ -216,7 +218,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const result = await bootstrapCurrentUser(accessToken, getDeviceRegionalSettings());
       if (result.status === 'ready') {
         setState(previous =>
-          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement, mobileVersionPolicy: result.mobileVersionPolicy ?? previous.mobileVersionPolicy } : previous,
+          previous.isAuthenticated ? { ...previous, plan: result.plan, entitlement: result.entitlement, storeSubscription: result.storeSubscription ?? previous.storeSubscription, mobileVersionPolicy: result.mobileVersionPolicy ?? previous.mobileVersionPolicy } : previous,
         );
       }
     } catch {
@@ -281,7 +283,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         );
         setState(previous =>
           previous.isAuthenticated
-            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
+            ? { ...previous, userBootstrapStatus: bootstrapResult.status, plan: bootstrapResult.plan, entitlement: bootstrapResult.entitlement, storeSubscription: bootstrapResult.storeSubscription ?? null, mobileVersionPolicy: bootstrapResult.mobileVersionPolicy }
             : previous,
         );
       }
@@ -296,6 +298,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         userBootstrapStatus: 'notStarted',
         plan: null,
         entitlement: null,
+        storeSubscription: null,
         mobileVersionPolicy: null,
       }));
     }

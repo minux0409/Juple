@@ -105,6 +105,11 @@ public sealed class EntitlementServiceTests
         public Task<IReadOnlyList<PurchaseAccess>> GetPurchaseAccessAsync(long userId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Purchases);
 
+        public IReadOnlyList<OwnedStorePurchase> Owned { get; set; } = [];
+
+        public Task<IReadOnlyList<OwnedStorePurchase>> GetOwnedPurchasesAsync(long userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Owned);
+
         public Task<EntitlementUserState?> GetUserStateAsync(long userId, CancellationToken cancellationToken = default)
         {
             StateReads++;

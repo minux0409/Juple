@@ -342,7 +342,7 @@
     "linkActionsA11y": "Opções do link",
     "collectionActionsA11y": "Opções da coleção",
     "shortcutSavedWithoutCollection": "Seu link foi salvo, mas não pôde ser adicionado à coleção escolhida. Atribua-o novamente você mesmo.",
-    "shortcutOpenUnavailable": "Esta coleção não pode mais ser aberta. Remova você mesmo o ícone dela da tela inicial.",
+    "shortcutOpenUnavailable": "Esta coleção não pode mais ser aberta. Ela foi excluída ou você perdeu o acesso, então o atalho foi removido.",
     "homeShortcutAdd": "Adicionar atalho à tela inicial",
     "homeShortcutUnsupported": "O launcher deste dispositivo não permite adicionar atalhos à tela inicial.",
     "homeShortcutLocked": "Uma coleção bloqueada continua pedindo a senha ao ser aberta pela tela inicial. Ela não é adicionada como destino de compartilhamento.",
@@ -1013,7 +1013,8 @@
       "storeBody": "Pagamento, renovação e cancelamento são tratados pela loja em que você assinou.",
       "dataTitle": "Seus links continuam seus",
       "dataBody": "Seus links salvos não são excluídos quando uma assinatura termina."
-    }
+    },
+    "stateHeading": "Status da assinatura"
   },
   "appUpdate": {
     "optionalTitle": "Há uma atualização disponível",
