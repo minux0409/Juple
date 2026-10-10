@@ -57,6 +57,10 @@ class NativeIncomingShareModule(
     promise.resolve(null)
   }
 
+  override fun getQuickSaveOnShare(promise: Promise) {
+    promise.resolve(QuickSaveOnSharePreference.isEnabled(reactContext))
+  }
+
   override fun getPinnedCollectionShortcuts(promise: Promise) {
     ShortcutSyncManager.migrateLegacy(reactContext)
     val pinned: WritableArray = Arguments.createArray()

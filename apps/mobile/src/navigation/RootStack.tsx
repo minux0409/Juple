@@ -9,6 +9,8 @@ import { CollectionDetailsScreen } from '../screens/CollectionDetailsScreen';
 import { CollectionLockSettingsScreen } from '../screens/CollectionLockSettingsScreen';
 import { CollectionShareScreen } from '../screens/CollectionShareScreen';
 import { CustomerCenterScreen } from '../screens/CustomerCenterScreen';
+import { HelpGuideScreen } from '../screens/HelpGuideScreen';
+import { HelpGuideSectionScreen } from '../screens/HelpGuideSectionScreen';
 import { SubscriptionScreen } from '../screens/SubscriptionScreen';
 import { SupportInquiryDetailScreen } from '../screens/SupportInquiryDetailScreen';
 import { SupportInquiryScreen } from '../screens/SupportInquiryScreen';
@@ -145,6 +147,10 @@ export type RootStackParamList = {
   Trash: undefined;
   /** 내 페이지 > 고객센터: tutorial replay, FAQ, 문의하기 (system mail app), legal documents and the app version. */
   CustomerCenter: undefined;
+  /** 내 페이지 > 도움말: the Feature Guide - goal-based sections, plus a replay of the first-run tutorial. */
+  HelpGuide: undefined;
+  /** One Feature Guide section (sectionId is a GUIDE_SECTIONS id). */
+  HelpGuideSection: { sectionId: string };
   /** 내 페이지 > 구독(내부 테스트): the monthly plan, store price, Subscribe and Restore. Registered only in builds that show the internal test entry. */
   Subscription: undefined;
   /** 고객센터 > 문의하기: write an inquiry (default) or read 문의내역. Sent inside the app - no mail app. */
@@ -267,6 +273,8 @@ export function RootStack() {
               options={{ title: t('nav.collectionLockSettings'), ...headerTitleWithIcon(screenIcons.collectionLock, t('nav.collectionLockSettings')) }}
             />
             <Stack.Screen component={TrashScreen} name="Trash" options={{ title: t('nav.trash'), ...headerTitleWithIcon(screenIcons.trash, t('nav.trash')) }} />
+            <Stack.Screen component={HelpGuideScreen} name="HelpGuide" options={{ title: t('guide.title'), ...headerTitleWithIcon(screenIcons.help, t('guide.title')) }} />
+            <Stack.Screen component={HelpGuideSectionScreen} name="HelpGuideSection" options={({ route }) => ({ title: t(`guide.sections.${route.params.sectionId}.title`) })} />
             <Stack.Screen component={CustomerCenterScreen} name="CustomerCenter" options={{ title: t('customerCenter.title'), ...headerTitleWithIcon(screenIcons.customerCenter, t('customerCenter.title')) }} />
             {isSubscriptionTestEntryEnabled ? (
               <Stack.Screen component={SubscriptionScreen} name="Subscription" options={{ title: t('subscription.title'), ...headerTitleWithIcon(screenIcons.subscription, t('subscription.title')) }} />

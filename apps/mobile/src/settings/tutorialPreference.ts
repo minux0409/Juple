@@ -3,8 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 /**
  * The tutorial's content version. Completion is remembered PER VERSION and per person, so raising this number
  * later shows the new tutorial once to everyone, without disturbing what the old one recorded.
+ *
+ * v2: the redesigned six-page first run. Raise it again ONLY when Juple's first-run mental model changes
+ * materially - never for copy edits or additions to the Help Guide.
  */
-export const CURRENT_TUTORIAL_VERSION = 1;
+export const CURRENT_TUTORIAL_VERSION = 2;
 
 /**
  * `userKey` identifies the signed-in person on this device. It is the public Juple ID (never an email and never

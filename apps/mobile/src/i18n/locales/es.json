@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Revisa el enlace compartido.",
     "shareReviewOther": "Revisa el contenido compartido.",
     "cancelShare": "Descartar contenido compartido",
-    "deleteConfirmTitle": "Eliminar elemento",
-    "deleteConfirmMessage": "¿Eliminar este elemento? Esta acción no se puede deshacer.",
+    "deleteConfirmTitle": "¿Eliminar este enlace?",
+    "deleteConfirmMessage": "Puedes restaurar un enlace eliminado desde Eliminados recientemente.",
     "errorBadRequest": "Introduce una dirección http o https válida.",
     "errorForbidden": "No pudimos confirmar el permiso para esta acción.",
     "errorSaveFallback": "No se pudo guardar el enlace.",
@@ -87,8 +87,8 @@
     "yesterday": "Ayer",
     "thisWeek": "Esta semana",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Eliminar elemento",
-    "deleteConfirmMessage": "¿Eliminar este elemento? Esta acción no se puede deshacer.",
+    "deleteConfirmTitle": "¿Eliminar este enlace?",
+    "deleteConfirmMessage": "Puedes restaurar un enlace eliminado desde Eliminados recientemente.",
     "errorDeleteFallback": "No se pudo eliminar el elemento.",
     "searchMinHint": "Escribe al menos 2 caracteres."
   },
@@ -492,8 +492,8 @@
     "saved": "Guardado.",
     "deletePhotoConfirmTitle": "¿Eliminar esta foto?",
     "deletePhotoConfirmMessage": "Una foto eliminada no se puede recuperar.",
-    "deleteItemConfirmTitle": "¿Eliminar este elemento?",
-    "deleteItemConfirmMessage": "Un elemento eliminado no se puede recuperar.",
+    "deleteItemConfirmTitle": "¿Eliminar este enlace?",
+    "deleteItemConfirmMessage": "Puedes restaurar un enlace eliminado desde Eliminados recientemente.",
     "unsavedChangesTitle": "Cambios sin guardar",
     "unsavedChangesMessage": "Si sales sin guardar, se perderán tus cambios.",
     "continueEditing": "Seguir editando",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Centro de ayuda",
-    "replayTutorial": "Ver el tutorial de nuevo",
-    "faqHeading": "Preguntas frecuentes",
     "inquiryHeading": "Contacto",
     "serviceInfoHeading": "Información del servicio",
     "terms": "Términos del servicio",
     "privacy": "Política de privacidad",
     "appInfoHeading": "Información de la app",
     "version": "Versión {{version}} (compilación {{build}})",
-    "openLinkFailed": "No se pudo abrir el enlace. Inténtalo de nuevo más tarde.",
-    "faq": {
-      "saveLinks": {
-        "question": "¿Cómo guardo un enlace?",
-        "answer": "Pega una URL en Juple o comparte un enlace a Juple desde otra app, como un navegador o una red social. Con el guardado rápido activado, el enlace compartido se guarda al instante; si está desactivado, eliges colecciones y añades una nota antes de guardar."
-      },
-      "collections": {
-        "question": "¿Cómo uso las colecciones?",
-        "answer": "Las colecciones te permiten organizar los enlaces a tu manera. Un enlace puede estar en varias colecciones y puedes crear una nueva mientras guardas."
-      },
-      "archive": {
-        "question": "¿Dónde encuentro los enlaces guardados?",
-        "answer": "Inicio muestra los enlaces guardados hoy y Archivo contiene todo lo que has guardado. Explora por fecha o todo junto, cambia entre vistas de lista, cuadrícula e imagen, y busca."
-      },
-      "sharedCollections": {
-        "question": "¿Cómo funcionan las colecciones compartidas?",
-        "answer": "Puedes compartir una colección con otras personas. Lo que puede hacer cada participante depende del permiso que le des, y algunos permisos pueden requerir aprobación antes de añadir un enlace."
-      },
-      "locks": {
-        "question": "¿Cómo funcionan las colecciones bloqueadas?",
-        "answer": "El contenido de una colección bloqueada permanece oculto hasta que la desbloqueas. Sus enlaces aparecen ocultos en Inicio y Archivo, y se pide la contraseña cada vez que abres uno mientras está bloqueada."
-      },
-      "trash": {
-        "question": "¿Qué pasa con los enlaces eliminados?",
-        "answer": "Los enlaces eliminados pasan a Eliminados recientemente en Mi página. Allí puedes restaurarlos o eliminarlos de forma permanente; los enlaces eliminados permanentemente no se pueden recuperar."
-      }
-    }
+    "openLinkFailed": "No se pudo abrir el enlace. Inténtalo de nuevo más tarde."
   },
   "tutorial": {
     "skip": "Omitir",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Guarda enlaces con facilidad",
-        "description": "Pega una URL o comparte un enlace desde tu navegador o red social. Con el guardado rápido activado, se guarda al instante."
+        "title": "Guarda enlaces desde cualquier sitio",
+        "description": "Pega una URL o comparte un enlace desde otra app. El título y la imagen se rellenan solos cuando es posible."
+      },
+      "today": {
+        "title": "Inicio para hoy, Archivo para todo",
+        "description": "Los enlaces de hoy están en Inicio. Todo lo que has guardado está en Archivo, agrupado por fecha."
       },
       "collections": {
-        "title": "Organízalo a tu manera",
-        "description": "Guarda un enlace en una o varias colecciones y crea una colección nueva mientras guardas."
-      },
-      "find": {
-        "title": "Encuentra rápido tus enlaces",
-        "description": "Inicio muestra los enlaces de hoy y Archivo los tiene todos. Explora por fecha o todo junto, en vista de lista, cuadrícula o imagen, y busca cuando quieras."
+        "title": "Organiza con Colecciones",
+        "description": "Pon un enlace en una o varias colecciones y dale a cada una un nombre, un icono y un color."
       },
       "share": {
-        "title": "Usa las colecciones en equipo",
-        "description": "Comparte una colección con otras personas. Los permisos deciden qué puede hacer cada una, y los enlaces pueden requerir aprobación."
+        "title": "Comparte y trabaja en equipo",
+        "description": "Comparte una colección con un enlace o invita a amigos. Tú decides qué puede hacer cada persona."
       },
-      "lock": {
-        "title": "Bloquea las colecciones sensibles",
-        "description": "Una colección bloqueada oculta sus enlaces y hace falta una contraseña para abrirlos mientras está bloqueada."
+      "find": {
+        "title": "Busca y mira a tu manera",
+        "description": "Busca y ordena tus enlaces, y cambia entre vista de lista, cuadrícula e imagen."
+      },
+      "start": {
+        "title": "¿Listo para empezar?",
+        "description": "Tus enlaces y colecciones pertenecen a tu cuenta. Encuentra más consejos cuando quieras en Mi página > Ayuda."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Más tarde",
     "action": "Actualizar",
     "openStoreFailed": "No se pudo abrir la tienda. Inténtalo de nuevo en un momento."
+  },
+  "hints": {
+    "savedLinkSwipe": "Desliza un enlace hacia un lado para ver acciones rápidas.",
+    "collectionLongPress": "Mantén pulsada una colección para ver opciones de gestión rápida."
+  },
+  "guide": {
+    "title": "Ayuda",
+    "replayTutorial": "Ver la introducción otra vez",
+    "sections": {
+      "save": {
+        "title": "Guardar enlaces",
+        "summary": "Mete enlaces en Juple rápidamente"
+      },
+      "homeArchive": {
+        "title": "Inicio y Archivo",
+        "summary": "Los enlaces de hoy y todo lo anterior"
+      },
+      "viewing": {
+        "title": "Búsqueda, orden y vistas",
+        "summary": "Encuentra enlaces y míralos a tu manera"
+      },
+      "collections": {
+        "title": "Organizar con colecciones",
+        "summary": "Agrupa los enlaces a tu manera"
+      },
+      "sharing": {
+        "title": "Compartir y trabajar en equipo",
+        "summary": "Comparte una colección y decide quién puede hacer qué"
+      },
+      "protection": {
+        "title": "Bloqueos y contraseñas",
+        "summary": "Protege las colecciones sensibles"
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "summary": "Mantente al día"
+      },
+      "trash": {
+        "title": "Eliminar y restaurar",
+        "summary": "Recupera los enlaces eliminados"
+      },
+      "account": {
+        "title": "Cuenta y ajustes",
+        "summary": "Perfil, idioma y más"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Pegar o compartir un enlace",
+        "body": "Pega una URL en el campo de la parte superior de Inicio. También sirve un texto que contenga un enlace: Juple usa el primero que encuentre.\n\nEn Android también puedes compartir un enlace desde un navegador u otra app directamente a Juple."
+      },
+      "quickSave": {
+        "title": "Guardado rápido",
+        "body": "Activa Guardado rápido en Mi página para guardar los enlaces compartidos al instante, sin pantalla de revisión.\n\nSi está desactivado, Juple muestra primero el enlace para que edites el título, añadas una nota y elijas colecciones antes de guardar."
+      },
+      "review": {
+        "title": "Antes de guardar",
+        "body": "Juple rellena el título y la imagen de vista previa cuando puede. Si no puede leerlos, puedes escribir el título tú mismo.\n\nAñade una nota y elige una o varias colecciones, o crea una nueva en el momento. Si una colección requiere aprobación, tu enlace se envía a su propietario como solicitud."
+      },
+      "androidShortcuts": {
+        "title": "Accesos directos y compartir directo",
+        "body": "Añade una colección a tu pantalla de inicio desde su menú de pulsación larga para abrirla con un toque. Consulta «Mantén pulsada una colección para gestionarla rápido» en Organizar con colecciones.\n\nLos enlaces compartidos también pueden ir directamente a una colección desde el menú de compartir del teléfono. Las colecciones bloqueadas o con contraseña, o aquellas en las que no puedes añadir enlaces, no aparecen ahí.\n\nCuando una colección aparece como destino para compartir, su menú de pulsación larga tiene «Quitar de los destinos para compartir». Eso solo la quita del menú de compartir. La colección, sus enlaces y cualquier acceso directo que hayas creado se mantienen."
+      },
+      "home": {
+        "title": "Inicio",
+        "body": "Inicio muestra los enlaces que guardaste hoy. Toca un enlace para abrir sus detalles y usa los botones de orden y el selector de vista sobre la lista para cambiar cómo se muestran."
+      },
+      "archive": {
+        "title": "Archivo",
+        "body": "Archivo reúne todos los enlaces que has guardado, agrupados por fecha. Toca una fecha para abrirla o cerrarla y usa la búsqueda para encontrar un enlace más antiguo."
+      },
+      "swipe": {
+        "title": "Desliza para acciones rápidas",
+        "body": "Desliza un enlace hacia un lado en Inicio o Archivo para ver acciones rápidas, como compartir y eliminar. Las acciones dependen del enlace: por ejemplo, un enlace de una colección bloqueada no se puede compartir desde aquí."
+      },
+      "searchSort": {
+        "title": "Buscar y ordenar",
+        "body": "Archivo y cada colección tienen un cuadro de búsqueda. Ordena por hora (toca de nuevo para alternar entre más reciente y más antiguo primero) o por nombre.\n\nInicio es para los enlaces de hoy, así que se puede ordenar pero no tiene búsqueda."
+      },
+      "viewModes": {
+        "title": "Vistas de lista, cuadrícula e imagen",
+        "body": "Usa los botones de vista para mostrar los enlaces como lista, cuadrícula o imagen, que muestra fotos en tres columnas. Tu elección se recuerda por separado para Inicio, Archivo y Colecciones."
+      },
+      "createCollection": {
+        "title": "Crear una colección",
+        "body": "En la pestaña Colecciones, toca Nueva colección. Elige un nombre, un icono y un color, o usa una foto tuya. Un enlace puede pertenecer a varias colecciones.\n\nMarca colecciones como favoritas para tenerlas juntas arriba."
+      },
+      "longPress": {
+        "title": "Mantén pulsada una colección para gestionarla rápido",
+        "body": "Mantén pulsada una colección para ver las acciones rápidas. El menú que ves depende de la colección y de tu rol.\n\nFavorito\nReúne las colecciones que abres a menudo. Solo se aplica a ti.\n\nActivar/desactivar notificaciones\nElige si quieres recibir notificaciones de una colección compartida.\n\nEditar\nCambia el nombre, el icono, el color o la foto. Solo el propietario de la colección puede.\n\nBloqueo\nActiva o quita tu bloqueo de una colección. Es distinto de la contraseña de acceso de un enlace compartido.\n\nEliminar / Salir\nLos propietarios eliminan una colección y los miembros salen de ella. Eliminar una colección no elimina los enlaces que contiene.\n\nCon un lector de pantalla, mantén pulsada la colección o elige «Opciones» en el menú de accesibilidad.",
+        "shortcut": "Abre una colección que usas a menudo directamente desde tu pantalla de inicio. Mantenla pulsada y elige «Añadir acceso directo a la pantalla de inicio» para entrar en esa colección desde la pantalla de inicio del teléfono.\n\nUna colección bloqueada sigue pidiendo su contraseña al abrirla desde un acceso directo.\n\nElimina tú mismo el acceso directo de tu pantalla de inicio cuando ya no lo necesites."
+      },
+      "manageLinks": {
+        "title": "Copiar, mover y combinar",
+        "body": "Abre una colección y usa el menú de más opciones de un enlace para copiarlo a otras colecciones, moverlo o quitarlo de esta colección. Quitarlo no elimina el enlace.\n\nTambién puedes combinar una colección con otra desde su menú de gestión. Después de mover, eliminar o combinar, toca Deshacer en el mensaje que aparece."
+      },
+      "publicLink": {
+        "title": "Compartir una colección con un enlace",
+        "body": "Abre una colección y toca Compartir. En Ajustes de colección pública, actívalo para que cualquiera con el enlace pueda verla, en la app o en una página web. Elige lo que pueden hacer los visitantes: solo lectura, añadir con aprobación o añadir enlaces directamente.\n\nDesactívalo para mantener la colección privada: quien tenga el enlace solo verá su nombre y podrá pedir unirse. Puedes dejar de compartir en cualquier momento."
+      },
+      "invite": {
+        "title": "Invitar a amigos o por ID",
+        "body": "En Compartir, elige amigos o escribe el ID de Juple de alguien, elige lo que puede hacer y envía la invitación. Se une cuando la acepta. Puedes añadir amigos en Mi página > Amigos."
+      },
+      "roles": {
+        "title": "Qué permite cada permiso",
+        "body": "Solo lectura: puede ver la colección. Con aprobación: puede proponer enlaces, y el propietario los aprueba. Puede añadir enlaces: puede añadirlos directamente. El propietario gestiona la colección, cómo se comparte y el permiso de todos.\n\nEl ajuste de un enlace público es el nivel más bajo que puede tener cualquiera. Puedes dar un nivel más alto a las personas invitadas."
+      },
+      "joinRequests": {
+        "title": "Solicitudes para unirse",
+        "body": "Cuando el ajuste público de una colección está desactivado, quien abra su enlace puede pedir unirse. El propietario ve la solicitud en la colección y la aprueba, con lo que la persona se añade como solo lectura, o la rechaza. Puede volver a pedirlo más tarde.\n\nDespués de pedir unirte, la colección aparece como «Pendiente de aprobación» en tu pestaña Colecciones hasta que el propietario responda."
+      },
+      "approvals": {
+        "title": "Solicitudes de aprobación de enlaces",
+        "body": "Son distintas de las solicitudes para unirse. Son enlaces que alguien con permiso «Con aprobación» propone para una colección. El propietario las encuentra en Solicitudes de aprobación recibidas y aprueba o rechaza cada una.\n\nSi propusiste un enlace, búscalo en Solicitudes de aprobación enviadas, donde puedes cancelarlo."
+      },
+      "collectionLock": {
+        "title": "Bloquear una colección",
+        "body": "Define una contraseña de bloqueo en Mi página > Bloqueo de colecciones y luego bloquea una colección desde su menú de pulsación larga. Una colección bloqueada oculta sus enlaces, también en Inicio y Archivo, hasta que introduzcas la contraseña. El bloqueo se aplica a ti, no a las personas con las que compartes."
+      },
+      "accessPassword": {
+        "title": "Contraseña de acceso para compartir",
+        "body": "Al compartir una colección también puedes definir una contraseña de acceso. Quien abra la colección compartida debe introducirla. Es independiente de tu propio bloqueo y puedes verla, cambiarla o quitarla en Compartir."
+      },
+      "notificationCenter": {
+        "title": "Notificaciones",
+        "body": "La campana de Inicio abre tus notificaciones, con el número de no leídas. Toca una para ir a lo que trata. Puedes marcarlas todas como leídas o eliminarlas una a una.\n\nActiva o desactiva las notificaciones de cada colección compartida desde su menú de pulsación larga. Si están desactivadas, los avisos siguen apareciendo en la lista, pero no recibirás alertas."
+      },
+      "deleteRestore": {
+        "title": "Eliminar y restaurar",
+        "body": "Elimina un enlace deslizándolo o desde sus detalles. Los enlaces eliminados van a Eliminados recientemente en Mi página, donde puedes restaurarlos, eliminarlos definitivamente o vaciar la lista. Los enlaces eliminados definitivamente no se pueden recuperar.\n\nQuitar un enlace de una colección no lo elimina."
+      },
+      "settings": {
+        "title": "Cuenta y ajustes",
+        "body": "Mi página tiene tu perfil e ID de Juple, idioma, Guardado rápido, Amigos, Bloqueo de colecciones, Eliminados recientemente y la gestión de la cuenta. Contacta con soporte desde el Centro de ayuda.\n\nEn Gestionar cuenta puedes ver cómo inicias sesión y eliminar tu cuenta, lo que elimina definitivamente tu cuenta y tus datos."
+      }
+    }
   }
 }

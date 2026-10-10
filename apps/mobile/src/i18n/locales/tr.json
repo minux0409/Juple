@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Lütfen paylaşılan bağlantıyı inceleyin.",
     "shareReviewOther": "Lütfen paylaşılan içeriği inceleyin.",
     "cancelShare": "Paylaşılan içeriği vazgeç",
-    "deleteConfirmTitle": "Öğeyi sil",
-    "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
+    "deleteConfirmTitle": "Bu bağlantı silinsin mi?",
+    "deleteConfirmMessage": "Silinen bir bağlantıyı Son Silinenler'den geri yükleyebilirsiniz.",
     "errorBadRequest": "Lütfen geçerli bir http veya https adresi girin.",
     "errorForbidden": "Bu işlem için izni onaylayamadık.",
     "errorSaveFallback": "Bağlantı kaydedilemedi.",
@@ -87,8 +87,8 @@
     "yesterday": "Dün",
     "thisWeek": "Bu hafta",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Öğeyi sil",
-    "deleteConfirmMessage": "Bu öğe silinsin mi? Bu işlem geri alınamaz.",
+    "deleteConfirmTitle": "Bu bağlantı silinsin mi?",
+    "deleteConfirmMessage": "Silinen bir bağlantıyı Son Silinenler'den geri yükleyebilirsiniz.",
     "errorDeleteFallback": "Öğe silinemedi.",
     "searchMinHint": "En az 2 karakter girin."
   },
@@ -492,8 +492,8 @@
     "saved": "Kaydedildi.",
     "deletePhotoConfirmTitle": "Bu fotoğraf silinsin mi?",
     "deletePhotoConfirmMessage": "Silinen bir fotoğraf geri alınamaz.",
-    "deleteItemConfirmTitle": "Bu öğe silinsin mi?",
-    "deleteItemConfirmMessage": "Silinen bir öğe geri alınamaz.",
+    "deleteItemConfirmTitle": "Bu bağlantı silinsin mi?",
+    "deleteItemConfirmMessage": "Silinen bir bağlantıyı Son Silinenler'den geri yükleyebilirsiniz.",
     "unsavedChangesTitle": "Kaydedilmemiş değişiklikler",
     "unsavedChangesMessage": "Kaydetmeden çıkarsanız değişiklikleriniz kaybolur.",
     "continueEditing": "Düzenlemeye devam et",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Müşteri Merkezi",
-    "replayTutorial": "Eğitimi tekrar izle",
-    "faqHeading": "Sık sorulan sorular",
     "inquiryHeading": "İletişim",
     "serviceInfoHeading": "Hizmet bilgileri",
     "terms": "Kullanım Koşulları",
     "privacy": "Gizlilik Politikası",
     "appInfoHeading": "Uygulama bilgileri",
     "version": "Sürüm {{version}} (derleme {{build}})",
-    "openLinkFailed": "Bağlantı açılamadı. Lütfen daha sonra tekrar deneyin.",
-    "faq": {
-      "saveLinks": {
-        "question": "Bir bağlantıyı nasıl kaydederim?",
-        "answer": "Juple'a bir URL yapıştırın ya da tarayıcı veya sosyal uygulama gibi başka bir uygulamadan Juple'a bağlantı paylaşın. Hızlı Kaydet açıksa paylaşılan bağlantı hemen kaydedilir; kapalıysa kaydetmeden önce koleksiyonları seçer ve not eklersiniz."
-      },
-      "collections": {
-        "question": "Koleksiyonları nasıl kullanırım?",
-        "answer": "Koleksiyonlar bağlantıları istediğiniz gibi düzenlemenizi sağlar. Bir bağlantı birden fazla koleksiyonda olabilir ve kaydederken yeni bir koleksiyon oluşturabilirsiniz."
-      },
-      "archive": {
-        "question": "Kaydedilen bağlantıları nerede bulurum?",
-        "answer": "Ana Sayfa bugün kaydedilenleri gösterir, Arşiv ise kaydettiğiniz her şeyi tutar. Tarihe göre veya hepsini birlikte gezin, Liste, Izgara ve Görsel görünümleri arasında geçin ve arayın."
-      },
-      "sharedCollections": {
-        "question": "Paylaşılan koleksiyonlar nasıl çalışır?",
-        "answer": "Bir koleksiyonu başkalarıyla paylaşabilirsiniz. Her katılımcının neler yapabileceği verdiğiniz izne bağlıdır; bazı izinlerde bağlantı eklenmeden önce onay gerekebilir."
-      },
-      "locks": {
-        "question": "Kilitli koleksiyonlar nasıl çalışır?",
-        "answer": "Kilitli bir koleksiyonun içeriği kilidi açana kadar gizli kalır. Bağlantıları Ana Sayfa ve Arşiv’de gizlenmiş görünür ve kilitliyken her açışta parola istenir."
-      },
-      "trash": {
-        "question": "Silinen bağlantılara ne olur?",
-        "answer": "Silinen bağlantılar Sayfam’daki Son Silinenler’e taşınır. Orada geri yükleyebilir veya kalıcı olarak silebilirsiniz; kalıcı silinen bağlantılar geri getirilemez."
-      }
-    }
+    "openLinkFailed": "Bağlantı açılamadı. Lütfen daha sonra tekrar deneyin."
   },
   "tutorial": {
     "skip": "Atla",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Bağlantıları kolayca kaydedin",
-        "description": "Bir URL yapıştırın veya tarayıcı ya da sosyal uygulamadan bağlantı paylaşın. Hızlı Kaydet açıksa hemen kaydedilir."
+        "title": "Bağlantıları her yerden kaydedin",
+        "description": "Bir URL yapıştırın veya başka bir uygulamadan bağlantı paylaşın. Başlık ve görsel mümkün olduğunda otomatik dolar."
+      },
+      "today": {
+        "title": "Bugün için Ana Sayfa, hepsi için Arşiv",
+        "description": "Bugünün bağlantıları Ana Sayfa'dadır. Kaydettiğiniz her şey Arşiv'de tarihe göre gruplanır."
       },
       "collections": {
-        "title": "İstediğiniz gibi düzenleyin",
-        "description": "Bir bağlantıyı bir veya birkaç koleksiyona kaydedin, kaydederken yeni koleksiyon oluşturun."
-      },
-      "find": {
-        "title": "Kaydedilenleri hızla bulun",
-        "description": "Ana Sayfa bugünün bağlantılarını, Arşiv hepsini gösterir. Tarihe göre veya hepsini birlikte, Liste, Izgara ya da Görsel görünümde gezin ve istediğiniz zaman arayın."
+        "title": "Koleksiyonlarla düzenleyin",
+        "description": "Bir bağlantıyı bir veya daha fazla koleksiyona koyun ve her birine ad, simge ve renk verin."
       },
       "share": {
-        "title": "Koleksiyonları birlikte kullanın",
-        "description": "Bir koleksiyonu başkalarıyla paylaşın. İzinler herkesin neler yapabileceğini belirler; bağlantılar onay gerektirebilir."
+        "title": "Paylaşın ve birlikte kullanın",
+        "description": "Bir koleksiyonu bağlantıyla paylaşın veya arkadaşlarınızı davet edin. Herkesin neler yapabileceğine siz karar verirsiniz."
       },
-      "lock": {
-        "title": "Hassas koleksiyonları kilitleyin",
-        "description": "Kilitli bir koleksiyon bağlantılarını gizler; kilitliyken açmak için parola gerekir."
+      "find": {
+        "title": "Kendi tarzınızda bulun ve görün",
+        "description": "Bağlantılarınızı arayın ve sıralayın; liste, ızgara ve görsel görünümleri arasında geçiş yapın."
+      },
+      "start": {
+        "title": "Başlamaya hazır mısınız?",
+        "description": "Bağlantılarınız ve koleksiyonlarınız hesabınıza aittir. Daha fazla ipucunu istediğiniz zaman Sayfam > Yardım bölümünde bulabilirsiniz."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Daha sonra",
     "action": "Güncelle",
     "openStoreFailed": "Mağaza açılamadı. Lütfen biraz sonra tekrar deneyin."
+  },
+  "hints": {
+    "savedLinkSwipe": "Hızlı işlemler için bir bağlantıyı yana kaydırın.",
+    "collectionLongPress": "Hızlı yönetim seçeneklerini görmek için bir koleksiyona uzun basın."
+  },
+  "guide": {
+    "title": "Yardım",
+    "replayTutorial": "Tanıtımı tekrar izle",
+    "sections": {
+      "save": {
+        "title": "Bağlantı kaydetme",
+        "summary": "Bağlantıları Juple'a hızla alın"
+      },
+      "homeArchive": {
+        "title": "Ana Sayfa ve Arşiv",
+        "summary": "Bugünün bağlantıları ve öncesi"
+      },
+      "viewing": {
+        "title": "Arama, sıralama ve görünümler",
+        "summary": "Bağlantıları bulun ve kendi tarzınızda görün"
+      },
+      "collections": {
+        "title": "Koleksiyonlarla düzenleme",
+        "summary": "Bağlantıları kendi yolunuzla gruplayın"
+      },
+      "sharing": {
+        "title": "Paylaşım ve ekip çalışması",
+        "summary": "Bir koleksiyonu paylaşın ve kimin ne yapabileceğine karar verin"
+      },
+      "protection": {
+        "title": "Kilitler ve şifreler",
+        "summary": "Hassas koleksiyonları koruyun"
+      },
+      "notifications": {
+        "title": "Bildirimler",
+        "summary": "Gelişmelerden haberdar olun"
+      },
+      "trash": {
+        "title": "Silme ve geri yükleme",
+        "summary": "Silinen bağlantıları geri getirin"
+      },
+      "account": {
+        "title": "Hesap ve ayarlar",
+        "summary": "Profil, dil ve daha fazlası"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Bağlantı yapıştırma veya paylaşma",
+        "body": "Ana Sayfa'nın üstündeki alana bir URL yapıştırın. Bağlantı içeren bir metin de olur: Juple bulduğu ilk bağlantıyı kullanır.\n\nAndroid'de bir tarayıcıdan veya başka bir uygulamadan doğrudan Juple'a bağlantı da paylaşabilirsiniz."
+      },
+      "quickSave": {
+        "title": "Hızlı kaydet",
+        "body": "Paylaşılan bağlantıları inceleme ekranı olmadan hemen kaydetmek için Sayfam'da Hızlı kaydet'i açın.\n\nKapalıyken Juple önce bağlantıyı gösterir; kaydetmeden önce başlığı düzenleyebilir, not ekleyebilir ve koleksiyonları seçebilirsiniz."
+      },
+      "review": {
+        "title": "Kaydetmeden önce",
+        "body": "Juple mümkün olduğunda başlığı ve önizleme görselini doldurur. Okuyamazsa başlığı kendiniz yazabilirsiniz.\n\nBir not ekleyin ve bir veya daha fazla koleksiyon seçin ya da orada yenisini oluşturun. Bir koleksiyon onay gerektiriyorsa bağlantınız sahibine istek olarak gönderilir."
+      },
+      "androidShortcuts": {
+        "title": "Kısayollar ve doğrudan paylaşım",
+        "body": "Bir koleksiyonu uzun basma menüsünden ana ekranınıza ekleyerek tek dokunuşla açın. Koleksiyonlarla düzenleme bölümündeki «Hızlı yönetim için koleksiyona uzun basın» konusuna bakın.\n\nPaylaşılan bağlantılar telefonunuzun paylaşım menüsünden doğrudan bir koleksiyona da gidebilir. Kilitli veya şifreli koleksiyonlar ile bağlantı ekleyemediğiniz koleksiyonlar orada sunulmaz.\n\nBir koleksiyon paylaşım hedefi olarak sunulduğunda uzun basma menüsünde «Paylaşım hedeflerinden kaldır» bulunur. Bu yalnızca onu paylaşım menüsünden çıkarır. Koleksiyon, bağlantıları ve oluşturduğunuz ana ekran kısayolları olduğu gibi kalır."
+      },
+      "home": {
+        "title": "Ana Sayfa",
+        "body": "Ana Sayfa bugün kaydettiğiniz bağlantıları gösterir. Ayrıntıları açmak için bir bağlantıya dokunun; nasıl görüneceğini değiştirmek için listenin üstündeki sıralama düğmelerini ve görünüm anahtarını kullanın."
+      },
+      "archive": {
+        "title": "Arşiv",
+        "body": "Arşiv, kaydettiğiniz tüm bağlantıları tarihe göre gruplanmış olarak içerir. Bir tarihi açıp kapatmak için dokunun; daha eski bir bağlantıyı bulmak için aramayı kullanın."
+      },
+      "swipe": {
+        "title": "Hızlı işlemler için kaydırın",
+        "body": "Paylaş ve sil gibi hızlı işlemleri görmek için Ana Sayfa veya Arşiv'de bir bağlantıyı yana kaydırın. Görünen işlemler bağlantıya göre değişir: örneğin kilitli bir koleksiyondaki bağlantı buradan paylaşılamaz."
+      },
+      "searchSort": {
+        "title": "Arama ve sıralama",
+        "body": "Arşiv'de ve her koleksiyonda bir arama kutusu vardır. Zamana göre (en yeni önce ile en eski önce arasında geçiş için tekrar dokunun) veya ada göre sıralayın.\n\nAna Sayfa bugünün bağlantıları içindir; bu yüzden sıralama yapılabilir ama arama yoktur."
+      },
+      "viewModes": {
+        "title": "Liste, ızgara ve görsel görünümleri",
+        "body": "Bağlantıları liste, ızgara veya fotoğrafları üç sütunda gösteren görsel görünümünde göstermek için görünüm düğmelerini kullanın. Seçiminiz Ana Sayfa, Arşiv ve Koleksiyonlar için ayrı ayrı hatırlanır."
+      },
+      "createCollection": {
+        "title": "Koleksiyon oluşturma",
+        "body": "Koleksiyonlar sekmesinde Yeni koleksiyon'a dokunun. Bir ad, simge ve renk seçin ya da kendi fotoğrafınızı kullanın. Bir bağlantı birden fazla koleksiyona ait olabilir.\n\nKoleksiyonları favori olarak işaretleyip üstte bir arada tutun."
+      },
+      "longPress": {
+        "title": "Hızlı yönetim için koleksiyona uzun basın",
+        "body": "Hızlı işlemleri görmek için bir koleksiyona uzun basın. Gördüğünüz menü koleksiyona ve rolünüze bağlıdır.\n\nFavori\nSık açtığınız koleksiyonları toplayın. Yalnızca sizin için geçerlidir.\n\nBildirimleri aç/kapat\nPaylaşılan bir koleksiyonun bildirimlerini alıp almayacağınızı seçin.\n\nDüzenle\nAdı, simgeyi, rengi veya fotoğrafı değiştirin. Yalnızca koleksiyonun sahibi yapabilir.\n\nKilit\nBir koleksiyondaki kendi kilidinizi ayarlayın veya kaldırın. Paylaşılan bağlantının erişim şifresinden farklıdır.\n\nSil / Ayrıl\nSahipler koleksiyonu siler, üyeler ayrılır. Bir koleksiyonu silmek içindeki bağlantıları silmez.\n\nEkran okuyucu kullanıyorsanız koleksiyona uzun basın veya erişilebilirlik menüsünde «Seçenekler»i seçin.",
+        "shortcut": "Sık kullandığınız bir koleksiyonu doğrudan ana ekranınızdan açın. Uzun basıp «Ana ekrana kısayol ekle»yi seçin; telefonunuzun ana ekranından o koleksiyona girebilirsiniz.\n\nKilitli bir koleksiyon kısayoldan açıldığında da şifre ister.\n\nİhtiyacınız kalmadığında kısayolu ana ekranınızdan kendiniz silin."
+      },
+      "manageLinks": {
+        "title": "Kopyalama, taşıma ve birleştirme",
+        "body": "Bir koleksiyonu açın ve bir bağlantının daha fazla menüsünden onu başka koleksiyonlara kopyalayın, taşıyın veya bu koleksiyondan çıkarın. Çıkarmak bağlantıyı silmez.\n\nYönetim menüsünden bir koleksiyonu başkasıyla birleştirebilirsiniz. Taşıma, silme veya birleştirmeden sonra çıkan mesajda Geri al'a dokunun."
+      },
+      "publicLink": {
+        "title": "Koleksiyonu bağlantıyla paylaşma",
+        "body": "Bir koleksiyonu açıp Paylaş'a dokunun. Herkese açık koleksiyon ayarlarında bağlantıya sahip herkesin uygulamada veya web sayfasında görebilmesi için açın. Ziyaretçilerin yapabileceklerini seçin: salt okunur, onaydan sonra ekleme veya doğrudan bağlantı ekleme.\n\nKapatırsanız koleksiyon özel kalır: bağlantıya sahip olanlar yalnızca adını görür ve katılma isteği gönderebilir. Paylaşımı istediğiniz zaman durdurabilirsiniz."
+      },
+      "invite": {
+        "title": "Arkadaşları veya kişileri ID ile davet etme",
+        "body": "Paylaş bölümünde arkadaş seçin veya birinin Juple ID'sini girin, yapabileceklerini seçin ve daveti gönderin. Kabul ettiğinde katılır. Arkadaşları Sayfam > Arkadaşlar'dan ekleyebilirsiniz."
+      },
+      "roles": {
+        "title": "Her izin neye izin verir",
+        "body": "Salt okunur: koleksiyonu görüntüleyebilir. Onayla eklenir: bağlantı önerebilir, sahibi onaylar. Bağlantı ekleyebilir: doğrudan bağlantı ekleyebilir. Sahip koleksiyonu, paylaşımı ve herkesin iznini yönetir.\n\nHerkese açık bağlantının ayarı, herkesin sahip olabileceği en düşük düzeydir. Davet ettiğiniz kişilere daha yüksek bir düzey verebilirsiniz."
+      },
+      "joinRequests": {
+        "title": "Katılma istekleri",
+        "body": "Bir koleksiyonun herkese açık ayarı kapalıyken bağlantısını açan biri katılmayı isteyebilir. Sahip isteği koleksiyonda görür ve onaylar (kişi salt okunur üye olarak eklenir) ya da reddeder. Kişi daha sonra yeniden isteyebilir.\n\nKatılma isteği gönderdikten sonra, sahibi yanıt verene kadar koleksiyon Koleksiyonlar sekmenizde «Onay bekliyor» olarak görünür."
+      },
+      "approvals": {
+        "title": "Bağlantı onay istekleri",
+        "body": "Bunlar katılma isteklerinden farklıdır. «Onayla eklenir» iznine sahip birinin bir koleksiyon için önerdiği bağlantılardır. Sahip bunları Alınan onay istekleri bölümünde bulur ve her birini onaylar ya da reddeder.\n\nBir bağlantı önerdiyseniz onu, iptal edebileceğiniz Gönderilen onay istekleri bölümünde bulabilirsiniz."
+      },
+      "collectionLock": {
+        "title": "Koleksiyonu kilitleme",
+        "body": "Sayfam > Koleksiyon kilidi'nde bir kilit şifresi belirleyin, ardından bir koleksiyonu uzun basma menüsünden kilitleyin. Kilitli koleksiyon, şifreyi girene kadar bağlantılarını Ana Sayfa ve Arşiv'de de gizler. Kilit sizin için geçerlidir, paylaştığınız kişiler için değil."
+      },
+      "accessPassword": {
+        "title": "Paylaşım için erişim şifresi",
+        "body": "Bir koleksiyonu paylaşırken ayrıca erişim şifresi belirleyebilirsiniz. Paylaşılan koleksiyonu açanların bunu girmesi gerekir. Kendi kilidinizden ayrıdır; Paylaş bölümünde görüntüleyebilir, değiştirebilir veya kaldırabilirsiniz."
+      },
+      "notificationCenter": {
+        "title": "Bildirimler",
+        "body": "Ana Sayfa'daki zil bildirimlerinizi okunmamış sayısıyla açar. İlgili yere gitmek için bir bildirime dokunun. Hepsini okundu işaretleyebilir veya tek tek silebilirsiniz.\n\nHer paylaşılan koleksiyon için bildirimleri uzun basma menüsünden açıp kapatın. Kapalıyken öğeler yine listede görünür, ancak uyarı almazsınız."
+      },
+      "deleteRestore": {
+        "title": "Silme ve geri yükleme",
+        "body": "Bir bağlantıyı kaydırarak veya ayrıntılarından silin. Silinen bağlantılar Sayfam'daki Son Silinenler'e gider; orada geri yükleyebilir, kalıcı olarak silebilir veya listeyi boşaltabilirsiniz. Kalıcı olarak silinen bağlantılar geri getirilemez.\n\nBir bağlantıyı koleksiyondan çıkarmak onu silmez."
+      },
+      "settings": {
+        "title": "Hesap ve ayarlar",
+        "body": "Sayfam'da profiliniz ve Juple ID, dil, Hızlı kaydet, Arkadaşlar, Koleksiyon kilidi, Son Silinenler ve hesap yönetimi yer alır. Destek için Müşteri Merkezi'ni kullanın.\n\nHesabı yönet bölümünde nasıl giriş yaptığınızı görebilir ve hesabınızı silebilirsiniz; hesap silmek hesabınızı ve verilerinizi kalıcı olarak siler."
+      }
+    }
   }
 }

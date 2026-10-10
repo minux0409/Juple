@@ -59,17 +59,18 @@ const next = async (renderer: ReactTestRenderer.ReactTestRenderer) => {
 };
 
 describe('TutorialScreen - content and navigation', () => {
-  it('is five pages at most, each with a title and a description in every locale', () => {
-    expect(TUTORIAL_PAGES.length).toBeLessThanOrEqual(5);
+  it('is six short pages (at most seven), each with a title and a description in every locale', () => {
+    expect(TUTORIAL_PAGES.map(page => page.id)).toEqual(['save', 'today', 'collections', 'share', 'find', 'start']);
+    expect(TUTORIAL_PAGES.length).toBeLessThanOrEqual(7);
     for (const page of TUTORIAL_PAGES) {
       expect(i18n.exists(`tutorial.pages.${page.id}.title`)).toBe(true);
       expect(i18n.exists(`tutorial.pages.${page.id}.description`)).toBe(true);
     }
   });
 
-  it('starts on 링크 저장 with 건너뛰기 and 다음; Next walks the pages in order up to 시작하기', async () => {
+  it('starts on 링크 저장 (v2 copy) with 건너뛰기 and 다음; Next walks the pages in order up to 시작하기', async () => {
     const renderer = await renderScreen();
-    expect(texts(renderer)).toContain('링크를 간편하게 저장하세요');
+    expect(texts(renderer)).toContain('링크는 어디서든 저장해요');
     expect(texts(renderer)).toContain('건너뛰기');
     expect(texts(renderer)).toContain('다음');
 
@@ -88,10 +89,10 @@ describe('TutorialScreen - content and navigation', () => {
   it('shows one progress announcement for the whole indicator, not one per dot', async () => {
     const renderer = await renderScreen();
     const progress = renderer.root.find(node => node.props.testID === 'tutorial-progress' && typeof node.type === 'string');
-    expect(progress.props.accessibilityLabel).toBe('1 / 5');
+    expect(progress.props.accessibilityLabel).toBe('1 / 6');
     expect(progress.props.accessible).toBe(true);
     await next(renderer);
-    expect(renderer.root.find(node => node.props.testID === 'tutorial-progress' && typeof node.type === 'string').props.accessibilityLabel).toBe('2 / 5');
+    expect(renderer.root.find(node => node.props.testID === 'tutorial-progress' && typeof node.type === 'string').props.accessibilityLabel).toBe('2 / 6');
     expect(renderer.root.find(node => node.props.testID === 'tutorial-progress' && typeof node.type === 'string').findAll(node => node.props.importantForAccessibility === 'no-hide-descendants')).not.toHaveLength(0);
   });
 
@@ -101,7 +102,7 @@ describe('TutorialScreen - content and navigation', () => {
     expect(panConfig.onMoveShouldSetPanResponder({}, { dx: 40, dy: 60 })).toBe(false);
 
     await act(async () => panConfig.onPanResponderRelease({}, { dx: -80, dy: 0 }));
-    expect(texts(renderer)).toContain(i18n.t('tutorial.pages.collections.title'));
+    expect(texts(renderer)).toContain(i18n.t('tutorial.pages.today.title'));
     await act(async () => panConfig.onPanResponderRelease({}, { dx: 80, dy: 0 }));
     expect(texts(renderer)).toContain(i18n.t('tutorial.pages.save.title'));
     await act(async () => panConfig.onPanResponderRelease({}, { dx: 80, dy: 0 }));

@@ -33,7 +33,10 @@ import { savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { useArchiveSearch } from '../items/useArchiveSearch';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
+import { HintBanner } from '../hints/HintBanner';
+import { useOneTimeHint } from '../hints/useOneTimeHint';
+import { getSavedLinkSwipeActions, hasSavedLinkSwipeActions } from '../items/savedLinkSwipeActions';
 import { DateSectionHeader, dateAccordionStyles } from '../components/DateAccordion';
 import {
   buildDateSectionRows,
@@ -274,6 +277,21 @@ export function DateHistoryScreen() {
   );
   const viewportFill = useContinuousViewportFill({ advance: advanceFlat, dataKey: flatFillKey, enabled: search.isFlat });
 
+  // The swipe hint (one completion key shared with Home): only while a swipeable row - List or Grid, never an Image tile -
+  // is among the rows on screen and its swipe really reveals an action.
+  const hasSwipeableRow = (search.isFlat ? flatRows : rows).some(row => {
+    if (row.kind === 'item' || row.kind === 'flatItem') {
+      return hasSavedLinkSwipeActions(row.item);
+    }
+    if (row.kind === 'gridRow' || row.kind === 'flatGridRow') {
+      return row.items.some(hasSavedLinkSwipeActions);
+    }
+    return false;
+  });
+  const swipeHint = useOneTimeHint('savedLinkSwipe', hasSwipeableRow);
+  const { markPerformed: markSwipePerformed } = swipeHint;
+  useEffect(() => subscribeRowOpened(markSwipePerformed), [markSwipePerformed]);
+
   const changeSort = (next: LinkSortOption) => {
     if (next === effectiveSort) {
       return;
@@ -293,7 +311,7 @@ export function DateHistoryScreen() {
             {...linkActions.menuProps(row.item)}
             onDelete={() => confirmDelete(row.item.id)}
             onPress={() => { itemCardOpen.open(row.item).catch(() => undefined); }}
-            onShare={row.item.isCollectionLocked ? undefined : () => runShare(row.item)}
+            onShare={getSavedLinkSwipeActions(row.item).share ? () => runShare(row.item) : undefined}
           >
             <SavedLinkRow dateDisplayMode={row.dateDisplayMode} isActionInFlight={actionInFlightItemId === row.item.id} item={row.item} preferEffectiveThumbnail />
           </SwipeableItemRow>
@@ -311,7 +329,7 @@ export function DateHistoryScreen() {
                 {...linkActions.menuProps(item)}
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-                onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
+                onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
                 preferEffectiveThumbnail
               />
             ))}
@@ -356,7 +374,7 @@ export function DateHistoryScreen() {
             {...linkActions.menuProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-            onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
+            onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
           >
             {/* Same effective-thumbnail rule as Home (see DailyInboxScreen). */}
             <SavedLinkRow
@@ -383,7 +401,7 @@ export function DateHistoryScreen() {
                 {...linkActions.menuProps(item)}
                 onDelete={() => confirmDelete(item.id)}
                 onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-                onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
+                onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
                 preferEffectiveThumbnail
               />
             ))}
@@ -440,6 +458,7 @@ export function DateHistoryScreen() {
             <View style={styles.titleRow}>
               <ScreenTitle icon={screenIcons.archive} textStyle={styles.title} title={t('history.title')} />
             </View>
+            {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="history-swipe-hint" /> : null}
             {/* [시간순 | 이름순] how links are ordered (start), [List | Grid | Image] how each is shown (end), then the search. */}
             <View style={styles.sortRow}>
               <LinkSortChips

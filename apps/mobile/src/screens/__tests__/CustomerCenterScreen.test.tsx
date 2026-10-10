@@ -2,7 +2,6 @@ import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Linking, Modal, Text } from 'react-native';
 import i18n from '../../i18n';
 import { CustomerCenterScreen } from '../CustomerCenterScreen';
-import { FAQ_TOPICS } from '../../support/faqTopics';
 
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }) }));
@@ -41,65 +40,20 @@ const exists = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =
 const texts = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Text).map(node => String(node.props.children));
 
 describe('CustomerCenterScreen', () => {
-  it('is one compact page: tutorial replay, FAQ, 문의하기 and the app information', async () => {
+  it('is one compact page for getting in touch: 문의하기 and the app information - the guide lives in 도움말, not here', async () => {
     const renderer = await renderScreen();
 
     expect(i18n.t('customerCenter.title')).toBe('고객센터');
     expect(texts(renderer)).toEqual(expect.arrayContaining([
-      i18n.t('customerCenter.replayTutorial'),
-      i18n.t('customerCenter.faqHeading'),
       i18n.t('customerCenter.inquiryHeading'),
       i18n.t('inquiry.title'),
       i18n.t('customerCenter.appInfoHeading'),
       'Juple',
     ]));
-    expect(FAQ_TOPICS).toHaveLength(6);
-    expect(FAQ_TOPICS.every(topic => exists(renderer, `faq-${topic}`))).toBe(true);
-  });
-
-  it('opens the tutorial in replay mode', async () => {
-    const renderer = await renderScreen();
-    await act(async () => {
-      byId(renderer, 'customer-center-tutorial').props.onPress();
-    });
-    expect(mockNavigate).toHaveBeenCalledWith('Tutorial', { mode: 'replay' });
-  });
-
-  describe('FAQ', () => {
-    it('expands inline, one at a time, and collapses again - exposing the expanded state', async () => {
-      const renderer = await renderScreen();
-      const state = (topic: string) => byId(renderer, `faq-${topic}`).props.accessibilityState;
-
-      expect(FAQ_TOPICS.every(topic => state(topic).expanded === false)).toBe(true);
-      expect(exists(renderer, 'faq-saveLinks-answer')).toBe(false);
-
-      await act(async () => {
-        byId(renderer, 'faq-saveLinks').props.onPress();
-      });
-      expect(state('saveLinks')).toEqual({ expanded: true });
-      expect(texts(renderer)).toContain(i18n.t('customerCenter.faq.saveLinks.answer'));
-
-      await act(async () => {
-        byId(renderer, 'faq-locks').props.onPress();
-      });
-      expect(state('locks')).toEqual({ expanded: true });
-      expect(state('saveLinks')).toEqual({ expanded: false });
-      expect(exists(renderer, 'faq-saveLinks-answer')).toBe(false);
-
-      await act(async () => {
-        byId(renderer, 'faq-locks').props.onPress();
-      });
-      expect(state('locks')).toEqual({ expanded: false });
-      // Inline, never a modal.
-      expect(renderer.root.findAllByType(Modal).filter(modal => modal.props.visible)).toHaveLength(0);
-    });
-
-    it('has a question and an answer for every topic', () => {
-      for (const topic of FAQ_TOPICS) {
-        expect(i18n.exists(`customerCenter.faq.${topic}.question`)).toBe(true);
-        expect(i18n.exists(`customerCenter.faq.${topic}.answer`)).toBe(true);
-      }
-    });
+    // The tutorial replay and the FAQ moved into the Help Guide; nothing of them remains here.
+    expect(exists(renderer, 'customer-center-tutorial')).toBe(false);
+    expect(i18n.exists('customerCenter.faqHeading')).toBe(false);
+    expect(i18n.exists('customerCenter.replayTutorial')).toBe(false);
   });
 
   describe('문의하기', () => {
@@ -177,7 +131,7 @@ describe('CustomerCenterScreen without a network', () => {
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
     try {
       const renderer = await renderScreen();
-      expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('customerCenter.faqHeading'), i18n.t('inquiry.title'), 'Juple']));
+      expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('inquiry.title'), 'Juple']));
       expect(exists(renderer, 'customer-center-version')).toBe(true);
       expect(fetchSpy).not.toHaveBeenCalled();
       act(() => renderer.unmount());

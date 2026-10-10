@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Vui lòng xem lại liên kết đã chia sẻ.",
     "shareReviewOther": "Vui lòng xem lại nội dung đã chia sẻ.",
     "cancelShare": "Bỏ qua nội dung chia sẻ",
-    "deleteConfirmTitle": "Xóa mục",
-    "deleteConfirmMessage": "Xóa mục này? Không thể hoàn tác sau khi xóa.",
+    "deleteConfirmTitle": "Xóa liên kết này?",
+    "deleteConfirmMessage": "Bạn có thể khôi phục liên kết đã xóa trong Đã xóa gần đây.",
     "errorBadRequest": "Vui lòng nhập địa chỉ http hoặc https hợp lệ.",
     "errorForbidden": "Không thể xác nhận quyền thực hiện thao tác này.",
     "errorSaveFallback": "Không thể lưu liên kết.",
@@ -87,8 +87,8 @@
     "yesterday": "Hôm qua",
     "thisWeek": "Tuần này",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Xóa mục",
-    "deleteConfirmMessage": "Xóa mục này? Không thể hoàn tác sau khi xóa.",
+    "deleteConfirmTitle": "Xóa liên kết này?",
+    "deleteConfirmMessage": "Bạn có thể khôi phục liên kết đã xóa trong Đã xóa gần đây.",
     "errorDeleteFallback": "Không thể xóa mục này.",
     "searchMinHint": "Nhập ít nhất 2 ký tự."
   },
@@ -492,8 +492,8 @@
     "saved": "Đã lưu.",
     "deletePhotoConfirmTitle": "Xóa ảnh này?",
     "deletePhotoConfirmMessage": "Ảnh đã xóa không thể khôi phục.",
-    "deleteItemConfirmTitle": "Xóa mục này?",
-    "deleteItemConfirmMessage": "Mục đã xóa không thể khôi phục.",
+    "deleteItemConfirmTitle": "Xóa liên kết này?",
+    "deleteItemConfirmMessage": "Bạn có thể khôi phục liên kết đã xóa trong Đã xóa gần đây.",
     "unsavedChangesTitle": "Thay đổi chưa được lưu",
     "unsavedChangesMessage": "Nếu rời khỏi mà không lưu, các thay đổi của bạn sẽ bị mất.",
     "continueEditing": "Tiếp tục chỉnh sửa",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Trung tâm hỗ trợ",
-    "replayTutorial": "Xem lại hướng dẫn",
-    "faqHeading": "Câu hỏi thường gặp",
     "inquiryHeading": "Liên hệ",
     "serviceInfoHeading": "Thông tin dịch vụ",
     "terms": "Điều khoản dịch vụ",
     "privacy": "Chính sách quyền riêng tư",
     "appInfoHeading": "Thông tin ứng dụng",
     "version": "Phiên bản {{version}} (bản dựng {{build}})",
-    "openLinkFailed": "Không thể mở liên kết. Vui lòng thử lại sau.",
-    "faq": {
-      "saveLinks": {
-        "question": "Làm sao để lưu một liên kết?",
-        "answer": "Dán URL vào Juple, hoặc chia sẻ liên kết tới Juple từ ứng dụng khác như trình duyệt hay mạng xã hội. Khi bật Lưu nhanh, liên kết được lưu ngay; khi tắt, bạn chọn bộ sưu tập và thêm ghi chú trước khi lưu."
-      },
-      "collections": {
-        "question": "Dùng bộ sưu tập như thế nào?",
-        "answer": "Bộ sưu tập giúp bạn sắp xếp liên kết theo cách riêng. Một liên kết có thể thuộc nhiều bộ sưu tập, và bạn có thể tạo bộ sưu tập mới khi lưu."
-      },
-      "archive": {
-        "question": "Tìm liên kết đã lưu ở đâu?",
-        "answer": "Trang chủ hiển thị liên kết lưu hôm nay, còn Kho lưu trữ chứa mọi thứ bạn đã lưu. Xem theo ngày hoặc tất cả, chuyển giữa dạng danh sách, lưới và hình ảnh, và tìm kiếm."
-      },
-      "sharedCollections": {
-        "question": "Bộ sưu tập chia sẻ hoạt động ra sao?",
-        "answer": "Bạn có thể chia sẻ bộ sưu tập với người khác. Việc mỗi người tham gia làm được phụ thuộc vào quyền bạn cấp, và một số quyền có thể cần phê duyệt trước khi thêm liên kết."
-      },
-      "locks": {
-        "question": "Bộ sưu tập bị khóa hoạt động ra sao?",
-        "answer": "Nội dung bộ sưu tập bị khóa được ẩn cho đến khi bạn mở khóa. Liên kết của nó hiển thị bị che ở Trang chủ và Kho lưu trữ, và mỗi lần mở khi còn khóa đều cần nhập mật khẩu."
-      },
-      "trash": {
-        "question": "Liên kết đã xóa sẽ ra sao?",
-        "answer": "Liên kết đã xóa chuyển vào mục Đã xóa gần đây trong Trang của tôi. Tại đó bạn có thể khôi phục hoặc xóa vĩnh viễn; liên kết đã xóa vĩnh viễn không thể lấy lại."
-      }
-    }
+    "openLinkFailed": "Không thể mở liên kết. Vui lòng thử lại sau."
   },
   "tutorial": {
     "skip": "Bỏ qua",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Lưu liên kết dễ dàng",
-        "description": "Dán URL hoặc chia sẻ liên kết từ trình duyệt hay mạng xã hội. Bật Lưu nhanh thì liên kết được lưu ngay."
+        "title": "Lưu liên kết từ mọi nơi",
+        "description": "Dán URL hoặc chia sẻ liên kết từ ứng dụng khác. Tiêu đề và hình ảnh sẽ tự điền khi có thể."
+      },
+      "today": {
+        "title": "Trang chủ cho hôm nay, Kho lưu trữ cho tất cả",
+        "description": "Liên kết hôm nay nằm ở Trang chủ. Mọi thứ bạn đã lưu nằm trong Kho lưu trữ, nhóm theo ngày."
       },
       "collections": {
-        "title": "Sắp xếp theo cách của bạn",
-        "description": "Lưu liên kết vào một hoặc nhiều bộ sưu tập, và tạo bộ sưu tập mới ngay khi lưu."
-      },
-      "find": {
-        "title": "Tìm nhanh liên kết đã lưu",
-        "description": "Trang chủ hiển thị liên kết hôm nay, Kho lưu trữ có tất cả. Xem theo ngày hoặc tất cả, dạng danh sách, lưới hay hình ảnh, và tìm kiếm bất cứ lúc nào."
+        "title": "Sắp xếp bằng Bộ sưu tập",
+        "description": "Đưa liên kết vào một hoặc nhiều bộ sưu tập, và đặt tên, biểu tượng, màu cho từng bộ sưu tập."
       },
       "share": {
-        "title": "Cùng dùng bộ sưu tập",
-        "description": "Chia sẻ bộ sưu tập với người khác. Quyền quyết định mỗi người làm được gì, và liên kết có thể cần phê duyệt."
+        "title": "Chia sẻ và cùng sử dụng",
+        "description": "Chia sẻ bộ sưu tập bằng liên kết hoặc mời bạn bè. Bạn quyết định mỗi người được làm gì."
       },
-      "lock": {
-        "title": "Khóa bộ sưu tập nhạy cảm",
-        "description": "Bộ sưu tập bị khóa sẽ ẩn các liên kết, và cần mật khẩu để mở khi còn khóa."
+      "find": {
+        "title": "Tìm và xem theo cách của bạn",
+        "description": "Tìm kiếm và sắp xếp liên kết, rồi chuyển giữa dạng danh sách, lưới và hình ảnh."
+      },
+      "start": {
+        "title": "Sẵn sàng bắt đầu?",
+        "description": "Liên kết và bộ sưu tập thuộc về tài khoản của bạn. Xem thêm mẹo bất cứ lúc nào tại Trang của tôi > Trợ giúp."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Để sau",
     "action": "Cập nhật",
     "openStoreFailed": "Không thể mở cửa hàng ứng dụng. Vui lòng thử lại sau."
+  },
+  "hints": {
+    "savedLinkSwipe": "Vuốt liên kết sang bên để dùng thao tác nhanh.",
+    "collectionLongPress": "Nhấn giữ một bộ sưu tập để xem các tùy chọn quản lý nhanh."
+  },
+  "guide": {
+    "title": "Trợ giúp",
+    "replayTutorial": "Xem lại phần giới thiệu",
+    "sections": {
+      "save": {
+        "title": "Lưu liên kết",
+        "summary": "Đưa liên kết vào Juple nhanh chóng"
+      },
+      "homeArchive": {
+        "title": "Trang chủ và Kho lưu trữ",
+        "summary": "Liên kết hôm nay và mọi thứ trước đó"
+      },
+      "viewing": {
+        "title": "Tìm kiếm, sắp xếp và kiểu xem",
+        "summary": "Tìm liên kết và xem theo cách của bạn"
+      },
+      "collections": {
+        "title": "Sắp xếp bằng bộ sưu tập",
+        "summary": "Nhóm liên kết theo cách riêng của bạn"
+      },
+      "sharing": {
+        "title": "Chia sẻ và làm việc nhóm",
+        "summary": "Chia sẻ bộ sưu tập và quyết định ai được làm gì"
+      },
+      "protection": {
+        "title": "Khóa và mật khẩu",
+        "summary": "Bảo vệ các bộ sưu tập nhạy cảm"
+      },
+      "notifications": {
+        "title": "Thông báo",
+        "summary": "Luôn cập nhật"
+      },
+      "trash": {
+        "title": "Xóa và khôi phục",
+        "summary": "Lấy lại liên kết đã xóa"
+      },
+      "account": {
+        "title": "Tài khoản và cài đặt",
+        "summary": "Hồ sơ, ngôn ngữ và hơn thế nữa"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Dán hoặc chia sẻ liên kết",
+        "body": "Dán URL vào ô ở đầu Trang chủ. Đoạn văn bản có chứa liên kết cũng được: Juple dùng liên kết đầu tiên tìm thấy.\n\nTrên Android, bạn cũng có thể chia sẻ liên kết từ trình duyệt hoặc ứng dụng khác thẳng vào Juple."
+      },
+      "quickSave": {
+        "title": "Lưu nhanh",
+        "body": "Bật Lưu nhanh trong Trang của tôi để lưu ngay các liên kết được chia sẻ, không qua màn hình xem lại.\n\nKhi tắt, Juple hiện liên kết trước để bạn sửa tiêu đề, thêm ghi chú và chọn bộ sưu tập rồi mới lưu."
+      },
+      "review": {
+        "title": "Trước khi lưu",
+        "body": "Juple tự điền tiêu đề và ảnh xem trước khi có thể. Nếu không đọc được, bạn có thể tự nhập tiêu đề.\n\nThêm ghi chú và chọn một hoặc nhiều bộ sưu tập, hoặc tạo mới ngay tại chỗ. Nếu bộ sưu tập cần phê duyệt, liên kết của bạn được gửi cho chủ sở hữu dưới dạng yêu cầu."
+      },
+      "androidShortcuts": {
+        "title": "Lối tắt và chia sẻ trực tiếp",
+        "body": "Thêm bộ sưu tập vào màn hình chính từ menu nhấn giữ để mở bằng một chạm. Xem “Nhấn giữ bộ sưu tập để quản lý nhanh” trong Sắp xếp bằng bộ sưu tập.\n\nLiên kết được chia sẻ cũng có thể đi thẳng vào một bộ sưu tập từ bảng chia sẻ của điện thoại. Bộ sưu tập bị khóa hoặc có mật khẩu, hay bộ sưu tập bạn không thể thêm liên kết, sẽ không xuất hiện ở đó.\n\nKhi một bộ sưu tập xuất hiện làm đích chia sẻ, menu nhấn giữ của nó có “Xóa khỏi đích chia sẻ”. Việc này chỉ bỏ nó khỏi bảng chia sẻ. Bộ sưu tập, các liên kết của nó và lối tắt màn hình chính bạn đã tạo vẫn được giữ nguyên."
+      },
+      "home": {
+        "title": "Trang chủ",
+        "body": "Trang chủ hiển thị các liên kết bạn đã lưu hôm nay. Chạm vào một liên kết để mở chi tiết, và dùng nút sắp xếp cùng nút chuyển kiểu xem phía trên danh sách để đổi cách hiển thị."
+      },
+      "archive": {
+        "title": "Kho lưu trữ",
+        "body": "Kho lưu trữ chứa mọi liên kết bạn đã lưu, nhóm theo ngày. Chạm vào một ngày để mở hoặc đóng, và dùng tìm kiếm để tìm liên kết cũ hơn."
+      },
+      "swipe": {
+        "title": "Vuốt để thao tác nhanh",
+        "body": "Vuốt một liên kết sang bên trong Trang chủ hoặc Kho lưu trữ để hiện các thao tác nhanh như chia sẻ và xóa. Thao tác hiện ra tùy theo liên kết: ví dụ, liên kết trong bộ sưu tập bị khóa không thể chia sẻ từ đây."
+      },
+      "searchSort": {
+        "title": "Tìm kiếm và sắp xếp",
+        "body": "Kho lưu trữ và từng bộ sưu tập đều có ô tìm kiếm. Sắp xếp theo thời gian (chạm lại để chuyển giữa mới nhất trước và cũ nhất trước) hoặc theo tên.\n\nTrang chủ dành cho liên kết hôm nay nên có sắp xếp nhưng không có tìm kiếm."
+      },
+      "viewModes": {
+        "title": "Kiểu xem danh sách, lưới và hình ảnh",
+        "body": "Dùng các nút kiểu xem để hiển thị liên kết dạng danh sách, lưới hoặc hình ảnh, kiểu này hiện ảnh thành ba cột. Lựa chọn của bạn được nhớ riêng cho Trang chủ, Kho lưu trữ và Bộ sưu tập."
+      },
+      "createCollection": {
+        "title": "Tạo bộ sưu tập",
+        "body": "Trong thẻ Bộ sưu tập, chạm Bộ sưu tập mới. Chọn tên, biểu tượng và màu, hoặc dùng ảnh của riêng bạn. Một liên kết có thể thuộc nhiều bộ sưu tập.\n\nĐánh dấu yêu thích cho các bộ sưu tập để giữ chúng cùng nhau ở trên cùng."
+      },
+      "longPress": {
+        "title": "Nhấn giữ bộ sưu tập để quản lý nhanh",
+        "body": "Nhấn giữ một bộ sưu tập để xem các thao tác nhanh. Menu bạn thấy phụ thuộc vào bộ sưu tập và vai trò của bạn.\n\nYêu thích\nGom các bộ sưu tập bạn hay mở. Chỉ áp dụng cho bạn.\n\nBật/tắt thông báo\nChọn có nhận thông báo từ bộ sưu tập chia sẻ hay không.\n\nChỉnh sửa\nĐổi tên, biểu tượng, màu hoặc ảnh. Chỉ chủ sở hữu bộ sưu tập mới làm được.\n\nKhóa\nĐặt hoặc gỡ khóa của bạn cho bộ sưu tập. Khác với mật khẩu truy cập của liên kết chia sẻ.\n\nXóa / Rời khỏi\nChủ sở hữu xóa bộ sưu tập, thành viên rời khỏi bộ sưu tập. Xóa bộ sưu tập không xóa các liên kết bên trong.\n\nVới trình đọc màn hình, hãy nhấn giữ bộ sưu tập hoặc chọn “Tùy chọn” trong menu trợ năng.",
+        "shortcut": "Mở nhanh bộ sưu tập hay dùng ngay từ màn hình chính. Nhấn giữ nó và chọn “Thêm lối tắt vào màn hình chính” để vào thẳng bộ sưu tập đó từ màn hình chính của điện thoại.\n\nBộ sưu tập bị khóa vẫn yêu cầu mật khẩu khi mở từ lối tắt.\n\nHãy tự xóa lối tắt khỏi màn hình chính khi không cần nữa."
+      },
+      "manageLinks": {
+        "title": "Sao chép, di chuyển và hợp nhất",
+        "body": "Mở một bộ sưu tập và dùng menu thêm của liên kết để sao chép sang bộ sưu tập khác, di chuyển, hoặc gỡ khỏi bộ sưu tập này. Gỡ ra không xóa liên kết.\n\nBạn cũng có thể hợp nhất một bộ sưu tập vào bộ sưu tập khác từ menu quản lý. Sau khi di chuyển, xóa hoặc hợp nhất, hãy chạm Hoàn tác trong thông báo hiện ra."
+      },
+      "publicLink": {
+        "title": "Chia sẻ bộ sưu tập bằng liên kết",
+        "body": "Mở bộ sưu tập và chạm Chia sẻ. Trong Cài đặt bộ sưu tập công khai, bật lên để bất kỳ ai có liên kết đều xem được, trong ứng dụng hoặc trên trang web. Chọn khách được làm gì: chỉ đọc, thêm sau khi phê duyệt, hoặc thêm liên kết trực tiếp.\n\nTắt đi để giữ bộ sưu tập riêng tư: người có liên kết chỉ thấy tên và có thể yêu cầu tham gia. Bạn có thể ngừng chia sẻ bất cứ lúc nào."
+      },
+      "invite": {
+        "title": "Mời bạn bè hoặc mời theo ID",
+        "body": "Trong Chia sẻ, chọn bạn bè hoặc nhập Juple ID của ai đó, chọn họ được làm gì rồi gửi lời mời. Họ tham gia khi chấp nhận. Bạn có thể thêm bạn bè trong Trang của tôi > Bạn bè."
+      },
+      "roles": {
+        "title": "Mỗi quyền cho phép những gì",
+        "body": "Chỉ đọc: xem được bộ sưu tập. Cần phê duyệt: có thể đề xuất liên kết, và chủ sở hữu phê duyệt. Được thêm liên kết: thêm liên kết trực tiếp. Chủ sở hữu quản lý bộ sưu tập, việc chia sẻ và quyền của mọi người.\n\nCài đặt của liên kết công khai là mức thấp nhất mà ai cũng có. Bạn có thể cấp mức cao hơn cho người được mời."
+      },
+      "joinRequests": {
+        "title": "Yêu cầu tham gia",
+        "body": "Khi cài đặt công khai của bộ sưu tập đang tắt, người mở liên kết có thể yêu cầu tham gia. Chủ sở hữu thấy yêu cầu trong bộ sưu tập và phê duyệt, khi đó người đó trở thành thành viên chỉ đọc, hoặc từ chối. Họ có thể yêu cầu lại sau.\n\nSau khi bạn yêu cầu tham gia, bộ sưu tập hiện là “Đang chờ phê duyệt” trong thẻ Bộ sưu tập cho đến khi chủ sở hữu trả lời."
+      },
+      "approvals": {
+        "title": "Yêu cầu phê duyệt liên kết",
+        "body": "Khác với yêu cầu tham gia. Đây là những liên kết mà người có quyền “Cần phê duyệt” đề xuất cho bộ sưu tập. Chủ sở hữu thấy chúng trong Yêu cầu duyệt đã nhận và phê duyệt hoặc từ chối từng cái.\n\nNếu bạn đã đề xuất một liên kết, hãy tìm trong Yêu cầu duyệt đã gửi, nơi bạn có thể hủy nó."
+      },
+      "collectionLock": {
+        "title": "Khóa bộ sưu tập",
+        "body": "Đặt mật khẩu khóa trong Trang của tôi > Khóa bộ sưu tập, rồi khóa bộ sưu tập từ menu nhấn giữ. Bộ sưu tập bị khóa ẩn các liên kết của nó, cả ở Trang chủ và Kho lưu trữ, cho đến khi bạn nhập mật khẩu. Khóa chỉ áp dụng cho bạn, không áp dụng cho những người bạn chia sẻ."
+      },
+      "accessPassword": {
+        "title": "Mật khẩu truy cập khi chia sẻ",
+        "body": "Khi chia sẻ bộ sưu tập, bạn cũng có thể đặt mật khẩu truy cập. Người mở bộ sưu tập được chia sẻ phải nhập mật khẩu này. Nó tách biệt với khóa của riêng bạn, và bạn có thể xem, đổi hoặc gỡ trong Chia sẻ."
+      },
+      "notificationCenter": {
+        "title": "Thông báo",
+        "body": "Chuông ở Trang chủ mở thông báo của bạn, kèm số chưa đọc. Chạm vào một thông báo để đến nội dung liên quan. Bạn có thể đánh dấu tất cả đã đọc hoặc xóa từng cái.\n\nBật hoặc tắt thông báo cho từng bộ sưu tập chia sẻ từ menu nhấn giữ. Khi tắt, các mục vẫn hiện trong danh sách nhưng bạn sẽ không bị nhắc."
+      },
+      "deleteRestore": {
+        "title": "Xóa và khôi phục",
+        "body": "Xóa liên kết bằng cách vuốt hoặc từ phần chi tiết. Liên kết đã xóa chuyển đến Đã xóa gần đây trong Trang của tôi, nơi bạn có thể khôi phục, xóa vĩnh viễn hoặc dọn sạch danh sách. Liên kết đã xóa vĩnh viễn không thể lấy lại.\n\nGỡ một liên kết khỏi bộ sưu tập không xóa nó."
+      },
+      "settings": {
+        "title": "Tài khoản và cài đặt",
+        "body": "Trang của tôi có hồ sơ và Juple ID, ngôn ngữ, Lưu nhanh, Bạn bè, Khóa bộ sưu tập, Đã xóa gần đây và quản lý tài khoản. Liên hệ hỗ trợ từ Trung tâm hỗ trợ.\n\nTrong Quản lý tài khoản, bạn xem cách đăng nhập và xóa tài khoản; xóa tài khoản sẽ xóa vĩnh viễn tài khoản và dữ liệu của bạn."
+      }
+    }
   }
 }

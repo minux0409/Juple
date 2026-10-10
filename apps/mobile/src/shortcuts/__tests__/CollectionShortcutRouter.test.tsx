@@ -98,7 +98,7 @@ describe('CollectionShortcutRouter', () => {
     expect(request).not.toHaveBeenCalled();
     expect(navigationRef.navigate).not.toHaveBeenCalled();
     expect(message(renderer)).toBe(i18n.t('collections.shortcutOpenUnavailable'));
-    expect(i18n.t('collections.shortcutOpenUnavailable')).toContain('아이콘');
+    expect(i18n.t('collections.shortcutOpenUnavailable')).toBe('이 컬렉션은 더 이상 열 수 없어요. 삭제되었거나 접근 권한이 없어서 바로가기를 제거했어요.');
   });
 
   it('shows the notice a failed Direct Share left (Collection no longer available) once', async () => {

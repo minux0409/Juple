@@ -38,7 +38,9 @@ export function MyPageScreen() {
   const authenticatedRequest = useAuthenticatedApi();
 
   const [isSignOutDialogVisible, setIsSignOutDialogVisible] = useState(false);
-  const [isQuickSaveEnabled, setIsQuickSaveEnabled] = useState(true);
+  // OFF until the stored choice has been read - never a fake ON that then flips; the switch waits (disabled) for it.
+  const [isQuickSaveEnabled, setIsQuickSaveEnabled] = useState(false);
+  const [isQuickSaveLoaded, setIsQuickSaveLoaded] = useState(false);
   const [isTogglingQuickSave, setIsTogglingQuickSave] = useState(false);
 
   // The public Juple ID (never the internal id, never an email), the optional nickname people see
@@ -52,6 +54,7 @@ export function MyPageScreen() {
       loadQuickSaveOnSharePreference().then(enabled => {
         if (isMounted) {
           setIsQuickSaveEnabled(enabled);
+          setIsQuickSaveLoaded(true);
         }
       });
       getMyProfile(authenticatedRequest)
@@ -173,7 +176,7 @@ export function MyPageScreen() {
               </Text>
             </View>
             <Switch
-              disabled={isTogglingQuickSave}
+              disabled={isTogglingQuickSave || !isQuickSaveLoaded}
               onValueChange={onToggleQuickSave}
               value={isQuickSaveEnabled}
             />
@@ -229,6 +232,18 @@ export function MyPageScreen() {
               <screenIcons.account color={colors.textSecondary} size={18} />
             </View>
             <Text style={styles.settingsRowLabel}>{t('account.title')}</Text>
+          </Pressable>
+          <View style={styles.settingsRowDivider} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('HelpGuide')}
+            style={styles.settingsRow}
+            testID="my-help-guide"
+          >
+            <View style={styles.settingsRowIcon}>
+              <screenIcons.help color={colors.textSecondary} size={18} />
+            </View>
+            <Text style={styles.settingsRowLabel}>{t('guide.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
           <Pressable

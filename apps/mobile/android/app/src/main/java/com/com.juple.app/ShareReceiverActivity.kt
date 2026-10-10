@@ -11,7 +11,7 @@ import android.util.Log
  * Intent.EXTRA_SHORTCUT_ID to the intent in that case. Never displays any UI itself: it captures
  * the share into PendingShareQueue (resolving EXTRA_SHORTCUT_ID to a category id first, so it is
  * persisted with the pending share from the start), then branches on the "공유 즉시 저장"
- * preference (QuickSaveOnSharePreference, default true/ON):
+ * preference (QuickSaveOnSharePreference, default false/OFF):
  * - ON: hands off to IncomingShareSaveScheduler, which schedules the durable retry fallback and
  *   makes a best-effort immediate save via IncomingShareHeadlessService - no UI opens over the
  *   source app. A shortcut-resolved preselectedCollectionId is only a CLAIM here: the headless task

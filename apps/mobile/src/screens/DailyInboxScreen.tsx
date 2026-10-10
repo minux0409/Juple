@@ -38,7 +38,10 @@ import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
-import { closeOpenRow } from '../components/swipeableRowCoordinator';
+import { closeOpenRow, subscribeRowOpened } from '../components/swipeableRowCoordinator';
+import { HintBanner } from '../hints/HintBanner';
+import { useOneTimeHint } from '../hints/useOneTimeHint';
+import { getSavedLinkSwipeActions, hasSavedLinkSwipeActions } from '../items/savedLinkSwipeActions';
 import { SearchIcon } from '../icons/SearchIcon';
 import { LinkIcon } from '../icons/LinkIcon';
 import {
@@ -469,6 +472,11 @@ export function DailyInboxScreen() {
     }
     return effectiveSort === 'oldest' ? [...items].reverse() : items;
   }, [effectiveSort, isAssemblingOrder, items]);
+  // The swipe hint: only where a swipeable row (List / Grid) is on screen and its swipe really reveals an action. One
+  // completion key is shared with the Archive, and swiping any row is the taught gesture.
+  const swipeHint = useOneTimeHint('savedLinkSwipe', viewMode !== 'image' && displayedItems.some(hasSavedLinkSwipeActions));
+  const { markPerformed: markSwipePerformed } = swipeHint;
+  useEffect(() => subscribeRowOpened(markSwipePerformed), [markSwipePerformed]);
   const pressDateSort = () => setSortOption(nextDateSort(effectiveSort));
   const pressNameSort = () => {
     if (!isSortTooLarge) {
@@ -582,6 +590,7 @@ export function DailyInboxScreen() {
                 <Text style={styles.recentCount}>{t('inbox.recentSavedCount', { count: todayCount ?? items.length })}</Text>
               </View>
             </View>
+            {swipeHint.isVisible ? <HintBanner message={t('hints.savedLinkSwipe')} onDismiss={swipeHint.dismiss} testID="home-swipe-hint" /> : null}
             {/* [시간순 이름순] on the start side, the List/Grid switch pinned to the end edge. */}
             <View style={styles.sortRow}>
               <LinkSortChips
@@ -616,7 +625,7 @@ export function DailyInboxScreen() {
             {...linkActions.menuProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-            onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
+            onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
             preferEffectiveThumbnail
           />
         ) : (
@@ -626,7 +635,7 @@ export function DailyInboxScreen() {
             {...linkActions.menuProps(item)}
             onDelete={() => confirmDelete(item.id)}
             onPress={() => { itemCardOpen.open(item).catch(() => undefined); }}
-            onShare={item.isCollectionLocked ? undefined : () => runShare(item)}
+            onShare={getSavedLinkSwipeActions(item).share ? () => runShare(item) : undefined}
           >
             <SavedLinkRow
               isActionInFlight={actionInFlightItemId === item.id}

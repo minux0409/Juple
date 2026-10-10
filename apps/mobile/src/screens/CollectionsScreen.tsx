@@ -32,6 +32,8 @@ import {
 import { getReceivedCollectionInvitations, type ReceivedCollectionInvitation } from '../collections/api/collaborationApi';
 import { isCollaborative, isCollectionLocked } from '../collections/collectionAccess';
 import { useCollectionLongPressMenu } from '../collections/useCollectionLongPressMenu';
+import { HintBanner } from '../hints/HintBanner';
+import { useOneTimeHint } from '../hints/useOneTimeHint';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
 import { ApprovalSubmissionSheet } from '../collections/ApprovalSubmissionSheet';
 import { ReceivedInvitationsSheet } from '../collections/ReceivedInvitationsSheet';
@@ -584,6 +586,15 @@ export function CollectionsScreen() {
     onManage: (collection, pendingAction) => navigation.navigate('CollectionDetails', { collectionId: collection.id, pendingAction }),
   });
 
+  // The long-press hint: only with at least one real Collection on screen (a pending-approval placeholder is not one);
+  // opening the menu is the taught gesture.
+  const longPressHint = useOneTimeHint('collectionLongPress', listData.some(entry => !('pendingJoin' in entry)));
+  const { markPerformed: markLongPressPerformed } = longPressHint;
+  const openCollectionMenu = (collection: Collection) => {
+    markLongPressPerformed();
+    collectionMenu.openMenu(collection);
+  };
+
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
@@ -703,6 +714,7 @@ export function CollectionsScreen() {
               </Pressable>
             ) : null}
 
+            {longPressHint.isVisible ? <HintBanner message={t('hints.collectionLongPress')} onDismiss={longPressHint.dismiss} testID="collections-long-press-hint" /> : null}
             {favoriteToggleError ? <Text style={styles.error}>{favoriteToggleError}</Text> : null}
             {/* With cards already on screen a failed refresh keeps them, with the shared load-failure state above them (as 보관함
                 does); with none it is the centered state below. */}
@@ -727,11 +739,11 @@ export function CollectionsScreen() {
             collection={item}
             isFavoriteToggleDisabled={togglingFavoriteId !== null}
             isTogglingFavorite={togglingFavoriteId === item.id}
-            onLongPress={() => collectionMenu.openMenu(item)}
+            onLongPress={() => openCollectionMenu(item)}
             onPress={() => openCollection(item)}
             onToggleFavorite={() => toggleFavoriteAction(item)}
           />
-        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onLongPress={() => collectionMenu.openMenu(item)} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
+        ) : <CollectionListRow collection={item} isFavoriteToggleDisabled={togglingFavoriteId !== null} isTogglingFavorite={togglingFavoriteId === item.id} onLongPress={() => openCollectionMenu(item)} onPress={() => openCollection(item)} onToggleFavorite={() => toggleFavoriteAction(item)} />}
         ListFooterComponent={isLoadingMore ? renderSkeletons(viewMode === 'grid' ? 1 : NEXT_PAGE_SKELETON_LIST_ROWS, 'collections-next-page-loading') : undefined}
       />
 

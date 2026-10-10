@@ -49,6 +49,23 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
+describe('TutorialLauncher - tutorial v2 after v1', () => {
+  it('a person who finished v1 is shown v2 once; the v1 record is neither reused nor migrated', async () => {
+    mockStore.set('juple.tutorial.completed.v1.JUPLE-1', 'true');
+    profile('JUPLE-1');
+    await mount();
+    expect(nav.navigate).toHaveBeenCalledWith('Tutorial', { mode: 'firstRun', userKey: 'JUPLE-1' });
+    expect(mockStore.has('juple.tutorial.completed.v2.JUPLE-1')).toBe(false);
+  });
+
+  it('a person who already completed v2 is not shown it again', async () => {
+    mockStore.set('juple.tutorial.completed.v2.JUPLE-1', 'true');
+    profile('JUPLE-1');
+    await mount();
+    expect(nav.navigate).not.toHaveBeenCalled();
+  });
+});
+
 describe('TutorialLauncher - first run', () => {
   it('shows the tutorial once for a person who has not finished it, keyed by their Juple ID', async () => {
     profile('JUPLE-1');

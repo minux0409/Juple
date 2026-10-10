@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Silakan tinjau tautan yang dibagikan.",
     "shareReviewOther": "Silakan tinjau konten yang dibagikan.",
     "cancelShare": "Buang konten yang dibagikan",
-    "deleteConfirmTitle": "Hapus item",
-    "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
+    "deleteConfirmTitle": "Hapus tautan ini?",
+    "deleteConfirmMessage": "Anda bisa memulihkan tautan yang dihapus dari Baru Dihapus.",
     "errorBadRequest": "Masukkan alamat http atau https yang valid.",
     "errorForbidden": "Kami tidak dapat mengonfirmasi izin untuk tindakan ini.",
     "errorSaveFallback": "Tidak dapat menyimpan tautan.",
@@ -87,8 +87,8 @@
     "yesterday": "Kemarin",
     "thisWeek": "Minggu ini",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Hapus item",
-    "deleteConfirmMessage": "Hapus item ini? Tindakan ini tidak dapat dibatalkan.",
+    "deleteConfirmTitle": "Hapus tautan ini?",
+    "deleteConfirmMessage": "Anda bisa memulihkan tautan yang dihapus dari Baru Dihapus.",
     "errorDeleteFallback": "Tidak dapat menghapus item.",
     "searchMinHint": "Masukkan minimal 2 karakter."
   },
@@ -492,8 +492,8 @@
     "saved": "Tersimpan.",
     "deletePhotoConfirmTitle": "Hapus foto ini?",
     "deletePhotoConfirmMessage": "Foto yang dihapus tidak dapat dipulihkan.",
-    "deleteItemConfirmTitle": "Hapus item ini?",
-    "deleteItemConfirmMessage": "Item yang dihapus tidak dapat dipulihkan.",
+    "deleteItemConfirmTitle": "Hapus tautan ini?",
+    "deleteItemConfirmMessage": "Anda bisa memulihkan tautan yang dihapus dari Baru Dihapus.",
     "unsavedChangesTitle": "Perubahan belum disimpan",
     "unsavedChangesMessage": "Jika Anda keluar tanpa menyimpan, perubahan Anda akan hilang.",
     "continueEditing": "Lanjutkan mengedit",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Pusat Bantuan",
-    "replayTutorial": "Lihat tutorial lagi",
-    "faqHeading": "Pertanyaan umum",
     "inquiryHeading": "Hubungi kami",
     "serviceInfoHeading": "Informasi layanan",
     "terms": "Ketentuan Layanan",
     "privacy": "Kebijakan Privasi",
     "appInfoHeading": "Info aplikasi",
     "version": "Versi {{version}} (build {{build}})",
-    "openLinkFailed": "Tidak dapat membuka tautan. Coba lagi nanti.",
-    "faq": {
-      "saveLinks": {
-        "question": "Bagaimana cara menyimpan tautan?",
-        "answer": "Tempel URL di Juple, atau bagikan tautan ke Juple dari aplikasi lain seperti browser atau media sosial. Jika Simpan Cepat aktif, tautan yang dibagikan langsung tersimpan; jika nonaktif, Anda memilih koleksi dan menambah catatan sebelum menyimpan."
-      },
-      "collections": {
-        "question": "Bagaimana cara memakai koleksi?",
-        "answer": "Koleksi memungkinkan Anda mengatur tautan dengan cara sendiri. Satu tautan bisa masuk ke beberapa koleksi, dan Anda bisa membuat koleksi baru saat menyimpan."
-      },
-      "archive": {
-        "question": "Di mana saya menemukan tautan tersimpan?",
-        "answer": "Beranda menampilkan tautan yang disimpan hari ini, dan Arsip berisi semua yang Anda simpan. Jelajahi per tanggal atau semuanya, beralih antara tampilan Daftar, Kisi, dan Gambar, lalu cari."
-      },
-      "sharedCollections": {
-        "question": "Bagaimana koleksi bersama bekerja?",
-        "answer": "Anda dapat membagikan koleksi kepada orang lain. Apa yang bisa dilakukan tiap peserta bergantung pada izin yang diberikan, dan beberapa izin mungkin memerlukan persetujuan sebelum tautan ditambahkan."
-      },
-      "locks": {
-        "question": "Bagaimana koleksi terkunci bekerja?",
-        "answer": "Isi koleksi terkunci tetap tersembunyi sampai Anda membukanya. Tautannya tampil tersamarkan di Beranda dan Arsip, dan kata sandi diminta setiap kali Anda membukanya selama terkunci."
-      },
-      "trash": {
-        "question": "Apa yang terjadi pada tautan yang dihapus?",
-        "answer": "Tautan yang dihapus pindah ke Baru Dihapus di Halaman Saya. Di sana Anda bisa memulihkan atau menghapusnya permanen; tautan yang dihapus permanen tidak dapat dikembalikan."
-      }
-    }
+    "openLinkFailed": "Tidak dapat membuka tautan. Coba lagi nanti."
   },
   "tutorial": {
     "skip": "Lewati",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Simpan tautan dengan mudah",
-        "description": "Tempel URL atau bagikan tautan dari browser atau media sosial. Dengan Simpan Cepat aktif, langsung tersimpan."
+        "title": "Simpan tautan dari mana saja",
+        "description": "Tempel URL atau bagikan tautan dari aplikasi lain. Judul dan gambar terisi otomatis jika memungkinkan."
+      },
+      "today": {
+        "title": "Beranda untuk hari ini, Arsip untuk semua",
+        "description": "Tautan hari ini ada di Beranda. Semua yang pernah Anda simpan ada di Arsip, dikelompokkan menurut tanggal."
       },
       "collections": {
-        "title": "Atur dengan cara Anda",
-        "description": "Simpan tautan ke satu atau beberapa koleksi, dan buat koleksi baru saat menyimpan."
-      },
-      "find": {
-        "title": "Temukan tautan dengan cepat",
-        "description": "Beranda menampilkan tautan hari ini dan Arsip memuat semuanya. Jelajahi per tanggal atau semuanya, dalam tampilan Daftar, Kisi, atau Gambar, dan cari kapan saja."
+        "title": "Atur dengan Koleksi",
+        "description": "Masukkan tautan ke satu atau beberapa koleksi, dan beri tiap koleksi nama, ikon, dan warna."
       },
       "share": {
-        "title": "Pakai koleksi bersama-sama",
-        "description": "Bagikan koleksi kepada orang lain. Izin menentukan apa yang bisa dilakukan tiap orang, dan tautan mungkin perlu persetujuan."
+        "title": "Bagikan dan bekerja bersama",
+        "description": "Bagikan koleksi lewat tautan atau undang teman. Anda yang menentukan apa yang boleh dilakukan tiap orang."
       },
-      "lock": {
-        "title": "Kunci koleksi sensitif",
-        "description": "Koleksi terkunci menyembunyikan tautannya, dan kata sandi diperlukan untuk membukanya selama terkunci."
+      "find": {
+        "title": "Cari dan lihat sesuka Anda",
+        "description": "Cari dan urutkan tautan, lalu beralih antara tampilan daftar, kisi, dan gambar."
+      },
+      "start": {
+        "title": "Siap memulai?",
+        "description": "Tautan dan koleksi Anda milik akun Anda. Temukan tips lainnya kapan saja di Halaman Saya > Bantuan."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Nanti",
     "action": "Perbarui",
     "openStoreFailed": "Toko aplikasi tidak dapat dibuka. Coba lagi sebentar lagi."
+  },
+  "hints": {
+    "savedLinkSwipe": "Geser tautan ke samping untuk tindakan cepat.",
+    "collectionLongPress": "Tekan lama sebuah koleksi untuk melihat opsi pengelolaan cepat."
+  },
+  "guide": {
+    "title": "Bantuan",
+    "replayTutorial": "Lihat pengantar lagi",
+    "sections": {
+      "save": {
+        "title": "Menyimpan tautan",
+        "summary": "Masukkan tautan ke Juple dengan cepat"
+      },
+      "homeArchive": {
+        "title": "Beranda dan Arsip",
+        "summary": "Tautan hari ini dan semua sebelumnya"
+      },
+      "viewing": {
+        "title": "Pencarian, urutan, dan tampilan",
+        "summary": "Temukan tautan dan lihat sesuka Anda"
+      },
+      "collections": {
+        "title": "Mengatur dengan koleksi",
+        "summary": "Kelompokkan tautan dengan cara Anda"
+      },
+      "sharing": {
+        "title": "Berbagi dan kerja tim",
+        "summary": "Bagikan koleksi dan tentukan siapa boleh apa"
+      },
+      "protection": {
+        "title": "Kunci dan kata sandi",
+        "summary": "Lindungi koleksi yang sensitif"
+      },
+      "notifications": {
+        "title": "Notifikasi",
+        "summary": "Tetap terbarui"
+      },
+      "trash": {
+        "title": "Hapus dan pulihkan",
+        "summary": "Kembalikan tautan yang dihapus"
+      },
+      "account": {
+        "title": "Akun dan pengaturan",
+        "summary": "Profil, bahasa, dan lainnya"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Tempel atau bagikan tautan",
+        "body": "Tempel URL ke kolom di bagian atas Beranda. Teks yang berisi tautan juga bisa: Juple memakai tautan pertama yang ditemukan.\n\nDi Android, Anda juga bisa membagikan tautan dari browser atau aplikasi lain langsung ke Juple."
+      },
+      "quickSave": {
+        "title": "Simpan cepat",
+        "body": "Aktifkan Simpan cepat di Halaman Saya untuk langsung menyimpan tautan yang dibagikan tanpa layar peninjauan.\n\nJika dimatikan, Juple menampilkan tautan lebih dulu agar Anda bisa mengedit judul, menambah catatan, dan memilih koleksi sebelum menyimpan."
+      },
+      "review": {
+        "title": "Sebelum menyimpan",
+        "body": "Juple mengisi judul dan gambar pratinjau jika bisa. Jika tidak terbaca, Anda bisa mengetik judulnya sendiri.\n\nTambahkan catatan dan pilih satu atau beberapa koleksi, atau buat yang baru saat itu juga. Jika koleksi memerlukan persetujuan, tautan Anda dikirim ke pemiliknya sebagai permintaan."
+      },
+      "androidShortcuts": {
+        "title": "Pintasan dan berbagi langsung",
+        "body": "Tambahkan koleksi ke layar utama dari menu tekan lama untuk membukanya dengan satu ketukan. Lihat “Tekan lama koleksi untuk mengelola cepat” di Mengatur dengan koleksi.\n\nTautan yang dibagikan juga bisa langsung masuk ke koleksi dari menu berbagi di ponsel. Koleksi yang terkunci atau dilindungi kata sandi, atau yang tidak bisa Anda tambahi tautan, tidak ditawarkan di sana.\n\nSaat koleksi muncul sebagai tujuan berbagi, menu tekan lamanya memiliki “Hapus dari tujuan berbagi”. Itu hanya mengeluarkannya dari menu berbagi. Koleksi, tautannya, dan pintasan layar utama yang Anda buat tetap ada."
+      },
+      "home": {
+        "title": "Beranda",
+        "body": "Beranda menampilkan tautan yang Anda simpan hari ini. Ketuk tautan untuk membuka detailnya, dan gunakan tombol urutan serta pengalih tampilan di atas daftar untuk mengubah cara tampilnya."
+      },
+      "archive": {
+        "title": "Arsip",
+        "body": "Arsip berisi semua tautan yang pernah Anda simpan, dikelompokkan menurut tanggal. Ketuk tanggal untuk membuka atau menutupnya, dan gunakan pencarian untuk menemukan tautan lama."
+      },
+      "swipe": {
+        "title": "Geser untuk tindakan cepat",
+        "body": "Geser tautan ke samping di Beranda atau Arsip untuk menampilkan tindakan cepat, seperti bagikan dan hapus. Tindakan yang muncul bergantung pada tautan: misalnya, tautan di koleksi terkunci tidak bisa dibagikan dari sini."
+      },
+      "searchSort": {
+        "title": "Cari dan urutkan",
+        "body": "Arsip dan setiap koleksi punya kotak pencarian. Urutkan menurut waktu (ketuk lagi untuk beralih antara terbaru dulu dan terlama dulu) atau menurut nama.\n\nBeranda untuk tautan hari ini, jadi bisa diurutkan tetapi tidak ada pencarian."
+      },
+      "viewModes": {
+        "title": "Tampilan daftar, kisi, dan gambar",
+        "body": "Gunakan tombol tampilan untuk menampilkan tautan sebagai daftar, kisi, atau tampilan gambar yang menunjukkan foto dalam tiga kolom. Pilihan Anda diingat terpisah untuk Beranda, Arsip, dan Koleksi."
+      },
+      "createCollection": {
+        "title": "Membuat koleksi",
+        "body": "Di tab Koleksi, ketuk Koleksi baru. Pilih nama, ikon, dan warna, atau gunakan foto Anda sendiri. Satu tautan bisa masuk ke beberapa koleksi.\n\nTandai koleksi sebagai favorit agar berkumpul di bagian atas."
+      },
+      "longPress": {
+        "title": "Tekan lama koleksi untuk mengelola cepat",
+        "body": "Tekan lama sebuah koleksi untuk melihat tindakan cepat. Menu yang Anda lihat bergantung pada koleksi dan peran Anda.\n\nFavorit\nKumpulkan koleksi yang sering Anda buka. Hanya berlaku untuk Anda.\n\nAktifkan/matikan notifikasi\nPilih apakah ingin menerima notifikasi dari koleksi bersama.\n\nEdit\nUbah nama, ikon, warna, atau foto. Hanya pemilik koleksi yang bisa.\n\nKunci\nAtur atau hapus kunci Anda pada koleksi. Berbeda dari kata sandi akses tautan bersama.\n\nHapus / Keluar\nPemilik menghapus koleksi dan anggota keluar darinya. Menghapus koleksi tidak menghapus tautan di dalamnya.\n\nDengan pembaca layar, tekan lama koleksi atau pilih “Opsi” di menu aksesibilitas.",
+        "shortcut": "Buka koleksi yang sering dipakai langsung dari layar utama. Tekan lama lalu pilih “Tambahkan pintasan ke layar Utama” untuk masuk ke koleksi itu dari layar utama ponsel.\n\nKoleksi yang terkunci tetap meminta kata sandi saat dibuka dari pintasan.\n\nHapus sendiri pintasan dari layar utama jika sudah tidak diperlukan."
+      },
+      "manageLinks": {
+        "title": "Salin, pindahkan, dan gabungkan",
+        "body": "Buka koleksi dan gunakan menu lainnya pada tautan untuk menyalinnya ke koleksi lain, memindahkannya, atau mengeluarkannya dari koleksi ini. Mengeluarkan tidak menghapus tautan.\n\nAnda juga bisa menggabungkan koleksi ke koleksi lain dari menu kelolanya. Setelah memindahkan, menghapus, atau menggabungkan, ketuk Urungkan di pesan yang muncul."
+      },
+      "publicLink": {
+        "title": "Bagikan koleksi lewat tautan",
+        "body": "Buka koleksi lalu ketuk Bagikan. Di Pengaturan koleksi publik, aktifkan agar siapa pun yang punya tautan bisa melihatnya, di aplikasi atau di halaman web. Pilih apa yang boleh dilakukan pengunjung: hanya baca, tambah setelah persetujuan, atau tambah tautan langsung.\n\nMatikan agar koleksi tetap privat: orang yang punya tautan hanya melihat namanya dan bisa meminta bergabung. Anda bisa berhenti berbagi kapan saja."
+      },
+      "invite": {
+        "title": "Undang teman atau lewat ID",
+        "body": "Di Bagikan, pilih teman atau masukkan Juple ID seseorang, pilih apa yang boleh dilakukannya, lalu kirim undangan. Dia bergabung setelah menerima. Anda bisa menambah teman di Halaman Saya > Teman."
+      },
+      "roles": {
+        "title": "Apa yang diizinkan tiap izin",
+        "body": "Hanya baca: bisa melihat koleksi. Perlu persetujuan: bisa mengusulkan tautan, dan pemilik yang menyetujui. Bisa tambah tautan: bisa menambah tautan langsung. Pemilik mengelola koleksi, pembagiannya, dan izin semua orang.\n\nPengaturan tautan publik adalah tingkat terendah yang bisa dimiliki siapa saja. Anda bisa memberi tingkat lebih tinggi kepada orang yang diundang."
+      },
+      "joinRequests": {
+        "title": "Permintaan bergabung",
+        "body": "Saat pengaturan publik koleksi dimatikan, orang yang membuka tautannya bisa meminta bergabung. Pemilik melihat permintaan di koleksi dan menyetujuinya, sehingga orang itu menjadi anggota hanya baca, atau menolaknya. Orang itu bisa meminta lagi nanti.\n\nSetelah Anda meminta bergabung, koleksi tampil sebagai “Menunggu persetujuan” di tab Koleksi sampai pemilik menjawab."
+      },
+      "approvals": {
+        "title": "Permintaan persetujuan tautan",
+        "body": "Ini berbeda dari permintaan bergabung. Ini adalah tautan yang diusulkan seseorang dengan izin “Perlu persetujuan” untuk sebuah koleksi. Pemilik menemukannya di Permintaan persetujuan diterima dan menyetujui atau menolak satu per satu.\n\nJika Anda mengusulkan tautan, temukan di Permintaan persetujuan terkirim, tempat Anda bisa membatalkannya."
+      },
+      "collectionLock": {
+        "title": "Kunci koleksi",
+        "body": "Atur kata sandi kunci di Halaman Saya > Kunci koleksi, lalu kunci koleksi dari menu tekan lamanya. Koleksi terkunci menyembunyikan tautannya, juga di Beranda dan Arsip, sampai Anda memasukkan kata sandi. Kunci berlaku untuk Anda, bukan untuk orang yang Anda ajak berbagi."
+      },
+      "accessPassword": {
+        "title": "Kata sandi akses untuk berbagi",
+        "body": "Saat membagikan koleksi, Anda juga bisa mengatur kata sandi akses. Orang yang membuka koleksi bersama harus memasukkannya. Ini terpisah dari kunci Anda sendiri, dan Anda bisa melihat, mengubah, atau menghapusnya di Bagikan."
+      },
+      "notificationCenter": {
+        "title": "Notifikasi",
+        "body": "Lonceng di Beranda membuka notifikasi Anda, dengan jumlah yang belum dibaca. Ketuk satu untuk menuju hal yang dimaksud. Anda bisa menandai semuanya telah dibaca atau menghapusnya satu per satu.\n\nAktifkan atau matikan notifikasi tiap koleksi bersama dari menu tekan lamanya. Saat dimatikan, item tetap muncul di daftar, tetapi Anda tidak diberi peringatan."
+      },
+      "deleteRestore": {
+        "title": "Hapus dan pulihkan",
+        "body": "Hapus tautan dengan menggesernya atau dari detailnya. Tautan yang dihapus masuk ke Baru Dihapus di Halaman Saya, tempat Anda bisa memulihkannya, menghapusnya permanen, atau mengosongkan daftar. Tautan yang dihapus permanen tidak bisa dikembalikan.\n\nMengeluarkan tautan dari koleksi tidak menghapusnya."
+      },
+      "settings": {
+        "title": "Akun dan pengaturan",
+        "body": "Halaman Saya berisi profil dan Juple ID, bahasa, Simpan cepat, Teman, Kunci koleksi, Baru Dihapus, dan pengelolaan akun. Hubungi dukungan dari Pusat Bantuan.\n\nDi Kelola akun, Anda bisa melihat cara masuk dan menghapus akun; menghapus akun menghapus permanen akun dan data Anda."
+      }
+    }
   }
 }

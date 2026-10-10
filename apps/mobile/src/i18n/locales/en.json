@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Please review the shared link.",
     "shareReviewOther": "Please review the shared content.",
     "cancelShare": "Discard shared content",
-    "deleteConfirmTitle": "Delete item",
-    "deleteConfirmMessage": "Delete this item? This can't be undone.",
+    "deleteConfirmTitle": "Delete this link?",
+    "deleteConfirmMessage": "You can restore a deleted link from Recently Deleted.",
     "errorBadRequest": "Please enter a valid http or https address.",
     "errorForbidden": "We couldn't confirm permission for this action.",
     "errorSaveFallback": "Couldn't save the link.",
@@ -87,8 +87,8 @@
     "yesterday": "Yesterday",
     "thisWeek": "This week",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Delete item",
-    "deleteConfirmMessage": "Delete this item? This can't be undone.",
+    "deleteConfirmTitle": "Delete this link?",
+    "deleteConfirmMessage": "You can restore a deleted link from Recently Deleted.",
     "errorDeleteFallback": "Couldn't delete the item.",
     "searchMinHint": "Enter at least 2 characters."
   },
@@ -492,8 +492,8 @@
     "saved": "Saved.",
     "deletePhotoConfirmTitle": "Delete this photo?",
     "deletePhotoConfirmMessage": "A deleted photo can't be recovered.",
-    "deleteItemConfirmTitle": "Delete this item?",
-    "deleteItemConfirmMessage": "A deleted item can't be recovered.",
+    "deleteItemConfirmTitle": "Delete this link?",
+    "deleteItemConfirmMessage": "You can restore a deleted link from Recently Deleted.",
     "unsavedChangesTitle": "Unsaved changes",
     "unsavedChangesMessage": "If you leave without saving, your changes will be lost.",
     "continueEditing": "Keep editing",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Customer Center",
-    "replayTutorial": "View tutorial again",
-    "faqHeading": "Frequently asked questions",
     "inquiryHeading": "Contact",
     "serviceInfoHeading": "Service information",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",
     "appInfoHeading": "App information",
     "version": "Version {{version}} (build {{build}})",
-    "openLinkFailed": "Couldn't open the link. Please try again later.",
-    "faq": {
-      "saveLinks": {
-        "question": "How do I save a link?",
-        "answer": "Paste a URL into Juple, or share a link to Juple from another app such as a browser or social app. With Quick Save on, a shared link is saved right away; with it off, you choose Collections and add a memo before saving."
-      },
-      "collections": {
-        "question": "How do I use Collections?",
-        "answer": "Collections let you organize links your own way. One link can belong to several Collections, and you can create a new Collection while you save."
-      },
-      "archive": {
-        "question": "Where do I find saved links?",
-        "answer": "Home shows today's saved links, and Archive holds everything you've saved. Browse by date or all together, switch between List, Grid and Image views, and search."
-      },
-      "sharedCollections": {
-        "question": "How do shared Collections work?",
-        "answer": "You can share a Collection with other people. What each participant can do depends on the permission you give, and some permissions may need approval before a link is added."
-      },
-      "locks": {
-        "question": "How do locked Collections work?",
-        "answer": "The content of a locked Collection stays hidden until you unlock it. Its links appear redacted in Home and Archive, and the password is asked every time you open one while it is locked."
-      },
-      "trash": {
-        "question": "What happens to deleted links?",
-        "answer": "Deleted links move to Recently Deleted in My Page. You can restore them there or delete them permanently; permanently deleted links cannot be brought back."
-      }
-    }
+    "openLinkFailed": "Couldn't open the link. Please try again later."
   },
   "tutorial": {
     "skip": "Skip",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Save links with ease",
-        "description": "Paste a URL, or share a link from your browser or social app. With Quick Save on, it's saved right away."
+        "title": "Save links from anywhere",
+        "description": "Paste a URL or share a link from another app. The title and image fill in automatically when they can."
+      },
+      "today": {
+        "title": "Home for today, Archive for all",
+        "description": "Today's links are on Home. Everything you've saved is in Archive, grouped by date."
       },
       "collections": {
-        "title": "Organize it your way",
-        "description": "Save a link to one or several Collections, and create a new Collection while you save."
-      },
-      "find": {
-        "title": "Find saved links fast",
-        "description": "Home shows today's links and Archive has them all. Browse by date or all together, in List, Grid or Image view, and search anytime."
+        "title": "Organize with Collections",
+        "description": "Put a link in one or more Collections, and give each one a name, an icon and a color."
       },
       "share": {
-        "title": "Use Collections together",
-        "description": "Share a Collection with others. Permissions decide what each person can do, and links may need approval."
+        "title": "Share and work together",
+        "description": "Share a Collection with a link or invite friends. You decide what each person can do."
       },
-      "lock": {
-        "title": "Lock sensitive Collections",
-        "description": "A locked Collection hides its links, and a password is needed to open them while it is locked."
+      "find": {
+        "title": "Find and view your way",
+        "description": "Search and sort your links, and switch between List, Grid and Image views."
+      },
+      "start": {
+        "title": "Ready to start?",
+        "description": "Your links and Collections belong to your account. Find more tips anytime in My Page > Help."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Later",
     "action": "Update",
     "openStoreFailed": "Couldn’t open the store. Please try again in a moment."
+  },
+  "hints": {
+    "savedLinkSwipe": "Swipe a link sideways for quick actions.",
+    "collectionLongPress": "Long-press a Collection to see quick management options."
+  },
+  "guide": {
+    "title": "Help",
+    "replayTutorial": "View the intro again",
+    "sections": {
+      "save": {
+        "title": "Saving links",
+        "summary": "Get links into Juple quickly"
+      },
+      "homeArchive": {
+        "title": "Home and Archive",
+        "summary": "Today's links and everything before"
+      },
+      "viewing": {
+        "title": "Search, sort and views",
+        "summary": "Find links and see them your way"
+      },
+      "collections": {
+        "title": "Organizing with Collections",
+        "summary": "Group links your own way"
+      },
+      "sharing": {
+        "title": "Sharing and teamwork",
+        "summary": "Share a Collection and decide who can do what"
+      },
+      "protection": {
+        "title": "Locks and passwords",
+        "summary": "Protect sensitive Collections"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "summary": "Stay up to date"
+      },
+      "trash": {
+        "title": "Delete and restore",
+        "summary": "Bring deleted links back"
+      },
+      "account": {
+        "title": "Account and settings",
+        "summary": "Profile, language and more"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Paste or share a link",
+        "body": "Paste a URL into the field at the top of Home. Text that contains a link works too: Juple takes the first link it finds.\n\nOn Android you can also share a link from a browser or another app straight to Juple."
+      },
+      "quickSave": {
+        "title": "Quick Save",
+        "body": "Turn on Quick Save in My Page to save shared links right away, without a review screen.\n\nWith it off, Juple shows the link first so you can edit the title, add a memo and choose Collections before saving."
+      },
+      "review": {
+        "title": "Before you save",
+        "body": "Juple fills in the title and preview image when it can. If it can't read them, you can type the title yourself.\n\nAdd a memo and choose one or more Collections, or create a new one on the spot. If a Collection needs approval, your link is sent to its owner as a request."
+      },
+      "androidShortcuts": {
+        "title": "Shortcuts and Direct Share",
+        "body": "Add a Collection to your Home screen from its long-press menu to open it in one tap. See \"Long-press a Collection for quick management\" under Organizing with Collections.\n\nShared links can also go straight to a Collection from your phone's share sheet. A locked or password-protected Collection, or one where you can't add links, is not offered there.\n\nWhen a Collection is offered as a share target, its long-press menu has \"Remove from share targets\". That only removes it from the share sheet. The Collection, its links and any Home-screen shortcut you made stay as they are."
+      },
+      "home": {
+        "title": "Home",
+        "body": "Home shows the links you saved today. Tap a link to open its details, and use the sort buttons and view switch above the list to change how they appear."
+      },
+      "archive": {
+        "title": "Archive",
+        "body": "Archive holds every link you've saved, grouped by date. Tap a date to open or close it, and search to find an older link."
+      },
+      "swipe": {
+        "title": "Swipe for quick actions",
+        "body": "Swipe a link sideways in Home or Archive to reveal quick actions, such as share and delete. The actions depend on the link: for example, a link in a locked Collection can't be shared from here."
+      },
+      "searchSort": {
+        "title": "Search and sort",
+        "body": "Archive and each Collection have a search box. Sort by time (tap again to switch between newest and oldest first) or by name.\n\nHome is for today's links, so it has sorting but no search."
+      },
+      "viewModes": {
+        "title": "List, Grid and Image views",
+        "body": "Use the view buttons to show links as a List, a Grid, or Image view, which shows pictures in three columns. Your choice is remembered separately for Home, Archive and Collections."
+      },
+      "createCollection": {
+        "title": "Create a Collection",
+        "body": "In the Collections tab, tap New collection. Choose a name, an icon and a color, or use a photo of your own. One link can belong to several Collections.\n\nMark Collections as favorites to keep them together at the top."
+      },
+      "longPress": {
+        "title": "Long-press a Collection for quick management",
+        "body": "Long-press a Collection to see the quick actions. The menu you see depends on the Collection and your role.\n\nFavorite\nGather the Collections you open often. It applies only to you.\n\nTurn notifications on/off\nChoose whether to get notifications for a shared Collection.\n\nEdit\nChange the name, icon, color or photo. Only the Collection's owner can.\n\nLock\nSet or remove your lock on a Collection. It is different from the access password of a shared link.\n\nDelete / Leave\nOwners delete a Collection and members leave it. Deleting a Collection doesn't delete the links in it.\n\nWith a screen reader, long-press the Collection or choose \"Options\" in the accessibility menu.",
+        "shortcut": "Open a frequently used Collection straight from your Home screen. Long-press it and choose \"Add shortcut to Home screen\" to jump into that Collection from your phone's Home screen.\n\nA locked Collection still asks for its password when opened from a shortcut.\n\nDelete a shortcut yourself from your Home screen when you no longer need it."
+      },
+      "manageLinks": {
+        "title": "Copy, move and merge",
+        "body": "Open a Collection and use a link's more menu to copy it into other Collections, move it, or remove it from this Collection. Removing it doesn't delete the link.\n\nYou can also merge a Collection into another from its manage menu. After a move, delete or merge, tap Undo in the message that appears."
+      },
+      "publicLink": {
+        "title": "Share a Collection by link",
+        "body": "Open a Collection and tap Share. Under Public collection settings, turn it ON so anyone with the link can view it, in the app or on a web page. Choose what visitors may do: read only, add after approval, or add links directly.\n\nTurn it OFF to keep the Collection private: people with the link see only its name and can ask to join. You can stop sharing at any time."
+      },
+      "invite": {
+        "title": "Invite friends or people by ID",
+        "body": "In Share, pick friends or enter someone's Juple ID, choose what they can do, and send the invitation. They join once they accept. You can add friends in My Page > Friends."
+      },
+      "roles": {
+        "title": "What each permission allows",
+        "body": "Read-only: can view the Collection. Needs approval: can suggest links, and the owner approves them. Can add links: can add links directly. The owner manages the Collection, its sharing and everyone's permission.\n\nA public link's setting is the lowest level anyone can have. You can give invited people a higher one."
+      },
+      "joinRequests": {
+        "title": "Join requests",
+        "body": "When a Collection's public setting is OFF, someone who opens its link can ask to join. The owner sees the request in the Collection and approves it, which adds the person as read-only, or declines it. They can ask again later.\n\nAfter you ask to join, the Collection shows as \"Waiting for approval\" in your Collections tab until the owner answers."
+      },
+      "approvals": {
+        "title": "Link approval requests",
+        "body": "These are different from join requests. They are links that someone with \"Needs approval\" permission suggests for a Collection. The owner finds them under Received approval requests and approves or declines each one.\n\nIf you suggested a link, find it under Sent approval requests, where you can cancel it."
+      },
+      "collectionLock": {
+        "title": "Lock a Collection",
+        "body": "Set a lock password in My Page > Collection lock, then lock a Collection from its long-press menu. A locked Collection hides its links, also in Home and Archive, until you enter the password. The lock applies to you, not to the people you share with."
+      },
+      "accessPassword": {
+        "title": "Access password for sharing",
+        "body": "When you share a Collection you can also set an access password. People opening the shared Collection must enter it. It is separate from your own lock, and you can see, change or remove it in Share."
+      },
+      "notificationCenter": {
+        "title": "Notifications",
+        "body": "The bell on Home opens your notifications, with the unread count on it. Tap one to go to what it's about. You can mark all as read or delete single ones.\n\nTurn notifications on or off for each shared Collection from its long-press menu. With them off, items still appear in the list, but you won't be alerted."
+      },
+      "deleteRestore": {
+        "title": "Delete and restore",
+        "body": "Delete a link by swiping it or from its details. Deleted links go to Recently Deleted in My Page, where you can restore them, delete them permanently, or empty the list. Permanently deleted links can't be brought back.\n\nRemoving a link from a Collection doesn't delete it."
+      },
+      "settings": {
+        "title": "Account and settings",
+        "body": "My Page has your profile and Juple ID, language, Quick Save, Friends, Collection lock, Recently Deleted and account management. Contact support from Customer Center.\n\nIn Manage account you can see how you sign in and delete your account, which permanently deletes your account and data."
+      }
+    }
   }
 }

@@ -16,16 +16,23 @@ beforeEach(() => {
 
 describe('tutorial preference', () => {
   it('keys completion by tutorial version and by person', () => {
-    expect(CURRENT_TUTORIAL_VERSION).toBe(1);
-    expect(tutorialCompletedKey('JUPLE-1234')).toBe('juple.tutorial.completed.v1.JUPLE-1234');
-    expect(tutorialCompletedKey('JUPLE-1234', 2)).toBe('juple.tutorial.completed.v2.JUPLE-1234');
+    // v2 is the redesigned six-page first run; raise it only when the first-run mental model changes materially.
+    expect(CURRENT_TUTORIAL_VERSION).toBe(2);
+    expect(tutorialCompletedKey('JUPLE-1234')).toBe('juple.tutorial.completed.v2.JUPLE-1234');
+    expect(tutorialCompletedKey('JUPLE-1234', 1)).toBe('juple.tutorial.completed.v1.JUPLE-1234');
   });
 
   it('is not completed until marked, then stays completed for that person and version', async () => {
     expect(await hasCompletedTutorial('A')).toBe(false);
     await markTutorialCompleted('A');
     expect(await hasCompletedTutorial('A')).toBe(true);
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith('juple.tutorial.completed.v1.A', 'true');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('juple.tutorial.completed.v2.A', 'true');
+  });
+
+  it('someone who finished the v1 tutorial owes the redesigned v2 once - and the v1 record is left alone', async () => {
+    await markTutorialCompleted('A', 1);
+    expect(await hasCompletedTutorial('A')).toBe(false);
+    expect(await hasCompletedTutorial('A', 1)).toBe(true);
   });
 
   it('another person on the same device still owes their own tutorial', async () => {
@@ -43,7 +50,7 @@ describe('tutorial preference', () => {
 
   it('never keys by anything but the given key (no email or provider id is read here)', async () => {
     await markTutorialCompleted('JUPLE-9');
-    expect([...mockStore.keys()]).toEqual(['juple.tutorial.completed.v1.JUPLE-9']);
+    expect([...mockStore.keys()]).toEqual(['juple.tutorial.completed.v2.JUPLE-9']);
   });
 
   it('a storage failure never traps anyone: reading fails safe to "completed", writing is swallowed', async () => {

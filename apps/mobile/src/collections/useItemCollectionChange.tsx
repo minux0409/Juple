@@ -22,6 +22,9 @@ import { useCategoryPickerModal } from './useCategoryPickerModal';
  * (itemMemberships.ts). Where Item Details stages the choice and saves it with the rest of the screen, this one saves it
  * with 저장 in the sheet. The link itself - URL, title, memo, photos, times, owner - is never touched: only which
  * Collections it is in changes, and "컬렉션 없음" is simply no membership at all. The server stays the judge of every call.
+ *
+ * Item Details uses this same hook (handing over the memberships it already loaded, so nothing is fetched twice): its
+ * Collection choice is saved HERE, with 저장 in the sheet, and is no longer part of the screen's own Save.
  */
 export function useItemCollectionChange(onChanged: () => void) {
   const { t } = useTranslation();
@@ -52,9 +55,16 @@ export function useItemCollectionChange(onChanged: () => void) {
   const selectedIds = new Set(selected.map(option => option.id));
   const isDirty = selected.length !== original.size || selected.some(option => !original.has(option.id));
 
-  const start = useCallback(async (targetItemId: number) => {
+  const start = useCallback(async (targetItemId: number, knownMemberships?: readonly Collection[]) => {
     const requestId = ++requestIdRef.current;
     setItemId(targetItemId);
+    if (knownMemberships) {
+      // The caller already holds the current memberships: no second fetch.
+      setSelected(knownMemberships);
+      setOriginal(new Set(knownMemberships.map(option => option.id)));
+      picker.open();
+      return;
+    }
     setSelected([]);
     setOriginal(new Set());
     try {
@@ -171,5 +181,8 @@ export function useItemCollectionChange(onChanged: () => void) {
     </>
   );
 
-  return { start, element } as const;
+  // True while the sheet, its create dialog or a password ask is up - a host screen keeps its own keyboard handling out of it.
+  const isDialogOpen = itemId !== null && (picker.isVisible || picker.isCreateDialogVisible || picker.unlockTarget !== null);
+
+  return { start, element, isDialogOpen } as const;
 }

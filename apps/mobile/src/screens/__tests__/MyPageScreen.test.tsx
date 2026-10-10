@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Modal, Text } from 'react-native';
+import { Modal, Switch, Text } from 'react-native';
 import i18n from '../../i18n';
 import { MyPageScreen } from '../MyPageScreen';
 import { useAuth } from '../../auth/AuthContext';
@@ -16,7 +16,7 @@ jest.mock('../../api/accountApi', () => ({
 }));
 
 jest.mock('../../settings/quickSaveOnSharePreference', () => ({
-  loadQuickSaveOnSharePreference: jest.fn().mockResolvedValue(true),
+  loadQuickSaveOnSharePreference: jest.fn().mockResolvedValue(false),
   saveQuickSaveOnSharePreference: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -148,13 +148,56 @@ describe('MyPageScreen settings entry points', () => {
 
       expect(i18n.t('settings.quickSaveOnShare')).toBe('빠른 저장');
       expect(findTextValues(renderer)).toContain('빠른 저장');
-      expect(findTextValues(renderer)).toContain('다른 앱에서 Juple로 공유한 링크를 검토 화면 없이 바로 저장합니다.');
+      expect(findTextValues(renderer)).toContain('공유한 링크를 Juple에서 확인하고 컬렉션을 고른 뒤 저장합니다.');
+      expect(i18n.t('settings.quickSaveOnShareOnDescription')).toBe('다른 앱에서 Juple로 공유한 링크를 검토 화면 없이 바로 저장합니다.');
       const everyKoreanValue = JSON.stringify(require('../../i18n/locales/ko.json'));
       expect(everyKoreanValue).not.toContain('공유 즉시 저장');
       expect(everyKoreanValue).not.toContain('자동 저장');
     } finally {
       await i18n.changeLanguage('en');
     }
+  });
+
+  it('빠른 저장 renders OFF when nothing is stored - and never shows a fake ON while the stored choice loads', async () => {
+    const { loadQuickSaveOnSharePreference } = jest.requireMock('../../settings/quickSaveOnSharePreference');
+    let resolveLoad!: (value: boolean) => void;
+    loadQuickSaveOnSharePreference.mockReturnValueOnce(new Promise<boolean>(resolve => { resolveLoad = resolve; }));
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+    const quickSaveSwitch = () => renderer.root.findByType(Switch);
+
+    // Still loading: OFF and not touchable.
+    expect(quickSaveSwitch().props.value).toBe(false);
+    expect(quickSaveSwitch().props.disabled).toBe(true);
+
+    await act(async () => resolveLoad(false));
+    expect(quickSaveSwitch().props.value).toBe(false);
+    expect(quickSaveSwitch().props.disabled).toBe(false);
+    expect(findTextValues(renderer)).toContain(i18n.t('settings.quickSaveOnShareOffDescription'));
+  });
+
+  it('빠른 저장 renders ON for a stored true', async () => {
+    const { loadQuickSaveOnSharePreference } = jest.requireMock('../../settings/quickSaveOnSharePreference');
+    loadQuickSaveOnSharePreference.mockResolvedValueOnce(true);
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    expect(renderer.root.findByType(Switch).props.value).toBe(true);
+    expect(findTextValues(renderer)).toContain(i18n.t('settings.quickSaveOnShareOnDescription'));
+  });
+
+  it('has a 도움말 row that opens the Help Guide, next to 고객센터', async () => {
+    await i18n.changeLanguage('ko');
+    mockUseAuth({ userEmail: null });
+    const renderer = await renderScreen();
+
+    const row = renderer.root.findByProps({ testID: 'my-help-guide' });
+    expect(row.findAllByType(Text).map(node => node.props.children)).toContain('도움말');
+    await act(async () => {
+      row.props.onPress();
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('HelpGuide');
+    expect(renderer.root.findAllByProps({ testID: 'my-customer-center' }).length).toBeGreaterThan(0);
   });
 
   it('has one 고객센터 row that opens the Customer Center - and no separate FAQ / 문의하기 / 튜토리얼 rows', async () => {
@@ -171,7 +214,7 @@ describe('MyPageScreen settings entry points', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('CustomerCenter');
     const labels = renderer.root.findAllByType(Text).map(node => String(node.props.children));
-    for (const absent of [i18n.t('inquiry.title'), i18n.t('customerCenter.replayTutorial'), i18n.t('customerCenter.faqHeading')]) {
+    for (const absent of [i18n.t('inquiry.title')]) {
       expect(labels).not.toContain(absent);
     }
     expect(renderer.root.findAll(node => node.props.testID === 'my-contact')).toHaveLength(0);

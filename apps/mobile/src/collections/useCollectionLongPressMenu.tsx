@@ -16,6 +16,7 @@ import { StarIcon } from '../icons/StarIcon';
 import { TrashIcon } from '../icons/TrashIcon';
 import { UnlockIcon } from '../icons/UnlockIcon';
 import { collectionShortcutService } from '../shortcuts/CollectionShortcutService';
+import { useCollectionShortcutSupport } from '../shortcuts/useCollectionShortcutSupport';
 import { getCollectionNotificationPreference, setCollectionNotificationPreference, type Collection } from './api/collectionsApi';
 import { getCollectionCapabilities } from './collectionCapabilities';
 import { isCollectionLocked } from './collectionAccess';
@@ -59,7 +60,7 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
   const [isVisible, setIsVisible] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isPinned, setIsPinned] = useState<boolean | null>(null);
-  const [homeSupported, setHomeSupported] = useState<boolean | null>(null);
+  const { directShareSupported, homePinSupport, refreshHomePinSupport } = useCollectionShortcutSupport();
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const requestIdRef = useRef(0);
@@ -68,7 +69,6 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
     const requestId = ++requestIdRef.current;
     setTarget(collection);
     setIsPinned(null);
-    setHomeSupported(null);
     setNotificationsEnabled(null);
     setIsVisible(true);
     setIsMounted(true);
@@ -80,13 +80,8 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
         }
       })
       .catch(() => undefined);
-    collectionShortcutService.isHomeShortcutSupported()
-      .then(supported => {
-        if (requestIdRef.current === requestId) {
-          setHomeSupported(supported);
-        }
-      })
-      .catch(() => undefined);
+    // Re-asked on every open (no cache), exactly as before; the answer is shared with the Help Guide's capability source.
+    refreshHomePinSupport().catch(() => undefined);
 
     if (getCollectionCapabilities(collection).canToggleNotification) {
       getCollectionNotificationPreference(request, collection.id)
@@ -98,7 +93,7 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
         // Without the current setting the row is simply not offered - never a guessed label.
         .catch(() => undefined);
     }
-  }, [request]);
+  }, [request, refreshHomePinSupport]);
 
   const closeMenu = () => {
     requestIdRef.current += 1;
@@ -167,7 +162,7 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
       });
     }
     // A real Home-screen icon - any role, read-only included (it only opens the Collection). Shown once the launcher is known to support it.
-    if (collectionShortcutService.isSupported() && homeSupported === true) {
+    if (homePinSupport === 'supported') {
       actions.push({
         label: t('collections.homeShortcutAdd'),
         icon: PlusIcon,
@@ -175,7 +170,7 @@ export function useCollectionLongPressMenu({ onToggleFavorite, onManage }: UseCo
       });
     }
     // Only while it IS a Direct Share destination: takes it out of the share sheet. (A Home icon stays until the user deletes it.)
-    if (collectionShortcutService.isSupported() && isPinned === true) {
+    if (directShareSupported && isPinned === true) {
       actions.push({
         label: t('collections.shortcutRemove'),
         icon: CloseIcon,

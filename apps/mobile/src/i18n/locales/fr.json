@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Veuillez vérifier le lien partagé.",
     "shareReviewOther": "Veuillez vérifier le contenu partagé.",
     "cancelShare": "Ignorer le contenu partagé",
-    "deleteConfirmTitle": "Supprimer l'élément",
-    "deleteConfirmMessage": "Supprimer cet élément ? Cette action est irréversible.",
+    "deleteConfirmTitle": "Supprimer ce lien ?",
+    "deleteConfirmMessage": "Vous pouvez restaurer un lien supprimé depuis Supprimés récemment.",
     "errorBadRequest": "Veuillez saisir une adresse http ou https valide.",
     "errorForbidden": "Nous n'avons pas pu confirmer l'autorisation pour cette action.",
     "errorSaveFallback": "Impossible d'enregistrer le lien.",
@@ -87,8 +87,8 @@
     "yesterday": "Hier",
     "thisWeek": "Cette semaine",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Supprimer l'élément",
-    "deleteConfirmMessage": "Supprimer cet élément ? Cette action est irréversible.",
+    "deleteConfirmTitle": "Supprimer ce lien ?",
+    "deleteConfirmMessage": "Vous pouvez restaurer un lien supprimé depuis Supprimés récemment.",
     "errorDeleteFallback": "Impossible de supprimer l'élément.",
     "searchMinHint": "Saisissez au moins 2 caractères."
   },
@@ -492,8 +492,8 @@
     "saved": "Enregistré.",
     "deletePhotoConfirmTitle": "Supprimer cette photo ?",
     "deletePhotoConfirmMessage": "Une photo supprimée ne peut pas être récupérée.",
-    "deleteItemConfirmTitle": "Supprimer cet élément ?",
-    "deleteItemConfirmMessage": "Un élément supprimé ne peut pas être récupéré.",
+    "deleteItemConfirmTitle": "Supprimer ce lien ?",
+    "deleteItemConfirmMessage": "Vous pouvez restaurer un lien supprimé depuis Supprimés récemment.",
     "unsavedChangesTitle": "Modifications non enregistrées",
     "unsavedChangesMessage": "Si vous quittez sans enregistrer, vos modifications seront perdues.",
     "continueEditing": "Continuer à modifier",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Centre d'aide",
-    "replayTutorial": "Revoir le tutoriel",
-    "faqHeading": "Questions fréquentes",
     "inquiryHeading": "Contact",
     "serviceInfoHeading": "Informations sur le service",
     "terms": "Conditions d'utilisation",
     "privacy": "Politique de confidentialité",
     "appInfoHeading": "Informations sur l'app",
     "version": "Version {{version}} (build {{build}})",
-    "openLinkFailed": "Impossible d'ouvrir le lien. Réessayez plus tard.",
-    "faq": {
-      "saveLinks": {
-        "question": "Comment enregistrer un lien ?",
-        "answer": "Collez une URL dans Juple, ou partagez un lien vers Juple depuis une autre app, comme un navigateur ou un réseau social. Avec l'enregistrement rapide activé, le lien partagé est enregistré tout de suite ; sinon, vous choisissez des collections et ajoutez une note avant d'enregistrer."
-      },
-      "collections": {
-        "question": "Comment utiliser les collections ?",
-        "answer": "Les collections vous permettent d'organiser vos liens à votre façon. Un lien peut appartenir à plusieurs collections, et vous pouvez en créer une nouvelle pendant l'enregistrement."
-      },
-      "archive": {
-        "question": "Où retrouver mes liens enregistrés ?",
-        "answer": "Accueil affiche les liens enregistrés aujourd'hui, et Archives contient tout ce que vous avez enregistré. Parcourez par date ou tout ensemble, passez entre les vues Liste, Grille et Image, et recherchez."
-      },
-      "sharedCollections": {
-        "question": "Comment fonctionnent les collections partagées ?",
-        "answer": "Vous pouvez partager une collection avec d'autres personnes. Ce que chaque participant peut faire dépend de l'autorisation accordée, et certaines autorisations peuvent exiger une approbation avant l'ajout d'un lien."
-      },
-      "locks": {
-        "question": "Comment fonctionnent les collections verrouillées ?",
-        "answer": "Le contenu d'une collection verrouillée reste masqué jusqu'au déverrouillage. Ses liens apparaissent masqués dans Accueil et Archives, et le mot de passe est demandé à chaque ouverture tant qu'elle est verrouillée."
-      },
-      "trash": {
-        "question": "Que deviennent les liens supprimés ?",
-        "answer": "Les liens supprimés vont dans Supprimés récemment, dans Ma page. Vous pouvez les restaurer ou les supprimer définitivement ; un lien supprimé définitivement est irrécupérable."
-      }
-    }
+    "openLinkFailed": "Impossible d'ouvrir le lien. Réessayez plus tard."
   },
   "tutorial": {
     "skip": "Passer",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Enregistrez vos liens facilement",
-        "description": "Collez une URL ou partagez un lien depuis votre navigateur ou réseau social. Avec l'enregistrement rapide, il est enregistré tout de suite."
+        "title": "Enregistrez des liens de partout",
+        "description": "Collez une URL ou partagez un lien depuis une autre appli. Le titre et l’image se remplissent automatiquement quand c’est possible."
+      },
+      "today": {
+        "title": "Accueil pour aujourd’hui, Archives pour tout",
+        "description": "Les liens du jour sont dans Accueil. Tout ce que vous avez enregistré est dans Archives, classé par date."
       },
       "collections": {
-        "title": "Organisez à votre façon",
-        "description": "Enregistrez un lien dans une ou plusieurs collections, et créez une collection pendant l’enregistrement."
-      },
-      "find": {
-        "title": "Retrouvez vite vos liens",
-        "description": "Accueil affiche les liens du jour et Archives les contient tous. Parcourez par date ou tout ensemble, en vue Liste, Grille ou Image, et recherchez à tout moment."
+        "title": "Organisez avec des collections",
+        "description": "Placez un lien dans une ou plusieurs collections et donnez à chacune un nom, une icône et une couleur."
       },
       "share": {
-        "title": "Utilisez les collections à plusieurs",
-        "description": "Partagez une collection avec d'autres personnes. Les autorisations définissent ce que chacun peut faire, et les liens peuvent nécessiter une approbation."
+        "title": "Partagez et travaillez ensemble",
+        "description": "Partagez une collection avec un lien ou invitez des amis. Vous décidez de ce que chacun peut faire."
       },
-      "lock": {
-        "title": "Verrouillez les collections sensibles",
-        "description": "Une collection verrouillée masque ses liens, et un mot de passe est nécessaire pour les ouvrir tant qu'elle est verrouillée."
+      "find": {
+        "title": "Cherchez et affichez à votre façon",
+        "description": "Recherchez et triez vos liens, et passez de la vue liste à la vue grille ou image."
+      },
+      "start": {
+        "title": "Prêt à commencer ?",
+        "description": "Vos liens et collections appartiennent à votre compte. Retrouvez d’autres conseils à tout moment dans Mon compte > Aide."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Plus tard",
     "action": "Mettre à jour",
     "openStoreFailed": "Impossible d’ouvrir la boutique. Réessayez dans un instant."
+  },
+  "hints": {
+    "savedLinkSwipe": "Faites glisser un lien sur le côté pour accéder aux actions rapides.",
+    "collectionLongPress": "Appuyez longuement sur une collection pour voir les options de gestion rapide."
+  },
+  "guide": {
+    "title": "Aide",
+    "replayTutorial": "Revoir l’introduction",
+    "sections": {
+      "save": {
+        "title": "Enregistrer des liens",
+        "summary": "Ajoutez rapidement des liens à Juple"
+      },
+      "homeArchive": {
+        "title": "Accueil et Archives",
+        "summary": "Les liens du jour et tout ce qui précède"
+      },
+      "viewing": {
+        "title": "Recherche, tri et affichages",
+        "summary": "Trouvez vos liens et affichez-les à votre façon"
+      },
+      "collections": {
+        "title": "Organiser avec des collections",
+        "summary": "Regroupez vos liens à votre manière"
+      },
+      "sharing": {
+        "title": "Partage et travail d’équipe",
+        "summary": "Partagez une collection et décidez qui peut faire quoi"
+      },
+      "protection": {
+        "title": "Verrous et mots de passe",
+        "summary": "Protégez les collections sensibles"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "summary": "Restez informé"
+      },
+      "trash": {
+        "title": "Supprimer et restaurer",
+        "summary": "Récupérez les liens supprimés"
+      },
+      "account": {
+        "title": "Compte et réglages",
+        "summary": "Profil, langue et plus"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Coller ou partager un lien",
+        "body": "Collez une URL dans le champ en haut de l’Accueil. Un texte contenant un lien fonctionne aussi : Juple prend le premier lien trouvé.\n\nSur Android, vous pouvez aussi partager un lien depuis un navigateur ou une autre appli directement vers Juple."
+      },
+      "quickSave": {
+        "title": "Enregistrement rapide",
+        "body": "Activez l’Enregistrement rapide dans Mon compte pour enregistrer les liens partagés tout de suite, sans écran de vérification.\n\nQuand il est désactivé, Juple affiche d’abord le lien pour que vous puissiez modifier le titre, ajouter une note et choisir des collections avant d’enregistrer."
+      },
+      "review": {
+        "title": "Avant d’enregistrer",
+        "body": "Juple remplit le titre et l’image d’aperçu quand il le peut. S’il ne peut pas les lire, vous pouvez saisir le titre vous-même.\n\nAjoutez une note et choisissez une ou plusieurs collections, ou créez-en une sur place. Si une collection demande une approbation, votre lien est envoyé à son propriétaire sous forme de demande."
+      },
+      "androidShortcuts": {
+        "title": "Raccourcis et partage direct",
+        "body": "Ajoutez une collection à votre écran d’accueil depuis son menu d’appui long pour l’ouvrir d’un geste. Voir « Appuyez longuement sur une collection pour la gérer rapidement » dans Organiser avec des collections.\n\nLes liens partagés peuvent aussi aller directement dans une collection depuis le menu de partage du téléphone. Une collection verrouillée ou protégée par mot de passe, ou dans laquelle vous ne pouvez pas ajouter de liens, n’y est pas proposée.\n\nQuand une collection est proposée comme destination de partage, son menu d’appui long contient « Retirer des destinations de partage ». Cela la retire seulement du menu de partage. La collection, ses liens et tout raccourci d’écran d’accueil que vous avez créé restent en place."
+      },
+      "home": {
+        "title": "Accueil",
+        "body": "Accueil affiche les liens que vous avez enregistrés aujourd’hui. Touchez un lien pour ouvrir ses détails et utilisez les boutons de tri et le sélecteur d’affichage au-dessus de la liste pour changer leur présentation."
+      },
+      "archive": {
+        "title": "Archives",
+        "body": "Archives contient tous les liens que vous avez enregistrés, classés par date. Touchez une date pour l’ouvrir ou la fermer, et utilisez la recherche pour retrouver un lien plus ancien."
+      },
+      "swipe": {
+        "title": "Faites glisser pour agir vite",
+        "body": "Faites glisser un lien sur le côté dans Accueil ou Archives pour afficher des actions rapides, comme partager et supprimer. Les actions dépendent du lien : par exemple, un lien d’une collection verrouillée ne peut pas être partagé d’ici."
+      },
+      "searchSort": {
+        "title": "Recherche et tri",
+        "body": "Archives et chaque collection ont un champ de recherche. Triez par heure (touchez à nouveau pour alterner entre le plus récent et le plus ancien d’abord) ou par nom.\n\nAccueil sert aux liens du jour : on peut y trier, mais pas y chercher."
+      },
+      "viewModes": {
+        "title": "Vues liste, grille et image",
+        "body": "Utilisez les boutons d’affichage pour voir les liens en liste, en grille ou en vue image, qui montre des images sur trois colonnes. Votre choix est mémorisé séparément pour Accueil, Archives et Collections."
+      },
+      "createCollection": {
+        "title": "Créer une collection",
+        "body": "Dans l’onglet Collections, touchez Nouvelle collection. Choisissez un nom, une icône et une couleur, ou utilisez votre propre photo. Un lien peut appartenir à plusieurs collections.\n\nMarquez des collections en favoris pour les garder réunies en haut."
+      },
+      "longPress": {
+        "title": "Appuyez longuement sur une collection pour la gérer rapidement",
+        "body": "Appuyez longuement sur une collection pour voir les actions rapides. Le menu affiché dépend de la collection et de votre rôle.\n\nFavori\nRéunissez les collections que vous ouvrez souvent. Cela ne vous concerne que vous.\n\nActiver/désactiver les notifications\nChoisissez si vous recevez les notifications d’une collection partagée.\n\nModifier\nChangez le nom, l’icône, la couleur ou la photo. Seul le propriétaire de la collection peut le faire.\n\nVerrouillage\nActivez ou retirez votre verrou sur une collection. C’est différent du mot de passe d’accès d’un lien partagé.\n\nSupprimer / Quitter\nLes propriétaires suppriment une collection et les membres la quittent. Supprimer une collection ne supprime pas les liens qu’elle contient.\n\nAvec un lecteur d’écran, appuyez longuement sur la collection ou choisissez « Options » dans le menu d’accessibilité.",
+        "shortcut": "Ouvrez une collection que vous utilisez souvent directement depuis votre écran d’accueil. Appuyez longuement dessus et choisissez « Ajouter un raccourci à l’écran d’accueil » pour accéder à cette collection depuis l’écran d’accueil du téléphone.\n\nUne collection verrouillée demande toujours son mot de passe quand on l’ouvre depuis un raccourci.\n\nSupprimez vous-même le raccourci de votre écran d’accueil quand vous n’en avez plus besoin."
+      },
+      "manageLinks": {
+        "title": "Copier, déplacer et fusionner",
+        "body": "Ouvrez une collection et utilisez le menu « plus » d’un lien pour le copier dans d’autres collections, le déplacer ou le retirer de cette collection. Le retirer ne supprime pas le lien.\n\nVous pouvez aussi fusionner une collection dans une autre depuis son menu de gestion. Après un déplacement, une suppression ou une fusion, touchez Annuler dans le message qui s’affiche."
+      },
+      "publicLink": {
+        "title": "Partager une collection par lien",
+        "body": "Ouvrez une collection et touchez Partager. Dans Paramètres de la collection publique, activez l’option pour que toute personne disposant du lien puisse la consulter, dans l’appli ou sur une page web. Choisissez ce que les visiteurs peuvent faire : lecture seule, ajout avec approbation ou ajout direct de liens.\n\nDésactivez-la pour garder la collection privée : les personnes qui ont le lien ne voient que son nom et peuvent demander à participer. Vous pouvez arrêter le partage à tout moment."
+      },
+      "invite": {
+        "title": "Inviter des amis ou par ID",
+        "body": "Dans Partager, choisissez des amis ou saisissez l’ID Juple d’une personne, choisissez ce qu’elle peut faire et envoyez l’invitation. Elle rejoint la collection dès qu’elle accepte. Vous pouvez ajouter des amis dans Mon compte > Amis."
+      },
+      "roles": {
+        "title": "Ce que permet chaque autorisation",
+        "body": "Lecture seule : peut consulter la collection. Avec approbation : peut proposer des liens, que le propriétaire approuve. Peut ajouter des liens : peut en ajouter directement. Le propriétaire gère la collection, son partage et l’autorisation de chacun.\n\nLe réglage d’un lien public est le niveau le plus bas que chacun peut avoir. Vous pouvez donner un niveau plus élevé aux personnes invitées."
+      },
+      "joinRequests": {
+        "title": "Demandes de participation",
+        "body": "Quand le réglage public d’une collection est désactivé, une personne qui ouvre son lien peut demander à participer. Le propriétaire voit la demande dans la collection et l’approuve, ce qui ajoute la personne en lecture seule, ou la refuse. Elle pourra redemander plus tard.\n\nAprès avoir demandé à participer, la collection apparaît comme « En attente d’approbation » dans votre onglet Collections jusqu’à la réponse du propriétaire."
+      },
+      "approvals": {
+        "title": "Demandes d’approbation de liens",
+        "body": "Elles sont différentes des demandes de participation. Ce sont des liens qu’une personne ayant l’autorisation « Avec approbation » propose pour une collection. Le propriétaire les trouve dans Demandes d’approbation reçues et approuve ou refuse chacune.\n\nSi vous avez proposé un lien, retrouvez-le dans Demandes d’approbation envoyées, où vous pouvez l’annuler."
+      },
+      "collectionLock": {
+        "title": "Verrouiller une collection",
+        "body": "Définissez un mot de passe de verrouillage dans Mon compte > Verrouillage des collections, puis verrouillez une collection depuis son menu d’appui long. Une collection verrouillée masque ses liens, y compris dans Accueil et Archives, jusqu’à ce que vous saisissiez le mot de passe. Le verrou s’applique à vous, pas aux personnes avec qui vous partagez."
+      },
+      "accessPassword": {
+        "title": "Mot de passe d’accès pour le partage",
+        "body": "Quand vous partagez une collection, vous pouvez aussi définir un mot de passe d’accès. Les personnes qui ouvrent la collection partagée doivent le saisir. Il est distinct de votre propre verrou, et vous pouvez le voir, le modifier ou le retirer dans Partager."
+      },
+      "notificationCenter": {
+        "title": "Notifications",
+        "body": "La cloche d’Accueil ouvre vos notifications, avec le nombre de non lues. Touchez-en une pour accéder à ce qu’elle concerne. Vous pouvez tout marquer comme lu ou supprimer les notifications une par une.\n\nActivez ou désactivez les notifications de chaque collection partagée depuis son menu d’appui long. Désactivées, elles figurent quand même dans la liste, mais vous n’êtes pas alerté."
+      },
+      "deleteRestore": {
+        "title": "Supprimer et restaurer",
+        "body": "Supprimez un lien en le faisant glisser ou depuis ses détails. Les liens supprimés vont dans Supprimés récemment, dans Mon compte, où vous pouvez les restaurer, les supprimer définitivement ou vider la liste. Un lien supprimé définitivement ne peut pas être récupéré.\n\nRetirer un lien d’une collection ne le supprime pas."
+      },
+      "settings": {
+        "title": "Compte et réglages",
+        "body": "Mon compte regroupe votre profil et ID Juple, la langue, l’Enregistrement rapide, les Amis, le Verrouillage des collections, Supprimés récemment et la gestion du compte. Contactez l’assistance depuis le Centre d'aide.\n\nDans Gérer le compte, vous pouvez voir comment vous vous connectez et supprimer votre compte, ce qui supprime définitivement votre compte et vos données."
+      }
+    }
   }
 }

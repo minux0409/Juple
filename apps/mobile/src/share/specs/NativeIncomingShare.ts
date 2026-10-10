@@ -67,6 +67,12 @@ export interface Spec extends TurboModule {
    * when deciding whether to save immediately or bring the app to the foreground for review.
    */
   setQuickSaveOnShare(enabled: boolean): Promise<void>;
+  /**
+   * The value ShareReceiverActivity effectively uses right now - the same SharedPreferences the setter writes (false when
+   * nothing was ever written: a fresh install). The JS side reads it ONLY when it has no stored choice of its own, so an
+   * existing installation keeps the behavior it already had.
+   */
+  getQuickSaveOnShare(): Promise<boolean>;
   /** The Collections the user pinned as app shortcuts, as stored on this device - never a live API call. */
   getPinnedCollectionShortcuts(): Promise<ReadonlyArray<PinnedCollectionShortcut>>;
   /**

@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -8,14 +8,11 @@ import { useMessageDialog } from '../components/useMessageDialog';
 import { legalLinks } from '../config/legalLinks';
 import { ChevronIcon } from '../icons/ChevronIcon';
 import type { RootStackParamList } from '../navigation/RootStack';
-import { FaqAccordionItem } from '../support/FaqAccordionItem';
-import { FAQ_TOPICS } from '../support/faqTopics';
 import { getAppInfo } from '../support/appInfo';
 import { cardShadow, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
 
 /**
- * 고객센터: one compact page for everything about getting help - the tutorial again, the FAQ (static, bundled,
- * works offline), 문의하기 (the person's own mail app, a safe diagnostic footer, no mail backend), the legal
+ * 고객센터: one compact page for getting in touch (the guide itself is 내 페이지 > 도움말) - 문의하기 (the person's own mail app, a safe diagnostic footer, no mail backend), the legal
  * documents (rows appear only once their real URLs are configured - see config/legalLinks) and the app's own
  * version. 문의하기 opens the in-app inquiry screen (no mail app involved); a legal link that will not open is said in
  * the shared message dialog.
@@ -24,7 +21,6 @@ export function CustomerCenterScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showMessage, messageDialog } = useMessageDialog();
-  const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
   const appInfo = getAppInfo();
 
   // No canOpenURL pre-check: on Android 11+ package visibility can make it return false for a handler that
@@ -45,26 +41,6 @@ export function CustomerCenterScreen() {
   return (
     <StackScreenSafeArea style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <NavigationRow label={t('customerCenter.replayTutorial')} onPress={() => navigation.navigate('Tutorial', { mode: 'replay' })} testID="customer-center-tutorial" />
-        </View>
-
-        <Text accessibilityRole="header" style={styles.sectionTitle}>{t('customerCenter.faqHeading')}</Text>
-        <View style={styles.card}>
-          {FAQ_TOPICS.map((topic, index) => (
-            <Fragment key={topic}>
-              {index > 0 ? <View style={styles.divider} /> : null}
-              <FaqAccordionItem
-                answer={t(`customerCenter.faq.${topic}.answer`)}
-                isExpanded={expandedTopic === topic}
-                onToggle={() => setExpandedTopic(previous => (previous === topic ? null : topic))}
-                question={t(`customerCenter.faq.${topic}.question`)}
-                testID={`faq-${topic}`}
-              />
-            </Fragment>
-          ))}
-        </View>
-
         <Text accessibilityRole="header" style={styles.sectionTitle}>{t('customerCenter.inquiryHeading')}</Text>
         <View style={styles.card}>
           <NavigationRow label={t('inquiry.title')} onPress={() => navigation.navigate('SupportInquiry')} testID="customer-center-contact" />

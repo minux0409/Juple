@@ -8,6 +8,15 @@
 type CloseFn = () => void;
 
 let openRowClose: CloseFn | null = null;
+const openListeners = new Set<() => void>();
+
+/** Tells the caller whenever any row is swiped open (the swipe hint's "the gesture was performed"). Returns the unsubscribe. */
+export function subscribeRowOpened(listener: () => void): () => void {
+  openListeners.add(listener);
+  return () => {
+    openListeners.delete(listener);
+  };
+}
 
 /** Called by a row when it finishes opening - closes whichever other row was previously open. */
 export function notifyRowOpened(close: CloseFn): void {
@@ -15,6 +24,7 @@ export function notifyRowOpened(close: CloseFn): void {
     openRowClose();
   }
   openRowClose = close;
+  openListeners.forEach(listener => listener());
 }
 
 /** Called by a row once it's back at rest (closed), whether via gesture or closeOpenRow(). */

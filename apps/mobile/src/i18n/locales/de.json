@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Bitte überprüfen Sie den geteilten Link.",
     "shareReviewOther": "Bitte überprüfen Sie den geteilten Inhalt.",
     "cancelShare": "Geteilten Inhalt verwerfen",
-    "deleteConfirmTitle": "Eintrag löschen",
-    "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
+    "deleteConfirmTitle": "Diesen Link löschen?",
+    "deleteConfirmMessage": "Einen gelöschten Link kannst du unter Kürzlich gelöscht wiederherstellen.",
     "errorBadRequest": "Bitte geben Sie eine gültige http- oder https-Adresse ein.",
     "errorForbidden": "Die Berechtigung für diese Aktion konnte nicht bestätigt werden.",
     "errorSaveFallback": "Der Link konnte nicht gespeichert werden.",
@@ -87,8 +87,8 @@
     "yesterday": "Gestern",
     "thisWeek": "Diese Woche",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Eintrag löschen",
-    "deleteConfirmMessage": "Diesen Eintrag löschen? Das kann nicht rückgängig gemacht werden.",
+    "deleteConfirmTitle": "Diesen Link löschen?",
+    "deleteConfirmMessage": "Einen gelöschten Link kannst du unter Kürzlich gelöscht wiederherstellen.",
     "errorDeleteFallback": "Der Eintrag konnte nicht gelöscht werden.",
     "searchMinHint": "Bitte mindestens 2 Zeichen eingeben."
   },
@@ -492,8 +492,8 @@
     "saved": "Gespeichert.",
     "deletePhotoConfirmTitle": "Dieses Foto löschen?",
     "deletePhotoConfirmMessage": "Ein gelöschtes Foto kann nicht wiederhergestellt werden.",
-    "deleteItemConfirmTitle": "Diesen Eintrag löschen?",
-    "deleteItemConfirmMessage": "Ein gelöschter Eintrag kann nicht wiederhergestellt werden.",
+    "deleteItemConfirmTitle": "Diesen Link löschen?",
+    "deleteItemConfirmMessage": "Einen gelöschten Link kannst du unter Kürzlich gelöscht wiederherstellen.",
     "unsavedChangesTitle": "Nicht gespeicherte Änderungen",
     "unsavedChangesMessage": "Wenn Sie ohne Speichern fortfahren, gehen Ihre Änderungen verloren.",
     "continueEditing": "Weiter bearbeiten",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Kundencenter",
-    "replayTutorial": "Tutorial erneut ansehen",
-    "faqHeading": "Häufige Fragen",
     "inquiryHeading": "Kontakt",
     "serviceInfoHeading": "Serviceinformationen",
     "terms": "Nutzungsbedingungen",
     "privacy": "Datenschutzerklärung",
     "appInfoHeading": "App-Informationen",
     "version": "Version {{version}} (Build {{build}})",
-    "openLinkFailed": "Der Link konnte nicht geöffnet werden. Bitte versuche es später erneut.",
-    "faq": {
-      "saveLinks": {
-        "question": "Wie speichere ich einen Link?",
-        "answer": "Füge eine URL in Juple ein oder teile einen Link aus einer anderen App, etwa einem Browser oder sozialen Netzwerk, mit Juple. Ist Schnellspeichern an, wird der geteilte Link sofort gespeichert; sonst wählst du Sammlungen und fügst eine Notiz hinzu, bevor du speicherst."
-      },
-      "collections": {
-        "question": "Wie nutze ich Sammlungen?",
-        "answer": "Mit Sammlungen ordnest du Links auf deine Weise. Ein Link kann in mehreren Sammlungen sein, und beim Speichern kannst du eine neue Sammlung anlegen."
-      },
-      "archive": {
-        "question": "Wo finde ich gespeicherte Links?",
-        "answer": "Start zeigt die heute gespeicherten Links, das Archiv enthält alles, was du gespeichert hast. Durchsuche nach Datum oder alles zusammen, wechsle zwischen Listen-, Raster- und Bildansicht und nutze die Suche."
-      },
-      "sharedCollections": {
-        "question": "Wie funktionieren geteilte Sammlungen?",
-        "answer": "Du kannst eine Sammlung mit anderen teilen. Was jede Person tun darf, hängt von der vergebenen Berechtigung ab; bei manchen Berechtigungen muss das Hinzufügen eines Links genehmigt werden."
-      },
-      "locks": {
-        "question": "Wie funktionieren gesperrte Sammlungen?",
-        "answer": "Der Inhalt einer gesperrten Sammlung bleibt verborgen, bis du sie entsperrst. Ihre Links erscheinen in Start und Archiv verdeckt, und beim Öffnen wird solange sie gesperrt ist jedes Mal das Passwort verlangt."
-      },
-      "trash": {
-        "question": "Was passiert mit gelöschten Links?",
-        "answer": "Gelöschte Links landen unter „Kürzlich gelöscht“ in Meine Seite. Dort kannst du sie wiederherstellen oder endgültig löschen; endgültig gelöschte Links lassen sich nicht zurückholen."
-      }
-    }
+    "openLinkFailed": "Der Link konnte nicht geöffnet werden. Bitte versuche es später erneut."
   },
   "tutorial": {
     "skip": "Überspringen",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Links einfach speichern",
-        "description": "Füge eine URL ein oder teile einen Link aus Browser oder sozialer App. Mit Schnellspeichern wird er sofort gespeichert."
+        "title": "Links von überall speichern",
+        "description": "Füge eine URL ein oder teile einen Link aus einer anderen App. Titel und Bild werden nach Möglichkeit automatisch ausgefüllt."
+      },
+      "today": {
+        "title": "Start für heute, Archiv für alles",
+        "description": "Die Links von heute stehen im Start. Alles, was du gespeichert hast, ist im Archiv nach Datum gruppiert."
       },
       "collections": {
-        "title": "Ordne es auf deine Weise",
-        "description": "Speichere einen Link in einer oder mehreren Sammlungen und lege beim Speichern eine neue Sammlung an."
-      },
-      "find": {
-        "title": "Gespeicherte Links schnell finden",
-        "description": "Start zeigt die Links von heute, das Archiv alle. Durchsuche nach Datum oder alles zusammen, in Listen-, Raster- oder Bildansicht, und suche jederzeit."
+        "title": "Mit Sammlungen ordnen",
+        "description": "Lege einen Link in eine oder mehrere Sammlungen und gib jeder einen Namen, ein Symbol und eine Farbe."
       },
       "share": {
-        "title": "Sammlungen gemeinsam nutzen",
-        "description": "Teile eine Sammlung mit anderen. Berechtigungen legen fest, was jede Person tun darf, und Links können eine Genehmigung brauchen."
+        "title": "Teilen und zusammenarbeiten",
+        "description": "Teile eine Sammlung per Link oder lade Freunde ein. Du entscheidest, was jede Person darf."
       },
-      "lock": {
-        "title": "Sensible Sammlungen sperren",
-        "description": "Eine gesperrte Sammlung verbirgt ihre Links, und zum Öffnen ist solange sie gesperrt ist ein Passwort nötig."
+      "find": {
+        "title": "Finden und ansehen, wie du willst",
+        "description": "Durchsuche und sortiere deine Links und wechsle zwischen Listen-, Raster- und Bildansicht."
+      },
+      "start": {
+        "title": "Bereit zum Start?",
+        "description": "Deine Links und Sammlungen gehören zu deinem Konto. Weitere Tipps findest du jederzeit unter Mein Bereich > Hilfe."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Später",
     "action": "Aktualisieren",
     "openStoreFailed": "Der Store konnte nicht geöffnet werden. Bitte versuche es gleich noch einmal."
+  },
+  "hints": {
+    "savedLinkSwipe": "Wische einen Link zur Seite für schnelle Aktionen.",
+    "collectionLongPress": "Halte eine Sammlung gedrückt, um schnelle Verwaltungsoptionen zu sehen."
+  },
+  "guide": {
+    "title": "Hilfe",
+    "replayTutorial": "Einführung noch einmal ansehen",
+    "sections": {
+      "save": {
+        "title": "Links speichern",
+        "summary": "Links schnell in Juple bringen"
+      },
+      "homeArchive": {
+        "title": "Start und Archiv",
+        "summary": "Die Links von heute und alles davor"
+      },
+      "viewing": {
+        "title": "Suchen, Sortieren und Ansichten",
+        "summary": "Links finden und so ansehen, wie du willst"
+      },
+      "collections": {
+        "title": "Mit Sammlungen ordnen",
+        "summary": "Links auf deine Art gruppieren"
+      },
+      "sharing": {
+        "title": "Sammlungen teilen und zusammenarbeiten",
+        "summary": "Eine Sammlung teilen und festlegen, wer was darf"
+      },
+      "protection": {
+        "title": "Sperren und Passwörter",
+        "summary": "Sensible Sammlungen schützen"
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "summary": "Immer auf dem Laufenden"
+      },
+      "trash": {
+        "title": "Löschen und wiederherstellen",
+        "summary": "Gelöschte Links zurückholen"
+      },
+      "account": {
+        "title": "Konto und Einstellungen",
+        "summary": "Profil, Sprache und mehr"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Link einfügen oder teilen",
+        "body": "Füge eine URL in das Feld oben im Start ein. Auch ein Text mit einem Link funktioniert: Juple nimmt den ersten gefundenen Link.\n\nUnter Android kannst du einen Link auch direkt aus einem Browser oder einer anderen App an Juple teilen."
+      },
+      "quickSave": {
+        "title": "Schnellspeichern",
+        "body": "Schalte Schnellspeichern in Mein Bereich ein, um geteilte Links sofort und ohne Prüfbildschirm zu speichern.\n\nIst es aus, zeigt Juple den Link zuerst an, damit du den Titel bearbeiten, eine Notiz hinzufügen und Sammlungen wählen kannst, bevor du speicherst."
+      },
+      "review": {
+        "title": "Vor dem Speichern",
+        "body": "Juple füllt Titel und Vorschaubild aus, wenn es kann. Falls es sie nicht lesen kann, kannst du den Titel selbst eingeben.\n\nFüge eine Notiz hinzu und wähle eine oder mehrere Sammlungen oder lege direkt eine neue an. Braucht eine Sammlung Freigabe, wird dein Link als Anfrage an die Eigentümerin oder den Eigentümer gesendet."
+      },
+      "androidShortcuts": {
+        "title": "Verknüpfungen und direktes Teilen",
+        "body": "Füge eine Sammlung über ihr Menü bei langem Drücken zum Startbildschirm hinzu, um sie mit einem Tipp zu öffnen. Siehe „Sammlung gedrückt halten für schnelle Verwaltung“ unter Mit Sammlungen ordnen.\n\nGeteilte Links können auch direkt aus dem Teilen-Menü deines Telefons in eine Sammlung gehen. Gesperrte oder passwortgeschützte Sammlungen sowie Sammlungen, in denen du keine Links hinzufügen kannst, werden dort nicht angeboten.\n\nWird eine Sammlung als Teilen-Ziel angeboten, enthält ihr Menü bei langem Drücken „Aus den Teilen-Zielen entfernen“. Das entfernt sie nur aus dem Teilen-Menü. Die Sammlung, ihre Links und jede von dir erstellte Verknüpfung auf dem Startbildschirm bleiben bestehen."
+      },
+      "home": {
+        "title": "Start",
+        "body": "Der Start zeigt die Links, die du heute gespeichert hast. Tippe auf einen Link, um seine Details zu öffnen, und ändere mit den Sortierschaltflächen und dem Ansichtswechsel über der Liste die Darstellung."
+      },
+      "archive": {
+        "title": "Archiv",
+        "body": "Das Archiv enthält alle Links, die du gespeichert hast, nach Datum gruppiert. Tippe auf ein Datum, um es zu öffnen oder zu schließen, und nutze die Suche, um einen älteren Link zu finden."
+      },
+      "swipe": {
+        "title": "Wischen für schnelle Aktionen",
+        "body": "Wische im Start oder im Archiv einen Link zur Seite, um schnelle Aktionen wie Teilen und Löschen anzuzeigen. Welche Aktionen erscheinen, hängt vom Link ab: Ein Link aus einer gesperrten Sammlung lässt sich zum Beispiel von hier aus nicht teilen."
+      },
+      "searchSort": {
+        "title": "Suchen und Sortieren",
+        "body": "Archiv und jede Sammlung haben ein Suchfeld. Sortiere nach Zeit (erneut tippen, um zwischen neueste und älteste zuerst zu wechseln) oder nach Name.\n\nDer Start ist für die Links von heute, daher kannst du dort sortieren, aber nicht suchen."
+      },
+      "viewModes": {
+        "title": "Listen-, Raster- und Bildansicht",
+        "body": "Mit den Ansichtsschaltflächen zeigst du Links als Liste, Raster oder in der Bildansicht an, die Bilder in drei Spalten zeigt. Deine Wahl wird für Start, Archiv und Sammlungen getrennt gemerkt."
+      },
+      "createCollection": {
+        "title": "Sammlung erstellen",
+        "body": "Tippe im Tab Sammlungen auf Neue Sammlung. Wähle einen Namen, ein Symbol und eine Farbe oder nutze ein eigenes Foto. Ein Link kann zu mehreren Sammlungen gehören.\n\nMarkiere Sammlungen als Favoriten, um sie oben beisammen zu halten."
+      },
+      "longPress": {
+        "title": "Sammlung gedrückt halten für schnelle Verwaltung",
+        "body": "Halte eine Sammlung gedrückt, um die schnellen Aktionen zu sehen. Welches Menü du siehst, hängt von der Sammlung und deiner Rolle ab.\n\nFavorit\nSammle die Sammlungen, die du oft öffnest. Das gilt nur für dich.\n\nBenachrichtigungen ein/aus\nLege fest, ob du Benachrichtigungen für eine geteilte Sammlung erhältst.\n\nBearbeiten\nÄndere Name, Symbol, Farbe oder Foto. Das kann nur der Eigentümer der Sammlung.\n\nSperre\nRichte deine Sperre für eine Sammlung ein oder entferne sie. Sie ist etwas anderes als das Zugangspasswort eines geteilten Links.\n\nLöschen / Verlassen\nEigentümer löschen eine Sammlung, Mitglieder verlassen sie. Beim Löschen einer Sammlung werden die darin enthaltenen Links nicht gelöscht.\n\nMit einem Screenreader hältst du die Sammlung gedrückt oder wählst im Bedienungshilfen-Menü „Optionen“.",
+        "shortcut": "Öffne eine oft genutzte Sammlung direkt von deinem Startbildschirm. Halte sie gedrückt und wähle „Verknüpfung zum Startbildschirm hinzufügen“, um vom Startbildschirm deines Telefons direkt in diese Sammlung zu springen.\n\nEine gesperrte Sammlung fragt auch beim Öffnen über eine Verknüpfung nach ihrem Passwort.\n\nLösche die Verknüpfung selbst von deinem Startbildschirm, wenn du sie nicht mehr brauchst."
+      },
+      "manageLinks": {
+        "title": "Kopieren, verschieben und zusammenführen",
+        "body": "Öffne eine Sammlung und nutze das Menü „Mehr“ eines Links, um ihn in andere Sammlungen zu kopieren, zu verschieben oder aus dieser Sammlung zu entfernen. Entfernen löscht den Link nicht.\n\nÜber das Verwaltungsmenü kannst du eine Sammlung auch mit einer anderen zusammenführen. Nach dem Verschieben, Löschen oder Zusammenführen tippst du in der angezeigten Meldung auf Rückgängig."
+      },
+      "publicLink": {
+        "title": "Sammlung per Link teilen",
+        "body": "Öffne eine Sammlung und tippe auf Teilen. Schalte unter Einstellungen für öffentliche Sammlung die Option EIN, damit jeder mit dem Link sie ansehen kann, in der App oder auf einer Webseite. Lege fest, was Besucher dürfen: nur lesen, nach Freigabe hinzufügen oder Links direkt hinzufügen.\n\nSchaltest du sie AUS, bleibt die Sammlung privat: Wer den Link hat, sieht nur den Namen und kann um Beitritt bitten. Du kannst das Teilen jederzeit beenden."
+      },
+      "invite": {
+        "title": "Freunde oder Personen per ID einladen",
+        "body": "Wähle unter Teilen Freunde aus oder gib die Juple-ID einer Person ein, lege fest, was sie darf, und sende die Einladung. Mit der Annahme tritt die Person bei. Freunde fügst du unter Mein Bereich > Freunde hinzu."
+      },
+      "roles": {
+        "title": "Was jede Berechtigung erlaubt",
+        "body": "Nur lesen: kann die Sammlung ansehen. Mit Freigabe: kann Links vorschlagen, die der Eigentümer freigibt. Darf Links hinzufügen: kann Links direkt hinzufügen. Der Eigentümer verwaltet die Sammlung, das Teilen und die Berechtigung aller.\n\nDie Einstellung eines öffentlichen Links ist die niedrigste Stufe, die jeder haben kann. Eingeladenen Personen kannst du eine höhere geben."
+      },
+      "joinRequests": {
+        "title": "Beitrittsanfragen",
+        "body": "Ist die öffentliche Einstellung einer Sammlung AUS, kann jemand, der ihren Link öffnet, um Beitritt bitten. Der Eigentümer sieht die Anfrage in der Sammlung und genehmigt sie, wodurch die Person als Nur-Lesen-Mitglied hinzukommt, oder lehnt sie ab. Die Person kann später erneut anfragen.\n\nNachdem du um Beitritt gebeten hast, erscheint die Sammlung im Tab Sammlungen als „Wartet auf Genehmigung“, bis der Eigentümer antwortet."
+      },
+      "approvals": {
+        "title": "Anfragen zur Link-Freigabe",
+        "body": "Diese sind etwas anderes als Beitrittsanfragen. Es sind Links, die jemand mit der Berechtigung „Mit Freigabe“ für eine Sammlung vorschlägt. Der Eigentümer findet sie unter Erhaltene Freigabeanfragen und genehmigt oder lehnt jede einzelne ab.\n\nHast du einen Link vorgeschlagen, findest du ihn unter Gesendete Freigabeanfragen und kannst ihn dort zurückziehen."
+      },
+      "collectionLock": {
+        "title": "Sammlung sperren",
+        "body": "Lege unter Mein Bereich > Sammlungssperre ein Sperrpasswort fest und sperre dann eine Sammlung über ihr Menü bei langem Drücken. Eine gesperrte Sammlung verbirgt ihre Links, auch im Start und im Archiv, bis du das Passwort eingibst. Die Sperre gilt für dich, nicht für die Personen, mit denen du teilst."
+      },
+      "accessPassword": {
+        "title": "Zugangspasswort zum Teilen",
+        "body": "Beim Teilen einer Sammlung kannst du außerdem ein Zugangspasswort festlegen. Wer die geteilte Sammlung öffnet, muss es eingeben. Es ist von deiner eigenen Sperre getrennt, und du kannst es unter Teilen ansehen, ändern oder entfernen."
+      },
+      "notificationCenter": {
+        "title": "Benachrichtigungen",
+        "body": "Die Glocke im Start öffnet deine Benachrichtigungen, mit der Zahl der ungelesenen. Tippe auf eine, um zu dem Thema zu gelangen. Du kannst alle als gelesen markieren oder einzelne löschen.\n\nSchalte Benachrichtigungen für jede geteilte Sammlung über ihr Menü bei langem Drücken ein oder aus. Sind sie aus, erscheinen die Einträge weiterhin in der Liste, aber du wirst nicht benachrichtigt."
+      },
+      "deleteRestore": {
+        "title": "Löschen und wiederherstellen",
+        "body": "Lösche einen Link durch Wischen oder in seinen Details. Gelöschte Links landen unter Kürzlich gelöscht in Mein Bereich, wo du sie wiederherstellen, endgültig löschen oder die Liste leeren kannst. Endgültig gelöschte Links lassen sich nicht zurückholen.\n\nEinen Link aus einer Sammlung zu entfernen, löscht ihn nicht."
+      },
+      "settings": {
+        "title": "Konto und Einstellungen",
+        "body": "Mein Bereich enthält dein Profil und deine Juple-ID, Sprache, Schnellspeichern, Freunde, Sammlungssperre, Kürzlich gelöscht und die Kontoverwaltung. Den Support erreichst du über das Kundencenter.\n\nUnter Konto verwalten siehst du, wie du dich anmeldest, und kannst dein Konto löschen. Das löscht dein Konto und deine Daten endgültig."
+      }
+    }
   }
 }

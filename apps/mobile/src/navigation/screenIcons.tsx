@@ -29,6 +29,7 @@ export const screenIcons = {
   account: UserIcon,
   language: GlobeIcon,
   customerCenter: InfoIcon,
+  help: InfoIcon,
   subscription: InfoIcon,
 } as const satisfies Record<string, ScreenTitleIcon>;
 

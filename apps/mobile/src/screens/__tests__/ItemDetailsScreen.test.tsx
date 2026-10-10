@@ -586,26 +586,18 @@ describe('ItemDetailsScreen', () => {
       expect(shownPhoto(renderer)).toBeNull();
     });
 
-    it('add, change and delete never touch an unsaved memo or Collection choice, and never reload them', async () => {
+    it('add, change and delete never touch an unsaved memo, and never reload the item or its Collections', async () => {
       jest.mocked(uploadItemImage)
         .mockResolvedValueOnce(makeImage({ id: 9, readUrl: 'https://blob.example/9.jpg' }))
         .mockResolvedValueOnce(makeImage({ id: 10, readUrl: 'https://blob.example/10.jpg' }));
       jest.mocked(deleteItemImage).mockResolvedValue(undefined);
       jest.mocked(updateItemDetails).mockResolvedValue(undefined);
-      jest.mocked(addItemToCollection).mockResolvedValue('added');
       const renderer = await renderScreen();
       const collectionLoads = () => jest.mocked(getCollections).mock.calls.filter(([, options]) => options?.itemId === 1).length;
       const loadsBefore = collectionLoads();
 
-      // Unsaved drafts: a memo and a Collection added to the Item.
       await act(async () => {
         memoInput(renderer).props.onChangeText('not saved yet');
-      });
-      await act(async () => {
-        findPressableByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))?.props.onPress();
-      });
-      await act(async () => {
-        await findPressableByAccessibilityLabel(renderer, 'Wishlist')?.props.onPress();
       });
 
       await pressAdd(renderer);
@@ -616,13 +608,12 @@ describe('ItemDetailsScreen', () => {
       expect(getItemDetails).toHaveBeenCalledTimes(1);
       expect(getItemImages).toHaveBeenCalledTimes(1);
       expect(collectionLoads()).toBe(loadsBefore);
-      // Both drafts are still exactly what Save sends.
+      // The memo draft is still exactly what Save sends.
       expect(isSaveDisabled(renderer)).toBe(false);
       await act(async () => {
         await findPressableByText(renderer, '저장')?.props.onPress();
       });
       expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 1, { title: 'Original title', memo: 'not saved yet' });
-      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, expect.anything());
     });
 
     it('a photo change alone is not an unsaved edit - Save stays off and leaving does not warn', async () => {
@@ -636,329 +627,328 @@ describe('ItemDetailsScreen', () => {
     });
   });
 
-  describe('categories - staged, only persisted on Save', () => {
-    /** Opens the compact summary row's picker Modal (see categorySummaryRow in ItemDetailsScreen - an icon-only row action, found by accessibilityLabel not text). */
+  describe('컬렉션 변경 - saved directly from the picker, never staged on this screen', () => {
+    /** The link's Collections as the server would now answer them (what the chips reload after a successful save). */
+    let membership: Collection[] = [];
+    const wishlist = makeCollection({ id: 5, name: 'Wishlist' });
+    const groceries = makeCollection({ id: 6, name: 'Groceries' });
+
+    function mockServer(options: { readonly member?: Collection[]; readonly all?: Collection[] } = {}) {
+      membership = options.member ?? [];
+      const all = options.all ?? [wishlist, groceries];
+      jest.mocked(getCollections).mockImplementation(async (_request, request: GetCollectionsOptions = {}) => {
+        if (request.itemId) {
+          return { items: [...membership], nextCursor: null };
+        }
+        return { items: all, nextCursor: null };
+      });
+      jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => {
+        const added = all.find(collection => collection.id === collectionId)!;
+        membership = [...membership, added];
+        return 'added';
+      });
+      jest.mocked(removeItemFromCollection).mockImplementation(async (_request, collectionId) => {
+        membership = membership.filter(collection => collection.id !== collectionId);
+      });
+    }
+
+    const itemLoads = () => jest.mocked(getCollections).mock.calls.filter(([, request]) => request?.itemId === 1).length;
+    const pickers = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(CategoryPickerModal);
+    const pickerSubmit = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderer.root.find(node => node.props.testID === 'category-picker-submit' && typeof node.props.onPress === 'function');
+    const chipNames = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      renderer.root.findByType(CategoryField).props.selectedCollections.map((collection: Collection) => collection.name);
+
     async function openCategoryModal(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
       await act(async () => {
         findPressableByAccessibilityLabel(renderer, i18n.t('item.categoryEditA11y'))?.props.onPress();
       });
     }
 
-    /** Taps a category row inside the picker Modal by name - add if unselected, remove (toggle off) if already selected. Uses accessibilityLabel, not text, because the compact summary's own selected-category chips repeat the same name outside the Modal. */
-    async function toggleCategoryInModal(
-      renderer: ReactTestRenderer.ReactTestRenderer,
-      name: string,
-    ): Promise<void> {
+    async function toggleCategoryInModal(renderer: ReactTestRenderer.ReactTestRenderer, name: string): Promise<void> {
       await act(async () => {
         await findPressableByAccessibilityLabel(renderer, name)?.props.onPress();
       });
     }
 
+    async function savePicker(renderer: ReactTestRenderer.ReactTestRenderer): Promise<void> {
+      await act(async () => {
+        await pickerSubmit(renderer).props.onPress();
+      });
+    }
+
+    beforeEach(() => {
+      mockServer();
+      jest.mocked(updateItemDetails).mockResolvedValue(undefined);
+    });
+
     it('shows each category\'s own pastel icon tile in the picker - not a plain gray outline icon', async () => {
-      jest.mocked(getCollections).mockImplementation(
-        async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            return { items: [], nextCursor: null };
-          }
-          return { items: [makeCollection({ id: 5, name: 'Wishlist', icon: 'Plane' })], nextCursor: null };
-        },
-      );
+      mockServer({ all: [makeCollection({ id: 5, name: 'Wishlist', icon: 'Plane' })] });
       const renderer = await renderScreen();
 
       await openCategoryModal(renderer);
 
       const { PlaneIcon } = require('../../icons/PlaneIcon');
       const { FolderIcon } = require('../../icons/FolderIcon');
-      // In the picker's tiles (the sheet's own 컬렉션 row label has a folder icon of its own).
       const picker = renderer.root.findByType(CategoryPickerModal);
       expect(picker.findAllByType(PlaneIcon).length).toBeGreaterThan(0);
       expect(picker.findAllByType(FolderIcon)).toHaveLength(0);
     });
 
-    it('category add stages locally with no immediate API call, and enables Save', async () => {
+    it('opens as 컬렉션 변경 with 취소 / 저장 - not a lone 닫기', async () => {
       const renderer = await renderScreen();
-      expect(isSaveDisabled(renderer)).toBe(true);
+      await openCategoryModal(renderer);
 
+      const picker = renderer.root.findByType(CategoryPickerModal);
+      expect(picker.props.title).toBe('컬렉션 변경');
+      expect(picker.props.submit.label).toBe('저장');
+      const texts = picker.findAllByType(Text).map(node => node.props.children);
+      expect(texts).toEqual(expect.arrayContaining(['취소', '저장']));
+      expect(texts).not.toContain('닫기');
+    });
+
+    it('is the same sheet the link card\'s long-press 컬렉션 변경 opens', async () => {
+      const renderer = await renderScreen();
+      await openCategoryModal(renderer);
+      const { useItemCollectionChange } = require('../../collections/useItemCollectionChange');
+      expect(typeof useItemCollectionChange).toBe('function');
+      expect(renderer.root.findByType(CategoryPickerModal).props.title).toBe(i18n.t('collections.changeCollection'));
+    });
+
+    it('opening the picker does not fetch the link\'s Collections a second time', async () => {
+      const renderer = await renderScreen();
+      const before = itemLoads();
+
+      await openCategoryModal(renderer);
+
+      expect(itemLoads()).toBe(before);
+    });
+
+    it('choosing Collections only changes the picker: nothing is written, this screen\'s Save stays off and leaving does not warn', async () => {
+      const renderer = await renderScreen();
       await openCategoryModal(renderer);
       await toggleCategoryInModal(renderer, 'Wishlist');
 
       expect(addItemToCollection).not.toHaveBeenCalled();
-      expect(isSaveDisabled(renderer)).toBe(false);
+      expect(pickerSubmit(renderer).props.accessibilityState.disabled).toBe(false);
+      expect(isSaveDisabled(renderer)).toBe(true);
+      expect(latestPreventRemoveIsDirty()).toBe(false);
     });
 
-    it('category remove stages locally with no immediate API call, and enables Save', async () => {
-      jest.mocked(getCollections).mockImplementation(
-        async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
-          }
-          return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
-        },
-      );
+    it('저장 in the picker writes the change at once; this screen\'s Save is not needed and the chips update', async () => {
       const renderer = await renderScreen();
-      expect(isSaveDisabled(renderer)).toBe(true);
-
       await openCategoryModal(renderer);
       await toggleCategoryInModal(renderer, 'Wishlist');
+      await savePicker(renderer);
 
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, expect.anything());
+      expect(updateItemDetails).not.toHaveBeenCalled();
+      expect(pickers(renderer)).toHaveLength(0);
+      expect(chipNames(renderer)).toEqual(['Wishlist']);
+      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('item.saved'))).toBe(true);
+    });
+
+    it('a Collection-only change leaves the screen clean: Save off, no unsaved-changes warning', async () => {
+      const renderer = await renderScreen();
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await savePicker(renderer);
+
+      expect(isSaveDisabled(renderer)).toBe(true);
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+    });
+
+    it('removing a Collection is saved from the picker too', async () => {
+      mockServer({ member: [wishlist] });
+      const renderer = await renderScreen();
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await savePicker(renderer);
+
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, { unlockToken: null });
+      expect(chipNames(renderer)).toEqual([]);
+      expect(latestPreventRemoveIsDirty()).toBe(false);
+    });
+
+    it('add and remove together send exactly the difference, nothing more', async () => {
+      mockServer({ member: [wishlist] });
+      const renderer = await renderScreen();
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await toggleCategoryInModal(renderer, 'Groceries');
+      await savePicker(renderer);
+
+      expect(removeItemFromCollection).toHaveBeenCalledTimes(1);
+      expect(addItemToCollection).toHaveBeenCalledTimes(1);
+      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, { unlockToken: null });
+      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 6, 1, { unlockToken: null });
+      expect(chipNames(renderer)).toEqual(['Groceries']);
+    });
+
+    it('an unchanged choice cannot be saved and writes nothing', async () => {
+      mockServer({ member: [wishlist] });
+      const renderer = await renderScreen();
+      await openCategoryModal(renderer);
+
+      expect(pickerSubmit(renderer).props.accessibilityState.disabled).toBe(true);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      expect(pickerSubmit(renderer).props.accessibilityState.disabled).toBe(true);
+      await savePicker(renderer);
+      expect(addItemToCollection).not.toHaveBeenCalled();
       expect(removeItemFromCollection).not.toHaveBeenCalled();
-      expect(isSaveDisabled(renderer)).toBe(false);
     });
 
-    it('reverting a staged category change (remove then re-add) disables Save again', async () => {
-      jest.mocked(getCollections).mockImplementation(
-        async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
-          }
-          return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
-        },
-      );
+    it('an unsaved memo stays unsaved after a Collection save: still dirty, still not sent, and not touched by the picker', async () => {
       const renderer = await renderScreen();
-
+      const memoField = () => renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
+      await act(async () => {
+        memoField().props.onChangeText('draft memo');
+      });
       await openCategoryModal(renderer);
       await toggleCategoryInModal(renderer, 'Wishlist');
+      await savePicker(renderer);
+
+      expect(updateItemDetails).not.toHaveBeenCalled();
+      expect(memoField().props.value).toBe('draft memo');
       expect(isSaveDisabled(renderer)).toBe(false);
+      expect(latestPreventRemoveIsDirty()).toBe(true);
+    });
 
+    it('leaving afterwards discards only the unsaved memo - the saved Collections stay saved and are never rolled back', async () => {
+      const renderer = await renderScreen();
+      const memoField = () => renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
+      await act(async () => {
+        memoField().props.onChangeText('draft memo');
+      });
+      await openCategoryModal(renderer);
       await toggleCategoryInModal(renderer, 'Wishlist');
+      await savePicker(renderer);
+      // Leaving "without saving" asks about the memo only; nothing about Collections is undone.
+      expect(latestPreventRemoveIsDirty()).toBe(true);
+      expect(removeItemFromCollection).not.toHaveBeenCalled();
+      expect(membership.map(collection => collection.name)).toEqual(['Wishlist']);
+    });
 
+    it('this screen\'s Save sends the title and memo only - never a Collection call', async () => {
+      const renderer = await renderScreen();
+      const memoField = () => renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
+      await act(async () => {
+        memoField().props.onChangeText('new memo');
+      });
+      await act(async () => {
+        await findPressableByText(renderer, '저장')?.props.onPress();
+      });
+
+      expect(updateItemDetails).toHaveBeenCalledWith(expect.anything(), 1, { title: 'Original title', memo: 'new memo' });
+      expect(addItemToCollection).not.toHaveBeenCalled();
+      expect(removeItemFromCollection).not.toHaveBeenCalled();
       expect(isSaveDisabled(renderer)).toBe(true);
     });
 
-    it('a 승인 후 추가 Collection takes it as a proposal: said once saved, and it does not stay selected (it is not in there yet)', async () => {
-      jest.mocked(getCollections).mockImplementation(
-        async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            return { items: [], nextCursor: null };
-          }
-          return { items: [makeCollection({ id: 9, name: 'Team ideas', accessRole: 'submitter' })], nextCursor: null };
-        },
-      );
+    it('a failed save keeps the picker open with the choice intact, says why, and a retry works', async () => {
+      const renderer = await renderScreen();
+      jest.mocked(addItemToCollection).mockRejectedValueOnce(new Error('network error'));
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await savePicker(renderer);
+
+      expect(pickers(renderer)).toHaveLength(1);
+      expect(pickers(renderer)[0].props.selectedIds.has(5)).toBe(true);
+      expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeDefined();
+      expect(chipNames(renderer)).toEqual([]);
+      await act(async () => {
+        findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.onConfirm();
+      });
+
+      await savePicker(renderer);
+
+      expect(addItemToCollection).toHaveBeenCalledTimes(2);
+      expect(pickers(renderer)).toHaveLength(0);
+      expect(chipNames(renderer)).toEqual(['Wishlist']);
+    });
+
+    it('a partial failure keeps what went through, keeps the sheet open and retries only the failed part', async () => {
+      const renderer = await renderScreen();
+      jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => {
+        if (collectionId === 6) {
+          throw new Error('network error');
+        }
+        membership = [...membership, wishlist];
+        return 'added';
+      });
+      await openCategoryModal(renderer);
+      await toggleCategoryInModal(renderer, 'Wishlist');
+      await toggleCategoryInModal(renderer, 'Groceries');
+      await savePicker(renderer);
+      await act(async () => {
+        findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.onConfirm();
+      });
+
+      expect(addItemToCollection).toHaveBeenCalledTimes(2);
+      expect(pickers(renderer)).toHaveLength(1);
+
+      jest.mocked(addItemToCollection).mockResolvedValue('added');
+      await savePicker(renderer);
+
+      // Wishlist already went through and is not sent again.
+      expect(addItemToCollection).toHaveBeenCalledTimes(3);
+      expect(jest.mocked(addItemToCollection).mock.calls[2][1]).toBe(6);
+    });
+
+    it('a 승인 후 추가 Collection becomes a proposal, said in a dialog, and is not shown as a membership', async () => {
+      mockServer({ all: [makeCollection({ id: 9, name: 'Team ideas', accessRole: 'submitter' })] });
       jest.mocked(addItemToCollection).mockResolvedValue('submitted');
       const renderer = await renderScreen();
-
       await openCategoryModal(renderer);
       await toggleCategoryInModal(renderer, 'Team ideas');
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
+      await savePicker(renderer);
 
       expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 9, 1, expect.anything());
-      // A dialog, not a toast: the link itself is saved, and the request was sent.
-      const dialog = renderer.root.findAll(
-        node => node.type === ConfirmDialog && node.props.visible === true && node.props.title === i18n.t('collections.saveOutcomeTitle'),
-      )[0];
+      const dialog = findVisibleConfirmDialog(renderer, i18n.t('collections.saveOutcomeTitle'));
       expect(dialog.props.message).toBe(i18n.t('collections.saveOutcomeSubmitted', { count: 1 }));
-      expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('item.saved'))).toBe(false);
-      // Not a membership: nothing left unsaved, and Save is off again.
+      expect(chipNames(renderer)).toEqual([]);
       expect(latestPreventRemoveIsDirty()).toBe(false);
-      expect(isSaveDisabled(renderer)).toBe(true);
     });
 
-    it('a link already in that Collection, or already waiting there, says exactly that', async () => {
+    it('a link already in that Collection, or already waiting there, says exactly that and keeps the sheet', async () => {
       jest.mocked(addItemToCollection).mockRejectedValue(new ApiError('conflict', 409, 'linkAlreadyPending'));
       const renderer = await renderScreen();
-
       await openCategoryModal(renderer);
       await toggleCategoryInModal(renderer, 'Wishlist');
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
+      await savePicker(renderer);
 
-      // In the shared message dialog - never a red line under the form.
-      const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
-      expect(dialog.props.message).toBe('이미 승인 대기 중인 링크예요.');
-      expect(dialog.props.onCancel).toBeUndefined();
-      // Settled: nothing is left to save for that Collection, so it does not keep Save on.
-      expect(isSaveDisabled(renderer)).toBe(true);
+      expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice')).props.message).toBe('이미 승인 대기 중인 링크예요.');
     });
 
-    it('a duplicate proposal keeps the unsaved memo and the other choices, and never reloads the item', async () => {
-      const { Keyboard } = require('react-native');
-      const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
-      jest.mocked(addItemToCollection).mockRejectedValue(new ApiError('conflict', 409, 'linkAlreadyInCollection'));
-      jest.mocked(updateItemDetails).mockRejectedValue(new Error('network error'));
-      const renderer = await renderScreen();
-      const memoInput = () => renderer.root.findAllByType(TextInput).find(input => input.props.placeholder === i18n.t('item.memoPlaceholder'))!;
-
-      await act(async () => {
-        memoInput().props.onChangeText('draft memo');
-      });
-      await openCategoryModal(renderer);
-      await toggleCategoryInModal(renderer, 'Wishlist');
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
-
-      expect(dismissSpy).toHaveBeenCalled();
-      // Every reason in ONE dialog, each once.
-      const dialog = findVisibleConfirmDialog(renderer, i18n.t('common.notice'));
-      expect(dialog.props.message).toBe(`${i18n.t('item.errorSaveFallback')}\n${i18n.t('collections.linkAlreadyInCollection')}`);
-      await act(async () => {
-        dialog.props.onConfirm();
-      });
-      expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeUndefined();
-      // The memo that did not save is still there to retry; nothing was reloaded.
-      expect(memoInput().props.value).toBe('draft memo');
-      expect(isSaveDisabled(renderer)).toBe(false);
-      expect(getItemDetails).toHaveBeenCalledTimes(1);
-      dismissSpy.mockRestore();
-    });
-
-    it('a staged category change triggers the unsaved-changes back warning until saved', async () => {
-      jest.mocked(addItemToCollection).mockResolvedValue('added');
-      const renderer = await renderScreen();
-      expect(latestPreventRemoveIsDirty()).toBe(false);
-
-      await openCategoryModal(renderer);
-      await toggleCategoryInModal(renderer, 'Wishlist');
-      expect(latestPreventRemoveIsDirty()).toBe(true);
-
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
-      expect(latestPreventRemoveIsDirty()).toBe(false);
-    });
-
-    it('the picker offers 컬렉션 없음: choosing it stages removing every membership (nothing is saved yet), and Save removes only the memberships', async () => {
-      // The link is in Wishlist (the same list serves the picker's options).
-      jest.mocked(getCollections).mockResolvedValue({ items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null });
-      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
+    it('the picker offers 컬렉션 없음: choosing it and saving removes only the memberships', async () => {
+      mockServer({ member: [wishlist] });
       const renderer = await renderScreen();
       await openCategoryModal(renderer);
 
       const picker = renderer.root.findByType(CategoryPickerModal);
       expect(picker.props.noneTile.label).toBe('컬렉션 없음');
-      expect(picker.props.noneTile.isSelected).toBe(false);
       await act(async () => picker.props.noneTile.onPress());
-
-      expect(renderer.root.findByType(CategoryPickerModal).props.noneTile.isSelected).toBe(true);
       expect(removeItemFromCollection).not.toHaveBeenCalled();
-      expect(isSaveDisabled(renderer)).toBe(false);
-
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
+      await savePicker(renderer);
 
       expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, { unlockToken: null });
       expect(addItemToCollection).not.toHaveBeenCalled();
     });
 
-    it('Save calls addItemToCollection/removeItemFromCollection for exactly the staged diff', async () => {
-      jest.mocked(getCollections).mockImplementation(
-        async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            return { items: [makeCollection({ id: 5, name: 'Wishlist' })], nextCursor: null };
-          }
-          return {
-            items: [
-              makeCollection({ id: 5, name: 'Wishlist' }),
-              makeCollection({ id: 6, name: 'Groceries' }),
-            ],
-            nextCursor: null,
-          };
-        },
-      );
-      jest.mocked(addItemToCollection).mockResolvedValue('added');
-      jest.mocked(removeItemFromCollection).mockResolvedValue(undefined);
-      const renderer = await renderScreen();
-
-      // Remove the existing membership (Wishlist) and add a new one (Groceries).
-      await openCategoryModal(renderer);
-      await toggleCategoryInModal(renderer, 'Wishlist');
-      await toggleCategoryInModal(renderer, 'Groceries');
-
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
-
-      expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, { unlockToken: null });
-      expect(addItemToCollection).toHaveBeenCalledWith(expect.anything(), 6, 1, { unlockToken: null });
-      expect(isSaveDisabled(renderer)).toBe(true);
-      expect(renderer.root.findByProps({ children: '저장되었습니다.' })).toBeTruthy();
-      expect(renderer.root.findAllByType(ConfirmDialog).filter(dialog => dialog.props.visible && dialog.props.message === '저장되었습니다.')).toHaveLength(0);
-    });
-
-    it('never shows a saved message before Save is actually pressed, even after staging a category change', async () => {
-      const renderer = await renderScreen();
-
-      await openCategoryModal(renderer);
-      await toggleCategoryInModal(renderer, 'Wishlist');
-
-      expect(renderer.root.findAllByProps({ children: '저장되었습니다.' })).toHaveLength(0);
-    });
-
-    it('a partial category save failure keeps only the failed diff pending, and retry does not redo the succeeded one', async () => {
-      jest.mocked(getCollections).mockImplementation(
-        async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            return { items: [], nextCursor: null };
-          }
-          return {
-            items: [
-              makeCollection({ id: 5, name: 'Wishlist' }),
-              makeCollection({ id: 6, name: 'Groceries' }),
-            ],
-            nextCursor: null,
-          };
-        },
-      );
-      jest.mocked(addItemToCollection).mockImplementation(async (_request, collectionId) => {
-        if (collectionId === 6) {
-          throw new Error('network error');
-        }
-        return 'added';
-      });
-      const renderer = await renderScreen();
-
-      await openCategoryModal(renderer);
-      await toggleCategoryInModal(renderer, 'Wishlist');
-      await toggleCategoryInModal(renderer, 'Groceries');
-
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
-
-      expect(addItemToCollection).toHaveBeenCalledTimes(2);
-      // Wishlist succeeded, Groceries failed - Save must stay enabled (Groceries still pending).
-      expect(isSaveDisabled(renderer)).toBe(false);
-      expect(renderer.root.findAllByProps({ children: '저장되었습니다.' })).toHaveLength(0);
-
-      jest.mocked(addItemToCollection).mockResolvedValue('added');
-      await act(async () => {
-        await findPressableByText(renderer, '저장')?.props.onPress();
-      });
-
-      // Only the still-pending Groceries add is retried - Wishlist (already succeeded) is not
-      // re-sent a third time.
-      expect(addItemToCollection).toHaveBeenCalledTimes(3);
-      expect(isSaveDisabled(renderer)).toBe(true);
-    });
-
-    describe('Collections shared with me', () => {
-      const wishlist = makeCollection({ id: 5, name: 'Wishlist', accessRole: 'owner' });
+    describe('Collections shared with me - the same permission rules as before', () => {
+      const ownerWishlist = makeCollection({ id: 5, name: 'Wishlist', accessRole: 'owner' });
       const sharedTrip = makeCollection({ id: 9, name: 'Shared Trip', accessRole: 'contributor', ownerJupleId: 'WNER2345' });
 
       beforeEach(() => {
-        jest.mocked(getCollections).mockImplementation(async (_request, options: GetCollectionsOptions = {}) => {
-          if (options.itemId) {
-            // Only the 'all' scope includes the ones shared with me.
-            return { items: options.scope === 'all' ? [wishlist, sharedTrip] : [wishlist], nextCursor: null };
-          }
-          if (options.scope === 'shared') {
-            // The server lists my own shared Collection under 'shared' as well.
-            return { items: [wishlist, sharedTrip], nextCursor: null };
-          }
-          return { items: [wishlist], nextCursor: null };
-        });
+        mockServer({ member: [ownerWishlist, sharedTrip], all: [ownerWishlist, sharedTrip] });
       });
 
       it('lists every Collection the link is in - my own and the ones shared with me', async () => {
         const renderer = await renderScreen();
 
         expect(getCollections).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ itemId: 1, scope: 'all' }));
-        const shown = renderer.root.findAllByType(Text).map(node => node.props.children);
-        expect(shown).toEqual(expect.arrayContaining(['Wishlist', 'Shared Trip']));
+        expect(chipNames(renderer)).toEqual(['Wishlist', 'Shared Trip']);
         expect(isSaveDisabled(renderer)).toBe(true);
       });
 
@@ -967,17 +957,28 @@ describe('ItemDetailsScreen', () => {
         await openCategoryModal(renderer);
         await toggleCategoryInModal(renderer, 'Shared Trip');
 
-        expect(isSaveDisabled(renderer)).toBe(true);
+        expect(pickerSubmit(renderer).props.accessibilityState.disabled).toBe(true);
         expect(renderer.root.findAllByType(Text).some(node => node.props.children === i18n.t('collections.removeFromSharedOwnerOnly'))).toBe(true);
-
-        // The picker lists my own shared Collection once, not again among the shared ones.
-        expect(renderer.root.findAll(node => typeof node.type === 'string' && node.props.accessibilityLabel === 'Wishlist')).toHaveLength(1);
 
         // My own Collection is still mine to change.
         await toggleCategoryInModal(renderer, 'Wishlist');
-        expect(isSaveDisabled(renderer)).toBe(false);
-        expect(removeItemFromCollection).not.toHaveBeenCalled();
+        expect(pickerSubmit(renderer).props.accessibilityState.disabled).toBe(false);
+        await savePicker(renderer);
+        expect(removeItemFromCollection).toHaveBeenCalledTimes(1);
+        expect(removeItemFromCollection).toHaveBeenCalledWith(expect.anything(), 5, 1, expect.anything());
         act(() => renderer.unmount());
+      });
+
+      it('a server refusal is shown and the sheet stays - the UI never pretends it worked', async () => {
+        jest.mocked(removeItemFromCollection).mockRejectedValueOnce(new ApiError('forbidden', 403));
+        const renderer = await renderScreen();
+        await openCategoryModal(renderer);
+        await toggleCategoryInModal(renderer, 'Wishlist');
+        await savePicker(renderer);
+
+        expect(pickers(renderer)).toHaveLength(1);
+        expect(findVisibleConfirmDialog(renderer, i18n.t('common.notice'))).toBeDefined();
+        expect(chipNames(renderer)).toEqual(['Wishlist', 'Shared Trip']);
       });
     });
   });

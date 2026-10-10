@@ -24,14 +24,10 @@ import type { TFunction } from 'i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../api/ApiError';
 import {
-  applyItemMembershipChanges,
-  clearItemCollectionSelection,
   getCollectionMembershipErrorMessage,
   getItemCollectionsListErrorMessage,
-  isRemovalOwnerOnly,
   loadItemMemberships,
 } from '../collections/itemMemberships';
-import { formatSaveOutcomeMessage } from '../collections/saveOutcomeMessage';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import {
   removeItemFromCollection,
@@ -42,8 +38,7 @@ import {
 import { getCollectionUnlockToken } from '../collections/collectionUnlockGrants';
 import { useItemCollaboration } from '../collaboration/useItemCollaboration';
 import { CategoryField } from '../collections/CategoryField';
-import { CategoryPickerModal } from '../collections/CategoryPickerModal';
-import { useCategoryPickerModal } from '../collections/useCategoryPickerModal';
+import { useItemCollectionChange } from '../collections/useItemCollectionChange';
 import { contentGateOfError } from '../collections/useCollectionItems';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useAppToast } from '../components/AppToast';
@@ -314,8 +309,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // persisted membership (originalCategoryIds) - the diff between the two is exactly what Save
   // must add/remove. There is no cap on how many Collections an Item can belong to, so
   // loadItemCollections below drains every page itself rather than assuming one page is enough.
-  const [selectedCategories, setSelectedCategories] = useState<readonly Collection[]>([]);
-  const [originalCategoryIds, setOriginalCategoryIds] = useState<ReadonlySet<number>>(new Set());
+  const [memberCollections, setMemberCollections] = useState<readonly Collection[]>([]);
   const [isLoadingItemCollections, setIsLoadingItemCollections] = useState(true);
   const [itemCollectionsError, setItemCollectionsError] = useState<string | null>(null);
   const itemCollectionsRequestIdRef = useRef(0);
@@ -344,17 +338,9 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   // Plain per-render value (not memoized - a cheap scan over a small list), so the focus-refetch
   // guard below and the combined isDirty further down always agree on one definition. Image
   // add/remove is deliberately excluded - see the "images" state's own comment above.
-  const isCategoriesDirty =
-    selectedCategories.length !== originalCategoryIds.size ||
-    selectedCategories.some(option => !originalCategoryIds.has(option.id));
-  const isDirty = title !== baselineTitle || memo !== baselineMemo || isCategoriesDirty;
-
-  const isCategoriesDirtyRef = useRef(isCategoriesDirty);
-  useEffect(() => {
-    isCategoriesDirtyRef.current = isCategoriesDirty;
-  }, [isCategoriesDirty]);
-
-  const selectedCategoryIds = new Set(selectedCategories.map(option => option.id));
+  // Only title and memo are staged for this screen's Save. A Collection change is saved immediately from its own picker
+  // (see collectionChange below), so it is never "unsaved" here and never rolled back by leaving.
+  const isDirty = title !== baselineTitle || memo !== baselineMemo;
 
   // The one 대표 사진: the user's own photo, else the link's automatic preview (see representativePhoto.ts).
   const representativePhoto = resolveRepresentativePhoto(item?.previewImageUrl ?? null, images, item?.coverImage?.id ?? null);
@@ -415,8 +401,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
       if (allItems === null) {
         return;
       }
-      setSelectedCategories(allItems);
-      setOriginalCategoryIds(new Set(allItems.map(option => option.id)));
+      setMemberCollections(allItems);
     } catch (caughtError) {
       if (itemCollectionsRequestIdRef.current !== requestId) {
         return;
@@ -430,15 +415,11 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }, [authenticatedRequest, itemId, t]);
 
   // Refetches on every focus (not just mount), so a Collection add/remove made elsewhere (e.g. from
-  // CollectionDetailsScreen) is reflected here too - but never while the user has an in-progress,
-  // unsaved staged category edit on this very screen, which a refetch would otherwise silently
-  // discard the moment focus returns here (e.g. after opening the add-to-category modal's "create
-  // new category" flow, which itself briefly leaves and returns focus in some navigators).
+  // CollectionDetailsScreen) is reflected here too. Nothing about Collections is staged on this screen any more
+  // (a change is saved from its picker), so there is no unsaved choice for a refetch to discard.
   useFocusEffect(
     useCallback(() => {
-      if (!isCategoriesDirtyRef.current) {
-        loadItemCollections();
-      }
+      loadItemCollections();
     }, [loadItemCollections]),
   );
 
@@ -536,23 +517,10 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     }
   };
 
-  const stageRemoveCategory = (collectionId: number) => {
-    setSelectedCategories(previous => previous.filter(option => option.id !== collectionId));
-  };
-
-  const stageAddCategory = (option: Collection) => {
-    setSelectedCategories(previous =>
-      previous.some(existing => existing.id === option.id) ? previous : [...previous, option],
-    );
-  };
-
-  // Creating a category itself is not part of this Item's staged membership edit - it is an
-  // immediate, item-independent action (like creating a folder to file into later); only actually
-  // adding this Item to it is staged, via stageAddCategory. This round's CategoryPickerModal grid
-  // rework auto-selects a freshly created category for the current Item uniformly across every
-  // caller (see useCategoryPickerModal's own remarks) - previously ItemDetails deliberately did
-  // not, but the "새로 만든 카테고리를 다시 찾아 누르게 하지 않는다" requirement now applies here too.
-  const categoryPicker = useCategoryPickerModal(authenticatedRequest, t, stageAddCategory);
+  // 컬렉션 변경: the very same sheet and save path as a link card's long-press (useItemCollectionChange - 취소 / 저장).
+  // 저장 writes the membership right away through the shared, server-authoritative calls (itemMemberships.ts); on
+  // success the chips below are refreshed from the server, so what is shown is exactly what was saved.
+  const collectionChange = useItemCollectionChange(() => { loadItemCollections().catch(() => undefined); });
 
   const deleteItemAction = async () => {
     if (itemActionInFlightRef.current) {
@@ -599,12 +567,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     setIsDeletingItem(true);
     try {
       await removeItemFromCollection(authenticatedRequest, contextCollectionId, itemId);
-      setSelectedCategories(previous => previous.filter(option => option.id !== contextCollectionId));
-      setOriginalCategoryIds(previous => {
-        const next = new Set(previous);
-        next.delete(contextCollectionId);
-        return next;
-      });
+      setMemberCollections(previous => previous.filter(option => option.id !== contextCollectionId));
       showNotificationToast(t('toast.unlinkSuccess'));
       // Back to the Collection, which reloads its list on focus. Unsaved title/memo edits still get
       // the usual "leave without saving?" question - the link itself was not deleted.
@@ -661,14 +624,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
   }, [isDeleted, navigation]);
 
   /**
-   * Persists exactly the staged changes - title/memo (if changed) and the category
-   * add/remove diff - never a duplicate call for a category already in the state it's supposed to
-   * reach. Each operation updates its own baseline (baselineTitle/baselineMemo, or
-   * originalCategoryIds) the moment it succeeds, independently of whether any other operation in
-   * this same Save later fails - so a partial category failure never loses or duplicates a still-
-   * pending change, isDirty stays true only for what actually still needs saving, and the user can
-   * just press Save again to retry the remainder. Images are never touched here - see the
-   * "images" state's own comment above.
+   * Persists the staged title / memo - the only fields this screen stages. Collections are saved from their own
+   * picker and photos are immediate (see the "images" state's comment above), so neither is touched here.
    */
   const save = async () => {
     if (isSavingRef.current || !isDirty || isDeleted) {
@@ -677,57 +634,15 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
 
     setIsSaving(true);
     setError(null);
-
-    const failureMessages: string[] = [];
-
-    if (title !== baselineTitle || memo !== baselineMemo) {
-      try {
-        await updateItemDetails(authenticatedRequest, itemId, { title, memo });
-        setBaselineTitle(title);
-        setBaselineMemo(memo);
-      } catch (caughtError) {
-        failureMessages.push(getSaveErrorMessage(caughtError, t));
-      }
-    }
-
-    const currentSelectedIds = new Set(selectedCategories.map(option => option.id));
-    const categoriesToAdd = selectedCategories.filter(option => !originalCategoryIds.has(option.id));
-    const categoryIdsToRemove = [...originalCategoryIds].filter(id => !currentSelectedIds.has(id));
-
-    // 승인 후 추가: those became proposals for their Owners - not memberships, so they leave the
-    // selection again (the link is not in those Collections until approved). A Collection that
-    // already has this link, or already has it waiting for its Owner, is settled the same way: there
-    // is nothing left to save for it, so it must not keep Save on (a retry could only fail again).
-    // Each locked Collection travels with the grant this screen's picker obtained for it (the same call a link
-    // card's long-press 컬렉션 변경 makes - see itemMemberships.ts).
-    const membership = await applyItemMembershipChanges(authenticatedRequest, itemId, categoriesToAdd, categoryIdsToRemove, categoryPicker.unlockTokenFor, t);
-    const proposedIds = new Set(membership.proposedIds);
-    const settledIds = new Set(membership.settledIds);
-    const addedCount = membership.addedIds.length;
-    failureMessages.push(...membership.failureMessages);
-    if (membership.addedIds.length > 0 || membership.removedIds.length > 0) {
-      setOriginalCategoryIds(previous => {
-        const next = new Set(previous);
-        membership.addedIds.forEach(id => next.add(id));
-        membership.removedIds.forEach(id => next.delete(id));
-        return next;
-      });
-    }
-    if (proposedIds.size > 0 || settledIds.size > 0) {
-      setSelectedCategories(previous => previous.filter(option => !proposedIds.has(option.id) && !settledIds.has(option.id)));
-    }
-
-    setIsSaving(false);
-    // De-duplicated - several failed operations of the same kind must not repeat the same sentence.
-    const failureText = [...new Set(failureMessages)].join('\n');
-    if (proposedIds.size > 0) {
-      // One dialog for the whole save: the proposals, then anything that did not go through.
-      const outcome = formatSaveOutcomeMessage({ added: addedCount, submitted: proposedIds.size }, t);
-      showMessage(failureText ? `${outcome}\n\n${failureText}` : outcome, { title: t('collections.saveOutcomeTitle') });
-    } else if (failureText) {
-      showMessage(failureText);
-    } else {
+    try {
+      await updateItemDetails(authenticatedRequest, itemId, { title, memo });
+      setBaselineTitle(title);
+      setBaselineMemo(memo);
       showNotificationToast(t('item.saved'));
+    } catch (caughtError) {
+      showMessage(getSaveErrorMessage(caughtError, t));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -774,7 +689,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
     sheetTop,
     safeTop: insets.top + SHEET_SAFE_TOP_MARGIN,
     // A dialog over the sheet (the Collection picker, its create / password dialogs) has its own keyboard handling.
-    isDialogOpen: categoryPicker.isVisible || categoryPicker.isCreateDialogVisible || categoryPicker.unlockTarget !== null,
+    isDialogOpen: collectionChange.isDialogOpen,
   };
   const recordRoom = (height: number) => {
     // Only a keyboard-closed measurement sets the top. A smaller room at the same width without a reported keyboard
@@ -949,8 +864,8 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
                   disabled={isSaving}
                   error={itemCollectionsError}
                   isLoading={isLoadingItemCollections}
-                  onPress={categoryPicker.open}
-                  selectedCollections={selectedCategories}
+                  onPress={() => { collectionChange.start(itemId, memberCollections).catch(() => undefined); }}
+                  selectedCollections={memberCollections}
                   showLabel={false}
                 />
               </View>
@@ -1068,51 +983,7 @@ export function ItemDetailsScreen({ route, navigation }: Props) {
         visible={isUnsavedChangesDialogVisible}
       />
 
-      <CategoryPickerModal
-        bottomInset={insets.bottom}
-        collectionPool={categoryPicker.collectionPool}
-        createError={categoryPicker.createError}
-        error={categoryPicker.error}
-        loadFailure={categoryPicker.loadFailure}
-        onRetryLoad={categoryPicker.retryLoad}
-        isCreateDialogVisible={categoryPicker.isCreateDialogVisible}
-        isCreatingCollection={categoryPicker.isCreatingCollection}
-        isLoadingMore={categoryPicker.isLoadingMore}
-        isLoadingOptions={categoryPicker.isLoadingOptions}
-        onClose={categoryPicker.close}
-        onCloseCreateDialog={categoryPicker.closeCreateDialog}
-        onCreateCollection={categoryPicker.submitNewCollection}
-        onLoadMore={categoryPicker.loadMore}
-        onOpenCreateDialog={categoryPicker.openCreateDialog}
-        onToggle={option => {
-          // Only a Collection's Owner may take a link out of it (a server rule): once this link is
-          // in a Collection shared with me, deselecting it here would only fail on save.
-          if (selectedCategoryIds.has(option.id) && originalCategoryIds.has(option.id) && isRemovalOwnerOnly(option)) {
-            showNotificationToast(t('collections.removeFromSharedOwnerOnly'));
-            return;
-          }
-          categoryPicker.requestToggle(option, () =>
-            selectedCategoryIds.has(option.id) ? stageRemoveCategory(option.id) : stageAddCategory(option));
-        }}
-        // 컬렉션 없음: an explicit empty choice, the same tile the long-press 컬렉션 변경 offers.
-        noneTile={{
-          label: t('collections.noCollection'),
-          isSelected: selectedCategories.length === 0,
-          onPress: () => clearItemCollectionSelection(
-            selectedCategories,
-            originalCategoryIds,
-            categoryPicker.requestToggle,
-            stageRemoveCategory,
-            () => showNotificationToast(t('collections.removeFromSharedOwnerOnly')),
-          ),
-        }}
-        onUnlockCancel={categoryPicker.cancelUnlock}
-        onUnlockGranted={categoryPicker.onUnlockGranted}
-        onUnlockStateChanged={categoryPicker.onUnlockStateChanged}
-        selectedIds={selectedCategoryIds}
-        unlockTarget={categoryPicker.unlockTarget}
-        visible={categoryPicker.isVisible}
-      />
+      {collectionChange.element}
     </>
   );
 }

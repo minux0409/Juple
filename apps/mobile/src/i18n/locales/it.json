@@ -68,8 +68,8 @@
     "shareReviewExactUrl": "Verifica il link condiviso.",
     "shareReviewOther": "Verifica il contenuto condiviso.",
     "cancelShare": "Scarta il contenuto condiviso",
-    "deleteConfirmTitle": "Elimina elemento",
-    "deleteConfirmMessage": "Eliminare questo elemento? L'operazione non può essere annullata.",
+    "deleteConfirmTitle": "Eliminare questo link?",
+    "deleteConfirmMessage": "Puoi ripristinare un link eliminato da Eliminati di recente.",
     "errorBadRequest": "Inserisci un indirizzo http o https valido.",
     "errorForbidden": "Non è stato possibile confermare l'autorizzazione per questa azione.",
     "errorSaveFallback": "Impossibile salvare il link.",
@@ -87,8 +87,8 @@
     "yesterday": "Ieri",
     "thisWeek": "Questa settimana",
     "sectionHeader": "{{label}} · {{count}}",
-    "deleteConfirmTitle": "Elimina elemento",
-    "deleteConfirmMessage": "Eliminare questo elemento? L'operazione non può essere annullata.",
+    "deleteConfirmTitle": "Eliminare questo link?",
+    "deleteConfirmMessage": "Puoi ripristinare un link eliminato da Eliminati di recente.",
     "errorDeleteFallback": "Impossibile eliminare l'elemento.",
     "searchMinHint": "Inserisci almeno 2 caratteri."
   },
@@ -492,8 +492,8 @@
     "saved": "Salvato.",
     "deletePhotoConfirmTitle": "Eliminare questa foto?",
     "deletePhotoConfirmMessage": "Una foto eliminata non può essere recuperata.",
-    "deleteItemConfirmTitle": "Eliminare questo elemento?",
-    "deleteItemConfirmMessage": "Un elemento eliminato non può essere recuperato.",
+    "deleteItemConfirmTitle": "Eliminare questo link?",
+    "deleteItemConfirmMessage": "Puoi ripristinare un link eliminato da Eliminati di recente.",
     "unsavedChangesTitle": "Modifiche non salvate",
     "unsavedChangesMessage": "Se esci senza salvare, le modifiche andranno perse.",
     "continueEditing": "Continua a modificare",
@@ -851,41 +851,13 @@
   },
   "customerCenter": {
     "title": "Centro assistenza",
-    "replayTutorial": "Rivedi il tutorial",
-    "faqHeading": "Domande frequenti",
     "inquiryHeading": "Contatti",
     "serviceInfoHeading": "Informazioni sul servizio",
     "terms": "Termini di servizio",
     "privacy": "Informativa sulla privacy",
     "appInfoHeading": "Informazioni sull'app",
     "version": "Versione {{version}} (build {{build}})",
-    "openLinkFailed": "Impossibile aprire il link. Riprova più tardi.",
-    "faq": {
-      "saveLinks": {
-        "question": "Come salvo un link?",
-        "answer": "Incolla un URL in Juple oppure condividi un link con Juple da un'altra app, come un browser o un social. Con il salvataggio rapido attivo il link condiviso viene salvato subito; altrimenti scegli le raccolte e aggiungi una nota prima di salvare."
-      },
-      "collections": {
-        "question": "Come uso le raccolte?",
-        "answer": "Le raccolte ti permettono di organizzare i link a modo tuo. Un link può stare in più raccolte e puoi crearne una nuova mentre salvi."
-      },
-      "archive": {
-        "question": "Dove trovo i link salvati?",
-        "answer": "Home mostra i link salvati oggi e Archivio contiene tutto ciò che hai salvato. Sfoglia per data o tutto insieme, passa tra le viste Elenco, Griglia e Immagine, e cerca."
-      },
-      "sharedCollections": {
-        "question": "Come funzionano le raccolte condivise?",
-        "answer": "Puoi condividere una raccolta con altre persone. Ciò che ogni partecipante può fare dipende dall'autorizzazione che concedi, e alcune autorizzazioni possono richiedere l'approvazione prima di aggiungere un link."
-      },
-      "locks": {
-        "question": "Come funzionano le raccolte bloccate?",
-        "answer": "Il contenuto di una raccolta bloccata resta nascosto finché non la sblocchi. I suoi link appaiono oscurati in Home e Archivio, e la password viene richiesta a ogni apertura finché è bloccata."
-      },
-      "trash": {
-        "question": "Cosa succede ai link eliminati?",
-        "answer": "I link eliminati vanno in Eliminati di recente in La mia pagina. Lì puoi ripristinarli o eliminarli definitivamente; i link eliminati definitivamente non si possono recuperare."
-      }
-    }
+    "openLinkFailed": "Impossibile aprire il link. Riprova più tardi."
   },
   "tutorial": {
     "skip": "Salta",
@@ -895,24 +867,28 @@
     "progress": "{{current}} / {{total}}",
     "pages": {
       "save": {
-        "title": "Salva i link con facilità",
-        "description": "Incolla un URL o condividi un link dal browser o da un social. Con il salvataggio rapido viene salvato subito."
+        "title": "Salva link da ovunque",
+        "description": "Incolla un URL o condividi un link da un’altra app. Titolo e immagine si compilano da soli quando possibile."
+      },
+      "today": {
+        "title": "Home per oggi, Archivio per tutto",
+        "description": "I link di oggi sono in Home. Tutto ciò che hai salvato è in Archivio, raggruppato per data."
       },
       "collections": {
-        "title": "Organizza a modo tuo",
-        "description": "Salva un link in una o più raccolte e crea una nuova raccolta mentre salvi."
-      },
-      "find": {
-        "title": "Ritrova subito i link salvati",
-        "description": "Home mostra i link di oggi e Archivio li contiene tutti. Sfoglia per data o tutto insieme, in vista Elenco, Griglia o Immagine, e cerca quando vuoi."
+        "title": "Organizza con le raccolte",
+        "description": "Metti un link in una o più raccolte e dai a ciascuna un nome, un’icona e un colore."
       },
       "share": {
-        "title": "Usa le raccolte insieme",
-        "description": "Condividi una raccolta con altre persone. Le autorizzazioni decidono cosa può fare ciascuno, e i link possono richiedere approvazione."
+        "title": "Condividi e lavora insieme",
+        "description": "Condividi una raccolta con un link o invita degli amici. Decidi tu cosa può fare ciascuno."
       },
-      "lock": {
-        "title": "Blocca le raccolte sensibili",
-        "description": "Una raccolta bloccata nasconde i suoi link e serve una password per aprirli finché è bloccata."
+      "find": {
+        "title": "Cerca e visualizza a modo tuo",
+        "description": "Cerca e ordina i tuoi link e passa tra vista elenco, griglia e immagini."
+      },
+      "start": {
+        "title": "Pronto a iniziare?",
+        "description": "I tuoi link e le tue raccolte appartengono al tuo account. Trovi altri consigli in qualsiasi momento in Il mio profilo > Aiuto."
       }
     }
   },
@@ -1024,5 +1000,142 @@
     "later": "Più tardi",
     "action": "Aggiorna",
     "openStoreFailed": "Impossibile aprire lo store. Riprova tra un momento."
+  },
+  "hints": {
+    "savedLinkSwipe": "Scorri un link di lato per le azioni rapide.",
+    "collectionLongPress": "Tieni premuta una raccolta per vedere le opzioni di gestione rapida."
+  },
+  "guide": {
+    "title": "Aiuto",
+    "replayTutorial": "Rivedi l’introduzione",
+    "sections": {
+      "save": {
+        "title": "Salvare i link",
+        "summary": "Porta i link in Juple rapidamente"
+      },
+      "homeArchive": {
+        "title": "Home e Archivio",
+        "summary": "I link di oggi e tutto il resto"
+      },
+      "viewing": {
+        "title": "Ricerca, ordinamento e viste",
+        "summary": "Trova i link e guardali a modo tuo"
+      },
+      "collections": {
+        "title": "Organizzare con le raccolte",
+        "summary": "Raggruppa i link a modo tuo"
+      },
+      "sharing": {
+        "title": "Condivisione e lavoro di squadra",
+        "summary": "Condividi una raccolta e decidi chi può fare cosa"
+      },
+      "protection": {
+        "title": "Blocchi e password",
+        "summary": "Proteggi le raccolte sensibili"
+      },
+      "notifications": {
+        "title": "Notifiche",
+        "summary": "Resta aggiornato"
+      },
+      "trash": {
+        "title": "Eliminare e ripristinare",
+        "summary": "Recupera i link eliminati"
+      },
+      "account": {
+        "title": "Account e impostazioni",
+        "summary": "Profilo, lingua e altro"
+      }
+    },
+    "topics": {
+      "pasteShare": {
+        "title": "Incollare o condividere un link",
+        "body": "Incolla un URL nel campo in alto in Home. Funziona anche un testo che contiene un link: Juple usa il primo che trova.\n\nSu Android puoi anche condividere un link da un browser o da un’altra app direttamente a Juple."
+      },
+      "quickSave": {
+        "title": "Salvataggio rapido",
+        "body": "Attiva il Salvataggio rapido in Il mio profilo per salvare subito i link condivisi, senza schermata di verifica.\n\nSe è disattivato, Juple mostra prima il link così puoi modificare il titolo, aggiungere una nota e scegliere le raccolte prima di salvare."
+      },
+      "review": {
+        "title": "Prima di salvare",
+        "body": "Juple compila titolo e immagine di anteprima quando può. Se non riesce a leggerli, puoi scrivere tu il titolo.\n\nAggiungi una nota e scegli una o più raccolte, oppure creane una al volo. Se una raccolta richiede approvazione, il tuo link viene inviato al proprietario come richiesta."
+      },
+      "androidShortcuts": {
+        "title": "Scorciatoie e condivisione diretta",
+        "body": "Aggiungi una raccolta alla schermata Home dal suo menu a pressione prolungata per aprirla con un tocco. Vedi «Tieni premuta una raccolta per gestirla velocemente» in Organizzare con le raccolte.\n\nI link condivisi possono anche andare direttamente in una raccolta dal menu di condivisione del telefono. Le raccolte bloccate o protette da password, o in cui non puoi aggiungere link, non vengono proposte.\n\nQuando una raccolta è proposta come destinazione di condivisione, il suo menu a pressione prolungata ha «Rimuovi dalle destinazioni di condivisione». Questo la toglie solo dal menu di condivisione. La raccolta, i suoi link e le scorciatoie sulla schermata Home che hai creato restano."
+      },
+      "home": {
+        "title": "Home",
+        "body": "Home mostra i link che hai salvato oggi. Tocca un link per aprirne i dettagli e usa i pulsanti di ordinamento e il selettore di vista sopra l’elenco per cambiare come vengono mostrati."
+      },
+      "archive": {
+        "title": "Archivio",
+        "body": "Archivio contiene tutti i link che hai salvato, raggruppati per data. Tocca una data per aprirla o chiuderla e usa la ricerca per trovare un link più vecchio."
+      },
+      "swipe": {
+        "title": "Scorri per le azioni rapide",
+        "body": "Scorri un link di lato in Home o Archivio per mostrare azioni rapide, come condividi ed elimina. Le azioni dipendono dal link: per esempio, un link di una raccolta bloccata non si può condividere da qui."
+      },
+      "searchSort": {
+        "title": "Cerca e ordina",
+        "body": "Archivio e ogni raccolta hanno una casella di ricerca. Ordina per ora (tocca di nuovo per alternare tra più recente e più vecchio prima) o per nome.\n\nHome è per i link di oggi, quindi si può ordinare ma non cercare."
+      },
+      "viewModes": {
+        "title": "Viste elenco, griglia e immagini",
+        "body": "Usa i pulsanti di vista per mostrare i link come elenco, griglia o vista immagini, che mostra le immagini su tre colonne. La tua scelta viene ricordata separatamente per Home, Archivio e Raccolte."
+      },
+      "createCollection": {
+        "title": "Creare una raccolta",
+        "body": "Nella scheda Raccolte tocca Nuova raccolta. Scegli un nome, un’icona e un colore, oppure usa una tua foto. Un link può appartenere a più raccolte.\n\nSegna le raccolte come preferite per tenerle insieme in alto."
+      },
+      "longPress": {
+        "title": "Tieni premuta una raccolta per gestirla velocemente",
+        "body": "Tieni premuta una raccolta per vedere le azioni rapide. Il menu che vedi dipende dalla raccolta e dal tuo ruolo.\n\nPreferito\nRaccogli le raccolte che apri spesso. Vale solo per te.\n\nAttiva/disattiva notifiche\nScegli se ricevere le notifiche di una raccolta condivisa.\n\nModifica\nCambia nome, icona, colore o foto. Può farlo solo il proprietario della raccolta.\n\nBlocco\nImposta o rimuovi il tuo blocco su una raccolta. È diverso dalla password di accesso di un link condiviso.\n\nElimina / Esci\nI proprietari eliminano una raccolta e i membri escono. Eliminare una raccolta non elimina i link al suo interno.\n\nCon uno screen reader, tieni premuta la raccolta o scegli «Opzioni» nel menu di accessibilità.",
+        "shortcut": "Apri una raccolta che usi spesso direttamente dalla schermata Home. Tienila premuta e scegli «Aggiungi scorciatoia alla schermata Home» per entrare in quella raccolta dalla schermata Home del telefono.\n\nUna raccolta bloccata chiede comunque la password quando la apri da una scorciatoia.\n\nElimina tu stesso la scorciatoia dalla schermata Home quando non ti serve più."
+      },
+      "manageLinks": {
+        "title": "Copiare, spostare e unire",
+        "body": "Apri una raccolta e usa il menu «altro» di un link per copiarlo in altre raccolte, spostarlo o rimuoverlo da questa raccolta. Rimuoverlo non elimina il link.\n\nPuoi anche unire una raccolta a un’altra dal suo menu di gestione. Dopo uno spostamento, un’eliminazione o un’unione, tocca Annulla nel messaggio che appare."
+      },
+      "publicLink": {
+        "title": "Condividere una raccolta con un link",
+        "body": "Apri una raccolta e tocca Condividi. In Impostazioni raccolta pubblica attivala per far vedere la raccolta a chiunque abbia il link, nell’app o su una pagina web. Scegli cosa possono fare i visitatori: sola lettura, aggiunta dopo approvazione o aggiunta diretta di link.\n\nDisattivala per mantenere la raccolta privata: chi ha il link vede solo il nome e può chiedere di partecipare. Puoi smettere di condividere in qualsiasi momento."
+      },
+      "invite": {
+        "title": "Invitare amici o persone tramite ID",
+        "body": "In Condividi scegli degli amici o inserisci l’ID Juple di una persona, scegli cosa può fare e invia l’invito. Entra quando accetta. Puoi aggiungere amici in Il mio profilo > Amici."
+      },
+      "roles": {
+        "title": "Cosa consente ogni permesso",
+        "body": "Sola lettura: può vedere la raccolta. Con approvazione: può proporre link, che il proprietario approva. Può aggiungere link: può aggiungerli direttamente. Il proprietario gestisce la raccolta, la condivisione e il permesso di tutti.\n\nL’impostazione di un link pubblico è il livello più basso che chiunque può avere. Alle persone invitate puoi darne uno più alto."
+      },
+      "joinRequests": {
+        "title": "Richieste di partecipazione",
+        "body": "Quando l’impostazione pubblica di una raccolta è disattivata, chi apre il suo link può chiedere di partecipare. Il proprietario vede la richiesta nella raccolta e la approva, aggiungendo la persona in sola lettura, oppure la rifiuta. La persona potrà chiedere di nuovo più avanti.\n\nDopo che hai chiesto di partecipare, la raccolta compare come «In attesa di approvazione» nella scheda Raccolte finché il proprietario non risponde."
+      },
+      "approvals": {
+        "title": "Richieste di approvazione dei link",
+        "body": "Sono diverse dalle richieste di partecipazione. Sono link che qualcuno con il permesso «Con approvazione» propone per una raccolta. Il proprietario le trova in Richieste di approvazione ricevute e approva o rifiuta ciascuna.\n\nSe hai proposto un link, trovalo in Richieste di approvazione inviate, dove puoi annullarlo."
+      },
+      "collectionLock": {
+        "title": "Bloccare una raccolta",
+        "body": "Imposta una password di blocco in Il mio profilo > Blocco raccolte, poi blocca una raccolta dal suo menu a pressione prolungata. Una raccolta bloccata nasconde i suoi link, anche in Home e Archivio, finché non inserisci la password. Il blocco vale per te, non per le persone con cui condividi."
+      },
+      "accessPassword": {
+        "title": "Password di accesso per la condivisione",
+        "body": "Quando condividi una raccolta puoi anche impostare una password di accesso. Chi apre la raccolta condivisa deve inserirla. È separata dal tuo blocco e puoi vederla, cambiarla o rimuoverla in Condividi."
+      },
+      "notificationCenter": {
+        "title": "Notifiche",
+        "body": "La campanella in Home apre le tue notifiche, con il numero di quelle non lette. Toccane una per andare a ciò che riguarda. Puoi segnare tutto come letto o eliminarle una per una.\n\nAttiva o disattiva le notifiche di ogni raccolta condivisa dal suo menu a pressione prolungata. Se sono disattivate, gli elementi compaiono comunque nell’elenco, ma non ricevi avvisi."
+      },
+      "deleteRestore": {
+        "title": "Eliminare e ripristinare",
+        "body": "Elimina un link scorrendolo o dai suoi dettagli. I link eliminati vanno in Eliminati di recente in Il mio profilo, dove puoi ripristinarli, eliminarli definitivamente o svuotare l’elenco. I link eliminati definitivamente non si possono recuperare.\n\nRimuovere un link da una raccolta non lo elimina."
+      },
+      "settings": {
+        "title": "Account e impostazioni",
+        "body": "Il mio profilo contiene il tuo profilo e ID Juple, lingua, Salvataggio rapido, Amici, Blocco raccolte, Eliminati di recente e gestione dell’account. Contatta l’assistenza dal Centro assistenza.\n\nIn Gestisci account puoi vedere come accedi ed eliminare il tuo account, il che elimina definitivamente account e dati."
+      }
+    }
   }
 }
