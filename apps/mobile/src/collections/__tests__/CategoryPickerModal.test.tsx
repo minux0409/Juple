@@ -6,7 +6,7 @@ import { KeyIcon } from '../../icons/KeyIcon';
 import type { Collection } from '../api/collectionsApi';
 import { clearCollectionUnlockGrants } from '../collectionUnlockGrants';
 import { dragSheet, settleSheet } from '../../testing/sheetGestureDriver';
-import { StyleSheet } from 'react-native';
+import { Dimensions, FlatList, StyleSheet } from 'react-native';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
 
 function makeCollection(overrides: Partial<Collection> = {}): Collection {
@@ -381,5 +381,42 @@ describe('CategoryPickerModal - the shared drag header (컬렉션 선택, empty 
     await settleSheet();
     expect(onClose2).toHaveBeenCalledTimes(1);
     act(() => renderer2.unmount());
+  });
+});
+
+describe('CategoryPickerModal responsive Grid (phone 4; a tablet sizes its columns to the capped sheet)', () => {
+  // Inside act: a window change reaches every renderer a file left mounted, and those updates must not run outside act.
+  const setWindow = (width: number, height: number) => act(() => { Dimensions.set({ window: { ...Dimensions.get('window'), width, height } }); });
+  const PHONE_PORTRAIT = [411, 1334] as const;
+  afterEach(() => {
+    setWindow(...PHONE_PORTRAIT);
+    jest.clearAllMocks();
+  });
+
+  it('follows the window width live and every tile takes an exact share of the row', () => {
+    const renderer = render(
+      <CategoryPickerModal
+        {...baseProps}
+        collectionPool={[makeCollection({ id: 1, name: 'Groceries' }), makeCollection({ id: 2, name: 'Travel' })]}
+        onToggle={jest.fn()}
+        selectedIds={new Set()}
+      />,
+    );
+    const columns = () => renderer.root.findByType(FlatList).props.numColumns;
+    const tileBasis = () => StyleSheet.flatten(renderer.root.findByProps({ accessibilityLabel: 'Groceries' }).props.style).flexBasis;
+    expect(columns()).toBe(4);
+    expect(tileBasis()).toBe('25%');
+
+    setWindow(891, 411); // phone landscape: still a phone
+    expect(columns()).toBe(4);
+    setWindow(600, 960);
+    expect(columns()).toBe(5);
+    expect(tileBasis()).toBe('20%');
+    // The sheet stops at 640dp, so a 10in landscape window gets the same 5 tiles - not 8 specks.
+    setWindow(1280, 800);
+    expect(columns()).toBe(5);
+    expect(tileBasis()).toBe('20%');
+    expect(renderer.root.findByProps({ accessibilityLabel: 'Travel' })).toBeTruthy();
+    act(() => renderer.unmount()); // before afterEach changes the width again
   });
 });

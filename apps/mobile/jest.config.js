@@ -1,5 +1,6 @@
 module.exports = {
   preset: '@react-native/jest-preset',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   // A handful of dependencies ship ESM-only source as their "main" entry point (raw `import`/
   // `export` syntax, no CommonJS build) - see each package's own package.json:
   //   - @react-navigation/* (and its standard-navigation dependency): "exports"."default" points

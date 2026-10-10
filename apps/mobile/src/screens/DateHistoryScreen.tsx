@@ -25,11 +25,11 @@ import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkImageRow } from '../components/SavedLinkImageTile';
-import { SavedLinkGridCell } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCell, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
+import { useSavedLinkColumns, type SavedLinkColumns } from '../layout/responsiveGrid';
 import { LinkSortChips } from '../components/LinkSortChips';
 import { ViewModeToggle } from '../components/ViewModeToggle';
 import { SearchField } from '../components/SearchField';
-import { savedLinkGridLayout } from '../components/SavedLinkGridCard';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { useArchiveSearch } from '../items/useArchiveSearch';
 import { SwipeableItemRow } from '../components/SwipeableItemRow';
@@ -89,8 +89,8 @@ export type FlatRow = FlatItemRow<ItemHistoryEntry> | { readonly kind: 'searchSt
 const archiveAccessors = { idOf: (item: ItemHistoryEntry) => item.id };
 
 /** The Archive's links as flat rows - see buildFlatItemRows (shared with Collection Details). */
-export function buildFlatRows(items: readonly ItemHistoryEntry[], viewMode: SavedLinkViewMode): readonly FlatItemRow<ItemHistoryEntry>[] {
-  return buildFlatItemRows(items, viewMode, archiveAccessors);
+export function buildFlatRows(items: readonly ItemHistoryEntry[], viewMode: SavedLinkViewMode, columns?: SavedLinkColumns): readonly FlatItemRow<ItemHistoryEntry>[] {
+  return buildFlatItemRows(items, viewMode, archiveAccessors, columns);
 }
 
 type ScreenRow = HistoryRow | FlatRow;
@@ -101,8 +101,9 @@ export function buildHistoryRows(
   pages: ReadonlyMap<string, HistorySectionPage>,
   expandedKeys: ReadonlySet<string>,
   viewMode: SavedLinkViewMode,
+  columns?: SavedLinkColumns,
 ): readonly HistoryRow[] {
-  return buildDateSectionRows(sections, pages, expandedKeys, viewMode, item => item.id);
+  return buildDateSectionRows(sections, pages, expandedKeys, viewMode, item => item.id, columns);
 }
 
 /**
@@ -123,6 +124,9 @@ export function DateHistoryScreen() {
   const authenticatedRequest = useAuthenticatedApi();
   const { showUndoToast } = useAppToast();
   const { viewMode, changeViewMode } = useViewModePreference('historyViewMode');
+  // Responsive Grid: the rows are built for the window's column count (phone: 2 cards / 3 image tiles, as always).
+  const columns = useSavedLinkColumns();
+  const gridCellStyle = useSavedLinkGridCellStyle();
   // 시간순 / 이름순: this screen's own preference, independent of List / Grid / Image. The Archive offers the two plain
   // orders (newest first, A-Z) - a stored direction flip from another screen's chips reads as its order.
   const { sortOption, setSortOption, isReady: isSortReady } = useSortPreference('historyLinkSort');
@@ -237,8 +241,8 @@ export function DateHistoryScreen() {
   const openItem = useCallback((item: ItemHistoryEntry) => { itemCardOpenRef.current.open(item).catch(() => undefined); }, []);
 
   const rows = useMemo(
-    () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode),
-    [sections, pages, expandedKeys, viewMode],
+    () => buildHistoryRows(sections, pages, expandedKeys ?? new Set(), viewMode, columns),
+    [sections, pages, expandedKeys, viewMode, columns],
   );
 
   // A section's next page is asked for once its loaded end comes on screen (see useDateSectionViewability).
@@ -254,7 +258,7 @@ export function DateHistoryScreen() {
     if (!search.isFlat) {
       return [];
     }
-    const rowsOut: FlatRow[] = [...buildFlatRows(search.items, viewMode)];
+    const rowsOut: FlatRow[] = [...buildFlatRows(search.items, viewMode, columns)];
     // Under the results (or alone) only a status: loading the first page, nothing found, or a failed load.
     if (search.error) {
       rowsOut.push({ kind: 'searchStatus', key: 'ss:error', status: 'error' });
@@ -266,7 +270,7 @@ export function DateHistoryScreen() {
       rowsOut.push({ kind: 'searchStatus', key: 'ss:empty', status: 'empty' });
     }
     return rowsOut;
-  }, [search.error, search.isFlat, search.isLoading, search.items, search.moreError, search.settledTerm, viewMode]);
+  }, [search.error, search.isFlat, search.isLoading, search.items, search.moreError, search.settledTerm, viewMode, columns]);
 
   // The flat list fills itself while the loaded links do not fill the viewport (see useContinuousViewportFill) - dense
   // Image lines would otherwise never trigger another page.
@@ -337,7 +341,7 @@ export function DateHistoryScreen() {
                 preferEffectiveThumbnail
               />
             ))}
-            {row.items.length === 1 ? <View style={savedLinkGridLayout.cell} /> : null}
+            {Array.from({ length: columns.grid - row.items.length }, (_, index) => <View key={`filler-${index}`} style={gridCellStyle} />)}
           </View>
         );
       case 'flatImageRow':

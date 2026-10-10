@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SiteIcon } from '../icons/SiteIcon';
 import type { ItemHistoryEntry } from '../items/api/itemsApi';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors, ltrTextStyle, radii, spacing } from '../theme/tokens';
+import { columnBasis, useSavedLinkColumns } from '../layout/responsiveGrid';
 import type { ItemAdderDisplay } from '../collections/itemAdder';
 import { GRID_CARD_PADDING_H, GRID_CELL_PADDING_H } from './savedLinkLayout';
 import { SavedLinkMetaRow, type SavedLinkDateDisplayMode } from './SavedLinkMetaRow';
@@ -84,11 +85,21 @@ interface SavedLinkGridCellProps extends SavedLinkGridCardProps {
  * exactly the area the swipe action panes would otherwise paint as a blue/red frame around the card.
  */
 export function SavedLinkGridCell({ disabled, onPress, onDelete, onShare, onLongPress, ...cardProps }: SavedLinkGridCellProps) {
-  return <View style={savedLinkGridLayout.cell}>
+  const cellStyle = useSavedLinkGridCellStyle();
+  return <View style={cellStyle}>
     <SwipeableItemRow containerStyle={savedLinkGridLayout.swipeContainer} disabled={disabled} onDelete={onDelete} onLongPress={onLongPress} onPress={onPress} onShare={onShare}>
       <SavedLinkGridCard {...cardProps} />
     </SwipeableItemRow>
   </View>;
+}
+
+/**
+ * A Grid cell's frame at the current window width: savedLinkGridLayout.cell with its share of the row set from the responsive column
+ * count (2 on a phone = 50%, exactly the old fixed value). Every screen that draws its own cell uses this instead of `.cell`.
+ */
+export function useSavedLinkGridCellStyle() {
+  const { grid } = useSavedLinkColumns();
+  return useMemo(() => [savedLinkGridLayout.cell, { flexBasis: columnBasis(grid), maxWidth: columnBasis(grid) }], [grid]);
 }
 
 export const savedLinkGridLayout = StyleSheet.create({

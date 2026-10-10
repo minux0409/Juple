@@ -3,7 +3,7 @@ jest.mock('../../config/publicWebConfig', () => ({ publicWebConfig: { host: 'dev
 
 jest.mock('../../api/apiConfig', () => ({ apiConfig: { baseUrl: 'https://api.test' } }));
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Image, Modal, Text, TextInput } from 'react-native';
+import { Dimensions, FlatList, Image, Modal, Text, TextInput } from 'react-native';
 import { CollectionUnlockPanel } from '../../collections/CollectionUnlockPanel';
 import i18n from '../../i18n';
 import { DailyInboxScreen, HOME_FIRST_PAGE_SKELETON_ROWS, HOME_NEXT_PAGE_SKELETON_ROWS, HOME_PAGE_SIZE } from '../DailyInboxScreen';
@@ -196,6 +196,71 @@ describe('DailyInboxScreen grid', () => {
     expect(cells.map(cell => cell.props.item.id)).toEqual([1, 2]);
     expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
     expect(Object.keys(cells[0].props).sort()).toEqual(Object.keys(cells[1].props).sort());
+  });
+
+  describe('responsive columns (phone 2 cards / 3 image tiles; tablets grow with the width)', () => {
+    // Inside act: a window change reaches every renderer a file left mounted, and those updates must not run outside act.
+    const setWindow = (width: number, height: number) => act(() => { Dimensions.set({ window: { ...Dimensions.get('window'), width, height } }); });
+    const PHONE_PORTRAIT = [411, 1334] as const;
+    afterEach(() => setWindow(...PHONE_PORTRAIT));
+
+    const choose = async (renderer: ReactTestRenderer.ReactTestRenderer, label: 'Grid view' | 'Image view') => {
+      const toggle = renderer.root.findAll(node => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function')[0];
+      await act(async () => {
+        toggle.props.onPress();
+      });
+    };
+
+    it('Grid follows the window width live - a rotation changes numColumns (the list remounts) and keeps every link', async () => {
+      setUpItems([makeItem({ id: 1 }), makeItem({ id: 2 }), makeItem({ id: 3 })]);
+      const renderer = await renderScreen();
+      await choose(renderer, 'Grid view');
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+
+      await act(async () => {
+        setWindow(891, 411); // a phone turned sideways is still a phone
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+      await act(async () => {
+        setWindow(600, 960);
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(3);
+      await act(async () => {
+        setWindow(960, 600);
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(5);
+      await act(async () => {
+        setWindow(1280, 800);
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(6);
+      expect(renderer.root.findAllByType(SavedLinkGridCell).map(cell => cell.props.item.id)).toEqual([1, 2, 3]);
+      await act(async () => {
+        setWindow(...PHONE_PORTRAIT);
+      });
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(2);
+    });
+
+    it('Image view packs more tiles into a line on a tablet and stays a single-column list', async () => {
+      setUpItems(Array.from({ length: 7 }, (_, index) => makeItem({ id: index + 1 })));
+      const renderer = await renderScreen();
+      await choose(renderer, 'Image view');
+      const lineSizes = () => renderer.root.findByType(FlatList).props.data.map((line: { items: unknown[] }) => line.items.length);
+      expect(lineSizes()).toEqual([3, 3, 1]);
+
+      await act(async () => {
+        setWindow(891, 411);
+      });
+      expect(lineSizes()).toEqual([3, 3, 1]);
+      await act(async () => {
+        setWindow(800, 1280);
+      });
+      expect(lineSizes()).toEqual([6, 1]);
+      await act(async () => {
+        setWindow(1280, 800);
+      });
+      expect(lineSizes()).toEqual([7]);
+      expect(renderer.root.findByType(FlatList).props.numColumns).toBe(1);
+    });
   });
 });
 

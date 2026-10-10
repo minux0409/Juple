@@ -9,6 +9,7 @@ import { resolveEffectiveThumbnailUrl } from '../items/resolveEffectiveThumbnail
 import { resolveSavedLinkDisplayTitle } from '../items/savedLinkPrimaryText';
 import { resolveSiteInfo } from '../items/resolveSiteInfo';
 import { colors } from '../theme/tokens';
+import { useSavedLinkColumns } from '../layout/responsiveGrid';
 
 /** Image view: tiles per line, and the small gap between tiles, both across and down. */
 export const SAVED_LINK_IMAGE_COLUMNS = 3;
@@ -17,11 +18,14 @@ export const SAVED_LINK_IMAGE_GUTTER = 3;
 export const SAVED_LINK_IMAGE_FIRST_PAGE_SKELETON_LINES = 3;
 export const SAVED_LINK_IMAGE_NEXT_PAGE_SKELETON_LINES = 1;
 
-/** The links as lines of up to SAVED_LINK_IMAGE_COLUMNS - the last line may be shorter (see SavedLinkImageRow). */
-export function chunkIntoImageLines<T>(items: readonly T[]): readonly (readonly T[])[] {
+/**
+ * The links as lines of up to `columns` (the phone's SAVED_LINK_IMAGE_COLUMNS unless a wider window asks for more, see
+ * layout/responsiveGrid) - the last line may be shorter (see SavedLinkImageRow).
+ */
+export function chunkIntoImageLines<T>(items: readonly T[], columns: number = SAVED_LINK_IMAGE_COLUMNS): readonly (readonly T[])[] {
   const lines: T[][] = [];
-  for (let index = 0; index < items.length; index += SAVED_LINK_IMAGE_COLUMNS) {
-    lines.push(items.slice(index, index + SAVED_LINK_IMAGE_COLUMNS));
+  for (let index = 0; index < items.length; index += columns) {
+    lines.push(items.slice(index, index + columns));
   }
   return lines;
 }
@@ -97,9 +101,10 @@ interface SavedLinkImageRowProps {
  * whole grid is just such lines inside the screen's ONE virtualized list.
  */
 export function SavedLinkImageRow({ items, onPress, onLongPress, testID }: SavedLinkImageRowProps) {
+  const { image: columns } = useSavedLinkColumns();
   return (
     <View style={styles.row} testID={testID}>
-      {Array.from({ length: SAVED_LINK_IMAGE_COLUMNS }, (_, index) => {
+      {Array.from({ length: columns }, (_, index) => {
         const item = items[index];
         return item ? <SavedLinkImageTile item={item} key={item.id} onLongPress={onLongPress} onPress={onPress} /> : <View key={`empty-${index}`} style={styles.slot} />;
       })}
@@ -109,9 +114,10 @@ export function SavedLinkImageRow({ items, onPress, onLongPress, testID }: Saved
 
 /** Where a line of tiles is about to appear - the same squares, nothing else. */
 export function SavedLinkImageRowSkeleton({ testID }: { readonly testID?: string }) {
+  const { image: columns } = useSavedLinkColumns();
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.row} testID={testID}>
-      {Array.from({ length: SAVED_LINK_IMAGE_COLUMNS }, (_, index) => <View key={index} style={[styles.tile, styles.skeleton]} />)}
+      {Array.from({ length: columns }, (_, index) => <View key={index} style={[styles.tile, styles.skeleton]} />)}
     </View>
   );
 }

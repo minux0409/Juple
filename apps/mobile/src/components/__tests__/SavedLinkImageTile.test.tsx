@@ -1,5 +1,5 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Image, StyleSheet, Text } from 'react-native';
+import { Dimensions, Image, StyleSheet, Text } from 'react-native';
 import i18n from '../../i18n';
 import { LinkIcon } from '../../icons/LinkIcon';
 import { LockIcon } from '../../icons/LockIcon';
@@ -152,6 +152,23 @@ describe('SavedLinkImageRow', () => {
     const partial = render(items(1));
     expect(tiles(partial)).toHaveLength(1);
     expect(partial.root.find(node => node.props.testID === 'row' && typeof node.type === 'string').children).toHaveLength(3);
+  });
+
+  it.each([
+    ['phone portrait', 411, 891, 3],
+    ['phone landscape', 891, 411, 3],
+    ['7in tablet portrait', 600, 960, 5],
+    ['10in tablet portrait', 800, 1280, 6],
+    ['10in tablet landscape', 1280, 800, 8],
+  ])('%s (%p x %p dp): a line holds %p equal slots (a short last line keeps the tile size)', (_name, width, height, columns) => {
+    act(() => { Dimensions.set({ window: { ...Dimensions.get('window'), width, height } }); });
+    try {
+      const renderer = render(items(1));
+      expect(renderer.root.find(node => node.props.testID === 'row' && typeof node.type === 'string').children).toHaveLength(columns);
+      act(() => renderer.unmount());
+    } finally {
+      act(() => { Dimensions.set({ window: { ...Dimensions.get('window'), width: 411, height: 1334 } }); });
+    }
   });
 
   it('skeleton: three plain squares, no text', () => {

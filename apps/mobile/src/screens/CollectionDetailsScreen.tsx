@@ -89,7 +89,8 @@ import { ReactionChips } from '../reactions/ReactionChips';
 import { ReactionPickerDialog } from '../reactions/ReactionPickerDialog';
 import { useRecentReactions } from '../reactions/recentReactions';
 import { useItemReactions } from '../reactions/useItemReactions';
-import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
+import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout } from '../components/savedLinkLayout';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
@@ -415,6 +416,9 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
   // persisted screen preferences (see viewModePreference.ts/sortPreference.ts), not one combined
   // state.
   const { viewMode, changeViewMode } = useViewModePreference('collectionDetailsViewMode');
+  // Responsive Grid: more columns on a wider window (phone: 2 cards / 3 image tiles, as always) - see layout/responsiveGrid.
+  const columns = useSavedLinkColumns();
+  const gridCellStyle = useSavedLinkGridCellStyle();
   const { sortOption, setSortOption } = useSortPreference('collectionDetailsLinkSort');
   const [searchText, setSearchText] = useState('');
   // 이름순 needs the whole Collection (see NAME_ORDER_MAX_LINKS): a larger one - known up front
@@ -530,20 +534,20 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     }
   }, [dated.sections, ensureDateSectionLoaded, expandedDateKeys, isDateOrder]);
   const dateRows = useMemo(
-    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), layoutMode, item => item.itemId) : []),
-    [dateSections, dated.pages, expandedDateKeys, isDateOrder, layoutMode],
+    () => (isDateOrder ? buildDateSectionRows(dateSections, dated.pages, expandedDateKeys ?? new Set(), layoutMode, item => item.itemId, columns) : []),
+    [columns, dateSections, dated.pages, expandedDateKeys, isDateOrder, layoutMode],
   );
   const { onViewableItemsChanged, viewabilityConfig } = useDateSectionViewability(dated.pages, dated.loadMore);
   // 이름순 holds the whole Collection already: Image is just its links packed three to a line.
   const nameImageRows = useMemo<readonly CollectionFlatRow[]>(
-    () => (!isDateOrder && layoutMode === 'image' ? buildFlatItemRows(displayedItems, 'image', collectionItemAccessors) : []),
-    [displayedItems, isDateOrder, layoutMode],
+    () => (!isDateOrder && layoutMode === 'image' ? buildFlatItemRows(displayedItems, 'image', collectionItemAccessors, columns) : []),
+    [columns, displayedItems, isDateOrder, layoutMode],
   );
   // Search results: one flat run in the server's date order (the search endpoint has no name order, so a name-sorted
   // Collection shows the same newest-first results while searching) - from the one server search.
   const searchRows = useMemo<readonly CollectionFlatRow[]>(
-    () => (search.isSearching ? buildFlatItemRows(search.items, layoutMode, collectionItemAccessors) : []),
-    [layoutMode, search.isSearching, search.items],
+    () => (search.isSearching ? buildFlatItemRows(search.items, layoutMode, collectionItemAccessors, columns) : []),
+    [columns, layoutMode, search.isSearching, search.items],
   );
   // The search result list fills itself while the loaded links do not fill the viewport (dense Image lines would
   // otherwise never ask for another page).
@@ -1560,7 +1564,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
     const isGrid = layoutMode === 'grid';
     const wrapInGridCell = isGrid && containerStyle === undefined;
     const frameStyle = containerStyle ?? (isGrid ? savedLinkGridLayout.swipeContainer : savedLinkLayout.card);
-    const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={savedLinkGridLayout.cell}>{node}</View> : node);
+    const inCell = (node: ReactElement) => (wrapInGridCell ? <View style={gridCellStyle}>{node}</View> : node);
     if (selectedItemIds) {
       // 내 컬렉션으로 복사 selection: a tap only picks/unpicks - no swipe actions, menus or navigation.
       const isSelected = selectedItemIds.has(item.itemId);
@@ -1873,7 +1877,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         return (
           <View style={styles.flatGridRow} testID={`collection-flat-grid-row-${row.key}`}>
             {row.items.map(item => <Fragment key={item.itemId}>{renderCollectionItem(item)}</Fragment>)}
-            {row.items.length === 1 ? <View style={savedLinkGridLayout.cell} /> : null}
+            {Array.from({ length: columns.grid - row.items.length }, (_, index) => <View key={`filler-${index}`} style={gridCellStyle} />)}
           </View>
         );
       case 'flatImageRow':
@@ -1899,7 +1903,7 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         return (
           <DateSectionGridRow isFirst={row.isFirst} isLast={row.isLast} testID={`collection-date-grid-${row.section.key}-${row.position}`}>
             {row.items.map(item => (
-              <View key={item.itemId} style={savedLinkGridLayout.cell}>
+              <View key={item.itemId} style={gridCellStyle}>
                 {renderCollectionItem(item, savedLinkGridLayout.swipeContainer)}
               </View>
             ))}
@@ -2004,12 +2008,12 @@ export function CollectionDetailsScreen({ route, navigation }: Props) {
         />
       ) : (
         <FlatList
-          key={layoutMode}
+          key={gridListKey(layoutMode, layoutMode === 'grid', columns.grid)}
           contentContainerStyle={styles.content}
           style={styles.list}
           data={isContentLocked ? [] : displayedItems}
           keyExtractor={(item: CollectionItemEntry) => item.itemId.toString()}
-          numColumns={layoutMode === 'grid' ? 2 : 1}
+          numColumns={layoutMode === 'grid' ? columns.grid : 1}
           initialNumToRender={12}
           maxToRenderPerBatch={10}
           windowSize={7}

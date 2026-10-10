@@ -1,4 +1,5 @@
 import { chunkIntoImageLines } from '../components/SavedLinkImageTile';
+import { PHONE_SAVED_LINK_COLUMNS, type SavedLinkColumns } from '../layout/responsiveGrid';
 import type { SavedLinkViewMode } from '../settings/viewModePreference';
 
 /**
@@ -20,14 +21,19 @@ export interface FlatItemAccessors<T> {
  * three tiles in Image - the last line may be short. Each row is keyed by its first link, so a page boundary never
  * reshuffles the lines already shown. A flat list has no date context, so rows always show the full date.
  */
-export function buildFlatItemRows<T>(items: readonly T[], viewMode: SavedLinkViewMode, { idOf }: FlatItemAccessors<T>): readonly FlatItemRow<T>[] {
+export function buildFlatItemRows<T>(
+  items: readonly T[],
+  viewMode: SavedLinkViewMode,
+  { idOf }: FlatItemAccessors<T>,
+  columns: SavedLinkColumns = PHONE_SAVED_LINK_COLUMNS,
+): readonly FlatItemRow<T>[] {
   if (viewMode === 'image') {
-    return chunkIntoImageLines(items).map(line => ({ kind: 'flatImageRow', key: `fm:${idOf(line[0])}`, items: line }));
+    return chunkIntoImageLines(items, columns.image).map(line => ({ kind: 'flatImageRow', key: `fm:${idOf(line[0])}`, items: line }));
   }
   if (viewMode === 'grid') {
     const rowsOut: FlatItemRow<T>[] = [];
-    for (let index = 0; index < items.length; index += 2) {
-      const pair = items.slice(index, index + 2);
+    for (let index = 0; index < items.length; index += columns.grid) {
+      const pair = items.slice(index, index + columns.grid);
       rowsOut.push({ kind: 'flatGridRow', key: `fg:${idOf(pair[0])}`, items: pair, dateDisplayMode: 'dateTime' });
     }
     return rowsOut;

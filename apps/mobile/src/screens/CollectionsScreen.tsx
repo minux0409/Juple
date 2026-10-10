@@ -64,13 +64,14 @@ import type { MainTabParamList } from '../navigation/MainTabs';
 import type { RootStackParamList } from '../navigation/RootStack';
 import { useLayoutDirection } from '../i18n/layoutDirection';
 import { cardShadow, collectionFilterColors, colors, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { screenIcons } from '../navigation/screenIcons';
 import { isHandledSubscriptionRefusal } from '../billing/subscriptionRequired';
 
-const GRID_COLUMNS = 4;
+// The Grid's columns are responsive (4 on a phone, as always - more on a tablet): see useCollectionTileColumns.
 
-/** Collections per request - a few screenfuls of cards (the grid shows GRID_COLUMNS per row). */
+/** Collections per request - a few screenfuls of cards (the grid shows a row of tiles per screen width). */
 export const COLLECTIONS_PAGE_SIZE = 24;
 const PAGE_LIMIT = COLLECTIONS_PAGE_SIZE;
 /** The server's page limit - a refresh never asks for more cards than this in one request. */
@@ -199,6 +200,7 @@ export function CollectionsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   useToastBottomAnchor(tabBarHeight);
   const { viewMode, changeViewMode } = useViewModePreference('categoryViewMode', 'grid');
+  const gridColumns = useCollectionTileColumns();
   const layoutDirection = useLayoutDirection();
 
   const [filter, setFilter] = useState<CategoryFilter>(DEFAULT_FILTER);
@@ -571,8 +573,8 @@ export function CollectionsScreen() {
   const renderSkeletons = (rows: number, testID: string) =>
     viewMode === 'grid' ? (
       <View style={styles.skeletonGrid} testID={testID}>
-        {Array.from({ length: rows * GRID_COLUMNS }, (_, index) => (
-          <CollectionCardSkeleton gridBasis={`${100 / GRID_COLUMNS}%`} key={index} testID="collections-skeleton" variant="grid" />
+        {Array.from({ length: rows * gridColumns }, (_, index) => (
+          <CollectionCardSkeleton gridBasis={columnBasis(gridColumns)} key={index} testID="collections-skeleton" variant="grid" />
         ))}
       </View>
     ) : (
@@ -609,7 +611,7 @@ export function CollectionsScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList
-        key={viewMode}
+        key={gridListKey(viewMode, viewMode === 'grid', gridColumns)}
         contentContainerStyle={styles.content}
         data={listData}
         keyExtractor={entry => ('pendingJoin' in entry ? `join-${entry.pendingJoin.requestId}` : entry.id.toString())}
@@ -625,8 +627,8 @@ export function CollectionsScreen() {
             }}
           />
         }
-        numColumns={viewMode === 'grid' ? GRID_COLUMNS : 1}
-        // With columns these count rows (GRID_COLUMNS cards each), not cards.
+        numColumns={viewMode === 'grid' ? gridColumns : 1}
+        // With columns these count rows (a row of tiles each), not cards.
         initialNumToRender={viewMode === 'grid' ? 5 : 10}
         maxToRenderPerBatch={viewMode === 'grid' ? 3 : 10}
         windowSize={7}
@@ -829,11 +831,12 @@ function CollectionTile({
   onToggleFavorite,
 }: CollectionTileProps) {
   const { t } = useTranslation();
+  const gridColumns = useCollectionTileColumns();
 
   // Only what tells Collections apart at a glance: icon (or photo), name, and the lock / shared /
   // favorite markers - link counts and participant names live on the Collection's own screen.
   return (
-    <View style={styles.gridCell}>
+    <View style={[styles.gridCell, { flexBasis: columnBasis(gridColumns) }]}>
       <Pressable
         accessibilityActions={[{ name: 'options', label: t('collections.collectionActionsA11y') }]}
         accessibilityLabel={attentionLabel(collection, t)}
@@ -893,6 +896,7 @@ interface PendingJoinEntry {
  */
 function PendingJoinCard({ join, onPress, variant }: { readonly join: MyJoinRequest; readonly onPress: () => void; readonly variant: 'grid' | 'list' }) {
   const { t } = useTranslation();
+  const gridColumns = useCollectionTileColumns();
   const label = t('collections.joinPending');
   const a11yLabel = `${join.name}, ${label}`;
   if (variant === 'list') {
@@ -910,7 +914,7 @@ function PendingJoinCard({ join, onPress, variant }: { readonly join: MyJoinRequ
     );
   }
   return (
-    <View style={styles.gridCell}>
+    <View style={[styles.gridCell, { flexBasis: columnBasis(gridColumns) }]}>
       <Pressable accessibilityLabel={a11yLabel} accessibilityRole="button" onPress={onPress} style={styles.tilePressable} testID={`collection-join-pending-${join.requestId}`}>
         <View style={styles.tileIconSlot}>
           <View style={styles.pendingJoinDim}>
@@ -1063,11 +1067,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   shareRequestsBadgeText: { color: colors.surface, fontSize: 12, fontWeight: '700', lineHeight: 20 },
-  // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis
+  // Each cell claims exactly 1/columns of the row's width - a plain percentage flexBasis
   // (not FlatList's columnWrapperStyle) so a short final row never stretches to fill the line.
   gridCell: {
     alignItems: 'center',
-    flexBasis: `${100 / GRID_COLUMNS}%`,
+    flexBasis: '25%', // the phone's 4 columns; the responsive count overrides it per cell (columnBasis)
     paddingVertical: spacing.md,
   },
   tilePressable: {

@@ -25,7 +25,8 @@ import { useAppToast } from '../components/AppToast';
 import { useToastBottomAnchor } from '../components/useToastBottomAnchor';
 import { SavedLinkRow } from '../components/SavedLinkRow';
 import { LINK_CONTROLS_BOTTOM_GAP, LINK_CONTROLS_TOP_GAP, savedLinkLayout, TITLE_COUNT_GAP } from '../components/savedLinkLayout';
-import { SavedLinkGridCell, savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCell, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
+import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from '../components/SavedLinkSkeleton';
 import {
   chunkIntoImageLines,
@@ -158,6 +159,9 @@ export function DailyInboxScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { showUndoToast } = useAppToast();
   const { viewMode, changeViewMode } = useViewModePreference('homeViewMode');
+  // Responsive Grid: more columns on a wider window (phone: 2 cards / 3 image tiles, as always) - see layout/responsiveGrid.
+  const columns = useSavedLinkColumns();
+  const gridCellStyle = useSavedLinkGridCellStyle();
   // Independent of the view mode (switching List/Grid never resets the sort) - the same two
   // separately-persisted preferences a Collection keeps (see CollectionDetailsScreen).
   const { sortOption, setSortOption } = useSortPreference('homeLinkSort');
@@ -494,8 +498,8 @@ export function DailyInboxScreen() {
 
   // Image view: the same loaded links as lines of three squares (one virtualized list, no nested lists).
   const imageLines = useMemo<readonly ImageLine[]>(
-    () => (viewMode === 'image' ? chunkIntoImageLines(displayedItems).map(items => ({ lineKey: `m:${items[0].id}`, items })) : []),
-    [displayedItems, viewMode],
+    () => (viewMode === 'image' ? chunkIntoImageLines(displayedItems, columns.image).map(items => ({ lineKey: `m:${items[0].id}`, items })) : []),
+    [columns.image, displayedItems, viewMode],
   );
   // One stable open callback for every tile (the tiles are memoized).
   const itemCardOpenRef = useRef(itemCardOpen);
@@ -513,7 +517,7 @@ export function DailyInboxScreen() {
     ) : viewMode === 'grid' ? (
       <View style={styles.gridSkeletons} testID={testID}>
         {Array.from({ length: count }, (_, index) => (
-          <View key={index} style={savedLinkGridLayout.cell}>
+          <View key={index} style={gridCellStyle}>
             <SavedLinkGridCardSkeleton testID="home-skeleton" />
           </View>
         ))}
@@ -531,11 +535,11 @@ export function DailyInboxScreen() {
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
       <FlatList<ItemHistoryEntry | ImageLine>
-        key={viewMode}
+        key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
         contentContainerStyle={styles.content}
         data={viewMode === 'image' ? imageLines : displayedItems}
         keyExtractor={entry => (isImageLine(entry) ? entry.lineKey : entry.id.toString())}
-        numColumns={viewMode === 'grid' ? 2 : 1}
+        numColumns={viewMode === 'grid' ? columns.grid : 1}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={7}

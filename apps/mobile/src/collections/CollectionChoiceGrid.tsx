@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { CategoryIconTile } from './CategoryIconTile';
@@ -12,9 +13,11 @@ import { useViewModePreference, type ViewModePreferenceKey } from '../settings/v
 import type { Collection } from './api/collectionsApi';
 import { LoadFailureState, type LoadFailureInfo } from '../components/LoadFailureState';
 import { RefreshFailureNotice } from '../components/RefreshFailureNotice';
+import { BOTTOM_SHEET_MAX_WIDTH } from '../components/BottomSheetModal';
+import { columnBasis, gridListKey, useCollectionTileColumns } from '../layout/responsiveGrid';
 import { SheetHeader, type SheetDismissGesture } from '../components/sheetDismissGesture';
 
-const GRID_COLUMNS = 4;
+// 4 columns on a phone; a tablet adds columns, sized to the sheet (capped at BOTTOM_SHEET_MAX_WIDTH) - see useCollectionTileColumns.
 
 /** Stable sentinels for the leading special tiles - never a real Collection, so `'kind' in item` tells them apart. */
 const CREATE_TILE = { kind: 'create' } as const;
@@ -94,6 +97,8 @@ export function CollectionChoiceGrid({
   const { t } = useTranslation();
   const { viewMode, changeViewMode } = useViewModePreference(viewModeKey, 'grid');
   const isGrid = viewMode === 'grid';
+  const gridColumns = useCollectionTileColumns(BOTTOM_SHEET_MAX_WIDTH);
+  const gridCellStyle = useMemo(() => [styles.gridCell, { flexBasis: columnBasis(gridColumns) }], [gridColumns]);
 
   const titleText = <Text accessibilityRole="header" numberOfLines={2} style={styles.title}>{title ?? t('collections.selectTitle')}</Text>;
   const toggle = <ViewModeToggle onChange={changeViewMode} value={viewMode} />;
@@ -117,7 +122,7 @@ export function CollectionChoiceGrid({
         accessibilityRole="button"
         accessibilityState={isNone ? { selected: isSelected } : undefined}
         onPress={isNone ? noneTile?.onPress : onOpenCreateDialog}
-        style={isGrid ? styles.gridCell : styles.listCell}
+        style={isGrid ? gridCellStyle : styles.listCell}
         testID={isNone ? 'category-picker-none' : 'category-picker-create'}
       >
         <View style={styles.tileIconSlot}>
@@ -170,12 +175,12 @@ export function CollectionChoiceGrid({
         <LoadFailureState compact error={loadFailure.cause} notice={loadFailure.notice} onRetry={onRetryLoad} testID="category-picker-load-failure" />
       ) : (
         <FlatList
-          key={viewMode}
+          key={gridListKey(viewMode, isGrid, gridColumns)}
           data={gridData}
           extraData={[selectedIds, noneTile?.isSelected]}
           keyboardShouldPersistTaps="handled"
           keyExtractor={item => ('kind' in item ? item.kind : item.id.toString())}
-          numColumns={isGrid ? GRID_COLUMNS : 1}
+          numColumns={isGrid ? gridColumns : 1}
           onEndReached={onLoadMore}
           onEndReachedThreshold={0.5}
           renderItem={({ item }) => {
@@ -196,7 +201,7 @@ export function CollectionChoiceGrid({
                 accessibilityState={isDisabled ? { selected: isSelected, disabled: true } : { selected: isSelected }}
                 disabled={isDisabled || undefined}
                 onPress={() => onToggle(option)}
-                style={[isGrid ? styles.gridCell : styles.listCell, isDisabled && styles.disabledCell]}
+                style={[isGrid ? gridCellStyle : styles.listCell, isDisabled && styles.disabledCell]}
                 testID={`category-picker-option-${option.id}`}
               >
                 <View style={styles.tileIconSlot}>
@@ -254,9 +259,9 @@ const styles = StyleSheet.create({
   loading: { marginVertical: 20 },
   footerLoading: { paddingVertical: 12 },
   optionList: { marginTop: spacing.sm },
-  // Each cell claims exactly 1/GRID_COLUMNS of the row's width - a plain percentage flexBasis (not
+  // Each cell claims exactly 1/columns of the row's width - a plain percentage flexBasis (not
   // columnWrapperStyle) so a short final row never stretches to fill the line.
-  gridCell: { alignItems: 'center', flexBasis: `${100 / GRID_COLUMNS}%`, paddingVertical: spacing.sm + 2 },
+  gridCell: { alignItems: 'center', flexBasis: '25%', paddingVertical: spacing.sm + 2 }, // 25% = the phone's 4 columns; columnBasis overrides it per cell
   listCell: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, minHeight: minTouchTarget, paddingVertical: spacing.xs },
   tileIconSlot: { position: 'relative' },
   specialTile: { alignItems: 'center', backgroundColor: colors.brandSoft, borderRadius: radii.md + 6, height: 48, justifyContent: 'center', width: 48 },

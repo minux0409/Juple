@@ -10,7 +10,8 @@ import { BlockingProgressOverlay } from '../components/BlockingProgressOverlay';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { LinkSortChips } from '../components/LinkSortChips';
 import { isDefinitiveLoadError, LoadFailureState } from '../components/LoadFailureState';
-import { SavedLinkGridCard, savedLinkGridLayout } from '../components/SavedLinkGridCard';
+import { SavedLinkGridCard, savedLinkGridLayout, useSavedLinkGridCellStyle } from '../components/SavedLinkGridCard';
+import { gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 import { savedLinkLayout } from '../components/savedLinkLayout';
 import { chunkIntoImageLines, SavedLinkImageRow } from '../components/SavedLinkImageTile';
 import { SavedLinkRow } from '../components/SavedLinkRow';
@@ -87,6 +88,9 @@ export function TrashScreen() {
   const [loadError, setLoadError] = useState<{ readonly cause: unknown; readonly message: string } | null>(null);
 
   const { viewMode, changeViewMode } = useViewModePreference('trashViewMode');
+  // Responsive Grid (phone: 2 cards / 3 image tiles, as always) - see layout/responsiveGrid.
+  const columns = useSavedLinkColumns();
+  const gridCellStyle = useSavedLinkGridCellStyle();
   const { sortOption, setSortOption } = useSortPreference('trashLinkSort');
   // The deleted link whose action popup (링크 열기 / 복구 / 영구 삭제) is open. A deleted link has no
   // ItemDetails, so tapping or long-pressing it opens this instead.
@@ -163,7 +167,7 @@ export function TrashScreen() {
   }, [items, sortOption]);
 
   // 3-column mode: lines of three links; the screen still has ONE list, so it scrolls through every link (not just nine).
-  const imageLines = useMemo(() => chunkIntoImageLines(displayedItems), [displayedItems]);
+  const imageLines = useMemo(() => chunkIntoImageLines(displayedItems, columns.image), [columns.image, displayedItems]);
   const openImageTile = (entry: ItemHistoryEntry) => {
     const found = items.find(candidate => candidate.id === entry.id);
     if (found) {
@@ -275,10 +279,10 @@ export function TrashScreen() {
         </View>
       ) : null}
       <FlatList<ItemTrashEntry | readonly ItemTrashEntry[]>
-        key={viewMode}
+        key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
         contentContainerStyle={styles.content}
         data={isCompact ? imageLines : displayedItems}
-        numColumns={viewMode === 'grid' ? 2 : 1}
+        numColumns={viewMode === 'grid' ? columns.grid : 1}
         onScrollBeginDrag={closeOpenRow}
         style={styles.list}
         keyExtractor={item => isImageLine(item) ? `line-${item[0].id}` : item.id.toString()}
@@ -302,7 +306,7 @@ export function TrashScreen() {
           // The same SavedLinkGridCard as Home/History/Collections, in the same swipe row as the List (compact: slim,
           // icon-only actions): right reveals 복구, left reveals 영구 삭제 - both still ask first. Tap and long-press open
           // the titleless action popup.
-          <View style={savedLinkGridLayout.cell}>
+          <View style={gridCellStyle}>
             <SwipeableItemRow
               accessibilityLabel={resolveTrashTitle(item)}
               compact

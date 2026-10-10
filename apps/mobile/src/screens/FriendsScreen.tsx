@@ -42,6 +42,7 @@ import { UserIcon } from '../icons/UserIcon';
 import { ensurePushPermissionOnce } from '../push/pushPermissionFlow';
 import { useFocusedPolling, useLiveRefresh } from '../push/useLiveRefresh';
 import { colors, ltrTextStyle, minTouchTarget, radii, spacing } from '../theme/tokens';
+import { columnBasis, gridListKey, useSavedLinkColumns } from '../layout/responsiveGrid';
 
 const PAGE_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -73,6 +74,8 @@ export function FriendsScreen() {
   const [tab, setTab] = useState<FriendsTab>('friends');
   // The same List/Grid switch and persistence Home/History/Collections use.
   const { viewMode, changeViewMode } = useViewModePreference('friendsViewMode');
+  // Responsive Grid (phone: 2 tiles, as always) - see layout/responsiveGrid.
+  const columns = useSavedLinkColumns();
 
   const [friends, setFriends] = useState<readonly Friend[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -304,10 +307,10 @@ export function FriendsScreen() {
 
   const friendsList = (
     <FlatList
-      key={viewMode}
+      key={gridListKey(viewMode, viewMode === 'grid', columns.grid)}
       contentContainerStyle={styles.listContent}
       data={friends}
-      numColumns={viewMode === 'grid' ? 2 : 1}
+      numColumns={viewMode === 'grid' ? columns.grid : 1}
       keyboardShouldPersistTaps="handled"
       keyExtractor={friend => friend.friendshipId.toString()}
       ListEmptyComponent={
@@ -572,6 +575,7 @@ function FriendRow({ friend, layout, onPress, onLongPress, onSwipeDelete }: {
   readonly onSwipeDelete: () => void;
 }) {
   const { fontScale } = useWindowDimensions();
+  const { grid: gridColumns } = useSavedLinkColumns();
   const hasNickname = !!friend.displayName?.trim();
   const isGrid = layout === 'grid';
   const avatar = <UserAvatar displayName={friend.displayName} imageUrl={friend.profileImageUrl} imageVersion={friend.profileImageVersion} jupleId={friend.jupleId} size={isGrid ? 56 : 44} />;
@@ -600,7 +604,7 @@ function FriendRow({ friend, layout, onPress, onLongPress, onSwipeDelete }: {
   );
   if (isGrid) {
     return (
-      <View style={styles.tileCell}>
+      <View style={[styles.tileCell, { flexBasis: columnBasis(gridColumns), maxWidth: columnBasis(gridColumns) }]}>
         <Pressable
           accessibilityLabel={friendPrimaryLabel(friend)}
           accessibilityRole="button"

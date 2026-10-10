@@ -1,7 +1,7 @@
 import { BrokenLinkIcon } from '../../icons/BrokenLinkIcon';
 import { InfoIcon } from '../../icons/InfoIcon';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
+import { Dimensions, FlatList, Modal, StyleSheet, type ListViewToken } from 'react-native';
 import i18n from '../../i18n';
 import { LinkSortChips } from '../../components/LinkSortChips';
 import { ViewModeToggle } from '../../components/ViewModeToggle';
@@ -580,6 +580,53 @@ describe('DateHistoryScreen grid', () => {
     expect(last).toEqual(expect.objectContaining({ borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1 }));
     expect(last.borderBottomLeftRadius).toBeGreaterThan(0);
     expect(last.paddingHorizontal).toBeGreaterThan(0);
+  });
+
+  describe('on a wider window (responsive Grid)', () => {
+    // Inside act: a window change reaches every renderer a file left mounted, and those updates must not run outside act.
+    const setWindow = (width: number, height: number) => act(() => { Dimensions.set({ window: { ...Dimensions.get('window'), width, height } }); });
+    const PHONE_PORTRAIT = [411, 1334] as const;
+    afterEach(() => setWindow(...PHONE_PORTRAIT));
+
+    const gridRowIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+      rowsOf(renderer, '2026-09-30', 'gridRow').map(row => (row.kind === 'gridRow' ? row.items.map(item => item.id) : []));
+
+    it.each([
+      ['phone portrait', 411, 891, 2, [[1, 2], [3, 4], [5]]],
+      ['phone LANDSCAPE keeps the phone layout', 891, 411, 2, [[1, 2], [3, 4], [5]]],
+      ['7in tablet portrait', 600, 960, 3, [[1, 2, 3], [4, 5]]],
+      ['10in tablet portrait', 800, 1280, 4, [[1, 2, 3, 4], [5]]],
+      ['10in tablet landscape', 1280, 800, 6, [[1, 2, 3, 4, 5]]],
+    ])('%s (%p x %p dp): a section tiles are laid out in rows of the matching column count', async (_name, width, height, columns, expected) => {
+      installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 5) }]);
+      setWindow(width, height);
+      const renderer = await renderScreen();
+      await switchToGrid(renderer);
+
+      expect(gridRowIds(renderer)).toEqual(expected);
+      const basis = `${100 / columns}%`;
+      const cell = renderer.root.findAllByType(SavedLinkGridCell)[0];
+      const frame = StyleSheet.flatten(cell.findAll(node => typeof node.type === 'string')[0].props.style);
+      expect(frame).toEqual(expect.objectContaining({ flexBasis: basis, maxWidth: basis }));
+    });
+
+    it('re-lays the rows out when the window is rotated, without losing the links or the Grid mode', async () => {
+      installFakeServer([{ kind: 'today', key: '2026-09-30', items: itemsFor(1, 5) }]);
+      const renderer = await renderScreen();
+      await switchToGrid(renderer);
+      expect(gridRowIds(renderer)).toEqual([[1, 2], [3, 4], [5]]);
+
+      await act(async () => {
+        setWindow(1280, 800);
+      });
+      expect(gridRowIds(renderer)).toEqual([[1, 2, 3, 4, 5]]);
+      expect(renderer.root.findAllByType(SavedLinkGridCell).map(cell => cell.props.item.id)).toEqual([1, 2, 3, 4, 5]);
+
+      await act(async () => {
+        setWindow(...PHONE_PORTRAIT);
+      });
+      expect(gridRowIds(renderer)).toEqual([[1, 2], [3, 4], [5]]);
+    });
   });
 
   it('shows grid skeleton lines while a section\'s first page loads', async () => {

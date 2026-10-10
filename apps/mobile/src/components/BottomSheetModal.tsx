@@ -104,6 +104,9 @@ export function BottomSheetModal({ visible, onClose, children, modalExtras, test
   );
 }
 
+/** The widest a bottom sheet gets (dp) - on a tablet the sheet stops here, so a grid inside it sizes its columns to this, not the window. */
+export const BOTTOM_SHEET_MAX_WIDTH = 640;
+
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' },
@@ -113,7 +116,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radii.lg,
     borderTopRightRadius: radii.lg,
     maxHeight: '75%',
-    maxWidth: 640,
+    maxWidth: BOTTOM_SHEET_MAX_WIDTH,
     padding: spacing.lg,
     // The shared handle takes the top edge (see SheetHeader).
     paddingTop: 0,

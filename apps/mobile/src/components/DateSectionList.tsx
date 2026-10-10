@@ -2,9 +2,10 @@ import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle, type ListViewToken } from 'react-native';
 import type { DateSection, DateSectionPage } from '../items/useDateSectionPages';
+import { columnBasis, PHONE_SAVED_LINK_COLUMNS, useSavedLinkColumns, type SavedLinkColumns } from '../layout/responsiveGrid';
 import { colors, minTouchTarget, spacing } from '../theme/tokens';
 import { dateAccordionStyles } from './DateAccordion';
-import { chunkIntoImageLines, SAVED_LINK_IMAGE_COLUMNS, SavedLinkImageRowSkeleton } from './SavedLinkImageTile';
+import { chunkIntoImageLines, SavedLinkImageRowSkeleton } from './SavedLinkImageTile';
 import { SavedLinkGridCardSkeleton, SavedLinkRowSkeleton } from './SavedLinkSkeleton';
 
 /** Skeleton rows while a section's first page loads (never more than the section holds). */
@@ -37,6 +38,7 @@ export function buildDateSectionRows<T>(
   expandedKeys: ReadonlySet<string>,
   viewMode: 'list' | 'grid' | 'image',
   idOf: (item: T) => number,
+  columns: SavedLinkColumns = PHONE_SAVED_LINK_COLUMNS,
 ): readonly DateSectionRow<T>[] {
   const rows: DateSectionRow<T>[] = [];
   for (const section of sections) {
@@ -54,13 +56,13 @@ export function buildDateSectionRows<T>(
     if (image) {
       // Image view: lines of tiles inside the same section structure (one virtualized list, never a list per section).
       let position = 0;
-      for (const line of chunkIntoImageLines(items)) {
+      for (const line of chunkIntoImageLines(items, columns.image)) {
         body.push({ kind: 'imageRow', key: `m:${section.key}:${idOf(line[0])}`, section, items: line, position, isFirst: false, isLast: false });
         position += line.length;
       }
     } else if (grid) {
-      for (let index = 0; index < items.length; index += DATE_SECTION_GRID_COLUMNS) {
-        body.push({ kind: 'gridRow', key: `g:${section.key}:${idOf(items[index])}`, section, items: items.slice(index, index + DATE_SECTION_GRID_COLUMNS), position: index, isFirst: false, isLast: false });
+      for (let index = 0; index < items.length; index += columns.grid) {
+        body.push({ kind: 'gridRow', key: `g:${section.key}:${idOf(items[index])}`, section, items: items.slice(index, index + columns.grid), position: index, isFirst: false, isLast: false });
       }
     } else {
       items.forEach((item, position) => body.push({ kind: 'item', key: `i:${idOf(item)}`, section, item, position, isLast: false }));
@@ -73,7 +75,7 @@ export function buildDateSectionRows<T>(
       : page.isLoadingMore
         ? NEXT_PAGE_SKELETON_ROWS
         : 0;
-    const skeletonRows = image ? Math.ceil(skeletons / SAVED_LINK_IMAGE_COLUMNS) : grid ? Math.ceil(skeletons / DATE_SECTION_GRID_COLUMNS) : skeletons;
+    const skeletonRows = image ? Math.ceil(skeletons / columns.image) : grid ? Math.ceil(skeletons / columns.grid) : skeletons;
     for (let index = 0; index < skeletonRows; index++) {
       body.push({ kind: 'skeleton', key: `s:${section.key}:${index}`, section, grid, image, isFirst: false, isLast: false });
     }
@@ -155,14 +157,16 @@ export function DateSectionGridRow({ isFirst, isLast, testID, style, children }:
 export const DATE_SECTION_IMAGE_LINE_STYLE: StyleProp<ViewStyle> = { flexDirection: 'column' };
 
 export function DateSectionSkeletonRow({ grid, image = false, isFirst, isLast, testID }: CardRowPosition & { readonly grid: boolean; readonly image?: boolean; readonly testID: string }) {
+  const { grid: gridColumns } = useSavedLinkColumns();
+  const cellStyle = { flexBasis: columnBasis(gridColumns), maxWidth: columnBasis(gridColumns) } as const;
   return image ? (
     <DateSectionGridRow isFirst={isFirst} isLast={isLast} style={DATE_SECTION_IMAGE_LINE_STYLE}>
       <SavedLinkImageRowSkeleton testID={testID} />
     </DateSectionGridRow>
   ) : grid ? (
     <DateSectionGridRow isFirst={isFirst} isLast={isLast}>
-      {Array.from({ length: DATE_SECTION_GRID_COLUMNS }, (_, index) => (
-        <View key={index} style={styles.gridSkeletonCell}>
+      {Array.from({ length: gridColumns }, (_, index) => (
+        <View key={index} style={[styles.gridSkeletonCell, cellStyle]}>
           <SavedLinkGridCardSkeleton testID={testID} />
         </View>
       ))}

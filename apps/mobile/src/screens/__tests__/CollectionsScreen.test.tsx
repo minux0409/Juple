@@ -10,7 +10,7 @@ import { StarIcon } from '../../icons/StarIcon';
 import { PendingActionRow } from '../../components/PendingActionRow';
 import { radii, spacing } from '../../theme/tokens';
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { FlatList, Image, StyleSheet, Text, TextInput } from 'react-native';
+import { Dimensions, FlatList, Image, StyleSheet, Text, TextInput } from 'react-native';
 import { colors } from '../../theme/tokens';
 import { collectionFilterColors } from '../../theme/tokens';
 import { resolveCollectionColorTile } from '../../collections/collectionColors';
@@ -939,6 +939,43 @@ describe('CollectionsScreen large lists', () => {
     expect(photoImages(renderer).map(node => node.props.source.uri).sort())
       .toEqual(mountedCards(renderer).map(node => node.props.imageUrl).sort());
     expect(Image.prefetch).not.toHaveBeenCalled();
+  });
+
+  describe('responsive columns (phone 4; tablets grow with the width)', () => {
+    // Inside act: a window change reaches every renderer a file left mounted, and those updates must not run outside act.
+    const setWindow = (width: number, height: number) => act(() => { Dimensions.set({ window: { ...Dimensions.get('window'), width, height } }); });
+    const PHONE_PORTRAIT = [411, 1334] as const;
+    afterEach(() => setWindow(...PHONE_PORTRAIT));
+
+    it('the Grid follows the window width live and keeps every Collection (the list remounts for a new column count)', async () => {
+      jest.mocked(getMyPendingSubmissionTotal).mockResolvedValue(0); // the focus effect re-runs on a re-render
+      serveMany();
+      const renderer = await renderScreen();
+      expect(list(renderer).props.numColumns).toBe(4);
+      const cardsBefore = list(renderer).props.data.length;
+
+      await act(async () => {
+        setWindow(891, 411); // phone landscape: still a phone
+      });
+      expect(list(renderer).props.numColumns).toBe(4);
+      await act(async () => {
+        setWindow(600, 960);
+      });
+      expect(list(renderer).props.numColumns).toBe(5);
+      await act(async () => {
+        setWindow(800, 1280);
+      });
+      expect(list(renderer).props.numColumns).toBe(6);
+      await act(async () => {
+        setWindow(1280, 800);
+      });
+      expect(list(renderer).props.numColumns).toBe(8);
+      expect(list(renderer).props.data).toHaveLength(cardsBefore);
+      await act(async () => {
+        setWindow(...PHONE_PORTRAIT);
+      });
+      expect(list(renderer).props.numColumns).toBe(4);
+    });
   });
 
   it('scrolling loads the next page of card metadata only - photos still follow the mounted cards, never a whole page ahead', async () => {
