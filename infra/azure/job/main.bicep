@@ -31,7 +31,16 @@ param managedIdentityResourceId string
 
 @description('Full ASP.NET Core SQL connection string, credentials included - same value/shape as ../app/main.bicep\'s sqlConnectionString parameter, supplied separately here because this Job has its own independent secret namespace (a Container Apps Job is a distinct resource from the Container App, not a shared config scope). Never put a real value in a checked-in parameter file.')
 @secure()
-param sqlConnectionString string
+param sqlConnectionString string = ''
+
+@description('Where the SQL runtime connection string comes from. false (default - Dev): the @secure() sqlConnectionString parameter carries the VALUE into a Container Apps secret. true (Production): a Key Vault reference to the secret named by sqlConnectionStringSecretName, resolved at runtime through this workload\'s own managed identity - the deployer never reads or passes a connection string, and a supplied one is refused by ../app/sql-connection-source-guard.bicep rather than silently ignored. Requires the Key Vault URI. The vault secret holds the RUNTIME principal\'s connection string, never the administrator\'s.')
+param sqlConnectionStringFromKeyVault bool = false
+
+@description('Key Vault secret NAME (never a value) of the runtime connection string - used only when sqlConnectionStringFromKeyVault. The Container Apps secret keeps its own name, sql-connection-string, so the env secretRef is unchanged.')
+param sqlConnectionStringSecretName string = 'sql-runtime-connection-string'
+
+@description('Key Vault URI with trailing slash - the Production vault\'s "keyVaultUri" (../foundation/billing.bicep output). Needed only when sqlConnectionStringFromKeyVault.')
+param keyVaultUri string = ''
 
 @description('Firebase service-account credential JSON (FCM v1 - see FirebaseCloudMessagingSender) for this Job\'s IPushSender. Deliberately never supplied to the API Container App (../app/main.bicep has no equivalent parameter) - the API never sends Push itself, only this Job does, so only this Job needs it. Never put a real value in a checked-in parameter file.')
 @secure()
@@ -52,6 +61,39 @@ param containerMemory string = '0.5Gi'
 
 var jobName = 'caj-juple-push-dispatch-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+
+// The SQL connection string secret: a Key Vault reference (vault mode) or the supplied value (parameter mode).
+// Same secret name in both modes, so the env secretRef below never changes.
+var sqlConnectionStringSecret = sqlConnectionStringFromKeyVault
+  ? {
+      name: 'sql-connection-string'
+      keyVaultUrl: '${keyVaultUri}secrets/${sqlConnectionStringSecretName}'
+      identity: managedIdentityResourceId
+    }
+  : {
+      name: 'sql-connection-string'
+      value: sqlConnectionString
+    }
+
+// Fail-closed connection string source (see ../app/sql-connection-source-guard.bicep): vault mode needs the vault
+// URI and must not also receive a value; parameter mode needs the value. Only 0/1 flags reach the guard.
+module sqlConnectionSourceVaultGuard '../app/sql-connection-source-guard.bicep' = if (sqlConnectionStringFromKeyVault) {
+  name: 'juple-${environmentName}-job-sql-source-vault-guard'
+  params: {
+    #disable-next-line BCP329
+    keyVaultUriProvided: empty(keyVaultUri) ? 0 : 1
+    #disable-next-line BCP330
+    plaintextConnectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
+
+module sqlConnectionSourceParameterGuard '../app/sql-connection-source-guard.bicep' = if (!sqlConnectionStringFromKeyVault) {
+  name: 'juple-${environmentName}-job-sql-source-parameter-guard'
+  params: {
+    #disable-next-line BCP329
+    connectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
 
 resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
   name: jobName
@@ -88,10 +130,7 @@ resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
         }
       ]
       secrets: [
-        {
-          name: 'sql-connection-string'
-          value: sqlConnectionString
-        }
+        sqlConnectionStringSecret
         {
           name: 'firebase-credential'
           value: firebaseServiceAccountKeyJson

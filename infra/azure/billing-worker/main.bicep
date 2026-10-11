@@ -48,7 +48,13 @@ param billingKeyVaultUri string = ''
 
 @description('Full ASP.NET Core SQL connection string, credentials included - same value/shape as ../app/main.bicep\'s. Never put a real value in a checked-in parameter file.')
 @secure()
-param sqlConnectionString string
+param sqlConnectionString string = ''
+
+@description('Where the SQL runtime connection string comes from. false (default - Dev): the @secure() sqlConnectionString parameter carries the VALUE into a Container Apps secret. true (Production): a Key Vault reference to the secret named by sqlConnectionStringSecretName, resolved at runtime through this workload\'s own managed identity - the deployer never reads or passes a connection string, and a supplied one is refused by ../app/sql-connection-source-guard.bicep rather than silently ignored. Requires the Key Vault URI. The vault secret holds the RUNTIME principal\'s connection string, never the administrator\'s.')
+param sqlConnectionStringFromKeyVault bool = false
+
+@description('Key Vault secret NAME (never a value) of the runtime connection string - used only when sqlConnectionStringFromKeyVault. The Container Apps secret keeps its own name, sql-connection-string, so the env secretRef is unchanged.')
+param sqlConnectionStringSecretName string = 'sql-runtime-connection-string'
 
 @description('The allowlisted product / base plan (the same values as the API\'s). Needed only when googleBillingEnabled.')
 param googleProductId string = ''
@@ -175,6 +181,39 @@ module billingSettingsGuard '../app/billing-settings-guard.bicep' = if (googleBi
   }
 }
 
+// The SQL connection string secret: a Key Vault reference (vault mode) or the supplied value (parameter mode).
+// Same secret name in both modes, so the env secretRef below never changes.
+var sqlConnectionStringSecret = sqlConnectionStringFromKeyVault
+  ? {
+      name: 'sql-connection-string'
+      keyVaultUrl: '${billingKeyVaultUri}secrets/${sqlConnectionStringSecretName}'
+      identity: billingIdentityResourceId
+    }
+  : {
+      name: 'sql-connection-string'
+      value: sqlConnectionString
+    }
+
+// Fail-closed connection string source (see ../app/sql-connection-source-guard.bicep): vault mode needs the vault
+// URI and must not also receive a value; parameter mode needs the value. Only 0/1 flags reach the guard.
+module sqlConnectionSourceVaultGuard '../app/sql-connection-source-guard.bicep' = if (sqlConnectionStringFromKeyVault) {
+  name: 'juple-${environmentName}-billing-worker-sql-source-vault-guard'
+  params: {
+    #disable-next-line BCP329
+    keyVaultUriProvided: empty(billingKeyVaultUri) ? 0 : 1
+    #disable-next-line BCP330
+    plaintextConnectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
+
+module sqlConnectionSourceParameterGuard '../app/sql-connection-source-guard.bicep' = if (!sqlConnectionStringFromKeyVault) {
+  name: 'juple-${environmentName}-billing-worker-sql-source-parameter-guard'
+  params: {
+    #disable-next-line BCP329
+    connectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
+
 resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
   name: containerAppName
   location: location
@@ -198,10 +237,7 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
       // Key Vault references only while enabled: a disabled worker resolves no Google secret at all.
       secrets: concat(
         [
-          {
-            name: 'sql-connection-string'
-            value: sqlConnectionString
-          }
+          sqlConnectionStringSecret
         ],
         googleBillingEnabled
           ? [

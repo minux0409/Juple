@@ -74,7 +74,13 @@ param managedIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGE
 param managedIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_IDENTITY_CLIENT_ID')
 param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_PROD_STORAGE_BLOB_SERVICE_URI')
 param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
-param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_SQL_CONNECTION_STRING')
+// The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string in the
+// Production vault, built for the contained database user juple_runtime - never the administrator), resolved
+// through this workload's managed identity. The deployer never reads or passes it: there is no environment
+// variable for it, and a value supplied anyway is refused during validation
+// (../app/sql-connection-source-guard.bicep). The administrator credential (jupleadmin, Key Vault secret
+// sql-admin-password) is for migrations and operations only and has no path into a Production workload.
+param sqlConnectionStringFromKeyVault = true
 // The API's own cryptographic keys (public collection cursor, collection unlock grant, collection share
 // password) are Key Vault references resolved at runtime through the API's managed identity
 // (managedIdentityResourceId above, role Key Vault Secrets User on the vault). The deployer never reads or

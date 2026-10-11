@@ -33,7 +33,13 @@ param managedIdentityClientId string
 
 @description('Full ASP.NET Core SQL connection string, credentials included. Never put a real value in a checked-in parameter file - supply it at deploy time (e.g. from a local environment variable the deploy command reads). Stored only as a Container Apps secret; never exposed as a plain env var or a template output. Foundation deliberately does not hand this back as an output either - the deployer assembles it from Foundation\'s sqlServerFqdn output plus whatever admin credentials they supplied to that deployment.')
 @secure()
-param sqlConnectionString string
+param sqlConnectionString string = ''
+
+@description('Where the SQL runtime connection string comes from. false (default - Dev): the @secure() sqlConnectionString parameter carries the VALUE into a Container Apps secret. true (Production): a Key Vault reference to the secret named by sqlConnectionStringSecretName, resolved at runtime through this workload\'s own managed identity - the deployer never reads or passes a connection string, and a supplied one is refused by ../app/sql-connection-source-guard.bicep rather than silently ignored. Requires the Key Vault URI. The vault secret holds the RUNTIME principal\'s connection string, never the administrator\'s.')
+param sqlConnectionStringFromKeyVault bool = false
+
+@description('Key Vault secret NAME (never a value) of the runtime connection string - used only when sqlConnectionStringFromKeyVault. The Container Apps secret keeps its own name, sql-connection-string, so the env secretRef is unchanged.')
+param sqlConnectionStringSecretName string = 'sql-runtime-connection-string'
 
 @description('Base64-encoded 32-byte AES-256-GCM key for Public Collection Sharing cursor encryption (see PublicCollectionItemPageCursorCodec) - Backend fails startup outright if this is absent or does not decode to exactly 32 bytes (see README.md\'s own local dev setup notes for the same fail-fast). Never put a real value in a checked-in parameter file. Must stay the same value across redeployments/revisions - rotating it invalidates every public cursor already handed out (an in-flight "load more" page simply fails to decode, not a data-loss issue, but a needless disruption for anyone mid-scroll).')
 @secure()
@@ -373,6 +379,39 @@ module billingSettingsGuard 'billing-settings-guard.bicep' = if (googleBillingEn
   }
 }
 
+// The SQL connection string secret: a Key Vault reference (vault mode) or the supplied value (parameter mode).
+// Same secret name in both modes, so the env secretRef below never changes.
+var sqlConnectionStringSecret = sqlConnectionStringFromKeyVault
+  ? {
+      name: 'sql-connection-string'
+      keyVaultUrl: '${billingKeyVaultUri}secrets/${sqlConnectionStringSecretName}'
+      identity: managedIdentityResourceId
+    }
+  : {
+      name: 'sql-connection-string'
+      value: sqlConnectionString
+    }
+
+// Fail-closed connection string source (see ../app/sql-connection-source-guard.bicep): vault mode needs the vault
+// URI and must not also receive a value; parameter mode needs the value. Only 0/1 flags reach the guard.
+module sqlConnectionSourceVaultGuard './sql-connection-source-guard.bicep' = if (sqlConnectionStringFromKeyVault) {
+  name: 'juple-${environmentName}-app-sql-source-vault-guard'
+  params: {
+    #disable-next-line BCP329
+    keyVaultUriProvided: empty(billingKeyVaultUri) ? 0 : 1
+    #disable-next-line BCP330
+    plaintextConnectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
+
+module sqlConnectionSourceParameterGuard './sql-connection-source-guard.bicep' = if (!sqlConnectionStringFromKeyVault) {
+  name: 'juple-${environmentName}-app-sql-source-parameter-guard'
+  params: {
+    #disable-next-line BCP329
+    connectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
+
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
   location: location
@@ -423,10 +462,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       secrets: concat(
         [
-          {
-            name: 'sql-connection-string'
-            value: sqlConnectionString
-          }
+          sqlConnectionStringSecret
         ],
         apiKeySecrets,
         billingSecrets

@@ -23,7 +23,13 @@ param billingIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_
 param serviceBusNamespaceName = readEnvironmentVariable('JUPLE_APP_PROD_SERVICE_BUS_NAMESPACE_NAME')
 param billingKeyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_KEY_VAULT_URI')
 param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
-param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_SQL_CONNECTION_STRING')
+// The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string in the
+// Production vault, built for the contained database user juple_runtime - never the administrator), resolved
+// through this workload's managed identity. The deployer never reads or passes it: there is no environment
+// variable for it, and a value supplied anyway is refused during validation
+// (../app/sql-connection-source-guard.bicep). The administrator credential (jupleadmin, Key Vault secret
+// sql-admin-password) is for migrations and operations only and has no path into a Production workload.
+param sqlConnectionStringFromKeyVault = true
 param googleProductId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PRODUCT_ID')
 param googleBasePlanId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_ID')
 param googlePubSubAudience = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUBSUB_AUDIENCE')

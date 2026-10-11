@@ -549,8 +549,8 @@ DEV: 변수가 없으면 `BCP427`로 배포 자체가 시작되지 않는다(빈
 2. DB migration: `AddCollectionSharePasswords`가 적용됐는지 확인하고, 아니면 먼저 적용한다(새 API는 이
    table을 조회한다). migration은 CREATE TABLE + 잠겨 있고 공유 관계가 있는 컬렉션만 legacy로 INSERT할
    뿐, 기존 데이터를 UPDATE/DELETE하지 않는다.
-3. 배포 shell에 `JUPLE_APP_PROD_*` 변수를 설정한다. API 키 3개의 값은 필요 없다. 남는 비밀 입력은
-   `JUPLE_APP_PROD_SQL_CONNECTION_STRING` 하나다(값을 명령줄 인자로 쓰지 않는다 - shell history에 남는다).
+3. 배포 shell에 `JUPLE_APP_PROD_*` 변수를 설정한다. API 키 3개와 SQL connection string은 **Key Vault reference**라
+   값이 필요 없다. Production 배포를 위해 shell이 읽거나 넘길 비밀은 (이 API 배포에는) 없다.
 4. `az deployment group create --resource-group <rg> --parameters infra/azure/app/prod.bicepparam` -
    secret(Key Vault reference)/env와 새 API image가 한 revision으로 같이 올라간다. 키가 없으면 새 API는
    시작하지 않으므로, 키 없이 image만 먼저 올리는 순서는 금지. 첫 revision에서 reference가 해석되지 않으면
@@ -1058,6 +1058,30 @@ Vault 생성 → (3) 같은 세션에서 secret 저장 → (4) 환경변수 제�
 string을 쓰는 앱/Job)가 하나도 배포되지 않은 상태에서만** 한다. 소비자가 있으면 새 비밀번호를 쓰는 모든
 connection string secret을 같은 순서로 다시 배포해야 한다.
 
+## SQL runtime access (Round 4F.5) - 관리자와 runtime 분리
+
+- `jupleadmin`은 **migration/운영 전용**이다(Key Vault `sql-admin-login`/`sql-admin-password`). Production workload에는
+  어떤 경로로도 전달되지 않는다.
+- runtime은 `Juple` DB 안의 **contained database user `juple_runtime`**(서버 login 없음)을 쓴다. 권한은
+  `db_datareader` + `db_datawriter`, 그리고 `dbo.__EFMigrationsHistory`에 대한 `INSERT/UPDATE/DELETE` **DENY**뿐이다.
+  runtime 코드 inventory(EF DML, `UPDLOCK/HOLDLOCK` 힌트, `INSERT…SELECT`, `ExecuteUpdate/Delete`)에는 DDL, `EXECUTE`,
+  저장 프로시저, sequence, `sp_getapplock`(= migration 전용)이 없고 startup migration도 없다. `db_owner`/`db_ddladmin`/
+  `db_securityadmin`/`CONTROL`/`CREATE TABLE`/`ALTER ANY USER`/`ALTER ANY ROLE`은 없다(실제 연결해서 DENIED 확인).
+- runtime connection string은 Key Vault secret **`sql-runtime-connection-string`**이고, API/worker/Job은 자기 Managed
+  Identity로 직접 참조한다(`sqlConnectionStringFromKeyVault=true`, Production bicepparam에 literal). Container App secret의
+  이름은 그대로 `sql-connection-string`이라 env `secretRef`는 바뀌지 않는다.
+  배포자는 값을 읽지도 넘기지도 않고, 값을 같이 넘기면 `app/sql-connection-source-guard.bicep`이 validation에서 거절한다
+  (admin connection string이 Production workload로 들어갈 길을 막는다).
+- 8개 consumer(API, billing worker, notification worker, push-dispatch / blob-cleanup / instagram-metadata-retry /
+  billing-reconcile / retention Job)가 같은 secret을 참조한다. 5개 Job은 이전에 CLI parameter로만 배포했지만 이제
+  `prod.bicepparam`을 가진다.
+- **notification worker**는 vault 단위 role이 없다(billing 키와 admin 비밀번호를 볼 필요가 없음). 이 secret **하나**만 읽도록
+  `foundation/key-vault-secret-reader.bicep`(secret 범위 `Key Vault Secrets User`)을 worker 배포 전에 적용해야 한다.
+- DEV는 기본값(`sqlConnectionStringFromKeyVault=false`)이라 기존 secure-parameter 방식이 그대로다. 컴파일된 ARM에서
+  non-secret 구성이 변경 전과 동일함을 확인했다.
+- 후속 hardening(출시 blocker 아님): Managed Identity SQL auth(`Authentication=Active Directory Managed Identity`, SQL
+  server Entra admin + identity별 DB user 필요), secret 단위 RBAC, 관리자 자격 증명 별도 vault.
+
 ## Production IaC (Round 2) - 반복 배포 가능한 구조
 
 아무것도 배포하지 않는 IaC 정비다(Azure 변경 없음). Production은 `rg-juple-prod`에 partial Foundation이 이미
@@ -1072,7 +1096,7 @@ connection string secret을 같은 순서로 다시 배포해야 한다.
 
 | 파일 | 필수(기본값 없음) | 선택 |
 | --- | --- | --- |
-| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, image tag, SQL connection string 1종(API 키 3개는 Key Vault reference라 변수 없음), `GOOGLE_BILLING_ENABLED`, `GOOGLE_PRODUCT_ID`, `GOOGLE_BASE_PLAN_ID`, `GOOGLE_PUBSUB_AUDIENCE`, `GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
+| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, image tag, (API 키 3개와 SQL connection string은 Key Vault reference라 변수 없음), `GOOGLE_BILLING_ENABLED`, `GOOGLE_PRODUCT_ID`, `GOOGLE_BASE_PLAN_ID`, `GOOGLE_PUBSUB_AUDIENCE`, `GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 | `billing-worker/prod.bicepparam` | `GOOGLE_BILLING_ENABLED` 포함 13개 전부 | - |
 | `notification-worker/prod.bicepparam` | 8개 전부(Firebase credential 포함) | - |
 | `web/prod.bicepparam` | ACR/CAE/identity/image tag/`API_BASE_URL`, `LAUNCH_SETTINGS_REQUIRED` | `GOOGLE_PLAY_URL`, assetlinks, `LEGAL_*` 4개(launch gate가 true면 필수) |

@@ -18,5 +18,13 @@ param notificationWorkerIdentityResourceId = readEnvironmentVariable('JUPLE_APP_
 param notificationWorkerIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_NOTIFICATION_WORKER_IDENTITY_CLIENT_ID')
 param serviceBusNamespaceName = readEnvironmentVariable('JUPLE_APP_PROD_SERVICE_BUS_NAMESPACE_NAME')
 param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
-param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_SQL_CONNECTION_STRING')
+// The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string in the
+// Production vault, built for the contained database user juple_runtime - never the administrator), resolved
+// through this workload's managed identity. The deployer never reads or passes it: there is no environment
+// variable for it, and a value supplied anyway is refused during validation
+// (../app/sql-connection-source-guard.bicep). The administrator credential (jupleadmin, Key Vault secret
+// sql-admin-password) is for migrations and operations only and has no path into a Production workload.
+param sqlConnectionStringFromKeyVault = true
+// The vault the runtime connection string is read from (billing.bicep output keyVaultUri, trailing slash).
+param keyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_KEY_VAULT_URI')
 param firebaseServiceAccountKeyJson = readEnvironmentVariable('JUPLE_APP_PROD_FIREBASE_SERVICE_ACCOUNT_KEY_JSON')
