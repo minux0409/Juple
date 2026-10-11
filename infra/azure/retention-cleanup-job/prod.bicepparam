@@ -12,7 +12,12 @@ param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_APP_PROD_CONTA
 param managedIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_IDENTITY_RESOURCE_ID')
 param managedIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_IDENTITY_CLIENT_ID')
 param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_PROD_STORAGE_BLOB_SERVICE_URI')
-param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
+// Production pins the exact image the API runs (the same digest variable as ../app/prod.bicepparam), never a tag.
+param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
+
+// Manual until the first observed run is signed off: nothing destructive starts on its own. Switching to 'Schedule'
+// (the template default and the documented cadence) is a deliberate one-line change, not an accident of deployment.
+param triggerType = 'Manual'
 
 // SQL runtime connection string: Key Vault reference only (see ../job/prod.bicepparam).
 param sqlConnectionStringFromKeyVault = true

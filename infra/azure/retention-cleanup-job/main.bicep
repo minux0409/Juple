@@ -20,8 +20,11 @@ param acrLoginServer string
 @description('Repository name within the ACR - must match ../app/main.bicep\'s imageRepository (same image, reused as-is - no separate worker image, and the Dockerfile ENTRYPOINT is never overridden here, only its args).')
 param imageRepository string = 'juple-api'
 
-@description('Image tag to deploy. No default on purpose, same reasoning as ../app/main.bicep and ../job/main.bicep - the deployer picks an explicit, already-pushed tag every time. Should normally match whatever tag the Container App (../app/main.bicep) is running, so this Job cleans up Blobs against the same code that owns the AccountDeletionBlobCleanup table schema.')
-param imageTag string
+@description('Image tag to deploy. Empty only when imageDigest is used - the template never picks an image on its own, same reasoning as ../app/main.bicep and ../job/main.bicep - the deployer picks an explicit, already-pushed tag every time. Should normally match whatever tag the Container App (../app/main.bicep) is running, so this Job cleans up Blobs against the same code that owns the AccountDeletionBlobCleanup table schema.')
+param imageTag string = ''
+
+@description('Immutable image digest ("sha256:" + 64 hex characters) to deploy instead of a tag - Production pins the exact image the API runs, so a re-pushed tag can never change what runs. When set it wins over imageTag and the reference becomes {acrLoginServer}/{imageRepository}@{imageDigest}. Empty = use imageTag (Dev).')
+param imageDigest string = ''
 
 @description('Container Apps Environment resource ID - Foundation output "containerAppsEnvironmentId". Same Environment as the API Container App and the Push dispatch Job - this is a second scheduled Job, not a second Environment.')
 param containerAppsEnvironmentId string
@@ -51,6 +54,13 @@ param storageBlobServiceUri string
 @description('Must match the API Container App\'s own blobContainerName (../app/main.bicep) - the same container both write to/clean up.')
 param blobContainerName string = 'item-images'
 
+@description('How the Job starts. Schedule (default - every existing environment): runs on cronExpression. Manual: no schedule at all; an execution starts only when an operator starts it (az containerapp job start). Production deploys these destructive cleanup Jobs as Manual first, runs them once under observation, and only then switches to Schedule as a deliberate change.')
+@allowed([
+  'Schedule'
+  'Manual'
+])
+param triggerType string = 'Schedule'
+
 @description('UTC cron expression - Container Apps Job schedules are always UTC (same convention as ../job/main.bicep). Default: once a day at 03:17 UTC, a quiet hour; retention is not time-critical. This is NOT a mathematical requirement of the 10-minute grace period in BlobCleanupService (a longer interval would still eventually run the confirming sweep) - 5 minutes is chosen to keep orphan-Blob and cleanup-task residency time low and to keep operational visibility (how long a stuck task can go unnoticed) tight.')
 param cronExpression string = '17 3 * * *'
 
@@ -65,7 +75,21 @@ param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
 
 var jobName = 'caj-juple-retention-${environmentName}'
-var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+var containerImage = empty(imageDigest)
+  ? '${acrLoginServer}/${imageRepository}:${imageTag}'
+  : '${acrLoginServer}/${imageRepository}@${imageDigest}'
+
+// Fail-closed image reference, shared with the API template (see ../app/image-reference-guard.bicep): an image must
+// be named (no floating-tag fallback) and a digest must have the exact length of a sha256 reference.
+module imageReferenceGuard '../app/image-reference-guard.bicep' = {
+  name: 'juple-${environmentName}-retention-cleanup-image-reference-guard'
+  params: {
+    #disable-next-line BCP329
+    imageReferenceSupplied: (empty(imageTag) ? 0 : 1) + (empty(imageDigest) ? 0 : 1)
+    imageDigestLength: length(imageDigest)
+  }
+}
+
 
 // The SQL connection string secret: a Key Vault reference (vault mode) or the supplied value (parameter mode).
 // Same secret name in both modes, so the env secretRef below never changes.
@@ -112,10 +136,10 @@ resource retentionJob 'Microsoft.App/jobs@2024-03-01' = {
   properties: {
     environmentId: containerAppsEnvironmentId
     configuration: {
-      triggerType: 'Schedule'
+      triggerType: triggerType
       replicaTimeout: replicaTimeoutSeconds
       replicaRetryLimit: replicaRetryLimit
-      scheduleTriggerConfig: {
+      scheduleTriggerConfig: triggerType == 'Schedule' ? {
         // One replica per execution, and exactly one completion required - a cleanup pass is a
         // single sequential loop over pending tasks (see BlobCleanupService.RunPendingCleanupsAsync),
         // not a fan-out workload. Correctness against two executions overlapping in time does not
@@ -123,7 +147,11 @@ resource retentionJob 'Microsoft.App/jobs@2024-03-01' = {
         cronExpression: cronExpression
         parallelism: 1
         replicaCompletionCount: 1
-      }
+      } : null
+      manualTriggerConfig: triggerType == 'Manual' ? {
+        parallelism: 1
+        replicaCompletionCount: 1
+      } : null
       // ACR pull via the Managed Identity's AcrPull role (granted in ../foundation/resources.bicep,
       // shared with the API Container App and the Push dispatch Job) - no username/password secret.
       registries: [
