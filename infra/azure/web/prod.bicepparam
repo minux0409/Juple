@@ -40,11 +40,10 @@ param managedCertificateName = 'mc-cae-juple-prod-juple-co-kr-2013'
 param minReplicas = 0
 param maxReplicas = 2
 
-// googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId/androidAssetlinksSha256Fingerprints are all
-// deliberately left unassigned - main.bicep's own "" defaults apply (storeConfig.ts/the two
-// .well-known routes already treat "" identically to "unset"). None of these five have a real
-// value yet (no Play/App Store listing, no Apple Developer Team ID, no Play App Signing
-// certificate - see ../README.md and the root README.md's "Production release signing" section).
+// googlePlayUrl/appStoreUrl/appStoreAppId/iosAppId are deliberately left unassigned - main.bicep's own
+// "" defaults apply (storeConfig.ts/the two .well-known routes already treat "" identically to
+// "unset"). None of these four have a real value yet (no Play/App Store listing, no Apple Developer
+// Team ID - see ../README.md and the root README.md's "Production release signing" section).
 // Add each here individually, with its own real confirmed value, only once it actually exists -
 // never a placeholder, and never dev.bicepparam's own Dev debug-keystore fingerprint (a
 // completely different, Dev-only certificate - see that file's own remarks).
@@ -82,11 +81,13 @@ param launchSettingsRequired = bool(readEnvironmentVariable('JUPLE_WEB_PROD_LAUN
 param googlePlayUrl = readEnvironmentVariable('JUPLE_WEB_PROD_GOOGLE_PLAY_URL', '')
 
 // SHA-256 fingerprint(s) of the certificate that signs the INSTALLED app: the Google Play App Signing
-// certificate - never the upload key, never debug/dogfood. Read it from Play Console > Setup > App
-// integrity (docs/architecture.md records the Dev/Play value; confirm it for Production). Dev's three
-// fingerprints are NOT carried over here: Production serves only what Production installs are signed
-// with. Comma-separated for several.
-param androidAssetlinksSha256Fingerprints = readEnvironmentVariable('JUPLE_WEB_PROD_ANDROID_ASSETLINKS_SHA256_FINGERPRINTS', '')
+// certificate - never the upload key, never debug/dogfood. Confirmed from Play Console > Setup > App
+// integrity > App signing key certificate (Production, com.juple.app). It is a public certificate
+// fingerprint, not a secret, so it lives here as a literal: a redeploy can never silently drop it.
+// The upload key (D0:6E:41:FE:...) is deliberately NOT listed - it signs nothing a user installs from
+// Play. Dev's three fingerprints are NOT carried over: Production serves only what Production installs
+// are signed with. Comma-separated for several (e.g. during a signing-certificate rotation).
+param androidAssetlinksSha256Fingerprints = 'D5:2E:DD:99:E9:EC:7B:7F:38:12:9C:A9:1A:0F:12:9D:FE:CA:A0:6E:65:AF:F1:1B:D0:74:0B:4E:3C:F9:AB:D6'
 
 // Operator details for /privacy, /terms, /account-deletion. The business registration is still pending,
 // so NO value is committed or guessed: they come from the deploying shell once they are real. Empty =
