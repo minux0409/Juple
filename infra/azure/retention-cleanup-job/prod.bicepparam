@@ -15,9 +15,10 @@ param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_PROD_STORAGE_BL
 // Production pins the exact image the API runs (the same digest variable as ../app/prod.bicepparam), never a tag.
 param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 
-// Manual until the first observed run is signed off: nothing destructive starts on its own. Switching to 'Schedule'
-// (the template default and the documented cadence) is a deliberate one-line change, not an accident of deployment.
-param triggerType = 'Manual'
+// Scheduled at the documented cadence (docs/data-retention.md) after the backend suite passed on SDK 10.0.302 and one
+// observed manual run purged nothing and failed nothing. 'Manual' remains available for any one-off operator run.
+param triggerType = 'Schedule'
+param cronExpression = '17 3 * * *'
 
 // SQL runtime connection string: Key Vault reference only (see ../job/prod.bicepparam).
 param sqlConnectionStringFromKeyVault = true
