@@ -78,7 +78,7 @@ describe('optional update snooze', () => {
   });
 
   it('stores only the build number and the moment, and reads them back', async () => {
-    await saveOptionalUpdateSnooze(25, NOW);
+    await expect(saveOptionalUpdateSnooze(25, NOW)).resolves.toBe(true);
 
     expect(AsyncStorage.setItem).toHaveBeenCalledWith('juple.appUpdate.optionalSnooze', JSON.stringify({ latestBuild: 25, dismissedAt: NOW }));
 
@@ -97,6 +97,11 @@ describe('optional update snooze', () => {
     expect(await loadOptionalUpdateSnooze()).toBeNull();
 
     jest.mocked(AsyncStorage.setItem).mockRejectedValue(new Error('disk'));
-    await expect(saveOptionalUpdateSnooze(25, NOW)).resolves.toBeUndefined();
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(saveOptionalUpdateSnooze(25, NOW)).resolves.toBe(false);
+    // Only a fixed marker is logged - no build number, no person, no device data.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0].join(' '))).not.toMatch(/25|disk/);
+    warn.mockRestore();
   });
 });

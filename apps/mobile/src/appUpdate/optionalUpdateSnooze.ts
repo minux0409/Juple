@@ -30,11 +30,18 @@ export async function loadOptionalUpdateSnooze(): Promise<OptionalUpdateSnooze |
   }
 }
 
-export async function saveOptionalUpdateSnooze(latestBuild: number, now: number): Promise<void> {
+/**
+ * Writes the answer and resolves only when the storage has accepted it. true: it is persisted. false: it is not - the caller keeps
+ * the answer for this session only (the prompt may come back next launch, never more often than that). Never throws and never
+ * logs anything but a fixed marker: no build number, no person, no device data.
+ */
+export async function saveOptionalUpdateSnooze(latestBuild: number, now: number): Promise<boolean> {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ latestBuild, dismissedAt: now } satisfies OptionalUpdateSnooze));
+    return true;
   } catch {
-    // Best effort: without it the prompt simply comes back next launch.
+    console.warn('[AppUpdate] the "later" answer could not be saved');
+    return false;
   }
 }
 

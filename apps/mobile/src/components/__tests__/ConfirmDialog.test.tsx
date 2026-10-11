@@ -147,4 +147,50 @@ describe('ConfirmDialog', () => {
     const flattenedStyle = [confirmButton.props.style].flat();
     expect(flattenedStyle.some(style => style && 'backgroundColor' in style && style.backgroundColor === '#B42318')).toBe(false);
   });
+  describe('dismissable={false}', () => {
+    const modalOf = (renderer: ReactTestRenderer.ReactTestRenderer) => renderer.root.findAllByType(Modal)[0];
+
+    async function renderLocked(onConfirm: jest.Mock) {
+      let renderer!: ReactTestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = ReactTestRenderer.create(
+          <ConfirmDialog confirmLabel="Update" dismissable={false} message="Must update" onConfirm={onConfirm} title="Required" visible />,
+        );
+      });
+      return renderer;
+    }
+
+    it('Android back and an outside tap do nothing - they never fall back to the confirm action', async () => {
+      const onConfirm = jest.fn();
+      const renderer = await renderLocked(onConfirm);
+
+      await act(async () => modalOf(renderer).props.onRequestClose());
+      const backdrop = renderer.root.findAll(node => node.props.accessibilityElementsHidden === true && typeof node.props.onPress === 'function')[0];
+      await act(async () => backdrop.props.onPress());
+
+      expect(onConfirm).not.toHaveBeenCalled();
+      expect(modalOf(renderer).props.visible).toBe(true);
+    });
+
+    it('the button still confirms', async () => {
+      const onConfirm = jest.fn();
+      const renderer = await renderLocked(onConfirm);
+
+      await act(async () => findButton(renderer, 'Update').props.onPress());
+
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('the default is unchanged: a single-button dialog still answers Back as its confirm', async () => {
+      const onConfirm = jest.fn();
+      let renderer!: ReactTestRenderer.ReactTestRenderer;
+      await act(async () => {
+        renderer = ReactTestRenderer.create(<ConfirmDialog confirmLabel="OK" message="Notice" onConfirm={onConfirm} title="Notice" visible />);
+      });
+
+      await act(async () => modalOf(renderer).props.onRequestClose());
+
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -16,6 +16,12 @@ interface ConfirmDialogProps {
   readonly destructive?: boolean;
   /** Optional content between the message and the buttons (e.g. a Collection's profile) - the dialog stays the one shared shape. */
   readonly children?: ReactNode;
+  /**
+   * Default true: Android Back and a tap outside the card close the dialog the way its buttons do (cancel when there is one, else
+   * confirm). Set false for a dialog that must be answered with its button and nothing else (the required app update): Back and an
+   * outside tap then do NOTHING - the dialog stays, and no action (such as opening a store) is started by a stray gesture.
+   */
+  readonly dismissable?: boolean;
 }
 
 /**
@@ -39,8 +45,9 @@ export function ConfirmDialog({
   onConfirm,
   destructive = true,
   children,
+  dismissable = true,
 }: ConfirmDialogProps) {
-  const dismiss = onCancel ?? onConfirm;
+  const dismiss = dismissable ? (onCancel ?? onConfirm) : ignoreDismissRequest;
 
   // A single-button NOTICE with nothing to say (an empty message) is nothing to show. A caller whose failure was already explained
   // elsewhere - the subscription prompt - passes '' as its message (see isHandledSubscriptionRefusal); the dialog is answered as
@@ -82,6 +89,9 @@ export function ConfirmDialog({
     </Modal>
   );
 }
+
+/** Back / outside tap on a dialog that can only be answered with its button: consumed, nothing happens. */
+function ignoreDismissRequest(): void {}
 
 const styles = StyleSheet.create({
   overlay: {

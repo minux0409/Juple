@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppState, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
@@ -84,7 +84,8 @@ function useFetchedUpdatePolicy(): PlatformVersionPolicy | null {
  * - optional ("업데이트가 있습니다"): 나중에 / 업데이트. 나중에 is remembered for 24 hours for that latest build; a newer latest
  *   build asks again at once.
  * - required (installed build below the server's minimum): a blocking dialog with 업데이트 only - it has no way to be closed
- *   into the app. The back button only reopens the store, and the policy is checked again when the app comes back.
+ *   into the app. Only the 업데이트 button starts anything: Android Back and a tap outside the card are ignored (they neither close
+ *   the dialog nor open the store), and the policy is checked again when the app comes back. Snooze never applies to it.
  * A missing, malformed, unreachable or contradictory policy is "current": a server hiccup must never nag or lock anybody out.
  * 업데이트 opens THIS platform's store (Play Store app, App Store page from the server's configuration); if nothing can be
  * opened a Juple message says so and the dialog stays.
@@ -96,6 +97,8 @@ export function AppUpdateGate() {
   const [storeFailed, setStoreFailed] = useState(false);
   const [snooze, setSnooze] = useState<OptionalUpdateSnooze | null>(null);
   const [snoozeLoaded, setSnoozeLoaded] = useState(false);
+  // True while "나중에" is being written: a second tap is ignored so one answer is one write.
+  const isSavingLater = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -133,12 +136,22 @@ export function AppUpdateGate() {
     }
   }, [policy, status]);
 
-  const later = useCallback(() => {
-    if (policy) {
-      const now = Date.now();
-      answeredOptionalBuilds.add(policy.latestBuild);
-      setSnooze({ latestBuild: policy.latestBuild, dismissedAt: now });
-      saveOptionalUpdateSnooze(policy.latestBuild, now).catch(() => undefined);
+  // "나중에": the answer is written FIRST and the dialog closes only once the storage has taken it - so what the person saw (it
+  // went away) is never ahead of what is remembered, and the app being closed right after the tap cannot lose it. A failed write
+  // never blocks anything: the answer still counts for this session (no repeated prompt), it just is not remembered after a restart.
+  const later = useCallback(async () => {
+    if (!policy || isSavingLater.current) {
+      return;
+    }
+    isSavingLater.current = true;
+    const latestBuild = policy.latestBuild;
+    const now = Date.now();
+    try {
+      await saveOptionalUpdateSnooze(latestBuild, now);
+    } finally {
+      isSavingLater.current = false;
+      answeredOptionalBuilds.add(latestBuild);
+      setSnooze({ latestBuild, dismissedAt: now });
       setAnswered(count => count + 1);
     }
   }, [policy]);
@@ -169,7 +182,7 @@ export function AppUpdateGate() {
         confirmLabel={t('appUpdate.action')}
         destructive={false}
         message={t('appUpdate.optionalMessage')}
-        onCancel={later}
+        onCancel={() => { later().catch(() => undefined); }}
         onConfirm={() => { update().catch(() => undefined); }}
         title={t('appUpdate.optionalTitle')}
         visible={!isHidden}
@@ -180,6 +193,7 @@ export function AppUpdateGate() {
     <ConfirmDialog
       confirmLabel={t('appUpdate.action')}
       destructive={false}
+      dismissable={false}
       message={t('appUpdate.requiredMessage')}
       onConfirm={() => { update().catch(() => undefined); }}
       title={t('appUpdate.requiredTitle')}

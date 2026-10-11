@@ -6,7 +6,7 @@ import { parseEntitlement } from '../../auth/userBootstrapApi';
 import { useAuth } from '../../auth/AuthContext';
 import { AppUpdateGate, resetAppUpdatePromptMemory } from '../AppUpdateGate';
 import { fetchAppUpdatePolicy } from '../appUpdatePolicyApi';
-import { OPTIONAL_UPDATE_SNOOZE_MS, type OptionalUpdateSnooze } from '../optionalUpdateSnooze';
+import { OPTIONAL_UPDATE_SNOOZE_MS, saveOptionalUpdateSnooze, type OptionalUpdateSnooze } from '../optionalUpdateSnooze';
 import { openStore, storeTargets } from '../openStore';
 import {
   evaluateAppUpdate,
@@ -24,6 +24,7 @@ jest.mock('../optionalUpdateSnooze', () => ({
   loadOptionalUpdateSnooze: jest.fn(async () => mockSnooze.value),
   saveOptionalUpdateSnooze: jest.fn(async (latestBuild: number, now: number) => {
     mockSnooze.value = { latestBuild, dismissedAt: now };
+    return true;
   }),
 }));
 jest.mock('react-native-device-info', () => ({
@@ -160,6 +161,7 @@ describe('AppUpdateGate', () => {
     mockSnooze.value = null;
     // No sign-in-free answer unless a test provides one: the bootstrap policy is then what counts, exactly as before.
     jest.mocked(fetchAppUpdatePolicy).mockReset();
+    jest.mocked(saveOptionalUpdateSnooze).mockClear();
     jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: false });
     Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'android' });
   });
@@ -376,6 +378,170 @@ describe('AppUpdateGate', () => {
       setBuild('24');
       answer(25, 25);
       setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      mockSnooze.value = { latestBuild: 25, dismissedAt: Date.now() };
+
+      expect(dialog(await render()).props.title).toBe('업데이트가 필요합니다');
+    });
+  });
+
+  describe('required update: only the button starts anything', () => {
+    const requiredPolicy = () => {
+      setBuild('23');
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 25, storeUrl: null } });
+    };
+    const modal = (renderer: Renderer) => renderer.root.findAll(node => typeof node.props.onRequestClose === 'function' && node.props.transparent === true)[0];
+    const backdrop = (renderer: Renderer) =>
+      renderer.root.findAll(node => node.props.accessibilityElementsHidden === true && typeof node.props.onPress === 'function')[0];
+
+    it('the 업데이트 button opens the store', async () => {
+      const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+      requiredPolicy();
+      const renderer = await render();
+
+      await act(async () => dialog(renderer).props.onConfirm());
+
+      expect(open).toHaveBeenCalledWith('market://details?id=com.juple.app');
+      expect(dialog(renderer)).toBeDefined();
+    });
+
+    it('Android Back does nothing: no store, and the dialog stays', async () => {
+      const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+      open.mockClear();
+      requiredPolicy();
+      const renderer = await render();
+
+      await act(async () => modal(renderer).props.onRequestClose());
+
+      expect(open).not.toHaveBeenCalled();
+      expect(dialog(renderer).props.title).toBe('업데이트가 필요합니다');
+    });
+
+    it('a tap outside the card does nothing: no store, and the dialog stays', async () => {
+      const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+      open.mockClear();
+      requiredPolicy();
+      const renderer = await render();
+
+      await act(async () => backdrop(renderer).props.onPress());
+
+      expect(open).not.toHaveBeenCalled();
+      expect(dialog(renderer).props.title).toBe('업데이트가 필요합니다');
+    });
+
+    it('is a blocking modal over the app: the only action reachable in it is 업데이트', async () => {
+      requiredPolicy();
+      const renderer = await render();
+
+      expect(modal(renderer).props.visible).toBe(true);
+      expect(dialog(renderer).props.dismissable).toBe(false);
+      expect(dialog(renderer).props.onCancel).toBeUndefined();
+    });
+
+    it('an optional update is still closed by Back like "나중에" (the shared dialog default is unchanged)', async () => {
+      setBuild('24');
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 24, storeUrl: null } });
+      const renderer = await render();
+      expect(dialog(renderer).props.dismissable).toBeUndefined();
+
+      await act(async () => modal(renderer).props.onRequestClose());
+
+      expect(dialog(renderer)).toBeUndefined();
+      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
+    });
+  });
+
+  describe('"나중에" is persisted before the dialog goes away', () => {
+    const optional = () => {
+      setBuild('24');
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 24, storeUrl: null } });
+    };
+
+    it('the dialog stays until the write has completed, then closes - and what is stored is what was shown', async () => {
+      optional();
+      let finishWrite!: (ok: boolean) => void;
+      jest.mocked(saveOptionalUpdateSnooze).mockImplementationOnce(
+        (latestBuild: number, now: number) => new Promise<boolean>(resolve => {
+          finishWrite = ok => {
+            mockSnooze.value = { latestBuild, dismissedAt: now };
+            resolve(ok);
+          };
+        }),
+      );
+      const renderer = await render();
+
+      await act(async () => dialog(renderer).props.onCancel());
+      // The write is still pending: not stored yet, and the person is not told "done".
+      expect(mockSnooze.value).toBeNull();
+      expect(dialog(renderer)).toBeDefined();
+
+      await act(async () => finishWrite(true));
+
+      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
+      expect(dialog(renderer)).toBeUndefined();
+    });
+
+    it('a second tap while the write is pending is ignored: one answer, one write', async () => {
+      optional();
+      let finishWrite!: (ok: boolean) => void;
+      jest.mocked(saveOptionalUpdateSnooze).mockImplementationOnce(() => new Promise<boolean>(resolve => { finishWrite = resolve; }));
+      const renderer = await render();
+
+      await act(async () => {
+        dialog(renderer).props.onCancel();
+        dialog(renderer).props.onCancel();
+      });
+      await act(async () => finishWrite(true));
+
+      expect(saveOptionalUpdateSnooze).toHaveBeenCalledTimes(1);
+    });
+
+    it('survives a restart: a fresh process with the stored answer shows nothing for the same latest build', async () => {
+      optional();
+      const first = await render();
+      await act(async () => dialog(first).props.onCancel());
+      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
+
+      resetAppUpdatePromptMemory();
+      expect(dialog(await render())).toBeUndefined();
+    });
+
+    it('a newer latest build asks again at once, whatever was stored', async () => {
+      optional();
+      mockSnooze.value = { latestBuild: 24, dismissedAt: Date.now() };
+
+      expect(dialog(await render())).toBeDefined();
+    });
+
+    it('a failed write never blocks the app: the dialog closes and is not asked again this session', async () => {
+      optional();
+      jest.mocked(saveOptionalUpdateSnooze).mockResolvedValueOnce(false);
+      const renderer = await render();
+
+      await act(async () => dialog(renderer).props.onCancel());
+
+      expect(dialog(renderer)).toBeUndefined();
+      // Same process (the in-memory answers survive), nothing was persisted: still not asked again.
+      mockSnooze.value = null;
+      expect(dialog(await render())).toBeUndefined();
+    });
+
+    it('a write that throws is handled the same way (the gate never leaves the dialog stuck)', async () => {
+      optional();
+      jest.mocked(saveOptionalUpdateSnooze).mockRejectedValueOnce(new Error('disk'));
+      const renderer = await render();
+
+      await act(async () => dialog(renderer).props.onCancel());
+
+      expect(dialog(renderer)).toBeUndefined();
+    });
+
+    it('never applies to a required update, however fresh the stored answer', async () => {
+      setBuild('24');
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 25, storeUrl: null } });
       mockSnooze.value = { latestBuild: 25, dismissedAt: Date.now() };
 
       expect(dialog(await render()).props.title).toBe('업데이트가 필요합니다');
