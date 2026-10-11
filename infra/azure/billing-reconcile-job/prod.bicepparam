@@ -7,7 +7,8 @@ param environmentName = 'prod'
 param acrLoginServer = readEnvironmentVariable('JUPLE_APP_PROD_ACR_LOGIN_SERVER')
 param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_APP_PROD_CONTAINER_APPS_ENVIRONMENT_ID')
 param billingIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_IDENTITY_RESOURCE_ID')
-param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
+// Production pins the exact image the API runs (the same digest variable as ../app/prod.bicepparam), never a tag.
+param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 
 // Explicit, never silent (same switch as the API and the billing worker): 'true' or 'false' only.
 param googleBillingEnabled = bool(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BILLING_ENABLED'))

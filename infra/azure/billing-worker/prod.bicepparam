@@ -22,7 +22,8 @@ param billingIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_BILLIN
 param billingIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_IDENTITY_CLIENT_ID')
 param serviceBusNamespaceName = readEnvironmentVariable('JUPLE_APP_PROD_SERVICE_BUS_NAMESPACE_NAME')
 param billingKeyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_KEY_VAULT_URI')
-param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
+// Production pins the exact image the API runs (the same digest variable as ../app/prod.bicepparam), never a tag.
+param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 // The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string in the
 // Production vault, built for the contained database user juple_runtime - never the administrator), resolved
 // through this workload's managed identity. The deployer never reads or passes it: there is no environment

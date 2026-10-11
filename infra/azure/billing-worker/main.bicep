@@ -25,8 +25,11 @@ param acrLoginServer string
 @description('Repository name within the ACR - the same image as ../app/main.bicep.')
 param imageRepository string = 'juple-api'
 
-@description('Image tag to deploy. No default on purpose. Should match the API\'s tag, so both record and process events with the same code.')
-param imageTag string
+@description('Image tag to deploy. Empty only when imageDigest is used - the template never picks an image on its own. Should match the API\'s tag, so both record and process events with the same code.')
+param imageTag string = ''
+
+@description('Immutable image digest ("sha256:" + 64 hex characters) to deploy instead of a tag - Production pins the exact image the API runs, so a re-pushed tag can never change what runs. When set it wins over imageTag and the reference becomes {acrLoginServer}/{imageRepository}@{imageDigest}. Empty = use imageTag (Dev).')
+param imageDigest string = ''
 
 @description('Container Apps Environment resource ID - Foundation output "containerAppsEnvironmentId".')
 param containerAppsEnvironmentId string
@@ -103,7 +106,21 @@ var observabilityEnv = empty(applicationInsightsConnectionString)
     ]
 
 var containerAppName = 'ca-juple-billing-worker-${environmentName}'
-var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+var containerImage = empty(imageDigest)
+  ? '${acrLoginServer}/${imageRepository}:${imageTag}'
+  : '${acrLoginServer}/${imageRepository}@${imageDigest}'
+
+// Fail-closed image reference, shared with the API template (see ../app/image-reference-guard.bicep): an image must
+// be named (no floating-tag fallback) and a digest must have the exact length of a sha256 reference.
+module imageReferenceGuard '../app/image-reference-guard.bicep' = {
+  name: 'juple-${environmentName}-billing-worker-image-reference-guard'
+  params: {
+    #disable-next-line BCP329
+    imageReferenceSupplied: (empty(imageTag) ? 0 : 1) + (empty(imageDigest) ? 0 : 1)
+    imageDigestLength: length(imageDigest)
+  }
+}
+
 var serviceBusNamespaceFqdn = '${serviceBusNamespaceName}.servicebus.windows.net'
 var billingEventsQueueName = 'billing-events'
 
