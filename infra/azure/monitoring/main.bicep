@@ -14,9 +14,11 @@
 //   2. App / worker restarting        - Container Apps metric RestartCount, one rule per app (API, web, workers)
 //   3. Scheduled Job failing          - Container Apps system logs: non-zero exit or DeadlineExceeded
 //   4. Service Bus dead letters       - namespace metric DeadletteredMessages > 0
-// Alerts 1 and 2 reference Container Apps by name and can only be created once those apps exist - they
-// are switched on with containerAppAlertsEnabled in a second deployment. Alerts 3 and 4 only need the
-// workspace and the namespace, which exist after the Foundation.
+// Alerts 1, 2 and 3 belong to the workloads: 1 and 2 reference Container Apps by name, and 3 reads the
+// Container Apps system-log table, which only exists in a workspace once an app or Job has logged.
+// All three are switched on together with containerAppAlertsEnabled in a second deployment, after the
+// workloads are deployed and the log query has been checked against the real tables. Alert 4 only needs
+// the namespace, which exists after the Foundation.
 targetScope = 'resourceGroup'
 
 @description('Short environment name - must match the Foundation deployment this is layered on top of.')
@@ -34,7 +36,7 @@ param serviceBusNamespaceName string
 @minLength(3)
 param alertEmailAddress string
 
-@description('false (default): create only the Application Insights component, the action group and the alerts that need no Container App (Job failures, Service Bus dead letters). true: also create the Container App metric alerts (API 5xx, restarts) - deploy that only after the apps exist, or the deployment fails on the missing resource.')
+@description('Gate for ALL workload alerts - both the Container App metric alerts (API 5xx, restarts) and the Container App Job failure alert. false (default): create only the Application Insights component, the action group and the Service Bus dead-letter alert (nothing that references an app, a Job or a Container Apps log table). true: also create the app and Job alerts - deploy that only after the workloads exist and have logged (the Job alert reads ContainerAppSystemLogs_CL, which a workspace only has once something has written to it) or the deployment fails on the missing resource/table.')
 param containerAppAlertsEnabled bool = false
 
 @description('Container App names the metric alerts watch. Defaults follow the Foundation/App naming patterns.')
@@ -182,7 +184,9 @@ resource restartAlerts 'Microsoft.Insights/metricAlerts@2018-03-01' = [for appNa
 // 3. A scheduled Job that fails. A Container Apps Job has no failure metric, so this reads the platform's
 // system log: a terminated container with a non-zero exit code, or the replica timeout (DeadlineExceeded).
 // Column and reason names were checked against the live Dev workspace.
-resource jobFailureAlert 'Microsoft.Insights/scheduledQueryRules@2022-06-15' = {
+// Gated with the app alerts: in a workspace that has never received Container Apps logs the
+// ContainerAppSystemLogs_CL table does not exist and the rule would fail to deploy (checked on Production).
+resource jobFailureAlert 'Microsoft.Insights/scheduledQueryRules@2022-06-15' = if (containerAppAlertsEnabled) {
   name: 'alert-juple-${environmentName}-job-failures'
   location: location
   properties: {

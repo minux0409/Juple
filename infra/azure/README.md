@@ -1093,10 +1093,26 @@ fingerprint, `LEGAL_OPERATOR_NAME`/`LEGAL_BUSINESS_REGISTRATION_NUMBER`/`LEGAL_B
 **Application Insights / alert (`monitoring/`).** workspace-based Application Insights(`appi-juple-{env}`), action
 group(`ag-juple-{env}`), alert 4종: API 5xx(`Requests`, `statusCodeCategory=5xx`), 앱·worker 재시작(`RestartCount`,
 앱별 rule - Azure Monitor는 Container Apps multi-resource metric alert를 지원하지 않는다), Job 실패(system log의
-non-zero exit/`DeadlineExceeded`), Service Bus dead letter(`DeadletteredMessages`). 앱 metric alert는 앱이 존재해야
-하므로 `containerAppAlertsEnabled`로 2단계 배포한다. **backend에는 Application Insights/OpenTelemetry SDK가 아직
-없다** - connection string은 `APPLICATIONINSIGHTS_CONNECTION_STRING` env로만 연결되며 instrumentation을 넣기 전까지
-inert다. alert는 SDK 없이도 동작하는 platform metric/log만 쓴다.
+non-zero exit/`DeadlineExceeded`), Service Bus dead letter(`DeadletteredMessages`, namespace 수준).
+
+`containerAppAlertsEnabled`는 **Container App metric alert와 Container App Job 실패 alert 둘 다**를 제어한다
+(앞의 셋). 기본값 `false`에서는 Application Insights + Action Group + Service Bus dead-letter alert만 만든다. Job 실패
+alert는 이름으로 참조하는 리소스는 없지만 `ContainerAppSystemLogs_CL` 테이블을 읽는데, 이 테이블은 workspace에 첫
+로그가 들어온 뒤에야 생기고(Production workspace에서 `Failed to resolve table` 확인), `validate`/`what-if`는 이를
+잡지 못해 rule 생성에서만 실패한다.
+
+**workload alert 활성화 조건 (2단계, 이 순서로):**
+1. Production Container Apps/Jobs를 배포하고 실제 system log가 Log Analytics에 최소 1건 들어오게 한다.
+2. `ContainerAppSystemLogs_CL`(필요하면 resource-specific `ContainerAppSystemLogs`)의 존재와 실제 schema(컬럼 이름)를
+   그 workspace에서 확인한다 - Dev 값(`JobName_s`, `Reason_s`, `Log_s`)을 Production에서 다시 검증한다.
+3. alert의 KQL을 그 workspace에서 직접 실행해 오류 없이 도는지 확인한다.
+4. Job 실패(non-zero exit / `DeadlineExceeded`)를 실제로 잡는지 확인한다.
+5. 그 다음에만 `containerAppAlertsEnabled=true`로 monitoring을 다시 배포한다.
+테이블 이름을 추측해서 바꾸지 않는다.
+
+**backend에는 Application Insights/OpenTelemetry SDK가 아직 없다** - connection string은
+`APPLICATIONINSIGHTS_CONNECTION_STRING` env로만 연결되며 instrumentation을 넣기 전까지 inert다. alert는 SDK 없이도
+동작하는 platform metric/log만 쓴다.
 
 **Dev에서 확인된 알림 노이즈(출시 전 검토).** live Dev의 `caj-juple-ig-metadata-retry-dev`는 14일간
 `DeadlineExceeded`가 414건이다(replicaTimeout 45초). Production 배포 전에 timeout/주기를 검토하거나
