@@ -934,15 +934,8 @@
     "planName": "Juple subscription",
     "pricePerMonth": "{{price}} / month",
     "cadence": "Billed monthly. Renews automatically until you cancel.",
-    "cancelNote": "You can cancel anytime in your store subscription settings. Cancelling stops future renewals.",
-    "accessHeading": "Your access",
     "access": {
-      "trial": "Free access",
-      "active": "Subscribed",
-      "gracePeriod": "Subscribed (payment issue)",
-      "expired": "Subscription ended",
-      "inactive": "Subscriptions are not required yet.",
-      "unknown": "Couldn't check your access status."
+      "expired": "Subscription ended"
     },
     "loading": "Loading...",
     "subscribe": "Subscribe",
@@ -968,15 +961,9 @@
       "anotherAccount": "That purchase belongs to another Juple account.",
       "temporary": "Could not restore purchases right now. Please try again."
     },
-    "trialInfo": "Your first 30 days are free. This free period is provided by Juple and is separate from store billing.",
     "detail": {
-      "trialDaysLeft": "Days left: {{days}}",
-      "trialLessThanDay": "Less than 1 day left",
-      "trialEndsOn": "Free until {{date}}",
-      "activeManage": "You can manage your subscription in the store.",
       "grace": "There's a problem with your payment. Check your payment method in the store to keep your access.",
-      "expired": "Subscribe to save and edit again. Your saved links are kept and you can still view them.",
-      "expiredOn": "Access ended {{date}}"
+      "expired": "Subscribe to save and edit again. Your saved links are kept and you can still view them."
     },
     "manage": "Manage subscription",
     "manageFailed": "Couldn't open the store. Please try again.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Can't be changed right now",
       "message": "This Collection's owner no longer has an active subscription, so links can't be added or changed for now. You can still read the Collection and its links."
+    },
+    "status": {
+      "active": "Subscribed",
+      "canceled": "Subscription canceled",
+      "expired": "Subscription expired",
+      "revoked": "Subscription ended",
+      "gracePeriod": "Subscribed (payment issue)",
+      "trial": "Free access",
+      "none": "Not subscribed",
+      "unknown": "Couldn't check your subscription status."
+    },
+    "row": {
+      "startedOn": "Subscription start date",
+      "nextPaymentOn": "Next payment date",
+      "nextPaymentAmount": "Next payment amount",
+      "accessEndsOn": "Access ends on",
+      "endedOn": "Subscription end date",
+      "trialEndsOn": "Free access ends on"
+    },
+    "note": {
+      "canceled": "You can keep using Juple until your current period ends.",
+      "trial": "This free period is provided by Juple."
     }
   },
   "appUpdate": {

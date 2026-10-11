@@ -62,7 +62,7 @@ describe('SubscriptionScreen', () => {
   it('shows the monthly plan with the price exactly as the store localized it', async () => {
     const renderer = await renderScreen();
 
-    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('subscription.planName'), i18n.t('subscription.cadence'), i18n.t('subscription.cancelNote')]));
+    expect(texts(renderer)).toEqual(expect.arrayContaining([i18n.t('subscription.planName'), i18n.t('subscription.cadence')]));
     expect(texts(renderer).join('|')).toContain('$0.99 / month');
     expect(byId(renderer, 'subscription-subscribe')[0].props.disabled).toBe(false);
   });
@@ -150,112 +150,223 @@ describe('SubscriptionScreen', () => {
     expect(openDialogTexts(renderer)).toContain(i18n.t('subscription.result.failed'));
   });
 
+  // ---- the ONE subscription status (no separate "access / usage status", no program wording) ----
   const NOW = '2026-10-01T00:00:00Z';
   const entitlementOf = (overrides: Record<string, unknown>) => ({
     programEnabled: true, status: 'trial', reason: null, trialStartedAtUtc: '2026-09-20T00:00:00Z', trialEndsAtUtc: '2026-10-20T00:00:00Z',
     currentPeriodEndsAtUtc: null, accessFrozenAtUtc: null, canWrite: true, verifiedAtUtc: NOW, ...overrides,
   });
-  const accessNodes = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
+  const programOff = () => entitlementOf({ programEnabled: false, status: null, trialStartedAtUtc: null, trialEndsAtUtc: null });
+  const storeOf = (overrides: Record<string, unknown>) => ({
+    state: 'none', platform: null, productId: null, currentPeriodEndsAtUtc: null, autoRenewing: null,
+    startedAtUtc: null, endedState: null, endedAtUtc: null, ...overrides,
+  });
+  const activeStore = (overrides: Record<string, unknown> = {}) => storeOf({
+    state: 'active', platform: 'google', productId: 'juple_monthly', autoRenewing: true,
+    startedAtUtc: '2026-10-11T00:00:00Z', currentPeriodEndsAtUtc: '2026-11-11T00:00:00Z', ...overrides,
+  });
+  const fmt = (iso: string) => new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(iso));
+  const textNodes = (renderer: ReactTestRenderer.ReactTestRenderer, testID: string) =>
     renderer.root.findAll(node => node.props.testID === testID && node.type === Text);
-  const details = (renderer: ReactTestRenderer.ReactTestRenderer) => accessNodes(renderer, 'subscription-access-detail').map(node => String(node.props.children));
-  const accessOf = async (entitlement: unknown) => {
-    mockAuth(entitlement);
-    const renderer = await renderScreen();
-    return { renderer, label: accessNodes(renderer, 'subscription-access')[0].props.children as string };
+  const statusOf = (renderer: ReactTestRenderer.ReactTestRenderer) => String(textNodes(renderer, 'subscription-status')[0].props.children);
+  const rowValue = (renderer: ReactTestRenderer.ReactTestRenderer, id: string) => {
+    const node = textNodes(renderer, `subscription-row-${id}-value`)[0];
+    return node ? String(node.props.children) : null;
+  };
+  const rowIds = (renderer: ReactTestRenderer.ReactTestRenderer) =>
+    renderer.root.findAll(node => typeof node.props.testID === 'string' && /^subscription-row-[A-Za-z]+$/.test(node.props.testID)).map(node => node.props.testID as string);
+  const noteOf = (renderer: ReactTestRenderer.ReactTestRenderer) => {
+    const node = textNodes(renderer, 'subscription-status-note')[0];
+    return node ? String(node.props.children) : null;
+  };
+  const screenWith = async (entitlement: unknown, storeSubscription: unknown) => {
+    mockAuth(entitlement, storeSubscription);
+    return renderScreen();
   };
 
-  it('program off: "not required yet", never active, no countdown', async () => {
-    const { renderer, label } = await accessOf(entitlementOf({ programEnabled: false, status: null, trialEndsAtUtc: null }));
-    expect(label).toBe(i18n.t('subscription.access.inactive'));
-    expect(details(renderer)).toEqual([]);
-  });
+  it('no subscription, program off: just "not subscribed" - no usage-status wording, no rows, no free-period claim', async () => {
+    const renderer = await screenWith(programOff(), storeOf({}));
 
-  it('no entitlement yet is shown conservatively as unknown - not as free, active or inactive', async () => {
-    const { renderer, label } = await accessOf(null);
-    expect(label).toBe(i18n.t('subscription.access.unknown'));
-    expect(details(renderer)).toEqual([]);
-  });
-
-  it('active trial: free access, remaining days from the SERVER timestamps, and the end date', async () => {
-    const { renderer, label } = await accessOf(entitlementOf({}));
-    expect(label).toBe(i18n.t('subscription.access.trial'));
-    expect(details(renderer)[0]).toBe(i18n.t('subscription.detail.trialDaysLeft', { days: 19 }));
-    expect(details(renderer)[1]).toContain(new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date('2026-10-20T00:00:00Z')));
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.none'));
+    expect(rowIds(renderer)).toEqual([]);
+    expect(noteOf(renderer)).toBeNull();
+    const all = texts(renderer).join('|');
+    expect(all).not.toContain(i18n.t('subscription.note.trial'));
+    expect(all).not.toMatch(/30 days|not required|Your access|required yet/i);
     expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
   });
 
-  it('the remaining time ignores the device clock: it is trialEnds minus the server verification time', async () => {
-    jest.useFakeTimers({ now: new Date('2030-01-01T00:00:00Z') });
-    try {
-      const { renderer } = await accessOf(entitlementOf({}));
-      expect(details(renderer)[0]).toBe(i18n.t('subscription.detail.trialDaysLeft', { days: 19 }));
-    } finally {
-      jest.useRealTimers();
+  it('there is exactly one status heading and one status card - the old "access" section is gone', async () => {
+    const renderer = await screenWith(programOff(), storeOf({}));
+
+    expect(texts(renderer).filter(text => text === i18n.t('subscription.stateHeading'))).toHaveLength(1);
+    expect(renderer.root.findAll(node => node.props.testID === 'subscription-status-card' && typeof node.type === 'string')).toHaveLength(1);
+    for (const gone of ['subscription-access', 'subscription-store-state-card', 'subscription-trial-info']) {
+      expect(renderer.root.findAll(node => node.props.testID === gone)).toHaveLength(0);
     }
   });
 
-  it('the final partial day says "less than 1 day", not 0 days', async () => {
-    const { renderer } = await accessOf(entitlementOf({ verifiedAtUtc: '2026-10-19T06:00:00Z' }));
-    expect(details(renderer)[0]).toBe(i18n.t('subscription.detail.trialLessThanDay'));
+  it('nothing reported yet is shown as unknown - not as free, subscribed or not subscribed', async () => {
+    const renderer = await screenWith(null, null);
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.unknown'));
+    expect(rowIds(renderer)).toEqual([]);
   });
 
-  it('a trial without a server verification time shows the end date but no day count', async () => {
-    const { renderer } = await accessOf(entitlementOf({ verifiedAtUtc: null }));
-    expect(details(renderer)).toHaveLength(1);
-    expect(details(renderer)[0]).toContain('2026');
+  it('running Juple trial: "free access" with the real end date and the Juple-provided note, Subscribe still available', async () => {
+    const renderer = await screenWith(entitlementOf({}), storeOf({}));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.trial'));
+    expect(rowValue(renderer, 'trialEndsOn')).toBe(fmt('2026-10-20T00:00:00Z'));
+    expect(noteOf(renderer)).toBe(i18n.t('subscription.note.trial'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
   });
 
-  it('active subscription: no Subscribe button, store management offered, and no invented renewal date', async () => {
-    const { renderer, label } = await accessOf(entitlementOf({ status: 'active', currentPeriodEndsAtUtc: '2026-11-05T00:00:00Z', trialEndsAtUtc: null }));
-    expect(label).toBe(i18n.t('subscription.access.active'));
-    expect(details(renderer)).toEqual([i18n.t('subscription.detail.activeManage')]);
-    expect(texts(renderer).join('|')).not.toMatch(/Nov 5|2026-11|11\/5/);
+  it('a trial that is over (never subscribed) is "not subscribed" - no free-period note', async () => {
+    const renderer = await screenWith(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z', canWrite: false }), storeOf({}));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.none'));
+    expect(noteOf(renderer)).toBeNull();
+    expect(texts(renderer)).not.toContain(i18n.t('subscription.note.trial'));
+  });
+
+  it('active + auto-renew: start date, NEXT payment date and the catalog price; no Subscribe, Manage offered', async () => {
+    const renderer = await screenWith(programOff(), activeStore());
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.active'));
+    expect(rowValue(renderer, 'startedOn')).toBe(fmt('2026-10-11T00:00:00Z'));
+    expect(rowValue(renderer, 'nextPaymentOn')).toBe(fmt('2026-11-11T00:00:00Z'));
+    expect(rowValue(renderer, 'nextPaymentAmount')).toBe('$0.99');
+    expect(rowValue(renderer, 'accessEndsOn')).toBeNull();
     expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
     await press(renderer, 'subscription-manage');
     expect(store.openSubscriptionManagement).toHaveBeenCalledTimes(1);
     expect(store.purchase).not.toHaveBeenCalled();
   });
 
-  it('the manage action is absent when the store has no management page, and a failure to open it is a plain message', async () => {
-    store.canManageSubscription = false;
-    const absent = (await accessOf(entitlementOf({ status: 'active' }))).renderer;
-    expect(byId(absent, 'subscription-manage')).toHaveLength(0);
+  it('the next payment amount is the store catalog price as returned - never a built-in one', async () => {
+    store.loadOffer.mockResolvedValue({ kind: 'ready', offer: { localizedPrice: '₩1,300', currencyCode: 'KRW', billingPeriod: 'P1M' } });
+    const renderer = await screenWith(programOff(), activeStore());
 
-    store.canManageSubscription = true;
-    store.openSubscriptionManagement.mockRejectedValue(new Error('no store'));
-    const renderer = (await accessOf(entitlementOf({ status: 'active' }))).renderer;
-    await press(renderer, 'subscription-manage');
-    expect(openDialogTexts(renderer)).toContain(i18n.t('subscription.manageFailed'));
+    expect(rowValue(renderer, 'nextPaymentAmount')).toBe('₩1,300');
+    expect(texts(renderer).join('|')).not.toContain('$0.99');
   });
 
-  it('grace period: still subscribed, asks to check the payment method, manage offered', async () => {
-    const { renderer, label } = await accessOf(entitlementOf({ status: 'gracePeriod', reason: 'billingIssue' }));
-    expect(label).toBe(i18n.t('subscription.access.gracePeriod'));
-    expect(details(renderer)).toEqual([i18n.t('subscription.detail.grace')]);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+  it('with no catalog price there is no amount row (nothing is guessed)', async () => {
+    store.loadOffer.mockResolvedValue({ kind: 'unavailable', reason: 'storeUnavailable' });
+    const renderer = await screenWith(programOff(), activeStore());
+
+    expect(rowValue(renderer, 'nextPaymentAmount')).toBeNull();
+    expect(rowValue(renderer, 'nextPaymentOn')).toBe(fmt('2026-11-11T00:00:00Z'));
+  });
+
+  it('cancelled but still current: the period end is the ACCESS END date - never labelled as a next payment', async () => {
+    const renderer = await screenWith(programOff(), activeStore({ autoRenewing: false }));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.canceled'));
+    expect(rowValue(renderer, 'accessEndsOn')).toBe(fmt('2026-11-11T00:00:00Z'));
+    expect(rowValue(renderer, 'startedOn')).toBe(fmt('2026-10-11T00:00:00Z'));
+    expect(rowValue(renderer, 'nextPaymentOn')).toBeNull();
+    expect(rowValue(renderer, 'nextPaymentAmount')).toBeNull();
+    expect(noteOf(renderer)).toBe(i18n.t('subscription.note.canceled'));
     expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
   });
 
-  it('expired: data kept and readable, Subscribe is the primary action, restore stays, no manage', async () => {
-    const { renderer, label } = await accessOf(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z', canWrite: false }));
-    expect(label).toBe(i18n.t('subscription.access.expired'));
-    expect(details(renderer)).toContain(i18n.t('subscription.detail.expired'));
+  it('expired: "subscription expired" with the real end date, Subscribe + Restore, no Manage', async () => {
+    const renderer = await screenWith(
+      entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z', canWrite: false }),
+      storeOf({ endedState: 'expired', endedAtUtc: '2026-10-20T00:00:00Z', startedAtUtc: '2026-09-20T00:00:00Z' }),
+    );
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.expired'));
+    expect(rowValue(renderer, 'endedOn')).toBe(fmt('2026-10-20T00:00:00Z'));
     expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
     expect(byId(renderer, 'subscription-restore')).toHaveLength(1);
     expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
   });
 
-  it('the server entitlement wins: a verified purchase result does not change the shown state by itself', async () => {
-    store.purchase.mockResolvedValue({ kind: 'verified', state: 'active' });
-    const { renderer } = await accessOf(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z' }));
-    await press(renderer, 'subscription-subscribe');
-    expect(accessNodes(renderer, 'subscription-access')[0].props.children).toBe(i18n.t('subscription.access.expired'));
+  it('expired with the program off is the same plain "expired" - no usage wording, still able to subscribe again', async () => {
+    const renderer = await screenWith(programOff(), storeOf({ endedState: 'expired', endedAtUtc: '2026-10-20T00:00:00Z' }));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.expired'));
+    expect(texts(renderer).join('|')).not.toMatch(/not required|required yet|Your access/i);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
   });
 
-  it('shows the 30-day information as product information, separate from the state, and never as an active trial', async () => {
-    const { renderer } = await accessOf(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z' }));
-    expect(texts(renderer)).toContain(i18n.t('subscription.trialInfo'));
-    expect(texts(renderer)).not.toContain(i18n.t('subscription.access.trial'));
+  it('revoked: "subscription ended" with its end date', async () => {
+    const renderer = await screenWith(programOff(), storeOf({ endedState: 'revoked', endedAtUtc: '2026-10-05T00:00:00Z' }));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.revoked'));
+    expect(rowValue(renderer, 'endedOn')).toBe(fmt('2026-10-05T00:00:00Z'));
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
+  });
+
+  it('grace period: still subscribed, asks to check the payment method, Manage offered, no Subscribe', async () => {
+    const renderer = await screenWith(programOff(), storeOf({ state: 'gracePeriod', platform: 'google', startedAtUtc: '2026-10-11T00:00:00Z', currentPeriodEndsAtUtc: '2026-11-11T00:00:00Z' }));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.gracePeriod'));
+    expect(noteOf(renderer)).toBe(i18n.t('subscription.detail.grace'));
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
+  });
+
+  it('a date the Backend did not send is a missing row - none is invented', async () => {
+    const renderer = await screenWith(programOff(), activeStore({ startedAtUtc: null, currentPeriodEndsAtUtc: null }));
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.active'));
+    expect(rowIds(renderer)).toEqual([]);
+  });
+
+  it('an active subscription whose renewal is not stated shows no next payment row', async () => {
+    const renderer = await screenWith(programOff(), activeStore({ autoRenewing: null }));
+
+    expect(rowValue(renderer, 'nextPaymentOn')).toBeNull();
+    expect(rowValue(renderer, 'nextPaymentAmount')).toBeNull();
+    expect(rowValue(renderer, 'startedOn')).toBe(fmt('2026-10-11T00:00:00Z'));
+  });
+
+  it('an older Backend without storeSubscription falls back to the entitlement alone', async () => {
+    const renderer = await screenWith(entitlementOf({ status: 'active' }), null);
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.active'));
+    expect(rowIds(renderer)).toEqual([]);
+    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
+  });
+
+  it('never more than one primary call to action: Subscribe and Manage are mutually exclusive', async () => {
+    const cases: [unknown, unknown][] = [
+      [programOff(), storeOf({})], [entitlementOf({}), storeOf({})], [programOff(), activeStore()], [programOff(), activeStore({ autoRenewing: false })],
+      [programOff(), storeOf({ endedState: 'expired' })], [programOff(), storeOf({ state: 'gracePeriod' })],
+    ];
+    for (const [entitlement, storeSubscription] of cases) {
+      const renderer = await screenWith(entitlement, storeSubscription);
+      expect(byId(renderer, 'subscription-subscribe').length + byId(renderer, 'subscription-manage').length).toBe(1);
+      expect(byId(renderer, 'subscription-restore')).toHaveLength(1);
+    }
+  });
+
+  it('the manage action is absent when the store has no management page, and a failure to open it is a plain message', async () => {
+    store.canManageSubscription = false;
+    const absent = await screenWith(programOff(), activeStore());
+    expect(byId(absent, 'subscription-manage')).toHaveLength(0);
+
+    store.canManageSubscription = true;
+    store.openSubscriptionManagement.mockRejectedValue(new Error('no store'));
+    const renderer = await screenWith(programOff(), activeStore());
+    await press(renderer, 'subscription-manage');
+    expect(openDialogTexts(renderer)).toContain(i18n.t('subscription.manageFailed'));
+  });
+
+  it('the server wins: a verified purchase result does not change the shown status by itself', async () => {
+    store.purchase.mockResolvedValue({ kind: 'verified', state: 'active' });
+    const renderer = await screenWith(programOff(), storeOf({ endedState: 'expired', endedAtUtc: '2026-10-20T00:00:00Z' }));
+
+    await press(renderer, 'subscription-subscribe');
+
+    expect(statusOf(renderer)).toBe(i18n.t('subscription.status.expired'));
   });
 
   it('shows the compact information rows (account-wide, store billing, data kept)', async () => {
@@ -264,95 +375,4 @@ describe('SubscriptionScreen', () => {
       i18n.t('subscription.infoHeading'), i18n.t('subscription.info.accountBody'), i18n.t('subscription.info.storeBody'), i18n.t('subscription.info.dataBody'),
     ]));
   });
-
-  it('Restore is available in every state', async () => {
-    for (const entitlement of [null, entitlementOf({}), entitlementOf({ status: 'active' }), entitlementOf({ status: 'expired' })]) {
-      mockAuth(entitlement);
-      expect(byId(await renderScreen(), 'subscription-restore')).toHaveLength(1);
-    }
-  });
-
-  // ---- store ownership is separate from access ----
-  const owned = (state: 'none' | 'active' | 'gracePeriod', extra: Record<string, unknown> = {}) => ({
-    state, platform: state === 'none' ? null : 'google', productId: state === 'none' ? null : 'juple_monthly',
-    currentPeriodEndsAtUtc: state === 'none' ? null : '2026-10-02T00:00:00Z', autoRenewing: state === 'none' ? null : true, ...extra,
-  });
-  const programOff = () => entitlementOf({ programEnabled: false, status: null, trialEndsAtUtc: null });
-  const withOwnership = async (entitlement: unknown, storeSubscription: unknown) => {
-    mockAuth(entitlement, storeSubscription);
-    return renderScreen();
-  };
-
-  it('program off + no subscription: "not required yet", Subscribe offered', async () => {
-    const renderer = await withOwnership(programOff(), owned('none'));
-    expect(accessNodes(renderer, 'subscription-access')[0].props.children).toBe(i18n.t('subscription.access.inactive'));
-    expect(accessNodes(renderer, 'subscription-store-state')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
-  });
-
-  it('program off + active store subscription: still "not required yet" for access, yet subscribed - no Subscribe, Manage offered', async () => {
-    const renderer = await withOwnership(programOff(), owned('active'));
-    expect(accessNodes(renderer, 'subscription-access')[0].props.children).toBe(i18n.t('subscription.access.inactive'));
-    expect(accessNodes(renderer, 'subscription-store-state')[0].props.children).toBe(i18n.t('subscription.access.active'));
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
-    expect(byId(renderer, 'subscription-restore')).toHaveLength(1);
-    await press(renderer, 'subscription-manage');
-    expect(store.openSubscriptionManagement).toHaveBeenCalledTimes(1);
-    expect(store.purchase).not.toHaveBeenCalled();
-  });
-
-  it('program off + grace period: subscribed with the payment hint, no Subscribe', async () => {
-    const renderer = await withOwnership(programOff(), owned('gracePeriod'));
-    expect(accessNodes(renderer, 'subscription-store-state')[0].props.children).toBe(i18n.t('subscription.access.gracePeriod'));
-    expect(accessNodes(renderer, 'subscription-store-state-detail')[0].props.children).toBe(i18n.t('subscription.detail.grace'));
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
-  });
-
-  it('a cancelled-but-current subscription (autoRenewing false) is still owned', async () => {
-    const renderer = await withOwnership(programOff(), owned('active', { autoRenewing: false }));
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
-  });
-
-  it('program on + expired access + no ownership: Subscribe returns', async () => {
-    const renderer = await withOwnership(entitlementOf({ status: 'expired', accessFrozenAtUtc: '2026-10-20T00:00:00Z' }), owned('none'));
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(0);
-  });
-
-  it('program on + active access: no duplicate ownership block, Manage offered', async () => {
-    const renderer = await withOwnership(entitlementOf({ status: 'active' }), owned('active'));
-    expect(accessNodes(renderer, 'subscription-store-state')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
-  });
-
-  it('an older backend without storeSubscription behaves exactly as before', async () => {
-    const renderer = await withOwnership(programOff(), null);
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
-  });
-
-  it('ownership updating (purchase / restore refresh) flips the same mounted screen without a restart', async () => {
-    mockAuth(programOff(), owned('none'));
-    let renderer!: ReactTestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = ReactTestRenderer.create(<SubscriptionScreen />);
-    });
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(1);
-
-    mockAuth(programOff(), owned('active'));
-    await act(async () => {
-      renderer.update(<SubscriptionScreen />);
-    });
-    expect(byId(renderer, 'subscription-subscribe')).toHaveLength(0);
-    expect(byId(renderer, 'subscription-manage')).toHaveLength(1);
-  });
-
-  it('never mentions a store free trial - the trial is Juple-owned', async () => {
-    const text = texts(await renderScreen()).join('|').toLowerCase();
-    expect(text).not.toMatch(/free trial|무료 체험/);
-  });
 });
-

@@ -1,48 +1,77 @@
-import type { Entitlement } from '../auth/types';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
+import type { Entitlement, StoreSubscription } from '../auth/types';
 
 /**
- * What the Subscription screen says about the account's access - derived ONLY from the entitlement the Backend reported
- * (never from a local purchase flag, a store callback, the device clock or the store price). `unknown` is "no entitlement
- * yet" and is shown conservatively; `notRequired` is the program being off (the Backend sent programEnabled:false).
+ * The ONE thing the Subscription screen says about the account: its subscription. Derived only from what the Backend reported -
+ * the store subscription (`storeSubscription`) and, for Juple's own free period, the entitlement - never from a local purchase flag,
+ * a store callback or the device clock, and no date is ever computed here: a date appears only when the Backend sent it.
+ *
+ * Deliberately NOT part of this view: whether Juple currently REQUIRES a subscription (`entitlement.programEnabled`). That is an
+ * operations switch (trial, enforcement, write restriction), not something a person is told about.
  */
-export type SubscriptionStatusView =
+export type SubscriptionView =
+  /** Nothing has been reported yet (bootstrap not read). */
   | { readonly kind: 'unknown' }
-  | { readonly kind: 'notRequired' }
-  /** `daysLeft` null: the server did not say when it computed the entitlement, so no count is shown (the end date still is). */
-  | { readonly kind: 'trial'; readonly daysLeft: number | null; readonly lessThanDay: boolean; readonly endsAtUtc: string | null }
-  | { readonly kind: 'active' }
-  | { readonly kind: 'gracePeriod' }
-  | { readonly kind: 'expired'; readonly endedAtUtc: string | null };
+  | { readonly kind: 'none' }
+  /** Juple's own free period (not a store offer): only while the entitlement really is a running trial. */
+  | { readonly kind: 'trial'; readonly endsAtUtc: string | null }
+  /** `nextPaymentAtUtc` is set only when the store says it renews (autoRenewing === true). */
+  | { readonly kind: 'active'; readonly startedAtUtc: string | null; readonly nextPaymentAtUtc: string | null }
+  | { readonly kind: 'gracePeriod'; readonly startedAtUtc: string | null }
+  /** Cancelled but still current: access runs to `accessEndsAtUtc` (the end of the period - NOT a next payment). */
+  | { readonly kind: 'canceled'; readonly startedAtUtc: string | null; readonly accessEndsAtUtc: string | null }
+  | { readonly kind: 'expired'; readonly endedAtUtc: string | null }
+  | { readonly kind: 'revoked'; readonly endedAtUtc: string | null };
 
-export function describeEntitlement(entitlement: Entitlement | null): SubscriptionStatusView {
-  if (!entitlement) {
+export function describeSubscription(
+  storeSubscription: StoreSubscription | null | undefined,
+  entitlement: Entitlement | null | undefined,
+): SubscriptionView {
+  if (storeSubscription?.state === 'active') {
+    return storeSubscription.autoRenewing === false
+      ? { kind: 'canceled', startedAtUtc: storeSubscription.startedAtUtc, accessEndsAtUtc: storeSubscription.currentPeriodEndsAtUtc }
+      : {
+          kind: 'active',
+          startedAtUtc: storeSubscription.startedAtUtc,
+          nextPaymentAtUtc: storeSubscription.autoRenewing === true ? storeSubscription.currentPeriodEndsAtUtc : null,
+        };
+  }
+  if (storeSubscription?.state === 'gracePeriod') {
+    return { kind: 'gracePeriod', startedAtUtc: storeSubscription.startedAtUtc };
+  }
+
+  if (!storeSubscription && !entitlement) {
     return { kind: 'unknown' };
   }
-  if (!entitlement.programEnabled) {
-    return { kind: 'notRequired' };
+
+  // A running Juple trial is access that exists right now, so it is what the person has - ahead of an older, ended subscription.
+  if (entitlement?.programEnabled && entitlement.status === 'trial') {
+    return { kind: 'trial', endsAtUtc: entitlement.trialEndsAtUtc };
   }
-  switch (entitlement.status) {
-    case 'trial': {
-      const end = entitlement.trialEndsAtUtc ? Date.parse(entitlement.trialEndsAtUtc) : Number.NaN;
-      const asOf = entitlement.verifiedAtUtc ? Date.parse(entitlement.verifiedAtUtc) : Number.NaN;
-      // The remaining time is measured from when the SERVER computed the entitlement, never from this device's clock.
-      if (Number.isNaN(end) || Number.isNaN(asOf)) {
-        return { kind: 'trial', daysLeft: null, lessThanDay: false, endsAtUtc: entitlement.trialEndsAtUtc };
-      }
-      const remaining = end - asOf;
-      return remaining < DAY_MS
-        ? { kind: 'trial', daysLeft: null, lessThanDay: true, endsAtUtc: entitlement.trialEndsAtUtc }
-        : { kind: 'trial', daysLeft: Math.ceil(remaining / DAY_MS), lessThanDay: false, endsAtUtc: entitlement.trialEndsAtUtc };
+
+  if (storeSubscription?.endedState === 'revoked') {
+    return { kind: 'revoked', endedAtUtc: storeSubscription.endedAtUtc };
+  }
+  if (storeSubscription?.endedState === 'expired') {
+    return { kind: 'expired', endedAtUtc: storeSubscription.endedAtUtc };
+  }
+
+  // An older Backend (no storeSubscription): fall back to the entitlement alone, exactly as before.
+  if (!storeSubscription && entitlement?.programEnabled) {
+    if (entitlement.status === 'active') {
+      return { kind: 'active', startedAtUtc: null, nextPaymentAtUtc: null };
     }
-    case 'active':
-      return { kind: 'active' };
-    case 'gracePeriod':
-      return { kind: 'gracePeriod' };
-    case 'expired':
-      return { kind: 'expired', endedAtUtc: entitlement.accessFrozenAtUtc };
-    default:
-      return { kind: 'unknown' };
+    if (entitlement.status === 'gracePeriod') {
+      return { kind: 'gracePeriod', startedAtUtc: null };
+    }
+    if (entitlement.status === 'expired' && entitlement.reason === 'refunded') {
+      return { kind: 'revoked', endedAtUtc: entitlement.accessFrozenAtUtc };
+    }
   }
+
+  return { kind: 'none' };
+}
+
+/** A subscription the account holds right now (the screen offers Manage, not Subscribe). */
+export function isSubscribedView(view: SubscriptionView): boolean {
+  return view.kind === 'active' || view.kind === 'gracePeriod' || view.kind === 'canceled';
 }

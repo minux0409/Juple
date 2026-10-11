@@ -934,15 +934,8 @@
     "planName": "Assinatura do Juple",
     "pricePerMonth": "{{price}} / mês",
     "cadence": "Cobrada mensalmente. Renova automaticamente até você cancelar.",
-    "cancelNote": "Você pode cancelar a qualquer momento nas configurações de assinaturas da loja. Cancelar interrompe as renovações futuras.",
-    "accessHeading": "Seu acesso",
     "access": {
-      "trial": "Uso gratuito",
-      "active": "Assinante",
-      "gracePeriod": "Assinante (problema de pagamento)",
-      "expired": "Assinatura encerrada",
-      "inactive": "A assinatura ainda não é necessária.",
-      "unknown": "Não foi possível verificar seu status de acesso."
+      "expired": "Assinatura encerrada"
     },
     "loading": "Carregando...",
     "subscribe": "Assinar",
@@ -968,15 +961,9 @@
       "anotherAccount": "Essa compra pertence a outra conta do Juple.",
       "temporary": "Não foi possível restaurar as compras agora. Tente novamente."
     },
-    "trialInfo": "Seus primeiros 30 dias são grátis. Este período gratuito é oferecido pelo Juple e é separado da cobrança da loja.",
     "detail": {
-      "trialDaysLeft": "Dias restantes: {{days}}",
-      "trialLessThanDay": "Falta menos de 1 dia",
-      "trialEndsOn": "Grátis até {{date}}",
-      "activeManage": "Você pode gerenciar sua assinatura na loja.",
       "grace": "Há um problema com seu pagamento. Verifique a forma de pagamento na loja para manter o acesso.",
-      "expired": "Assine para voltar a salvar e editar. Seus links salvos são mantidos e você ainda pode vê-los.",
-      "expiredOn": "O acesso terminou em {{date}}"
+      "expired": "Assine para voltar a salvar e editar. Seus links salvos são mantidos e você ainda pode vê-los."
     },
     "manage": "Gerenciar assinatura",
     "manageFailed": "Não foi possível abrir a loja. Tente novamente.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Não pode ser alterada agora",
       "message": "O proprietário desta coleção não tem mais uma assinatura ativa, então, por enquanto, não é possível adicionar ou alterar links. Você ainda pode ler a coleção e seus links."
+    },
+    "status": {
+      "active": "Assinatura ativa",
+      "canceled": "Assinatura cancelada",
+      "expired": "Assinatura expirada",
+      "revoked": "Assinatura encerrada",
+      "gracePeriod": "Assinatura ativa (problema no pagamento)",
+      "trial": "Uso gratuito",
+      "none": "Sem assinatura",
+      "unknown": "Não foi possível verificar o status da assinatura."
+    },
+    "row": {
+      "startedOn": "Data de início da assinatura",
+      "nextPaymentOn": "Próximo pagamento em",
+      "nextPaymentAmount": "Valor do próximo pagamento",
+      "accessEndsOn": "O acesso termina em",
+      "endedOn": "Data de término da assinatura",
+      "trialEndsOn": "O uso gratuito termina em"
+    },
+    "note": {
+      "canceled": "Você pode continuar usando o Juple até o fim do período atual.",
+      "trial": "Este período gratuito é oferecido pelo Juple."
     }
   },
   "appUpdate": {

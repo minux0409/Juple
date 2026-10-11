@@ -48,6 +48,12 @@ export interface StoreSubscription {
   readonly currentPeriodEndsAtUtc: string | null;
   /** false: cancelled, will not renew. null: not said. */
   readonly autoRenewing: boolean | null;
+  /** The store's own subscription start time (as last verified by the Backend); null when not reported. Never derived. */
+  readonly startedAtUtc: string | null;
+  /** How the last subscription ended when none is owned now ('expired' also covers on hold / paused); null otherwise. Descriptive only. */
+  readonly endedState: 'expired' | 'revoked' | null;
+  /** When that subscription's access ended; null when unknown or not applicable. */
+  readonly endedAtUtc: string | null;
 }
 
 export interface Entitlement {

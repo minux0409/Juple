@@ -73,6 +73,10 @@ export function parseStoreSubscription(raw: unknown): StoreSubscription | null {
     productId: typeof value.productId === 'string' && value.productId.length > 0 ? value.productId : null,
     currentPeriodEndsAtUtc: timestampOrNull(value.currentPeriodEndsAtUtc),
     autoRenewing: typeof value.autoRenewing === 'boolean' ? value.autoRenewing : null,
+    startedAtUtc: timestampOrNull(value.startedAtUtc),
+    // An end label this build does not know (a newer Backend) is never guessed into one of ours.
+    endedState: value.endedState === 'expired' || value.endedState === 'revoked' ? value.endedState : null,
+    endedAtUtc: timestampOrNull(value.endedAtUtc),
   };
 }
 

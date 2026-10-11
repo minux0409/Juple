@@ -934,15 +934,8 @@
     "planName": "Abonnement Juple",
     "pricePerMonth": "{{price}} / mois",
     "cadence": "Facturé chaque mois. Se renouvelle automatiquement jusqu’à ce que vous le résiliiez.",
-    "cancelNote": "Vous pouvez résilier à tout moment dans les réglages d’abonnement du store. La résiliation arrête les renouvellements futurs.",
-    "accessHeading": "Votre accès",
     "access": {
-      "trial": "Accès gratuit",
-      "active": "Abonné",
-      "gracePeriod": "Abonné (problème de paiement)",
-      "expired": "Abonnement terminé",
-      "inactive": "L’abonnement n’est pas encore nécessaire.",
-      "unknown": "Impossible de vérifier l'état de votre accès."
+      "expired": "Abonnement terminé"
     },
     "loading": "Chargement...",
     "subscribe": "S’abonner",
@@ -968,15 +961,9 @@
       "anotherAccount": "Cet achat appartient à un autre compte Juple.",
       "temporary": "Impossible de restaurer les achats pour le moment. Réessayez."
     },
-    "trialInfo": "Vos 30 premiers jours sont gratuits. Cette période gratuite est offerte par Juple et distincte de la facturation du store.",
     "detail": {
-      "trialDaysLeft": "Jours restants : {{days}}",
-      "trialLessThanDay": "Moins de 1 jour restant",
-      "trialEndsOn": "Gratuit jusqu'au {{date}}",
-      "activeManage": "Vous pouvez gérer votre abonnement dans le store.",
       "grace": "Un problème est survenu avec votre paiement. Vérifiez votre moyen de paiement dans le store pour conserver l'accès.",
-      "expired": "Abonnez-vous pour enregistrer et modifier à nouveau. Vos liens enregistrés sont conservés et restent consultables.",
-      "expiredOn": "L'accès a pris fin le {{date}}"
+      "expired": "Abonnez-vous pour enregistrer et modifier à nouveau. Vos liens enregistrés sont conservés et restent consultables."
     },
     "manage": "Gérer l'abonnement",
     "manageFailed": "Impossible d'ouvrir le store. Veuillez réessayer.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Modification impossible pour le moment",
       "message": "Le propriétaire de cette collection n’a plus d’abonnement actif : il est impossible d’ajouter ou de modifier des liens pour l’instant. Vous pouvez toujours la consulter."
+    },
+    "status": {
+      "active": "Abonné",
+      "canceled": "Abonnement résilié",
+      "expired": "Abonnement expiré",
+      "revoked": "Abonnement terminé",
+      "gracePeriod": "Abonné (problème de paiement)",
+      "trial": "Utilisation gratuite",
+      "none": "Non abonné",
+      "unknown": "Impossible de vérifier l'état de l'abonnement."
+    },
+    "row": {
+      "startedOn": "Date de début de l'abonnement",
+      "nextPaymentOn": "Prochain paiement le",
+      "nextPaymentAmount": "Montant du prochain paiement",
+      "accessEndsOn": "Accès jusqu'au",
+      "endedOn": "Date de fin de l'abonnement",
+      "trialEndsOn": "Utilisation gratuite jusqu'au"
+    },
+    "note": {
+      "canceled": "Vous pouvez continuer à utiliser Juple jusqu'à la fin de la période en cours.",
+      "trial": "Cette période gratuite est offerte par Juple."
     }
   },
   "appUpdate": {

@@ -934,15 +934,8 @@
     "planName": "Juple-Abonnement",
     "pricePerMonth": "{{price}} / Monat",
     "cadence": "Monatliche Abrechnung. Verlängert sich automatisch, bis du kündigst.",
-    "cancelNote": "Du kannst jederzeit in den Abo-Einstellungen des Stores kündigen. Nach der Kündigung gibt es keine weiteren Verlängerungen.",
-    "accessHeading": "Dein Zugang",
     "access": {
-      "trial": "Kostenlose Nutzung",
-      "active": "Abonniert",
-      "gracePeriod": "Abonniert (Zahlungsproblem)",
-      "expired": "Abonnement beendet",
-      "inactive": "Ein Abonnement ist noch nicht erforderlich.",
-      "unknown": "Dein Zugriffsstatus konnte nicht geprüft werden."
+      "expired": "Abonnement beendet"
     },
     "loading": "Wird geladen...",
     "subscribe": "Abonnieren",
@@ -968,15 +961,9 @@
       "anotherAccount": "Dieser Kauf gehört zu einem anderen Juple-Konto.",
       "temporary": "Käufe konnten gerade nicht wiederhergestellt werden. Bitte versuche es erneut."
     },
-    "trialInfo": "Die ersten 30 Tage sind kostenlos. Dieser kostenlose Zeitraum wird von Juple bereitgestellt und ist unabhängig von der Abrechnung im Store.",
     "detail": {
-      "trialDaysLeft": "Verbleibende Tage: {{days}}",
-      "trialLessThanDay": "Weniger als 1 Tag übrig",
-      "trialEndsOn": "Kostenlos bis {{date}}",
-      "activeManage": "Du kannst dein Abo im Store verwalten.",
       "grace": "Bei deiner Zahlung gibt es ein Problem. Prüfe im Store deine Zahlungsmethode, um den Zugriff zu behalten.",
-      "expired": "Schließe ein Abo ab, um wieder zu speichern und zu bearbeiten. Deine gespeicherten Links bleiben erhalten und können weiter angesehen werden.",
-      "expiredOn": "Zugriff endete am {{date}}"
+      "expired": "Schließe ein Abo ab, um wieder zu speichern und zu bearbeiten. Deine gespeicherten Links bleiben erhalten und können weiter angesehen werden."
     },
     "manage": "Abo verwalten",
     "manageFailed": "Der Store konnte nicht geöffnet werden. Bitte versuche es erneut.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Gerade nicht änderbar",
       "message": "Die Eigentümerin oder der Eigentümer dieser Sammlung hat kein aktives Abo mehr, deshalb können vorerst keine Links hinzugefügt oder geändert werden. Lesen kannst du die Sammlung und ihre Links weiterhin."
+    },
+    "status": {
+      "active": "Abonniert",
+      "canceled": "Abonnement gekündigt",
+      "expired": "Abonnement abgelaufen",
+      "revoked": "Abonnement beendet",
+      "gracePeriod": "Abonniert (Zahlungsproblem)",
+      "trial": "Kostenlose Nutzung",
+      "none": "Nicht abonniert",
+      "unknown": "Der Abonnementstatus konnte nicht geprüft werden."
+    },
+    "row": {
+      "startedOn": "Abonnementbeginn",
+      "nextPaymentOn": "Nächste Zahlung am",
+      "nextPaymentAmount": "Nächster Zahlungsbetrag",
+      "accessEndsOn": "Nutzung endet am",
+      "endedOn": "Abonnement beendet am",
+      "trialEndsOn": "Kostenlose Nutzung endet am"
+    },
+    "note": {
+      "canceled": "Du kannst Juple bis zum Ende des aktuellen Zeitraums weiter nutzen.",
+      "trial": "Dieser kostenlose Zeitraum wird von Juple bereitgestellt."
     }
   },
   "appUpdate": {

@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useAuth } from '../auth/AuthContext';
 import { useSubscriptionStore } from '../billing/useSubscriptionStore';
 import type { SubscriptionOffer } from '../billing/subscriptionStore';
-import { describeEntitlement } from '../billing/subscriptionStatus';
+import { describeSubscription, isSubscribedView } from '../billing/subscriptionStatus';
 import type { OfferUnavailableReason, PurchaseResult, RestoreResult } from '../billing/types';
 import { LoadFailureState } from '../components/LoadFailureState';
 import { StackScreenSafeArea } from '../components/StackScreenSafeArea';
@@ -19,10 +19,11 @@ type OfferState =
 const MONTHLY_PERIOD = 'P1M';
 
 /**
- * Subscription: the monthly plan, the localized price exactly as the store reports it, the account's current access, Subscribe,
- * Manage (only while subscribed, where the store has a page for it) and Restore purchases. Store-neutral: it talks only to useSubscriptionStore (Google Play today, the App Store later) and never decides
- * access - a purchase or restore resolves only after the Backend verified it, and the access line shown is the account entitlement
- * the Backend reports. The price is never hardcoded: with no store price there is no price and no Subscribe, only a retry.
+ * Subscription: the monthly plan with the price exactly as the store reports it, the account's ONE subscription status (with only
+ * the dates the Backend actually has), Subscribe or Manage, and Restore purchases. Store-neutral: it talks only to
+ * useSubscriptionStore (Google Play today, the App Store later) and never decides anything - a purchase or restore resolves only after
+ * the Backend verified it, and the status shown is what the Backend reported. The price is never hardcoded: with no store price there
+ * is no price and no Subscribe, only a retry. Whether Juple currently requires a subscription is deliberately not shown here.
  */
 export function SubscriptionScreen() {
   const { t, i18n } = useTranslation();
@@ -155,44 +156,50 @@ export function SubscriptionScreen() {
     }
   });
 
-  // Everything about the account's access comes from the Backend's entitlement (never a local purchase flag or the device clock).
-  const status = describeEntitlement(entitlement ?? null);
+  // The ONE subscription status: what the Backend reported about the store subscription (and Juple's own free period). No date is
+  // computed here, and whether Juple currently REQUIRES a subscription is never shown - that is an operations switch, not a person's concern.
+  const view = describeSubscription(storeSubscription ?? null, entitlement ?? null);
   const formatDate = (iso: string | null) => (iso ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium' }).format(new Date(iso)) : null);
-  const accessLabel = status.kind === 'unknown'
-    ? t('subscription.access.unknown')
-    : status.kind === 'notRequired'
-      ? t('subscription.access.inactive')
-      : t(`subscription.access.${status.kind}`);
-  const accessDetails: string[] = [];
-  if (status.kind === 'trial') {
-    if (status.lessThanDay) {
-      accessDetails.push(t('subscription.detail.trialLessThanDay'));
-    } else if (status.daysLeft !== null) {
-      accessDetails.push(t('subscription.detail.trialDaysLeft', { days: status.daysLeft }));
-    }
-    const endDate = formatDate(status.endsAtUtc);
-    if (endDate) {
-      accessDetails.push(t('subscription.detail.trialEndsOn', { date: endDate }));
-    }
-  } else if (status.kind === 'active') {
-    accessDetails.push(t('subscription.detail.activeManage'));
-  } else if (status.kind === 'gracePeriod') {
-    accessDetails.push(t('subscription.detail.grace'));
-  } else if (status.kind === 'expired') {
-    const endedDate = formatDate(status.endedAtUtc);
-    if (endedDate) {
-      accessDetails.push(t('subscription.detail.expiredOn', { date: endedDate }));
-    }
-    accessDetails.push(t('subscription.detail.expired'));
-  }
-  // STORE OWNERSHIP is its own fact (the server's storeSubscription), independent of whether Juple currently REQUIRES a subscription:
-  // with the program off the access line says "not required" while the account may already pay - and then it must not be invited to
-  // buy again. Either source saying "subscribed" hides Subscribe and offers Manage.
-  const ownedState = storeSubscription?.state === 'active' || storeSubscription?.state === 'gracePeriod' ? storeSubscription.state : null;
-  const accessAlreadyShowsSubscription = status.kind === 'active' || status.kind === 'gracePeriod';
-  const isSubscribed = accessAlreadyShowsSubscription || ownedState !== null;
-  const showManage = isSubscribed && store.canManageSubscription;
   const isReady = offerState.kind === 'ready';
+  const offerPrice = offerState.kind === 'ready' ? offerState.offer.localizedPrice : null;
+
+  // Rows are only the facts the Backend actually has; a missing value is a missing row, never an estimate.
+  const rows: { readonly id: string; readonly label: string; readonly value: string }[] = [];
+  const addRow = (id: string, labelKey: string, value: string | null) => {
+    if (value) {
+      rows.push({ id, label: t(labelKey), value });
+    }
+  };
+  let note: string | null = null;
+  switch (view.kind) {
+    case 'active':
+      addRow('startedOn', 'subscription.row.startedOn', formatDate(view.startedAtUtc));
+      addRow('nextPaymentOn', 'subscription.row.nextPaymentOn', formatDate(view.nextPaymentAtUtc));
+      // The amount is the store's current price for the plan - shown only alongside a date it is charged on.
+      addRow('nextPaymentAmount', 'subscription.row.nextPaymentAmount', view.nextPaymentAtUtc ? offerPrice : null);
+      break;
+    case 'gracePeriod':
+      addRow('startedOn', 'subscription.row.startedOn', formatDate(view.startedAtUtc));
+      note = t('subscription.detail.grace');
+      break;
+    case 'canceled':
+      addRow('startedOn', 'subscription.row.startedOn', formatDate(view.startedAtUtc));
+      addRow('accessEndsOn', 'subscription.row.accessEndsOn', formatDate(view.accessEndsAtUtc));
+      note = t('subscription.note.canceled');
+      break;
+    case 'expired':
+    case 'revoked':
+      addRow('endedOn', 'subscription.row.endedOn', formatDate(view.endedAtUtc));
+      break;
+    case 'trial':
+      addRow('trialEndsOn', 'subscription.row.trialEndsOn', formatDate(view.endsAtUtc));
+      note = t('subscription.note.trial');
+      break;
+    default:
+      break;
+  }
+  const isSubscribed = isSubscribedView(view);
+  const showManage = isSubscribed && store.canManageSubscription;
 
   return (
     <StackScreenSafeArea style={styles.safeArea}>
@@ -214,33 +221,21 @@ export function SubscriptionScreen() {
             ) : (
               <ActivityIndicator accessibilityLabel={t('subscription.loading')} color={colors.textSecondary} style={styles.loader} testID="subscription-loading" />
             )}
-            <View style={styles.trialInfo} testID="subscription-trial-info">
-              <Text style={styles.trialInfoText}>{t('subscription.trialInfo')}</Text>
-            </View>
             <Text style={styles.body}>{t('subscription.cadence')}</Text>
-            <Text style={styles.body}>{t('subscription.cancelNote')}</Text>
           </View>
         )}
 
-        <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.accessHeading')}</Text>
-        <View style={[styles.card, styles.accessCard]}>
-          <Text style={styles.accessLabel} testID="subscription-access">{accessLabel}</Text>
-          {accessDetails.map((detail, index) => (
-            <Text key={index} style={styles.accessDetail} testID="subscription-access-detail">{detail}</Text>
-          ))}
-        </View>
-
-        {ownedState !== null && !accessAlreadyShowsSubscription ? (
-          <>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
-            <View style={[styles.card, styles.accessCard]} testID="subscription-store-state-card">
-              <Text style={styles.accessLabel} testID="subscription-store-state">{t(`subscription.access.${ownedState}`)}</Text>
-              <Text style={styles.accessDetail} testID="subscription-store-state-detail">
-                {t(ownedState === 'gracePeriod' ? 'subscription.detail.grace' : 'subscription.detail.activeManage')}
-              </Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{t('subscription.stateHeading')}</Text>
+        <View style={[styles.card, styles.accessCard]} testID="subscription-status-card">
+          <Text style={styles.accessLabel} testID="subscription-status">{t(`subscription.status.${view.kind}`)}</Text>
+          {rows.map(row => (
+            <View key={row.id} style={styles.row} testID={`subscription-row-${row.id}`}>
+              <Text style={styles.rowLabel}>{row.label}</Text>
+              <Text style={styles.rowValue} testID={`subscription-row-${row.id}-value`}>{row.value}</Text>
             </View>
-          </>
-        ) : null}
+          ))}
+          {note ? <Text style={styles.accessDetail} testID="subscription-status-note">{note}</Text> : null}
+        </View>
 
         {isSubscribed ? null : (
           <Pressable
@@ -304,8 +299,9 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.xl },
   accessLabel: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
   accessDetail: { color: colors.textSecondary, fontSize: 14, lineHeight: 20, marginTop: spacing.xs },
-  trialInfo: { backgroundColor: colors.surfaceMuted, borderRadius: radii.md, marginTop: spacing.md, padding: spacing.md },
-  trialInfoText: { color: colors.textPrimary, fontSize: 14, lineHeight: 20 },
+  row: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.md, justifyContent: 'space-between', marginTop: spacing.sm },
+  rowLabel: { color: colors.textSecondary, flexShrink: 1, fontSize: 14, lineHeight: 20 },
+  rowValue: { color: colors.textPrimary, flexShrink: 1, fontSize: 14, fontWeight: '600', lineHeight: 20, textAlign: 'right' },
   infoCard: { paddingVertical: spacing.xs },
   infoRow: { paddingVertical: spacing.md },
   infoRowDivider: { borderTopColor: colors.inputBorder, borderTopWidth: StyleSheet.hairlineWidth },

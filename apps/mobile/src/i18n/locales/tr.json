@@ -934,15 +934,8 @@
     "planName": "Juple aboneliği",
     "pricePerMonth": "{{price}} / ay",
     "cadence": "Aylık faturalandırılır. Siz iptal edene kadar otomatik olarak yenilenir.",
-    "cancelNote": "Mağazanın abonelik ayarlarından istediğiniz zaman iptal edebilirsiniz. İptal etmek sonraki yenilemeleri durdurur.",
-    "accessHeading": "Erişiminiz",
     "access": {
-      "trial": "Ücretsiz kullanım",
-      "active": "Abone",
-      "gracePeriod": "Abone (ödeme sorunu)",
-      "expired": "Abonelik sona erdi",
-      "inactive": "Abonelik henüz gerekli değil.",
-      "unknown": "Erişim durumun kontrol edilemedi."
+      "expired": "Abonelik sona erdi"
     },
     "loading": "Yükleniyor...",
     "subscribe": "Abone ol",
@@ -968,15 +961,9 @@
       "anotherAccount": "Bu satın alım başka bir Juple hesabına ait.",
       "temporary": "Satın alımlar şu anda geri yüklenemedi. Lütfen tekrar deneyin."
     },
-    "trialInfo": "İlk 30 gün ücretsizdir. Bu ücretsiz dönemi Juple sağlar ve mağaza faturalandırmasından ayrıdır.",
     "detail": {
-      "trialDaysLeft": "Kalan gün: {{days}}",
-      "trialLessThanDay": "1 günden az kaldı",
-      "trialEndsOn": "{{date}} tarihine kadar ücretsiz",
-      "activeManage": "Aboneliğini mağazada yönetebilirsin.",
       "grace": "Ödemenle ilgili bir sorun var. Erişimini sürdürmek için mağazada ödeme yöntemini kontrol et.",
-      "expired": "Tekrar kaydedip düzenleyebilmek için abone ol. Kaydettiğin bağlantılar korunur ve görüntülenmeye devam eder.",
-      "expiredOn": "Erişim {{date}} tarihinde sona erdi"
+      "expired": "Tekrar kaydedip düzenleyebilmek için abone ol. Kaydettiğin bağlantılar korunur ve görüntülenmeye devam eder."
     },
     "manage": "Aboneliği yönet",
     "manageFailed": "Mağaza açılamadı. Lütfen tekrar dene.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Şu anda değiştirilemez",
       "message": "Bu koleksiyonun sahibinin etkin bir aboneliği kalmadığından şimdilik bağlantı eklenemez veya değiştirilemez. Koleksiyonu ve bağlantılarını okumaya devam edebilirsiniz."
+    },
+    "status": {
+      "active": "Abonesiniz",
+      "canceled": "Abonelik iptal edildi",
+      "expired": "Aboneliğin süresi doldu",
+      "revoked": "Abonelik sona erdi",
+      "gracePeriod": "Abonesiniz (ödeme sorunu)",
+      "trial": "Ücretsiz kullanım",
+      "none": "Abone değilsiniz",
+      "unknown": "Abonelik durumu kontrol edilemedi."
+    },
+    "row": {
+      "startedOn": "Abonelik başlangıç tarihi",
+      "nextPaymentOn": "Sonraki ödeme tarihi",
+      "nextPaymentAmount": "Sonraki ödeme tutarı",
+      "accessEndsOn": "Kullanım bitiş tarihi",
+      "endedOn": "Abonelik bitiş tarihi",
+      "trialEndsOn": "Ücretsiz kullanım bitiş tarihi"
+    },
+    "note": {
+      "canceled": "Mevcut dönem bitene kadar Juple'ı kullanmaya devam edebilirsiniz.",
+      "trial": "Bu ücretsiz dönem Juple tarafından sağlanır."
     }
   },
   "appUpdate": {

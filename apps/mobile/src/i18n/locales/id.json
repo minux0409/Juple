@@ -934,15 +934,8 @@
     "planName": "Langganan Juple",
     "pricePerMonth": "{{price}} / bulan",
     "cadence": "Ditagih setiap bulan. Diperpanjang otomatis hingga Anda membatalkan.",
-    "cancelNote": "Anda dapat membatalkan kapan saja di pengaturan langganan toko. Pembatalan menghentikan perpanjangan berikutnya.",
-    "accessHeading": "Akses Anda",
     "access": {
-      "trial": "Akses gratis",
-      "active": "Berlangganan",
-      "gracePeriod": "Berlangganan (masalah pembayaran)",
-      "expired": "Langganan berakhir",
-      "inactive": "Langganan belum diperlukan.",
-      "unknown": "Status aksesmu tidak dapat diperiksa."
+      "expired": "Langganan berakhir"
     },
     "loading": "Memuat...",
     "subscribe": "Berlangganan",
@@ -968,15 +961,9 @@
       "anotherAccount": "Pembelian itu milik akun Juple lain.",
       "temporary": "Pembelian tidak dapat dipulihkan saat ini. Silakan coba lagi."
     },
-    "trialInfo": "30 hari pertama gratis. Masa gratis ini disediakan oleh Juple dan terpisah dari penagihan di toko aplikasi.",
     "detail": {
-      "trialDaysLeft": "Sisa hari: {{days}}",
-      "trialLessThanDay": "Kurang dari 1 hari lagi",
-      "trialEndsOn": "Gratis hingga {{date}}",
-      "activeManage": "Kamu dapat mengelola langgananmu di toko aplikasi.",
       "grace": "Ada masalah dengan pembayaranmu. Periksa metode pembayaran di toko aplikasi agar aksesmu tetap berjalan.",
-      "expired": "Berlangganan untuk dapat menyimpan dan mengedit lagi. Tautan yang tersimpan tetap ada dan masih bisa dilihat.",
-      "expiredOn": "Akses berakhir pada {{date}}"
+      "expired": "Berlangganan untuk dapat menyimpan dan mengedit lagi. Tautan yang tersimpan tetap ada dan masih bisa dilihat."
     },
     "manage": "Kelola langganan",
     "manageFailed": "Tidak dapat membuka toko aplikasi. Coba lagi.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Belum bisa diubah sekarang",
       "message": "Pemilik koleksi ini tidak lagi memiliki langganan aktif, jadi tautan belum bisa ditambah atau diubah untuk sementara. Anda masih bisa membaca koleksi dan tautannya."
+    },
+    "status": {
+      "active": "Berlangganan",
+      "canceled": "Langganan dibatalkan",
+      "expired": "Langganan berakhir",
+      "revoked": "Langganan dihentikan",
+      "gracePeriod": "Berlangganan (masalah pembayaran)",
+      "trial": "Gratis",
+      "none": "Tidak berlangganan",
+      "unknown": "Tidak dapat memeriksa status langganan."
+    },
+    "row": {
+      "startedOn": "Tanggal mulai langganan",
+      "nextPaymentOn": "Tanggal pembayaran berikutnya",
+      "nextPaymentAmount": "Jumlah pembayaran berikutnya",
+      "accessEndsOn": "Akses berakhir pada",
+      "endedOn": "Tanggal langganan berakhir",
+      "trialEndsOn": "Gratis hingga"
+    },
+    "note": {
+      "canceled": "Anda dapat terus menggunakan Juple hingga periode saat ini berakhir.",
+      "trial": "Masa gratis ini disediakan oleh Juple."
     }
   },
   "appUpdate": {

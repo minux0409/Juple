@@ -934,15 +934,8 @@
     "planName": "Juple 訂閱",
     "pricePerMonth": "每月 {{price}}",
     "cadence": "按月計費,在您取消之前會自動續訂。",
-    "cancelNote": "您可以隨時在商店的訂閱設定中取消。取消後將不再續訂。",
-    "accessHeading": "您的使用狀態",
     "access": {
-      "trial": "免費使用中",
-      "active": "已訂閱",
-      "gracePeriod": "已訂閱(付款有問題)",
-      "expired": "訂閱已結束",
-      "inactive": "目前還不需要訂閱。",
-      "unknown": "無法確認你的使用狀態。"
+      "expired": "訂閱已結束"
     },
     "loading": "載入中...",
     "subscribe": "訂閱",
@@ -968,15 +961,9 @@
       "anotherAccount": "該購買屬於另一個 Juple 帳號。",
       "temporary": "目前無法還原購買。請再試一次。"
     },
-    "trialInfo": "前 30 天可免費使用。此免費期由 Juple 提供，與應用程式商店的扣款無關。",
     "detail": {
-      "trialDaysLeft": "剩餘 {{days}} 天",
-      "trialLessThanDay": "剩餘不到 1 天",
-      "trialEndsOn": "免費至 {{date}}",
-      "activeManage": "你可以在應用程式商店中管理訂閱。",
       "grace": "你的付款發生問題。請在應用程式商店中檢查付款方式，以繼續使用。",
-      "expired": "訂閱後即可再次儲存與編輯。已儲存的連結會保留，仍可檢視。",
-      "expiredOn": "使用已於 {{date}} 結束"
+      "expired": "訂閱後即可再次儲存與編輯。已儲存的連結會保留，仍可檢視。"
     },
     "manage": "管理訂閱",
     "manageFailed": "無法開啟應用程式商店，請再試一次。",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "暫時無法變更",
       "message": "此合集擁有者的使用期已結束，暫時無法新增或變更連結。合集和連結仍可正常檢視。"
+    },
+    "status": {
+      "active": "訂閱中",
+      "canceled": "訂閱已取消",
+      "expired": "訂閱已到期",
+      "revoked": "訂閱已結束",
+      "gracePeriod": "訂閱中(付款有問題)",
+      "trial": "免費使用中",
+      "none": "未訂閱",
+      "unknown": "無法確認訂閱狀態。"
+    },
+    "row": {
+      "startedOn": "訂閱開始日期",
+      "nextPaymentOn": "下次付款日期",
+      "nextPaymentAmount": "下次付款金額",
+      "accessEndsOn": "使用結束日期",
+      "endedOn": "訂閱結束日期",
+      "trialEndsOn": "免費使用結束日期"
+    },
+    "note": {
+      "canceled": "在目前的使用期限結束前，您仍可繼續使用。",
+      "trial": "這是 Juple 提供的免費使用期。"
     }
   },
   "appUpdate": {

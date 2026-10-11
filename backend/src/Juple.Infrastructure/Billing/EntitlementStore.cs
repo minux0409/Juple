@@ -57,7 +57,7 @@ public sealed class EntitlementStore(JupleDbContext dbContext) : IEntitlementSto
     public async Task<IReadOnlyList<OwnedStorePurchase>> GetOwnedPurchasesAsync(long userId, CancellationToken cancellationToken = default) =>
         await dbContext.StorePurchases.AsNoTracking()
             .Where(purchase => purchase.UserId == userId)
-            .Select(purchase => new OwnedStorePurchase(purchase.Source, purchase.ProductId, purchase.State, purchase.AccessEndsAtUtc, purchase.AutoRenews))
+            .Select(purchase => new OwnedStorePurchase(purchase.Source, purchase.ProductId, purchase.State, purchase.AccessEndsAtUtc, purchase.AutoRenews, purchase.CurrentPeriodStartUtc))
             .ToListAsync(cancellationToken);
 
     public async Task<TrialWindow> EnsureTrialAsync(

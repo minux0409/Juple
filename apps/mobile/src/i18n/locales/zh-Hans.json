@@ -934,15 +934,8 @@
     "planName": "Juple 订阅",
     "pricePerMonth": "每月 {{price}}",
     "cadence": "按月计费,在您取消之前会自动续订。",
-    "cancelNote": "您可以随时在商店的订阅设置中取消。取消后将不再续订。",
-    "accessHeading": "您的使用状态",
     "access": {
-      "trial": "免费使用中",
-      "active": "已订阅",
-      "gracePeriod": "已订阅(付款有问题)",
-      "expired": "订阅已结束",
-      "inactive": "暂时还不需要订阅。",
-      "unknown": "无法确认你的使用状态。"
+      "expired": "订阅已结束"
     },
     "loading": "正在加载...",
     "subscribe": "订阅",
@@ -968,15 +961,9 @@
       "anotherAccount": "该购买属于另一个 Juple 账号。",
       "temporary": "目前无法恢复购买。请重试。"
     },
-    "trialInfo": "前 30 天可免费使用。此免费期由 Juple 提供，与应用商店的扣费无关。",
     "detail": {
-      "trialDaysLeft": "剩余 {{days}} 天",
-      "trialLessThanDay": "剩余不到 1 天",
-      "trialEndsOn": "免费至 {{date}}",
-      "activeManage": "你可以在应用商店中管理订阅。",
       "grace": "你的付款出现问题。请在应用商店中检查付款方式，以继续使用。",
-      "expired": "订阅后即可再次保存和编辑。已保存的链接会保留，仍可查看。",
-      "expiredOn": "使用已于 {{date}} 结束"
+      "expired": "订阅后即可再次保存和编辑。已保存的链接会保留，仍可查看。"
     },
     "manage": "管理订阅",
     "manageFailed": "无法打开应用商店，请重试。",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "暂时无法更改",
       "message": "此合集所有者的使用期已结束，暂时无法添加或更改链接。合集和链接仍可正常查看。"
+    },
+    "status": {
+      "active": "订阅中",
+      "canceled": "订阅已取消",
+      "expired": "订阅已到期",
+      "revoked": "订阅已结束",
+      "gracePeriod": "订阅中(付款有问题)",
+      "trial": "免费使用中",
+      "none": "未订阅",
+      "unknown": "无法确认订阅状态。"
+    },
+    "row": {
+      "startedOn": "订阅开始日期",
+      "nextPaymentOn": "下次付款日期",
+      "nextPaymentAmount": "下次付款金额",
+      "accessEndsOn": "使用结束日期",
+      "endedOn": "订阅结束日期",
+      "trialEndsOn": "免费使用结束日期"
+    },
+    "note": {
+      "canceled": "在当前使用期限结束前，您仍可继续使用。",
+      "trial": "这是 Juple 提供的免费使用期。"
     }
   },
   "appUpdate": {

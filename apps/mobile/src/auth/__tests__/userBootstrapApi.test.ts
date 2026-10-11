@@ -246,9 +246,23 @@ describe('parseStoreSubscription', () => {
   it('reads an owned subscription and nothing else', () => {
     expect(parseStoreSubscription({ state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false, orderId: 'x' })).toEqual({
       state: 'active', platform: 'google', productId: 'juple_monthly', currentPeriodEndsAtUtc: '2026-10-02T00:00:00Z', autoRenewing: false,
+      startedAtUtc: null, endedState: null, endedAtUtc: null,
     });
     expect(parseStoreSubscription({ state: 'gracePeriod' })?.state).toBe('gracePeriod');
     expect(parseStoreSubscription({ state: 'none', platform: null })?.state).toBe('none');
+  });
+
+  it('reads the start time and how an ended subscription ended - and nothing it does not know', () => {
+    expect(parseStoreSubscription({ state: 'active', startedAtUtc: '2026-10-11T00:00:00Z', currentPeriodEndsAtUtc: '2026-11-11T00:00:00Z', autoRenewing: true })).toMatchObject({
+      startedAtUtc: '2026-10-11T00:00:00Z', endedState: null, endedAtUtc: null,
+    });
+    expect(parseStoreSubscription({ state: 'none', endedState: 'revoked', endedAtUtc: '2026-10-05T00:00:00Z' })).toMatchObject({
+      state: 'none', endedState: 'revoked', endedAtUtc: '2026-10-05T00:00:00Z',
+    });
+    // An end label from a newer Backend is not guessed into one of ours; blank dates are null.
+    expect(parseStoreSubscription({ state: 'none', endedState: 'chargeback', endedAtUtc: '', startedAtUtc: 5 })).toMatchObject({
+      endedState: null, endedAtUtc: null, startedAtUtc: null,
+    });
   });
 
   it('absent, malformed or unknown states are null - never guessed into subscribed', () => {

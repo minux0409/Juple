@@ -171,7 +171,8 @@ public sealed class StoreSubscriptionOwnershipTests
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var keys = JsonDocument.Parse(json).RootElement.EnumerateObject().Select(property => property.Name).Order().ToList();
 
-        Assert.Equal(["autoRenewing", "currentPeriodEndsAtUtc", "platform", "productId", "state"], keys);
+        // Dates and an end label are the only additions (start of the store subscription, how a finished one ended) - still no token, id or order.
+        Assert.Equal(["autoRenewing", "currentPeriodEndsAtUtc", "endedAtUtc", "endedState", "platform", "productId", "startedAtUtc", "state"], keys);
         Assert.Contains("\"platform\":\"google\"", json);
         Assert.Contains("\"state\":\"active\"", json);
         foreach (var forbidden in new[] { "token", "order", "userId", "purchaseId", "hash", "handle", "credential" })
@@ -196,5 +197,102 @@ public sealed class StoreSubscriptionOwnershipTests
             StoreSubscriptionOwnership.From([Purchase(StorePurchaseState.GracePeriod, TimeSpan.FromDays(1))], Now)).State);
         Assert.Equal("active", CurrentUserBootstrapController.StoreSubscriptionResponse.From(
             StoreSubscriptionOwnership.From([Purchase(StorePurchaseState.Canceled, TimeSpan.FromDays(1), autoRenews: false)], Now)).State);
+    }
+
+    // ---- descriptive extras for the Subscription screen: start date and how a finished subscription ended (never access) ----
+
+    private static OwnedStorePurchase WithStart(OwnedStorePurchase purchase, DateTimeOffset startedAtUtc) => purchase with { StartedAtUtc = startedAtUtc };
+
+    [Fact]
+    public void ALiveSubscription_CarriesTheStoresOwnStartTime_AndNoEndInfo()
+    {
+        var started = Now - TimeSpan.FromDays(40);
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(
+            StoreSubscriptionOwnership.From([WithStart(Purchase(StorePurchaseState.Active, TimeSpan.FromDays(10)), started)], Now));
+
+        Assert.Equal("active", response.State);
+        Assert.Equal(started, response.StartedAtUtc);
+        Assert.Equal(Now + TimeSpan.FromDays(10), response.CurrentPeriodEndsAtUtc);
+        Assert.Null(response.EndedState);
+        Assert.Null(response.EndedAtUtc);
+    }
+
+    [Fact]
+    public void ACancelledButCurrentSubscription_IsStillOwned_WillNotRenew_AndKeepsItsStartAndEnd()
+    {
+        var started = Now - TimeSpan.FromDays(3);
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(
+            StoreSubscriptionOwnership.From([WithStart(Purchase(StorePurchaseState.Canceled, TimeSpan.FromDays(2), autoRenews: false), started)], Now));
+
+        Assert.Equal("active", response.State);
+        Assert.False(response.AutoRenewing);
+        Assert.Equal(started, response.StartedAtUtc);
+        Assert.Equal(Now + TimeSpan.FromDays(2), response.CurrentPeriodEndsAtUtc);
+    }
+
+    [Theory]
+    [InlineData(StorePurchaseState.Expired, "expired")]
+    [InlineData(StorePurchaseState.OnHold, "expired")]
+    [InlineData(StorePurchaseState.Paused, "expired")]
+    [InlineData(StorePurchaseState.Revoked, "revoked")]
+    public void WhenNothingIsLive_TheMostRecentEndIsDescribed_ButNothingIsOwned(StorePurchaseState state, string expectedEnd)
+    {
+        var started = Now - TimeSpan.FromDays(90);
+        var ownership = StoreSubscriptionOwnership.From([WithStart(Purchase(state, -TimeSpan.FromDays(5)), started)], Now);
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(ownership);
+
+        Assert.Equal(StoreSubscriptionState.None, ownership.State);
+        Assert.Equal("none", response.State);
+        Assert.Null(response.CurrentPeriodEndsAtUtc);
+        Assert.Null(response.AutoRenewing);
+        Assert.Equal(expectedEnd, response.EndedState);
+        Assert.Equal(Now - TimeSpan.FromDays(5), response.EndedAtUtc);
+        Assert.Equal(started, response.StartedAtUtc);
+    }
+
+    [Fact]
+    public void ACancelledPurchaseWhosePeriodHasPassed_IsAnEndedSubscription_NotALiveOne()
+    {
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(
+            StoreSubscriptionOwnership.From([Purchase(StorePurchaseState.Canceled, -TimeSpan.FromHours(1), autoRenews: false)], Now));
+
+        Assert.Equal("none", response.State);
+        Assert.Equal("expired", response.EndedState);
+    }
+
+    [Fact]
+    public void ALiveSubscriptionWins_OverAnOlderEndedOne_AndShowsNoEndInfo()
+    {
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(StoreSubscriptionOwnership.From(
+            [Purchase(StorePurchaseState.Expired, -TimeSpan.FromDays(30)), Purchase(StorePurchaseState.Active, TimeSpan.FromDays(20))], Now));
+
+        Assert.Equal("active", response.State);
+        Assert.Null(response.EndedState);
+    }
+
+    [Fact]
+    public void NeverPaidOrPending_IsNotAnEndedSubscription()
+    {
+        var response = CurrentUserBootstrapController.StoreSubscriptionResponse.From(
+            StoreSubscriptionOwnership.From([Purchase(StorePurchaseState.Pending, null)], Now));
+
+        Assert.Equal("none", response.State);
+        Assert.Null(response.EndedState);
+        Assert.Null(response.EndedAtUtc);
+    }
+
+    [Fact]
+    public void TheNewFields_AreOnlyDatesAndAnEndLabel_NoSecretsOrIds()
+    {
+        var json = JsonSerializer.Serialize(CurrentUserBootstrapController.StoreSubscriptionResponse.From(
+            StoreSubscriptionOwnership.From([WithStart(Purchase(StorePurchaseState.Expired, -TimeSpan.FromDays(1)), Now - TimeSpan.FromDays(31))], Now)),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Contains("\"endedState\":\"expired\"", json);
+        Assert.Contains("\"startedAtUtc\"", json);
+        foreach (var forbidden in new[] { "token", "order", "userId", "purchaseId", "hash", "handle", "credential" })
+        {
+            Assert.DoesNotContain(forbidden, json, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }

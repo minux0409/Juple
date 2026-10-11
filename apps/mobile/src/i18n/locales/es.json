@@ -934,15 +934,8 @@
     "planName": "Suscripción a Juple",
     "pricePerMonth": "{{price}} / mes",
     "cadence": "Se cobra cada mes y se renueva automáticamente hasta que la canceles.",
-    "cancelNote": "Puedes cancelar en cualquier momento en los ajustes de suscripción de la tienda. Al cancelar no habrá más renovaciones.",
-    "accessHeading": "Tu acceso",
     "access": {
-      "trial": "Uso gratuito",
-      "active": "Suscrito",
-      "gracePeriod": "Suscrito (problema de pago)",
-      "expired": "Suscripción finalizada",
-      "inactive": "Todavía no se necesita una suscripción.",
-      "unknown": "No se pudo comprobar tu estado de acceso."
+      "expired": "Suscripción finalizada"
     },
     "loading": "Cargando...",
     "subscribe": "Suscribirse",
@@ -968,15 +961,9 @@
       "anotherAccount": "Esa compra pertenece a otra cuenta de Juple.",
       "temporary": "No se pudieron restaurar las compras ahora. Inténtalo de nuevo."
     },
-    "trialInfo": "Tus primeros 30 días son gratis. Este periodo gratuito lo ofrece Juple y es independiente del cobro de la tienda.",
     "detail": {
-      "trialDaysLeft": "Días restantes: {{days}}",
-      "trialLessThanDay": "Queda menos de 1 día",
-      "trialEndsOn": "Gratis hasta el {{date}}",
-      "activeManage": "Puedes gestionar tu suscripción en la tienda.",
       "grace": "Hay un problema con tu pago. Revisa tu método de pago en la tienda para conservar el acceso.",
-      "expired": "Suscríbete para volver a guardar y editar. Tus enlaces guardados se conservan y puedes seguir viéndolos.",
-      "expiredOn": "El acceso terminó el {{date}}"
+      "expired": "Suscríbete para volver a guardar y editar. Tus enlaces guardados se conservan y puedes seguir viéndolos."
     },
     "manage": "Gestionar suscripción",
     "manageFailed": "No se pudo abrir la tienda. Inténtalo de nuevo.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "No se puede cambiar ahora",
       "message": "El propietario de esta colección ya no tiene una suscripción activa, así que por ahora no se pueden añadir ni cambiar enlaces. Puedes seguir leyendo la colección y sus enlaces."
+    },
+    "status": {
+      "active": "Suscrito",
+      "canceled": "Suscripción cancelada",
+      "expired": "Suscripción vencida",
+      "revoked": "Suscripción finalizada",
+      "gracePeriod": "Suscrito (problema de pago)",
+      "trial": "Uso gratuito",
+      "none": "Sin suscripción",
+      "unknown": "No se pudo comprobar el estado de la suscripción."
+    },
+    "row": {
+      "startedOn": "Fecha de inicio de la suscripción",
+      "nextPaymentOn": "Próxima fecha de pago",
+      "nextPaymentAmount": "Importe del próximo pago",
+      "accessEndsOn": "El acceso termina el",
+      "endedOn": "Fecha de fin de la suscripción",
+      "trialEndsOn": "El uso gratuito termina el"
+    },
+    "note": {
+      "canceled": "Puedes seguir usando Juple hasta que termine el periodo actual.",
+      "trial": "Juple ofrece este periodo gratuito."
     }
   },
   "appUpdate": {

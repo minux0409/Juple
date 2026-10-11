@@ -58,18 +58,48 @@ public sealed class CurrentUserBootstrapController : ControllerBase
     /// Whether the account owns a verified store subscription (additive; an older client ignores it) - NOT the same as Entitlement: with the
     /// program off, Entitlement.Status is null ("not required") while this can still be "active". State is none | active | gracePeriod.
     /// Platform is "google" while owned. CurrentPeriodEndsAtUtc is when the paid period ends; AutoRenewing false means it was cancelled and
-    /// will not renew. No purchase token, order id, internal id or raw store response is ever exposed.
+    /// will not renew. StartedAtUtc is the store's own subscription start time; EndedState ("expired"/"revoked") and EndedAtUtc describe how the
+    /// last subscription ended when none is owned now (descriptive only). No purchase token, order id, internal id or raw store response is ever exposed.
     /// </summary>
-    public sealed record StoreSubscriptionResponse(string State, string? Platform, string? ProductId, DateTimeOffset? CurrentPeriodEndsAtUtc, bool? AutoRenewing)
+    public sealed record StoreSubscriptionResponse(
+        string State,
+        string? Platform,
+        string? ProductId,
+        DateTimeOffset? CurrentPeriodEndsAtUtc,
+        bool? AutoRenewing,
+        DateTimeOffset? StartedAtUtc = null,
+        string? EndedState = null,
+        DateTimeOffset? EndedAtUtc = null)
     {
-        public static StoreSubscriptionResponse From(StoreSubscriptionOwnership? ownership) => ownership is null || ownership.State == StoreSubscriptionState.None
-            ? new("none", null, null, null, null)
-            : new(
+        public static StoreSubscriptionResponse From(StoreSubscriptionOwnership? ownership)
+        {
+            if (ownership is null)
+            {
+                return new("none", null, null, null, null);
+            }
+
+            if (ownership.State == StoreSubscriptionState.None)
+            {
+                // Nothing is owned now; EndedState/EndedAtUtc (when there ever was one) only tell the app how it ended - they grant nothing.
+                return new(
+                    "none",
+                    null,
+                    null,
+                    null,
+                    null,
+                    ownership.StartedAtUtc,
+                    ownership.EndState switch { StoreSubscriptionEnd.Expired => "expired", StoreSubscriptionEnd.Revoked => "revoked", _ => null },
+                    ownership.EndedAtUtc);
+            }
+
+            return new(
                 ownership.State == StoreSubscriptionState.GracePeriod ? "gracePeriod" : "active",
                 ownership.Source switch { StoreSource.GooglePlay => "google", _ => null },
                 ownership.ProductId,
                 ownership.CurrentPeriodEndsAtUtc,
-                ownership.AutoRenewing);
+                ownership.AutoRenewing,
+                ownership.StartedAtUtc);
+        }
     }
 
     /// <summary>

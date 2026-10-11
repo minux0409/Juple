@@ -13,8 +13,23 @@ public enum StoreSubscriptionState
     GracePeriod,
 }
 
-/// <summary>One store purchase as ownership needs it: where, which product, what the store last said, until when.</summary>
-public sealed record OwnedStorePurchase(StoreSource Source, string ProductId, StorePurchaseState State, DateTimeOffset? AccessEndsAtUtc, bool? AutoRenews)
+/// <summary>How the account's most recent store subscription ended, when none is live. Purely descriptive (copy, dates): it never grants or restricts anything.</summary>
+public enum StoreSubscriptionEnd
+{
+    None,
+
+    /// <summary>It ran out or lapsed (expired, on hold, paused, or a period that has passed): the person may subscribe again.</summary>
+    Expired,
+
+    /// <summary>The store revoked it (refund or developer revocation).</summary>
+    Revoked,
+}
+
+/// <summary>
+/// One store purchase as ownership needs it: where, which product, what the store last said, until when. <paramref name="StartedAtUtc"/>
+/// is the store's own subscription start time as last verified (never derived); null when the store did not report one.
+/// </summary>
+public sealed record OwnedStorePurchase(StoreSource Source, string ProductId, StorePurchaseState State, DateTimeOffset? AccessEndsAtUtc, bool? AutoRenews, DateTimeOffset? StartedAtUtc = null)
 {
     public bool IsLiveAt(DateTimeOffset nowUtc) =>
         State is StorePurchaseState.Active or StorePurchaseState.GracePeriod or StorePurchaseState.Canceled
@@ -33,7 +48,10 @@ public sealed record StoreSubscriptionOwnership(
     StoreSource? Source,
     string? ProductId,
     DateTimeOffset? CurrentPeriodEndsAtUtc,
-    bool? AutoRenewing)
+    bool? AutoRenewing,
+    DateTimeOffset? StartedAtUtc = null,
+    StoreSubscriptionEnd EndState = StoreSubscriptionEnd.None,
+    DateTimeOffset? EndedAtUtc = null)
 {
     public static StoreSubscriptionOwnership None { get; } = new(StoreSubscriptionState.None, null, null, null, null);
 
@@ -47,7 +65,7 @@ public sealed record StoreSubscriptionOwnership(
             .FirstOrDefault();
         if (best is null)
         {
-            return None;
+            return DescribeEnded(purchases, nowUtc);
         }
 
         return new StoreSubscriptionOwnership(
@@ -56,6 +74,35 @@ public sealed record StoreSubscriptionOwnership(
             best.ProductId,
             best.AccessEndsAtUtc,
             // A cancelled-but-current subscription is still owned; it just will not renew.
-            best.State == StorePurchaseState.Canceled ? false : best.AutoRenews);
+            best.State == StorePurchaseState.Canceled ? false : best.AutoRenews,
+            best.StartedAtUtc);
+    }
+
+    /// <summary>
+    /// Nothing is live: say how the most recent subscription ended, if there ever was one. State stays None - this carries no access.
+    /// Pending purchases (never paid) are not an ended subscription.
+    /// </summary>
+    private static StoreSubscriptionOwnership DescribeEnded(IEnumerable<OwnedStorePurchase> purchases, DateTimeOffset nowUtc)
+    {
+        var ended = purchases
+            .Where(purchase => purchase.State is StorePurchaseState.Expired or StorePurchaseState.Revoked or StorePurchaseState.OnHold or StorePurchaseState.Paused
+                || (purchase.State is StorePurchaseState.Active or StorePurchaseState.GracePeriod or StorePurchaseState.Canceled
+                    && purchase.AccessEndsAtUtc is { } end && nowUtc >= end))
+            .OrderByDescending(purchase => purchase.AccessEndsAtUtc)
+            .FirstOrDefault();
+        if (ended is null)
+        {
+            return None;
+        }
+
+        return new StoreSubscriptionOwnership(
+            StoreSubscriptionState.None,
+            null,
+            null,
+            null,
+            null,
+            ended.StartedAtUtc,
+            ended.State == StorePurchaseState.Revoked ? StoreSubscriptionEnd.Revoked : StoreSubscriptionEnd.Expired,
+            ended.AccessEndsAtUtc);
     }
 }

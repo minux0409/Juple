@@ -934,15 +934,8 @@
     "planName": "Gói đăng ký Juple",
     "pricePerMonth": "{{price}} / tháng",
     "cadence": "Thanh toán hằng tháng. Tự động gia hạn cho đến khi bạn hủy.",
-    "cancelNote": "Bạn có thể hủy bất cứ lúc nào trong phần cài đặt đăng ký của cửa hàng. Hủy sẽ dừng các lần gia hạn sau.",
-    "accessHeading": "Quyền truy cập của bạn",
     "access": {
-      "trial": "Đang dùng miễn phí",
-      "active": "Đã đăng ký",
-      "gracePeriod": "Đã đăng ký (sự cố thanh toán)",
-      "expired": "Gói đăng ký đã kết thúc",
-      "inactive": "Chưa cần đăng ký.",
-      "unknown": "Không thể kiểm tra trạng thái truy cập của bạn."
+      "expired": "Gói đăng ký đã kết thúc"
     },
     "loading": "Đang tải...",
     "subscribe": "Đăng ký",
@@ -968,15 +961,9 @@
       "anotherAccount": "Giao dịch mua đó thuộc về tài khoản Juple khác.",
       "temporary": "Hiện chưa thể khôi phục giao dịch mua. Vui lòng thử lại."
     },
-    "trialInfo": "30 ngày đầu tiên là miễn phí. Thời gian miễn phí này do Juple cung cấp và tách biệt với việc thanh toán trên cửa hàng ứng dụng.",
     "detail": {
-      "trialDaysLeft": "Số ngày còn lại: {{days}}",
-      "trialLessThanDay": "Còn chưa đến 1 ngày",
-      "trialEndsOn": "Miễn phí đến {{date}}",
-      "activeManage": "Bạn có thể quản lý gói đăng ký trên cửa hàng ứng dụng.",
       "grace": "Thanh toán của bạn đang gặp sự cố. Hãy kiểm tra phương thức thanh toán trên cửa hàng ứng dụng để giữ quyền truy cập.",
-      "expired": "Hãy đăng ký để lưu và chỉnh sửa lại. Các liên kết đã lưu vẫn được giữ và bạn vẫn có thể xem.",
-      "expiredOn": "Quyền truy cập đã kết thúc vào {{date}}"
+      "expired": "Hãy đăng ký để lưu và chỉnh sửa lại. Các liên kết đã lưu vẫn được giữ và bạn vẫn có thể xem."
     },
     "manage": "Quản lý đăng ký",
     "manageFailed": "Không mở được cửa hàng ứng dụng. Vui lòng thử lại.",
@@ -998,6 +985,28 @@
     "ownerRequired": {
       "title": "Hiện chưa thể thay đổi",
       "message": "Chủ sở hữu bộ sưu tập này không còn gói đăng ký đang hoạt động, nên tạm thời không thể thêm hoặc thay đổi liên kết. Bạn vẫn xem được bộ sưu tập và các liên kết."
+    },
+    "status": {
+      "active": "Đang đăng ký",
+      "canceled": "Đã hủy đăng ký",
+      "expired": "Gói đăng ký đã hết hạn",
+      "revoked": "Gói đăng ký đã kết thúc",
+      "gracePeriod": "Đang đăng ký (sự cố thanh toán)",
+      "trial": "Đang dùng miễn phí",
+      "none": "Chưa đăng ký",
+      "unknown": "Không thể kiểm tra trạng thái đăng ký."
+    },
+    "row": {
+      "startedOn": "Ngày bắt đầu đăng ký",
+      "nextPaymentOn": "Ngày thanh toán tiếp theo",
+      "nextPaymentAmount": "Số tiền thanh toán tiếp theo",
+      "accessEndsOn": "Ngày kết thúc sử dụng",
+      "endedOn": "Ngày kết thúc đăng ký",
+      "trialEndsOn": "Ngày kết thúc dùng miễn phí"
+    },
+    "note": {
+      "canceled": "Bạn có thể tiếp tục sử dụng đến hết kỳ hiện tại.",
+      "trial": "Thời gian miễn phí này do Juple cung cấp."
     }
   },
   "appUpdate": {
