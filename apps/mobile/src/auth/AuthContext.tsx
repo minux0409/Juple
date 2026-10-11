@@ -9,7 +9,12 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { authorizeWithEntra, EntraAuthError, isEntraSessionInvalidError } from './entraAuthClient';
+import {
+  authorizeWithEntra,
+  EntraAuthError,
+  isEntraSessionInvalidError,
+  SIGN_IN_PARAMETERS,
+} from './entraAuthClient';
 import { decodeIdTokenClaims, extractEmailClaim } from './idTokenClaims';
 import {
   clearSession,
@@ -234,7 +239,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     );
 
     try {
-      const result = await authorizeWithEntra();
+      const result = await authorizeWithEntra(SIGN_IN_PARAMETERS);
       if (!result.accessToken) {
         throw new Error(
           'Entra authorization completed without an access token.',

@@ -1,3 +1,4 @@
+import { authorize } from 'react-native-app-auth';
 import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 // Initializes i18next so AuthProvider's own useTranslation() call has a real instance - otherwise
@@ -65,6 +66,39 @@ async function renderAuthProvider() {
 function readProbeText(renderer: ReactTestRenderer.ReactTestRenderer): string {
   return renderer.root.findByType(Text).props.children;
 }
+
+describe('AuthProvider sign-in', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('asks Entra for the account picker (prompt=select_account) and sends no login_hint or max_age', async () => {
+    jest.mocked(getValidAccessToken).mockRejectedValue(new Error('sessionUnavailable'));
+    jest.mocked(authorize).mockRejectedValue(new Error('cancelled'));
+    let signIn!: () => Promise<void>;
+    function SignInProbe() {
+      signIn = useAuth().signIn;
+      return null;
+    }
+    await act(async () => {
+      ReactTestRenderer.create(
+        <AuthProvider>
+          <SignInProbe />
+        </AuthProvider>,
+      );
+    });
+
+    await act(async () => {
+      await signIn().catch(() => undefined);
+    });
+
+    expect(authorize).toHaveBeenCalledTimes(1);
+    const parameters = jest.mocked(authorize).mock.calls[0][0].additionalParameters;
+    expect(parameters).toEqual({ prompt: 'select_account' });
+    expect(parameters).not.toHaveProperty('login_hint');
+    expect(parameters).not.toHaveProperty('max_age');
+  });
+});
 
 describe('AuthProvider bootstrap - session restore failure handling', () => {
   beforeEach(() => {

@@ -4,6 +4,7 @@ import {
   isEntraSessionInvalidError,
   REAUTHENTICATION_PARAMETERS,
   refreshEntraSession,
+  SIGN_IN_PARAMETERS,
 } from '../entraAuthClient';
 import { entraDevAuthConfig } from '../entraAuthConfig';
 
@@ -67,6 +68,23 @@ describe('entraAuthClient', () => {
     );
     // A copy - the shared constant is never handed to (and mutated by) the native side.
     expect(jest.mocked(authorize).mock.calls[0][0].additionalParameters).not.toBe(REAUTHENTICATION_PARAMETERS);
+  });
+
+  it('an ordinary sign-in asks for the account picker: prompt=select_account, no login_hint, no max_age', async () => {
+    jest.mocked(authorize).mockResolvedValue({ accessToken: 'token' } as never);
+
+    await authorizeWithEntra(SIGN_IN_PARAMETERS);
+
+    const parameters = jest.mocked(authorize).mock.calls[0][0].additionalParameters;
+    expect(parameters).toEqual({ prompt: 'select_account' });
+    expect(parameters).not.toHaveProperty('login_hint');
+    expect(parameters).not.toHaveProperty('max_age');
+    expect(parameters).not.toBe(SIGN_IN_PARAMETERS);
+  });
+
+  it('the sign-in and the re-authentication parameter sets stay distinct', () => {
+    expect(SIGN_IN_PARAMETERS).toEqual({ prompt: 'select_account' });
+    expect(REAUTHENTICATION_PARAMETERS).toEqual({ prompt: 'login', max_age: '0' });
   });
 
   it('refreshEntraSession calls react-native-app-auth.refresh with the selected config, unchanged shape', async () => {

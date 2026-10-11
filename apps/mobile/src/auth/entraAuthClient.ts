@@ -43,6 +43,17 @@ export const REAUTHENTICATION_PARAMETERS: Readonly<Record<string, string>> = {
 };
 
 /**
+ * The ordinary sign-in: prompt=select_account makes Entra show its account picker (and "use another
+ * account") instead of silently continuing with whichever account the browser's SSO session holds - so a
+ * person who signed out can choose a different account without clearing any browser data. Deliberately
+ * no login_hint (that would pre-select one account) and no max_age; the same-account re-authentication
+ * above is a separate flow and keeps prompt=login / max_age=0 / login_hint.
+ */
+export const SIGN_IN_PARAMETERS: Readonly<Record<string, string>> = {
+  prompt: 'select_account',
+};
+
+/**
  * Runs the Authorization Code + PKCE flow against Microsoft Entra External ID.
  * Does not persist, log, or decode any token. Callers own what happens next.
  */
