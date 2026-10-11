@@ -1099,7 +1099,7 @@ connection string secret을 같은 순서로 다시 배포해야 한다.
 | `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, **image digest**(`JUPLE_APP_PROD_IMAGE_DIGEST`, `sha256:`+64자 - tag는 받지 않는다), (API 키 3개와 SQL connection string은 Key Vault reference라 변수 없음), `GOOGLE_BILLING_ENABLED`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 | `billing-worker/prod.bicepparam` | `GOOGLE_BILLING_ENABLED` 포함 13개 전부 | - |
 | `notification-worker/prod.bicepparam` | 8개 전부(Firebase credential 포함) | - |
-| `web/prod.bicepparam` | ACR/CAE/identity/image tag/`API_BASE_URL`, `LAUNCH_SETTINGS_REQUIRED` | `GOOGLE_PLAY_URL`, assetlinks, `LEGAL_*` 4개(launch gate가 true면 필수) |
+| `web/prod.bicepparam` | ACR/CAE/identity/**image digest**(`JUPLE_WEB_PROD_IMAGE_DIGEST`, tag는 받지 않는다)/`API_BASE_URL`, `LAUNCH_SETTINGS_REQUIRED` | `GOOGLE_PLAY_URL`, assetlinks, `LEGAL_*` 4개(launch gate가 true면 필수) |
 | `foundation/prod.bicepparam` | 없음 | `SQL_BOOTSTRAP`, `SQL_ADMINISTRATOR_LOGIN_PASSWORD`(bootstrap 전용) |
 | `monitoring/prod.bicepparam` | `SERVICE_BUS_NAMESPACE_NAME`, `ALERT_EMAIL` | - |
 

@@ -56,7 +56,9 @@ param maxReplicas = 2
 param acrLoginServer = readEnvironmentVariable('JUPLE_WEB_PROD_ACR_LOGIN_SERVER')
 param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_WEB_PROD_CONTAINER_APPS_ENVIRONMENT_ID')
 param managedIdentityResourceId = readEnvironmentVariable('JUPLE_WEB_PROD_MANAGED_IDENTITY_RESOURCE_ID')
-param imageTag = readEnvironmentVariable('JUPLE_WEB_PROD_IMAGE_TAG')
+// Production deploys an IMMUTABLE digest (sha256:<64 hex>), never a tag - the digest of the image built from a
+// known commit, inspected and pushed. No tag is passed at all.
+param imageDigest = readEnvironmentVariable('JUPLE_WEB_PROD_IMAGE_DIGEST')
 // The Production API's own live origin (its containerAppFqdn before api.juple.co.kr is bound, or
 // that custom domain afterward) - a genuinely per-deployment value, never a literal, same
 // treatment as dev.bicepparam's own apiBaseUrl.

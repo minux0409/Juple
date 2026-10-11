@@ -23,7 +23,10 @@ param acrLoginServer string
 param imageRepository string = 'juple-web'
 
 @description('Image tag to deploy. No default on purpose, same reasoning as ../app/main.bicep: the deployer picks an explicit, already-pushed tag every time.')
-param imageTag string
+param imageTag string = ''
+
+@description('Immutable image digest ("sha256:" + 64 hex characters) to deploy instead of a tag - Production pins the exact image that was built, inspected and pushed. When set it wins over imageTag and the reference becomes {acrLoginServer}/{imageRepository}@{imageDigest}. Empty = use imageTag (Dev).')
+param imageDigest string = ''
 
 @description('Container Apps Environment resource ID - Foundation output "containerAppsEnvironmentId".')
 param containerAppsEnvironmentId string
@@ -98,7 +101,20 @@ var legalEnv = map(filter(items(legalEnvEntries), entry => !empty(entry.value)),
 })
 
 var containerAppName = 'ca-juple-web-${environmentName}'
-var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+var containerImage = empty(imageDigest)
+  ? '${acrLoginServer}/${imageRepository}:${imageTag}'
+  : '${acrLoginServer}/${imageRepository}@${imageDigest}'
+
+// Fail-closed image reference, shared with the API template (see ../app/image-reference-guard.bicep): an image must
+// be named (no floating-tag fallback) and a digest must have the exact length of a sha256 reference.
+module imageReferenceGuard '../app/image-reference-guard.bicep' = {
+  name: 'juple-${environmentName}-web-image-reference-guard'
+  params: {
+    #disable-next-line BCP329
+    imageReferenceSupplied: (empty(imageTag) ? 0 : 1) + (empty(imageDigest) ? 0 : 1)
+    imageDigestLength: length(imageDigest)
+  }
+}
 
 // Both-or-neither: a custom domain binding is meaningless without the certificate that covers it,
 // and vice versa. An environment with neither yet (a brand new environment, or Dev before its
