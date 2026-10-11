@@ -23,7 +23,8 @@ export type AppUpdateStatus = 'current' | 'optional' | 'required';
 
 const isBuildNumber = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0;
 
-function parsePlatform(raw: unknown): PlatformVersionPolicy | null {
+/** One platform policy object (from the bootstrap response or the sign-in-free endpoint); null when absent or unusable. */
+export function parsePlatformVersionPolicy(raw: unknown): PlatformVersionPolicy | null {
   if (typeof raw !== 'object' || raw === null) {
     return null;
   }
@@ -45,8 +46,8 @@ export function parseMobileVersionPolicy(raw: unknown): MobileVersionPolicy | nu
     return null;
   }
   const value = raw as Record<string, unknown>;
-  const android = parsePlatform(value.android);
-  const ios = parsePlatform(value.ios);
+  const android = parsePlatformVersionPolicy(value.android);
+  const ios = parsePlatformVersionPolicy(value.ios);
   return android === null && ios === null ? null : { android, ios };
 }
 

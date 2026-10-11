@@ -212,14 +212,26 @@ builder.Services.AddSingleton<ICollectionSharePasswordProtector, CollectionShare
 builder.Services.AddScoped<ICollectionSharePasswordService, CollectionSharePasswordService>();
 builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("PublicWeb"));
 builder.Services.Configure<MobileVersionPolicyOptions>(builder.Configuration.GetSection("MobileVersionPolicy"));
+// A broken policy would tell users to update to nothing (or block them). It must not take the whole API down either (a bad value in a
+// one-line setting is not a reason for every user to lose the service), so each broken platform is treated as "no policy" - nobody is
+// prompted or blocked - and the problem is logged loudly at startup. The deployment templates reject such values during validation
+// (infra/azure/app/mobile-version-policy-guard.bicep), so this is only the last line of defence.
+builder.Services.PostConfigure<MobileVersionPolicyOptions>(policy =>
 {
-    // A broken policy would tell users to update to nothing (or block them): refuse to start instead.
-    var mobileVersionPolicyProblem = (builder.Configuration.GetSection("MobileVersionPolicy").Get<MobileVersionPolicyOptions>() ?? new MobileVersionPolicyOptions()).Validate();
-    if (mobileVersionPolicyProblem is not null)
+    foreach (var (name, platform) in new[] { ("Android", policy.Android), ("Ios", policy.Ios) })
     {
-        throw new InvalidOperationException(mobileVersionPolicyProblem);
+        var problem = platform.Validate(name);
+        if (problem is null)
+        {
+            continue;
+        }
+
+        Console.Error.WriteLine($"MobileVersionPolicy ignored for {name}: {problem}");
+        platform.LatestBuild = 0;
+        platform.MinimumSupportedBuild = 0;
+        platform.StoreUrl = null;
     }
-}
+});
 builder.Services.Configure<PublicCollectionCursorOptions>(
     builder.Configuration.GetSection("PublicCollectionCursor"));
 builder.Services.Configure<CollectionUnlockGrantOptions>(

@@ -1,10 +1,12 @@
 import ReactTestRenderer, { act } from 'react-test-renderer';
-import { Linking, Platform } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import i18n from '../../i18n';
 import { parseEntitlement } from '../../auth/userBootstrapApi';
 import { useAuth } from '../../auth/AuthContext';
 import { AppUpdateGate, resetAppUpdatePromptMemory } from '../AppUpdateGate';
+import { fetchAppUpdatePolicy } from '../appUpdatePolicyApi';
+import { OPTIONAL_UPDATE_SNOOZE_MS, type OptionalUpdateSnooze } from '../optionalUpdateSnooze';
 import { openStore, storeTargets } from '../openStore';
 import {
   evaluateAppUpdate,
@@ -15,6 +17,15 @@ import {
 } from '../versionPolicy';
 
 jest.mock('../../auth/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('../appUpdatePolicyApi', () => ({ fetchAppUpdatePolicy: jest.fn() }));
+const mockSnooze: { value: OptionalUpdateSnooze | null } = { value: null };
+jest.mock('../optionalUpdateSnooze', () => ({
+  ...jest.requireActual('../optionalUpdateSnooze'),
+  loadOptionalUpdateSnooze: jest.fn(async () => mockSnooze.value),
+  saveOptionalUpdateSnooze: jest.fn(async (latestBuild: number, now: number) => {
+    mockSnooze.value = { latestBuild, dismissedAt: now };
+  }),
+}));
 jest.mock('react-native-device-info', () => ({
   __esModule: true,
   default: { getBuildNumber: jest.fn(), getBundleId: jest.fn(() => 'com.juple.app') },
@@ -134,9 +145,9 @@ describe('AppUpdateGate', () => {
   const setAuth = (overrides: Record<string, unknown>) =>
     jest.mocked(useAuth).mockReturnValue({ isAuthenticated: true, userBootstrapStatus: 'ready', mobileVersionPolicy: null, ...overrides } as never);
   const setBuild = (build: string) => jest.mocked(DeviceInfo.getBuildNumber).mockReturnValue(build);
-  const render = () => {
+  const render = async () => {
     let renderer!: Renderer;
-    act(() => {
+    await act(async () => {
       renderer = ReactTestRenderer.create(<AppUpdateGate />);
     });
     mounted.push(renderer);
@@ -146,6 +157,10 @@ describe('AppUpdateGate', () => {
 
   beforeEach(() => {
     resetAppUpdatePromptMemory();
+    mockSnooze.value = null;
+    // No sign-in-free answer unless a test provides one: the bootstrap policy is then what counts, exactly as before.
+    jest.mocked(fetchAppUpdatePolicy).mockReset();
+    jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: false });
     Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'android' });
   });
   afterEach(() => {
@@ -153,25 +168,25 @@ describe('AppUpdateGate', () => {
     jest.restoreAllMocks();
   });
 
-  it('the latest build (or no policy, or not signed in yet) shows nothing', () => {
+  it('the latest build (or no policy, or not signed in yet) shows nothing', async () => {
     setBuild('10');
     setAuth({ mobileVersionPolicy: policy([10, 6]) });
-    expect(dialog(render())).toBeUndefined();
+    expect(dialog(await render())).toBeUndefined();
 
     setAuth({ mobileVersionPolicy: null });
-    expect(dialog(render())).toBeUndefined();
+    expect(dialog(await render())).toBeUndefined();
 
     setAuth({ mobileVersionPolicy: policy([99, 90]), isAuthenticated: false });
-    expect(dialog(render())).toBeUndefined();
+    expect(dialog(await render())).toBeUndefined();
     setAuth({ mobileVersionPolicy: policy([99, 90]), userBootstrapStatus: 'unavailable' });
-    expect(dialog(render())).toBeUndefined();
+    expect(dialog(await render())).toBeUndefined();
   });
 
-  it('an older but supported build gets "업데이트가 있습니다" with 나중에 / 업데이트', () => {
+  it('an older but supported build gets "업데이트가 있습니다" with 나중에 / 업데이트', async () => {
     setBuild('4');
     setAuth({ mobileVersionPolicy: policy([5, 1]) });
 
-    const shown = dialog(render());
+    const shown = dialog(await render());
 
     expect(shown.props.title).toBe('업데이트가 있습니다');
     expect(shown.props.message).toBe('새로운 버전의 Juple을 사용할 수 있습니다.');
@@ -179,25 +194,25 @@ describe('AppUpdateGate', () => {
     expect(shown.props.confirmLabel).toBe('업데이트');
   });
 
-  it('나중에 dismisses it, and it does not come back in the same session (even for a fresh mount)', () => {
+  it('나중에 dismisses it, and it does not come back in the same session (even for a fresh mount)', async () => {
     setBuild('4');
     setAuth({ mobileVersionPolicy: policy([5, 1]) });
-    const renderer = render();
+    const renderer = await render();
 
-    act(() => dialog(renderer).props.onCancel());
+    await act(async () => dialog(renderer).props.onCancel());
 
     expect(dialog(renderer)).toBeUndefined();
-    expect(dialog(render())).toBeUndefined();
+    expect(dialog(await render())).toBeUndefined();
     // A NEWER latest build is a new question.
     setAuth({ mobileVersionPolicy: policy([6, 1]) });
-    expect(dialog(render())).toBeDefined();
+    expect(dialog(await render())).toBeDefined();
   });
 
   it('업데이트 opens the Play Store on Android', async () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     setBuild('4');
     setAuth({ mobileVersionPolicy: policy([5, 1]) });
-    const renderer = render();
+    const renderer = await render();
 
     await act(async () => dialog(renderer).props.onConfirm());
 
@@ -209,7 +224,7 @@ describe('AppUpdateGate', () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     setBuild('2');
     setAuth({ mobileVersionPolicy: policy([5, 3]) });
-    const renderer = render();
+    const renderer = await render();
 
     const shown = dialog(renderer);
     expect(shown.props.title).toBe('업데이트가 필요합니다');
@@ -228,7 +243,7 @@ describe('AppUpdateGate', () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     setBuild('1');
     setAuth({ mobileVersionPolicy: policy([99, 90], [2, 2, 'https://apps.apple.com/app/id123']) });
-    const renderer = render();
+    const renderer = await render();
 
     expect(dialog(renderer).props.title).toBe('업데이트가 필요합니다');
     await act(async () => dialog(renderer).props.onConfirm());
@@ -236,16 +251,167 @@ describe('AppUpdateGate', () => {
 
     open.mockClear();
     setAuth({ mobileVersionPolicy: policy([99, 90], [2, 2]) });
-    const noUrl = render();
+    const noUrl = await render();
     await act(async () => dialog(noUrl).props.onConfirm());
     expect(open).not.toHaveBeenCalled();
     expect(dialog(noUrl).props.message).toBe('스토어를 열지 못했어요. 잠시 후 다시 시도해 주세요.');
   });
 
-  it('a build number it cannot read never blocks', () => {
+  it('a build number it cannot read never blocks', async () => {
     jest.mocked(DeviceInfo.getBuildNumber).mockReturnValue('unknown');
     setAuth({ mobileVersionPolicy: policy([99, 90]) });
 
-    expect(dialog(render())).toBeUndefined();
+    expect(dialog(await render())).toBeUndefined();
+  });
+
+  describe('without signing in (the policy comes from the anonymous endpoint)', () => {
+    const answer = (latest: number, minimum: number, storeUrl: string | null = null) =>
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: latest, minimumSupportedBuild: minimum, storeUrl } });
+    const signedOut = () => setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+
+    it('an optional update is offered on the sign-in screen, before any session exists', async () => {
+      setBuild('24');
+      answer(25, 24);
+      signedOut();
+
+      const shown = dialog(await render());
+
+      expect(shown.props.title).toBe('업데이트가 있습니다');
+      expect(shown.props.cancelLabel).toBe('나중에');
+      expect(fetchAppUpdatePolicy).toHaveBeenCalledWith('android');
+    });
+
+    it('a required update blocks the signed-out app too, with no way to dismiss it', async () => {
+      setBuild('24');
+      answer(25, 25);
+      signedOut();
+
+      const shown = dialog(await render());
+
+      expect(shown.props.title).toBe('업데이트가 필요합니다');
+      expect(shown.props.cancelLabel).toBeUndefined();
+      expect(shown.props.onCancel).toBeUndefined();
+    });
+
+    it('latest, newer-than-latest and disabled answers show nothing', async () => {
+      setBuild('24');
+      signedOut();
+      answer(24, 23);
+      expect(dialog(await render())).toBeUndefined();
+
+      setBuild('30');
+      expect(dialog(await render())).toBeUndefined();
+
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: null });
+      setBuild('1');
+      expect(dialog(await render())).toBeUndefined();
+    });
+
+    it('fails open: an unreachable or unusable answer never nags or blocks', async () => {
+      setBuild('1');
+      signedOut();
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: false });
+      expect(dialog(await render())).toBeUndefined();
+
+      jest.mocked(fetchAppUpdatePolicy).mockRejectedValue(new Error('offline'));
+      expect(dialog(await render())).toBeUndefined();
+    });
+
+    it('the bootstrap policy still applies after sign-in when the endpoint gave nothing', async () => {
+      setBuild('4');
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: false });
+      setAuth({ mobileVersionPolicy: policy([5, 1]) });
+
+      expect(dialog(await render()).props.title).toBe('업데이트가 있습니다');
+    });
+
+    it('iOS never gets the Android policy: it asks for its own platform, and an empty answer shows nothing', async () => {
+      Object.defineProperty(Platform, 'OS', { configurable: true, get: () => 'ios' });
+      setBuild('1');
+      signedOut();
+      jest.mocked(fetchAppUpdatePolicy).mockImplementation(async platform =>
+        platform === 'android' ? { ok: true, policy: { latestBuild: 99, minimumSupportedBuild: 99, storeUrl: null } } : { ok: true, policy: null });
+
+      expect(dialog(await render())).toBeUndefined();
+      expect(fetchAppUpdatePolicy).toHaveBeenCalledWith('ios');
+      expect(fetchAppUpdatePolicy).not.toHaveBeenCalledWith('android');
+    });
+  });
+
+  describe('optional update snooze (24 hours, per latest build)', () => {
+    const answer = (latest: number, minimum: number) =>
+      jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: latest, minimumSupportedBuild: minimum, storeUrl: null } });
+
+    it('나중에 is remembered across launches for that build', async () => {
+      setBuild('24');
+      answer(25, 24);
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      const first = await render();
+
+      await act(async () => dialog(first).props.onCancel());
+
+      expect(mockSnooze.value).toMatchObject({ latestBuild: 25 });
+      // A fresh process: the in-memory answers are gone, the stored one is not.
+      resetAppUpdatePromptMemory();
+      expect(dialog(await render())).toBeUndefined();
+    });
+
+    it('asks again after 24 hours, and at once for a newer latest build', async () => {
+      setBuild('24');
+      answer(25, 24);
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      const now = Date.now();
+
+      mockSnooze.value = { latestBuild: 25, dismissedAt: now - OPTIONAL_UPDATE_SNOOZE_MS + 60_000 };
+      expect(dialog(await render())).toBeUndefined();
+
+      mockSnooze.value = { latestBuild: 25, dismissedAt: now - OPTIONAL_UPDATE_SNOOZE_MS - 60_000 };
+      expect(dialog(await render())).toBeDefined();
+
+      mockSnooze.value = { latestBuild: 24, dismissedAt: now };
+      expect(dialog(await render())).toBeDefined();
+    });
+
+    it('a required update ignores any snooze', async () => {
+      setBuild('24');
+      answer(25, 25);
+      setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+      mockSnooze.value = { latestBuild: 25, dismissedAt: Date.now() };
+
+      expect(dialog(await render()).props.title).toBe('업데이트가 필요합니다');
+    });
+  });
+
+  describe('coming back to the foreground', () => {
+    it('re-reads the policy, so a policy change (or a finished update) is seen without restarting', async () => {
+      jest.useFakeTimers({ now: new Date('2026-10-12T00:00:00Z'), doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+      try {
+        let listener: ((state: string) => void) | undefined;
+        jest.spyOn(AppState, 'addEventListener').mockImplementation(((_type: string, handler: (state: string) => void) => {
+          listener = handler;
+          return { remove: jest.fn() };
+        }) as never);
+        setBuild('23');
+        setAuth({ isAuthenticated: false, userBootstrapStatus: 'idle', mobileVersionPolicy: null });
+        jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 25, storeUrl: null } });
+        const renderer = await render();
+        expect(dialog(renderer).props.title).toBe('업데이트가 필요합니다');
+        expect(fetchAppUpdatePolicy).toHaveBeenCalledTimes(1);
+
+        // Returning at once does not hammer the server...
+        await act(async () => listener?.('active'));
+        expect(fetchAppUpdatePolicy).toHaveBeenCalledTimes(1);
+
+        // ...but a later return asks again, and a lifted requirement is honoured.
+        jest.setSystemTime(new Date('2026-10-12T00:05:00Z'));
+        jest.mocked(fetchAppUpdatePolicy).mockResolvedValue({ ok: true, policy: { latestBuild: 25, minimumSupportedBuild: 23, storeUrl: null } });
+        await act(async () => listener?.('active'));
+
+        expect(fetchAppUpdatePolicy).toHaveBeenCalledTimes(2);
+        expect(dialog(renderer).props.title).toBe('업데이트가 있습니다');
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 });

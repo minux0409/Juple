@@ -131,17 +131,19 @@ param billingEventsServiceBusNamespace = readEnvironmentVariable('JUPLE_APP_PROD
 param billingProgramEnabled = false
 
 // -----------------------------------------------------------------------------------------------
-// Mobile update policy (MobileVersionPolicy) - Android builds are versionCode numbers.
-// 0 / 0 = no policy: nobody is prompted and nobody is blocked. Production has no store build yet.
-// When the first Production build is DOWNLOADABLE from Google Play, set mobileAndroidLatestBuild to
-// its versionCode (optional update prompt for older builds). Raise mobileAndroidMinimumSupportedBuild
-// only when older builds are unsafe/incompatible, and only after the new build is confirmed
-// downloadable (docs/architecture.md "App update policy" / "Release compatibility rule"). The values
-// are literals on purpose: a build number is a reviewed release decision, not a per-deploy secret.
-// -----------------------------------------------------------------------------------------------
-param mobileAndroidLatestBuild = 0
-param mobileAndroidMinimumSupportedBuild = 0
-// mobileAndroidStoreUrl is left unassigned (empty): the app falls back to its own Play listing.
+// Mobile update policy (MobileVersionPolicy) - Android builds are versionCode numbers. The app reads it from the anonymous
+// GET /api/v1/app-update/android (and from the bootstrap response); a policy change is a configuration deployment, not an app release.
+//
+// Operations rule - NEVER raise a number before that build is DOWNLOADABLE by the people who would be told to update:
+//   1. upload the new AAB to the target Play track and confirm a target account can actually update to it;
+//   2. only then set mobileAndroidLatestBuild (optional prompt: the build is older than the latest), and
+//   3. raise mobileAndroidMinimumSupportedBuild only when older builds must stop (forced update: a blocking dialog with no way in).
+// A forced minimum for a build Play is not yet serving would lock users out of the app.
+//   optional update:  latest = 25, minimum = 24     required update:  latest = 25, minimum = 25
+// Initial values for the first build that carries this client (versionCode 24); 23 predates the pre-sign-in check.
+param mobileAndroidLatestBuild = 24
+param mobileAndroidMinimumSupportedBuild = 23
+param mobileAndroidStoreUrl = 'https://play.google.com/store/apps/details?id=com.juple.app'
 // iOS is not released: mobileIos* stay at main.bicep's own defaults (0 / 0 / empty).
 
 // Application Insights connection string (../monitoring/main.bicep). Optional and currently inert -

@@ -127,6 +127,21 @@ var containerImage = empty(imageDigest)
   ? '${acrLoginServer}/${imageRepository}:${imageTag}'
   : '${acrLoginServer}/${imageRepository}@${imageDigest}'
 
+// Fail-closed mobile update policy (see mobile-version-policy-guard.bicep): a contradictory or non-https policy is refused at validation.
+module mobileVersionPolicyGuard 'mobile-version-policy-guard.bicep' = {
+  name: 'juple-${environmentName}-mobile-version-policy-guard'
+  params: {
+    #disable-next-line BCP329
+    androidMinimumNotAboveLatest: mobileAndroidMinimumSupportedBuild <= mobileAndroidLatestBuild ? 1 : 0
+    #disable-next-line BCP329
+    iosMinimumNotAboveLatest: mobileIosMinimumSupportedBuild <= mobileIosLatestBuild ? 1 : 0
+    #disable-next-line BCP329
+    storeUrlsAreHttpsOrEmpty: (empty(mobileAndroidStoreUrl) || startsWith(mobileAndroidStoreUrl, 'https://')) && (empty(mobileIosStoreUrl) || startsWith(mobileIosStoreUrl, 'https://')) ? 1 : 0
+    #disable-next-line BCP329
+    buildsAreNotNegative: mobileAndroidLatestBuild >= 0 && mobileAndroidMinimumSupportedBuild >= 0 && mobileIosLatestBuild >= 0 && mobileIosMinimumSupportedBuild >= 0 ? 1 : 0
+  }
+}
+
 // Fail-closed image reference (see image-reference-guard.bicep): an image must be named, and a digest must have
 // the exact shape of a sha256 digest. Dev (tag only) is unaffected.
 module imageReferenceGuard 'image-reference-guard.bicep' = {
