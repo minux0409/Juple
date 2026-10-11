@@ -1096,12 +1096,18 @@ connection string secret을 같은 순서로 다시 배포해야 한다.
 
 | 파일 | 필수(기본값 없음) | 선택 |
 | --- | --- | --- |
-| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, image tag, (API 키 3개와 SQL connection string은 Key Vault reference라 변수 없음), `GOOGLE_BILLING_ENABLED`, `GOOGLE_PRODUCT_ID`, `GOOGLE_BASE_PLAN_ID`, `GOOGLE_PUBSUB_AUDIENCE`, `GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
+| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, **image digest**(`JUPLE_APP_PROD_IMAGE_DIGEST`, `sha256:`+64자 - tag는 받지 않는다), (API 키 3개와 SQL connection string은 Key Vault reference라 변수 없음), `GOOGLE_BILLING_ENABLED`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 | `billing-worker/prod.bicepparam` | `GOOGLE_BILLING_ENABLED` 포함 13개 전부 | - |
 | `notification-worker/prod.bicepparam` | 8개 전부(Firebase credential 포함) | - |
 | `web/prod.bicepparam` | ACR/CAE/identity/image tag/`API_BASE_URL`, `LAUNCH_SETTINGS_REQUIRED` | `GOOGLE_PLAY_URL`, assetlinks, `LEGAL_*` 4개(launch gate가 true면 필수) |
 | `foundation/prod.bicepparam` | 없음 | `SQL_BOOTSTRAP`, `SQL_ADMINISTRATOR_LOGIN_PASSWORD`(bootstrap 전용) |
 | `monitoring/prod.bicepparam` | `SERVICE_BUS_NAMESPACE_NAME`, `ALERT_EMAIL` | - |
+
+**Production image는 digest로 고정한다.** `app/main.bicep`은 `imageDigest`(`sha256:` + 64자)를 받으면 `{acr}/{repo}@{digest}`를
+쓰고(Dev는 기존대로 `imageTag`), 둘 다 없으면 `image-reference-guard.bicep`이 validation에서 거절한다(`latest` 같은 floating
+tag로 fallback하는 경로가 없다). digest 형태(길이 71)도 거절 조건이다. `app/prod.bicepparam`은 tag를 받지 않고
+`JUPLE_APP_PROD_IMAGE_DIGEST`만 받는다. Product/plan/audience/푸시 서비스계정 4개 값은 billing이 **명시적으로 꺼져 있을 때만** 비워 둘 수
+있고(`billing-settings-guard.bicep`이 켜진 경우 비어 있으면 거절), 값을 임의 placeholder로 채우지 않는다.
 
 **Billing은 조용히 꺼지지 않는다.** `app/main.bicep`/`billing-worker/main.bicep`의 `googleBillingEnabled`
 기본값은 환경 공유 때문에 `false`로 남기되, Production bicepparam은 기본값 없이 명시를 요구한다('true'/'false'만

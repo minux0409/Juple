@@ -16,8 +16,11 @@ param acrLoginServer string
 @description('Repository name within the ACR. The image must already exist as {acrLoginServer}/{imageRepository}:{imageTag} before this deployment runs - this template never builds or pushes it.')
 param imageRepository string = 'juple-api'
 
-@description('Image tag to deploy. No default on purpose - this template does not decide a floating-tag (e.g. "latest") strategy; the deployer picks an explicit, already-pushed tag every time.')
-param imageTag string
+@description('Image tag to deploy (Dev workflow). Empty only when imageDigest is used. This template never decides a floating-tag (e.g. "latest") strategy; the deployer picks an explicit, already-pushed tag every time.')
+param imageTag string = ''
+
+@description('Immutable image digest ("sha256:" + 64 hex characters) to deploy instead of a tag - Production pins the exact image that was built, scanned and pushed, so a re-pushed tag can never change what runs. When set it wins over imageTag and the image reference becomes {acrLoginServer}/{imageRepository}@{imageDigest}. Empty = use imageTag.')
+param imageDigest string = ''
 
 @description('Container Apps Environment resource ID - Foundation output "containerAppsEnvironmentId".')
 param containerAppsEnvironmentId string
@@ -120,7 +123,20 @@ var containerAppName = 'ca-juple-api-${environmentName}'
 // the split keeps Production from running under a Dev-looking name and leaves room for
 // Production-only configuration. The one-shot Jobs set none (.NET's own default, "Production").
 var aspNetCoreEnvironment = environmentName == 'prod' ? 'Production' : 'AzureDevelopment'
-var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+var containerImage = empty(imageDigest)
+  ? '${acrLoginServer}/${imageRepository}:${imageTag}'
+  : '${acrLoginServer}/${imageRepository}@${imageDigest}'
+
+// Fail-closed image reference (see image-reference-guard.bicep): an image must be named, and a digest must have
+// the exact shape of a sha256 digest. Dev (tag only) is unaffected.
+module imageReferenceGuard 'image-reference-guard.bicep' = {
+  name: 'juple-${environmentName}-api-image-reference-guard'
+  params: {
+    #disable-next-line BCP329
+    imageReferenceSupplied: (empty(imageTag) ? 0 : 1) + (empty(imageDigest) ? 0 : 1)
+    imageDigestLength: length(imageDigest)
+  }
+}
 
 // Both-or-neither: a custom domain binding is meaningless without the certificate that covers it,
 // and vice versa. An environment with neither yet (Dev today) deploys with an empty customDomains

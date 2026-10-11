@@ -73,7 +73,9 @@ param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_APP_PROD_CONTA
 param managedIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_IDENTITY_RESOURCE_ID')
 param managedIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_IDENTITY_CLIENT_ID')
 param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_PROD_STORAGE_BLOB_SERVICE_URI')
-param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
+// Production deploys an IMMUTABLE digest (sha256:<64 hex>), never a tag: the digest of the image that was built
+// from a known commit, inspected and pushed. No tag is passed at all.
+param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 // The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string in the
 // Production vault, built for the contained database user juple_runtime - never the administrator), resolved
 // through this workload's managed identity. The deployer never reads or passes it: there is no environment
@@ -105,13 +107,16 @@ param apiKeysFromKeyVault = true
 // never carries one.
 // -----------------------------------------------------------------------------------------------
 param googleBillingEnabled = bool(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BILLING_ENABLED'))
-param googleProductId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PRODUCT_ID')
-param googleBasePlanId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_ID')
+// The four Google values below may stay empty ONLY while billing is explicitly off: when googleBillingEnabled is
+// true an empty one stops the deployment during validation (billing-settings-guard.bicep) and the API itself
+// refuses to start. They are not placeholders - an empty value means "no Play product configured yet".
+param googleProductId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PRODUCT_ID', '')
+param googleBasePlanId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_ID', '')
 // The exact RTDN webhook URL the Production Pub/Sub push subscription is configured with
 // (https://api.juple.co.kr/api/v1/billing/google/rtdn once that domain is bound) and the push
 // subscription's service account e-mail.
-param googlePubSubAudience = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUBSUB_AUDIENCE')
-param googlePushServiceAccountEmail = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL')
+param googlePubSubAudience = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUBSUB_AUDIENCE', '')
+param googlePushServiceAccountEmail = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL', '')
 // Foundation's billing.bicep output "keyVaultUri" (trailing slash).
 param billingKeyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_KEY_VAULT_URI')
 // Foundation output "serviceBusNamespaceFqdn": the notification fast path (NotificationPipeline__ServiceBusNamespace)
