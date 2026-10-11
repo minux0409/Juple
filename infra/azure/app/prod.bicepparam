@@ -26,8 +26,8 @@ param containerAppsEnvironmentName = 'cae-juple-prod'
 // the same one-time CLI step ../web/dev.bicepparam's own customDomainName documents for Dev. Once
 // that happens, replace these two lines with the real values - never guess a Managed Certificate
 // name in advance.
-param customDomainName = ''
-param managedCertificateName = ''
+param customDomainName = 'api.juple.co.kr'
+param managedCertificateName = 'mc-cae-juple-prod-api-juple-co-kr-5548'
 
 // The Production Entra External ID tenant does not exist yet - no literal to commit, unlike
 // dev.bicepparam's own (already-live) Dev tenant values. readEnvironmentVariable() makes a

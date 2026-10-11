@@ -23,8 +23,8 @@ param containerAppsEnvironmentName = 'cae-juple-prod'
 // ../README.md) is actually verified and bound via `az containerapp hostname add`/`bind`, the same
 // one-time CLI step this file's Dev counterpart documents for dev.juple.co.kr. Once that happens,
 // replace these two lines with the real values - never guess a Managed Certificate name in advance.
-param customDomainName = ''
-param managedCertificateName = ''
+param customDomainName = 'juple.co.kr'
+param managedCertificateName = 'mc-cae-juple-prod-juple-co-kr-2013'
 
 // Confirmed initial Production scale decision (see ../README.md's "Production SKU/scale" section
 // for the full reasoning) - a fixed fact about how Production is meant to run, not a live-generated
