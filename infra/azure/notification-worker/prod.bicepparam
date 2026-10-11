@@ -17,7 +17,8 @@ param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_APP_PROD_CONTA
 param notificationWorkerIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_NOTIFICATION_WORKER_IDENTITY_RESOURCE_ID')
 param notificationWorkerIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_NOTIFICATION_WORKER_IDENTITY_CLIENT_ID')
 param serviceBusNamespaceName = readEnvironmentVariable('JUPLE_APP_PROD_SERVICE_BUS_NAMESPACE_NAME')
-param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
+// Production pins the exact image the API runs (the same digest variable as ../app/prod.bicepparam), never a tag.
+param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 // The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string in the
 // Production vault, built for the contained database user juple_runtime - never the administrator), resolved
 // through this workload's managed identity. The deployer never reads or passes it: there is no environment
@@ -27,4 +28,9 @@ param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
 param sqlConnectionStringFromKeyVault = true
 // The vault the runtime connection string is read from (billing.bicep output keyVaultUri, trailing slash).
 param keyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_KEY_VAULT_URI')
-param firebaseServiceAccountKeyJson = readEnvironmentVariable('JUPLE_APP_PROD_FIREBASE_SERVICE_ACCOUNT_KEY_JSON')
+// The FCM v1 service-account JSON of the PRODUCTION Firebase project (juple-production) is a Key Vault reference
+// (secret firebase-service-account-key-json), resolved through this workload's own managed identity, which holds
+// a reader role scoped to that one secret (../foundation/key-vault-secret-reader.bicep). The deployer never reads
+// or passes it: there is no environment variable for it, and a value supplied anyway is refused during validation
+// (../app/firebase-credential-source-guard.bicep).
+param firebaseCredentialFromKeyVault = true

@@ -20,8 +20,11 @@ param acrLoginServer string
 @description('Repository name within the ACR - must match ../app/main.bicep\'s imageRepository (same image, reused as-is).')
 param imageRepository string = 'juple-api'
 
-@description('Image tag to deploy. No default on purpose, same reasoning as ../app/main.bicep - the deployer picks an explicit, already-pushed tag every time. Should normally match whatever tag the Container App (../app/main.bicep) is running, so the Job dispatches against the same code the API validates Notifications/RepeatPurchases with.')
-param imageTag string
+@description('Image tag to deploy. Empty only when imageDigest is used - the template never picks an image on its own, same reasoning as ../app/main.bicep - the deployer picks an explicit, already-pushed tag every time. Should normally match whatever tag the Container App (../app/main.bicep) is running, so the Job dispatches against the same code the API validates Notifications/RepeatPurchases with.')
+param imageTag string = ''
+
+@description('Immutable image digest ("sha256:" + 64 hex characters) to deploy instead of a tag - Production pins the exact image the API runs, so a re-pushed tag can never change what runs. When set it wins over imageTag and the reference becomes {acrLoginServer}/{imageRepository}@{imageDigest}. Empty = use imageTag (Dev).')
+param imageDigest string = ''
 
 @description('Container Apps Environment resource ID - Foundation output "containerAppsEnvironmentId". Same Environment as the API Container App - this is a scheduled Job, not a second always-on app, so it does not need its own Environment.')
 param containerAppsEnvironmentId string
@@ -44,7 +47,13 @@ param keyVaultUri string = ''
 
 @description('Firebase service-account credential JSON (FCM v1 - see FirebaseCloudMessagingSender) for this Job\'s IPushSender. Deliberately never supplied to the API Container App (../app/main.bicep has no equivalent parameter) - the API never sends Push itself, only this Job does, so only this Job needs it. Never put a real value in a checked-in parameter file.')
 @secure()
-param firebaseServiceAccountKeyJson string
+param firebaseServiceAccountKeyJson string = ''
+
+@description('Where the Firebase credential comes from. false (default - Dev): the @secure() firebaseServiceAccountKeyJson parameter carries the VALUE into a Container Apps secret. true (Production): a Key Vault reference to the secret named by firebaseCredentialSecretName, resolved at runtime through this Job\'s own managed identity - the deployer never reads or passes the credential, and a supplied one is refused by ../app/firebase-credential-source-guard.bicep. Requires the Key Vault URI.')
+param firebaseCredentialFromKeyVault bool = false
+
+@description('Key Vault secret NAME (never a value) of the Firebase service-account JSON - used only when firebaseCredentialFromKeyVault. The Container Apps secret keeps its own name, firebase-credential, so the env secretRef is unchanged.')
+param firebaseCredentialSecretName string = 'firebase-service-account-key-json'
 
 @description('UTC cron expression - Container Apps Job schedules are always UTC, never local/server time (matches this project\'s own DateTimeOffset/UTC-storage convention). Default: every minute - friend request and Collection invitation Push should arrive within about a minute. Overlapping executions are safe: NotificationDeliveryStore.TryClaimAsync sends each (notification, device) pair at most once.')
 param cronExpression string = '* * * * *'
@@ -60,7 +69,21 @@ param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
 
 var jobName = 'caj-juple-push-dispatch-${environmentName}'
-var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
+var containerImage = empty(imageDigest)
+  ? '${acrLoginServer}/${imageRepository}:${imageTag}'
+  : '${acrLoginServer}/${imageRepository}@${imageDigest}'
+
+// Fail-closed image reference, shared with the API template (see ../app/image-reference-guard.bicep): an image must
+// be named (no floating-tag fallback) and a digest must have the exact length of a sha256 reference.
+module imageReferenceGuard '../app/image-reference-guard.bicep' = {
+  name: 'juple-${environmentName}-job-image-reference-guard'
+  params: {
+    #disable-next-line BCP329
+    imageReferenceSupplied: (empty(imageTag) ? 0 : 1) + (empty(imageDigest) ? 0 : 1)
+    imageDigestLength: length(imageDigest)
+  }
+}
+
 
 // The SQL connection string secret: a Key Vault reference (vault mode) or the supplied value (parameter mode).
 // Same secret name in both modes, so the env secretRef below never changes.
@@ -92,6 +115,38 @@ module sqlConnectionSourceParameterGuard '../app/sql-connection-source-guard.bic
   params: {
     #disable-next-line BCP329
     connectionStringSupplied: empty(sqlConnectionString) ? 0 : 1
+  }
+}
+
+// The Firebase credential secret: a Key Vault reference (vault mode) or the supplied value (parameter mode).
+// Same secret name in both modes, so the env secretRef below never changes.
+var firebaseCredentialSecret = firebaseCredentialFromKeyVault
+  ? {
+      name: 'firebase-credential'
+      keyVaultUrl: '${keyVaultUri}secrets/${firebaseCredentialSecretName}'
+      identity: managedIdentityResourceId
+    }
+  : {
+      name: 'firebase-credential'
+      value: firebaseServiceAccountKeyJson
+    }
+
+// Fail-closed credential source (see ../app/firebase-credential-source-guard.bicep). Only 0/1 flags reach it.
+module firebaseCredentialSourceVaultGuard '../app/firebase-credential-source-guard.bicep' = if (firebaseCredentialFromKeyVault) {
+  name: 'juple-${environmentName}-job-firebase-source-vault-guard'
+  params: {
+    #disable-next-line BCP329
+    keyVaultUriProvided: empty(keyVaultUri) ? 0 : 1
+    #disable-next-line BCP330
+    plaintextCredentialSupplied: empty(firebaseServiceAccountKeyJson) ? 0 : 1
+  }
+}
+
+module firebaseCredentialSourceParameterGuard '../app/firebase-credential-source-guard.bicep' = if (!firebaseCredentialFromKeyVault) {
+  name: 'juple-${environmentName}-job-firebase-source-parameter-guard'
+  params: {
+    #disable-next-line BCP329
+    credentialSupplied: empty(firebaseServiceAccountKeyJson) ? 0 : 1
   }
 }
 
@@ -131,10 +186,7 @@ resource pushDispatchJob 'Microsoft.App/jobs@2024-03-01' = {
       ]
       secrets: [
         sqlConnectionStringSecret
-        {
-          name: 'firebase-credential'
-          value: firebaseServiceAccountKeyJson
-        }
+        firebaseCredentialSecret
       ]
     }
     template: {

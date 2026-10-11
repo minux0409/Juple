@@ -10,7 +10,8 @@ param environmentName = 'prod'
 param acrLoginServer = readEnvironmentVariable('JUPLE_APP_PROD_ACR_LOGIN_SERVER')
 param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_APP_PROD_CONTAINER_APPS_ENVIRONMENT_ID')
 param managedIdentityResourceId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_IDENTITY_RESOURCE_ID')
-param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
+// Production pins the exact image the API runs (the same digest variable as ../app/prod.bicepparam), never a tag.
+param imageDigest = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_DIGEST')
 
 // The SQL RUNTIME connection string is a Key Vault reference (secret sql-runtime-connection-string, the contained
 // user juple_runtime - never the administrator), resolved through this Job's managed identity. The deployer never
@@ -19,7 +20,8 @@ param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
 param sqlConnectionStringFromKeyVault = true
 param keyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_KEY_VAULT_URI')
 
-// The FCM v1 service-account JSON of the PRODUCTION Firebase project (juple-production) - never Dev's. It is
-// supplied at deploy time from the operator's own secure source; it is not in the repository and not in Key Vault
-// yet (a separate step).
-param firebaseServiceAccountKeyJson = readEnvironmentVariable('JUPLE_APP_PROD_FIREBASE_SERVICE_ACCOUNT_KEY_JSON')
+// The FCM v1 service-account JSON of the PRODUCTION Firebase project (juple-production) - never Dev's - is a Key
+// Vault reference (secret firebase-service-account-key-json), resolved through this Job's managed identity. The
+// deployer never reads or passes it: there is no environment variable for it, and a value supplied anyway is
+// refused during validation (../app/firebase-credential-source-guard.bicep).
+param firebaseCredentialFromKeyVault = true
