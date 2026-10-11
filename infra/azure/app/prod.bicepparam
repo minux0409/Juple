@@ -75,11 +75,17 @@ param managedIdentityClientId = readEnvironmentVariable('JUPLE_APP_PROD_MANAGED_
 param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_PROD_STORAGE_BLOB_SERVICE_URI')
 param imageTag = readEnvironmentVariable('JUPLE_APP_PROD_IMAGE_TAG')
 param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_SQL_CONNECTION_STRING')
-param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
-param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')
-// Production's own share-password key - generated once for Production, never Dev's (see ../README.md
-// "Collection share password key"), and then passed unchanged on every later deployment.
-param collectionSharePasswordEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY')
+// The API's own cryptographic keys (public collection cursor, collection unlock grant, collection share
+// password) are Key Vault references resolved at runtime through the API's managed identity
+// (managedIdentityResourceId above, role Key Vault Secrets User on the vault). The deployer never reads or
+// passes a key value: there is no environment variable for them, and a value supplied anyway is refused
+// during validation (api-key-source-guard.bicep). The vault URI comes from billingKeyVaultUri below; the
+// secret names are main.bicep's defaults (public-collection-cursor-key, collection-unlock-grant-key,
+// collection-share-password-key), which are the names of the Production vault's secrets. This is a literal
+// on purpose, not an environment variable: Production has no "plaintext" mode to fall back to.
+// Production's keys were generated once for Production and are never Dev's; the share-password key in
+// particular is not rotatable (see ../README.md "Collection share password key").
+param apiKeysFromKeyVault = true
 
 // -----------------------------------------------------------------------------------------------
 // Google Play billing (R39-B) - explicit, never silently off. main.bicep's own default is false (it is

@@ -504,13 +504,21 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
 - **API에만** 있다. Job 템플릿(`job/`, `blob-cleanup-job/`, `instagram-metadata-retry-job/`)에는 넣지
   않는다 - one-shot Job 모드는 이 키를 검증하기 전에 분기하고 쓰지도 않는다.
 
-값은 다른 secure parameter와 똑같이 `dev.bicepparam`/`prod.bicepparam`의 `readEnvironmentVariable()`로
-배포하는 shell에서 주입한다(이 repo에는 CI 배포 workflow가 없고 Key Vault도 아직 없다):
+**키 값의 출처는 `apiKeysFromKeyVault`가 정한다** (`app/main.bicep`, API 전용 3개 키 -
+cursor / unlock-grant / share-password - 에 동일하게 적용):
 
-- DEV: `JUPLE_APP_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY`
-- Production: `JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY`
+| 모드 | 환경 | 값의 경로 |
+| --- | --- | --- |
+| `false` (기본) | DEV | `dev.bicepparam`의 `readEnvironmentVariable()`로 배포하는 shell에서 값을 주입 -> Container App secret value. DEV는 live에 이미 있는 값을 그대로 넘기는 기존 방식 그대로다 |
+| **`true`** | **Production** | **Key Vault reference.** secret `public-collection-cursor-key` / `collection-unlock-grant-key` / `collection-share-password-key`를 `${billingKeyVaultUri}secrets/<name>`(versionless)로 참조하고, 해석은 API의 Managed Identity(`id-juple-prod`, vault의 Key Vault Secrets User)가 런타임에 한다. 배포자는 값을 읽지도, parameter로 넘기지도 않는다 |
 
-변수가 없으면 `BCP427`로 배포 자체가 시작되지 않는다(빈 값/추측 값으로 배포되는 일은 없다).
+Production(`apiKeysFromKeyVault=true`)에는 이 3개 키의 환경변수가 **없다**(예전의
+`JUPLE_APP_PROD_*_ENCRYPTION_KEY` 3개는 제거). 값을 같이 넘기면 `api-key-source-guard.bicep`이 validation
+단계에서 거절하고(무시되지 않는다), `billingKeyVaultUri`가 비어 있어도 거절한다. 반대로 `false`에서 3개 값이
+다 없으면 거절한다. guard는 값 자체가 아니라 개수/플래그만 받아 오류 메시지에 키가 echo되지 않는다.
+Production에는 plaintext/Dev/빈 값으로 fallback하는 경로가 없다.
+
+DEV: 변수가 없으면 `BCP427`로 배포 자체가 시작되지 않는다(빈 값/추측 값으로 배포되는 일은 없다).
 
 ### 반드시 지킬 것
 
@@ -522,26 +530,31 @@ Server에는 Foundation Bicep이 관리하는 `AllowAzureServices`만 남아 있
   secret에만 있고, repo/문서 어디에도 없다. DEV를 Bicep으로 처음 배포하기 전에, 그 **기존 값을**
   배포자가 쓰는 안전한 secret 저장소(예: 비밀번호 관리자)로 옮겨 두는 단계가 먼저 필요하다 - 값을
   읽는 작업이므로 별도 승인 후에 한다(화면/로그/파일에 남기지 않는다).
-- **Production은 DEV 키를 재사용하지 않는다.** 처음 한 번 새로 생성해 Production 전용 secret 저장소에
-  두고, 이후 모든 Production 배포에 같은 값을 넘긴다.
+- **Production은 DEV 키를 재사용하지 않는다.** Production 키는 Production Key Vault에만 있고, API가 같은
+  secret을 계속 참조한다(값을 배포마다 넘기지 않는다). Key Vault secret에 새 version을 추가하는 것이 곧
+  키 교체이므로 임의로 하지 않는다.
 - **임의로 rotate하지 않는다.** 암호문에 key id는 들어 있지만 runtime은 단일 active key만 지원한다
   (이전 키를 함께 읽는 keyring 없음). 키를 바꾸거나 잃으면 기존 공유 비밀번호를 owner가 다시 볼 수 없다
   (owner가 새로 설정해야 함). 무중단 rotation은 keyring 도입(코드 + migration)이 먼저다.
 
 ### Production 첫 rollout 순서
 
+> **갱신(Round 4D.5):** Production의 API 키 3개는 Key Vault reference다 - 아래 1, 3번의 "키 생성/키 환경변수"는
+> 더 이상 배포 절차가 아니다(키는 이미 Production Key Vault에 있고, 배포자가 값을 만지지 않는다).
+
 > `ASPNETCORE_ENVIRONMENT`(API): `environmentName`에서 정해진다 - `prod`는 `Production`, 그 외(DEV)는 `AzureDevelopment`. Azure에서는 어디서도 `Development`를 쓰지 않는다(`/openapi`가 열린다). 지금은 두 값의 동작 차이가 없지만(환경 이름을 읽는 곳은 `IsDevelopment()`뿐, 환경별 appsettings 파일 없음), Production이 Dev처럼 보이는 이름으로 돌지 않게 분리했다. Job들은 설정하지 않는다(.NET 기본값 `Production`).
 
-1. Production 키 생성 - 화면에 출력하지 않고 바로 Production secret 저장소로
-   (루트 `README.md`의 PowerShell 예시와 같은 방식: `RandomNumberGenerator` 32바이트 → Base64).
+1. Production 키는 생성돼 Production Key Vault에 있다(`kv-juple-prod-y5v2isrk3z`, 키별 secret 1개, 32 random
+   bytes → Base64). 새로 만들지도, 읽어 오지도 않는다.
 2. DB migration: `AddCollectionSharePasswords`가 적용됐는지 확인하고, 아니면 먼저 적용한다(새 API는 이
    table을 조회한다). migration은 CREATE TABLE + 잠겨 있고 공유 관계가 있는 컬렉션만 legacy로 INSERT할
    뿐, 기존 데이터를 UPDATE/DELETE하지 않는다.
-3. 배포 shell에 `JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY`를 포함한 나머지
-   `JUPLE_APP_PROD_*` 변수를 설정한다(값을 명령줄 인자로 쓰지 않는다 - shell history에 남는다).
+3. 배포 shell에 `JUPLE_APP_PROD_*` 변수를 설정한다. API 키 3개의 값은 필요 없다. 남는 비밀 입력은
+   `JUPLE_APP_PROD_SQL_CONNECTION_STRING` 하나다(값을 명령줄 인자로 쓰지 않는다 - shell history에 남는다).
 4. `az deployment group create --resource-group <rg> --parameters infra/azure/app/prod.bicepparam` -
-   secret/env와 새 API image가 한 revision으로 같이 올라간다. 키가 없으면 새 API는 시작하지 않으므로,
-   키 없이 image만 먼저 올리는 순서는 금지.
+   secret(Key Vault reference)/env와 새 API image가 한 revision으로 같이 올라간다. 키가 없으면 새 API는
+   시작하지 않으므로, 키 없이 image만 먼저 올리는 순서는 금지. 첫 revision에서 reference가 해석되지 않으면
+   (identity/role/secret 이름) revision이 시작되지 않는다 - `az containerapp revision list`와 system log로 확인한다.
 5. `/health` 200, 새 revision traffic 100% 확인.
 6. 스모크: owner 공유 비밀번호 설정 → 화면에 평문 표시(reveal) → 받는 사람 unlock → 공개 링크 unlock.
 7. 배포 shell의 환경변수를 지운다(`Remove-Item Env:JUPLE_APP_PROD_*`).
@@ -1059,7 +1072,7 @@ connection string secret을 같은 순서로 다시 배포해야 한다.
 
 | 파일 | 필수(기본값 없음) | 선택 |
 | --- | --- | --- |
-| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, image tag, SQL·키 4종, `GOOGLE_BILLING_ENABLED`, `GOOGLE_PRODUCT_ID`, `GOOGLE_BASE_PLAN_ID`, `GOOGLE_PUBSUB_AUDIENCE`, `GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
+| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, image tag, SQL connection string 1종(API 키 3개는 Key Vault reference라 변수 없음), `GOOGLE_BILLING_ENABLED`, `GOOGLE_PRODUCT_ID`, `GOOGLE_BASE_PLAN_ID`, `GOOGLE_PUBSUB_AUDIENCE`, `GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
 | `billing-worker/prod.bicepparam` | `GOOGLE_BILLING_ENABLED` 포함 13개 전부 | - |
 | `notification-worker/prod.bicepparam` | 8개 전부(Firebase credential 포함) | - |
 | `web/prod.bicepparam` | ACR/CAE/identity/image tag/`API_BASE_URL`, `LAUNCH_SETTINGS_REQUIRED` | `GOOGLE_PLAY_URL`, assetlinks, `LEGAL_*` 4개(launch gate가 true면 필수) |

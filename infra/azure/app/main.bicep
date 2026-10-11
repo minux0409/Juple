@@ -37,15 +37,15 @@ param sqlConnectionString string
 
 @description('Base64-encoded 32-byte AES-256-GCM key for Public Collection Sharing cursor encryption (see PublicCollectionItemPageCursorCodec) - Backend fails startup outright if this is absent or does not decode to exactly 32 bytes (see README.md\'s own local dev setup notes for the same fail-fast). Never put a real value in a checked-in parameter file. Must stay the same value across redeployments/revisions - rotating it invalidates every public cursor already handed out (an in-flight "load more" page simply fails to decode, not a data-loss issue, but a needless disruption for anyone mid-scroll).')
 @secure()
-param publicCollectionCursorEncryptionKey string
+param publicCollectionCursorEncryptionKey string = ''
 
 @description('Base64-encoded 32-byte key for Collection unlock grants (see CollectionUnlockTokenProtector) - the short-lived tokens issued after the password of a locked Collection is entered, in the app and on the public share page. Backend fails startup outright if this is absent or does not decode to exactly 32 bytes; there is no fallback to any other key. Must be its own value, never the cursor key above. Never put a real value in a checked-in parameter file. Rotating it only invalidates grants already handed out (people re-enter the password) - no stored data depends on it. Not needed by the one-shot Jobs, which exit before this is validated.')
 @secure()
-param collectionUnlockGrantEncryptionKey string
+param collectionUnlockGrantEncryptionKey string = ''
 
 @description('Base64-encoded 32-byte key that seals Collection share passwords so their Owner can see them again (AES-256-GCM, see CollectionSharePasswordProtector) - the API fails startup outright if this is absent or does not decode to exactly 32 bytes; there is no fallback to any other key. Its own value, never any other key here, and never shared between environments (Production gets its own). Never put a real value in a checked-in parameter file. NOT freely rotatable: stored ciphertexts are sealed with it and only one active key is supported (no keyring) - a different value makes every existing share password unreadable to its Owner (409 sharePasswordUnreadable until they set a new one; recipients are unaffected, they are checked against a separate hash). Every redeploy must therefore pass the SAME value that is already live - there is no "omitted means keep the current one": the Container App secret is written from this parameter on every deployment. Not needed by the one-shot Jobs, which exit before it is validated - API only.')
 @secure()
-param collectionSharePasswordEncryptionKey string
+param collectionSharePasswordEncryptionKey string = ''
 
 @description('Blob service endpoint URI - Foundation output "storageBlobServiceUri". No Storage key is ever used; the app authenticates via managedIdentityResourceId (see BlobServiceClientFactory.cs).')
 param storageBlobServiceUri string
@@ -122,13 +122,21 @@ var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 // pattern to ../web/main.bicep's own hasCustomDomain.
 // ---- Google Play billing (R39-B1). Everything here is OFF by default: with googleBillingEnabled false the API gets no
 // billing secret and no billing setting, and starts exactly as before. Secrets are never parameters - they are Azure Key Vault
-// references resolved through the API's Managed Identity (the vault itself is ../foundation/billing.bicep); only their NAMES are
+// references resolved through the API\'s Managed Identity (the vault itself is ../foundation/billing.bicep); only their NAMES are
 // parameters. The product and base plan stay empty until they exist in Play Console (R39-B2).
 @description('Turns on Google Play billing in the API (catalog / verify / restore / RTDN). Requires billingKeyVaultUri and the settings below.')
 param googleBillingEnabled bool = false
 
-@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri". Needed only when googleBillingEnabled or billingProgramEnabled.')
+@description('Key Vault URI with trailing slash - ../foundation/billing.bicep output "keyVaultUri". Needed when googleBillingEnabled or billingProgramEnabled, and when apiKeysFromKeyVault is true (it is the same one vault).')
 param billingKeyVaultUri string = ''
+
+@description('Where the API\'s three own keys (public collection cursor, collection unlock grant, collection share password) come from. false (default - Dev today): the three @secure() parameters above carry the VALUES into Container Apps secrets. true (Production): they are Key Vault references resolved at runtime through the API\'s managed identity (managedIdentityResourceId) - the deployer never reads or passes a key value, and a supplied value is rejected by api-key-source-guard.bicep rather than silently ignored. Requires billingKeyVaultUri.')
+param apiKeysFromKeyVault bool = false
+
+@description('Key Vault secret NAMES (never values) of the API\'s own keys - used only when apiKeysFromKeyVault. The Container Apps secret keeps the same name as the vault secret, like the billing secrets.')
+param publicCollectionCursorKeySecretName string = 'public-collection-cursor-key'
+param collectionUnlockGrantKeySecretName string = 'collection-unlock-grant-key'
+param collectionSharePasswordKeySecretName string = 'collection-share-password-key'
 
 @description('The ONE allowlisted subscription product / base plan (proposed: juple_monthly / monthly - confirmed in R39-B2, never guessed).')
 param googleProductId string = ''
@@ -150,6 +158,43 @@ param billingEventsServiceBusNamespace string = ''
 @description('The subscription program switch (trial + entitlement). Stays false until the product launch: nothing is blocked, no trial starts. Turning it on additionally needs billingProgramStartAtUtc and the trial-identity-hash-key secret.')
 param billingProgramEnabled bool = false
 param billingProgramStartAtUtc string = ''
+
+// The API\'s own keys: either the three values (parameter mode) or three Key Vault references (vault mode).
+// Names and order are the same in both modes, so the Container App's env secretRefs never change.
+var apiKeySecretsFromParameters = [
+  {
+    name: 'public-collection-cursor-key'
+    value: publicCollectionCursorEncryptionKey
+  }
+  {
+    name: 'collection-unlock-grant-key'
+    value: collectionUnlockGrantEncryptionKey
+  }
+  {
+    name: 'collection-share-password-key'
+    value: collectionSharePasswordEncryptionKey
+  }
+]
+
+var apiKeySecretsFromKeyVault = [
+  {
+    name: 'public-collection-cursor-key'
+    keyVaultUrl: '${billingKeyVaultUri}secrets/${publicCollectionCursorKeySecretName}'
+    identity: managedIdentityResourceId
+  }
+  {
+    name: 'collection-unlock-grant-key'
+    keyVaultUrl: '${billingKeyVaultUri}secrets/${collectionUnlockGrantKeySecretName}'
+    identity: managedIdentityResourceId
+  }
+  {
+    name: 'collection-share-password-key'
+    keyVaultUrl: '${billingKeyVaultUri}secrets/${collectionSharePasswordKeySecretName}'
+    identity: managedIdentityResourceId
+  }
+]
+
+var apiKeySecrets = apiKeysFromKeyVault ? apiKeySecretsFromKeyVault : apiKeySecretsFromParameters
 
 var billingSecrets = concat(
   googleBillingEnabled
@@ -292,6 +337,27 @@ var managedCertificateResourceId = hasCustomDomain
   ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
   : ''
 
+// Fail-closed key source (see api-key-source-guard.bicep): Key Vault mode needs the vault URI and must not
+// also receive key values; parameter mode needs all three values. Only 0/1 flags reach the guard - a
+// rejected @secure() value would otherwise be echoed back in the validation error.
+module apiKeysKeyVaultGuard 'api-key-source-guard.bicep' = if (apiKeysFromKeyVault) {
+  name: 'juple-${environmentName}-api-keys-keyvault-guard'
+  params: {
+    #disable-next-line BCP329
+    keyVaultUriProvided: empty(billingKeyVaultUri) ? 0 : 1
+    #disable-next-line BCP330
+    plaintextKeyValuesSupplied: (empty(publicCollectionCursorEncryptionKey) ? 0 : 1) + (empty(collectionUnlockGrantEncryptionKey) ? 0 : 1) + (empty(collectionSharePasswordEncryptionKey) ? 0 : 1)
+  }
+}
+
+module apiKeysParameterGuard 'api-key-source-guard.bicep' = if (!apiKeysFromKeyVault) {
+  name: 'juple-${environmentName}-api-keys-parameter-guard'
+  params: {
+    #disable-next-line BCP329
+    apiKeyValuesSupplied: (empty(publicCollectionCursorEncryptionKey) ? 0 : 1) + (empty(collectionUnlockGrantEncryptionKey) ? 0 : 1) + (empty(collectionSharePasswordEncryptionKey) ? 0 : 1)
+  }
+}
+
 // Fail-closed: with billing enabled, an empty required setting stops the deployment during validation
 // (see billing-settings-guard.bicep) instead of producing an API that cannot start - or, worse, one that
 // quietly runs without billing.
@@ -361,19 +427,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             name: 'sql-connection-string'
             value: sqlConnectionString
           }
-          {
-            name: 'public-collection-cursor-key'
-            value: publicCollectionCursorEncryptionKey
-          }
-          {
-            name: 'collection-unlock-grant-key'
-            value: collectionUnlockGrantEncryptionKey
-          }
-          {
-            name: 'collection-share-password-key'
-            value: collectionSharePasswordEncryptionKey
-          }
         ],
+        apiKeySecrets,
         billingSecrets
       )
     }
