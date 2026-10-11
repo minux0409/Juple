@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Suscripción",
-    "testEntry": "Suscripción (prueba interna)",
     "planName": "Suscripción a Juple",
     "pricePerMonth": "{{price}} / mes",
     "cadence": "Se cobra cada mes y se renueva automáticamente hasta que la canceles.",

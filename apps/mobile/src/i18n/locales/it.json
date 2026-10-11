@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Abbonamento",
-    "testEntry": "Abbonamento (test interno)",
     "planName": "Abbonamento Juple",
     "pricePerMonth": "{{price}} / mese",
     "cadence": "Fatturazione mensile. Si rinnova automaticamente finché non lo annulli.",

@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Abonnement",
-    "testEntry": "Abonnement (test interne)",
     "planName": "Abonnement Juple",
     "pricePerMonth": "{{price}} / mois",
     "cadence": "Facturé chaque mois. Se renouvelle automatiquement jusqu’à ce que vous le résiliiez.",

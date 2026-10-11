@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Assinatura",
-    "testEntry": "Assinatura (teste interno)",
     "planName": "Assinatura do Juple",
     "pricePerMonth": "{{price}} / mês",
     "cadence": "Cobrada mensalmente. Renova automaticamente até você cancelar.",

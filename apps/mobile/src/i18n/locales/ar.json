@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "الاشتراك",
-    "testEntry": "الاشتراك (اختبار داخلي)",
     "planName": "اشتراك Juple",
     "pricePerMonth": "{{price}} / شهريًا",
     "cadence": "تتم الفوترة شهريًا. يتجدد تلقائيًا حتى تلغيه.",

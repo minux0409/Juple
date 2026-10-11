@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "サブスクリプション",
-    "testEntry": "サブスクリプション(内部テスト)",
     "planName": "Juple サブスクリプション",
     "pricePerMonth": "月額 {{price}}",
     "cadence": "毎月請求され、解約するまで自動的に更新されます。",

@@ -4,9 +4,9 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { isSubscriptionTestEntryEnabled } from '../api/apiConfig';
 import { useAuthenticatedApi } from '../api/useAuthenticatedApi';
 import { useAuth } from '../auth/AuthContext';
+import { useSubscriptionEntryAvailable } from '../billing/useSubscriptionEntry';
 import { getMyProfile, type UserProfile } from '../api/profileApi';
 import { formatJupleId } from '../collections/api/collaborationApi';
 import { formatBadgeCount } from '../components/badgeCount';
@@ -27,7 +27,7 @@ import { cardShadow, colors, ltrTextStyle, minTouchTarget, radii, spacing } from
 
 /**
  * 내 페이지: a compact profile header (photo, nickname, @Juple ID, 프로필 편집) → one card of rows (언어,
- * 빠른 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리, 고객센터, 로그아웃) - deliberately without a
+ * 빠른 저장, 친구, 컬렉션 잠금, 삭제 이력, 계정 관리, 고객센터, 구독, 로그아웃) - deliberately without a
  * "설정" heading, since they are not all settings. Account deletion is deliberately NOT
  * on this page - it lives under 계정 관리, behind its own multi-step flow. Sign-out asks first.
  */
@@ -36,6 +36,7 @@ export function MyPageScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { signOut } = useAuth();
   const authenticatedRequest = useAuthenticatedApi();
+  const isSubscriptionEntryAvailable = useSubscriptionEntryAvailable();
 
   const [isSignOutDialogVisible, setIsSignOutDialogVisible] = useState(false);
   // OFF until the stored choice has been read - never a fake ON that then flips; the switch waits (disabled) for it.
@@ -258,18 +259,18 @@ export function MyPageScreen() {
             <Text style={styles.settingsRowLabel}>{t('customerCenter.title')}</Text>
           </Pressable>
           <View style={styles.settingsRowDivider} />
-          {isSubscriptionTestEntryEnabled ? (
+          {isSubscriptionEntryAvailable ? (
             <>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => navigation.navigate('Subscription')}
                 style={styles.settingsRow}
-                testID="my-subscription-test"
+                testID="my-subscription"
               >
                 <View style={styles.settingsRowIcon}>
                   <screenIcons.subscription color={colors.textSecondary} size={18} />
                 </View>
-                <Text style={styles.settingsRowLabel}>{t('subscription.testEntry')}</Text>
+                <Text style={styles.settingsRowLabel}>{t('subscription.title')}</Text>
               </Pressable>
               <View style={styles.settingsRowDivider} />
             </>

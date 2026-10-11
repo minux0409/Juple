@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "订阅",
-    "testEntry": "订阅(内部测试)",
     "planName": "Juple 订阅",
     "pricePerMonth": "每月 {{price}}",
     "cadence": "按月计费,在您取消之前会自动续订。",

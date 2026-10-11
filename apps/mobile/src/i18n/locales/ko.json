@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "구독",
-    "testEntry": "구독 (내부 테스트)",
     "planName": "Juple 구독",
     "pricePerMonth": "월 {{price}}",
     "cadence": "매월 결제되며 해지하기 전까지 자동으로 갱신됩니다.",

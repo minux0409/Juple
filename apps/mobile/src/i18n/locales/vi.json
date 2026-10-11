@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Gói đăng ký",
-    "testEntry": "Gói đăng ký (thử nghiệm nội bộ)",
     "planName": "Gói đăng ký Juple",
     "pricePerMonth": "{{price}} / tháng",
     "cadence": "Thanh toán hằng tháng. Tự động gia hạn cho đến khi bạn hủy.",

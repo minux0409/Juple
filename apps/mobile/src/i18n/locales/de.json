@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Abonnement",
-    "testEntry": "Abonnement (interner Test)",
     "planName": "Juple-Abonnement",
     "pricePerMonth": "{{price}} / Monat",
     "cadence": "Monatliche Abrechnung. Verlängert sich automatisch, bis du kündigst.",

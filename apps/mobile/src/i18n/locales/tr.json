@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Abonelik",
-    "testEntry": "Abonelik (dahili test)",
     "planName": "Juple aboneliği",
     "pricePerMonth": "{{price}} / ay",
     "cadence": "Aylık faturalandırılır. Siz iptal edene kadar otomatik olarak yenilenir.",

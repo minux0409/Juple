@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Langganan",
-    "testEntry": "Langganan (uji internal)",
     "planName": "Langganan Juple",
     "pricePerMonth": "{{price}} / bulan",
     "cadence": "Ditagih setiap bulan. Diperpanjang otomatis hingga Anda membatalkan.",

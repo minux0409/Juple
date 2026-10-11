@@ -931,7 +931,6 @@
   },
   "subscription": {
     "title": "Subscription",
-    "testEntry": "Subscription (internal test)",
     "planName": "Juple subscription",
     "pricePerMonth": "{{price}} / month",
     "cadence": "Billed monthly. Renews automatically until you cancel.",
