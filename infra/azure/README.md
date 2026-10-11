@@ -240,11 +240,13 @@ aggregate throttle은 anonymous 시도가 Owner를 잠그는 DoS가 되지 않�
 ## 명령 예시 (참고용 — 실제 값/시크릿은 예시에 포함하지 않음)
 
 ```powershell
-# 1. Foundation (subscription scope)
+# 1. Foundation (subscription scope) - an UPDATE of an existing environment. No SQL password is
+# involved: sqlBootstrapAdministratorCredential defaults to false, the password is not part of the
+# request, and a password supplied here would fail the deployment (see "SQL administrator credential
+# lifecycle" below). Creating a brand-new SQL server is the one case that needs the bootstrap mode.
 az deployment sub create `
   --location koreacentral `
-  --template-file infra/azure/foundation/main.bicep `
-  --parameters environmentName=dev sqlAdministratorLoginPassword=$env:SQL_ADMIN_PASSWORD
+  --parameters infra/azure/foundation/dev.bicepparam
 
 # Foundation output을 이후 단계에서 재사용
 $foundation = az deployment sub show --name <deployment-name> --query properties.outputs -o json | ConvertFrom-Json
@@ -983,17 +985,122 @@ Production 최초 출시용 SKU/scale이 확정되어 각 `prod.bicepparam`에 l
 - **유지**: ACR Basic, Storage `Standard_LRS`, Log Analytics 30일 보존, Push/Blob cleanup Job
   cadence 전부 그대로 - 변경 근거가 없었다.
 
-`foundation/prod.bicepparam`은 이 repo의 첫 Foundation parameter 파일이다 - `app`/`web`의
-`dev.bicepparam`/`prod.bicepparam`과 동일한 convention을 따른다: `environmentName`/
-`sqlDatabaseSku`는 Production에 대한 고정된 사실이라 literal, `sqlAdministratorLoginPassword`는
-secret이라 `readEnvironmentVariable('JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD')`로
-fail-closed 처리한다(값 미설정 시 BCP427로 즉시 실패 - 이 비밀번호는 아직 실제로 생성되지
-않았다). Foundation 배포 시:
+`foundation/prod.bicepparam`/`foundation/dev.bicepparam`은 `app`/`web`의 bicepparam과 같은
+convention을 따른다. `environmentName`/`sqlDatabaseSku`는 고정된 사실이라 literal이고, **SQL
+administrator password는 더 이상 일반 재배포의 입력이 아니다** - 아래 "SQL administrator credential
+lifecycle" 참고.
+
+### SQL administrator credential lifecycle
+
+`Microsoft.Sql/servers`는 PUT마다 `administratorLoginPassword`를 body에서 읽으므로, 예전 template은
+모든 Foundation 재배포가 비밀번호를 (다시) 설정하는 구조였다 - 기존 비밀번호를 잃으면 재배포 자체가 막히거나,
+임의의 값으로 덮어쓰게 된다. 이제 두 모드가 명시적으로 분리되어 있다
+(`sqlBootstrapAdministratorCredential`, `foundation/resources.bicep`):
+
+| 모드 | 조건 | ARM request | 보호 장치 |
+| --- | --- | --- | --- |
+| **UPDATE** (기본, 모든 일반 재배포) | `sqlBootstrapAdministratorCredential=false` | `administratorLoginPassword`가 body에 **포함되지 않는다**(`null()`) - 서버는 기존 비밀번호를 유지한다 | 비밀번호를 같이 넘기면 `sql-credential-forbidden.bicep` guard가 validation 단계에서 실패시킨다(조용히 무시되지 않는다) |
+| **BOOTSTRAP** (신규 SQL server 또는 의도적·통제된 reset) | `sqlBootstrapAdministratorCredential=true` + 비밀번호 | 비밀번호가 body에 포함된다 | 비밀번호가 비어 있으면 `sql-credential-required.bicep` guard가 validation 단계에서 실패시킨다 |
+
+비밀번호 parameter는 `@secure()`이고 어떤 output에도 나오지 않는다. 임의 값·빈 문자열로 덮어쓰는 경로는 없다.
+guard module은 비밀번호 *자체*가 아니라 0/1 flag만 받는다(거절된 `@secure()` 값은 ARM 오류 메시지에 그대로
+echo되므로) - 오류 메시지의 parameter 이름(`sqlUpdateModeMustNotSupplyAdministratorPassword`,
+`sqlBootstrapRequiresAdministratorPassword`)이 곧 안내문이다. SQL server resource는 두 guard에 `dependsOn`이라
+guard가 통과하기 전에는 서버에 아무것도 전송되지 않는다. 같은 방식의 guard가 `app/billing-settings-guard.bicep`,
+`web/launch-settings-guard.bicep`에도 있고, 모두 `az deployment ... validate`/`create`의 validation 단계에서
+작동한다(`what-if`는 실행하지 않는다).
+
+**기존 환경 재배포(Dev, 그리고 이미 존재하는 Production)**:
 
 ```powershell
-$env:JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD = '<신규 생성한 Prod SQL admin 비밀번호>'
-az deployment sub create --location koreacentral --parameters infra/azure/foundation/prod.bicepparam
+# 환경변수에 SQL 비밀번호가 없어야 한다 (있으면 guard가 실패시킨다)
+# validate는 guard(조건 module의 parameter 검증)까지 실행한다. what-if는 guard를 실행하지 않는다 -
+# what-if만으로는 "비밀번호를 잘못 넘겼다"를 알 수 없으니 둘 다 실행한다.
+az deployment sub validate --location koreacentral --parameters infra/azure/foundation/prod.bicepparam
+az deployment sub what-if  --location koreacentral --parameters infra/azure/foundation/prod.bicepparam
+az deployment sub create   --location koreacentral --parameters infra/azure/foundation/prod.bicepparam
+# Dev: infra/azure/foundation/dev.bicepparam
 ```
+
+**신규 환경 최초 생성(SQL server가 아직 없을 때)** - 한 shell 세션 안에서만:
+
+```powershell
+# 비밀번호는 메모리에서 생성한다 - 화면 출력·파일·shell history에 남기지 않는다.
+$bytes = New-Object byte[] 24
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+$env:JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD = [Convert]::ToBase64String($bytes) + 'aA1!'
+$env:JUPLE_FOUNDATION_PROD_SQL_BOOTSTRAP = 'true'
+az deployment sub create --location koreacentral --parameters infra/azure/foundation/prod.bicepparam
+# Key Vault가 만들어진 직후 같은 세션에서 바로 저장한다 (값을 화면에 내지 않는다):
+#   az keyvault secret set --vault-name <kv> --name sql-admin-password --value $env:JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD
+Remove-Item Env:JUPLE_FOUNDATION_PROD_SQL_ADMINISTRATOR_LOGIN_PASSWORD, Env:JUPLE_FOUNDATION_PROD_SQL_BOOTSTRAP
+```
+
+Key Vault 자체가 Foundation(+`foundation/billing.bicep`)이 만드는 리소스라, 최초 생성 직후에는 저장할 곳이
+아직 없다. 그래서 신규 환경은 (1) bootstrap으로 서버 생성 → (2) 같은 세션에서 `billing.bicep` 배포로 Key
+Vault 생성 → (3) 같은 세션에서 secret 저장 → (4) 환경변수 제거 순서로 진행한다. 중간에 세션이 끊겨 값을
+잃으면 아직 소비자가 없는 동안 같은 bootstrap으로 다시 reset하면 된다.
+
+**통제된 reset**(기존 서버의 비밀번호를 모를 때, Production): 위 BOOTSTRAP과 같은 절차이며, **소비자(connection
+string을 쓰는 앱/Job)가 하나도 배포되지 않은 상태에서만** 한다. 소비자가 있으면 새 비밀번호를 쓰는 모든
+connection string secret을 같은 순서로 다시 배포해야 한다.
+
+## Production IaC (Round 2) - 반복 배포 가능한 구조
+
+아무것도 배포하지 않는 IaC 정비다(Azure 변경 없음). Production은 `rg-juple-prod`에 partial Foundation이 이미
+있고(identity, ACR, Storage, SQL server + 빈 `Juple` DB, Log Analytics, Container Apps environment), 나머지는
+아래 파일들로 단계별 배포한다.
+
+**환경변수 namespace 분리.** Production bicepparam은 전부 `JUPLE_*_PROD_*`만 읽는다(`JUPLE_APP_PROD_*`,
+`JUPLE_WEB_PROD_*`, `JUPLE_FOUNDATION_PROD_*`, `JUPLE_MONITORING_PROD_*`). Dev의 `JUPLE_APP_*`/`JUPLE_WEB_*`
+이름은 Dev bicepparam에만 남아 있고 그대로다 - 같은 shell에 Dev 값이 남아 있어도 Production 배포가 그 값을 읽을 수
+없다. 기본값이 없는 값이 빠지면 `az bicep build-params`/배포가 BCP427로 즉시 실패한다. 아래 표의 "기본값 있음"인
+값만 선택이다.
+
+| 파일 | 필수(기본값 없음) | 선택 |
+| --- | --- | --- |
+| `app/prod.bicepparam` | Entra 3개, ACR/CAE/identity/storage, image tag, SQL·키 4종, `GOOGLE_BILLING_ENABLED`, `GOOGLE_PRODUCT_ID`, `GOOGLE_BASE_PLAN_ID`, `GOOGLE_PUBSUB_AUDIENCE`, `GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL`, `BILLING_KEY_VAULT_URI`, `SERVICE_BUS_NAMESPACE_FQDN`, `PUBLIC_WEB_BASE_URL` | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
+| `billing-worker/prod.bicepparam` | `GOOGLE_BILLING_ENABLED` 포함 13개 전부 | - |
+| `notification-worker/prod.bicepparam` | 8개 전부(Firebase credential 포함) | - |
+| `web/prod.bicepparam` | ACR/CAE/identity/image tag/`API_BASE_URL`, `LAUNCH_SETTINGS_REQUIRED` | `GOOGLE_PLAY_URL`, assetlinks, `LEGAL_*` 4개(launch gate가 true면 필수) |
+| `foundation/prod.bicepparam` | 없음 | `SQL_BOOTSTRAP`, `SQL_ADMINISTRATOR_LOGIN_PASSWORD`(bootstrap 전용) |
+| `monitoring/prod.bicepparam` | `SERVICE_BUS_NAMESPACE_NAME`, `ALERT_EMAIL` | - |
+
+**Billing은 조용히 꺼지지 않는다.** `app/main.bicep`/`billing-worker/main.bicep`의 `googleBillingEnabled`
+기본값은 환경 공유 때문에 `false`로 남기되, Production bicepparam은 기본값 없이 명시를 요구한다('true'/'false'만
+허용). `true`일 때 product/base plan/audience/push 서비스계정/Key Vault URI/Service Bus 중 하나라도 비면
+`app/billing-settings-guard.bicep`이 validation 단계에서 배포를 막는다(그리고 API 자체도 불완전한 설정에서는
+시작하지 않는다). `billingProgramEnabled`(구독 enforcement)는 prod에서 리터럴 `false`다.
+
+**MobileVersionPolicy.** `app/main.bicep`이 Android/iOS `LatestBuild`/`MinimumSupportedBuild`(+선택 `StoreUrl`)를
+parameter로 받는다. Dev는 live 값(Android `LatestBuild=17`, 나머지 0)을 `dev.bicepparam`에 반영했다 - 이 값은
+앱의 현재 versionCode(21)보다 낮지만 live 그대로이며 바꾸는 것은 릴리스 결정이다. Production은 `0/0`(정책 없음).
+첫 Production 빌드가 스토어에서 **내려받을 수 있게 된 뒤에만** `mobileAndroidLatestBuild`를 올리고,
+`MinimumSupportedBuild`는 구버전이 안전하지 않을 때만 올린다(`docs/architecture.md` "Release compatibility rule").
+
+**Dev drift 정리.** live Dev API에는 Billing 설정과 MobileVersionPolicy가 있었지만 `dev.bicepparam`에 없어서, 다음
+Bicep 재배포가 이를 조용히 지울 상태였다. 이제 `dev.bicepparam`에 live 값(비밀 아님)이 literal로 들어 있어 기존 Dev
+배포 workflow(환경변수 10개)는 그대로이고 결과도 live와 같다.
+
+**Web launch gate.** `web/main.bicep`의 `launchSettingsRequired`(기본 `false` - 기존 환경 영향 없음). Production은
+기본값 없이 명시한다. 1단계(도메인 binding·사업자 정보 전): `false` - **launch-ready가 아니며** 법적 페이지는
+미확정 항목을 비워 둔다(만들어 넣지 않는다). 2단계(출시 배포): `true` - 도메인+인증서, Play URL, Play App Signing
+fingerprint, `LEGAL_OPERATOR_NAME`/`LEGAL_BUSINESS_REGISTRATION_NUMBER`/`LEGAL_BUSINESS_ADDRESS`/
+`LEGAL_EFFECTIVE_DATE` 중 하나라도 비면 `web/launch-settings-guard.bicep`이 배포를 막는다. 이 gate는 값의
+*존재*만 검사한다(진위는 운영자가 확인). 공개 web host는 web 앱이 요청 Host로 판단하므로 별도 env가 없고,
+`customDomainName`과 API의 `publicWebBaseUrl`이 그 역할을 한다.
+
+**Application Insights / alert (`monitoring/`).** workspace-based Application Insights(`appi-juple-{env}`), action
+group(`ag-juple-{env}`), alert 4종: API 5xx(`Requests`, `statusCodeCategory=5xx`), 앱·worker 재시작(`RestartCount`,
+앱별 rule - Azure Monitor는 Container Apps multi-resource metric alert를 지원하지 않는다), Job 실패(system log의
+non-zero exit/`DeadlineExceeded`), Service Bus dead letter(`DeadletteredMessages`). 앱 metric alert는 앱이 존재해야
+하므로 `containerAppAlertsEnabled`로 2단계 배포한다. **backend에는 Application Insights/OpenTelemetry SDK가 아직
+없다** - connection string은 `APPLICATIONINSIGHTS_CONNECTION_STRING` env로만 연결되며 instrumentation을 넣기 전까지
+inert다. alert는 SDK 없이도 동작하는 platform metric/log만 쓴다.
+
+**Dev에서 확인된 알림 노이즈(출시 전 검토).** live Dev의 `caj-juple-ig-metadata-retry-dev`는 14일간
+`DeadlineExceeded`가 414건이다(replicaTimeout 45초). Production 배포 전에 timeout/주기를 검토하거나
+`jobFailureThreshold`를 조정한다.
 
 ## Naming
 

@@ -42,7 +42,8 @@ param entraClientId = readEnvironmentVariable('JUPLE_APP_PROD_ENTRA_CLIENT_ID')
 // applies unless Production's actual App Registration exposes a differently-named scope, in which
 // case add an explicit override here once that is known (see main.bicep's own description).
 
-// publicWebBaseUrl is deliberately left unassigned - main.bicep's own "" default applies (a safe
+// (superseded - see the explicit publicWebBaseUrl at the end of this file.) publicWebBaseUrl was
+// deliberately left unassigned - main.bicep's own "" default applies (a safe
 // no-op: CORS allows no origins, share URLs compose against an empty origin). juple.co.kr (the
 // documented canonical Production Web domain - see ../README.md) is not bound to
 // ca-juple-web-prod yet. Add `param publicWebBaseUrl = 'https://juple.co.kr'` here only once that
@@ -79,3 +80,60 @@ param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_PR
 // Production's own share-password key - generated once for Production, never Dev's (see ../README.md
 // "Collection share password key"), and then passed unchanged on every later deployment.
 param collectionSharePasswordEncryptionKey = readEnvironmentVariable('JUPLE_APP_PROD_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY')
+
+// -----------------------------------------------------------------------------------------------
+// Google Play billing (R39-B) - explicit, never silently off. main.bicep's own default is false (it is
+// shared with environments that do not run billing), so Production states it here and has NO default:
+// JUPLE_APP_PROD_GOOGLE_BILLING_ENABLED must be 'true' or 'false' ('false' is a conscious "API without
+// billing", e.g. the first deployment before Play Console/Key Vault are ready). With 'true', an empty
+// product / plan / audience / push service account / Key Vault URI / Service Bus value stops the
+// deployment during validation (billing-settings-guard.bicep), and the API itself refuses to start on
+// an incomplete billing configuration. None of these values is a secret; the secret VALUES are Key
+// Vault secrets referenced by name through the API's managed identity (see main.bicep) - this file
+// never carries one.
+// -----------------------------------------------------------------------------------------------
+param googleBillingEnabled = bool(readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BILLING_ENABLED'))
+param googleProductId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PRODUCT_ID')
+param googleBasePlanId = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_BASE_PLAN_ID')
+// The exact RTDN webhook URL the Production Pub/Sub push subscription is configured with
+// (https://api.juple.co.kr/api/v1/billing/google/rtdn once that domain is bound) and the push
+// subscription's service account e-mail.
+param googlePubSubAudience = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUBSUB_AUDIENCE')
+param googlePushServiceAccountEmail = readEnvironmentVariable('JUPLE_APP_PROD_GOOGLE_PUSH_SERVICE_ACCOUNT_EMAIL')
+// Foundation's billing.bicep output "keyVaultUri" (trailing slash).
+param billingKeyVaultUri = readEnvironmentVariable('JUPLE_APP_PROD_BILLING_KEY_VAULT_URI')
+// Foundation output "serviceBusNamespaceFqdn": the notification fast path (NotificationPipeline__ServiceBusNamespace)
+// and the billing-events wake-up (Billing__Events__ServiceBusNamespace) use the same namespace.
+param serviceBusNamespaceFqdn = readEnvironmentVariable('JUPLE_APP_PROD_SERVICE_BUS_NAMESPACE_FQDN')
+param billingEventsServiceBusNamespace = readEnvironmentVariable('JUPLE_APP_PROD_SERVICE_BUS_NAMESPACE_FQDN')
+
+// The subscription program (trial + enforcement) stays OFF: turning it on is a separate, approved
+// launch step (docs/subscription-launch-policy.md) that also needs billingProgramStartAtUtc and the
+// trial-identity-hash-key secret. Stated explicitly so it can never be enabled by omission or by a
+// stray environment variable.
+param billingProgramEnabled = false
+
+// -----------------------------------------------------------------------------------------------
+// Mobile update policy (MobileVersionPolicy) - Android builds are versionCode numbers.
+// 0 / 0 = no policy: nobody is prompted and nobody is blocked. Production has no store build yet.
+// When the first Production build is DOWNLOADABLE from Google Play, set mobileAndroidLatestBuild to
+// its versionCode (optional update prompt for older builds). Raise mobileAndroidMinimumSupportedBuild
+// only when older builds are unsafe/incompatible, and only after the new build is confirmed
+// downloadable (docs/architecture.md "App update policy" / "Release compatibility rule"). The values
+// are literals on purpose: a build number is a reviewed release decision, not a per-deploy secret.
+// -----------------------------------------------------------------------------------------------
+param mobileAndroidLatestBuild = 0
+param mobileAndroidMinimumSupportedBuild = 0
+// mobileAndroidStoreUrl is left unassigned (empty): the app falls back to its own Play listing.
+// iOS is not released: mobileIos* stay at main.bicep's own defaults (0 / 0 / empty).
+
+// Application Insights connection string (../monitoring/main.bicep). Optional and currently inert -
+// the backend has no telemetry SDK yet (see docs/production-bring-up.md).
+param applicationInsightsConnectionString = readEnvironmentVariable('JUPLE_APP_PROD_APPLICATIONINSIGHTS_CONNECTION_STRING', '')
+
+// The Public Web Viewer origin the API composes every share URL against and scopes api/v1/public/* CORS
+// to. Required, no default: an empty value silently means "no CORS origin, share URLs without an origin",
+// which is not a launchable state. Set it to the real origin - https://juple.co.kr once that domain is
+// bound to ca-juple-web-prod, or until then the Web Container App's own https://<fqdn>. Only an https URL
+// without a trailing path belongs here.
+param publicWebBaseUrl = readEnvironmentVariable('JUPLE_APP_PROD_PUBLIC_WEB_BASE_URL')

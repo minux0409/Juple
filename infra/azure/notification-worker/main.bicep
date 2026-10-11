@@ -78,6 +78,18 @@ param maxConcurrentSends int = 8
 param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
 
+@description('Application Insights connection string (../monitoring/main.bicep output "applicationInsightsConnectionString"). Empty (default) = not wired. The backend has no Application Insights / OpenTelemetry SDK yet, so this only sets APPLICATIONINSIGHTS_CONNECTION_STRING and is inert until instrumentation is added.')
+param applicationInsightsConnectionString string = ''
+
+var observabilityEnv = empty(applicationInsightsConnectionString)
+  ? []
+  : [
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: applicationInsightsConnectionString
+      }
+    ]
+
 var containerAppName = 'ca-juple-notify-worker-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 var serviceBusNamespaceFqdn = '${serviceBusNamespaceName}.servicebus.windows.net'
@@ -130,7 +142,7 @@ resource notificationWorker 'Microsoft.App/containerApps@2025-01-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
+          env: concat([
             {
               name: 'ConnectionStrings__JupleDatabase'
               secretRef: 'sql-connection-string'
@@ -159,7 +171,7 @@ resource notificationWorker 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'NotificationPipeline__MaxConcurrentSends'
               value: string(maxConcurrentSends)
             }
-          ]
+          ], observabilityEnv)
           probes: [
             {
               type: 'Liveness'

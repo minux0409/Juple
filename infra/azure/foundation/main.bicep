@@ -20,9 +20,12 @@ param location string = 'koreacentral'
 @description('Azure SQL server administrator login name. Not a secret itself, but paired with sqlAdministratorLoginPassword below.')
 param sqlAdministratorLogin string = 'jupleadmin'
 
-@description('Azure SQL server administrator password. Never put a real value in a checked-in parameter file - supply it at deploy time (e.g. from a local environment variable the deploy command reads), and it is never included in this template\'s outputs.')
+@description('Azure SQL server administrator password - supplied ONLY together with sqlBootstrapAdministratorCredential = true (a brand-new server, or a deliberate controlled reset). Leave it empty on every ordinary redeployment: the property is then omitted from the ARM request, so an existing server keeps its current password. Never put a real value in a checked-in parameter file, and it is never included in this template\'s outputs.')
 @secure()
-param sqlAdministratorLoginPassword string
+param sqlAdministratorLoginPassword string = ''
+
+@description('Explicit bootstrap switch for the SQL administrator credential. false (default): update - no password is sent, and supplying one fails the deployment. true: the password is sent, and an empty one fails the deployment. Use true only to create a new SQL server or for a deliberate, controlled reset.')
+param sqlBootstrapAdministratorCredential bool = false
 
 @description('Azure SQL Database SKU. Defaults to Basic - the simplest, most predictable Dev/dogfooding tier. Change to a Serverless or higher tier by overriding this parameter, no template edits needed.')
 param sqlDatabaseSku object = {
@@ -56,6 +59,7 @@ module resources 'resources.bicep' = {
     location: location
     sqlAdministratorLogin: sqlAdministratorLogin
     sqlAdministratorLoginPassword: sqlAdministratorLoginPassword
+    sqlBootstrapAdministratorCredential: sqlBootstrapAdministratorCredential
     sqlDatabaseSku: sqlDatabaseSku
     serviceBusSku: serviceBusSku
   }

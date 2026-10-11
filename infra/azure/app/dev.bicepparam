@@ -112,3 +112,29 @@ param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_SQL_CONNECTION_ST
 param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
 param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')
 param collectionSharePasswordEncryptionKey = readEnvironmentVariable('JUPLE_APP_COLLECTION_SHARE_PASSWORD_ENCRYPTION_KEY')
+
+// -----------------------------------------------------------------------------------------------
+// Settings that were live on ca-juple-api-dev (confirmed read-only with `az containerapp show`, env
+// var names and non-secret values only) but missing from this file and main.bicep - which meant the
+// next Bicep redeploy of the Dev API would have silently dropped them. They are literals for the same
+// reason as the Entra values above: fixed, non-secret facts about Dev, and no new environment
+// variable is required, so the existing Dev deploy workflow is unchanged.
+// -----------------------------------------------------------------------------------------------
+
+// Mobile update policy: Android LatestBuild is 17 live; no MinimumSupportedBuild and no StoreUrl were
+// set (0 / empty = nothing forced). NOTE: apps/mobile's current versionCode is 21, so Dev's "latest"
+// is behind the code - left as it is live; changing it is a release decision, not an IaC fix.
+param mobileAndroidLatestBuild = 17
+param mobileAndroidMinimumSupportedBuild = 0
+
+// Google Play billing, as live on Dev (the secret values are Key Vault references through id-juple-dev;
+// only the Key Vault URI and secret NAMES - main.bicep's defaults - are here).
+param googleBillingEnabled = true
+param googleProductId = 'juple_monthly'
+param googleBasePlanId = 'monthly'
+param googlePubSubAudience = 'https://ca-juple-api-dev.proudfield-673db2f2.koreacentral.azurecontainerapps.io/api/v1/billing/google/rtdn'
+param googlePushServiceAccountEmail = 'juple-rtdn-push-dev@juple-9fa62.iam.gserviceaccount.com'
+param billingKeyVaultUri = 'https://kv-juple-dev-lg4zigc62h2.vault.azure.net/'
+param serviceBusNamespaceFqdn = 'sb-juple-dev-lg4zigc62h2qg.servicebus.windows.net'
+param billingEventsServiceBusNamespace = 'sb-juple-dev-lg4zigc62h2qg.servicebus.windows.net'
+// billingProgramEnabled stays at main.bicep's default (false) - live Dev has no Billing__ProgramEnabled.

@@ -63,6 +63,29 @@ param entraRequiredScope string = 'access_as_user'
 @description('Public Web Viewer origin (PublicWebOptions.BaseUrl) - CollectionsController composes every share URL server-side as "{this}/c/{PublicId}" (see CollectionsController.ToShareResponse), and the same value also scopes api/v1/public/*\'s CORS policy (see Program.cs). Not a secret - a public URL. Defaults to empty, the same safe no-op appsettings.json\'s own "" default already means (CORS allows no origins; share URLs compose with an empty origin) - the real Public Web origin does not exist yet (no production domain - see ../README.md and ../web/main.bicep\'s own "no custom domain yet" note), so this must be supplied explicitly once a real Web Container App/domain exists, e.g. ../web/main.bicep\'s own containerAppUrl output before a custom domain, or the real domain after one is bound.')
 param publicWebBaseUrl string = ''
 
+@description('MobileVersionPolicy (docs/architecture.md "App update policy"): the newest Android BUILD (versionCode) available in Google Play. 0 = no policy (nobody is prompted). Operations rule: never set a build here before that build can actually be downloaded from the store. Not a secret.')
+@minValue(0)
+param mobileAndroidLatestBuild int = 0
+
+@description('The oldest Android build still allowed to run - an installed build below it is told to update (forced). 0 = nothing is forced. Must not exceed mobileAndroidLatestBuild (the API refuses to start otherwise). Raise it only when older builds are unsafe or incompatible - never automatically to the latest build.')
+@minValue(0)
+param mobileAndroidMinimumSupportedBuild int = 0
+
+@description('Optional https Play Store URL. Empty: the app falls back to its own Play listing. Only emitted when non-empty.')
+param mobileAndroidStoreUrl string = ''
+
+@description('iOS counterparts (iOS is not released yet - leave 0 / 0 / empty). iOS needs the real App Store URL once a build exists; no id is invented here.')
+@minValue(0)
+param mobileIosLatestBuild int = 0
+
+@minValue(0)
+param mobileIosMinimumSupportedBuild int = 0
+
+param mobileIosStoreUrl string = ''
+
+@description('Application Insights connection string (../monitoring/main.bicep output "applicationInsightsConnectionString"). Empty (default) = not wired. NOTE: the backend has no Application Insights / OpenTelemetry SDK yet, so this only sets APPLICATIONINSIGHTS_CONNECTION_STRING and is inert until instrumentation is added.')
+param applicationInsightsConnectionString string = ''
+
 @description('Custom domain hostname bound to this Container App\'s ingress (e.g. "api.juple.co.kr" for Production - Dev has none yet). The domain must already be verified and DNS-pointed at this Container App (TXT ownership record + CNAME/A, done once outside this template via `az containerapp hostname add`/`bind` - see ../web/main.bicep\'s own customDomainName for the identical pattern already in production use there, and ../README.md\'s "Web custom domain" section for the incident that motivated it). This template never performs that binding step itself, it only declares the resulting state so a later Bicep redeploy does not drop it - Microsoft.App/containerApps\' ingress.customDomains is fully replaced (not merged) on every deployment. Shared by every environment and intentionally carries no per-environment default here - each environment\'s real value lives in its own parameter file (e.g. dev.bicepparam), never in this template, so a Production deployment can never end up referencing a Dev domain by omission. Defaults to "" (no binding, Container Apps\' own default *.azurecontainerapps.io ingress). Must be set together with managedCertificateName - see hasCustomDomain below.')
 param customDomainName string = ''
 
@@ -218,10 +241,71 @@ var billingEnv = concat(
     : []
 )
 
+var mobileVersionPolicyEnv = concat(
+  [
+    {
+      name: 'MobileVersionPolicy__Android__LatestBuild'
+      value: string(mobileAndroidLatestBuild)
+    }
+    {
+      name: 'MobileVersionPolicy__Android__MinimumSupportedBuild'
+      value: string(mobileAndroidMinimumSupportedBuild)
+    }
+    {
+      name: 'MobileVersionPolicy__Ios__LatestBuild'
+      value: string(mobileIosLatestBuild)
+    }
+    {
+      name: 'MobileVersionPolicy__Ios__MinimumSupportedBuild'
+      value: string(mobileIosMinimumSupportedBuild)
+    }
+  ],
+  empty(mobileAndroidStoreUrl)
+    ? []
+    : [
+        {
+          name: 'MobileVersionPolicy__Android__StoreUrl'
+          value: mobileAndroidStoreUrl
+        }
+      ],
+  empty(mobileIosStoreUrl)
+    ? []
+    : [
+        {
+          name: 'MobileVersionPolicy__Ios__StoreUrl'
+          value: mobileIosStoreUrl
+        }
+      ]
+)
+
+var observabilityEnv = empty(applicationInsightsConnectionString)
+  ? []
+  : [
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: applicationInsightsConnectionString
+      }
+    ]
+
 var hasCustomDomain = !empty(customDomainName) && !empty(managedCertificateName)
 var managedCertificateResourceId = hasCustomDomain
   ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
   : ''
+
+// Fail-closed: with billing enabled, an empty required setting stops the deployment during validation
+// (see billing-settings-guard.bicep) instead of producing an API that cannot start - or, worse, one that
+// quietly runs without billing.
+module billingSettingsGuard 'billing-settings-guard.bicep' = if (googleBillingEnabled) {
+  name: 'juple-${environmentName}-api-billing-settings-guard'
+  params: {
+    googleProductId: googleProductId
+    googleBasePlanId: googleBasePlanId
+    googlePubSubAudience: googlePubSubAudience
+    googlePushServiceAccountEmail: googlePushServiceAccountEmail
+    billingKeyVaultUri: billingKeyVaultUri
+    billingEventsServiceBusNamespace: billingEventsServiceBusNamespace
+  }
+}
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
@@ -372,7 +456,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ], billingEnv)
+          ], mobileVersionPolicyEnv, billingEnv, observabilityEnv)
           probes: [
             {
               type: 'Liveness'

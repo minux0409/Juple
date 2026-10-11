@@ -61,3 +61,36 @@ param imageTag = readEnvironmentVariable('JUPLE_WEB_PROD_IMAGE_TAG')
 // that custom domain afterward) - a genuinely per-deployment value, never a literal, same
 // treatment as dev.bicepparam's own apiBaseUrl.
 param apiBaseUrl = readEnvironmentVariable('JUPLE_WEB_PROD_API_BASE_URL')
+
+// -----------------------------------------------------------------------------------------------
+// Launch settings. Staged on purpose:
+//   Stage 1 (first deployment, before the domain is bound / legal details exist):
+//       JUPLE_WEB_PROD_LAUNCH_SETTINGS_REQUIRED=false - a conscious, visible choice. Such a deployment is
+//       NOT launch-ready and must not be announced or given to Play Console: the legal pages then leave
+//       the operator lines out (nothing is invented) and the install CTA has no store link.
+//   Stage 2 (the launch deployment): JUPLE_WEB_PROD_LAUNCH_SETTINGS_REQUIRED=true. The deployment then
+//       fails during validation unless customDomainName/managedCertificateName (the two literals above -
+//       'juple.co.kr' and its real managed certificate), the Play URL, the assetlinks fingerprint and
+//       every LEGAL_* operator value below are set (launch-settings-guard.bicep).
+// No default for the switch: omission fails the build (BCP427), so "launch-ready" is never implied.
+// -----------------------------------------------------------------------------------------------
+param launchSettingsRequired = bool(readEnvironmentVariable('JUPLE_WEB_PROD_LAUNCH_SETTINGS_REQUIRED'))
+
+// The real Google Play listing URL - only once a listing exists (never invented).
+param googlePlayUrl = readEnvironmentVariable('JUPLE_WEB_PROD_GOOGLE_PLAY_URL', '')
+
+// SHA-256 fingerprint(s) of the certificate that signs the INSTALLED app: the Google Play App Signing
+// certificate - never the upload key, never debug/dogfood. Read it from Play Console > Setup > App
+// integrity (docs/architecture.md records the Dev/Play value; confirm it for Production). Dev's three
+// fingerprints are NOT carried over here: Production serves only what Production installs are signed
+// with. Comma-separated for several.
+param androidAssetlinksSha256Fingerprints = readEnvironmentVariable('JUPLE_WEB_PROD_ANDROID_ASSETLINKS_SHA256_FINGERPRINTS', '')
+
+// Operator details for /privacy, /terms, /account-deletion. The business registration is still pending,
+// so NO value is committed or guessed: they come from the deploying shell once they are real. Empty =
+// left out of the pages (allowed only while launchSettingsRequired is false).
+param legalOperatorName = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_OPERATOR_NAME', '')
+param legalBusinessRegistrationNumber = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_BUSINESS_REGISTRATION_NUMBER', '')
+param legalBusinessAddress = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_BUSINESS_ADDRESS', '')
+param legalEffectiveDate = readEnvironmentVariable('JUPLE_WEB_PROD_LEGAL_EFFECTIVE_DATE', '')
+// legalSupportEmail / legalPrivacyEmail are left unassigned: the code's confirmed contact mailbox applies.

@@ -7,8 +7,12 @@ param environmentName string
 param location string
 param sqlAdministratorLogin string
 
+@description('Azure SQL administrator password - used ONLY when sqlBootstrapAdministratorCredential is true (creating the server for the first time, or a deliberate password reset). Must be empty on every ordinary redeployment: the property is then left out of the ARM payload entirely, so the existing server password is never touched. Never include it in an output.')
 @secure()
-param sqlAdministratorLoginPassword string
+param sqlAdministratorLoginPassword string = ''
+
+@description('Explicit bootstrap switch. false (default): an update - administratorLoginPassword is NOT sent, and supplying a password anyway fails the deployment (so a stray value is never silently ignored). true: the password is sent, and an empty one fails the deployment. Only a brand-new SQL server or a deliberate, controlled reset uses true.')
+param sqlBootstrapAdministratorCredential bool = false
 
 param sqlDatabaseSku object
 
@@ -126,6 +130,25 @@ resource storageBlobDataContributorRoleAssignment 'Microsoft.Authorization/roleA
   }
 }
 
+// Fail-closed guards for the SQL credential lifecycle (see sqlBootstrapAdministratorCredential). Each is
+// a resource-less module whose only job is its parameter validation, which runs before anything is
+// changed: bootstrap without a password, or a password supplied to an update, stops the deployment.
+module sqlCredentialRequiredGuard 'sql-credential-required.bicep' = if (sqlBootstrapAdministratorCredential) {
+  name: 'juple-${environmentName}-sql-credential-required'
+  params: {
+    #disable-next-line BCP329
+    sqlBootstrapRequiresAdministratorPassword: empty(sqlAdministratorLoginPassword) ? 0 : 1
+  }
+}
+
+module sqlCredentialForbiddenGuard 'sql-credential-forbidden.bicep' = if (!sqlBootstrapAdministratorCredential) {
+  name: 'juple-${environmentName}-sql-credential-forbidden'
+  params: {
+    #disable-next-line BCP330
+    sqlUpdateModeMustNotSupplyAdministratorPassword: empty(sqlAdministratorLoginPassword) ? 0 : 1
+  }
+}
+
 // -----------------------------------------------------------------------------------------------
 // Azure SQL - public endpoint (no VNet/Private Endpoint at this Dev scale, per design decision),
 // TLS 1.2 minimum. AllowAzureServices is the well-known 0.0.0.0-0.0.0.0 sentinel rule (it does not
@@ -139,10 +162,17 @@ resource sqlServer 'Microsoft.Sql/servers@2021-11-01' = {
   location: location
   properties: {
     administratorLogin: sqlAdministratorLogin
-    administratorLoginPassword: sqlAdministratorLoginPassword
+    // null() omits the property from the ARM request body (it is not sent as an empty string):
+    // on an update the server keeps its current password. See the two credential guard modules.
+    administratorLoginPassword: sqlBootstrapAdministratorCredential ? sqlAdministratorLoginPassword : null
     minimalTlsVersion: '1.2'
     publicNetworkAccess: 'Enabled'
   }
+  // Nothing is sent to the SQL server until the guard for the active mode has passed.
+  dependsOn: [
+    sqlCredentialRequiredGuard
+    sqlCredentialForbiddenGuard
+  ]
 }
 
 resource sqlAllowAzureServicesFirewallRule 'Microsoft.Sql/servers/firewallRules@2021-11-01' = {

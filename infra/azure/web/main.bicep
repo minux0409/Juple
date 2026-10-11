@@ -58,6 +58,21 @@ param iosAppId string = ''
 @description('Comma-separated SHA-256 fingerprints of the certificate that actually signs the released Android APK/AAB - see apps/web/app/.well-known/assetlinks.json/route.ts. Leave empty until Play App Signing is enabled and a real fingerprint is known; the route already treats an empty value as "not configured" (404).')
 param androidAssetlinksSha256Fingerprints string = ''
 
+@description('Operator details shown on the public legal pages (/privacy, /terms, /account-deletion - apps/web/lib/legalConfig.ts). Plain runtime env, never NEXT_PUBLIC_*. Empty (default) = the field is simply left out of the pages - nothing is invented. They are emitted as Container App env only when non-empty, so an environment that sets none keeps exactly the env it has today. The business registration is still pending: real values are supplied only once they exist, and never written into a checked-in parameter file with a guess.')
+param legalOperatorName string = ''
+param legalBusinessRegistrationNumber string = ''
+param legalBusinessAddress string = ''
+
+@description('Date the published terms/policy take effect (YYYY-MM-DD). Empty = not shown.')
+param legalEffectiveDate string = ''
+
+@description('Overrides of the confirmed contact mailbox (apps/web/lib/legalConfig.ts CONFIRMED_CONTACT_EMAIL). Empty = the code default.')
+param legalSupportEmail string = ''
+param legalPrivacyEmail string = ''
+
+@description('Launch gate. false (default - no behavior change for any existing environment): the optional settings above and below may stay empty. true: the deployment fails during validation unless every setting a public Production launch cannot go without is non-empty - the custom domain and its certificate, the Google Play URL, the Android assetlinks fingerprints and the operator\'s legal details (see launch-settings-guard.bicep). Production states it explicitly in prod.bicepparam (no default there), so a launch-ready web can never be deployed - or an incomplete one mistaken for launch-ready - by omission.')
+param launchSettingsRequired bool = false
+
 @description('Scale-to-zero by default - same Dev cost posture as ../app/main.bicep. The first request after idle pays a cold-start cost; raise minReplicas to 1 if that proves disruptive.')
 param minReplicas int = 0
 
@@ -67,6 +82,20 @@ param maxReplicas int = 1
 @description('Smallest Consumption-plan cpu/memory pairing, same as ../app/main.bicep.')
 param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
+
+var legalEnvEntries = {
+  LEGAL_OPERATOR_NAME: legalOperatorName
+  LEGAL_BUSINESS_REGISTRATION_NUMBER: legalBusinessRegistrationNumber
+  LEGAL_BUSINESS_ADDRESS: legalBusinessAddress
+  LEGAL_EFFECTIVE_DATE: legalEffectiveDate
+  LEGAL_SUPPORT_EMAIL: legalSupportEmail
+  LEGAL_PRIVACY_EMAIL: legalPrivacyEmail
+}
+// Only non-empty values become env vars (an empty one would mean the same as absent to the app).
+var legalEnv = map(filter(items(legalEnvEntries), entry => !empty(entry.value)), entry => {
+  name: entry.key
+  value: entry.value
+})
 
 var containerAppName = 'ca-juple-web-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
@@ -79,6 +108,21 @@ var hasCustomDomain = !empty(customDomainName) && !empty(managedCertificateName)
 var managedCertificateResourceId = hasCustomDomain
   ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
   : ''
+
+// Fail-closed launch gate (see launchSettingsRequired / launch-settings-guard.bicep).
+module launchSettingsGuard 'launch-settings-guard.bicep' = if (launchSettingsRequired) {
+  name: 'juple-${environmentName}-web-launch-settings-guard'
+  params: {
+    customDomainName: customDomainName
+    managedCertificateName: managedCertificateName
+    googlePlayUrl: googlePlayUrl
+    androidAssetlinksSha256Fingerprints: androidAssetlinksSha256Fingerprints
+    legalOperatorName: legalOperatorName
+    legalBusinessRegistrationNumber: legalBusinessRegistrationNumber
+    legalBusinessAddress: legalBusinessAddress
+    legalEffectiveDate: legalEffectiveDate
+  }
+}
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
@@ -139,7 +183,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(containerCpu)
             memory: containerMemory
           }
-          env: [
+          env: concat([
             {
               // Read at request time by app/c/[publicId]/page.tsx (and threaded from there as a
               // prop into the Client Component that does the "load more" fetch - see
@@ -178,7 +222,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ANDROID_ASSETLINKS_SHA256_FINGERPRINTS'
               value: androidAssetlinksSha256Fingerprints
             }
-          ]
+          ], legalEnv)
           probes: [
             {
               // /robots.txt (app/robots.ts) is a static, always-200 route that touches neither the

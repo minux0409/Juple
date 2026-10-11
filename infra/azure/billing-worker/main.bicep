@@ -84,6 +84,18 @@ param cooldownPeriodSeconds int = 300
 param containerCpu string = '0.25'
 param containerMemory string = '0.5Gi'
 
+@description('Application Insights connection string (../monitoring/main.bicep output "applicationInsightsConnectionString"). Empty (default) = not wired. The backend has no Application Insights / OpenTelemetry SDK yet, so this only sets APPLICATIONINSIGHTS_CONNECTION_STRING and is inert until instrumentation is added.')
+param applicationInsightsConnectionString string = ''
+
+var observabilityEnv = empty(applicationInsightsConnectionString)
+  ? []
+  : [
+      {
+        name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+        value: applicationInsightsConnectionString
+      }
+    ]
+
 var containerAppName = 'ca-juple-billing-worker-${environmentName}'
 var containerImage = '${acrLoginServer}/${imageRepository}:${imageTag}'
 var serviceBusNamespaceFqdn = '${serviceBusNamespaceName}.servicebus.windows.net'
@@ -147,6 +159,21 @@ var queueScaleRules = googleBillingEnabled
       }
     ]
   : []
+
+// Fail-closed: with billing enabled, an empty required setting stops the deployment during validation
+// (shared with the API - see ../app/billing-settings-guard.bicep) instead of deploying a worker that
+// cannot start.
+module billingSettingsGuard '../app/billing-settings-guard.bicep' = if (googleBillingEnabled) {
+  name: 'juple-${environmentName}-worker-billing-settings-guard'
+  params: {
+    googleProductId: googleProductId
+    googleBasePlanId: googleBasePlanId
+    googlePubSubAudience: googlePubSubAudience
+    googlePushServiceAccountEmail: googlePushServiceAccountEmail
+    billingKeyVaultUri: billingKeyVaultUri
+    billingEventsServiceBusNamespace: serviceBusNamespaceName
+  }
+}
 
 resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
   name: containerAppName
@@ -232,7 +259,8 @@ resource billingWorker 'Microsoft.App/containerApps@2025-01-01' = {
                 value: string(googleBillingEnabled)
               }
             ],
-            googleEnv
+            googleEnv,
+            observabilityEnv
           )
           probes: [
             {
