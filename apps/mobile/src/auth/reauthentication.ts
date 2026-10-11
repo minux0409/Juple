@@ -38,14 +38,69 @@ export function isSameAccount(previousIdToken: string | null | undefined, nextId
 
 export type ReauthenticationOutcome = 'reauthenticated' | 'differentAccount' | 'incomplete';
 
+// Claims that carry the sign-in e-mail of an External ID local (email + password) account, in order.
+// 'upn' is deliberately not here: it is a workforce-account claim and would only ever steer the
+// sign-in page towards the wrong (organizational) account type.
+const LOGIN_HINT_CLAIMS = ['email', 'preferred_username'] as const;
+const MAX_LOGIN_HINT_LENGTH = 254;
+// One local part, one @, a dotted domain; no whitespace, quotes, angle brackets or control characters.
+// eslint-disable-next-line no-control-regex
+const EMAIL_SHAPE = /^[^\s@<>"'\u0000-\u001f]+@[^\s@<>"'\u0000-\u001f]+\.[^\s@<>"'\u0000-\u001f]+$/;
+
 /**
- * Runs an interactive prompt=login / max_age=0 sign-in. The current session is replaced only when
- * the new sign-in is provably the same account; otherwise nothing is saved and the existing
- * session stays exactly as it was. A cancelled or failed sign-in rejects (EntraAuthError).
+ * The signed-in user's e-mail from the ID token the app already holds in memory - or null when it is
+ * absent or not shaped like an e-mail address. It is used for exactly one thing: the login_hint of a
+ * re-authentication request. It is never stored, logged or sent anywhere else, and a wrong or missing
+ * value can only make the sign-in page less helpful - the new tokens must still be the same account
+ * (isSameAccount) before they replace the session.
+ */
+export function loginHintFromIdToken(idToken: string | null | undefined): string | null {
+  const claims = idToken ? decodeIdTokenClaims(idToken) : null;
+  if (!claims) {
+    return null;
+  }
+  for (const key of LOGIN_HINT_CLAIMS) {
+    const value = claims[key];
+    if (typeof value !== 'string') {
+      continue;
+    }
+    const candidate = value.trim();
+    if (
+      candidate.length > 0 &&
+      candidate.length <= MAX_LOGIN_HINT_LENGTH &&
+      EMAIL_SHAPE.test(candidate)
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * prompt=login / max_age=0, plus login_hint when (and only when) the current user's e-mail is known
+ * with confidence. Without a hint, External ID may show an account-type chooser from which the
+ * organizational option fails with AADSTS700056 for a local account; with it, the sign-in page opens
+ * straight on the local account's password. No hint -> exactly the previous parameters.
+ */
+export function buildReauthenticationParameters(
+  currentIdToken: string | null | undefined,
+): Record<string, string> {
+  const loginHint = loginHintFromIdToken(currentIdToken);
+  return {
+    ...REAUTHENTICATION_PARAMETERS,
+    ...(loginHint ? { login_hint: loginHint } : {}),
+  };
+}
+
+/**
+ * Runs an interactive prompt=login / max_age=0 sign-in (with the current user's e-mail as login_hint
+ * when known). The current session is replaced only when the new sign-in is provably the same
+ * account; otherwise nothing is saved and the existing session stays exactly as it was. A cancelled
+ * or failed sign-in rejects (EntraAuthError).
  */
 export async function reauthenticateSameAccount(): Promise<ReauthenticationOutcome> {
   const previousIdToken = getCachedIdToken();
-  const result = await authorizeWithEntra(REAUTHENTICATION_PARAMETERS);
+  const result = await authorizeWithEntra(buildReauthenticationParameters(previousIdToken));
   if (!result.accessToken || !result.refreshToken) {
     return 'incomplete';
   }
