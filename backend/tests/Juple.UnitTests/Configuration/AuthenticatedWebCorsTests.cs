@@ -41,7 +41,7 @@ public sealed class AuthenticatedWebCorsTests
         Assert.False(policy.AllowAnyHeader);
         Assert.Equal(["http://localhost:3000", "https://dev.juple.co.kr"], policy.Origins);
         Assert.Equal(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], policy.Methods);
-        Assert.Equal(["Authorization", "Content-Type"], policy.Headers);
+        Assert.Equal(["Authorization", "Content-Type", "X-Juple-Collection-Unlock"], policy.Headers);
         Assert.True(policy.IsOriginAllowed("http://localhost:3000"));
         Assert.False(policy.IsOriginAllowed("https://evil.example"));
         Assert.Equal(AuthenticatedWebCors.PreflightMaxAge, policy.PreflightMaxAge);

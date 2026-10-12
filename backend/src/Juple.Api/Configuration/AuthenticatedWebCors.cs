@@ -17,7 +17,11 @@ public static class AuthenticatedWebCors
 
     public static readonly IReadOnlyList<string> AllowedMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"];
 
-    public static readonly IReadOnlyList<string> AllowedHeaders = ["Authorization", "Content-Type"];
+    /// <summary>
+    /// The bearer token, JSON bodies, and the Collection unlock grant (the short-lived token from POST {id}/unlock, which a locked
+    /// Collection's reads and writes require - CollectionsController.UnlockTokenHeader). Explicit names only, never any header.
+    /// </summary>
+    public static readonly IReadOnlyList<string> AllowedHeaders = ["Authorization", "Content-Type", Controllers.CollectionsController.UnlockTokenHeader];
 
     /// <summary>How long a browser may cache a preflight answer.</summary>
     public static readonly TimeSpan PreflightMaxAge = TimeSpan.FromMinutes(10);
