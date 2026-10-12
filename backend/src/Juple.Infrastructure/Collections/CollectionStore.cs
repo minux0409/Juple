@@ -268,7 +268,7 @@ public sealed class CollectionStore(
             : await dbContext.Users
                 .AsNoTracking()
                 .Where(user => ownerIds.Contains(user.Id))
-                .Select(user => new PersonRow(user.Id, user.PublicCode, user.DisplayName))
+                .Select(user => new PersonRow(user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName))
                 .ToListAsync(cancellationToken);
         var peopleById = people.ToDictionary(person => person.UserId);
 
@@ -279,7 +279,7 @@ public sealed class CollectionStore(
                     where collaborativeIds.Contains(collaborator.CollectionId)
                     join user in dbContext.Users.AsNoTracking() on collaborator.UserId equals user.Id
                     orderby collaborator.CreatedAtUtc, collaborator.Id
-                    select new { collaborator.CollectionId, Person = new PersonRow(user.Id, user.PublicCode, user.DisplayName, collaborator.Role) })
+                    select new { collaborator.CollectionId, Person = new PersonRow(user.Id, user.PublicCode, user.DisplayName, user.ProfileImageBlobName, collaborator.Role) })
                 .ToListAsync(cancellationToken))
                 .GroupBy(entry => entry.CollectionId)
                 .ToDictionary(group => group.Key, group => group.Select(entry => entry.Person).ToList());
@@ -299,6 +299,42 @@ public sealed class CollectionStore(
             }
         }
 
+        // The photos of the (at most two per row) people each card shows: the same read URLs the participant list uses, signed
+        // locally - no query, no network call per person.
+        var photoOf = new Dictionary<long, UserProfileImageRef>();
+        async Task ResolvePhotoAsync(PersonRow person)
+        {
+            if (!photoOf.ContainsKey(person.UserId))
+            {
+                photoOf[person.UserId] = await profileImageStorage.ResolveProfileImageAsync(person.UserId, person.ProfileImageBlobName, cancellationToken);
+            }
+        }
+
+        foreach (var row in rows.Where(row => row.HasCollaborators))
+        {
+            var shown = new List<PersonRow>();
+            if (row.OwnerUserId != userId && peopleById.TryGetValue(row.OwnerUserId, out var ownerPerson))
+            {
+                shown.Add(ownerPerson);
+            }
+
+            if (contributorsByCollection.TryGetValue(row.Id, out var members))
+            {
+                shown.AddRange(members.Where(person => person.UserId != userId));
+            }
+
+            foreach (var person in shown.Take(CollectionParticipantSummary.PreviewSize))
+            {
+                await ResolvePhotoAsync(person);
+            }
+        }
+
+        CollectionParticipantDto Preview(PersonRow person, string role)
+        {
+            var photo = photoOf.GetValueOrDefault(person.UserId);
+            return new CollectionParticipantDto(person.PublicCode, person.DisplayName, role, ProfileImageUrl: photo?.Url, ProfileImageVersion: photo?.Version);
+        }
+
         return rows.Select(row =>
         {
             var isOwner = row.OwnerUserId == userId;
@@ -311,15 +347,14 @@ public sealed class CollectionStore(
                 var others = new List<CollectionParticipantDto>();
                 if (!isOwner && owner is not null)
                 {
-                    others.Add(new CollectionParticipantDto(owner.PublicCode, owner.DisplayName, CollectionDtoAccessRoles.Owner));
+                    others.Add(Preview(owner, CollectionDtoAccessRoles.Owner));
                 }
 
                 if (contributorsByCollection.TryGetValue(row.Id, out var contributors))
                 {
                     others.AddRange(contributors
                         .Where(person => person.UserId != userId)
-                        .Select(person => new CollectionParticipantDto(
-                            person.PublicCode, person.DisplayName, CollectionDtoAccessRoles.ForCollaborator(person.Role ?? CollectionCollaboratorRole.Contributor))));
+                        .Select(person => Preview(person, CollectionDtoAccessRoles.ForCollaborator(person.Role ?? CollectionCollaboratorRole.Contributor))));
                 }
 
                 otherParticipantCount = others.Count;
@@ -393,7 +428,7 @@ public sealed class CollectionStore(
         public CollectionCollaboratorRole? CallerRole { get; init; }
     }
 
-    private sealed record PersonRow(long UserId, string PublicCode, string? DisplayName, CollectionCollaboratorRole? Role = null);
+    private sealed record PersonRow(long UserId, string PublicCode, string? DisplayName, string? ProfileImageBlobName, CollectionCollaboratorRole? Role = null);
 
     public async Task<CollectionDto> CreateAsync(
         long userId,

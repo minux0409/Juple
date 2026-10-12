@@ -6,6 +6,7 @@ using Juple.Application.Collections.Access;
 using Juple.Application.Collections.Collaboration;
 using Juple.Application.Collections.ListCollections;
 using Juple.Application.Collections.SetCollectionFavorite;
+using Juple.Application.Images;
 using Juple.Application.Users.Profile;
 using Juple.Domain.Collections;
 using Juple.Domain.Users;
@@ -226,6 +227,48 @@ public sealed class CollectionFavoritesAndParticipantsIntegrationTests : IAsyncL
         var privateView = await _collections.GetAsync(_owner, _ownerPrivateId);
         Assert.Null(privateView.ParticipantPreview);
         Assert.Equal(0, privateView.OtherParticipantCount);
+    }
+
+    [Fact]
+    public async Task CardSummary_CarriesTheParticipantsProfilePhoto_SignedLocally_AndNullWithoutOne()
+    {
+        // The Owner has a photo, the first Contributor does not; the card preview must show exactly that (never a made-up value).
+        await _db.Database.ExecuteSqlInterpolatedAsync($"UPDATE users.Users SET ProfileImageBlobName = {"owner-photo.png"} WHERE Id = {_owner}");
+        _db.ChangeTracker.Clear();
+        var storage = new PreviewPhotoStorage();
+        var withPhotos = new CollectionStore(_db, null, storage);
+
+        var contributorView = await withPhotos.GetAsync(_contributor, _sharedId);
+        var preview = contributorView.ParticipantPreview!;
+        Assert.Equal(CollectionDtoAccessRoles.Owner, preview[0].Role);
+        Assert.Equal("https://blob.example/owner-photo.png", preview[0].ProfileImageUrl);
+        Assert.NotNull(preview[0].ProfileImageVersion);
+        Assert.Null(preview[1].ProfileImageUrl);
+        Assert.Null(preview[1].ProfileImageVersion);
+        // Signed only for the people the card shows (at most two), never per Collection row in a loop of queries.
+        Assert.Equal(1, storage.SignCount);
+
+        // Nothing else of the card changed.
+        Assert.Equal(2, contributorView.OtherParticipantCount);
+        Assert.Equal("피카츄", preview[0].DisplayName);
+    }
+
+    private sealed class PreviewPhotoStorage : IUserProfileImageStorage
+    {
+        private int signCount;
+
+        public int SignCount => signCount;
+
+        public Task<string> UploadProfileImageAsync(long userId, ImageFormat format, byte[] content, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task DeleteProfileImageAsync(long userId, string blobName, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Uri?> CreateProfileImageReadUrlAsync(long userId, string blobName, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref signCount);
+            return Task.FromResult<Uri?>(new Uri($"https://blob.example/{blobName}"));
+        }
     }
 
     [Fact]
