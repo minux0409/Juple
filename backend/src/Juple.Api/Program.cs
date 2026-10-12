@@ -328,14 +328,20 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 
-// Scoped to PublicCollectionsController alone (see its [EnableCors] attribute) - the
-// authenticated Mobile-facing API surface has no default CORS policy and is unaffected. Left with
+// PublicWeb: scoped to PublicCollectionsController alone (see its [EnableCors] attribute). Left with
 // no allowed origins (WithOrigins requires at least one non-empty value) until PublicWeb:BaseUrl
 // is actually configured, so an unconfigured environment allows no cross-origin browser calls
 // rather than silently allowing everything.
+//
+// Default policy: the signed-in Juple Web app (see AuthenticatedWebCors) - only the configured
+// AuthenticatedWeb:AllowedOrigins, never any origin, never credentials. Nothing configured (every
+// environment that has not deployed the signed-in Web app) = no cross-origin access, as before.
 var publicWebBaseUrl = builder.Configuration["PublicWeb:BaseUrl"];
+var authenticatedWebOrigins = AuthenticatedWebCors.NormalizeOrigins(
+    builder.Configuration.GetSection(AuthenticatedWebCors.AllowedOriginsSection).Get<string?[]>() ?? []);
 builder.Services.AddCors(options =>
 {
+    options.AddDefaultPolicy(AuthenticatedWebCors.BuildPolicy(authenticatedWebOrigins));
     options.AddPolicy(CorsPolicies.PublicWeb, policy =>
     {
         if (!string.IsNullOrWhiteSpace(publicWebBaseUrl))

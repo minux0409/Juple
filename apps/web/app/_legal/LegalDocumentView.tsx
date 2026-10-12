@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { formatLegalDate, LEGAL_CONTENT_UPDATED, type LegalOperatorConfig } from '../../lib/legalConfig';
 import { operatorFacts, type LegalDocument } from '../../lib/legalContent';
 
@@ -16,9 +17,9 @@ export function LegalDocumentView({ doc, config }: { doc: LegalDocument; config:
   return (
     <main className="legalMain" lang="ko">
       <header className="legalHeader">
-        <a className="legalBrand" href="/">
+        <Link className="legalBrand" href="/">
           Juple
-        </a>
+        </Link>
         <nav aria-label="법적 고지" className="legalNav">
           <a href="/privacy">개인정보처리방침</a>
           <a href="/terms">이용약관</a>
