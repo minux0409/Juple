@@ -1,27 +1,40 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../../lib/appI18n';
 import { isSessionLost } from '../../../lib/authSession';
 import {
   COLLECTION_FILTERS,
+  COLLECTION_VIEW_MODE_STORAGE_KEY,
+  COLLECTION_VIEW_MODES,
   collectionIconImage,
   collectionsPath,
   collectionTile,
+  DEFAULT_COLLECTION_FILTER,
   isCollectionLocked,
   isCollectionShared,
+  parseCollectionViewMode,
   type CollectionFilter,
   type CollectionsPage,
   type CollectionSummary,
+  type CollectionViewMode,
 } from '../../../lib/collectionsView';
+import { formatBadgeCount } from '../../../lib/notifications';
+import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../lib/paging';
+import { collectionHref } from '../../../lib/savedLinks';
 import { useSignedInApp } from '../AppRoot';
 import { CollectionGlyph, Glyph } from '../Glyph';
+import { LoadMore } from '../InfiniteScroll';
+import { Avatar } from '../Avatar';
+import { LinkImage } from '../LinkImage';
+import { LoadFailed } from '../PageStates';
+import { CollectionSkeleton } from '../Skeletons';
+import { useStoredChoice } from '../useStoredChoice';
+import { ViewModeToggle } from '../ViewModeToggle';
 import styles from '../app.module.css';
 
-type ListState =
-  | { readonly kind: 'loading' }
-  | { readonly kind: 'failed' }
-  | { readonly kind: 'loaded'; readonly items: readonly CollectionSummary[]; readonly nextCursor: string | null; readonly loadingMore: boolean; readonly moreFailed: boolean };
+type ListState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<CollectionSummary>);
 
 function filterLabel(dictionary: AppDictionary, filter: CollectionFilter): string {
   return { all: dictionary.filterAll, favorites: dictionary.filterFavorites, owned: dictionary.filterOwned, shared: dictionary.filterShared }[filter];
@@ -33,13 +46,14 @@ function emptyLabel(dictionary: AppDictionary, filter: CollectionFilter): string
 }
 
 /**
- * 컬렉션 - read-only: the mobile filters (전체 / 즐겨찾기 / 내 컬렉션 / 공유 컬렉션 = the API's scopes) and a card per Collection with only
- * what the API returns (its icon tile, name, link count, favorite, locked / shared). Creating / editing / opening a Collection is not
- * part of this Web round.
+ * 컬렉션 - the mobile Collections screen: its four filters (즐겨찾기 first and by default; the API's scopes), List / Grid (Grid by
+ * default, remembered per browser), "+ 새 컬렉션", and each Collection as only the API returns it (its icon tile, name, link count,
+ * favorite, locked / shared). The list continues by itself as it scrolls.
  */
 export function CollectionsView() {
   const { api, dictionary, onSessionLost } = useSignedInApp();
-  const [filter, setFilter] = useState<CollectionFilter>('all');
+  const [filter, setFilter] = useState<CollectionFilter>(DEFAULT_COLLECTION_FILTER);
+  const [viewMode, setViewMode] = useStoredChoice<CollectionViewMode>(COLLECTION_VIEW_MODE_STORAGE_KEY, parseCollectionViewMode);
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -48,7 +62,7 @@ export function CollectionsView() {
     api<CollectionsPage>({ path: collectionsPath(filter) }).then(
       page => {
         if (!ignore) {
-          setState({ kind: 'loaded', items: page.items, nextCursor: page.nextCursor, loadingMore: false, moreFailed: false });
+          setState({ kind: 'loaded', ...firstPage(page.items, page.nextCursor) });
         }
       },
       error => {
@@ -80,24 +94,20 @@ export function CollectionsView() {
   };
 
   const loadMore = () => {
-    if (state.kind !== 'loaded' || !state.nextCursor || state.loadingMore) {
+    if (state.kind !== 'loaded' || !canLoadMore(state)) {
       return;
     }
     const requestedFilter = filter;
-    setState({ ...state, loadingMore: true, moreFailed: false });
-    api<CollectionsPage>({ path: collectionsPath(requestedFilter, state.nextCursor) }).then(
-      page =>
-        setState(current =>
-          current.kind === 'loaded' && requestedFilter === filter
-            ? { kind: 'loaded', items: [...current.items, ...page.items.filter(item => !current.items.some(existing => existing.id === item.id))], nextCursor: page.nextCursor, loadingMore: false, moreFailed: false }
-            : current,
-        ),
+    const cursor = state.nextCursor;
+    setState({ kind: 'loaded', ...startLoadingMore(state) });
+    api<CollectionsPage>({ path: collectionsPath(requestedFilter, cursor) }).then(
+      page => setState(current => (current.kind === 'loaded' && requestedFilter === filter ? { kind: 'loaded', ...appendPage(current, page, item => item.id) } : current)),
       error => {
         if (isSessionLost(error)) {
           onSessionLost();
           return;
         }
-        setState(current => (current.kind === 'loaded' ? { ...current, loadingMore: false, moreFailed: true } : current));
+        setState(current => (current.kind === 'loaded' ? { kind: 'loaded', ...failLoadingMore(current) } : current));
       },
     );
   };
@@ -110,92 +120,134 @@ export function CollectionsView() {
         </div>
       </div>
 
-      <div aria-label={dictionary.collectionsFilterLabel} className={styles.filterTabs} role="group">
-        {COLLECTION_FILTERS.map(option => (
-          <button
-            aria-pressed={filter === option}
-            className={filter === option ? styles.filterTabSelected : styles.filterTab}
-            key={option}
-            onClick={() => selectFilter(option)}
-            type="button"
-          >
-            {filterLabel(dictionary, option)}
-          </button>
-        ))}
+      {/* One toolbar: the mobile filters, then how they are shown and 새 컬렉션 (always in reach). It wraps on a narrow window. */}
+      <div className={styles.toolbar}>
+        <div aria-label={dictionary.collectionsFilterLabel} className={styles.filterTabs} role="group">
+          {COLLECTION_FILTERS.map(option => (
+            <button
+              aria-pressed={filter === option}
+              className={filter === option ? styles.filterTabSelected : styles.filterTab}
+              key={option}
+              onClick={() => selectFilter(option)}
+              type="button"
+            >
+              {filterLabel(dictionary, option)}
+            </button>
+          ))}
+        </div>
+        <div className={styles.headerActions}>
+          <ViewModeToggle
+            groupLabel={dictionary.viewModeLabel}
+            labels={{ list: dictionary.viewList, grid: dictionary.viewGrid, image: dictionary.viewImage }}
+            modes={COLLECTION_VIEW_MODES}
+            onChange={setViewMode}
+            value={viewMode}
+          />
+          <Link className={styles.primaryAction} href="/collections/new">
+            <Glyph name="Plus" size={16} />
+            {dictionary.collectionCreate}
+          </Link>
+        </div>
       </div>
 
-      {state.kind === 'loading' ? <div aria-hidden className={styles.spinner} /> : null}
-      {state.kind === 'failed' ? (
-        <div className={styles.inlineState} role="alert">
-          <p className={styles.stateTitle}>{dictionary.loadFailedTitle}</p>
-          <p className={styles.stateMessage}>{dictionary.loadFailedMessage}</p>
-          <button className={styles.secondaryButton} onClick={retry} type="button">
-            {dictionary.retry}
-          </button>
-        </div>
-      ) : null}
+      {state.kind === 'loading' ? <CollectionSkeleton count={viewMode === 'grid' ? 10 : 6} mode={viewMode} /> : null}
+      {state.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={retry} /> : null}
       {state.kind === 'loaded' && state.items.length === 0 ? <p className={styles.emptyState}>{emptyLabel(dictionary, filter)}</p> : null}
       {state.kind === 'loaded' && state.items.length > 0 ? (
         <>
-          <ul className={styles.collectionGrid}>
+          <ul className={viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
             {state.items.map(collection => (
               <li className={styles.collectionCard} key={collection.id}>
                 <CollectionCard collection={collection} dictionary={dictionary} />
               </li>
             ))}
           </ul>
-          {state.nextCursor || state.moreFailed ? (
-            <div className={styles.loadMoreRow}>
-              {state.moreFailed ? <span className={styles.stateMessage}>{dictionary.loadFailedTitle}</span> : null}
-              <button className={styles.secondaryButton} disabled={state.loadingMore} onClick={loadMore} type="button">
-                {state.moreFailed ? dictionary.retry : dictionary.loadMore}
-              </button>
-            </div>
-          ) : null}
+          <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<CollectionSkeleton count={viewMode === 'grid' ? 5 : 3} mode={viewMode} />} state={state} />
         </>
       ) : null}
     </section>
   );
 }
 
-function CollectionCard({ collection, dictionary }: { readonly collection: CollectionSummary; readonly dictionary: AppDictionary }) {
+export function CollectionTileView({ collection, size }: { readonly collection: Pick<CollectionSummary, 'id' | 'color' | 'icon' | 'iconImageUrl'>; readonly size: number }) {
   const tile = collectionTile(collection.color, collection.id);
   const image = collectionIconImage(collection);
-  const locked = isCollectionLocked(collection);
-  const shared = isCollectionShared(collection);
   return (
-    <div className={styles.collectionBody}>
-      <div aria-hidden className={styles.collectionTile} style={{ background: tile.background, color: tile.icon }}>
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element -- the Collection's own icon photo (short-lived read URL)
-          <img alt="" loading="lazy" referrerPolicy="no-referrer" src={image} />
-        ) : (
-          <CollectionGlyph icon={collection.icon} size={28} />
-        )}
-      </div>
+    <div aria-hidden className={styles.collectionTile} style={{ background: tile.background, color: tile.icon, width: size, height: size }}>
+      <LinkImage fallback={<CollectionGlyph icon={collection.icon} size={Math.round(size * 0.52)} />} src={image} />
+    </div>
+  );
+}
+
+function CollectionCard({ collection, dictionary }: { readonly collection: CollectionSummary; readonly dictionary: AppDictionary }) {
+  const attention = collection.attentionCount ?? 0;
+  return (
+    // With attention, the card's spoken name carries the full count (the badge caps at 99+ and is not announced by itself).
+    <Link
+      aria-label={attention > 0 ? formatMessage(dictionary.collectionAttentionA11y, { name: collection.name, count: attention }) : undefined}
+      className={styles.collectionBody}
+      href={collectionHref(collection.id)}
+    >
+      <CollectionTileView collection={collection} size={52} />
       <div className={styles.collectionText}>
         <span className={styles.collectionName} dir="auto">
           {collection.name}
         </span>
         <span className={styles.linkMeta}>{formatMessage(dictionary.itemCount, { count: collection.itemCount })}</span>
       </div>
-      <div className={styles.collectionBadges}>
-        {locked ? (
-          <span aria-label={dictionary.lockedCollection} className={styles.badge} role="img" title={dictionary.lockedCollection}>
-            <Glyph name="Lock" size={13} />
+      <div className={styles.cardStatus}>
+        {attention > 0 ? (
+          <span aria-hidden className={styles.attentionBadge}>
+            {formatBadgeCount(attention)}
           </span>
         ) : null}
-        {shared ? (
-          <span aria-label={dictionary.sharedCollection} className={styles.badgeShared} role="img" title={dictionary.sharedCollection}>
-            <Glyph name="People" size={13} />
-          </span>
-        ) : null}
-        {collection.isFavorite ? (
-          <span aria-label={dictionary.favorite} className={styles.favoriteBadge} role="img" title={dictionary.favorite}>
-            <Glyph name="StarFilled" size={18} />
-          </span>
-        ) : null}
+        <CollectionBadges collection={collection} dictionary={dictionary} />
+        <ParticipantPreview collection={collection} />
       </div>
+    </Link>
+  );
+}
+
+export function CollectionBadges({ collection, dictionary }: { readonly collection: CollectionSummary; readonly dictionary: AppDictionary }) {
+  return (
+    <div className={styles.collectionBadges}>
+      {isCollectionLocked(collection) ? (
+        <span aria-label={dictionary.lockedCollection} className={styles.badge} role="img" title={dictionary.lockedCollection}>
+          <Glyph name="Lock" size={13} />
+        </span>
+      ) : null}
+      {isCollectionShared(collection) ? (
+        <span aria-label={dictionary.sharedCollection} className={styles.badgeShared} role="img" title={dictionary.sharedCollection}>
+          <Glyph name="People" size={13} />
+        </span>
+      ) : null}
+      {collection.isFavorite ? (
+        <span aria-label={dictionary.favorite} className={styles.favoriteBadge} role="img" title={dictionary.favorite}>
+          <Glyph name="StarFilled" size={18} />
+        </span>
+      ) : null}
     </div>
+  );
+}
+
+/** The people in a shared Collection, as the list row reports them (mobile participantPreview: up to two, then how many more). */
+function ParticipantPreview({ collection }: { readonly collection: CollectionSummary }) {
+  const preview = collection.participantPreview ?? [];
+  const others = collection.otherParticipantCount ?? preview.length;
+  if (others === 0 || preview.length === 0) {
+    return null;
+  }
+  const more = others - preview.length;
+  return (
+    <span aria-hidden className={styles.miniStack}>
+      {preview.map(person => (
+        <Avatar key={person.jupleId} person={person} size={22} />
+      ))}
+      {more > 0 ? (
+        <span className={`${styles.avatar} ${styles.avatarMore}`} style={{ width: 22, height: 22 }}>
+          +{more}
+        </span>
+      ) : null}
+    </span>
   );
 }

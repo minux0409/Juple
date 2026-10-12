@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { ApiHttpError, ApiNetworkError, AuthExpiredError, createAppApi } from '../lib/appApi.ts';
-import { getAppDictionary } from '../lib/appI18n.ts';
+import { getAppDictionary } from '../lib/appDictionary.ts';
 import {
   bootstrapRequestBody,
   isSessionLost,
@@ -10,7 +10,8 @@ import {
   statusAfterBootstrapFailure,
   statusAfterInitialize,
 } from '../lib/authSession.ts';
-import { homeHistoryPath, isSafeHttpUrl, todayWindowStartUtc, toHomeLinkView, type ItemHistoryEntry } from '../lib/homeItems.ts';
+import { homeHistoryPath, todayWindowStartUtc } from '../lib/homeItems.ts';
+import { historyLinkView, isSafeHttpUrl, type ItemHistoryEntry } from '../lib/savedLinks.ts';
 import { authCallbackSecurityHeaders, securityHeaders } from '../lib/securityHeaders.ts';
 import { classifySignInError, describeSignInError, signInFailureMessage } from '../lib/authErrors.ts';
 import { knownAuthorityHosts, readWebAppConfig, redirectUriFor, WEB_APP_CONFIG_ENV } from '../lib/webAppConfig.ts';
@@ -143,7 +144,7 @@ describe('session states', () => {
 
 describe('routes: the public viewer and legal pages never require sign-in', () => {
   it('only the signed-in app routes require sign-in', () => {
-    for (const path of ['/', '/archive', '/collections/', '/me']) {
+    for (const path of ['/', '/archive', '/collections/', '/collections/12', '/collections/12/items/34', '/items/34', '/me', '/me/settings', '/me/subscription', '/me/account', '/me/friends', '/me/trash', '/notifications']) {
       assert.equal(requiresSignIn(path), true, path);
     }
     for (const path of ['/c/AbCdEfGh12345678', '/privacy', '/terms', '/account-deletion', '/auth/callback', '/.well-known/assetlinks.json']) {
@@ -154,7 +155,7 @@ describe('routes: the public viewer and legal pages never require sign-in', () =
   it('the (app) route group holds only the signed-in pages; the public viewer, legal pages and the redirect bridge live outside it', () => {
     const group = new URL('../app/(app)/', import.meta.url);
     const routeDirs = readdirSync(group, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
-    assert.deepEqual(routeDirs, ['archive', 'collections', 'me']);
+    assert.deepEqual(routeDirs, ['archive', 'collections', 'items', 'me', 'notifications']);
     for (const outside of ['c/[publicId]/page.tsx', 'privacy/page.tsx', 'terms/page.tsx', 'account-deletion/page.tsx', 'auth/callback/page.tsx']) {
       assert.ok(existsSync(new URL(`../app/${outside}`, import.meta.url)), outside);
     }
@@ -199,30 +200,32 @@ describe('Home (오늘 저장한 링크)', () => {
     assert.equal(path.searchParams.get('fromUtc'), todayWindowStartUtc(now));
   });
 
-  it('shows the title (else the site), the site without www and the mobile thumbnail priority', () => {
-    assert.deepEqual(toHomeLinkView(entry({ coverImage: { readUrl: 'https://img/cover' }, previewImageUrl: 'https://img/preview' })), {
+  it('shows the title (else the site), the site without www, the memo and the mobile thumbnail priority; a card opens Item Details', () => {
+    assert.deepEqual(historyLinkView(entry({ memo: ' note ', coverImage: { readUrl: 'https://img.test/cover' }, previewImageUrl: 'https://img.test/preview' })), {
       id: 1,
       locked: false,
-      title: 'Example',
+      title: { kind: 'text', text: 'Example', technical: false },
+      memo: 'note',
       site: 'example.com',
-      url: 'https://www.example.com/a',
-      thumbnailUrl: 'https://img/cover',
-      savedAtUtc: '2026-10-12T01:00:00Z',
+      siteId: null,
+      thumbnailUrl: 'https://img.test/cover',
+      timestampUtc: '2026-10-12T01:00:00Z',
+      href: '/items/1',
     });
-    assert.equal(toHomeLinkView(entry({ title: null })).title, 'example.com');
-    assert.equal(toHomeLinkView(entry({ previewImageUrl: 'https://img/preview', representativeImage: { readUrl: 'https://img/first' } })).thumbnailUrl, 'https://img/preview');
-    assert.equal(toHomeLinkView(entry({ representativeImage: { readUrl: 'https://img/first' } })).thumbnailUrl, 'https://img/first');
+    assert.deepEqual(historyLinkView(entry({ title: null })).title, { kind: 'text', text: 'example.com', technical: true });
+    // Mobile resolveEffectiveThumbnailUrl: the person's own (first uploaded) photo comes BEFORE the automatic preview.
+    assert.equal(historyLinkView(entry({ previewImageUrl: 'https://img.test/preview', representativeImage: { readUrl: 'https://img.test/first' } })).thumbnailUrl, 'https://img.test/first');
+    assert.equal(historyLinkView(entry({ previewImageUrl: 'https://img.test/preview' })).thumbnailUrl, 'https://img.test/preview');
+    assert.equal(historyLinkView(entry({ representativeImage: { readUrl: 'https://img.test/first' } })).thumbnailUrl, 'https://img.test/first');
+    assert.equal(historyLinkView(entry({ previewImageUrl: 'javascript:alert(1)' })).thumbnailUrl, null);
   });
 
-  it('a link behind a Collection lock shows nothing of itself', () => {
-    const view = toHomeLinkView(entry({ isCollectionLocked: true, url: '', title: null }));
-    assert.deepEqual({ locked: view.locked, title: view.title, site: view.site, url: view.url, thumbnailUrl: view.thumbnailUrl }, {
-      locked: true,
-      title: null,
-      site: null,
-      url: null,
-      thumbnailUrl: null,
-    });
+  it('a link behind a Collection lock shows nothing of itself and is not opened (a read without its Collection would skip the gate)', () => {
+    const view = historyLinkView(entry({ isCollectionLocked: true, url: '', title: null, memo: 'never' }));
+    assert.deepEqual(
+      { locked: view.locked, title: view.title, memo: view.memo, site: view.site, thumbnailUrl: view.thumbnailUrl, href: view.href },
+      { locked: true, title: { kind: 'locked' }, memo: null, site: null, thumbnailUrl: null, href: null },
+    );
   });
 
   it('only http(s) links are ever clickable', () => {
@@ -305,8 +308,8 @@ describe('Collections (read-only, real data only)', async () => {
     assert.deepEqual(collectionTile('NotAColor', 6), { background: '#EAF1FE', icon: '#5478B0' });
   });
 
-  it('the four mobile filters map to the API scopes, one mobile-sized page at a time', () => {
-    assert.deepEqual([...COLLECTION_FILTERS], ['all', 'favorites', 'owned', 'shared']);
+  it('the four mobile filters, in the mobile order (즐겨찾기 first), map to the API scopes, one mobile-sized page at a time', () => {
+    assert.deepEqual([...COLLECTION_FILTERS], ['favorites', 'all', 'owned', 'shared']);
     const path = new URL(collectionsPath('shared', 'next-cursor'), 'http://x');
     assert.equal(path.pathname, '/api/v1/collections');
     assert.equal(path.searchParams.get('scope'), 'shared');
@@ -329,7 +332,8 @@ describe('Collections (read-only, real data only)', async () => {
 });
 
 describe('Home header and view modes', async () => {
-  const { homeCountPath, parseHomeViewMode, todayWindowStartUtc: windowStart } = await import('../lib/homeItems.ts');
+  const { homeCountPath, todayWindowStartUtc: windowStart } = await import('../lib/homeItems.ts');
+  const { parseViewMode: parseHomeViewMode } = await import('../lib/savedLinks.ts');
   const { formatMessage } = await import('../lib/appI18n.ts');
 
   it('counts the same window it lists (the mobile header count)', () => {
@@ -376,5 +380,230 @@ describe('who the signed-in person is shown as', async () => {
   it('formats the Juple ID like the mobile app', () => {
     assert.equal(formatJupleId('WNER2345'), 'WNER-2345');
     assert.equal(formatJupleId('SHORT'), 'SHORT');
+  });
+});
+
+describe('보관함 (Archive)', async () => {
+  const { archiveNamePagePath, archiveSectionPagePath, ARCHIVE_SECTIONS_PATH, parseArchiveSort } = await import('../lib/archiveView.ts');
+  const { initialSectionKey, sectionLabel, sectionShowsDate, appendUnique } = await import('../lib/savedLinks.ts');
+  const ko = getAppDictionary('ko');
+  const section = (overrides: Record<string, unknown> = {}) => ({
+    key: '2026-10-12',
+    kind: 'today' as 'today' | 'yesterday' | 'thisWeek' | 'month',
+    year: null as number | null,
+    month: null as number | null,
+    fromUtc: '2026-10-11T15:00:00Z',
+    toUtc: null as string | null,
+    count: 3,
+    ...overrides,
+  });
+
+  it("시간순 reads the server sections, then an opened section's own window a page at a time", () => {
+    assert.equal(ARCHIVE_SECTIONS_PATH, '/api/v1/items/history/sections');
+    const first = new URL(archiveSectionPagePath(section({ kind: 'month', fromUtc: '2026-09-01T00:00:00Z', toUtc: '2026-10-01T00:00:00Z' }), null), 'http://x');
+    assert.equal(first.pathname, '/api/v1/items/history');
+    assert.deepEqual(Object.fromEntries(first.searchParams), { limit: '25', fromUtc: '2026-09-01T00:00:00Z', toUtc: '2026-10-01T00:00:00Z' });
+    const next = new URL(archiveSectionPagePath(section(), 'opaque=='), 'http://x');
+    assert.equal(next.searchParams.get('toUtc'), null);
+    assert.equal(next.searchParams.get('cursor'), 'opaque==');
+  });
+
+  it("이름순 is the server's order over the whole archive, never a window", () => {
+    const path = new URL(archiveNamePagePath('c1'), 'http://x');
+    assert.deepEqual(Object.fromEntries(path.searchParams), { limit: '30', sort: 'name', cursor: 'c1' });
+    assert.equal(parseArchiveSort('name'), 'name');
+    assert.equal(parseArchiveSort('titleDesc'), 'time');
+    assert.equal(parseArchiveSort(null), 'time');
+  });
+
+  it('labels and opens sections like the mobile accordion (오늘 first, else the newest)', () => {
+    assert.equal(sectionLabel(section(), ko, 'ko'), '오늘');
+    assert.equal(sectionLabel(section({ kind: 'thisWeek' }), ko, 'ko'), '이번 주');
+    assert.equal(sectionLabel(section({ kind: 'month', key: 'month:2026-08', year: 2026, month: 8 }), ko, 'ko'), '2026년 8월');
+    assert.equal(sectionLabel(section({ kind: 'month', key: 'month:2026-08' }), getAppDictionary('en'), 'en'), 'August 2026');
+    assert.equal(sectionShowsDate('today'), false);
+    assert.equal(sectionShowsDate('month'), true);
+    assert.equal(initialSectionKey([section({ key: 'thisWeek', kind: 'thisWeek' }), section()]), '2026-10-12');
+    assert.equal(initialSectionKey([section({ key: 'month:2026-08', kind: 'month' })]), 'month:2026-08');
+    assert.equal(initialSectionKey([]), null);
+  });
+
+  it('a link without a picture shows its site badge only for the mobile known sites (by host, never guessed)', async () => {
+    const { siteIdOf } = await import('../lib/savedLinks.ts');
+    assert.equal(siteIdOf('https://m.youtube.com/watch?v=1'), 'youtube');
+    assert.equal(siteIdOf('https://youtu.be/x'), 'youtube');
+    assert.equal(siteIdOf('https://www.instagram.com/p/X'), 'instagram');
+    assert.equal(siteIdOf('https://naver.me/abc'), 'naver');
+    assert.equal(siteIdOf('https://notyoutube.com/x'), null);
+    assert.equal(siteIdOf('not a url'), null);
+  });
+
+  it('a next page never repeats a link already shown', () => {
+    assert.deepEqual(appendUnique([{ id: 1 }, { id: 2 }], [{ id: 2 }, { id: 3 }], entry => entry.id), [{ id: 1 }, { id: 2 }, { id: 3 }]);
+  });
+
+  it('uses the mobile wording (empty state, Instagram labels, a locked link)', () => {
+    assert.equal(ko.archiveEmpty, '저장한 링크가 아직 없습니다.');
+    assert.equal(ko.instagramReel, 'Instagram 릴스');
+    assert.equal(ko.lockedLink, '잠금 상태의 링크입니다.');
+  });
+});
+
+describe('Collection Details', async () => {
+  const details = await import('../lib/collectionDetails.ts');
+  const { collectionLinkView, displayTitleOf } = await import('../lib/savedLinks.ts');
+  const link = (overrides: Record<string, unknown> = {}) => ({
+    itemId: 7,
+    url: 'https://shop.example.com/p/1',
+    title: 'Bag' as string | null,
+    memo: 'mine' as string | null,
+    addedAtUtc: '2026-10-10T00:00:00Z',
+    representativeImage: null,
+    previewImageUrl: null,
+    coverImage: null,
+    ...overrides,
+  });
+
+  it('reads the Collection, its date sections and a section page in the chosen direction', () => {
+    assert.equal(details.collectionPath(12), '/api/v1/collections/12');
+    assert.equal(details.collectionSectionsPath(12), '/api/v1/collections/12/items/sections');
+    const page = new URL(details.collectionSectionPagePath(12, { fromUtc: 'F', toUtc: 'T' }, 'oldest', 'c'), 'http://x');
+    assert.equal(page.pathname, '/api/v1/collections/12/items');
+    assert.deepEqual(Object.fromEntries(page.searchParams), { limit: '25', sort: 'dateAsc', fromUtc: 'F', toUtc: 'T', cursor: 'c' });
+    assert.equal(new URL(details.collectionSectionPagePath(12, { fromUtc: 'F', toUtc: null }, 'newest', null), 'http://x').searchParams.get('sort'), 'dateDesc');
+  });
+
+  it('the mobile sort chips: 시간순 flips ↓/↑, 이름순 flips ↑/↓; anything else stored is 시간순 ↓', () => {
+    assert.equal(details.nextDateSort('newest'), 'oldest');
+    assert.equal(details.nextDateSort('title'), 'newest');
+    assert.equal(details.nextNameSort('newest'), 'title');
+    assert.equal(details.nextNameSort('title'), 'titleDesc');
+    assert.equal(details.parseLinkSort('titleDesc'), 'titleDesc');
+    assert.equal(details.parseLinkSort('bogus'), 'newest');
+  });
+
+  it('이름순 is the mobile rule: locale-aware, numbers by value, title-less last both ways, ties newest first', () => {
+    const entries = [
+      link({ itemId: 1, title: 'Item 10' }),
+      link({ itemId: 2, title: null, url: 'https://aaa.example' }),
+      link({ itemId: 3, title: 'item 2' }),
+      link({ itemId: 4, title: 'Item 2', addedAtUtc: '2026-10-11T00:00:00Z' }),
+    ];
+    assert.deepEqual(details.sortCollectionItemsByName(entries, 'en', 'asc').map(entry => entry.itemId), [4, 3, 1, 2]);
+    assert.deepEqual(details.sortCollectionItemsByName(entries, 'en', 'desc').map(entry => entry.itemId), [1, 4, 3, 2]);
+    assert.deepEqual(entries.map(entry => entry.itemId), [1, 2, 3, 4]);
+  });
+
+  it('a Collection too large for a whole-list name order stays on 시간순', () => {
+    assert.equal(details.exceedsNameOrderLimit(500, false), false);
+    assert.equal(details.exceedsNameOrderLimit(500, true), true);
+    assert.equal(details.exceedsNameOrderLimit(501, false), true);
+  });
+
+  it("my link opens my Item Details; another member's opens the read-only shared view and never carries a memo", () => {
+    assert.equal(collectionLinkView(link(), 12).href, '/items/7');
+    assert.equal(collectionLinkView(link(), 12).memo, 'mine');
+    const theirs = collectionLinkView(link({ isMine: false, memo: 'private' }), 12);
+    assert.equal(theirs.href, '/collections/12/items/7');
+    assert.equal(theirs.memo, null);
+    assert.equal(collectionLinkView(link(), 12).timestampUtc, '2026-10-10T00:00:00Z');
+  });
+
+  it('a title-less Instagram post / reel gets the mobile label, never a guessed title', () => {
+    assert.deepEqual(displayTitleOf(null, 'https://www.instagram.com/someone/reel/AbC_1/'), { kind: 'instagramReel' });
+    assert.deepEqual(displayTitleOf('', 'https://instagram.com/p/XYZ'), { kind: 'instagramPost' });
+    assert.deepEqual(displayTitleOf(null, 'https://instagram.com/someone'), { kind: 'text', text: 'instagram.com', technical: true });
+  });
+
+  it("locked / private: only the server's 403 codes are a gate; 404 is not found; anything else is a retryable failure", () => {
+    assert.equal(details.contentGateOf(new ApiHttpError(403, 'collectionLocked')), 'lock');
+    assert.equal(details.contentGateOf(new ApiHttpError(403, 'sharePasswordRequired')), 'sharePassword');
+    assert.equal(details.contentGateOf(new ApiHttpError(403, 'subscriptionRequired')), null);
+    assert.equal(details.contentGateOf(new ApiHttpError(500, 'collectionLocked')), null);
+    assert.equal(details.contentGateOf(new ApiNetworkError()), null);
+    assert.equal(details.isNotFound(new ApiHttpError(404, null)), true);
+    assert.equal(details.isNotFound(new ApiHttpError(403, 'collectionLocked')), false);
+  });
+});
+
+describe('Item Details', async () => {
+  const items = await import('../lib/itemDetails.ts');
+  const { parseRouteId } = await import('../lib/savedLinks.ts');
+
+  it('reads the item, its photos and EVERY Collection it is in (scope all, paged)', () => {
+    assert.equal(items.itemPath(34), '/api/v1/items/34');
+    assert.equal(items.itemImagesPath(34), '/api/v1/items/34/images');
+    const path = new URL(items.itemCollectionsPath(34, 'next'), 'http://x');
+    assert.equal(path.pathname, '/api/v1/collections');
+    assert.deepEqual(Object.fromEntries(path.searchParams), { itemId: '34', scope: 'all', limit: '50', cursor: 'next' });
+    assert.equal(items.sharedItemPath(12, 34), '/api/v1/collections/12/items/34');
+  });
+
+  it('the 대표 사진: own photo (the cover, else the first), else the automatic preview, else none - http(s) only', () => {
+    const own = [{ id: 1, readUrl: 'https://blob.test/1' }, { id: 2, readUrl: 'https://blob.test/2' }];
+    assert.equal(items.representativePhotoUrl('https://p.test/x', own, 2), 'https://blob.test/2');
+    assert.equal(items.representativePhotoUrl('https://p.test/x', own, null), 'https://blob.test/1');
+    assert.equal(items.representativePhotoUrl('https://p.test/x', [], null), 'https://p.test/x');
+    assert.equal(items.representativePhotoUrl(null, [], null), null);
+    assert.equal(items.representativePhotoUrl('data:image/png;base64,AA', [], null), null);
+  });
+
+  it('who added a shared link: a name, else the Juple ID; a public-link add is never identified', () => {
+    assert.deepEqual(items.adderLabel({ kind: 'member', jupleId: 'ABCD2345', displayName: null }), { kind: 'person', name: 'ABCD-2345' });
+    assert.deepEqual(items.adderLabel({ kind: 'owner', jupleId: 'ABCD2345', displayName: '민' }), { kind: 'person', name: '민' });
+    assert.deepEqual(items.adderLabel({ kind: 'publicLink', jupleId: 'ABCD2345' }), { kind: 'publicLink' });
+    assert.equal(items.adderLabel({ kind: 'member' }), null);
+    assert.equal(items.adderLabel(null), null);
+  });
+
+  it('an invalid route id is "not found" without asking the API', () => {
+    assert.equal(parseRouteId('34'), 34);
+    for (const bad of ['0', '-1', '1.5', 'abc', '', '01', '99999999999999999', undefined]) {
+      assert.equal(parseRouteId(bad), null, String(bad));
+    }
+  });
+
+  it('a 401 on a detail read refreshes once, then is a lost session (the same API helper as every page)', async () => {
+    const forced: boolean[] = [];
+    const api = createAppApi({
+      apiBaseUrl: 'http://api.test',
+      getAccessToken: async ({ forceRefresh }) => {
+        forced.push(forceRefresh);
+        return 'token';
+      },
+      fetchImpl: async () => new Response(null, { status: 401 }),
+    });
+    await assert.rejects(api({ path: items.itemPath(34) }), AuthExpiredError);
+    assert.deepEqual(forced, [false, true]);
+  });
+});
+
+describe('navigation: real routes for every page', () => {
+  const page = (path: string) => new URL(`../app/(app)/${path}`, import.meta.url);
+
+  it("Collection Details, Item Details and another member's link are routes (back / forward work), not modals", () => {
+    for (const path of ['collections/[collectionId]/page.tsx', 'collections/[collectionId]/items/[itemId]/page.tsx', 'items/[itemId]/page.tsx', 'archive/ArchiveView.tsx']) {
+      assert.ok(existsSync(page(path)), path);
+    }
+  });
+
+  it('cards link to those routes; the original link opens only in a new tab without referrer / opener', () => {
+    const list = readFileSync(page('SavedLinkList.tsx'), 'utf8');
+    assert.match(list, /<Link className=\{className\} href=\{link\.href\}/);
+    assert.doesNotMatch(list, /target="_blank"/);
+    assert.match(readFileSync(page('ItemParts.tsx'), 'utf8'), /rel="noopener noreferrer" target="_blank"/);
+    assert.match(readFileSync(page('collections/CollectionsView.tsx'), 'utf8'), /href=\{collectionHref\(collection\.id\)\}/);
+  });
+
+  it('the reading pages send nothing but GET (writes live only on the pages of the mobile write features)', () => {
+    for (const path of ['archive/ArchiveView.tsx', 'collections/[collectionId]/items/[itemId]/SharedItemView.tsx', 'items/[itemId]/ItemDetailsView.tsx', 'DateSections.tsx', 'HomeView.tsx', 'collections/CollectionsView.tsx']) {
+      assert.doesNotMatch(readFileSync(page(path), 'utf8'), /method:\s*'(POST|PUT|PATCH|DELETE)'/, path);
+    }
+  });
+
+  it('the public viewer stays anonymous and outside the signed-in app', () => {
+    assert.equal(requiresSignIn('/c/AbCdEfGh12345678'), false);
+    const viewer = readFileSync(new URL('../app/c/[publicId]/page.tsx', import.meta.url), 'utf8');
+    assert.doesNotMatch(viewer, /useSignedInApp|createAppApi|msal/i);
   });
 });

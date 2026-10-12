@@ -1,5 +1,5 @@
-import { ComingSoon } from '../ComingSoon';
+import { ArchiveView } from './ArchiveView';
 
 export default function ArchivePage() {
-  return <ComingSoon titleKey="navArchive" />;
+  return <ArchiveView />;
 }

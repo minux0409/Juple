@@ -11,6 +11,10 @@
 export interface UserProfile {
   readonly displayName: string | null;
   readonly jupleId: string;
+  /** Short-lived read URL of the person's own profile photo, null without one (mobile UserProfile.profileImageUrl). */
+  readonly profileImageUrl?: string | null;
+  /** How the account signs in, as the server reports it (mobile resolveSignInMethod): 'email' | 'google' | 'apple'; anything else is unknown. */
+  readonly signInMethod?: string | null;
 }
 
 export const PROFILE_PATH = '/api/v1/users/me/profile';

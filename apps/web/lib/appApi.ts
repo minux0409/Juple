@@ -39,7 +39,10 @@ export type AccessTokenSource = (options: { readonly forceRefresh: boolean }) =>
 export interface AppApiRequest {
   readonly method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   readonly path: string;
+  /** JSON, or FormData for a file upload (the browser then sets the multipart Content-Type and its boundary itself). */
   readonly body?: unknown;
+  /** Extra request headers - only the ones the API's CORS allows (e.g. a Collection's unlock grant). Never a password. */
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 export type AppApi = <T>(request: AppApiRequest) => Promise<T>;
@@ -52,15 +55,16 @@ export function createAppApi(options: {
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 
   const send = async (request: AppApiRequest, token: string): Promise<Response> => {
-    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-    if (request.body !== undefined) {
+    const headers: Record<string, string> = { ...request.headers, Authorization: `Bearer ${token}` };
+    const isForm = typeof FormData !== 'undefined' && request.body instanceof FormData;
+    if (request.body !== undefined && !isForm) {
       headers['Content-Type'] = 'application/json';
     }
     try {
       return await fetchImpl(`${options.apiBaseUrl}${request.path}`, {
         method: request.method ?? 'GET',
         headers,
-        body: request.body === undefined ? undefined : JSON.stringify(request.body),
+        body: request.body === undefined ? undefined : isForm ? (request.body as FormData) : JSON.stringify(request.body),
         cache: 'no-store',
       });
     } catch {

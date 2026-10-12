@@ -47,14 +47,102 @@ export function apiScopes(config: WebAppConfig): string[] {
 /**
  * Finishes a redirect sign-in if this page load is the return from Entra (the /auth/callback bridge hands the response here), and
  * returns the signed-in account - the one just signed in, else the one already in MSAL's cache - or null.
+ *
+ * A return from a re-authentication (see startReauthentication) never switches accounts: the result belongs to the session only
+ * when it is the SAME account (tenant + object id); otherwise the original account stays active and the outcome says so.
  */
-export async function resolveSignedInAccount(msal: PublicClientApplication): Promise<AccountInfo | null> {
-  const result = await msal.handleRedirectPromise();
+export async function resolveSignedInAccount(msal: PublicClientApplication): Promise<{ readonly account: AccountInfo | null; readonly reauthentication: ReauthenticationResult | null }> {
+  const pending = takePendingReauthentication();
+  let result: Awaited<ReturnType<PublicClientApplication['handleRedirectPromise']>>;
+  try {
+    result = await msal.handleRedirectPromise();
+  } catch (error) {
+    if (!pending) {
+      throw error;
+    }
+    // The re-authentication was cancelled or failed at Entra: the existing session simply continues.
+    const original = findAccount(msal, pending.homeAccountId);
+    if (original) {
+      msal.setActiveAccount(original);
+    }
+    return { account: original, reauthentication: { purpose: pending.purpose, outcome: 'incomplete' } };
+  }
+  if (pending) {
+    const original = findAccount(msal, pending.homeAccountId);
+    const returned = result?.account ?? null;
+    const same = original !== null && returned !== null && sameAccount(original, returned);
+    const account = original ?? returned;
+    if (account) {
+      msal.setActiveAccount(account);
+    }
+    return { account, reauthentication: { purpose: pending.purpose, outcome: result === null ? 'incomplete' : same ? 'reauthenticated' : 'differentAccount' } };
+  }
   const account = result?.account ?? msal.getActiveAccount() ?? msal.getAllAccounts()[0] ?? null;
   if (account) {
     msal.setActiveAccount(account);
   }
-  return account;
+  return { account, reauthentication: null };
+}
+
+// ---- re-authentication: "sign in again to confirm it's you" (mobile auth/reauthentication.ts) ------------------------------------
+
+/** What the fresh sign-in is for - the page that asked continues only with its own purpose. */
+export type ReauthenticationPurpose = 'collectionLockSetup' | 'collectionLockReset' | 'deleteAccount' | 'passwordReset';
+
+export interface ReauthenticationResult {
+  readonly purpose: ReauthenticationPurpose;
+  readonly outcome: 'reauthenticated' | 'differentAccount' | 'incomplete';
+}
+
+const PENDING_REAUTH_KEY = 'juple.web.pendingReauthentication';
+const PURPOSES: readonly ReauthenticationPurpose[] = ['collectionLockSetup', 'collectionLockReset', 'deleteAccount', 'passwordReset'];
+
+/** The same person: tenant + object id (MSAL's localAccountId) - never the e-mail, which can change. */
+export function sameAccount(a: Pick<AccountInfo, 'tenantId' | 'localAccountId'>, b: Pick<AccountInfo, 'tenantId' | 'localAccountId'>): boolean {
+  return Boolean(a.tenantId && a.localAccountId) && a.tenantId === b.tenantId && a.localAccountId === b.localAccountId;
+}
+
+function findAccount(msal: PublicClientApplication, homeAccountId: string): AccountInfo | null {
+  return msal.getAllAccounts().find(candidate => candidate.homeAccountId === homeAccountId) ?? null;
+}
+
+function takePendingReauthentication(): { purpose: ReauthenticationPurpose; homeAccountId: string } | null {
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_REAUTH_KEY);
+    window.sessionStorage.removeItem(PENDING_REAUTH_KEY);
+    const parsed = raw ? (JSON.parse(raw) as { purpose?: unknown; homeAccountId?: unknown }) : null;
+    return parsed && PURPOSES.includes(parsed.purpose as ReauthenticationPurpose) && typeof parsed.homeAccountId === 'string'
+      ? { purpose: parsed.purpose as ReauthenticationPurpose, homeAccountId: parsed.homeAccountId }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** One local part, one @, a dotted domain - the login_hint is only a convenience for the sign-in page (mobile loginHintFromIdToken). */
+function loginHint(account: AccountInfo): string | undefined {
+  const value = account.username?.trim();
+  return value && value.length <= 254 && /^[^s@<>"']+@[^s@<>"']+.[^s@<>"']+$/.test(value) ? value : undefined;
+}
+
+/**
+ * Starts a fresh interactive sign-in of the SAME account (prompt=login) and comes back to this page. Whether it was recent enough is
+ * decided by the server from the new access token, never here. Only the purpose and which account to keep are remembered for the
+ * return (this tab's session storage) - no token, no password.
+ */
+export async function startReauthentication(msal: PublicClientApplication, config: WebAppConfig, purpose: ReauthenticationPurpose): Promise<void> {
+  const account = msal.getActiveAccount();
+  if (!account) {
+    return;
+  }
+  window.sessionStorage.setItem(PENDING_REAUTH_KEY, JSON.stringify({ purpose, homeAccountId: account.homeAccountId }));
+  await msal.acquireTokenRedirect({
+    scopes: apiScopes(config),
+    account,
+    prompt: 'login',
+    loginHint: loginHint(account),
+    redirectStartPage: window.location.href,
+  });
 }
 
 /** An access token for the Juple API without any UI; null when only an interactive sign-in could get one (the session is gone). */

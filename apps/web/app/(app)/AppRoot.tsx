@@ -1,14 +1,25 @@
 'use client';
 
 import type { AccountInfo } from '@azure/msal-browser';
+import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { PROFILE_PATH, type UserProfile } from '../../lib/accountDisplay';
 import { createAppApi, type AppApi } from '../../lib/appApi';
+import { forgetAllUnlocks } from '../../lib/collectionUnlock';
 import { describeSignInError, signInFailureMessage } from '../../lib/authErrors';
-import type { AppDictionary } from '../../lib/appI18n';
+import { isRtlLanguage, LANGUAGE_COOKIE, type AppDictionary, type AppLanguage, type LanguagePreference } from '../../lib/appI18n';
 import { bootstrapRequestBody, statusAfterBootstrapFailure, statusAfterInitialize, type AuthStatus } from '../../lib/authSession';
-import type { Locale } from '../../lib/i18n';
-import { acquireApiToken, apiScopes, currentMsal, getMsal, resolveSignedInAccount } from '../../lib/msalClient';
+import {
+  acquireApiToken,
+  apiScopes,
+  currentMsal,
+  getMsal,
+  resolveSignedInAccount,
+  startReauthentication,
+  type ReauthenticationPurpose,
+  type ReauthenticationResult,
+} from '../../lib/msalClient';
+import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
 import { CenteredMessage, Landing } from './Landing';
@@ -16,10 +27,23 @@ import { CenteredMessage, Landing } from './Landing';
 interface SignedInApp {
   readonly api: AppApi;
   readonly dictionary: AppDictionary;
-  readonly locale: Locale;
+  /** The language the page is shown in (Intl formatting uses it too). */
+  readonly locale: AppLanguage;
+  readonly languagePreference: LanguagePreference;
+  /** Saves the 언어 choice for this browser and re-renders the app in it. */
+  readonly setLanguagePreference: (preference: LanguagePreference) => void;
   readonly account: AccountInfo;
-  /** The Juple profile (nickname / Juple ID) - null until loaded or if it could not be (the label then falls back). */
+  /** The Juple profile (nickname / Juple ID / photo) - null until loaded or if it could not be (the label then falls back). */
   readonly profile: UserProfile | null;
+  /** The server's answer after a profile change (e.g. a new nickname) - shown everywhere at once. */
+  readonly updateProfile: (profile: UserProfile) => void;
+  /** The bootstrap's subscription facts (null = not reported). */
+  readonly entitlement: Entitlement | null;
+  readonly storeSubscription: StoreSubscription | null;
+  /** The result of a same-account re-authentication this page load returned from (null = none), for the page that asked. */
+  readonly reauthentication: ReauthenticationResult | null;
+  readonly clearReauthentication: () => void;
+  readonly reauthenticate: (purpose: ReauthenticationPurpose) => void;
   /** A page found the session gone (AuthExpiredError): sign out locally and show the landing page. */
   readonly onSessionLost: () => void;
   readonly signOut: () => void;
@@ -43,21 +67,33 @@ export function useSignedInApp(): SignedInApp {
   return value;
 }
 
+/** One year; SameSite=Lax; path=/ - a display preference only (no account data). */
+function writeLanguageCookie(preference: LanguagePreference): void {
+  document.cookie =
+    preference === 'system' ? `${LANGUAGE_COOKIE}=; path=/; max-age=0; samesite=lax` : `${LANGUAGE_COOKIE}=${encodeURIComponent(preference)}; path=/; max-age=31536000; samesite=lax`;
+}
+
 export function AppRoot({
   config,
   dictionary,
-  locale,
+  language,
+  languagePreference,
   children,
 }: {
   readonly config: WebAppConfig | null;
   readonly dictionary: AppDictionary;
-  readonly locale: Locale;
+  readonly language: AppLanguage;
+  readonly languagePreference: LanguagePreference;
   readonly children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [status, setStatus] = useState<AuthStatus>(config ? 'initializing' : 'configMissing');
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
+  const [storeSubscription, setStoreSubscription] = useState<StoreSubscription | null>(null);
+  const [reauthentication, setReauthentication] = useState<ReauthenticationResult | null>(null);
   const api = useMemo<AppApi | null>(() => {
     if (!config) {
       return null;
@@ -78,8 +114,12 @@ export function AppRoot({
       await msal.clearCache().catch(() => undefined);
       msal.setActiveAccount(null);
     }
+    // Collection unlock grants are this session's only.
+    forgetAllUnlocks();
     setAccount(null);
     setProfile(null);
+    setEntitlement(null);
+    setStoreSubscription(null);
     setNotice(message);
     setStatus('signedOut');
   }, []);
@@ -90,11 +130,13 @@ export function AppRoot({
     }
     setStatus('bootstrapping');
     try {
-      await api({
+      const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown } | undefined>({
         method: 'POST',
         path: '/api/v1/users/me/bootstrap',
         body: bootstrapRequestBody(navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone),
       });
+      setEntitlement(parseEntitlement(result?.entitlement));
+      setStoreSubscription(parseStoreSubscription(result?.storeSubscription));
       setStatus('ready');
       // Best effort, after the account exists: who to show (the mobile 내 페이지's own source). A failure only leaves the fallback label.
       api<UserProfile>({ path: PROFILE_PATH }).then(setProfile, () => undefined);
@@ -120,8 +162,9 @@ export function AppRoot({
         if (!active) {
           return;
         }
-        setAccount(signedIn);
-        const next = statusAfterInitialize(signedIn !== null);
+        setAccount(signedIn.account);
+        setReauthentication(signedIn.reauthentication);
+        const next = statusAfterInitialize(signedIn.account !== null);
         if (next === 'bootstrapping') {
           await bootstrap();
         } else {
@@ -170,37 +213,91 @@ export function AppRoot({
     });
   }, [clearLocalSession, config]);
 
+  const reauthenticate = useCallback(
+    (purpose: ReauthenticationPurpose) => {
+      const msal = currentMsal();
+      if (!msal || !config) {
+        return;
+      }
+      setStatus('redirecting');
+      startReauthentication(msal, config, purpose).catch(error => {
+        reportSignInError('reauthenticate', error);
+        setReauthentication({ purpose, outcome: 'incomplete' });
+        setStatus('ready');
+      });
+    },
+    [config],
+  );
+
   const onSessionLost = useCallback(() => {
     void clearLocalSession(dictionary.sessionEnded);
   }, [clearLocalSession, dictionary.sessionEnded]);
 
-  const signedInApp = useMemo<SignedInApp | null>(
-    () => (api && account ? { api, dictionary, locale, account, profile, onSessionLost, signOut } : null),
-    [account, api, dictionary, locale, onSessionLost, profile, signOut],
+  const setLanguagePreference = useCallback(
+    (preference: LanguagePreference) => {
+      writeLanguageCookie(preference);
+      // The server renders the layout again in the chosen language; client state (session, profile) is kept.
+      router.refresh();
+    },
+    [router],
   );
 
-  if (status === 'configMissing') {
-    return <CenteredMessage message={dictionary.configMissingMessage} title={dictionary.configMissingTitle} />;
-  }
-  if (status === 'signedOut') {
-    return <Landing dictionary={dictionary} notice={notice} onSignIn={signIn} />;
-  }
-  if (status === 'bootstrapFailed') {
-    return (
-      <CenteredMessage
-        action={{ label: dictionary.retry, onPress: () => void bootstrap() }}
-        message={dictionary.loadFailedMessage}
-        title={dictionary.loadFailedTitle}
-      />
-    );
-  }
-  if (status !== 'ready' || !signedInApp) {
-    return <CenteredMessage busy message={status === 'redirecting' ? dictionary.signingIn : dictionary.checkingLogin} />;
-  }
+  const clearReauthentication = useCallback(() => setReauthentication(null), []);
 
+  const signedInApp = useMemo<SignedInApp | null>(
+    () =>
+      api && account
+        ? {
+            api,
+            dictionary,
+            locale: language,
+            languagePreference,
+            setLanguagePreference,
+            account,
+            profile,
+            updateProfile: setProfile,
+            entitlement,
+            storeSubscription,
+            reauthentication,
+            clearReauthentication,
+            reauthenticate,
+            onSessionLost,
+            signOut,
+          }
+        : null,
+    [account, api, clearReauthentication, dictionary, entitlement, language, languagePreference, onSessionLost, profile, reauthenticate, reauthentication, setLanguagePreference, signOut, storeSubscription],
+  );
+
+  const content = (() => {
+    if (status === 'configMissing') {
+      return <CenteredMessage message={dictionary.configMissingMessage} title={dictionary.configMissingTitle} />;
+    }
+    if (status === 'signedOut') {
+      return <Landing dictionary={dictionary} notice={notice} onSignIn={signIn} />;
+    }
+    if (status === 'bootstrapFailed') {
+      return (
+        <CenteredMessage
+          action={{ label: dictionary.retry, onPress: () => void bootstrap() }}
+          message={dictionary.loadFailedMessage}
+          title={dictionary.loadFailedTitle}
+        />
+      );
+    }
+    if (status !== 'ready' || !signedInApp) {
+      return <CenteredMessage busy message={status === 'redirecting' ? dictionary.signingIn : dictionary.checkingLogin} />;
+    }
+    return (
+      <SignedInAppContext.Provider value={signedInApp}>
+        <AppShell>{children}</AppShell>
+      </SignedInAppContext.Provider>
+    );
+  })();
+
+  // The chosen language's direction (Arabic is right-to-left, as on mobile); user-written text keeps dir="auto" where shown.
   return (
-    <SignedInAppContext.Provider value={signedInApp}>
-      <AppShell>{children}</AppShell>
-    </SignedInAppContext.Provider>
+    <div dir={isRtlLanguage(language) ? 'rtl' : 'ltr'} lang={language}>
+      {content}
+    </div>
   );
 }

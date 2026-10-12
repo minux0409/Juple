@@ -1,22 +1,49 @@
 /*
- * The signed-in Web app. Colors are the mobile app's own UI tokens (apps/mobile/src/theme/tokens.ts: background #F7F9FC, surface,
- * brand #3366CC / brandSoft, warning for the favorite star); the gradient app icon is the brand mark, not a UI color.
- * Layout: a side bar on wide screens and the content using the window's width; a top bar on narrow ones.
+ * The signed-in Web app - one small design system, then the screens built from it.
+ *
+ * Colors are the mobile app's own UI tokens (apps/mobile/src/theme/tokens.ts: background #F7F9FC, surface, brand #3366CC /
+ * brandSoft, warning for the favorite star); the gradient app icon is the brand mark, never a UI color.
+ * Shared rules: one content width, one card (radius / border / shadow), one control height (chips, toggles, buttons), one focus
+ * ring. Layout: a side bar on wide screens and the content beside it; a top bar with a scrolling tab row on narrow ones.
  */
+
+/* ======================================================================================================================
+   Tokens
+   ==================================================================================================================== */
 .shell,
 .centered {
   --app-background: #f7f9fc;
   --app-surface: #ffffff;
   --app-surface-muted: #f1f4f9;
+  --app-surface-hover: #f5f7fb;
   --app-text: #111111;
-  --app-text-secondary: #666666;
+  --app-text-secondary: #5f6673;
+  --app-text-tertiary: #8a919c;
   --app-divider: #edf1f7;
   --app-border: #e3e8f0;
   --brand: #3366cc;
   --brand-soft: #e9f0fe;
   --warning: #f5a623;
-  --radius: 14px;
-  --shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 14px rgba(17, 24, 39, 0.05);
+  --danger: #d64545;
+  --danger-soft: #fdecec;
+
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-media: 10px;
+  --control-height: 36px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-raised: 0 2px 4px rgba(16, 24, 40, 0.05), 0 8px 20px rgba(16, 24, 40, 0.06);
+
+  /* Content widths by purpose: a form (narrow), a list or a reading page (medium), the working views (wide). */
+  --content-narrow: 720px;
+  --content-medium: 1040px;
+  --content-wide: 1360px;
+  --page-max: var(--content-wide);
+  --page-gap: 24px;
+  /* added under a page title (or a Collection header) before the content: 24 + 8 = 32px */
+  --header-gap: 8px;
+  --page-pad-x: 40px;
+
   background: var(--app-background);
   color: var(--app-text);
   /* Korean wraps at word boundaries (long URLs / titles still break via overflow-wrap where set). */
@@ -29,14 +56,26 @@
     --app-background: #101318;
     --app-surface: #181c23;
     --app-surface-muted: #20252e;
+    --app-surface-hover: #1d222a;
     --app-text: #f2f4f7;
     --app-text-secondary: #a3abb8;
+    --app-text-tertiary: #7d8592;
     --app-divider: #262c36;
     --app-border: #2c333e;
     --brand: #7aa2ff;
     --brand-soft: #1d2a45;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --danger: #ff7b7b;
+    --danger-soft: #3a1f22;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.4);
   }
+}
+
+/* One focus ring for every interactive element of the app (keyboard only). */
+.shell :where(a, button):focus-visible,
+.centered :where(a, button):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .visuallyHidden {
@@ -56,7 +95,9 @@
   display: block;
 }
 
-/* ---- signed out / states ---- */
+/* ======================================================================================================================
+   Signed out / whole-window states
+   ==================================================================================================================== */
 /* Both <main>s override the public viewer's global main { max-width: 640px } (globals.css) - this app uses the full window. */
 .centered {
   width: 100%;
@@ -76,7 +117,7 @@
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: 20px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-raised);
   padding: 40px 28px 32px;
   display: flex;
   flex-direction: column;
@@ -102,16 +143,19 @@
   width: 100%;
   margin: 0 0 16px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--brand-soft);
   color: var(--app-text);
   font-size: 14px;
   line-height: 1.45;
 }
 
+/* ======================================================================================================================
+   Controls - buttons, chips, the view switch (one height, one radius)
+   ==================================================================================================================== */
 .primaryButton,
 .secondaryButton {
-  min-height: 46px;
+  min-height: 44px;
   padding: 0 20px;
   border-radius: 12px;
   font: inherit;
@@ -132,8 +176,14 @@
 
 .secondaryButton {
   margin-top: 12px;
-  border: 1px solid var(--brand);
-  background: transparent;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: var(--app-surface-hover);
+  border-color: var(--brand);
   color: var(--brand);
 }
 
@@ -142,140 +192,8 @@
   cursor: default;
 }
 
-.primaryButton:focus-visible,
-.secondaryButton:focus-visible,
-.navLink:focus-visible,
-.navLinkActive:focus-visible,
-.linkButton:focus-visible,
-.linkRowBody:focus-visible,
-.cardBody:focus-visible,
-.imageBody:focus-visible,
-.toggleButton:focus-visible,
-.toggleButtonSelected:focus-visible,
-.filterTab:focus-visible,
-.filterTabSelected:focus-visible,
-.sidebarBrand:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-}
-
-.stateTitle {
-  margin: 0 0 4px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.stateMessage {
-  margin: 0;
-  color: var(--app-text-secondary);
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.spinner {
-  width: 28px;
-  height: 28px;
-  margin: 24px auto;
-  border: 3px solid var(--app-border);
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .spinner {
-    animation-duration: 2.5s;
-  }
-}
-
-/* ---- shell ---- */
-.shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-}
-
-.sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-  padding: 24px 16px;
-  border-inline-end: 1px solid var(--app-divider);
-  background: var(--app-surface);
-}
-
-.sidebarBrand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 8px;
-  border-radius: 10px;
-  color: var(--app-text);
-  text-decoration: none;
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.navLink,
-.navLinkActive {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 12px;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.navLink {
-  color: var(--app-text-secondary);
-}
-
-.navLink:hover {
-  background: var(--app-surface-muted);
-  color: var(--app-text);
-}
-
-.navLinkActive {
-  background: var(--brand-soft);
-  color: var(--brand);
-}
-
-.account {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 0 8px;
-}
-
-.accountName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--app-text-secondary);
-  font-size: 14px;
-}
-
 .linkButton {
-  align-self: flex-start;
-  min-height: 44px;
+  min-height: 32px;
   padding: 0;
   border: 0;
   background: none;
@@ -285,107 +203,84 @@
   cursor: pointer;
 }
 
-.content {
-  width: 100%;
-  max-width: 1440px;
-  margin: 0;
-  padding: 32px 40px 56px;
-}
-
-/* ---- page ---- */
-.page {
+.filterTabs,
+.sortChips {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.pageHeader {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.pageHeading {
-  min-width: 0;
-}
-
-.pageTitle {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.pageSubtitle {
-  margin: 6px 0 0;
-  color: var(--app-text-secondary);
-  font-size: 14px;
-}
-
-.emptyState {
-  margin: 0;
-  padding: 56px 16px;
-  border: 1px dashed var(--app-border);
-  border-radius: var(--radius);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-  text-align: center;
-}
-
-.inlineState,
-.accountCard {
-  padding: 28px 24px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius);
-  background: var(--app-surface);
-  box-shadow: var(--shadow);
-  text-align: center;
-}
-
-.accountCard {
-  max-width: 480px;
-  text-align: start;
-}
-
-.accountCard .stateTitle {
-  margin-bottom: 14px;
-}
-
-.mutedValue {
-  margin: 0 0 14px;
-  color: var(--app-text-secondary);
-  font-size: 16px;
+.filterTab,
+.filterTabSelected {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border-radius: 999px;
+  font: inherit;
   font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-/* ---- the List / Grid / Image switch (mobile ViewModeToggle) ---- */
+.filterTab {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+}
+
+.filterTab:hover:not(:disabled) {
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+.filterTab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.filterTabSelected {
+  border: 1px solid transparent;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.sortArrow {
+  font-size: 13px;
+}
+
+/* the List / Grid / Image switch (mobile ViewModeToggle) */
 .toggle {
   display: inline-flex;
-  padding: 3px;
-  border-radius: 12px;
-  background: var(--app-surface-muted);
+  padding: 2px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
 }
 
 .toggleButton,
 .toggleButtonSelected {
-  width: 44px;
-  height: 38px;
+  width: 40px;
+  height: calc(var(--control-height) - 6px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--app-text-secondary);
+  color: var(--app-text-tertiary);
   cursor: pointer;
 }
 
+.toggleButton:hover {
+  color: var(--app-text);
+}
+
 .toggleButtonSelected {
-  background: var(--app-surface);
+  background: var(--brand-soft);
   color: var(--brand);
-  box-shadow: var(--shadow);
 }
 
 .glyphList,
@@ -432,243 +327,261 @@
   background: currentColor;
 }
 
-/* ---- Home links ---- */
-.linkList,
-.linkGrid,
-.imageGrid,
-.collectionGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.linkList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.linkGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.imageGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 6px;
-}
-
-.linkCard {
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius);
-  background: var(--app-surface);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.linkRowBody {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px;
-  color: var(--app-text);
-  text-decoration: none;
-}
-
-.cardBody {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  color: var(--app-text);
-  text-decoration: none;
-}
-
-.cardBody .linkText {
-  padding: 12px 14px 14px;
-}
-
-a.linkRowBody:hover,
-a.cardBody:hover {
-  background: var(--app-surface-muted);
-}
-
-.thumbnail,
-.cardImage,
-.imageTile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: var(--app-surface-muted);
-}
-
-.thumbnail {
-  flex: 0 0 auto;
-  width: 72px;
-  height: 72px;
-  border-radius: 10px;
-}
-
-.cardImage {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-}
-
-.thumbnail img,
-.cardImage img,
-.imageTile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumbnailFallback {
-  display: inline-flex;
-  color: var(--app-text-secondary);
+/* ======================================================================================================================
+   States - loading, failure, empty
+   ==================================================================================================================== */
+.stateTitle {
+  margin: 0 0 4px;
+  font-size: 16px;
   font-weight: 700;
-  font-size: 22px;
 }
 
-.imageCell {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.imageBody {
-  display: block;
-  position: relative;
-  color: inherit;
-}
-
-.imageTile {
-  aspect-ratio: 1 / 1;
-}
-
-a.imageBody:hover .imageTile {
-  opacity: 0.88;
-}
-
-.linkText {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.linkTitle {
-  font-weight: 600;
-  line-height: 1.4;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.stateMessage {
+  margin: 0;
+  color: var(--app-text-secondary);
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.linkMeta {
-  color: var(--app-text-secondary);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.spinner {
+  width: 28px;
+  height: 28px;
+  margin: 32px auto;
+  border: 3px solid var(--app-border);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
 }
 
-/* ---- Collections ---- */
-.filterTabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.filterTab,
-.filterTabSelected {
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  font: inherit;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.5s;
+  }
 }
 
-.filterTab {
+.inlineState,
+.emptyState {
+  margin: 0;
+  padding: 28px 24px;
   border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
   background: var(--app-surface);
+  text-align: center;
+}
+
+.inlineState .secondaryButton {
+  margin-top: 16px;
+}
+
+.emptyState {
+  color: var(--app-text-secondary);
+}
+
+.inlineFailure {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-text-secondary);
+}
+
+.loadMoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.loadMoreRow .secondaryButton {
+  margin-top: 0;
+  min-height: var(--control-height);
+  font-size: 14px;
+}
+
+/* ======================================================================================================================
+   Shell - side bar + content
+   ==================================================================================================================== */
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'side utility'
+    'side main';
+}
+
+.sidebar {
+  grid-area: side;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 12px 16px;
+  border-inline-end: 1px solid var(--app-divider);
+  background: var(--app-surface);
+}
+
+.sidebarBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  color: var(--app-text);
+  text-decoration: none;
+  font-size: 19px;
+  font-weight: 800;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navLink,
+.navLinkActive {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.navLink {
+  color: var(--app-text-secondary);
+}
+
+.navLink:hover {
+  background: var(--app-surface-hover);
   color: var(--app-text);
 }
 
-.filterTab:hover {
-  background: var(--app-surface-muted);
-}
-
-.filterTabSelected {
-  border: 1px solid transparent;
+.navLinkActive {
   background: var(--brand-soft);
   color: var(--brand);
 }
 
-.collectionGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-.collectionCard {
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius);
-  background: var(--app-surface);
-  box-shadow: var(--shadow);
-}
-
-.collectionBody {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px;
-  min-height: 88px;
-}
-
-.collectionTile {
+.navIcon {
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
 }
 
-.collectionTile img {
+.content {
+  grid-area: main;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: none;
+  margin: 0;
+  padding: 8px var(--page-pad-x) 64px;
 }
 
-.collectionText {
-  flex: 1 1 auto;
-  min-width: 0;
+.contentInner {
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+/* ======================================================================================================================
+   Page - title row, controls row
+   ==================================================================================================================== */
+.page {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--page-gap);
 }
 
-.collectionName {
-  font-weight: 700;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow-wrap: anywhere;
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.collectionBadges {
-  flex: 0 0 auto;
+.pageHeading {
+  min-width: 0;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.pageSubtitle {
+  margin: 6px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+.controlsRow {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.backButton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
+  min-height: var(--control-height);
+  margin-bottom: -8px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.backButton:hover {
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+/* The mobile ChevronIcon (drawn pointing down) turned to point back - a real SVG, so nothing else can ever show in its place. */
+.backIcon {
+  flex: 0 0 auto;
+  transform: rotate(90deg);
+}
+
+[dir='rtl'] .backIcon {
+  transform: rotate(-90deg);
+}
+
+/* ======================================================================================================================
+   Cards (one look) and badges
+   ==================================================================================================================== */
+.linkCard,
+.collectionCard,
+.section,
+.itemDetail,
+.settingsCard {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .badge,
@@ -695,22 +608,2469 @@ a.imageBody:hover .imageTile {
   color: var(--warning);
 }
 
-.loadMoreRow {
+/* ======================================================================================================================
+   Saved links - List / Grid / Image (Home, 보관함, a Collection)
+   ==================================================================================================================== */
+.linkList,
+.linkGrid,
+.imageGrid,
+.collectionGrid,
+.collectionChips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- List: picture | name, memo (one line), time · site ---- */
+.linkList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.linkCard {
+  overflow: hidden;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.linkCard:has(a:hover) {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-raised);
+}
+
+.linkRowBody {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 84px;
+  padding: 10px 16px 10px 10px;
+  color: var(--app-text);
+  text-decoration: none;
+}
+
+.thumbnail,
+.cardImage,
+.imageTile,
+.itemMedia {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  background: var(--app-surface-muted);
+}
+
+.thumbnail {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-media);
+}
+
+.thumbnail img,
+.cardImage img,
+.imageTile img,
+.itemMedia img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.thumbnailFallback {
+  display: inline-flex;
+  color: var(--app-text-tertiary);
+}
+
+.linkText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.linkTitle {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+
+.linkMemo {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkMeta {
+  color: var(--app-text-tertiary);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Grid: picture on top, then name (always two lines tall) and time · site on one baseline ---- */
+.linkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: var(--app-text);
+  text-decoration: none;
+}
+
+.cardImage {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+}
+
+.cardBody .linkText {
+  flex: 1 1 auto;
+  padding: 12px 14px 14px;
+}
+
+.cardBody .linkTitle {
+  min-height: calc(2 * 1.4em);
+}
+
+.cardBody .linkMeta {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* ---- Image: picture-only tiles (mobile SavedLinkImageTile) - square, separated, each its own target ---- */
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
 }
 
-.loadMoreRow .secondaryButton {
-  margin-top: 0;
+.imageCell {
+  min-width: 0;
 }
 
-/* ---- narrow screens: top bar with a scrolling tab row ---- */
-@media (max-width: 860px) {
-  .shell {
+.imageBody {
+  display: block;
+  border-radius: var(--radius-media);
+  color: inherit;
+}
+
+.imageTile {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-media);
+  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+a.imageBody:hover .imageTile {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-raised);
+}
+
+a.imageBody:hover .imageTile img {
+  filter: brightness(0.96);
+}
+
+/* ======================================================================================================================
+   Date sections (보관함, a Collection's 시간순)
+   ==================================================================================================================== */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section {
+  overflow: hidden;
+}
+
+.sectionHeading {
+  margin: 0;
+  font-size: inherit;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--app-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.sectionHeader:hover {
+  background: var(--app-surface-hover);
+}
+
+.sectionLabel {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.sectionCount {
+  min-width: 24px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sectionChevron,
+.sectionChevronOpen {
+  display: inline-flex;
+  margin-inline-start: auto;
+  color: var(--app-text-tertiary);
+  transition: transform 0.15s ease;
+}
+
+.sectionChevronOpen {
+  transform: rotate(180deg);
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--app-divider);
+}
+
+.sectionBody .linkCard {
+  box-shadow: none;
+}
+
+/* ======================================================================================================================
+   Collections - equal cards: tile | name (two lines) + count | status column
+   ==================================================================================================================== */
+.collectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
+  gap: 14px;
+}
+
+.collectionCard {
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.collectionCard:has(a:hover) {
+  border-color: var(--brand);
+  box-shadow: var(--shadow-raised);
+}
+
+.collectionBody {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  height: 100%;
+  min-height: 84px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  color: var(--app-text);
+  text-decoration: none;
+}
+
+.collectionTile,
+.detailTile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.collectionTile {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+}
+
+.collectionTile img,
+.detailTile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collectionText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collectionName {
+  min-height: calc(2 * 1.35em);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.collectionBadges {
+  align-self: start;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+}
+
+/* ======================================================================================================================
+   Collection Details - compact header
+   ==================================================================================================================== */
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.detailTile {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.detailHeading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detailTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.detailMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+/* ======================================================================================================================
+   A link's page - picture | facts on wide screens, stacked on narrow ones
+   ==================================================================================================================== */
+.itemDetail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 32px;
+  align-items: start;
+  max-width: 1080px;
+  padding: 24px;
+}
+
+.itemMedia {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+}
+
+.itemMediaFallback {
+  display: inline-flex;
+  color: var(--app-text-tertiary);
+}
+
+.itemInfo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.itemEyebrow {
+  margin: 0 0 -10px;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.itemTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.sourceRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sourceSite {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.sourceUrl {
+  margin: 0;
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.openLinkButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  margin-top: 4px;
+  padding: 0 18px;
+  border-radius: var(--radius-control);
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.openLinkButton:hover {
+  filter: brightness(0.95);
+}
+
+.infoRows {
+  margin: 0;
+  border-top: 1px solid var(--app-divider);
+}
+
+.infoRow {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.infoLabel {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.infoValue {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.memoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memoText {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--app-surface-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.collectionChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.collectionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  max-width: 100%;
+  padding: 3px 12px 3px 3px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.collectionChip:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.collectionChipTile {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.readOnlyNote {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+/* ======================================================================================================================
+   내 페이지 - settings-style sections
+   ==================================================================================================================== */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--content-narrow);
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settingsHeading {
+  margin: 0 4px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settingsCard {
+  overflow: hidden;
+}
+
+.settingsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  margin: 0;
+  padding: 10px 18px;
+}
+
+.settingsLabel {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settingsValue {
+  margin: 0;
+  min-width: 0;
+  font-weight: 600;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+.mutedValue {
+  margin: 0;
+  color: var(--app-text-tertiary);
+  font-weight: 600;
+  text-align: end;
+}
+
+.profilePhoto {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.settingsAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settingsAction:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* ======================================================================================================================
+   Forms and actions (one height, one radius - the controls above)
+   ==================================================================================================================== */
+.primaryAction,
+.dangerAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-height);
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primaryAction {
+  background: var(--brand);
+  color: #ffffff;
+}
+
+.dangerAction {
+  background: var(--app-surface);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.primaryAction:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.dangerAction:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
+.primaryAction:disabled,
+.dangerAction:disabled,
+.settingsAction:disabled,
+.iconButton:disabled,
+.iconButtonActive:disabled,
+.iconButtonDanger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plus {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.headerActions,
+.detailActions,
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detailActions {
+  margin-inline-start: auto;
+}
+
+.rowActions {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.iconButton,
+.iconButtonActive,
+.iconButtonDanger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.iconButtonActive {
+  color: var(--warning);
+}
+
+.iconButtonDanger:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.field,
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.formRow {
+  padding: 12px 18px 0;
+}
+
+.fieldLabel,
+.editorLegend {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.textInput,
+.textArea {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.textArea {
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.textInput:focus,
+.textArea:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: -1px;
+  border-color: transparent;
+}
+
+.textInput[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.fieldError,
+.formError {
+  margin: 0;
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.formError {
+  padding: 8px 18px 0;
+}
+
+.formNotice {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: var(--brand-soft);
+  color: var(--app-text);
+  font-size: 14px;
+}
+
+.formActions,
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.formFooter {
+  padding: 14px 18px;
+}
+
+.inlineForm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+}
+
+.inlineForm .textInput {
+  flex: 1 1 220px;
+  width: auto;
+}
+
+.inlineForm .fieldError {
+  flex: 1 0 100%;
+}
+
+/* Home: the mobile URL field + 저장 */
+.addLinkForm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.addLinkRow {
+  display: flex;
+  gap: 8px;
+}
+
+.addLinkRow .textInput {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addLinkRow .primaryAction {
+  min-height: 42px;
+}
+
+/* ======================================================================================================================
+   Collection editor and the review page's Collection choice
+   ==================================================================================================================== */
+.editorForm {
+  padding: 20px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+}
+
+.editorPreview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.editorPreview .field {
+  flex: 1 1 auto;
+}
+
+.editorSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.photoActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 8px;
+}
+
+.iconOption,
+.iconOptionSelected {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+
+.iconOption:hover {
+  color: var(--app-text);
+  border-color: var(--brand);
+}
+
+.iconOptionSelected {
+  border: 2px solid var(--brand);
+}
+
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.swatch,
+.swatchSelected {
+  width: 32px;
+  height: 32px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatchSelected {
+  box-shadow: 0 0 0 2px var(--app-surface), 0 0 0 4px var(--brand);
+}
+
+.hueField {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hueRail {
+  flex: 1 1 auto;
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #eab0b0, #eadbb0, #c4eab0, #b0eacf, #b0d8ea, #b8b0ea, #e2b0ea, #eab0b0);
+  appearance: none;
+  cursor: pointer;
+}
+
+/* The review page under the link: Collections as one full-width compact grid (about 6 across on a wide window, 3-4 on a
+   medium one, 2 on a phone), then the memo and Save - never a long column beside the preview. */
+.reviewSections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: var(--content-wide);
+  padding: 20px 24px 24px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+}
+
+.reviewSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choiceList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 8px;
+}
+
+.choice,
+.choiceSelected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.choice:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+
+.choiceSelected {
+  border: 2px solid var(--brand);
+  background: var(--brand-soft);
+}
+
+.choice:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.choiceName {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.choiceNone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+}
+
+/* Collections: List mode (mobile list rows) */
+.collectionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.collectionList .collectionBody {
+  min-height: 68px;
+  padding: 10px 14px;
+}
+
+.collectionList .collectionName {
+  min-height: 0;
+  -webkit-line-clamp: 1;
+}
+
+/* ======================================================================================================================
+   내 페이지 - rows, links, blocks
+   ==================================================================================================================== */
+.profileRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  flex-wrap: wrap;
+}
+
+.profileText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profileName,
+.profileNameMuted {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.profileNameMuted {
+  color: var(--app-text-tertiary);
+}
+
+.profileId {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.settingsLinkRow,
+.settingsLinkRowDanger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  background: none;
+  color: var(--app-text);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.settingsLinkRowDanger {
+  color: var(--danger);
+}
+
+.settingsCard > * + * {
+  border-top: 1px solid var(--app-divider);
+}
+
+.settingsLinkRow:hover,
+.settingsLinkRowDanger:hover {
+  background: var(--app-surface-hover);
+}
+
+.settingsLinkRow[aria-checked='true'] {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.settingsRowIcon {
+  display: inline-flex;
+  color: var(--app-text-secondary);
+}
+
+.settingsLinkLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.settingsLinkValue {
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+.settingsChevron {
+  flex: 0 0 auto;
+  color: var(--app-text-tertiary);
+  transform: rotate(-90deg);
+}
+
+[dir='rtl'] .settingsChevron {
+  transform: rotate(90deg);
+}
+
+.checkMark {
+  width: 6px;
+  height: 11px;
+  margin-inline-end: 4px;
+  border-bottom: 2px solid var(--brand);
+  border-inline-end: 2px solid var(--brand);
+  transform: rotate(45deg);
+}
+
+.settingsBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 16px 18px;
+}
+
+.settingsBlockTitle {
+  margin: 0;
+  font-weight: 800;
+}
+
+.settingsBlockTitleInset {
+  margin: 0;
+  padding: 14px 18px 0;
+  font-weight: 800;
+}
+
+.settingsNote {
+  margin: 0;
+  padding: 12px 18px 14px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.settingsSubValue {
+  display: block;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.settingsValueStart {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.personText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friendRow {
+  list-style: none;
+}
+
+.avatarSmall {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.countPill {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.bulletList {
+  margin: 4px 0 0;
+  padding-inline-start: 20px;
+  color: var(--app-text-secondary);
+  line-height: 1.7;
+}
+
+/* the confirmation dialog (mobile ConfirmDialog) */
+.dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 22px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--shadow-raised);
+}
+
+.dialog::backdrop {
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.dialogTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.dialogMessage {
+  margin: 0 0 18px;
+  color: var(--app-text-secondary);
+  line-height: 1.55;
+}
+
+/* ======================================================================================================================
+   Paging and skeletons
+   ==================================================================================================================== */
+.sentinel {
+  height: 1px;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--app-surface-muted) 25%, var(--app-surface-hover) 50%, var(--app-surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+.skeletonLine,
+.skeletonLineShort {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+}
+
+.skeletonLine {
+  width: 80%;
+}
+
+.skeletonLineShort {
+  width: 45%;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* ======================================================================================================================
+   Participants and sharing (Collection Details)
+   ==================================================================================================================== */
+.avatar {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarFallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* mobile ParticipantAvatarStack: overlapping circles with a ring in the surface color */
+.avatarStack {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+}
+
+.avatarStack:hover {
+  background: var(--app-surface-hover);
+}
+
+.avatarStack > .avatar {
+  box-shadow: 0 0 0 2px var(--app-surface);
+}
+
+.avatarStack > .avatar + .avatar {
+  margin-inline-start: -8px;
+}
+
+.avatarMore {
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+}
+
+.detailHeader {
+  flex-wrap: wrap;
+}
+
+.panelDialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(80vh, 720px);
+  padding: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  color: var(--app-text);
+  box-shadow: var(--shadow-raised);
+}
+
+.panelDialog::backdrop {
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.panelHeader {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--app-divider);
+  background: var(--app-surface);
+}
+
+.panelHeader .dialogTitle {
+  margin: 0;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 20px;
+}
+
+.personList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.personRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.personRow + .personRow {
+  border-top: 1px solid var(--app-divider);
+}
+
+.roleBadge {
+  flex: 0 0 auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ======================================================================================================================
+   Page rhythm (one rule for every page): 뒤로 -> 16px -> title -> 32px -> content
+   ==================================================================================================================== */
+.pageHeader,
+.detailHeader {
+  margin-bottom: var(--header-gap);
+}
+
+/* ======================================================================================================================
+   새 링크 검토 - fits one normal desktop window: compact link block, the picker scrolls inside, Save stays in view
+   ==================================================================================================================== */
+.reviewTop {
+  display: grid;
+  grid-template-columns: minmax(180px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  max-width: var(--content-wide);
+  padding: 20px 24px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.reviewTop .itemMedia {
+  aspect-ratio: 16 / 10;
+  max-height: clamp(120px, 22vh, 200px);
+}
+
+.reviewTop .itemInfo {
+  gap: 12px;
+}
+
+.pickerSearch {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pickerSearch .textInput {
+  padding-inline: 36px 40px;
+}
+
+.pickerSearch .textInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.pickerSearchIcon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--app-text-tertiary);
+  pointer-events: none;
+}
+
+.pickerClear {
+  position: absolute;
+  inset-inline-end: 4px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--app-text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pickerClear:hover {
+  background: var(--app-surface-hover);
+}
+
+/* About three rows of choices (44px tiles, 8px gaps), then the box scrolls on its own; the page never scrolls because of it. */
+.pickerScroll {
+  max-height: calc(3 * 44px + 2 * 8px + 10px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  margin: -4px;
+  border-radius: var(--radius-control);
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-border) transparent;
+}
+
+.pickerScroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pickerScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--app-border);
+}
+
+.pickerEmpty {
+  margin: 8px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Save at the end of the form; while a tall form scrolls it stays at the bottom of the window inside the card - never fixed. */
+.reviewFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 -24px -24px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--app-divider);
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  background: var(--app-surface);
+}
+
+/* the locked Collection's password prompt (mobile CollectionUnlockPanel) */
+.unlockPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  margin: 8px auto 0;
+  padding: 28px 24px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  text-align: center;
+}
+
+.unlockIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+}
+
+.passwordRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.passwordRow .textInput {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.unlockPanel .primaryAction {
+  width: 100%;
+  min-height: 42px;
+}
+
+/* ======================================================================================================================
+   Web-native density: widths per page purpose, surfaces, toolbars, dashboard
+   ==================================================================================================================== */
+/* A list or a form that would only stretch: medium. Collections, Archive, Home and a Collection: the shell's wide width. */
+.pageMedium {
+  max-width: var(--content-medium);
+}
+
+/* A titled block of content on a surface (Home's sections). */
+.surfaceSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.sectionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* The controls of a list, on their own surface - kept apart from the information above them. */
+.toolbar,
+.controlsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+}
+
+/* A Collection's identity as one structured header card (not a hero). */
+.detailHeader {
+  padding: 18px 20px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- Home: main column (add + today's links) | side column (exact counts, the two shortcuts, favorites) ---- */
+.dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboardMain,
+.dashboardSide {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.addLinkPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.addLinkField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.addLinkField:hover {
+  border-color: var(--app-text-tertiary);
+}
+
+.addLinkField:focus-within {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.addLinkIcon {
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+.addLinkInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 16px;
+}
+
+.addLinkInput:focus {
+  outline: none;
+}
+
+.addLinkField .primaryAction {
+  min-height: 42px;
+  padding: 0 20px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+}
+
+.summaryLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.summaryIcon {
+  display: inline-flex;
+  color: var(--app-text-tertiary);
+}
+
+.summaryValue {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.quickActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quickAction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.quickAction:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.shortcutList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-control);
+  color: var(--app-text);
+  text-decoration: none;
+}
+
+.shortcut:hover {
+  background: var(--app-surface-hover);
+}
+
+.shortcutName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.shortcutMeta {
+  flex: 0 0 auto;
+  color: var(--app-text-tertiary);
+  font-size: 12.5px;
+}
+
+/* ---- Collections: status column (lock / shared / favorite, then the people) ---- */
+.cardStatus {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.miniStack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.miniStack > .avatar {
+  box-shadow: 0 0 0 2px var(--app-surface);
+  font-size: 10px;
+}
+
+.miniStack > .avatar + .avatar {
+  margin-inline-start: -6px;
+}
+
+/* ---- 내 페이지: the profile header card ---- */
+.profileCard {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.settingsMedium {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: var(--content-medium);
+}
+
+/* ---- friends: one row per friend, using the width (photo | name + ID | my note | actions) ---- */
+.friendNote {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+}
+
+.friendRow .personText {
+  flex: 0 1 260px;
+}
+
+/* ---- the Collection editor workspace: live preview | the form ---- */
+.editorForm {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  max-width: var(--content-medium);
+}
+
+.editorAside {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 16px;
+  border-radius: var(--radius-card);
+  background: var(--app-surface-muted);
+  text-align: center;
+}
+
+.editorPreviewName,
+.editorPreviewNameEmpty {
+  margin: 0;
+  max-width: 100%;
+  font-weight: 800;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.editorPreviewNameEmpty {
+  color: var(--app-text-tertiary);
+  font-weight: 600;
+}
+
+.editorMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* ---- a link's page: the facts as small surfaces ---- */
+.itemDetail {
+  max-width: var(--content-medium);
+}
+
+.infoRows {
+  padding: 0 16px;
+  border: 1px solid var(--app-border);
+  border-top: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+}
+
+.infoRow:last-child {
+  border-bottom: 0;
+}
+
+.memoBlock {
+  padding: 14px 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-control);
+}
+
+.memoText {
+  padding: 0;
+  background: none;
+}
+
+/* ======================================================================================================================
+   내 페이지: one page - profile header (편집 / 로그아웃), then 설정, 구독, 계정 and 위험 구역
+   ==================================================================================================================== */
+.myPage {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: var(--content-medium);
+}
+
+.myPage > section {
+  /* a section reached by its address (/me#account) starts below the page edge, not glued to it */
+  scroll-margin-top: 24px;
+}
+
+.myPageSectionTitle {
+  margin: 0 4px;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.profileActions {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* A quiet action (로그아웃): no frame until hovered. */
+.subtleAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-height);
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.subtleAction:hover {
+  background: var(--app-surface-hover);
+  color: var(--app-text);
+}
+
+/* A setting's current value at the end of its row. */
+.settingsLinkMeta {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 계정 삭제, kept apart from the rest of the account. */
+.dangerZone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dangerZoneHeading {
+  margin: 0 4px;
+  color: var(--danger);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.dangerZoneCard {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--app-border));
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+}
+
+.dangerZoneCard > * + * {
+  border-top: 1px solid var(--app-divider);
+}
+
+/* ======================================================================================================================
+   알림: the global bell (shell utility bar), its panel, the rows and the 알림 page
+   ==================================================================================================================== */
+.utilityBar {
+  grid-area: utility;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px var(--page-pad-x) 0;
+}
+
+.bellWrap {
+  position: relative;
+}
+
+.bellButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.bellButton:hover,
+.bellButton[aria-expanded='true'] {
+  background: var(--app-surface-hover);
+}
+
+.bellButton:focus-visible,
+.notificationRow:focus-visible,
+.notificationRowUnread:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* mobile CountBadge: 1-99, then 99+; never announced by itself (the button's name has the full count) */
+.countBadge {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1.5px solid var(--app-surface);
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.bellPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  z-index: 20;
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(560px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  box-shadow: var(--shadow-raised);
+}
+
+.bellPanel:focus {
+  outline: none;
+}
+
+.bellPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--app-divider);
+}
+
+.bellPanelTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.textAction {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.textAction:hover {
+  background: var(--brand-soft);
+}
+
+.bellNotice {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--app-divider);
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
+.bellPanelBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.bellEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 28px 16px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.bellPanelFooter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border-top: 1px solid var(--app-divider);
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.bellPanelFooter:hover {
+  background: var(--app-surface-hover);
+}
+
+.notificationList,
+.notificationCard {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notificationCard {
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+}
+
+.notificationList > li + li,
+.notificationCard > li + li {
+  border-top: 1px solid var(--app-divider);
+}
+
+/* One row: [who / what] the sentence + time · Collection [my link's thumbnail] [unread dot] */
+.notificationRow,
+.notificationRowUnread {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--app-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* Subtle, as on mobile: a pale tint and a small dot - never a loud block; read rows stay fully legible. */
+.notificationRowUnread {
+  background: color-mix(in srgb, var(--brand-soft) 60%, transparent);
+}
+
+.notificationRow:hover,
+.notificationRowUnread:hover {
+  background: var(--app-surface-hover);
+}
+
+.notificationGlyph {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.notificationLeadingImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notificationText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notificationBody,
+.notificationBodyUnread {
+  font-size: 14.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.notificationBodyUnread {
+  font-weight: 650;
+}
+
+.notificationMeta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text-secondary);
+  font-size: 12.5px;
+}
+
+.notificationPreview {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-control);
+  background: var(--brand-soft);
+  object-fit: cover;
+}
+
+.unreadDot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.notificationSkeletons > * + * {
+  border-top: 1px solid var(--app-divider);
+}
+
+.notificationsPage {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--content-medium);
+}
+
+.notificationGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notificationsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 56px 16px;
+  text-align: center;
+}
+
+/* A Collection card's attention count (mobile CountBadge on the card): unread 새 링크 + waiting approvals / join requests. */
+.attentionBadge {
+  flex: 0 0 auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+/* ======================================================================================================================
+   Responsive
+   ==================================================================================================================== */
+/* Medium windows: a slimmer side bar, a little less page padding. */
+@media (max-width: 1180px) {
+  .dashboard {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboardSide {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .shell {
+    grid-template-columns: 208px minmax(0, 1fr);
+  }
+
+  .shell {
+    --page-pad-x: 28px;
+  }
+
+  .itemDetail {
+    gap: 24px;
+  }
+}
+
+/* Narrow: the side bar becomes a top bar with a scrolling tab row; one column for a link's page. */
+@media (max-width: 860px) {
+  .profileActions {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
+  /* the top bar stays on screen (sticky, brand row + destination row): a section scrolled to stays clear of it */
+  .myPage > section {
+    scroll-margin-top: 128px;
+  }
+
+  .dashboardSide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .editorForm {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .editorAside {
+    position: static;
+    flex-direction: row;
+    padding: 14px;
+    text-align: start;
+  }
+
+  .friendRow .settingsRow {
+    flex-wrap: wrap;
+  }
+
+  .friendNote {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .reviewTop {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+
+  .pickerScroll {
+    max-height: min(50vh, 360px);
+  }
+
+  .reviewFooter {
+    margin: 0 -16px -16px;
+    padding: 12px 16px;
+  }
+
+  .reviewSections {
+    padding: 16px;
+  }
+
+  .shell {
+    --page-pad-x: 16px;
+    --page-gap: 20px;
     grid-template-rows: auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'side utility'
+      'main main';
+  }
+
+  /* the bell at the end of the top bar: the same row, surface and divider (and it stays with the bar) */
+  .utilityBar {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    align-items: flex-start;
+    padding: 8px 0 0;
+    padding-inline-end: 8px;
+    border-bottom: 1px solid var(--app-divider);
+    background: var(--app-surface);
   }
 
   .sidebar {
@@ -721,10 +3081,15 @@ a.imageBody:hover .imageTile {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px 16px;
-    padding: 10px 16px;
+    gap: 4px 12px;
+    padding: 8px 12px;
     border-inline-end: 0;
     border-bottom: 1px solid var(--app-divider);
+  }
+
+  .sidebarBrand {
+    font-size: 17px;
+    padding: 0 4px;
   }
 
   .nav {
@@ -737,31 +3102,84 @@ a.imageBody:hover .imageTile {
   .navLink,
   .navLinkActive {
     flex: 0 0 auto;
-  }
-
-  .account {
-    margin: 0;
-    margin-inline-start: auto;
-    padding: 0;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .accountName {
-    max-width: 40vw;
+    min-height: 40px;
+    gap: 8px;
   }
 
   .content {
-    padding: 20px 16px 40px;
+    padding-top: 20px;
+    padding-bottom: 40px;
   }
 
   .pageTitle {
     font-size: 22px;
   }
 
+  .itemDetail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 16px;
+  }
+
+  .itemMedia {
+    aspect-ratio: 16 / 10;
+  }
+
+  .infoRow {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .detailTile {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .detailTitle {
+    font-size: 21px;
+  }
+}
+
+/* Phone widths: mobile-like density. */
+@media (max-width: 560px) {
+  .choiceList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reviewSections {
+    padding: 16px;
+  }
+
   .imageGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 3px;
+    gap: 6px;
+  }
+
+  .linkGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .collectionGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .linkRowBody {
+    min-height: 76px;
+    gap: 12px;
+  }
+
+  .thumbnail {
+    width: 56px;
+    height: 56px;
+  }
+
+  .infoRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .settingsRow {
+    padding: 10px 14px;
   }
 }

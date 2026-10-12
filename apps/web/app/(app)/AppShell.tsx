@@ -2,54 +2,52 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { accountLabel } from '../../lib/accountDisplay';
+import { useEffect } from 'react';
+import { activeMainNav, MAIN_NAV_ITEMS } from '../../lib/appNavigation';
+import { forgetUnlocksOutside } from '../../lib/collectionUnlock';
 import { useSignedInApp } from './AppRoot';
 import { BrandIcon } from './BrandIcon';
+import { Glyph } from './Glyph';
+import { NotificationBell } from './notifications/NotificationBell';
 import styles from './app.module.css';
 
 /**
- * The signed-in app's frame: the Juple icon and name, the same four destinations as the mobile tabs (홈 / 보관함 / 컬렉션 / 내 페이지 -
- * apps/mobile/src/navigation/MainTabs.tsx), and the content using the width of the window. A side bar on wide screens; a top bar
- * with a scrolling tab row on narrow ones.
+ * The signed-in app's frame: the Juple icon and name, the main destinations with the mobile icons (lib/appNavigation.ts - the mobile
+ * tabs plus 친구 and 삭제 이력), the global 알림 bell at the top end (an action for the whole app, not a destination), and the content.
+ * Navigation only: who is signed in and 로그아웃 live in 내 페이지's header. A side bar on wide screens; a top bar with a scrolling
+ * row of the same destinations on narrow ones, the bell at its end.
  */
 export function AppShell({ children }: { readonly children: React.ReactNode }) {
-  const { dictionary, account, profile, signOut } = useSignedInApp();
-  const label = accountLabel({ profile, accountName: account.name, accountUsername: account.username }, dictionary.accountFallback);
+  const { dictionary } = useSignedInApp();
   const pathname = usePathname();
-  const items = [
-    { href: '/', label: dictionary.navHome },
-    { href: '/archive', label: dictionary.navArchive },
-    { href: '/collections', label: dictionary.navCollections },
-    { href: '/me', label: dictionary.navMyPage },
-  ];
+  // Leaving a Collection's pages ends its visit: its unlock grant is forgotten (it asks for the password again next time).
+  useEffect(() => {
+    forgetUnlocksOutside(pathname);
+  }, [pathname]);
+  const active = activeMainNav(pathname);
 
   return (
     <div className={styles.shell}>
       <header className={styles.sidebar}>
         <Link className={styles.sidebarBrand} href="/">
-          <BrandIcon size={34} />
+          <BrandIcon size={32} />
           <span>Juple</span>
         </Link>
         <nav aria-label={dictionary.mainNavigation} className={styles.nav}>
-          {items.map(item => {
-            const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-            return (
-              <Link aria-current={active ? 'page' : undefined} className={active ? styles.navLinkActive : styles.navLink} href={item.href} key={item.href}>
-                {item.label}
-              </Link>
-            );
-          })}
+          {MAIN_NAV_ITEMS.map(item => (
+            <Link aria-current={item.href === active ? 'page' : undefined} className={item.href === active ? styles.navLinkActive : styles.navLink} href={item.href} key={item.href}>
+              <Glyph className={styles.navIcon} name={item.icon} size={20} />
+              <span>{dictionary[item.labelKey]}</span>
+            </Link>
+          ))}
         </nav>
-        <div className={styles.account}>
-          <span className={styles.accountName} dir="auto" title={label}>
-            {label}
-          </span>
-          <button className={styles.linkButton} onClick={signOut} type="button">
-            {dictionary.logout}
-          </button>
-        </div>
       </header>
-      <main className={styles.content}>{children}</main>
+      <div className={styles.utilityBar}>
+        <NotificationBell />
+      </div>
+      <main className={styles.content}>
+        <div className={styles.contentInner}>{children}</div>
+      </main>
     </div>
   );
 }

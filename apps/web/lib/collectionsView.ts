@@ -19,6 +19,14 @@ export interface CollectionSummary {
   readonly accessRole?: 'owner' | 'contributor' | 'viewer' | 'submitter';
   readonly hasCollaborators?: boolean;
   readonly isPublicShareActive?: boolean;
+  /** Collaborative Collections: how many OTHER people are in it, and up to two of them (mobile participantPreview). */
+  readonly otherParticipantCount?: number;
+  readonly participantPreview?: readonly { readonly jupleId: string; readonly displayName: string | null; readonly role: string; readonly profileImageUrl?: string | null }[] | null;
+  /**
+   * The card's attention badge (mobile CountBadge): unread 새 링크 notifications + waiting approvals + (Owner) waiting join requests -
+   * never reactions or comments. Its own meaning, never mixed with the bell's unread total.
+   */
+  readonly attentionCount?: number;
 }
 
 export interface CollectionsPage {
@@ -26,9 +34,19 @@ export interface CollectionsPage {
   readonly nextCursor: string | null;
 }
 
-/** The mobile Collections filters, in its order: 전체 / 즐겨찾기 / 내 컬렉션 / 공유 컬렉션 (the API's scopes). */
-export const COLLECTION_FILTERS = ['all', 'favorites', 'owned', 'shared'] as const;
+/** The mobile Collections filters, in its order: 즐겨찾기 / 전체 / 내 컬렉션 / 공유 컬렉션 (the API's scopes); it opens on 즐겨찾기. */
+export const COLLECTION_FILTERS = ['favorites', 'all', 'owned', 'shared'] as const;
 export type CollectionFilter = (typeof COLLECTION_FILTERS)[number];
+export const DEFAULT_COLLECTION_FILTER: CollectionFilter = 'favorites';
+
+/** The mobile Collections view (categoryViewMode): List or Grid - Grid by default. A per-browser preference. */
+export const COLLECTION_VIEW_MODES = ['list', 'grid'] as const;
+export type CollectionViewMode = (typeof COLLECTION_VIEW_MODES)[number];
+export const COLLECTION_VIEW_MODE_STORAGE_KEY = 'juple.web.collectionsViewMode';
+
+export function parseCollectionViewMode(stored: string | null): CollectionViewMode {
+  return stored === 'list' ? 'list' : 'grid';
+}
 
 /** The mobile screen's page size. */
 export const COLLECTIONS_PAGE_SIZE = 24;
