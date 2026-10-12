@@ -72,6 +72,9 @@ param entraRequiredScope string = 'access_as_user'
 @description('Public Web Viewer origin (PublicWebOptions.BaseUrl) - CollectionsController composes every share URL server-side as "{this}/c/{PublicId}" (see CollectionsController.ToShareResponse), and the same value also scopes api/v1/public/*\'s CORS policy (see Program.cs). Not a secret - a public URL. Defaults to empty, the same safe no-op appsettings.json\'s own "" default already means (CORS allows no origins; share URLs compose with an empty origin) - the real Public Web origin does not exist yet (no production domain - see ../README.md and ../web/main.bicep\'s own "no custom domain yet" note), so this must be supplied explicitly once a real Web Container App/domain exists, e.g. ../web/main.bicep\'s own containerAppUrl output before a custom domain, or the real domain after one is bound.')
 param publicWebBaseUrl string = ''
 
+@description('Origins of the signed-in Juple Web app allowed to call the authenticated API from a browser (AuthenticatedWeb:AllowedOrigins - the API\'s default CORS policy, see backend AuthenticatedWebCors): absolute scheme://host[:port] only, no wildcard or path (the API refuses to start otherwise). Never any-origin, never credentials (the bearer token travels in the Authorization header). The anonymous Public API keeps its own PublicWeb policy. Not a secret. Empty (the default) = no cross-origin browser access, so an environment that does not set it is unaffected.')
+param authenticatedWebAllowedOrigins array = []
+
 @description('MobileVersionPolicy (docs/architecture.md "App update policy"): the newest Android BUILD (versionCode) available in Google Play. 0 = no policy (nobody is prompted). Operations rule: never set a build here before that build can actually be downloaded from the store. Not a secret.')
 @minValue(0)
 param mobileAndroidLatestBuild int = 0
@@ -123,6 +126,12 @@ var containerAppName = 'ca-juple-api-${environmentName}'
 // the split keeps Production from running under a Dev-looking name and leaves room for
 // Production-only configuration. The one-shot Jobs set none (.NET's own default, "Production").
 var aspNetCoreEnvironment = environmentName == 'prod' ? 'Production' : 'AzureDevelopment'
+
+// AuthenticatedWeb:AllowedOrigins as indexed env entries (an empty list adds none).
+var authenticatedWebEnv = [for (origin, index) in authenticatedWebAllowedOrigins: {
+  name: 'AuthenticatedWeb__AllowedOrigins__${index}'
+  value: origin
+}]
 var containerImage = empty(imageDigest)
   ? '${acrLoginServer}/${imageRepository}:${imageTag}'
   : '${acrLoginServer}/${imageRepository}@${imageDigest}'
@@ -578,7 +587,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ], mobileVersionPolicyEnv, billingEnv, observabilityEnv)
+          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, observabilityEnv)
           probes: [
             {
               type: 'Liveness'

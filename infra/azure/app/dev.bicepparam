@@ -99,6 +99,11 @@ param minReplicas = 1
 // commits), not a value that changes on an ordinary redeploy the way imageTag does.
 param publicWebBaseUrl = 'https://dev.juple.co.kr'
 
+// Browser origins of the signed-in Web app allowed to call the Dev API (AuthenticatedWeb:AllowedOrigins): the local Web dev
+// server only, which signs in with Dev Entra and must see the same Dev data as the Dev/dogfood mobile app. Add the real Dev
+// Web host here once the signed-in Web app is deployed on one.
+param authenticatedWebAllowedOrigins = ['http://localhost:3000']
+
 // Live Foundation/deploy-time values and secrets - see the file header comment above. Set the
 // matching environment variable in the deploying shell before running `az deployment group
 // create` with this file; never hardcode a real value on these lines.
@@ -107,7 +112,10 @@ param containerAppsEnvironmentId = readEnvironmentVariable('JUPLE_APP_CONTAINER_
 param managedIdentityResourceId = readEnvironmentVariable('JUPLE_APP_MANAGED_IDENTITY_RESOURCE_ID')
 param managedIdentityClientId = readEnvironmentVariable('JUPLE_APP_MANAGED_IDENTITY_CLIENT_ID')
 param storageBlobServiceUri = readEnvironmentVariable('JUPLE_APP_STORAGE_BLOB_SERVICE_URI')
-param imageTag = readEnvironmentVariable('JUPLE_APP_IMAGE_TAG')
+// Exactly one of the two (main.bicep's image-reference guard): a pushed tag, or - to pin the exact image - its digest
+// ("sha256:" + 64 hex). Leave the other variable unset.
+param imageTag = readEnvironmentVariable('JUPLE_APP_IMAGE_TAG', '')
+param imageDigest = readEnvironmentVariable('JUPLE_APP_IMAGE_DIGEST', '')
 param sqlConnectionString = readEnvironmentVariable('JUPLE_APP_SQL_CONNECTION_STRING')
 param publicCollectionCursorEncryptionKey = readEnvironmentVariable('JUPLE_APP_PUBLIC_COLLECTION_CURSOR_ENCRYPTION_KEY')
 param collectionUnlockGrantEncryptionKey = readEnvironmentVariable('JUPLE_APP_COLLECTION_UNLOCK_GRANT_ENCRYPTION_KEY')
