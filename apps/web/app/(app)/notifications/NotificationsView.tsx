@@ -12,6 +12,7 @@ import { LoadFailed } from '../PageStates';
 import { useUnreadCount } from './NotificationBell';
 import { NotificationRow, NotificationSkeleton } from './NotificationRow';
 import { useNotificationActions, type OpenOutcome } from './useNotificationActions';
+import { PageHeader } from '../PageHeader';
 import styles from '../app.module.css';
 
 type State = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'loaded'; readonly paged: PagedState<AppNotification> };
@@ -91,10 +92,9 @@ export function NotificationsView() {
 
   return (
     <section aria-busy={state.kind === 'loading'} className={styles.page}>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{dictionary.notificationsTitle}</h1>
-        {canReadAll ? (
-          <div className={styles.headerActions}>
+      <PageHeader
+        actions={
+          canReadAll ? (
             <button
               className={styles.settingsAction}
               onClick={() => {
@@ -109,9 +109,11 @@ export function NotificationsView() {
             >
               {dictionary.notificationsMarkAllRead}
             </button>
-          </div>
-        ) : null}
-      </div>
+          ) : null
+        }
+        icon="Bell"
+        title={dictionary.notificationsTitle}
+      />
       <div className={styles.notificationsPage}>
         {notice ? (
           <p className={notice.error ? styles.fieldError : styles.formNotice} role={notice.error ? 'alert' : 'status'}>

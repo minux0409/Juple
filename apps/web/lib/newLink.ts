@@ -42,6 +42,18 @@ export function reviewHref(url: string): string {
   return `/items/new?${new URLSearchParams({ url }).toString()}`;
 }
 
+/**
+ * Opens 새 링크 검토 for a link. This is a FULL page navigation on purpose: /items/new is not a page that rises over the current one,
+ * and a soft (client-side) navigation to it would be taken by the Quick Detail slot (app/(app)/@modal/(.)items/[itemId] matches
+ * "new" as an item id - Next.js cannot exclude one value of a dynamic segment from an intercepting route, checked on a production
+ * build), which leaves the page on screen with only the address changed.
+ */
+export function openReview(url: string, assign: (href: string) => void = href => window.location.assign(href)): string {
+  const href = reviewHref(url);
+  assign(href);
+  return href;
+}
+
 export interface ResolvedUrlMetadata {
   readonly title: string | null;
   readonly previewImageUrl: string | null;
@@ -58,9 +70,10 @@ export interface SavedInboxEntry {
   readonly alreadyPendingCount: number;
 }
 
-export function saveInboxEntryBody(url: string, clientRequestId: string, collectionIds: readonly number[]) {
-  // No unlock grant: a locked Collection is not offered as a destination on the Web (it would need its password first).
-  return { url, clientRequestId, collectionIds, unlockTokens: {} };
+export function saveInboxEntryBody(url: string, clientRequestId: string, collectionIds: readonly number[], unlockTokens: Readonly<Record<number, string>> = {}) {
+  // unlockTokens: the grant of each chosen LOCKED Collection, by id - only what this review's picker session was given (mobile
+  // NewLinkReviewScreen); never a password, never a Collection-visit grant.
+  return { url, clientRequestId, collectionIds, unlockTokens };
 }
 
 /** A YouTube page that answered with its generic title is no title at all (mobile isKnownYouTubePlaceholderTitle). */

@@ -47,11 +47,33 @@ export interface AppApiRequest {
 
 export type AppApi = <T>(request: AppApiRequest) => Promise<T>;
 
+/**
+ * Where one API call spent its time, for measuring a slow screen (development only - see AppRoot). Only the method, the path and the
+ * NAMES of the query parameters are reported: never a value (a search term), a header or a token.
+ */
+export interface ApiTiming {
+  readonly method: string;
+  readonly path: string;
+  readonly queryKeys: readonly string[];
+  readonly status: number | null;
+  /** Getting the access token (a cached one is ~0). */
+  readonly tokenMs: number;
+  /** The request leaving until the response headers arrive: network + the API's own work (TTFB as the page sees it). */
+  readonly waitMs: number;
+  /** The response body arriving and being parsed. */
+  readonly bodyMs: number;
+  readonly totalMs: number;
+}
+
 export function createAppApi(options: {
   readonly apiBaseUrl: string;
   readonly getAccessToken: AccessTokenSource;
   readonly fetchImpl?: typeof fetch;
+  /** Called after every call with its timing; omitted in production (nothing is measured). */
+  readonly onTiming?: (timing: ApiTiming) => void;
+  readonly now?: () => number;
 }): AppApi {
+  const now = options.now ?? (() => performance.now());
   const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
 
   const send = async (request: AppApiRequest, token: string): Promise<Response> => {
@@ -73,30 +95,56 @@ export function createAppApi(options: {
   };
 
   return async <T>(request: AppApiRequest): Promise<T> => {
+    const started = now();
     const token = await options.getAccessToken({ forceRefresh: false });
     if (!token) {
       throw new AuthExpiredError();
     }
+    const tokenReady = now();
+    let headersAt = tokenReady;
+    const report = (status: number | null, finished: number) => {
+      if (!options.onTiming) {
+        return;
+      }
+      const [path, query = ''] = request.path.split('?');
+      options.onTiming({
+        method: request.method ?? 'GET',
+        path,
+        queryKeys: [...new URLSearchParams(query).keys()],
+        status,
+        tokenMs: Math.round(tokenReady - started),
+        waitMs: Math.round(headersAt - tokenReady),
+        bodyMs: Math.round(finished - headersAt),
+        totalMs: Math.round(finished - started),
+      });
+    };
 
     let response = await send(request, token);
+    headersAt = now();
     if (response.status === 401) {
       const fresh = await options.getAccessToken({ forceRefresh: true });
       if (!fresh) {
         throw new AuthExpiredError();
       }
       response = await send(request, fresh);
+      headersAt = now();
       if (response.status === 401) {
         throw new AuthExpiredError();
       }
     }
 
     if (!response.ok) {
-      throw new ApiHttpError(response.status, await readProblemCode(response));
+      const code = await readProblemCode(response);
+      report(response.status, now());
+      throw new ApiHttpError(response.status, code);
     }
     if (response.status === 204) {
+      report(response.status, now());
       return undefined as T;
     }
-    return (await response.json()) as T;
+    const body = (await response.json()) as T;
+    report(response.status, now());
+    return body;
   };
 }
 

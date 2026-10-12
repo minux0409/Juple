@@ -5,10 +5,12 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { activeMainNav, MAIN_NAV_ITEMS } from '../../lib/appNavigation';
 import { forgetUnlocksOutside } from '../../lib/collectionUnlock';
+import { forgetItemOpenGrantsOutside } from '../../lib/itemOpenGrant';
+import { isItemOverlayOpen } from '../../lib/itemOverlay';
 import { useSignedInApp } from './AppRoot';
 import { BrandIcon } from './BrandIcon';
 import { Glyph } from './Glyph';
-import { NotificationBell } from './notifications/NotificationBell';
+import { resetUnreadCount } from '../../lib/notificationState';
 import styles from './app.module.css';
 
 /**
@@ -22,8 +24,17 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
   const pathname = usePathname();
   // Leaving a Collection's pages ends its visit: its unlock grant is forgotten (it asks for the password again next time).
   useEffect(() => {
+    // The Quick Detail sheet names a link in the address while the person's own page (a Collection) is still underneath: that page's
+    // visit goes on, and so do its grants.
+    if (isItemOverlayOpen()) {
+      return;
+    }
     forgetUnlocksOutside(pathname);
+    // ... and leaving a locked link's pages ends its opening: its grant goes too.
+    forgetItemOpenGrantsOutside(pathname);
   }, [pathname]);
+  // Signed out (the shell goes away): nobody's unread count stays. The bell itself lives in each page's header.
+  useEffect(() => () => resetUnreadCount(), []);
   const active = activeMainNav(pathname);
 
   return (
@@ -42,9 +53,6 @@ export function AppShell({ children }: { readonly children: React.ReactNode }) {
           ))}
         </nav>
       </header>
-      <div className={styles.utilityBar}>
-        <NotificationBell />
-      </div>
       <main className={styles.content}>
         <div className={styles.contentInner}>{children}</div>
       </main>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { isSessionLost } from '../../../lib/authSession';
-import { getUnreadCount, refreshUnreadCount, resetUnreadCount, setUnreadCount, shouldAutoRefresh, subscribeUnreadCount } from '../../../lib/notificationState';
+import { getUnreadCount, refreshUnreadCount, setUnreadCount, shouldAutoRefresh, subscribeUnreadCount } from '../../../lib/notificationState';
 import { bellLabel, formatBadgeCount, notificationsPagePath, POPOVER_NOTIFICATION_LIMIT, type AppNotification, type NotificationsPage } from '../../../lib/notifications';
 import { useSignedInApp } from '../AppRoot';
 import { Glyph } from '../Glyph';
@@ -68,8 +68,6 @@ export function NotificationBell() {
       void refreshUnreadCount(fetchUnread);
     }
   }, [fetchUnread, pathname]);
-  // Signed out (the shell goes away): nobody's count stays.
-  useEffect(() => () => resetUnreadCount(), []);
 
   // The panel's rows: the newest few, read again every time it opens.
   useEffect(() => {

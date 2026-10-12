@@ -1,5 +1,6 @@
 import { ApiHttpError } from './appApi.ts';
 import type { AppDictionary } from './appI18n.ts';
+import { clearItemOpenGrants } from './itemOpenGrant.ts';
 
 /**
  * Opening a locked Collection on the Web - the mobile rules (collections/collectionUnlockGrants.ts, CollectionUnlockPanel.tsx) on the
@@ -11,6 +12,10 @@ import type { AppDictionary } from './appI18n.ts';
  *    version, plus when it expires). Only that grant travels afterwards, in the X-Juple-Collection-Unlock header - never in a URL.
  *  - Grants live in this page's memory only (no localStorage, cookie or IndexedDB) and only while the person stays in that
  *    Collection (its own pages): leaving it, reloading the page or signing out forgets them, so it asks again - the mobile "visit".
+ *
+ * This module is the VISIT scope (Collection Details and everything inside it). Mobile keeps two more scopes that never borrow from
+ * it, and neither does the Web: the Collection PICKER's own session (pickerUnlockSession.ts - gone with the picker) and ONE locked
+ * link's opening (itemOpenGrant.ts - gone when the person leaves that link's pages). All three are cleared by forgetAllUnlocks.
  */
 
 export const COLLECTION_UNLOCK_HEADER = 'X-Juple-Collection-Unlock';
@@ -44,7 +49,12 @@ export function unlockTokenFor(collectionId: number, nowMs: number = Date.now())
   return grant.token;
 }
 
-/** The header for a request about this Collection - only when a grant is held (an unlocked Collection needs none). */
+/** The header for a grant a caller holds itself (a picker session, one link's opening) - none when it holds none. */
+export function unlockHeadersFor(token: string | null): Readonly<Record<string, string>> | undefined {
+  return token ? { [COLLECTION_UNLOCK_HEADER]: token } : undefined;
+}
+
+/** The header for a request about this Collection - only when a visit grant is held (an unlocked Collection needs none). */
 export function unlockHeaders(collectionId: number): Readonly<Record<string, string>> | undefined {
   const token = unlockTokenFor(collectionId);
   return token ? { [COLLECTION_UNLOCK_HEADER]: token } : undefined;
@@ -66,6 +76,7 @@ export function forgetUnlocksOutside(pathname: string): void {
 
 export function forgetAllUnlocks(): void {
   grants.clear();
+  clearItemOpenGrants();
 }
 
 /** The endpoint for the password this Collection asks for. */

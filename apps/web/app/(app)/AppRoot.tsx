@@ -4,7 +4,7 @@ import type { AccountInfo } from '@azure/msal-browser';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { PROFILE_PATH, type UserProfile } from '../../lib/accountDisplay';
-import { createAppApi, type AppApi } from '../../lib/appApi';
+import { createAppApi, type ApiTiming, type AppApi } from '../../lib/appApi';
 import { forgetAllUnlocks } from '../../lib/collectionUnlock';
 import { describeSignInError, signInFailureMessage } from '../../lib/authErrors';
 import { isRtlLanguage, LANGUAGE_COOKIE, type AppDictionary, type AppLanguage, type LanguagePreference } from '../../lib/appI18n';
@@ -15,10 +15,12 @@ import {
   currentMsal,
   getMsal,
   resolveSignedInAccount,
+  clearPendingReauthentication,
   startReauthentication,
   type ReauthenticationPurpose,
   type ReauthenticationResult,
 } from '../../lib/msalClient';
+import { settleReauthenticationFailure } from '../../lib/reauthFailure';
 import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
 import { AppShell } from './AppShell';
@@ -57,6 +59,14 @@ function reportSignInError(step: string, error: unknown): void {
     console.error('[Juple sign-in]', step, JSON.stringify(describeSignInError(error)));
   }
 }
+
+/** Development only: where each API call spent its time (path and parameter NAMES, milliseconds - never a value or a token). */
+const reportApiTiming: ((timing: ApiTiming) => void) | undefined =
+  process.env.NODE_ENV !== 'production'
+    ? timing => {
+        console.debug('[Juple api]', timing.method, timing.path, timing.queryKeys.join(','), `${timing.status ?? '-'}`, `token ${timing.tokenMs}ms | wait ${timing.waitMs}ms | body ${timing.bodyMs}ms | total ${timing.totalMs}ms`);
+      }
+    : undefined;
 
 /** For pages inside the signed-in app (always rendered under a ready session). */
 export function useSignedInApp(): SignedInApp {
@@ -100,6 +110,7 @@ export function AppRoot({
     }
     return createAppApi({
       apiBaseUrl: config.apiBaseUrl,
+      onTiming: reportApiTiming,
       getAccessToken: async ({ forceRefresh }) => {
         const msal = currentMsal();
         return msal ? acquireApiToken(msal, config, forceRefresh) : null;
@@ -221,9 +232,12 @@ export function AppRoot({
       }
       setStatus('redirecting');
       startReauthentication(msal, config, purpose).catch(error => {
-        reportSignInError('reauthenticate', error);
-        setReauthentication({ purpose, outcome: 'incomplete' });
-        setStatus('ready');
+        settleReauthenticationFailure(error, purpose, {
+          clearMarker: clearPendingReauthentication,
+          report: reportSignInError,
+          setResult: setReauthentication,
+          backToReady: () => setStatus('ready'),
+        });
       });
     },
     [config],

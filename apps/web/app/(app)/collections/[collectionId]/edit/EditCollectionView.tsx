@@ -13,6 +13,7 @@ import { CollectionHeaderSkeleton } from '../../../Skeletons';
 import { CollectionEditor } from '../../CollectionEditor';
 import { UnlockPanel } from '../UnlockPanel';
 import { unlockHeaders, unlockTokenFor } from '../../../../../lib/collectionUnlock';
+import { PageHeader } from '../../../PageHeader';
 import styles from '../../../app.module.css';
 
 type State = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'notFound' } | { readonly kind: 'loaded'; readonly collection: CollectionDetail };
@@ -109,9 +110,7 @@ export function EditCollectionView({ collectionIdParam }: { readonly collectionI
   return (
     <section className={styles.page}>
       {back}
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{dictionary.collectionEditTitle}</h1>
-      </div>
+      <PageHeader bell={false} title={dictionary.collectionEditTitle} />
       <CollectionEditor
         collectionId={collection.id}
         dictionary={dictionary}

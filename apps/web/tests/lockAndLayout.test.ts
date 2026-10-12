@@ -26,20 +26,28 @@ describe('review page: Collection search and the picker box', () => {
   });
 
   it('search never changes the selection; 선택 안 함 is always first; Save sends what is selected, not what is visible', () => {
+    const picker = source('app/(app)/CollectionPicker.tsx');
     const review = source('app/(app)/items/new/NewLinkReviewView.tsx');
-    assert.match(review, /setTimeout\(\(\) => setAppliedQuery\(query\), COLLECTION_SEARCH_DEBOUNCE_MS\)/);
-    assert.match(review, /filterCollectionsByName\(destinations \?\? \[\], appliedQuery\)\.map/);
-    assert.ok(review.indexOf('{dictionary.collectionNone}') < review.indexOf('filterCollectionsByName(destinations ?? []'));
-    assert.match(review, /saveInboxEntryBody\(url, clientRequestId\.current, noneChosen \? \[\] : \[\.\.\.selected\]\)/);
-    assert.doesNotMatch(review, /setSelected\([^)]*appliedQuery/);
-    assert.match(review, /\{dictionary\.searchEmpty\}/);
+    assert.match(picker, /setTimeout\(\(\) => setAppliedQuery\(query\), COLLECTION_SEARCH_DEBOUNCE_MS\)/);
+    assert.match(picker, /filterCollectionsByName\(destinations \?\? \[\], appliedQuery\)/);
+    assert.ok(picker.indexOf('{dictionary.collectionNone}') < picker.indexOf('visible.map('));
+    // The review sends what is SELECTED (not what is visible), with the grants of its own picker session only.
+    assert.match(review, /const noneChosen = selected\.size === 0;/);
+    assert.match(review, /const collectionIds = \[\.\.\.selected\];/);
+    assert.match(review, /saveInboxEntryBody\(url, clientRequestId\.current, collectionIds, unlockTokensFor\(pickerSession, collectionIds\)\)/);
+    assert.doesNotMatch(picker, /setSelected\(/);
+    assert.match(picker, /\{dictionary\.searchEmpty\}/);
   });
 
-  it('about three rows are visible and the rest scrolls inside the (keyboard-focusable) box; narrow windows are not held to it', () => {
+  it('about five rows are visible (four on a narrow desktop) and the rest scrolls inside the (keyboard-focusable) box; phones keep the viewport limit', () => {
     const css = source('app/(app)/app.module.css');
-    assert.match(css, /\.pickerScroll \{\s*max-height: calc\(3 \* 44px \+ 2 \* 8px \+ 10px\);\s*overflow-y: auto;/);
-    assert.match(css, /@media \(max-width: 860px\) \{[\s\S]*?\.pickerScroll \{\s*max-height: min\(50vh, 360px\);/);
-    assert.match(source('app/(app)/items/new/NewLinkReviewView.tsx'), /className=\{styles\.pickerScroll\} role="group" tabIndex=\{0\}/);
+    // The visible rows come from the row height and gap (about 5 on a desktop, 4 below 1024px); it is only a maximum, the list scrolls inside.
+    assert.match(css, /\.pickerScroll \{\s*overflow-y: auto;/);
+    assert.match(css, /--picker-row-height: 66px;\s*--picker-row-gap: 8px;\s*--picker-rows: 5;\s*max-height: calc\(var\(--picker-rows\) \* var\(--picker-row-height\) \+ \(var\(--picker-rows\) - 1\) \* var\(--picker-row-gap\) \+ 10px\);/);
+    assert.match(css, /@media \(max-width: 1023px\) \{\s*\.pickerScroll \{\s*--picker-rows: 4;/);
+    assert.match(css, /\.choice,\s*\.choiceSelected \{\s*box-sizing: border-box;\s*min-height: var\(--picker-row-height, 66px\);/);
+    assert.match(css, /@media \(max-width: 859px\) \{\s*\.pickerScroll \{\s*max-height: min\(50vh, 360px\);/);
+    assert.match(source('app/(app)/CollectionPicker.tsx'), /className=\{styles\.pickerScroll\} role="group" tabIndex=\{0\}/);
   });
 
   it('Save is the form\'s own sticky footer (never fixed to the window); one shared header spacing rule', () => {
@@ -47,7 +55,7 @@ describe('review page: Collection search and the picker box', () => {
     assert.match(css, /\.reviewFooter \{\s*position: sticky;\s*bottom: 0;/);
     assert.doesNotMatch(css, /position: fixed/);
     assert.match(css, /\.pageHeader,\s*\.detailHeader \{\s*margin-bottom: var\(--header-gap\);/);
-    assert.match(source('app/(app)/items/new/NewLinkReviewView.tsx'), /className=\{styles\.reviewFooter\}/);
+    assert.match(source('app/(app)/ItemForm.tsx'), /className=\{styles\.reviewFooter\}/);
   });
 });
 
@@ -82,12 +90,12 @@ describe('locked Collections on the Web', () => {
   });
 
   it('the password and the grant are never persisted (memory only - no storage, cookie or IndexedDB) and never logged', () => {
-    for (const path of ['lib/collectionUnlock.ts', 'app/(app)/collections/[collectionId]/UnlockPanel.tsx']) {
+    for (const path of ['lib/collectionUnlock.ts', 'lib/itemOpenGrant.ts', 'lib/pickerUnlockSession.ts', 'app/(app)/collections/[collectionId]/UnlockPanel.tsx', 'app/(app)/CollectionPicker.tsx']) {
       // Code use only (the module's own comment names these stores to say they are not used).
       assert.doesNotMatch(source(path), /\blocalStorage\.|\bsessionStorage\.|document\.cookie|indexedDB\.|\bconsole\./, path);
     }
     const panel = source('app/(app)/collections/[collectionId]/UnlockPanel.tsx');
-    assert.match(panel, /rememberUnlock\(collectionId, grant\);\s*setPassword\(''\);/, 'the typed password is dropped after success');
+    assert.match(panel, /rememberUnlock\(collectionId, grant\);\s*\}\s*setPassword\(''\);/, 'the typed password is dropped after success');
   });
 
   it('the server answers in the mobile words; a password that no longer exists is not "wrong"', () => {

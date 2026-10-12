@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { formatMessage } from '../../../../lib/appI18n';
 import { isSessionLost } from '../../../../lib/authSession';
-import { displayTitleOf, formatLinkTimestamp, siteIdOf, siteOf, thumbnailOf, type ImageRef } from '../../../../lib/savedLinks';
+import { displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, siteIdOf, siteOf, thumbnailOf, type ImageRef } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { Glyph } from '../../Glyph';
@@ -110,6 +110,7 @@ export default function TrashPage() {
 
   return (
     <SettingsPage
+      icon="Trash"
       actions={
         items && items.length > 0 ? (
           <button className={styles.dangerAction} disabled={busy} onClick={() => setPending({ kind: 'empty' })} type="button">
@@ -142,40 +143,50 @@ export default function TrashPage() {
       ) : null}
       {items && items.length === 0 ? <p className={styles.emptyState}>{dictionary.trashEmpty}</p> : null}
       {items && items.length > 0 ? (
-        <ul className={styles.linkList}>
+        <ul className={styles.trashGrid}>
           {items.map(entry => {
             const title = displayTitleOf(entry.title, entry.url);
             const thumbnail = thumbnailOf(entry);
             const site = siteOf(entry.url);
             return (
-              <li className={styles.linkCard} key={entry.id}>
-                <div className={styles.linkRowBody}>
-                  <div aria-hidden className={styles.thumbnail}>
-                    <LinkImage
-                      fallback={
-                        <span className={styles.thumbnailFallback}>
-                          <SiteIcon siteId={siteIdOf(entry.url)} size={30} />
-                        </span>
-                      }
-                      src={thumbnail}
-                    />
-                  </div>
-                  <div className={styles.linkText}>
-                    <span className={styles.linkTitle} dir={title.kind === 'text' && title.technical ? 'ltr' : 'auto'}>
-                      {linkTitleText(title, dictionary)}
+              <li className={styles.trashCard} key={entry.id}>
+                <div aria-hidden className={styles.trashThumb}>
+                  <LinkImage
+                    fallback={
+                      <span className={styles.thumbnailFallback}>
+                        <SiteIcon siteId={siteIdOf(entry.url)} size={30} />
+                      </span>
+                    }
+                    src={thumbnail}
+                  />
+                </div>
+                <div className={styles.trashBody}>
+                  <span className={styles.trashTitle} dir={title.kind === 'text' && title.technical ? 'ltr' : 'auto'}>
+                    {linkTitleText(title, dictionary)}
+                  </span>
+                  <span className={styles.trashMeta}>
+                    <time dateTime={entry.deletedAtUtc}>{formatLinkTimestamp(entry.deletedAtUtc, locale, true)}</time>
+                  </span>
+                  {site ? (
+                    <span className={styles.trashSite}>
+                      <SiteIcon siteId={siteIdOf(entry.url)} size={16} />
+                      <span dir="ltr">{site}</span>
                     </span>
-                    <span className={styles.linkMeta}>
-                      <time dateTime={entry.deletedAtUtc}>{formatLinkTimestamp(entry.deletedAtUtc, locale, true)}</time>
-                      {site ? ' · ' : null}
-                      {site ? <span dir="ltr">{site}</span> : null}
-                    </span>
-                  </div>
-                  <div className={styles.rowActions}>
-                    <button aria-label={dictionary.trashRestore} className={styles.iconButton} disabled={busy} onClick={() => setPending({ kind: 'restore', id: entry.id })} title={dictionary.trashRestore} type="button">
-                      <Glyph name="Restore" size={18} />
+                  ) : null}
+                  <div className={styles.trashActions}>
+                    <button className={styles.settingsAction} disabled={busy} onClick={() => setPending({ kind: 'restore', id: entry.id })} type="button">
+                      <Glyph name="Restore" size={16} />
+                      {dictionary.trashRestore}
                     </button>
-                    <button aria-label={dictionary.trashPermanentDelete} className={styles.iconButtonDanger} disabled={busy} onClick={() => setPending({ kind: 'permanent', id: entry.id })} title={dictionary.trashPermanentDelete} type="button">
-                      <Glyph name="Trash" size={18} />
+                    {isSafeHttpUrl(entry.url) ? (
+                      <a className={styles.settingsAction} href={entry.url} rel="noopener noreferrer" target="_blank">
+                        <Glyph name="ExternalLink" size={16} />
+                        {dictionary.openLink}
+                      </a>
+                    ) : null}
+                    <button className={styles.dangerAction} disabled={busy} onClick={() => setPending({ kind: 'permanent', id: entry.id })} type="button">
+                      <Glyph name="Trash" size={16} />
+                      {dictionary.trashPermanentDelete}
                     </button>
                   </div>
                 </div>

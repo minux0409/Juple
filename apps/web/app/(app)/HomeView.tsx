@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useItemsChanged } from './useItemsChanged';
 import { formatMessage, type AppDictionary } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
 import type { CollectionsPage, CollectionSummary } from '../../lib/collectionsView';
 import { homeCountPath, homeHistoryPath } from '../../lib/homeItems';
 import { exactCollectionCount, FAVORITE_SHORTCUT_COUNT, summaryCollectionsPath } from '../../lib/homeSummary';
-import { normalizeEnteredUrl, reviewHref } from '../../lib/newLink';
+import { normalizeEnteredUrl, openReview } from '../../lib/newLink';
 import { collectionHref, formatLinkTimestamp, historyLinkView, parseViewMode, VIEW_MODE_STORAGE_KEYS, type ItemHistoryPage, type LinkView } from '../../lib/savedLinks';
 import { useSignedInApp } from './AppRoot';
 import { CollectionTileView } from './collections/CollectionsView';
@@ -18,6 +18,7 @@ import { SavedLinkSkeleton } from './Skeletons';
 import { SavedLinkList } from './SavedLinkList';
 import { useStoredChoice } from './useStoredChoice';
 import { ViewModeToggle } from './ViewModeToggle';
+import { PageHeader } from './PageHeader';
 import styles from './app.module.css';
 
 type HomeState =
@@ -45,6 +46,8 @@ export function HomeView() {
   const [state, setState] = useState<HomeState>({ kind: 'loading' });
   // Bumped by 다시 시도 to run the effect again.
   const [reloadToken, setReloadToken] = useState(0);
+  // A link was deleted / edited in the Quick Detail sheet over this page: read the list again, in place (no skeleton, same scroll).
+  useItemsChanged(() => setReloadToken(token => token + 1));
   const [viewMode, setViewMode] = useStoredChoice(VIEW_MODE_STORAGE_KEYS.home, parseViewMode);
   const [summary, setSummary] = useState<Summary | null>(null);
 
@@ -108,16 +111,16 @@ export function HomeView() {
 
   return (
     <section aria-busy={state.kind === 'loading'} className={styles.page}>
-      <div className={styles.pageHeader}>
-        <div className={styles.pageHeading}>
-          <h1 className={styles.pageTitle}>{dictionary.homeTitle}</h1>
-          {state.kind === 'loaded' ? <p className={styles.pageSubtitle}>{formatMessage(dictionary.homeDateCount, { date: dateFormat.format(state.day), count: todayCount ?? 0 })}</p> : null}
-        </div>
-      </div>
+      <PageHeader
+        icon="Home"
+        subtitle={state.kind === 'loaded' ? formatMessage(dictionary.homeDateCount, { date: dateFormat.format(state.day), count: todayCount ?? 0 }) : null}
+        title={dictionary.homeTitle}
+      />
+
+      <AddLinkForm />
 
       <div className={styles.dashboard}>
         <div className={styles.dashboardMain}>
-          <AddLinkForm />
 
           <section aria-labelledby="home-today" className={styles.surfaceSection}>
             <div className={styles.sectionBar}>
@@ -140,7 +143,7 @@ export function HomeView() {
           </section>
         </div>
 
-        <aside className={styles.dashboardSide}>
+        <aside className={`${styles.dashboardSide} ${styles.railCard}`}>
           <SummaryCards dictionary={dictionary} summary={summary} todayCount={todayCount} />
           <div className={styles.quickActions}>
             <Link className={styles.quickAction} href="/collections/new">
@@ -221,7 +224,6 @@ function SummaryCards({ summary, todayCount, dictionary }: { readonly summary: S
 /** The mobile Home URL field + 저장, as the page's main panel: checks the text (a bare http(s) URL, or the first one in pasted text) and opens the review. */
 function AddLinkForm() {
   const { dictionary } = useSignedInApp();
-  const router = useRouter();
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const submit = (event: React.FormEvent) => {
@@ -236,7 +238,8 @@ function AddLinkForm() {
     }
     setError(null);
     setValue('');
-    router.push(reviewHref(url));
+    // A full page navigation: see openReview (/items/new is never a Quick Detail sheet).
+    openReview(url);
   };
   return (
     <form className={styles.addLinkPanel} noValidate onSubmit={submit}>

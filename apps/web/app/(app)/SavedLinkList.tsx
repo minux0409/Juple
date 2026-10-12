@@ -61,6 +61,16 @@ function Thumbnail({ link, className, fallbackSize }: { readonly link: LinkView;
   );
 }
 
+/** Where a link is from: the site's own badge (YouTube / Instagram / ...) when known, with its host name (always left-to-right). */
+function SiteMeta({ link }: { readonly link: LinkView }) {
+  return (
+    <span className={styles.siteMeta} data-site-meta>
+      {link.siteId ? <SiteIcon siteId={link.siteId} size={14} /> : null}
+      <span dir="ltr">{link.site}</span>
+    </span>
+  );
+}
+
 function LinkEntry({ link, mode, timestamp, dictionary }: { readonly link: LinkView; readonly mode: LinkViewMode; readonly timestamp: string; readonly dictionary: AppDictionary }) {
   const title = linkTitleText(link.title, dictionary);
   const technical = link.title.kind === 'text' && link.title.technical;
@@ -78,17 +88,24 @@ function LinkEntry({ link, mode, timestamp, dictionary }: { readonly link: LinkV
           <span className={styles.linkTitle} dir={technical ? 'ltr' : 'auto'}>
             {title}
           </span>
-          {mode === 'list' && link.memo ? (
-            <span className={styles.linkMemo} dir="auto">
+          {link.memo ? (
+            <span className={styles.linkMemo} data-link-memo dir="auto">
               {link.memo}
             </span>
           ) : null}
-          <span className={styles.linkMeta}>
-            <time dateTime={link.timestampUtc}>{timestamp}</time>
-            {link.site ? ' · ' : null}
-            {link.site ? <span dir="ltr">{link.site}</span> : null}
-          </span>
+          {mode === 'list' ? null : (
+            <span className={styles.linkMeta}>
+              <time dateTime={link.timestampUtc}>{timestamp}</time>
+              {link.site ? <SiteMeta link={link} /> : null}
+            </span>
+          )}
         </div>
+        {mode === 'list' ? (
+          <span className={styles.linkMetaCol}>
+            <time dateTime={link.timestampUtc}>{timestamp}</time>
+            {link.site ? <SiteMeta link={link} /> : null}
+          </span>
+        ) : null}
       </>
     );
   const className = mode === 'list' ? styles.linkRowBody : mode === 'grid' ? styles.cardBody : styles.imageBody;

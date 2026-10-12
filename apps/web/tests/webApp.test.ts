@@ -155,7 +155,7 @@ describe('routes: the public viewer and legal pages never require sign-in', () =
   it('the (app) route group holds only the signed-in pages; the public viewer, legal pages and the redirect bridge live outside it', () => {
     const group = new URL('../app/(app)/', import.meta.url);
     const routeDirs = readdirSync(group, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
-    assert.deepEqual(routeDirs, ['archive', 'collections', 'items', 'me', 'notifications']);
+    assert.deepEqual(routeDirs, ['@modal', 'archive', 'collections', 'items', 'me', 'notifications']);
     for (const outside of ['c/[publicId]/page.tsx', 'privacy/page.tsx', 'terms/page.tsx', 'account-deletion/page.tsx', 'auth/callback/page.tsx']) {
       assert.ok(existsSync(new URL(`../app/${outside}`, import.meta.url)), outside);
     }
@@ -596,7 +596,7 @@ describe('navigation: real routes for every page', () => {
   });
 
   it('the reading pages send nothing but GET (writes live only on the pages of the mobile write features)', () => {
-    for (const path of ['archive/ArchiveView.tsx', 'collections/[collectionId]/items/[itemId]/SharedItemView.tsx', 'items/[itemId]/ItemDetailsView.tsx', 'DateSections.tsx', 'HomeView.tsx', 'collections/CollectionsView.tsx']) {
+    for (const path of ['archive/ArchiveView.tsx', 'collections/[collectionId]/items/[itemId]/SharedItemView.tsx', 'DateSections.tsx', 'HomeView.tsx', 'collections/CollectionsView.tsx']) {
       assert.doesNotMatch(readFileSync(page(path), 'utf8'), /method:\s*'(POST|PUT|PATCH|DELETE)'/, path);
     }
   });
@@ -605,5 +605,121 @@ describe('navigation: real routes for every page', () => {
     assert.equal(requiresSignIn('/c/AbCdEfGh12345678'), false);
     const viewer = readFileSync(new URL('../app/c/[publicId]/page.tsx', import.meta.url), 'utf8');
     assert.doesNotMatch(viewer, /useSignedInApp|createAppApi|msal/i);
+  });
+});
+
+describe('fresh sign-in cancelled by the person (browser back from the Entra page)', () => {
+  const msalError = (errorCode: string) => Object.assign(new Error('message with https://login.example/?secret=1'), { name: 'BrowserAuthError', errorCode });
+
+  const calls = () => {
+    const log = { clear: 0, report: [] as string[], results: [] as unknown[], ready: 0, consoleErrors: 0 };
+    const original = console.error;
+    return {
+      log,
+      actions: {
+        clearMarker: () => void (log.clear += 1),
+        report: (step: string) => void log.report.push(step),
+        setResult: (result: unknown) => void log.results.push(result),
+        backToReady: () => void (log.ready += 1),
+      },
+      watch: () => {
+        console.error = () => void (log.consoleErrors += 1);
+        return () => void (console.error = original);
+      },
+    };
+  };
+
+  it('user_cancelled: no report, no console.error, no failure result; the marker is cleared and the page is ready again', async () => {
+    const { settleReauthenticationFailure } = await import('../lib/reauthFailure.ts');
+    for (const purpose of ['passwordReset', 'collectionLockSetup', 'collectionLockReset', 'deleteAccount'] as const) {
+      const harness = calls();
+      const restore = harness.watch();
+      const outcome = settleReauthenticationFailure(msalError('user_cancelled'), purpose, harness.actions);
+      restore();
+      assert.equal(outcome, 'cancelled', purpose);
+      assert.deepEqual(harness.log, { clear: 1, report: [], results: [], ready: 1, consoleErrors: 0 }, purpose);
+    }
+  });
+
+  it('a real auth error keeps its report and the incomplete outcome (no marker is silently dropped as a cancel)', async () => {
+    const { settleReauthenticationFailure } = await import('../lib/reauthFailure.ts');
+    for (const code of ['interaction_in_progress', 'invalid_request', 'access_denied', 'network_error']) {
+      const harness = calls();
+      const outcome = settleReauthenticationFailure(msalError(code), 'passwordReset', harness.actions);
+      assert.equal(outcome, 'failed', code);
+      assert.deepEqual(harness.log.report, ['reauthenticate'], code);
+      assert.deepEqual(harness.log.results, [{ purpose: 'passwordReset', outcome: 'incomplete' }], code);
+      assert.equal(harness.log.clear, 0, code);
+      assert.equal(harness.log.ready, 1, code);
+    }
+    const harness = calls();
+    settleReauthenticationFailure(new Error('boom'), 'deleteAccount', harness.actions);
+    assert.deepEqual(harness.log.report, ['reauthenticate']);
+  });
+
+  it('only the exact code user_cancelled is the expected cancellation', async () => {
+    const { isUserCancelled } = await import('../lib/reauthFailure.ts');
+    assert.equal(isUserCancelled(msalError('user_cancelled')), true);
+    assert.equal(isUserCancelled(msalError('access_denied')), false);
+    assert.equal(isUserCancelled(new Error('user_cancelled')), false, 'a message is not a code');
+    assert.equal(isUserCancelled(null), false);
+  });
+
+  it('AppRoot routes every fresh sign-in (one place) through it: the session stays and the marker helper is the real sessionStorage one', () => {
+    const root = readFileSync(new URL('../app/(app)/AppRoot.tsx', import.meta.url), 'utf8');
+    assert.match(root, /settleReauthenticationFailure\(error, purpose, \{\s*clearMarker: clearPendingReauthentication,\s*report: reportSignInError,/);
+    const body = root.slice(root.indexOf('const reauthenticate = useCallback'), root.indexOf('const onSessionLost'));
+    assert.doesNotMatch(body, /signOut|clearLocalSession|setAccount/, 'a cancelled fresh sign-in never ends the session');
+    const msalSource = readFileSync(new URL('../lib/msalClient.ts', import.meta.url), 'utf8');
+    assert.match(msalSource, /export function clearPendingReauthentication\(\): void \{\s*try \{\s*window\.sessionStorage\.removeItem\(PENDING_REAUTH_KEY\);/);
+    // Every fresh sign-in (비밀번호 재설정, 컬렉션 잠금 설정 / 재설정, 계정 삭제) goes through reauthenticate(purpose).
+    for (const [file, call] of [['me/MyPageSections.tsx', "reauthenticate('passwordReset')"], ['me/collection-lock/page.tsx', 'reauthenticate('], ['me/account/delete/page.tsx', "reauthenticate('deleteAccount')"]] as const) {
+      assert.ok(readFileSync(new URL(`../app/(app)/${file}`, import.meta.url), 'utf8').includes(call), file);
+    }
+  });
+});
+
+describe('API call timing (development measurement)', () => {
+  it('splits a call into token / wait / body and reports only the path and the parameter NAMES', async () => {
+    let clock = 0;
+    const timings: import('../lib/appApi.ts').ApiTiming[] = [];
+    const api = createAppApi({
+      apiBaseUrl: 'https://api.example.test',
+      getAccessToken: async () => {
+        clock += 5;
+        return 'secret-token';
+      },
+      fetchImpl: async () => {
+        clock += 120;
+        const response = new Response(JSON.stringify({ items: [] }), { status: 200 });
+        const original = response.json.bind(response);
+        response.json = async () => {
+          clock += 30;
+          return original();
+        };
+        return response;
+      },
+      now: () => clock,
+      onTiming: timing => void timings.push(timing),
+    });
+    await api({ path: '/api/v1/items/history?limit=30&sort=name&q=my%20private%20search' });
+    assert.equal(timings.length, 1);
+    assert.deepEqual(timings[0], { method: 'GET', path: '/api/v1/items/history', queryKeys: ['limit', 'sort', 'q'], status: 200, tokenMs: 5, waitMs: 120, bodyMs: 30, totalMs: 155 });
+    assert.doesNotMatch(JSON.stringify(timings), /secret-token|private|search/);
+  });
+
+  it('measures nothing without a listener, and a refused call is reported with its status', async () => {
+    const quiet = createAppApi({ apiBaseUrl: 'https://api.example.test', getAccessToken: async () => 't', fetchImpl: async () => new Response('{}', { status: 200 }) });
+    assert.deepEqual(await quiet({ path: '/x' }), {});
+    const seen: Array<number | null> = [];
+    const refused = createAppApi({
+      apiBaseUrl: 'https://api.example.test',
+      getAccessToken: async () => 't',
+      fetchImpl: async () => new Response('{"code":"nope"}', { status: 409 }),
+      onTiming: timing => void seen.push(timing.status),
+    });
+    await assert.rejects(refused({ path: '/x' }), ApiHttpError);
+    assert.deepEqual(seen, [409]);
+    assert.match(readFileSync(new URL('../app/(app)/AppRoot.tsx', import.meta.url), 'utf8'), /process\.env\.NODE_ENV !== 'production'\s*\?\s*timing =>/);
   });
 });

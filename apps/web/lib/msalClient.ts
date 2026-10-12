@@ -119,6 +119,15 @@ function takePendingReauthentication(): { purpose: ReauthenticationPurpose; home
   }
 }
 
+/** Forgets a fresh sign-in that never left this page (cancelled before / while leaving): its marker must not outlive the attempt. */
+export function clearPendingReauthentication(): void {
+  try {
+    window.sessionStorage.removeItem(PENDING_REAUTH_KEY);
+  } catch {
+    // Session storage unavailable: there is no marker to clear.
+  }
+}
+
 /** One local part, one @, a dotted domain - the login_hint is only a convenience for the sign-in page (mobile loginHintFromIdToken). */
 function loginHint(account: AccountInfo): string | undefined {
   const value = account.username?.trim();

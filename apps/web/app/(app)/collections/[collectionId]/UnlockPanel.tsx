@@ -18,6 +18,7 @@ export function UnlockPanel({
   isOwner,
   onUnlocked,
   onStateChanged,
+  onGranted,
 }: {
   readonly collectionId: number;
   readonly kind: 'lock' | 'sharePassword';
@@ -26,6 +27,11 @@ export function UnlockPanel({
   readonly onUnlocked: () => void;
   /** The password asked for no longer exists (removed meanwhile): read the Collection again. */
   readonly onStateChanged: () => void;
+  /**
+   * The grant is handed to the caller INSTEAD of the Collection-visit store: the picker's session and one link's opening each keep
+   * their own (mobile onGranted) and never borrow the visit's.
+   */
+  readonly onGranted?: (grant: CollectionUnlockGrant) => void;
 }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const [password, setPassword] = useState('');
@@ -43,7 +49,11 @@ export function UnlockPanel({
     setError(null);
     api<CollectionUnlockGrant>({ method: 'POST', path: unlockPath(collectionId, kind), body: { password } }).then(
       grant => {
-        rememberUnlock(collectionId, grant);
+        if (onGranted) {
+          onGranted(grant);
+        } else {
+          rememberUnlock(collectionId, grant);
+        }
         setPassword('');
         setBusy(false);
         onUnlocked();

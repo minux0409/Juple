@@ -3,7 +3,7 @@ import type { STATUS_ICON_MARKUP } from './collectionIconMarkup.ts';
 
 /**
  * The signed-in app's main destinations: the four mobile tabs (홈 / 보관함 / 컬렉션 / 내 페이지 - apps/mobile/src/navigation/
- * MainTabs.tsx) plus 친구 and 삭제 이력, which on the Web are first-level places instead of 내 페이지 rows. Their routes stay where
+ * MainTabs.tsx; the last one is called 설정 on the Web) plus 친구 and 삭제 이력, which on the Web are first-level places instead of 내 페이지 rows. Their routes stay where
  * they were (/me/friends, /me/trash); only the navigation moved.
  */
 export const MAIN_NAV_ITEMS = [
@@ -12,7 +12,7 @@ export const MAIN_NAV_ITEMS = [
   { href: '/collections', labelKey: 'navCollections', icon: 'Folder' },
   { href: '/me/friends', labelKey: 'friendsTitle', icon: 'People' },
   { href: '/me/trash', labelKey: 'trashTitle', icon: 'Trash' },
-  { href: '/me', labelKey: 'navMyPage', icon: 'User' },
+  { href: '/me', labelKey: 'settingsSectionTitle', icon: 'Settings' },
 ] as const satisfies readonly { readonly href: string; readonly labelKey: keyof AppDictionary; readonly icon: keyof typeof STATUS_ICON_MARKUP }[];
 
 export type MainNavHref = (typeof MAIN_NAV_ITEMS)[number]['href'];

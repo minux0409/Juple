@@ -1,6 +1,12 @@
+import { parseLockedContext } from '../../../../lib/itemOpenGrant';
 import { ItemDetailsView } from './ItemDetailsView';
 
-export default async function ItemDetailsPage({ params }: { params: Promise<{ itemId: string }> }) {
+type Search = { lockedBy?: string | string[]; collectionId?: string | string[] };
+
+export default async function ItemDetailsPage({ params, searchParams }: { params: Promise<{ itemId: string }>; searchParams: Promise<Search> }) {
   const { itemId } = await params;
-  return <ItemDetailsView itemIdParam={itemId} key={itemId} />;
+  const search = await searchParams;
+  const lockedBy = parseLockedContext(typeof search.lockedBy === 'string' ? search.lockedBy : null);
+  const fromCollectionId = lockedBy === null ? parseLockedContext(typeof search.collectionId === 'string' ? search.collectionId : null) : null;
+  return <ItemDetailsView fromCollectionId={fromCollectionId} itemIdParam={itemId} key={`${itemId}-${lockedBy ?? ''}-${fromCollectionId ?? ''}`} lockedBy={lockedBy} />;
 }

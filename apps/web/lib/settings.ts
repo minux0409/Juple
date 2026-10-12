@@ -106,6 +106,7 @@ export interface FriendRequest {
 export interface JupleIdLookup {
   readonly jupleId: string;
   readonly displayName: string | null;
+  readonly profileImageUrl?: string | null;
   readonly isSelf?: boolean;
 }
 

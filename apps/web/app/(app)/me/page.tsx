@@ -1,5 +1,5 @@
-import { MyPageView } from './MyPageView';
+import { ProfileEditView } from './ProfileEditView';
 
-export default function MyPage() {
-  return <MyPageView />;
+export default function SettingsRoot() {
+  return <ProfileEditView />;
 }

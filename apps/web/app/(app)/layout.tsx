@@ -11,8 +11,10 @@ import { AppRoot } from './AppRoot';
  * to the browser, never the environment itself. The language is the person's 언어 choice (a per-browser cookie; absent = the
  * browser's own languages), and only that language's strings are sent. The public viewer (/c/...), the legal pages and the
  * /auth/callback bridge live outside this group and never require sign-in.
+ *
+ * `modal` is the parallel slot of the Quick Detail sheet (@modal): a link opened by a click inside the app rises over the current page.
  */
-export default async function SignedInAppLayout({ children }: { children: React.ReactNode }) {
+export default async function SignedInAppLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   await connection();
   const env: Record<string, string | undefined> = {};
   for (const name of Object.values(WEB_APP_CONFIG_ENV)) {
@@ -25,6 +27,7 @@ export default async function SignedInAppLayout({ children }: { children: React.
   return (
     <AppRoot config={result.ok ? result.config : null} dictionary={getAppDictionary(language)} language={language} languagePreference={preference}>
       {children}
+      {modal}
     </AppRoot>
   );
 }

@@ -1,7 +1,10 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
+import { isSettingsShellPath } from '../../../lib/settingsNav';
 import { useSignedInApp } from '../AppRoot';
 import { BackButton } from '../PageStates';
+import { PageHeader } from '../PageHeader';
 import styles from '../app.module.css';
 
 /**
@@ -12,6 +15,7 @@ export function SettingsPage({
   title,
   subtitle,
   actions,
+  icon,
   backHref = '/me',
   width = 'narrow',
   children,
@@ -19,6 +23,8 @@ export function SettingsPage({
   readonly title: string;
   readonly subtitle?: string;
   readonly actions?: React.ReactNode;
+  /** A main destination's own glyph (친구, 삭제 이력), drawn before the title like the other primary pages. */
+  readonly icon?: React.ComponentProps<typeof PageHeader>['icon'];
   /** Where 뒤로 goes without history; null = a main destination (in the side bar), which has no 뒤로. */
   readonly backHref?: string | null;
   /** narrow: one form or a short list; medium: a list that uses more of the window (friends, trash). */
@@ -26,16 +32,11 @@ export function SettingsPage({
   readonly children: React.ReactNode;
 }) {
   const { dictionary } = useSignedInApp();
+  const framed = isSettingsShellPath(usePathname());
   return (
     <section className={styles.page}>
-      {backHref ? <BackButton dictionary={dictionary} fallbackHref={backHref} /> : null}
-      <div className={styles.pageHeader}>
-        <div className={styles.pageHeading}>
-          <h1 className={styles.pageTitle}>{title}</h1>
-          {subtitle ? <p className={styles.pageSubtitle}>{subtitle}</p> : null}
-        </div>
-        {actions ? <div className={styles.headerActions}>{actions}</div> : null}
-      </div>
+      {backHref && !framed ? <BackButton dictionary={dictionary} fallbackHref={backHref} /> : null}
+      <PageHeader actions={actions} bell={backHref === null} icon={icon} subtitle={subtitle} title={title} />
       <div className={width === 'medium' ? styles.settingsMedium : styles.settings}>{children}</div>
     </section>
   );

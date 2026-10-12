@@ -21,9 +21,9 @@ export function LegalDocumentView({ doc, config }: { doc: LegalDocument; config:
           Juple
         </Link>
         <nav aria-label="법적 고지" className="legalNav">
-          <a href="/privacy">개인정보처리방침</a>
-          <a href="/terms">이용약관</a>
-          <a href="/account-deletion">계정 삭제 안내</a>
+          <Link href="/privacy">개인정보처리방침</Link>
+          <Link href="/terms">이용약관</Link>
+          <Link href="/account-deletion">계정 삭제 안내</Link>
         </nav>
       </header>
 

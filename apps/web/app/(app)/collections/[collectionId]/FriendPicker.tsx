@@ -1,0 +1,292 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { formatJupleId } from '../../../../lib/accountDisplay';
+import { formatMessage } from '../../../../lib/appI18n';
+import { isSessionLost } from '../../../../lib/authSession';
+import { unlockHeaders } from '../../../../lib/collectionUnlock';
+import {
+  FRIEND_PICKER_DEBOUNCE_MS,
+  INVITE_ROLES,
+  friendPickerPath,
+  inviteErrorMessage,
+  inviteRoleLabel,
+  invitationsPath,
+  type FriendUnavailableReason,
+  type InviteRole,
+} from '../../../../lib/collectionInvite';
+import { INVITATION_ROLE_RANK, raiseToMinimum } from '../../../../lib/collectionShareManage';
+import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../../../lib/paging';
+import type { Friend } from '../../../../lib/settings';
+import { isSafeHttpUrl } from '../../../../lib/savedLinks';
+import { useSignedInApp } from '../../AppRoot';
+import { Avatar } from '../../Avatar';
+import { LoadMore } from '../../InfiniteScroll';
+import { SearchField } from '../../SearchField';
+import { SettingsRowSkeleton } from '../../Skeletons';
+import styles from '../../app.module.css';
+
+type ListState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<Friend>);
+
+function personName(person: { readonly jupleId: string; readonly displayName: string | null }): string {
+  return person.displayName?.trim() || formatJupleId(person.jupleId);
+}
+
+/**
+ * 친구에서 선택 (mobile FriendPickerModal): a large rounded dialog with a search, the friends as one list with a check circle each
+ * (Juple Blue when picked), what they may do, and [취소] [N명 추가]. Friends already in the Collection or already invited are shown
+ * and cannot be picked. Each pick is its own invitation; one that fails is named and stays picked, the rest went through.
+ */
+export function FriendPicker({
+  open,
+  collectionId,
+  unavailable,
+  minimumRole = null,
+  onClose,
+  onInvited,
+}: {
+  readonly open: boolean;
+  readonly collectionId: number;
+  readonly unavailable: ReadonlyMap<string, FriendUnavailableReason>;
+  /** While the Collection is public, nobody may be invited below the link's level (mobile): lower roles are not offered. */
+  readonly minimumRole?: InviteRole | null;
+  readonly onClose: () => void;
+  /** At least one invitation was sent: the caller reads the participants again. */
+  readonly onInvited: () => void;
+}) {
+  const { api, dictionary, onSessionLost } = useSignedInApp();
+  const ref = useRef<HTMLDialogElement>(null);
+  const [text, setText] = useState('');
+  const [query, setQuery] = useState('');
+  const [list, setList] = useState<ListState>({ kind: 'loading' });
+  const [picked, setPicked] = useState<ReadonlyMap<string, Friend>>(new Map());
+  const [chosenRole, setRole] = useState<InviteRole>('contributor');
+  const role = raiseToMinimum(chosenRole, minimumRole);
+  const [busy, setBusy] = useState(false);
+  const [failures, setFailures] = useState<readonly string[]>([]);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) {
+      return;
+    }
+    if (open && !dialog.open) {
+      dialog.showModal();
+    } else if (!open && dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(text), text ? FRIEND_PICKER_DEBOUNCE_MS : 0);
+    return () => clearTimeout(timer);
+  }, [text]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    let ignore = false;
+    api<{ readonly items: readonly Friend[]; readonly nextCursor: string | null }>({ path: friendPickerPath(query, null) }).then(
+      page => {
+        if (!ignore) {
+          setList({ kind: 'loaded', ...firstPage(page.items, page.nextCursor) });
+        }
+      },
+      caught => {
+        if (ignore) {
+          return;
+        }
+        if (isSessionLost(caught)) {
+          onSessionLost();
+          return;
+        }
+        setList({ kind: 'failed' });
+      },
+    );
+    return () => {
+      ignore = true;
+    };
+  }, [api, onSessionLost, open, query, reloadToken]);
+
+  const close = () => {
+    if (busy) {
+      return;
+    }
+    setText('');
+    setPicked(new Map());
+    setFailures([]);
+    onClose();
+  };
+
+  const toggle = (friend: Friend) => {
+    if (unavailable.has(friend.jupleId) || busy) {
+      return;
+    }
+    setPicked(previous => {
+      const next = new Map(previous);
+      if (next.has(friend.jupleId)) {
+        next.delete(friend.jupleId);
+      } else {
+        next.set(friend.jupleId, friend);
+      }
+      return next;
+    });
+  };
+
+  const loadMore = () => {
+    if (list.kind !== 'loaded' || !canLoadMore(list)) {
+      return;
+    }
+    const cursor = list.nextCursor;
+    setList({ kind: 'loaded', ...startLoadingMore(list) });
+    api<{ readonly items: readonly Friend[]; readonly nextCursor: string | null }>({ path: friendPickerPath(query, cursor) }).then(
+      page => setList(current => (current.kind === 'loaded' ? { kind: 'loaded', ...appendPage(current, page, friend => Number(friend.friendshipId)) } : current)),
+      caught => {
+        if (isSessionLost(caught)) {
+          onSessionLost();
+          return;
+        }
+        setList(current => (current.kind === 'loaded' ? { kind: 'loaded', ...failLoadingMore(current) } : current));
+      },
+    );
+  };
+
+  const confirm = async () => {
+    if (busy || picked.size === 0) {
+      return;
+    }
+    setBusy(true);
+    setFailures([]);
+    const failed: string[] = [];
+    const remaining = new Map(picked);
+    let sent = 0;
+    for (const friend of picked.values()) {
+      try {
+        await api<unknown>({ method: 'POST', path: invitationsPath(collectionId), body: { jupleId: friend.jupleId, role }, headers: unlockHeaders(collectionId) });
+        remaining.delete(friend.jupleId);
+        sent += 1;
+      } catch (caught) {
+        if (isSessionLost(caught)) {
+          onSessionLost();
+          return;
+        }
+        failed.push(`${personName(friend)}: ${inviteErrorMessage(caught, dictionary)}`);
+      }
+    }
+    setBusy(false);
+    setPicked(remaining);
+    setFailures(failed);
+    if (sent > 0) {
+      onInvited();
+    }
+    if (failed.length === 0) {
+      setText('');
+      onClose();
+    }
+  };
+
+  return (
+    <dialog
+      aria-labelledby="friend-picker-title"
+      className={styles.friendPickerDialog}
+      onCancel={event => {
+        event.preventDefault();
+        close();
+      }}
+      ref={ref}
+    >
+      <div className={styles.friendPickerHeader}>
+        <h2 className={styles.dialogTitle} id="friend-picker-title">
+          {dictionary.chooseFriends}
+        </h2>
+        <button aria-label={dictionary.close} className={styles.iconButton} onClick={close} type="button">
+          ×
+        </button>
+      </div>
+      <SearchField onChange={setText} placeholder={dictionary.friendsSearch} value={text} />
+      <div className={styles.friendPickerPermission}>
+        <span className={styles.fieldLabel}>{dictionary.sharePermissionLabel}</span>
+        <div aria-label={dictionary.sharePermissionLabel} className={styles.filterTabs} role="group">
+          {INVITE_ROLES.map(option => (
+            <button
+              aria-pressed={role === option}
+              className={role === option ? styles.filterTabSelected : styles.filterTab}
+              disabled={minimumRole !== null && INVITATION_ROLE_RANK[option] < INVITATION_ROLE_RANK[minimumRole]}
+              key={option}
+              onClick={() => setRole(option)}
+              type="button"
+            >
+              {inviteRoleLabel(option, dictionary)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={styles.friendPickList}>
+        {list.kind === 'loading' ? <SettingsRowSkeleton count={3} /> : null}
+        {list.kind === 'failed' ? (
+          <p className={styles.fieldError}>
+            {dictionary.loadFailedTitle}{' '}
+            <button className={styles.linkButton} onClick={() => setReloadToken(token => token + 1)} type="button">
+              {dictionary.retry}
+            </button>
+          </p>
+        ) : null}
+        {list.kind === 'loaded' && list.items.length === 0 ? <p className={styles.stateMessage}>{query ? dictionary.friendsSearchEmpty : dictionary.friendsEmpty}</p> : null}
+        {list.kind === 'loaded' ? (
+          <ul className={styles.personList}>
+            {list.items.map(friend => {
+              const isPicked = picked.has(friend.jupleId);
+              const blocked = unavailable.has(friend.jupleId);
+              return (
+                <li key={friend.jupleId}>
+                  <button
+                    aria-pressed={isPicked}
+                    className={isPicked ? styles.friendPickRowSelected : styles.friendPickRow}
+                    disabled={blocked || busy}
+                    onClick={() => toggle(friend)}
+                    type="button"
+                  >
+                    <span aria-hidden className={isPicked ? styles.pickMarkSelected : styles.pickMark}>
+                      {isPicked ? '✓' : ''}
+                    </span>
+                    <Avatar person={{ displayName: friend.displayName, profileImageUrl: isSafeHttpUrl(friend.profileImageUrl) ? friend.profileImageUrl : null }} size={40} />
+                    <span className={styles.personText}>
+                      <span className={styles.settingsValueStart} dir="auto">
+                        {personName(friend)}
+                      </span>
+                      <span className={styles.profileId} dir="ltr">
+                        @{formatJupleId(friend.jupleId)}
+                      </span>
+                    </span>
+                    {blocked ? <span className={styles.roleBadge}>{unavailable.get(friend.jupleId) === 'member' ? dictionary.participantsTitle : dictionary.participantsPendingStatus}</span> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        {list.kind === 'loaded' ? <LoadMore dictionary={dictionary} onLoadMore={loadMore} skeleton={<SettingsRowSkeleton count={2} />} state={list} /> : null}
+      </div>
+      {failures.length > 0 ? (
+        <div className={styles.fieldError} role="alert">
+          {failures.map(line => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      ) : null}
+      <div className={styles.friendPickerFooter}>
+        <span className={styles.searchHint}>{picked.size > 0 ? formatMessage(dictionary.selectedCount, { count: picked.size }) : ''}</span>
+        <div className={styles.formActions}>
+          <button className={styles.settingsAction} disabled={busy} onClick={close} type="button">
+            {dictionary.cancel}
+          </button>
+          <button className={styles.primaryAction} disabled={busy || picked.size === 0} onClick={() => void confirm()} type="button">
+            {busy ? dictionary.processing : formatMessage(dictionary.addSelectedFriends, { count: picked.size })}
+          </button>
+        </div>
+      </div>
+    </dialog>
+  );
+}

@@ -44,3 +44,32 @@ export function archiveNamePagePath(cursor: string | null): string {
   }
   return `/api/v1/items/history?${query.toString()}`;
 }
+
+/** Shorter terms are not searched (mobile ARCHIVE_SEARCH_MIN_LENGTH: a 1-character contains search matches nearly everything). */
+export const ARCHIVE_SEARCH_MIN_LENGTH = 2;
+export const ARCHIVE_SEARCH_DEBOUNCE_MS = 300;
+
+/** The trimmed term when it is long enough to search, else null (the normal Archive shows) - mobile normalizeArchiveQuery. */
+export function normalizeArchiveQuery(raw: string): string | null {
+  const term = raw.trim();
+  return term.length >= ARCHIVE_SEARCH_MIN_LENGTH ? term : null;
+}
+
+/**
+ * The archive as one flat server-paged list (mobile useArchiveSearch): a search over the WHOLE archive (title, link / site, own
+ * memo) and / or 이름순 over it. The same query either way - only the order differs (newest first, or A-Z with sort=name). Never
+ * combined with a date window.
+ */
+export function archiveFlatPagePath(options: { readonly term: string | null; readonly sort: ArchiveSort; readonly cursor: string | null }): string {
+  const query = new URLSearchParams({ limit: String(ARCHIVE_FLAT_PAGE_SIZE) });
+  if (options.term) {
+    query.set('q', options.term);
+  }
+  if (options.sort === 'name') {
+    query.set('sort', 'name');
+  }
+  if (options.cursor) {
+    query.set('cursor', options.cursor);
+  }
+  return `/api/v1/items/history?${query.toString()}`;
+}

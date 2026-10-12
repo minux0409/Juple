@@ -9,12 +9,15 @@ export function Modal({
   title,
   closeLabel,
   onClose,
+  wide = false,
   children,
 }: {
   readonly open: boolean;
   readonly title: string;
   readonly closeLabel: string;
   readonly onClose: () => void;
+  /** The Collection share screen's four cards need the room (about 900px), not the 520px of a short list. */
+  readonly wide?: boolean;
   readonly children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -33,7 +36,7 @@ export function Modal({
   return (
     <dialog
       aria-labelledby="modal-title"
-      className={styles.panelDialog}
+      className={wide ? `${styles.panelDialog} ${styles.panelDialogWide}` : styles.panelDialog}
       onCancel={event => {
         event.preventDefault();
         onClose();

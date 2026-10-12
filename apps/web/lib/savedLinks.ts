@@ -4,6 +4,8 @@
  * so the same link reads the same everywhere. Pure - unit-tested without a browser.
  */
 
+import { lockedContextSearch } from './itemOpenGrant.ts';
+
 /** A short-lived read URL of an uploaded image (the Backend's RepresentativeImage). */
 export interface ImageRef {
   readonly id?: number;
@@ -22,6 +24,9 @@ export interface ItemHistoryEntry {
   readonly coverImage: ImageRef | null;
   /** Redacted by the server while the item's Collection content gate is active: no title / url / memo / images then. */
   readonly isCollectionLocked?: boolean;
+  /** With a gated card: the Collection whose lock / share password stands before it, and which one (mobile ItemHistoryEntry). */
+  readonly collectionId?: number | null;
+  readonly collectionGate?: 'lock' | 'sharePassword' | null;
 }
 
 export interface ItemHistoryPage {
@@ -190,12 +195,14 @@ export function sharedItemHref(collectionId: number, itemId: number): string {
 }
 
 /**
- * A Home / 보관함 row. A link behind a Collection lock carries nothing of itself and is not opened on the Web: the mobile app opens it
- * only IN its Collection after the password, and a read without that context would skip the gate.
+ * A Home / 보관함 row. A link behind a Collection lock carries nothing of itself: like the mobile app it opens only IN its Collection
+ * (`?lockedBy=`), after that Collection's password - the link's page asks for it and reads with the grant, never without the context.
+ * A card that names no Collection (an older API) stays closed.
  */
 export function historyLinkView(entry: ItemHistoryEntry): LinkView {
   if (entry.isCollectionLocked) {
-    return { id: entry.id, locked: true, title: { kind: 'locked' }, memo: null, site: null, siteId: null, thumbnailUrl: null, timestampUtc: entry.savedAtUtc, href: null };
+    const href = typeof entry.collectionId === 'number' && entry.collectionId > 0 ? `${itemHref(entry.id)}${lockedContextSearch(entry.collectionId)}` : null;
+    return { id: entry.id, locked: true, title: { kind: 'locked' }, memo: null, site: null, siteId: null, thumbnailUrl: null, timestampUtc: entry.savedAtUtc, href };
   }
   return {
     id: entry.id,
@@ -224,6 +231,14 @@ export function collectionLinkView(entry: CollectionItemEntry, collectionId: num
     timestampUtc: entry.addedAtUtc,
     href: mine ? itemHref(entry.itemId) : sharedItemHref(collectionId, entry.itemId),
   };
+}
+
+/**
+ * A Collection's own link opened from inside that Collection carries it in the route (`?collectionId=`), so its page can say 삭제 the
+ * way mobile does there: 컬렉션에서 삭제 (only that membership). Another member's read-only shared view needs no such context.
+ */
+export function inCollectionContext(link: LinkView, collectionId: number): LinkView {
+  return link.href?.startsWith('/items/') ? { ...link, href: `${link.href}?collectionId=${collectionId}` } : link;
 }
 
 // ---- List / Grid / Image ------------------------------------------------------------------------------------------------------

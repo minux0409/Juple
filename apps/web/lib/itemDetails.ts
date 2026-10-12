@@ -49,6 +49,18 @@ export function itemImagesPath(itemId: number): string {
   return `/api/v1/items/${itemId}/images`;
 }
 
+/**
+ * A read of the link IN the Collection that locks its Home / 보관함 card (mobile itemReadContextRequest): the server applies that
+ * Collection's CURRENT gate first and needs this opening's grant for it. Without a context it is the plain read.
+ */
+export function itemReadPath(itemId: number, lockedBy: number | null): string {
+  return lockedBy === null ? itemPath(itemId) : `${itemPath(itemId)}?collectionId=${lockedBy}`;
+}
+
+export function itemImagesReadPath(itemId: number, lockedBy: number | null): string {
+  return lockedBy === null ? itemImagesPath(itemId) : `${itemImagesPath(itemId)}?collectionId=${lockedBy}`;
+}
+
 /** The mobile membership page size (itemMemberships.ts). */
 const MEMBERSHIP_PAGE_LIMIT = 50;
 
@@ -74,6 +86,11 @@ export function sharedItemPath(collectionId: number, itemId: number): string {
  * The one 대표 사진 (mobile representativePhoto.ts): the user's own photo when there is one (the chosen cover, else the first), otherwise
  * the link's automatic preview image, otherwise none. Only an http(s) read URL is ever shown.
  */
+/** The photo the person can change or delete (mobile resolveRepresentativePhoto 'uploaded'): the chosen cover, else the first; none = no own photo. */
+export function ownPhotoOf(images: readonly ItemImage[], coverImageId: number | null | undefined): ItemImage | null {
+  return images.find(image => image.id === coverImageId) ?? images[0] ?? null;
+}
+
 export function representativePhotoUrl(previewImageUrl: string | null, images: readonly ItemImage[], coverImageId: number | null | undefined): string | null {
   const own = images.find(image => image.id === coverImageId) ?? images[0];
   const url = own ? own.readUrl : previewImageUrl;

@@ -1,6 +1,15 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-/** /me/account was 내 페이지's 계정 tab; 계정 is now a section of the one 내 페이지, so an existing link or bookmark lands on it (계정 삭제 stays at /me/account/delete). */
-export default function AccountRedirect() {
-  redirect('/me#account');
+import { useSignedInApp } from '../../AppRoot';
+import { AccountSection } from '../MyPageSections';
+import { SettingsPage } from '../SettingsPage';
+
+/** 계정 - how this account signs in, its sign-in e-mail and 비밀번호 재설정; 계정 삭제 is its own deliberate page (/me/account/delete). */
+export default function AccountPage() {
+  const { dictionary } = useSignedInApp();
+  return (
+    <SettingsPage title={dictionary.accountSectionTitle}>
+      <AccountSection showTitle={false} />
+    </SettingsPage>
+  );
 }

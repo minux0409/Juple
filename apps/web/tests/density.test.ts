@@ -16,7 +16,7 @@ describe('Web-native layout: only real data fills the space', () => {
 
   it('Home: the add panel and today\'s links in the main column; exact counts, the two existing destinations and favorites beside them', () => {
     const home = source('app/(app)/HomeView.tsx');
-    assert.match(home, /className=\{styles\.dashboardMain\}>\s*<AddLinkForm \/>/);
+    assert.match(home, /<AddLinkForm \/>\s*<div className={styles.dashboard}>\s*<div className={styles.dashboardMain}>/);
     assert.match(home, /<Glyph className=\{styles\.addLinkIcon\} name="Link"/);
     assert.match(home, /href="\/collections\/new"/);
     assert.match(home, /href="\/archive"/);
@@ -34,21 +34,19 @@ describe('Web-native layout: only real data fills the space', () => {
     assert.match(view, /function ParticipantPreview[\s\S]*collection\.participantPreview/, 'people only from the row\'s own preview');
   });
 
-  it('My Page 설정: rows to the existing setting screens with only known values; the editor is a preview + form workspace', () => {
-    const settings = source('app/(app)/me/MyPageSections.tsx');
-    for (const href of ['/me/language', '/me/collection-lock']) {
-      assert.ok(settings.includes(`href="${href}"`), href);
+  it('My Page 설정: the inner settings list opens the existing screens; the editor is a preview + form workspace', () => {
+    const nav = source('lib/settingsNav.ts');
+    for (const href of ['/me', '/me/language', '/me/collection-lock', '/me/subscription', '/me/account', '/me/account/delete']) {
+      assert.ok(nav.includes(`href: '${href}'`), href);
     }
-    assert.match(settings, /value=\{lockStatus \? /, 'the lock status only once it was read');
     const editor = source('app/(app)/collections/CollectionEditor.tsx');
     assert.ok(editor.indexOf('className={styles.editorAside}') < editor.indexOf('className={styles.editorMain}'));
   });
 
   it('content widths are tokens by purpose; the shell is wide; the review page uses it', () => {
     const css = source('app/(app)/app.module.css');
-    assert.match(css, /--content-narrow: 720px;\s*--content-medium: 1040px;\s*--content-wide: 1360px;\s*--page-max: var\(--content-wide\);/);
-    assert.match(css, /\.reviewSections \{[^}]*max-width: var\(--content-wide\);/);
-    assert.match(css, /\.myPage \{[^}]*max-width: var\(--content-medium\);/);
+    assert.match(css, /--content-narrow: 900px;\s*--content-medium: 1280px;\s*--content-wide: 1640px;\s*--page-max: 1680px;/);
+    assert.match(css, /\.reviewSections {[^}]*max-width: none;/);
     assert.match(css, /@media \(max-width: 1180px\) \{\s*\.dashboard \{\s*grid-template-columns: minmax\(0, 1fr\);/);
   });
 });

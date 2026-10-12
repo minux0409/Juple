@@ -18,9 +18,11 @@ import { ApiHttpError } from '../../../../lib/appApi';
 import { useSignedInApp } from '../../AppRoot';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { LoadMore } from '../../InfiniteScroll';
-import { LinkImage } from '../../LinkImage';
 import { LoadFailed } from '../../PageStates';
 import { SettingsRowSkeleton } from '../../Skeletons';
+import { Avatar } from '../../Avatar';
+import { Glyph } from '../../Glyph';
+import { SearchField } from '../../SearchField';
 import { SettingsPage } from '../SettingsPage';
 import styles from '../../app.module.css';
 
@@ -160,7 +162,7 @@ export default function FriendsPage() {
   const removeRequest = (requestId: number) => setRequests(previous => (previous ?? []).filter(request => request.requestId !== requestId));
 
   return (
-    <SettingsPage backHref={null} title={dictionary.friendsTitle} width="medium">
+    <SettingsPage backHref={null} icon="People" title={dictionary.friendsTitle} width="medium">
       <AddFriend
         friends={friends.kind === 'loaded' ? friends.items : []}
         onSent={request => {
@@ -192,15 +194,7 @@ export default function FriendsPage() {
 
       {tab === 'friends' ? (
         <>
-          <input
-            aria-label={dictionary.friendsSearch}
-            className={styles.textInput}
-            dir="auto"
-            onChange={event => setQuery(event.target.value)}
-            placeholder={dictionary.friendsSearch}
-            type="search"
-            value={query}
-          />
+          <SearchField onChange={setQuery} placeholder={dictionary.friendsSearch} value={query} />
           {friends.kind === 'loading' ? <SettingsRowSkeleton count={4} /> : null}
           {friends.kind === 'failed' ? <LoadFailed dictionary={dictionary} onRetry={() => setReloadToken(token => token + 1)} /> : null}
           {friends.kind === 'loaded' && friends.items.length === 0 ? (
@@ -211,7 +205,7 @@ export default function FriendsPage() {
           ) : null}
           {friends.kind === 'loaded' && friends.items.length > 0 ? (
             <>
-              <ul className={styles.settingsCard}>
+              <ul className={styles.friendCards}>
                 {friends.items.map(friend => (
                   <FriendRow
                     busy={busy}
@@ -238,18 +232,20 @@ export default function FriendsPage() {
             <p className={styles.emptyState}>{tab === 'incoming' ? dictionary.friendsIncomingEmpty : dictionary.friendsOutgoingEmpty}</p>
           ) : null}
           {requests !== null && (tab === 'incoming' ? incoming : outgoing).length > 0 ? (
-            <ul className={styles.settingsCard}>
+            <ul className={styles.friendCards}>
               {(tab === 'incoming' ? incoming : outgoing).map(request => (
-                <li className={styles.settingsRow} key={request.requestId}>
-                  <span className={styles.personText}>
-                    <span className={styles.settingsValueStart} dir="auto">
+                <li className={styles.friendCard} key={request.requestId}>
+                  <div className={styles.friendCardMain}>
+                  <Avatar person={{ displayName: request.displayName, profileImageUrl: null }} size={48} />
+                  <span className={styles.friendIdentity}>
+                    <span className={styles.friendName} dir="auto">
                       {personName(request)}
                     </span>
                     <span className={styles.profileId} dir="ltr">
                       @{formatJupleId(request.jupleId)}
                     </span>
                   </span>
-                  <span className={styles.rowActions}>
+                  <span className={styles.friendActions}>
                     {request.direction === 'incoming' ? (
                       <>
                         <button
@@ -287,6 +283,7 @@ export default function FriendsPage() {
                       </>
                     )}
                   </span>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -349,33 +346,34 @@ function FriendRow({ friend, busy, onRemove, onUpdated }: { readonly friend: Fri
   };
 
   return (
-    <li className={styles.friendRow}>
-      <div className={styles.settingsRow}>
-        <LinkImage className={styles.avatarSmall} fallback={null} src={photo} />
-        <span className={styles.personText}>
-          <span className={styles.settingsValueStart} dir="auto">
+    <li className={styles.friendCard}>
+      <div className={styles.friendCardMain}>
+        <Avatar person={{ displayName: friend.displayName, profileImageUrl: photo }} size={48} />
+        <span className={styles.friendIdentity}>
+          <span className={styles.friendName} dir="auto">
             {personName(friend)}
           </span>
           <span className={styles.profileId} dir="ltr">
             @{formatJupleId(friend.jupleId)}
           </span>
+          {!editing && friend.myNote ? (
+            <span className={styles.friendNoteLine} data-friend-note dir="auto" title={friend.myNote}>
+              {friend.myNote}
+            </span>
+          ) : null}
         </span>
-        {!editing && friend.myNote ? (
-          <span className={styles.friendNote} dir="auto">
-            {friend.myNote}
-          </span>
-        ) : null}
-        <span className={styles.rowActions}>
+        <span className={styles.friendActions}>
           <button className={styles.settingsAction} disabled={busy || saving} onClick={() => setEditing(value => !value)} type="button">
+            <Glyph name="Edit" size={16} />
             {dictionary.friendsNote}
           </button>
-          <button className={styles.settingsAction} disabled={busy} onClick={onRemove} type="button">
+          <button className={styles.dangerAction} data-friend-remove disabled={busy} onClick={onRemove} type="button">
             {dictionary.friendsRemove}
           </button>
         </span>
       </div>
       {editing ? (
-        <form className={styles.inlineForm} noValidate onSubmit={saveNote}>
+        <form className={styles.friendNoteForm} noValidate onSubmit={saveNote}>
           <input
             aria-label={dictionary.friendsNote}
             className={styles.textInput}
@@ -499,7 +497,8 @@ function AddFriend({
       {!found && !error ? <p className={styles.settingsNote}>{dictionary.friendsLookupHint}</p> : null}
       {error ? <p className={styles.formError} role="alert">{error}</p> : null}
       {found ? (
-        <div className={styles.settingsRow}>
+        <div className={styles.settingsRow} data-lookup-result>
+          <Avatar person={{ displayName: found.displayName, profileImageUrl: found.profileImageUrl ?? null }} size={44} />
           <span className={styles.personText}>
             <span className={styles.settingsValueStart} dir="auto">
               {found.isSelf ? dictionary.friendsYou : personName({ jupleId: found.jupleId, displayName: found.displayName })}

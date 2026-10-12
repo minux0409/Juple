@@ -128,12 +128,15 @@ describe('the bell and its panel', () => {
   const shell = read('app/(app)/AppShell.tsx');
   const bell = read('app/(app)/notifications/NotificationBell.tsx');
 
-  it('a global action at the shell\'s top end - not a side bar destination', () => {
-    assert.match(shell, /<div className=\{styles\.utilityBar\}>\s*<NotificationBell \/>/);
+  it('a global action in every page header row - not a side bar destination, never floating', () => {
+    // The shell no longer carries the bell: each primary page's header row does (PageHeader), at the end of the title row.
+    assert.doesNotMatch(shell, /NotificationBell|utilityBar/);
+    const header = read('app/(app)/PageHeader.tsx');
+    assert.match(header, /<div className=\{styles\.pageHeaderActions\}>[\s\S]*?<NotificationBell \/>/);
     assert.doesNotMatch(read('lib/appNavigation.ts'), /notifications/);
     const css = read('app/(app)/app.module.css');
-    assert.match(css, /grid-template-areas:\s*'side utility'\s*'side main';/);
-    assert.match(css, /@media \(max-width: 860px\) \{[\s\S]*?grid-template-areas:\s*'side utility'\s*'main main';/, 'narrow: at the top bar\'s end');
+    assert.match(css, /grid-template-areas:\s*'side main';/);
+    assert.doesNotMatch(css, /utility/);
     assert.doesNotMatch(css, /position: fixed/, 'never fixed to the window');
   });
 

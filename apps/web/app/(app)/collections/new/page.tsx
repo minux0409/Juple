@@ -8,6 +8,7 @@ import { collectionHref } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
 import { BackButton } from '../../PageStates';
 import { CollectionEditor } from '../CollectionEditor';
+import { PageHeader } from '../../PageHeader';
 import styles from '../../app.module.css';
 
 /**
@@ -24,9 +25,7 @@ export default function NewCollectionPage() {
   return (
     <section className={styles.page}>
       <BackButton dictionary={dictionary} fallbackHref="/collections" />
-      <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{dictionary.collectionCreate}</h1>
-      </div>
+      <PageHeader bell={false} title={dictionary.collectionCreate} />
       <CollectionEditor
         collectionId={0}
         dictionary={dictionary}

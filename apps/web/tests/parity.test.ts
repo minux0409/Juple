@@ -129,7 +129,7 @@ describe('Home: adding a link (the mobile Home -> 새 링크 검토 flow)', asyn
     assert.deepEqual(link.saveInboxEntryBody('https://a.test', 'id-1', [3, 4]), { url: 'https://a.test', clientRequestId: 'id-1', collectionIds: [3, 4], unlockTokens: {} });
     assert.deepEqual(link.saveInboxEntryBody('https://a.test', 'id-1', []).collectionIds, [], '선택 안 함 is an explicit empty list');
     const review = readFileSync(new URL('../app/(app)/items/new/NewLinkReviewView.tsx', import.meta.url), 'utf8');
-    assert.match(review, /disabled=\{!hasDecision \|\| isSaving\}/, 'Save waits for a Collection decision');
+    assert.match(review, /disabled=\{isSaving\} type="submit"/, '선택 안 함 is the starting state, so Save is always available');
   });
 
   it('the metadata title is never a YouTube placeholder; a share link opens its Collection', () => {
@@ -247,15 +247,16 @@ describe('UI / parity fix pass', async () => {
 
   it('the review page puts Collections full-width under the link (never in the column beside the preview), 선택 안 함 first', () => {
     const review = page('items/new/NewLinkReviewView.tsx');
-    const top = review.indexOf('className={styles.reviewTop}');
+    const top = review.indexOf('<ItemFormTop');
     const sourceRow = review.indexOf('<SourceRow url={url} />');
-    const sections = review.indexOf('className={styles.reviewSections}');
-    const collections = review.indexOf('{dictionary.collectionsLabel}');
-    const memo = review.indexOf('{dictionary.memo}');
+    const sections = review.indexOf('<ItemFormSections>');
+    const collections = review.indexOf('<ItemCollectionsSection');
+    const memo = review.indexOf('<ItemMemoSection');
     assert.ok(top < sourceRow && sourceRow < sections && sections < collections && collections < memo, 'preview + link, then Collections, then memo');
     const between = review.slice(sourceRow, sections);
-    assert.match(between, /<\/div>\s*<\/div>/, 'the top block is closed before the Collections section starts');
-    assert.ok(review.indexOf('{dictionary.collectionNone}') < review.indexOf('filterCollectionsByName(destinations ?? [], appliedQuery).map'), '선택 안 함 comes first');
+    assert.match(between, /<\/ItemFormTop>/, 'the top block is closed before the Collections section starts');
+    const picker = page('CollectionPicker.tsx');
+    assert.ok(picker.indexOf('{dictionary.collectionNone}') < picker.indexOf('visible.map('), '선택 안 함 comes first');
     const css = page('app.module.css');
     assert.match(css, /\.choiceList \{\s*display: grid;\s*grid-template-columns: repeat\(auto-fill, minmax\(156px, 1fr\)\);/);
   });
@@ -283,7 +284,7 @@ describe('UI / parity fix pass', async () => {
   it('the side bar is navigation only: no account footer and no 로그아웃 (that lives in 내 페이지\'s header)', () => {
     const shell = page('AppShell.tsx');
     assert.doesNotMatch(shell, /signOut|dictionary\.logout|accountLabel|styles\.account/);
-    assert.match(page('me/MyPageView.tsx'), /dictionary\.logout/);
+    assert.match(page('me/layout.tsx'), /dictionary\.logout/);
   });
 
   it('share: the Owner always, a member only with a live public link; participants only for a collaborative Collection', () => {

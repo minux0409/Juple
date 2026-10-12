@@ -36,6 +36,7 @@ import {
   appendUnique,
   collectionHref,
   collectionLinkView,
+  inCollectionContext,
   formatLinkTimestamp,
   parseRouteId,
   parseViewMode,
@@ -52,8 +53,10 @@ import { BackButton, LoadFailed, Notice } from '../../PageStates';
 import { CollectionHeaderSkeleton, SavedLinkSkeleton } from '../../Skeletons';
 import { SavedLinkList } from '../../SavedLinkList';
 import { SortChips } from '../../SortChips';
+import { useItemsChanged } from '../../useItemsChanged';
 import { useStoredChoice } from '../../useStoredChoice';
 import { ViewModeToggle } from '../../ViewModeToggle';
+import { BackRow } from '../../PageHeader';
 import styles from '../../app.module.css';
 
 type HeaderState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | { readonly kind: 'notFound' } | { readonly kind: 'loaded'; readonly collection: CollectionDetail };
@@ -74,12 +77,18 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [gate, setGate] = useState<'lock' | 'sharePassword' | null>(null);
   // Bumped after an unlock: the links are read again (with the grant), showing skeletons meanwhile.
   const [contentToken, setContentToken] = useState(0);
+  // A link was deleted / removed / edited in the Quick Detail sheet over this page: the header count and the links are read again.
+  useItemsChanged(() => {
+    setReloadToken(token => token + 1);
+    setContentToken(token => token + 1);
+  });
   const [tooLargeForName, setTooLargeForName] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
   // Who is in it (collaborative Collections only) and a member's pass-on link - loaded with the Collection, as on mobile.
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [participantsFailed, setParticipantsFailed] = useState(false);
+  const [participantsToken, setParticipantsToken] = useState(0);
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
   const [panel, setPanel] = useState<'share' | 'participants' | null>(null);
 
@@ -157,9 +166,13 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     return () => {
       ignore = true;
     };
-  }, [api, collectionId, onSessionLost, reloadToken]);
+  }, [api, collectionId, onSessionLost, reloadToken, participantsToken]);
 
-  const back = <BackButton dictionary={dictionary} fallbackHref="/collections" />;
+  const back = (
+    <BackRow>
+      <BackButton dictionary={dictionary} fallbackHref="/collections" />
+    </BackRow>
+  );
 
   if (collectionId === null || header.kind === 'notFound') {
     return (
@@ -252,8 +265,14 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         participants={participants}
         participantsFailed={participantsFailed}
       />
-      <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'share'} title={dictionary.shareLinkTitle}>
-        <SharePanel collection={collection} onMemberLinkGone={() => setMemberShareUrl(null)} />
+      <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'share'} title={dictionary.shareLinkTitle} wide>
+        <SharePanel
+          collection={collection}
+          onMemberLinkGone={() => setMemberShareUrl(null)}
+          onParticipantsChanged={() => setParticipantsToken(token => token + 1)}
+          participants={participants}
+          participantsFailed={participantsFailed}
+        />
       </Modal>
       <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'participants'} title={dictionary.participantsTitle}>
         <ParticipantsPanel data={participants} dictionary={dictionary} failed={participantsFailed} />
@@ -312,7 +331,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               key={`${sort}-${contentToken}`}
               loadPage={(section, cursor) =>
                 api<CollectionItemsPage>({ path: collectionSectionPagePath(collection.id, section, sort === 'oldest' ? 'oldest' : 'newest', cursor), headers: unlockHeaders(collection.id) }).then(page => ({
-                  links: page.items.map(entry => collectionLinkView(entry, collection.id)),
+                  links: page.items.map(entry => inCollectionContext(collectionLinkView(entry, collection.id), collection.id)),
                   nextCursor: page.nextCursor,
                 }))
               }
@@ -367,7 +386,7 @@ function CollectionHeader({
   const stackPeople = participants ? participants.participants : participantsFailed ? (collection.participantPreview ?? []) : null;
   return (
     <div className={styles.detailHeader}>
-      <CollectionTileView collection={collection} size={56} />
+      <CollectionTileView collection={collection} size={80} />
       <div className={styles.detailHeading}>
         <h1 className={styles.detailTitle} dir="auto">
           {collection.name}
@@ -518,6 +537,6 @@ function CollectionByName({
   if (state.items.length === 0) {
     return <p className={styles.emptyState}>{dictionary.collectionItemsEmpty}</p>;
   }
-  const links = sortCollectionItemsByName(state.items, locale, direction).map(entry => collectionLinkView(entry, collectionId));
+  const links = sortCollectionItemsByName(state.items, locale, direction).map(entry => inCollectionContext(collectionLinkView(entry, collectionId), collectionId));
   return <SavedLinkList dictionary={dictionary} links={links} mode={viewMode} timestampOf={link => formatLinkTimestamp(link.timestampUtc, locale, true)} />;
 }

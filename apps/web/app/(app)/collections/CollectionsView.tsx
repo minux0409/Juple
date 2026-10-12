@@ -32,6 +32,7 @@ import { LoadFailed } from '../PageStates';
 import { CollectionSkeleton } from '../Skeletons';
 import { useStoredChoice } from '../useStoredChoice';
 import { ViewModeToggle } from '../ViewModeToggle';
+import { PageHeader } from '../PageHeader';
 import styles from '../app.module.css';
 
 type ListState = { readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<CollectionSummary>);
@@ -114,11 +115,7 @@ export function CollectionsView() {
 
   return (
     <section aria-busy={state.kind === 'loading'} className={styles.page}>
-      <div className={styles.pageHeader}>
-        <div className={styles.pageHeading}>
-          <h1 className={styles.pageTitle}>{dictionary.navCollections}</h1>
-        </div>
-      </div>
+      <PageHeader icon="Folder" title={dictionary.navCollections} />
 
       {/* One toolbar: the mobile filters, then how they are shown and 새 컬렉션 (always in reach). It wraps on a narrow window. */}
       <div className={styles.toolbar}>
@@ -158,7 +155,7 @@ export function CollectionsView() {
           <ul className={viewMode === 'grid' ? styles.collectionGrid : styles.collectionList}>
             {state.items.map(collection => (
               <li className={styles.collectionCard} key={collection.id}>
-                <CollectionCard collection={collection} dictionary={dictionary} />
+                <CollectionCard collection={collection} dictionary={dictionary} layout={viewMode === 'grid' ? 'grid' : 'list'} />
               </li>
             ))}
           </ul>
@@ -169,18 +166,69 @@ export function CollectionsView() {
   );
 }
 
-export function CollectionTileView({ collection, size }: { readonly collection: Pick<CollectionSummary, 'id' | 'color' | 'icon' | 'iconImageUrl'>; readonly size: number }) {
+export function CollectionTileView({
+  collection,
+  size,
+  fill,
+}: {
+  readonly collection: Pick<CollectionSummary, 'id' | 'color' | 'icon' | 'iconImageUrl'>;
+  readonly size: number;
+  /** Fill the width of the parent (a cover); `size` then only sizes the glyph. */
+  readonly fill?: boolean;
+}) {
   const tile = collectionTile(collection.color, collection.id);
   const image = collectionIconImage(collection);
   return (
-    <div aria-hidden className={styles.collectionTile} style={{ background: tile.background, color: tile.icon, width: size, height: size }}>
+    <div aria-hidden className={styles.collectionTile} style={fill ? { background: tile.background, color: tile.icon } : { background: tile.background, color: tile.icon, width: size, height: size }}>
       <LinkImage fallback={<CollectionGlyph icon={collection.icon} size={Math.round(size * 0.52)} />} src={image} />
     </div>
   );
 }
 
-function CollectionCard({ collection, dictionary }: { readonly collection: CollectionSummary; readonly dictionary: AppDictionary }) {
+export function CollectionCard({
+  collection,
+  dictionary,
+  layout,
+}: {
+  readonly collection: CollectionSummary;
+  readonly dictionary: AppDictionary;
+  readonly layout: 'grid' | 'list';
+}) {
   const attention = collection.attentionCount ?? 0;
+  if (layout === 'grid') {
+    // The picture / icon is the card; the favorite star sits on its corner, the other status under the name.
+    return (
+      <Link
+        aria-label={attention > 0 ? formatMessage(dictionary.collectionAttentionA11y, { name: collection.name, count: attention }) : undefined}
+        className={styles.collectionBodyGrid}
+        href={collectionHref(collection.id)}
+      >
+        <div className={styles.collectionCover}>
+          <CollectionTileView collection={collection} fill size={96} />
+          {collection.isFavorite ? (
+            <span aria-label={dictionary.favorite} className={styles.coverStar} role="img" title={dictionary.favorite}>
+              <Glyph name="StarFilled" size={18} />
+            </span>
+          ) : null}
+        </div>
+        <div className={styles.collectionText}>
+          <span className={styles.collectionName} dir="auto">
+            {collection.name}
+          </span>
+          <span className={styles.linkMeta}>{formatMessage(dictionary.itemCount, { count: collection.itemCount })}</span>
+        </div>
+        <div className={styles.collectionGridStatus}>
+          {attention > 0 ? (
+            <span aria-hidden className={styles.attentionBadge}>
+              {formatBadgeCount(attention)}
+            </span>
+          ) : null}
+          <CollectionBadges collection={collection} dictionary={dictionary} hideFavorite />
+          <ParticipantPreview collection={collection} />
+        </div>
+      </Link>
+    );
+  }
   return (
     // With attention, the card's spoken name carries the full count (the badge caps at 99+ and is not announced by itself).
     <Link
@@ -188,7 +236,7 @@ function CollectionCard({ collection, dictionary }: { readonly collection: Colle
       className={styles.collectionBody}
       href={collectionHref(collection.id)}
     >
-      <CollectionTileView collection={collection} size={52} />
+      <CollectionTileView collection={collection} size={72} />
       <div className={styles.collectionText}>
         <span className={styles.collectionName} dir="auto">
           {collection.name}
@@ -208,7 +256,15 @@ function CollectionCard({ collection, dictionary }: { readonly collection: Colle
   );
 }
 
-export function CollectionBadges({ collection, dictionary }: { readonly collection: CollectionSummary; readonly dictionary: AppDictionary }) {
+export function CollectionBadges({
+  collection,
+  dictionary,
+  hideFavorite,
+}: {
+  readonly collection: CollectionSummary;
+  readonly dictionary: AppDictionary;
+  readonly hideFavorite?: boolean;
+}) {
   return (
     <div className={styles.collectionBadges}>
       {isCollectionLocked(collection) ? (
@@ -221,7 +277,7 @@ export function CollectionBadges({ collection, dictionary }: { readonly collecti
           <Glyph name="People" size={13} />
         </span>
       ) : null}
-      {collection.isFavorite ? (
+      {collection.isFavorite && !hideFavorite ? (
         <span aria-label={dictionary.favorite} className={styles.favoriteBadge} role="img" title={dictionary.favorite}>
           <Glyph name="StarFilled" size={18} />
         </span>

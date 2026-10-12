@@ -18,7 +18,7 @@ describe('main navigation: Home / Archive / Collections / Friends / 삭제 이�
         ['/collections', 'navCollections', 'Folder'],
         ['/me/friends', 'friendsTitle', 'People'],
         ['/me/trash', 'trashTitle', 'Trash'],
-        ['/me', 'navMyPage', 'User'],
+        ['/me', 'settingsSectionTitle', 'Settings'],
       ],
     );
     for (const route of ['me/friends/page.tsx', 'me/trash/page.tsx']) {
@@ -70,35 +70,88 @@ describe('main navigation: Home / Archive / Collections / Friends / 삭제 이�
   });
 });
 
-describe('내 페이지: one page - profile header, 설정, 구독, 계정, 위험 구역', () => {
-  const view = page('me/MyPageView.tsx');
+describe('내 페이지: nested settings - app side bar | inner settings list | content pane', () => {
+  const view = page('me/ProfileEditView.tsx');
   const sections = page('me/MyPageSections.tsx');
+  const frame = page('me/layout.tsx');
 
-  it('no tab bar: the sections follow the profile header in order on /me', () => {
-    assert.doesNotMatch(view + sections, /tabBar|MY_PAGE_TABS|activeMyPageTab|MyPageFrame/);
-    assert.doesNotMatch(page('app.module.css'), /\.tabBar|\.tabActive|\.tabPanel/);
-    const header = view.indexOf('className={styles.profileCard}');
-    const order = ['<SettingsSection />', '<SubscriptionSection />', '<AccountSection />', '<DangerZoneSection />'].map(tag => view.indexOf(tag));
-    assert.ok(header > 0 && order.every((at, i) => at > header && (i === 0 || at > order[i - 1])), 'header, 설정, 구독, 계정, 위험 구역');
-    assert.match(page('me/page.tsx'), /<MyPageView \/>/);
+  it('the frame lists only real settings, in order, and wraps 내 페이지 and the pages it opens - never 친구 / 삭제 이력', () => {
+    const nav = readFileSync(new URL('../lib/settingsNav.ts', import.meta.url), 'utf8');
+    const order = ["'/me'", "'/me/language'", "'/me/collection-lock'", "'/me/subscription'", "'/me/account'", "'/me/account/delete'"].map(href => nav.indexOf(`href: ${href}`));
+    assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), 'profile, language, lock, subscription, account, delete');
+    assert.doesNotMatch(nav, /\/me\/friends|\/me\/trash/);
+    assert.match(frame, /activeSettingsItem\(pathname\)/);
+    assert.match(frame, /if \(!active\) \{\s*return <>\{children\}<\/>;/);
+    assert.match(frame, /aria-current=\{item\.key === active\.key \? 'page' : undefined\}/);
+    assert.match(frame, /<Link\b/, 'real routes: back / forward / reload / links keep working');
   });
 
-  it('the header has 프로필 편집 and 로그아웃 (asked first); 로그아웃 is nowhere else', () => {
-    const header = view.indexOf('className={styles.profileCard}');
-    const firstSection = view.indexOf('<SettingsSection />');
-    const edit = view.indexOf('href="/me/profile"');
-    const logout = view.indexOf('setConfirmSignOut(true)');
-    assert.ok(edit > header && edit < firstSection && logout > header && logout < firstSection);
-    assert.match(view, /<ConfirmDialog[\s\S]*signOut\(\);/);
-    assert.equal(view.match(/dictionary\.logout/g)?.length, 2, 'the button and the dialog\'s confirm');
-    for (const file of ['me/MyPageSections.tsx', 'AppShell.tsx']) {
+  it('the active item follows the address; the danger item is last and apart; the friends and trash addresses have no frame', async () => {
+    const nav = await import('../lib/settingsNav.ts');
+    assert.equal(nav.activeSettingsItem('/me')?.key, 'profile');
+    assert.equal(nav.activeSettingsItem('/me/profile')?.key, 'profile', 'the old address still belongs to the same item');
+    assert.equal(nav.activeSettingsItem('/me/account')?.key, 'account');
+    assert.equal(nav.activeSettingsItem('/me/account/delete')?.key, 'deleteAccount');
+    assert.equal(nav.activeSettingsItem('/me/account/')?.key, 'account');
+    assert.equal(nav.isSettingsShellPath('/me/friends'), false);
+    assert.equal(nav.isSettingsShellPath('/me/trash'), false);
+    assert.equal(nav.SETTINGS_NAV_ITEMS.at(-1)?.danger, true);
+    assert.equal(nav.SETTINGS_NAV_ITEMS.filter(item => item.danger).length, 1);
+  });
+
+  it('/me opens straight on 프로필 편집: the form, no summary card, no 프로필 편집 button, no middle screen; the old address redirects', () => {
+    assert.match(page('me/page.tsx'), /<ProfileEditView \/>/);
+    assert.match(view, /<SettingsPage title=\{dictionary\.profileEdit\}>/);
+    assert.match(view, /PROFILE_PATH\}\/display-name/);
+    assert.doesNotMatch(view, /profileCard|href="\/me\/profile"|dictionary\.logout|signOut/);
+    assert.ok(!existsSync(new URL('../app/(app)/me/MyPageView.tsx', import.meta.url)), 'the summary view is gone');
+    assert.match(page('me/profile/page.tsx'), /redirect\('\/me'\);/);
+    assert.doesNotMatch(page('me/profile/page.tsx'), /'use client'/, 'a server redirect');
+    const nav = readFileSync(new URL('../lib/settingsNav.ts', import.meta.url), 'utf8');
+    assert.match(nav, /\{ key: 'profile', href: '\/me', paths: \['\/me', '\/me\/profile'\], group: 0 \}/);
+  });
+
+  it('saving stays on /me (no navigation), the form shows the saved value; cancel restores the saved name', () => {
+    assert.doesNotMatch(view, /useRouter|router\.(push|back|replace)/);
+    assert.match(view, /updateProfile\(updated\);\s*setNickname\(updated\.displayName \?\? ''\);\s*setIsSaving\(false\);\s*setSaved\(true\);/);
+    assert.match(view, /onClick=\{\(\) => \{\s*setNickname\(profile\.displayName \?\? ''\);/);
+    assert.match(view, /disabled=\{isSaving \|\| nickname === \(profile\.displayName \?\? ''\)\}/);
+  });
+
+  it('로그아웃 is the settings rail\'s bottom action block: [로그아웃] divider [계정 삭제], asking first; nowhere else', () => {
+    const footer = frame.slice(frame.indexOf('styles.settingsRailFooter'));
+    const at = ['dictionary.logout', 'styles.settingsRailDivider', "item => item.danger"].map(token => footer.indexOf(token));
+    assert.ok(at.every((position, index) => position > 0 && (index === 0 || position > at[index - 1])), 'logout, divider, delete');
+    assert.match(frame, /<ConfirmDialog[\s\S]*signOut\(\);/);
+    assert.equal(frame.match(/dictionary\.logout/g)?.length, 2, "the button and the dialog's confirm");
+    assert.match(frame, /SETTINGS_NAV_ITEMS\.filter\(item => !item\.danger\)/, 'the menu above does not repeat 계정 삭제');
+    for (const file of ['me/MyPageSections.tsx', 'AppShell.tsx', 'me/ProfileEditView.tsx']) {
       assert.doesNotMatch(page(file), /dictionary\.logout|signOut/, file);
     }
+    const css = page('app.module.css');
+    assert.match(css, /\.settingsRailFooter \{[^}]*margin-top: auto;[^}]*border-top: 1px solid var\(--app-divider\);/);
+    assert.doesNotMatch(css.slice(css.indexOf('.settingsNavAction {'), css.indexOf('.settingsNavAction:hover')), /danger|color: var\(--danger\)/, 'logout is the normal text colour');
   });
 
-  it('설정: 언어 and 컬렉션 잠금 rows with their current value, opening the existing screens', () => {
-    assert.ok(sections.indexOf('href="/me/language"') < sections.indexOf('href="/me/collection-lock"'));
-    assert.match(sections, /value=\{dictionary\[LANGUAGE_LABEL_KEYS\[languagePreference\]\]\}/);
+  it('no user-visible 내 페이지: the side bar, every page title and the rail say 설정 / their own name; the main side bar keeps its six items', async () => {
+    const appNav = await import('../lib/appNavigation.ts');
+    assert.deepEqual(appNav.MAIN_NAV_ITEMS.map(item => item.labelKey), ['navHome', 'navArchive', 'navCollections', 'friendsTitle', 'trashTitle', 'settingsSectionTitle']);
+    const shown = (await import('node:fs')).readdirSync(new URL('../app/(app)/', import.meta.url), { recursive: true }) as string[];
+    for (const file of shown.filter(name => /\.(tsx|ts)$/.test(name))) {
+      assert.doesNotMatch(page(file.split('\\').join('/')), /dictionary\.navMyPage|>\s*내 페이지\s*</, file);
+    }
+    const dictionaryFile = readFileSync(new URL('../lib/appDictionary.ts', import.meta.url), 'utf8');
+    assert.doesNotMatch(dictionaryFile, /내 페이지|My Page/);
+    const titles: ReadonlyArray<readonly [string, string]> = [
+      ['me/ProfileEditView.tsx', 'dictionary.profileEdit'],
+      ['me/language/page.tsx', 'dictionary.languageTitle'],
+      ['me/collection-lock/page.tsx', 'dictionary.collectionLock'],
+      ['me/subscription/page.tsx', 'dictionary.subscriptionTitle'],
+      ['me/account/page.tsx', 'dictionary.accountSectionTitle'],
+    ];
+    for (const [file, title] of titles) {
+      assert.match(page(file), new RegExp(`<SettingsPage[^>]*title=\{${title.replace('.', '\.')}\}`), file);
+    }
   });
 
   it('구독 shows only the server-reported state with the Play manage link; no purchase on the Web', () => {
@@ -106,68 +159,62 @@ describe('내 페이지: one page - profile header, 설정, 구독, 계정, 위�
     assert.match(subscription, /describeSubscription\(storeSubscription, entitlement\)/);
     assert.match(subscription, /href=\{PLAY_SUBSCRIPTIONS_URL\}/);
     assert.doesNotMatch(subscription, /requestPurchase|requestSubscription|billing\/google|method: 'POST'/);
+    assert.match(page('me/subscription/page.tsx'), /<SubscriptionSection showTitle=\{false\} \/>/);
   });
 
-  it('계정: 로그인 방식, the e-mail, 비밀번호 재설정 (fresh sign-in); 위험 구역 apart with the existing delete flow', () => {
-    const account = sections.slice(sections.indexOf('export function AccountSection'), sections.indexOf('export function DangerZoneSection'));
+  it('계정: 로그인 방식, the e-mail, 비밀번호 재설정 (fresh sign-in); the deletion flow is its own deliberate page', () => {
+    const account = sections.slice(sections.indexOf('export function AccountSection'));
     assert.ok(account.indexOf('dictionary.signInMethodLabel') < account.indexOf('{email}'));
     assert.match(account, /reauthenticate\('passwordReset'\)/);
     assert.doesNotMatch(account, /\/me\/account\/delete/);
-    const danger = sections.slice(sections.indexOf('export function DangerZoneSection'));
-    assert.match(danger, /className=\{styles\.dangerZone\}[\s\S]*href="\/me\/account\/delete"/);
+    assert.match(page('me/account/page.tsx'), /<AccountSection showTitle=\{false\} \/>/);
     assert.ok(existsSync(new URL('../app/(app)/me/account/delete/page.tsx', import.meta.url)));
   });
 
-  it('section titles: 구독 is the mobile string; 설정 / 계정 are the Web\'s own (never a support-inquiry string); every language has one', () => {
+  it("section titles: 구독 is the mobile string; 계정 is the Web's own (never a support-inquiry string); every language has the labels", () => {
     assert.ok(!('accountSectionTitle' in MOBILE_STRING_KEYS));
     assert.ok(!Object.values(MOBILE_STRING_KEYS).some(key => key.startsWith('inquiry.')), 'no 내 페이지 label borrows the 문의 strings');
     assert.equal(getAppDictionary('ko').accountSectionTitle, '계정');
     assert.equal(getAppDictionary('en').accountSectionTitle, 'Account');
     assert.equal(getAppDictionary('ja').accountSectionTitle, 'Account', 'other languages: the English Web-only fallback');
-    assert.equal(getAppDictionary('ko').settingsSectionTitle, '설정');
     for (const language of APP_LANGUAGES) {
       const dictionary = getAppDictionary(language);
-      for (const key of ['settingsSectionTitle', 'subscriptionTitle', 'accountSectionTitle', 'signInMethodLabel', 'dangerZone'] as const) {
+      for (const key of ['subscriptionTitle', 'accountSectionTitle', 'signInMethodLabel', 'profileEdit', 'languageTitle', 'collectionLock', 'accountDeleteTitle'] as const) {
         assert.ok(dictionary[key]?.trim(), `${language} ${key}`);
       }
     }
   });
 
-  it('no 친구 / 삭제 이력 in 내 페이지 (they are main destinations)', () => {
-    assert.doesNotMatch(view + sections, /\/me\/friends|\/me\/trash|settingsTile/);
+  it('the old addresses still work: /me/settings lands on 언어; /me/subscription and /me/account are real pages of the frame', () => {
+    assert.match(page('me/settings/page.tsx'), /redirect\('\/me\/language'\);/);
+    for (const route of ['me/subscription/page.tsx', 'me/account/page.tsx', 'me/language/page.tsx', 'me/collection-lock/page.tsx', 'me/profile/page.tsx']) {
+      assert.ok(existsSync(new URL(`../app/(app)/${route}`, import.meta.url)), route);
+    }
   });
 
-  it('the old tab addresses still work: /me/settings, /me/subscription, /me/account redirect to their section of /me', () => {
-    for (const id of ['settings', 'subscription', 'account']) {
-      const route = page(`me/${id}/page.tsx`);
-      assert.match(route, new RegExp(`redirect\\('/me#${id}'\\);`), id);
-      assert.match(sections, new RegExp(`${id}: '${id}'`), `section id ${id}`);
-    }
-    assert.match(sections, /id=\{MY_PAGE_SECTION_IDS\.settings\}[\s\S]*id=\{MY_PAGE_SECTION_IDS\.subscription\}[\s\S]*id=\{MY_PAGE_SECTION_IDS\.account\}/);
-    assert.match(view, /document\.getElementById\(id\)\?\.scrollIntoView/);
-  });
-
-  it('pages opened from 내 페이지 go back to /me; 친구 and 삭제 이력 have no 뒤로 and 삭제 이력 explains its limit under the title', () => {
-    assert.match(page('me/SettingsPage.tsx'), /backHref = '\/me'/);
-    for (const file of ['me/language/page.tsx', 'me/collection-lock/page.tsx', 'me/account/delete/page.tsx', 'me/profile/page.tsx']) {
-      assert.doesNotMatch(page(file), /backHref=/, file);
-    }
-    assert.match(page('me/friends/page.tsx'), /<SettingsPage backHref=\{null\} title=\{dictionary\.friendsTitle\}/);
+  it('inside the frame there is no 뒤로 (the inner list is the way); 친구 and 삭제 이력 have no 뒤로 and 삭제 이력 explains its limit under the title', () => {
+    assert.match(page('me/SettingsPage.tsx'), /backHref && !framed \? <BackButton/);
+    assert.match(page('me/friends/page.tsx'), /<SettingsPage backHref=\{null\} icon="People" title=\{dictionary\.friendsTitle\}/);
     assert.match(page('me/trash/page.tsx'), /backHref=\{null\}\s*subtitle=\{formatMessage\(dictionary\.trashLimitNotice/);
   });
 
-  it('layout: one column at the medium width with ~32px between sections; the header buttons move under on a narrow window', () => {
+  it('layout: [app side bar][settings rail 280-320px][wide pane]; the rail is a full-height column, not a floating card; below 860px it is a row of tabs', () => {
     const css = page('app.module.css');
-    assert.match(css, /\.myPage \{[^}]*gap: 32px;[^}]*max-width: var\(--content-medium\);/);
+    assert.match(css, /\.mySettings \{[^}]*grid-template-columns: clamp\(280px, 20vw, 320px\) minmax\(0, 1fr\);[^}]*min-height: 100vh;/);
+    assert.match(css, /\.contentInner:has\(> \.mySettings\) \{\s*max-width: none;/);
+    assert.match(css, /\.settingsRail \{[^}]*position: sticky;[^}]*height: 100vh;[^}]*border-inline-end: 1px solid var\(--app-divider\);/);
+    assert.doesNotMatch(css.slice(css.indexOf('.settingsRail {'), css.indexOf('.settingsRailTitle')), /border-radius|box-shadow/);
+    assert.match(css, /@media \(max-width: 1099px\) \{\s*\.mySettings \{\s*grid-template-columns: 240px minmax\(0, 1fr\);/);
+    assert.match(css, /@media \(max-width: 859px\) \{\s*\.mySettings \{\s*grid-template-columns: minmax\(0, 1fr\);[\s\S]*?\.settingsRailList \{\s*flex-direction: row;\s*overflow-x: auto;/);
+    assert.match(css, /\.settingsPane > \* \{\s*max-width: 880px;\s*margin-inline: auto;/);
+    assert.match(css, /\.settingsNavDanger \{\s*color: var\(--danger\);/);
     assert.match(css, /@media \(max-width: 860px\) \{\s*\.profileActions \{\s*flex-basis: 100%;/);
   });
+
 });
 
-describe('내 페이지: reaching a section', () => {
-  it('a section reached by its address stays clear of the sticky narrow top bar; 비밀번호 재설정 comes back to 계정', () => {
-    const css = page('app.module.css');
-    assert.match(css, /\.myPage > section \{[^}]*scroll-margin-top: 24px;/);
-    assert.match(css, /@media \(max-width: 860px\) \{[\s\S]*?\.myPage > section \{[^}]*scroll-margin-top: 128px;/);
+describe('내 페이지: reaching a page', () => {
+  it('비밀번호 재설정 comes back to 계정 (a page of the frame)', () => {
     const sections = page('me/MyPageSections.tsx');
     assert.match(sections, /clearReauthentication\(\);\s*document\.getElementById\(MY_PAGE_SECTION_IDS\.account\)\?\.scrollIntoView/);
   });
