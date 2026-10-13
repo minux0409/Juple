@@ -20,6 +20,7 @@ import {
   type ReauthenticationPurpose,
   type ReauthenticationResult,
 } from '../../lib/msalClient';
+import { getPerfRecorder } from '../../lib/perfDiagnostics';
 import { settleReauthenticationFailure } from '../../lib/reauthFailure';
 import { parseEntitlement, parseStoreSubscription, type Entitlement, type StoreSubscription } from '../../lib/subscription';
 import type { WebAppConfig } from '../../lib/webAppConfig';
@@ -62,8 +63,12 @@ function reportSignInError(step: string, error: unknown): void {
   }
 }
 
-/** Development only: where each API call spent its time (path and parameter NAMES, milliseconds - never a value or a token). */
-const reportApiTiming: ((timing: ApiTiming) => void) | undefined =
+/**
+ * Development under `next dev`: where each API call spent its time (path and parameter NAMES, milliseconds - never a value or a token).
+ * The deployed Dev site is a production build, so there the same measurement is switched on by JUPLE_WEB_PERF_DIAGNOSTICS=true
+ * (config.perfDiagnostics - lib/perfDiagnostics.ts); Production never sets it and measures nothing.
+ */
+const reportApiTimingInDevelopment: ((timing: ApiTiming) => void) | undefined =
   process.env.NODE_ENV !== 'production'
     ? timing => {
         console.debug('[Juple api]', timing.method, timing.path, timing.queryKeys.join(','), `${timing.status ?? '-'}`, `token ${timing.tokenMs}ms | wait ${timing.waitMs}ms | body ${timing.bodyMs}ms | total ${timing.totalMs}ms`);
@@ -110,9 +115,10 @@ export function AppRoot({
     if (!config) {
       return null;
     }
+    const perf = config.perfDiagnostics ? getPerfRecorder() : null;
     return createAppApi({
       apiBaseUrl: config.apiBaseUrl,
-      onTiming: reportApiTiming,
+      onTiming: perf ? timing => perf.onApiTiming(timing) : reportApiTimingInDevelopment,
       getAccessToken: async ({ forceRefresh }) => {
         const msal = currentMsal();
         return msal ? acquireApiToken(msal, config, forceRefresh) : null;
@@ -142,6 +148,9 @@ export function AppRoot({
       return;
     }
     setStatus('bootstrapping');
+    if (config?.perfDiagnostics) {
+      getPerfRecorder().mark('bootstrapStart');
+    }
     try {
       const result = await api<{ readonly entitlement?: unknown; readonly storeSubscription?: unknown } | undefined>({
         method: 'POST',
@@ -161,7 +170,7 @@ export function AppRoot({
         setStatus(next);
       }
     }
-  }, [api, clearLocalSession, dictionary.sessionEnded]);
+  }, [api, clearLocalSession, config, dictionary.sessionEnded]);
 
   useEffect(() => {
     if (!config) {
@@ -174,6 +183,10 @@ export function AppRoot({
         const signedIn = await resolveSignedInAccount(msal);
         if (!active) {
           return;
+        }
+        if (config.perfDiagnostics) {
+          // MSAL initialized and the signed-in account resolved (any redirect handled): the sign-in part of the wait is over.
+          getPerfRecorder().mark('authReady');
         }
         setAccount(signedIn.account);
         setReauthentication(signedIn.reauthentication);

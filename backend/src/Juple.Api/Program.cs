@@ -1,6 +1,7 @@
 using Juple.Infrastructure;
 using Juple.Api.Authentication;
 using Juple.Api.Configuration;
+using Juple.Api.Diagnostics;
 using Juple.Api.Public;
 using System.Threading.RateLimiting;
 using Juple.Api.Collections;
@@ -211,6 +212,8 @@ builder.Services.AddSingleton<ICollectionUnlockTokenProtector, CollectionUnlockT
 builder.Services.AddSingleton<ICollectionSharePasswordProtector, CollectionSharePasswordProtector>();
 builder.Services.AddScoped<ICollectionSharePasswordService, CollectionSharePasswordService>();
 builder.Services.Configure<PublicWebOptions>(builder.Configuration.GetSection("PublicWeb"));
+// Per-request timing log (route template, status, elapsed, SQL totals). OFF unless RequestTiming:Enabled - see RequestTimingMiddleware.
+builder.Services.Configure<RequestTimingOptions>(builder.Configuration.GetSection(RequestTimingOptions.SectionName));
 builder.Services.Configure<MobileVersionPolicyOptions>(builder.Configuration.GetSection("MobileVersionPolicy"));
 // A broken policy would tell users to update to nothing (or block them). It must not take the whole API down either (a bad value in a
 // one-line setting is not a reason for every user to lose the service), so each broken platform is treated as "no policy" - nobody is
@@ -446,6 +449,12 @@ app.Services.GetRequiredService<ICollectionSharePasswordProtector>();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+}
+
+// Outermost, so authentication and CORS time is part of the measured request. Only when RequestTiming:Enabled (Dev diagnostics).
+if (builder.Configuration.GetValue<bool>($"{RequestTimingOptions.SectionName}:Enabled"))
+{
+    app.UseMiddleware<RequestTimingMiddleware>();
 }
 
 app.UseHttpsRedirection();

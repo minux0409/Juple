@@ -45,6 +45,14 @@ param containerAppsEnvironmentName = 'cae-juple-dev'
 param customDomainName = 'dev.juple.co.kr'
 param managedCertificateName = 'mc-cae-juple-dev-dev-juple-co-kr-6698'
 
+// Dev keeps one warm replica. Measured on 2026-10-13: the first request after ~5 minutes idle took 25.5 s and 34.0 s (KEDA scale-from-zero
+// detection + replica start + Next boot); 47 scale-from-zero activations in 7 days. With min 1 that cold start no longer occurs. Max stays
+// 1 (main.bicep default). Production keeps its own value in prod.bicepparam - this line is Dev only.
+param minReplicas = 1
+
+// Dev-only browser timing diagnostics (see main.bicep's param description); never set in prod.bicepparam.
+param perfDiagnostics = true
+
 // Two fingerprints, comma-separated (route.ts's GET() splits on "," - the spec itself allows a
 // list, e.g. during a signing cert rotation):
 //   1. The fingerprint originally live on ca-juple-web-dev's ANDROID_ASSETLINKS_SHA256_FINGERPRINTS

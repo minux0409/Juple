@@ -24,6 +24,7 @@ const DEV_ENV = {
   JUPLE_ENTRA_API_SCOPE: 'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user',
   JUPLE_WEB_BASE_URL: 'http://localhost:3000/',
   JUPLE_PUBLIC_WEB_HOST: 'Dev.Juple.co.kr',
+  JUPLE_WEB_PERF_DIAGNOSTICS: 'false',
 };
 
 describe('web app runtime config', () => {
@@ -39,6 +40,7 @@ describe('web app runtime config', () => {
       entraApiScope: 'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user',
       webBaseUrl: 'http://localhost:3000',
       publicWebHost: 'dev.juple.co.kr',
+      perfDiagnostics: false,
     });
     assert.equal(redirectUriFor(result.config), 'http://localhost:3000/auth/callback');
     // The name-based authority host AND the tenant's GUID-based issuer host (msal-browser 5 issuer validation).

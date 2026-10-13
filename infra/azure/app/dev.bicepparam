@@ -93,6 +93,12 @@ param entraClientId = '14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b'
 // behavior itself was the problem, not throughput or per-replica sizing.
 param minReplicas = 1
 
+// Dev diagnostics: one structured timing line per request (route template / status / elapsed / SQL totals) in the Container App console
+// log -> Log Analytics, and only warnings and errors from the IdentityModel token-validation chatter. Production does not set these.
+param requestTimingEnabled = true
+param requestTimingSlowThresholdMs = 500
+param identityModelLogLevel = 'Warning'
+
 // The Public Web Viewer origin CollectionsController composes every share URL against - confirmed
 // live via `az containerapp show` (PublicWeb__BaseUrl). A fixed fact about Dev today (the same
 // already-bound, already-verified domain literal ../web/dev.bicepparam's own customDomainName

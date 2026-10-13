@@ -87,6 +87,9 @@ param launchSettingsRequired bool = false
 @description('Scale-to-zero by default - same Dev cost posture as ../app/main.bicep. The first request after idle pays a cold-start cost; raise minReplicas to 1 if that proves disruptive.')
 param minReplicas int = 0
 
+@description('Dev-only browser performance diagnostics (apps/web/lib/perfDiagnostics.ts): sets JUPLE_WEB_PERF_DIAGNOSTICS=true so the signed-in app records per-call API timings in the browser console / window.__jupleperf. Nothing is sent anywhere. Default false = no env var at all; Production never sets it.')
+param perfDiagnostics bool = false
+
 @description('Kept small on purpose, same reasoning as ../app/main.bicep - a personal Dev environment has no horizontal-scale need yet.')
 param maxReplicas int = 1
 
@@ -261,7 +264,12 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ANDROID_ASSETLINKS_SHA256_FINGERPRINTS'
               value: androidAssetlinksSha256Fingerprints
             }
-          ], legalEnv, signedInWebEnv)
+          ], legalEnv, signedInWebEnv, perfDiagnostics ? [
+            {
+              name: 'JUPLE_WEB_PERF_DIAGNOSTICS'
+              value: 'true'
+            }
+          ] : [])
           probes: [
             {
               // /robots.txt (app/robots.ts) is a static, always-200 route that touches neither the

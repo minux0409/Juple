@@ -45,6 +45,8 @@ namespace Juple.Infrastructure;
 
 public static class DependencyInjection
 {
+    private static readonly Juple.Infrastructure.Persistence.Diagnostics.RequestSqlTimingInterceptor RequestSqlTimingInterceptorInstance = new();
+
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -57,7 +59,10 @@ public static class DependencyInjection
         }
 
         services.AddDbContext<JupleDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options
+                .UseSqlServer(connectionString)
+                // Inert unless the API's request timing is on (see Juple.Api/Diagnostics/RequestTimingMiddleware).
+                .AddInterceptors(RequestSqlTimingInterceptorInstance));
         services.AddScoped<ICurrentUserProvisioningStore, CurrentUserProvisioningStore>();
         services.AddScoped<ICurrentJupleUserAccessor, CurrentJupleUserAccessor>();
         services.AddScoped<Juple.Application.Billing.IEntitlementStore, Juple.Infrastructure.Billing.EntitlementStore>();

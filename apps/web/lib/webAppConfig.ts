@@ -18,6 +18,11 @@ export interface WebAppConfig {
    * refuses to save one as an ordinary link).
    */
   readonly publicWebHost: string | null;
+  /**
+   * Dev-only browser performance diagnostics (lib/perfDiagnostics.ts): JUPLE_WEB_PERF_DIAGNOSTICS=true. Off unless exactly "true"; a
+   * Production deployment never sets it.
+   */
+  readonly perfDiagnostics: boolean;
 }
 
 export type WebAppConfigResult =
@@ -33,6 +38,7 @@ export const WEB_APP_CONFIG_ENV = {
   entraApiScope: 'JUPLE_ENTRA_API_SCOPE',
   webBaseUrl: 'JUPLE_WEB_BASE_URL',
   publicWebHost: 'JUPLE_PUBLIC_WEB_HOST',
+  perfDiagnostics: 'JUPLE_WEB_PERF_DIAGNOSTICS',
 } as const;
 
 /** Same default as the public viewer (app/c/[publicId]/page.tsx): the local Backend. */
@@ -85,6 +91,7 @@ export function readWebAppConfig(env: Readonly<Record<string, string | undefined
       entraApiScope: apiScope!,
       webBaseUrl: trimTrailingSlash(webBaseUrl!),
       publicWebHost: parsePublicWebHost(value(WEB_APP_CONFIG_ENV.publicWebHost)),
+      perfDiagnostics: value(WEB_APP_CONFIG_ENV.perfDiagnostics)?.toLowerCase() === 'true',
     },
   };
 }

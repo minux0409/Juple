@@ -110,6 +110,15 @@ param serviceBusNamespaceFqdn string = ''
 @description('Scale-to-zero by default - the cheapest Dev option. The first request after idle pays a cold-start cost; raise minReplicas to 1 if that proves disruptive.')
 param minReplicas int = 0
 
+@description('Turns on the per-request timing log of the API (RequestTiming:Enabled; Juple.Api/Diagnostics/RequestTimingMiddleware): one line per request with the route TEMPLATE, status, elapsed ms and the SQL command count of the request / total / longest. No ids, query strings, headers or bodies. Default false (Production). Dev diagnostics only.')
+param requestTimingEnabled bool = false
+
+@description('A request at or above this many ms is logged as a Warning (RequestTiming:SlowRequestThresholdMs). Only used when requestTimingEnabled.')
+param requestTimingSlowThresholdMs int = 500
+
+@description('Optional log level for the Microsoft.IdentityModel category (Logging:LogLevel:Microsoft.IdentityModel), e.g. Warning to drop the four Information lines every successful token validation writes (IDX10234 / 10239 / 10242 / 10245) while keeping every warning and error. Empty (default) = the default of the API itself.')
+param identityModelLogLevel string = ''
+
 @description('Kept small on purpose - a personal Dev/dogfooding environment has no horizontal-scale need yet.')
 param maxReplicas int = 1
 
@@ -378,6 +387,32 @@ var observabilityEnv = empty(applicationInsightsConnectionString)
       }
     ]
 
+// Dev diagnostics (all default off / unchanged): per-request timing log (route template, status, elapsed, SQL totals - never ids, query,
+// headers or bodies) and the framework's own log level for the successful-token-validation chatter. Production's parameter file sets
+// neither, so Production keeps today's env exactly.
+var diagnosticsEnv = concat(
+  requestTimingEnabled
+    ? [
+        {
+          name: 'RequestTiming__Enabled'
+          value: 'true'
+        }
+        {
+          name: 'RequestTiming__SlowRequestThresholdMs'
+          value: string(requestTimingSlowThresholdMs)
+        }
+      ]
+    : [],
+  empty(identityModelLogLevel)
+    ? []
+    : [
+        {
+          name: 'Logging__LogLevel__Microsoft.IdentityModel'
+          value: identityModelLogLevel
+        }
+      ]
+)
+
 var hasCustomDomain = !empty(customDomainName) && !empty(managedCertificateName)
 var managedCertificateResourceId = hasCustomDomain
   ? resourceId('Microsoft.App/managedEnvironments/managedCertificates', containerAppsEnvironmentName, managedCertificateName)
@@ -587,7 +622,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PublicWeb__BaseUrl'
               value: publicWebBaseUrl
             }
-          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, observabilityEnv)
+          ], authenticatedWebEnv, mobileVersionPolicyEnv, billingEnv, observabilityEnv, diagnosticsEnv)
           probes: [
             {
               type: 'Liveness'
