@@ -139,7 +139,6 @@ export interface WebOnlyStrings {
   readonly cloneToMine: string;
   readonly cloneHint: string;
   readonly cloneSubmit: string;
-  readonly cloneOpen: string;
   readonly clonePartialFailure: string;
   readonly confirmMove: string;
   readonly confirmCopy: string;

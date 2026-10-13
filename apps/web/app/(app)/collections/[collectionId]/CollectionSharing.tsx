@@ -58,6 +58,7 @@ import { ConfirmDialog } from '../../ConfirmDialog';
 import { Glyph } from '../../Glyph';
 import { PillListbox } from '../../Popover';
 import { SettingsRowSkeleton } from '../../Skeletons';
+import { UnlockPanel } from './UnlockPanel';
 import { FriendPicker } from './FriendPicker';
 import styles from '../../app.module.css';
 
@@ -213,6 +214,7 @@ export function SharePanel({
   participantsFailed,
   onParticipantsChanged,
   onMemberLinkGone,
+  onUnlocked,
 }: {
   readonly collection: CollectionDetail;
   readonly participants: CollectionParticipants | null;
@@ -220,11 +222,15 @@ export function SharePanel({
   /** Invitations / roles / members changed: read the participants again. */
   readonly onParticipantsChanged: () => void;
   readonly onMemberLinkGone: () => void;
+  /** The Owner unlocked the Collection here: its grant is this visit's now, so the page behind can open its content too. */
+  readonly onUnlocked?: () => void;
 }) {
   const { api, dictionary, onSessionLost } = useSignedInApp();
   const member = isSharedWithMe(collection);
-  // The Owner's locked Collection needs its grant for the share state (mobile runUnlocked); without one, it says so.
-  const ownerNeedsUnlock = !member && isCollectionLocked(collection) && unlockTokenFor(collection.id) === null;
+  // The Owner's locked Collection needs its grant for everything the share screen reads or changes (mobile runUnlocked): without
+  // one it asks for the lock password FIRST, then reads. Locked is its own state - never a loading one that waits for a request
+  // nobody sends (the access-password skeleton used to stay forever: its request was skipped while the section was still drawn).
+  const [ownerNeedsUnlock, setOwnerNeedsUnlock] = useState(() => !member && isCollectionLocked(collection) && unlockTokenFor(collection.id) === null);
   const [state, setState] = useState<ShareState>(() => (ownerNeedsUnlock ? { kind: 'locked' } : { kind: 'loading' }));
   const [message, setMessage] = useState<Message | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -293,9 +299,9 @@ export function SharePanel({
     return () => {
       ignore = true;
     };
-    // Asked once per opening of the panel.
+    // Asked once per opening of the panel - and once more right after the Owner unlocked it here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ownerNeedsUnlock]);
 
   // The access password's state is the Owner's to see (it never carries the password itself).
   useEffect(() => {
@@ -323,9 +329,9 @@ export function SharePanel({
     return () => {
       ignore = true;
     };
-    // Asked once per opening of the panel.
+    // Asked once per opening of the panel - and once more right after the Owner unlocked it here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ownerNeedsUnlock]);
 
   const share = state.kind === 'owner' ? state.share : null;
   const isPublic = share !== null && share.isPublic !== false;
@@ -526,7 +532,23 @@ export function SharePanel({
     <div className={styles.shareWorkspace}>
       <div className={styles.shareSettings}>
         {state.kind === 'loading' ? <SettingsRowSkeleton count={3} /> : null}
-        {state.kind === 'locked' ? <p className={styles.stateMessage}>{dictionary.collectionLockedWebMessage}</p> : null}
+        {state.kind === 'locked' ? (
+          <UnlockPanel
+            collectionId={collection.id}
+            isOwner
+            kind="lock"
+            onStateChanged={() => {
+              // The lock was removed meanwhile: nothing to unlock any more - read the share screen as it is.
+              setState({ kind: 'loading' });
+              setOwnerNeedsUnlock(false);
+            }}
+            onUnlocked={() => {
+              setState({ kind: 'loading' });
+              setOwnerNeedsUnlock(false);
+              onUnlocked?.();
+            }}
+          />
+        ) : null}
         {state.kind === 'ended' ? <p className={styles.stateMessage}>{dictionary.sharePublicEnded}</p> : null}
         {state.kind === 'failed' ? <p className={styles.formError}>{dictionary.shareCheckFailed}</p> : null}
 
@@ -592,7 +614,7 @@ export function SharePanel({
           </section>
         ) : null}
 
-        {canManage ? (
+        {canManage && !ownerNeedsUnlock ? (
           <section className={styles.shareSection}>
             <div className={styles.shareSectionHead}>
               <span className={styles.shareSectionIcon} aria-hidden>
@@ -673,7 +695,7 @@ export function SharePanel({
           </section>
         ) : null}
 
-        {canManage ? (
+        {canManage && !ownerNeedsUnlock ? (
           <section className={styles.shareSection} data-invite>
             <div className={styles.shareSectionHead}>
               <span className={styles.shareSectionIcon} aria-hidden>

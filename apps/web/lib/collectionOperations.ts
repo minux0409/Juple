@@ -2,7 +2,8 @@ import { ApiHttpError, type AppApi } from './appApi.ts';
 import type { AppDictionary } from './appI18n.ts';
 import { formatMessage } from './appI18n.ts';
 import { COLLECTION_UNLOCK_HEADER } from './collectionUnlock.ts';
-import type { CollectionsPage, CollectionSummary } from './collectionsView.ts';
+import { effectiveCollectionColor, type CollectionDraft } from './collectionEditor.ts';
+import { collectionIconKey, type CollectionsPage, type CollectionSummary } from './collectionsView.ts';
 
 /**
  * Moving and copying links between Collections, and copying a shared Collection into one of my own - the mobile
@@ -125,9 +126,14 @@ export function replicateResultMessage(result: ReplicateResult, dictionary: AppD
   return formatMessage(dictionary.replicateResultPartial, { total: result.addedCount + result.skippedCount, added: result.addedCount, skipped: result.skippedCount });
 }
 
-/** The new Collection of a copy: its name as typed (trimmed) and the source's glyph and colour - never its photo, lock or sharing. */
-export function cloneCollectionBody(source: Pick<CollectionSummary, 'icon' | 'color'>, name: string): { readonly name: string; readonly icon: string; readonly color: string | null } {
-  return { name: name.trim(), icon: source.icon, color: source.color };
+/**
+ * 내 컬렉션으로 복제 starts the SAME editor as 새 컬렉션 / 수정 with the source's name, glyph and colour (the colour it really shows, as the
+ * edit form does). Never its photo: a Collection photo is the Owner's own stored image, and there is no API to copy it - the browser
+ * cannot read its bytes to upload them again (no storage CORS) - so the new Collection starts with the icon, and a photo of the
+ * person's own can be chosen in the editor.
+ */
+export function cloneInitialDraft(source: Pick<CollectionSummary, 'id' | 'name' | 'icon' | 'color'>): Omit<CollectionDraft, 'image'> {
+  return { name: source.name, icon: collectionIconKey(source.icon), color: effectiveCollectionColor(source.color, source.id) };
 }
 
 /** Every link of the Collection I can see, newest first, page by page (the same pages its 이름순 reads). */
@@ -146,44 +152,76 @@ export async function loadVisibleItemIds(api: AppApi, collectionId: number, head
   return [...new Set(ids)];
 }
 
-export type CloneOutcome =
-  | { readonly kind: 'done'; readonly collectionId: number; readonly result: CopyResult; readonly failedChunks: number; readonly totalChunks: number }
-  | { readonly kind: 'notCreated'; readonly error: unknown };
+export interface LinkCopyOutcome {
+  readonly result: CopyResult;
+  readonly failedChunks: number;
+  readonly totalChunks: number;
+}
 
 /**
- * 내 컬렉션으로 복제: the new Collection first, then the copy in chunks, one after the other. A chunk that fails is counted (its links are
- * named as not copied) and the next one still runs - a partial copy is reported as such, never as complete, and nothing is undone:
- * what was copied stays in the new Collection, the source is never touched.
+ * Every link of the source I can see, copied into the destination in chunks of MAX_ITEMS_PER_COPY, one after the other. A chunk that
+ * fails is counted and the next one still runs - a partial copy is reported as such, never as complete, and nothing is undone.
  */
-export async function cloneCollection(
-  api: AppApi,
-  source: Pick<CollectionSummary, 'id' | 'icon' | 'color'>,
-  name: string,
-  sourceHeaders: Readonly<Record<string, string>> | undefined,
-): Promise<CloneOutcome> {
-  let created: { readonly id: number };
-  try {
-    created = await api<{ readonly id: number }>({ method: 'POST', path: CREATE_COLLECTION_PATH, body: cloneCollectionBody(source, name) });
-  } catch (error) {
-    return { kind: 'notCreated', error };
-  }
+export async function copyVisibleLinks(api: AppApi, sourceCollectionId: number, destinationCollectionId: number, sourceHeaders: Readonly<Record<string, string>> | undefined): Promise<LinkCopyOutcome> {
   let result = NO_COPY;
   let failedChunks = 0;
-  let chunks: readonly (readonly number[])[] = [];
+  let chunks: readonly (readonly number[])[];
   try {
-    chunks = chunkIds(await loadVisibleItemIds(api, source.id, sourceHeaders));
+    chunks = chunkIds(await loadVisibleItemIds(api, sourceCollectionId, sourceHeaders));
   } catch {
-    return { kind: 'done', collectionId: created.id, result, failedChunks: 1, totalChunks: 1 };
+    return { result, failedChunks: 1, totalChunks: 1 };
   }
   for (const itemIds of chunks) {
     try {
-      const copied = await api<CopyResult>({ method: 'POST', path: copyItemsPath(source.id), body: { destinationCollectionId: created.id, itemIds }, headers: sourceHeaders });
+      const copied = await api<CopyResult>({ method: 'POST', path: copyItemsPath(sourceCollectionId), body: { destinationCollectionId, itemIds }, headers: sourceHeaders });
       result = addCopyResults(result, copied);
     } catch {
       failedChunks += 1;
     }
   }
-  return { kind: 'done', collectionId: created.id, result, failedChunks, totalChunks: chunks.length };
+  return { result, failedChunks, totalChunks: chunks.length };
+}
+
+/** What creating the new Collection answered (lib/collectionEditor.createCollection - the editor's own create, photo included). */
+export type CreatedOrNot = { readonly ok: true; readonly collection: { readonly id: number }; readonly warning: string | null } | { readonly ok: false; readonly error: unknown; readonly message: string };
+
+export type CloneOutcome =
+  | ({ readonly kind: 'done'; readonly collectionId: number; readonly warning: string | null } & LinkCopyOutcome)
+  | { readonly kind: 'notCreated'; readonly error: unknown; readonly message: string };
+
+/**
+ * 내 컬렉션으로 복제: the new Collection of mine first (as the editor submitted it), then the copy of the links. Not created (a name I
+ * already use, ...) = nothing else happens. The source is never touched; what was copied stays even when a later chunk fails.
+ */
+export async function cloneCollection(
+  api: AppApi,
+  sourceCollectionId: number,
+  create: () => Promise<CreatedOrNot>,
+  sourceHeaders: Readonly<Record<string, string>> | undefined,
+): Promise<CloneOutcome> {
+  const created = await create();
+  if (!created.ok) {
+    return { kind: 'notCreated', error: created.error, message: created.message };
+  }
+  const copy = await copyVisibleLinks(api, sourceCollectionId, created.collection.id, sourceHeaders);
+  return { kind: 'done', collectionId: created.collection.id, warning: created.warning, ...copy };
+}
+
+/** The new Collection's page says how the copy went (in memory only, right after, once) - see CloneResultBanner. */
+let pendingCloneResult: { readonly outcome: Extract<CloneOutcome, { kind: 'done' }>; readonly rememberedAtMs: number } | null = null;
+
+export function rememberCloneResult(outcome: Extract<CloneOutcome, { kind: 'done' }>, nowMs: number = Date.now()): void {
+  pendingCloneResult = { outcome, rememberedAtMs: nowMs };
+}
+
+export function peekCloneResult(collectionId: number, nowMs: number = Date.now()): Extract<CloneOutcome, { kind: 'done' }> | null {
+  return pendingCloneResult && pendingCloneResult.outcome.collectionId === collectionId && nowMs - pendingCloneResult.rememberedAtMs <= 15_000 ? pendingCloneResult.outcome : null;
+}
+
+export function clearCloneResult(collectionId: number): void {
+  if (pendingCloneResult?.outcome.collectionId === collectionId) {
+    pendingCloneResult = null;
+  }
 }
 
 // ---- 다른 컬렉션과 병합 (mobile confirmMergeAction; the existing merge API - no new endpoint) ------------------------------------

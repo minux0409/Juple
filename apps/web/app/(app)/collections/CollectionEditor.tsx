@@ -22,7 +22,8 @@ import styles from '../app.module.css';
 const PHOTO_TYPES = 'image/jpeg,image/png,image/webp';
 
 /**
- * The mobile CategoryEditorDialog as a page form: name, icon (or the Owner's own photo), color (preset or a custom soft hue).
+ * The mobile CategoryEditorDialog as a page form: name, icon (or the Owner's own photo), color (preset or a custom soft hue) - the ONE
+ * form of 새 컬렉션, 수정 and 내 컬렉션으로 복제, so the three never drift apart.
  * Nothing is saved until 만들기 / 저장; Cancel goes back without a change.
  */
 export function CollectionEditor({
@@ -36,7 +37,8 @@ export function CollectionEditor({
   onSubmit,
   onCancel,
 }: {
-  readonly mode: 'create' | 'edit';
+  /** create: 새 컬렉션; edit: 수정; clone: 내 컬렉션으로 복제 (a new Collection of mine started from a shared one). One form for all three. */
+  readonly mode: 'create' | 'edit' | 'clone';
   readonly initial: Omit<CollectionDraft, 'image'>;
   readonly initialImageUrl: string | null;
   /** For the preview tile's fallback palette (0 for a new Collection). */
@@ -188,7 +190,7 @@ export function CollectionEditor({
             {dictionary.cancel}
           </button>
           <button className={styles.primaryAction} disabled={isSubmitting} type="submit">
-            {isSubmitting ? dictionary.saving : mode === 'create' ? dictionary.collectionCreateAction : dictionary.save}
+            {isSubmitting ? dictionary.saving : mode === 'create' ? dictionary.collectionCreateAction : mode === 'clone' ? dictionary.cloneSubmit : dictionary.save}
           </button>
         </div>
       </div>

@@ -31,10 +31,11 @@ import { collectionNewLinksReadPath, type NotificationReadResult } from '../../.
 import { CollectionTileView } from '../CollectionsView';
 import { Modal } from '../../Modal';
 import { ParticipantsPanel, ParticipantStack, SharePanel } from './CollectionSharing';
-import { CloneCollectionDialog } from './CloneCollectionDialog';
+import { CloneResultBanner } from './CloneResultBanner';
 import { MergeCollection } from './MergeCollection';
 import { MergeUndoBanner } from './MergeUndoBanner';
-import { canMergeCollection, peekMergeUndo } from '../../../../lib/collectionOperations';
+import { canMergeCollection, peekCloneResult, peekMergeUndo } from '../../../../lib/collectionOperations';
+import { useRouter } from 'next/navigation';
 import { ActionMenu, type MenuAction } from '../../Popover';
 import { UnlockPanel } from './UnlockPanel';
 import {
@@ -95,9 +96,12 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [participantsFailed, setParticipantsFailed] = useState(false);
   const [participantsToken, setParticipantsToken] = useState(0);
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'share' | 'participants' | 'clone' | 'merge' | null>(null);
+  const [panel, setPanel] = useState<'share' | 'participants' | 'merge' | null>(null);
   // Arrived here from 다른 컬렉션과 병합: 되돌리기 is offered for a moment (in memory only; see MergeUndoBanner).
   const [mergeUndo, setMergeUndo] = useState(() => (collectionId === null ? null : peekMergeUndo(collectionId)));
+  // Arrived here from 내 컬렉션으로 복제: how the copy went (in memory only; see CloneResultBanner).
+  const [cloneResult, setCloneResult] = useState(() => (collectionId === null ? null : peekCloneResult(collectionId)));
+  const router = useRouter();
   const [mergeFailure, setMergeFailure] = useState<string | null>(null);
   const closeMergeUndo = useCallback(() => setMergeUndo(null), []);
 
@@ -294,7 +298,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           // A Collection shared with me, its content open: 내 컬렉션으로 복제. My own, nobody else in it, its content open: 다른 컬렉션과
           // 병합 (the server refuses anything else too). The two never appear together.
           isSharedWithMe(collection) && !gate
-            ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy', onSelect: () => setPanel('clone') }]
+            ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy', onSelect: () => router.push(`${collectionHref(collection.id)}/clone`) }]
             : canMergeCollection(collection, !gate && (!isCollectionLocked(collection) || unlockTokenFor(collection.id) !== null))
               ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Move', onSelect: () => setPanel('merge') }]
               : []
@@ -309,11 +313,16 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           collection={collection}
           onMemberLinkGone={() => setMemberShareUrl(null)}
           onParticipantsChanged={() => setParticipantsToken(token => token + 1)}
+          onUnlocked={() => {
+            // Unlocked from the share screen: the same grant opens the content behind it.
+            setGate(null);
+            setContentToken(token => token + 1);
+          }}
           participants={participants}
           participantsFailed={participantsFailed}
         />
       </Modal>
-      {panel === 'clone' ? <CloneCollectionDialog collection={collection} onClose={() => setPanel(null)} /> : null}
+      {cloneResult ? <CloneResultBanner onDone={() => setCloneResult(null)} outcome={cloneResult} /> : null}
       {panel === 'merge' ? <MergeCollection collection={collection} onClose={() => setPanel(null)} onFailed={setMergeFailure} /> : null}
       {mergeUndo ? (
         <MergeUndoBanner

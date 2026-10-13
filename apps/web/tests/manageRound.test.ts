@@ -4,10 +4,6 @@ import { describe, it } from 'node:test';
 import { ApiHttpError, type AppApi, type AppApiRequest } from '../lib/appApi.ts';
 import { getAppDictionary } from '../lib/appDictionary.ts';
 import {
-  MAX_ITEMS_PER_COPY,
-  chunkIds,
-  cloneCollection,
-  cloneCollectionBody,
   copyItemsPath,
   copyResultMessage,
   grantHeaders,
@@ -248,67 +244,11 @@ describe('8-12. moving and copying links: the existing Backend API only', () => 
   });
 });
 
-describe('12. 내 컬렉션으로 복제', () => {
-  it('a member of a shared Collection only (the Owner gets 병합 instead, never this), once its content is open', () => {
-    assert.match(source('app/(app)/collections/[collectionId]/CollectionDetailsView.tsx'), /isSharedWithMe\(collection\) && !gate\s*\? \[\{ key: 'clone', label: dictionary\.cloneToMine, icon: 'Copy', onSelect: \(\) => setPanel\('clone'\) \}\]/);
-  });
-
-  it('the new Collection takes the typed name and the source\'s glyph and colour - never its photo, lock, password or sharing', () => {
-    assert.deepEqual(cloneCollectionBody({ icon: 'Book', color: 'Mint' }, '  복제본 '), { name: '복제본', icon: 'Book', color: 'Mint' });
-  });
-
-  it('create, then every visible link copied in chunks of the server limit; the result says what happened', async () => {
-    const itemIds = Array.from({ length: MAX_ITEMS_PER_COPY + 5 }, (_, index) => index + 1);
-    const { api, calls } = fakeApi({
-      'POST /api/v1/collections': () => ({ id: 50 }),
-      'GET /api/v1/collections/13/items': request => (request.path.includes('cursor=next') ? { items: itemIds.slice(100).map(itemId => ({ itemId })), nextCursor: null } : { items: itemIds.slice(0, 100).map(itemId => ({ itemId })), nextCursor: 'next' }),
-      'POST /api/v1/collections/13/items/copy': request => ({ copiedCount: (request.body as { itemIds: number[] }).itemIds.length, skippedCount: 0, unavailableCount: 0 }),
-    });
-    const outcome = await cloneCollection(api, { id: 13, icon: 'Book', color: null }, '복제본', { 'X-Juple-Collection-Unlock': 'g' });
-    assert.deepEqual(outcome, { kind: 'done', collectionId: 50, result: { copiedCount: MAX_ITEMS_PER_COPY + 5, skippedCount: 0, unavailableCount: 0 }, failedChunks: 0, totalChunks: 2 });
-    const copies = calls.filter(call => call.path.endsWith('/items/copy'));
-    assert.deepEqual(copies.map(call => (call.body as { itemIds: number[] }).itemIds.length), [MAX_ITEMS_PER_COPY, 5]);
-    assert.ok(copies.every(call => (call.body as { destinationCollectionId: number }).destinationCollectionId === 50 && call.headers?.['X-Juple-Collection-Unlock'] === 'g'));
-    assert.ok(!calls.some(call => call.method === 'DELETE' || /\/(merge|share|participants|invitations|comments|reaction)/.test(call.path)), 'nothing else copied, the source untouched');
-  });
-
-  it('a failed chunk is counted, the rest still runs, nothing is undone; a name the server refuses creates nothing', async () => {
-    let n = 0;
-    const { api } = fakeApi({
-      'POST /api/v1/collections': () => ({ id: 51 }),
-      'GET /api/v1/collections/13/items': () => ({ items: Array.from({ length: 450 }, (_, index) => ({ itemId: index + 1 })), nextCursor: null }),
-      'POST /api/v1/collections/13/items/copy': request => {
-        n += 1;
-        if (n === 2) {
-          throw new ApiHttpError(500, null);
-        }
-        return { copiedCount: (request.body as { itemIds: number[] }).itemIds.length, skippedCount: 0, unavailableCount: 0 };
-      },
-    });
-    const outcome = await cloneCollection(api, { id: 13, icon: 'Book', color: null }, '복제본', undefined);
-    assert.equal(outcome.kind, 'done');
-    if (outcome.kind === 'done') {
-      assert.equal(outcome.failedChunks, 1);
-      assert.equal(outcome.totalChunks, 3);
-      assert.equal(outcome.result.copiedCount, 250);
-    }
-    const refused = fakeApi({ 'POST /api/v1/collections': () => { throw new ApiHttpError(409, 'collectionNameConflict'); } });
-    const notCreated = await cloneCollection(refused.api, { id: 13, icon: 'Book', color: null }, '중복', undefined);
-    assert.equal(notCreated.kind, 'notCreated');
-    assert.equal(refused.calls.length, 1);
-    assert.deepEqual(chunkIds([1, 1, 2]), [[1, 2]]);
-  });
-
-  it('a partial copy is reported as partial in the dialog, never as complete', () => {
-    const dialog = source('app/(app)/collections/[collectionId]/CloneCollectionDialog.tsx');
-    assert.match(dialog, /data-clone-result=\{outcome\.failedChunks > 0 \? 'partial' : 'complete'\}/);
-    assert.match(dialog, /outcome\.failedChunks > 0 \? ` \$\{dictionary\.clonePartialFailure\}` : ''/);
-  });
-});
+// 12. 내 컬렉션으로 복제 - see tests/cloneRound.test.ts (the shared editor page).
 
 describe('13. link actions never merge (병합 is the Collection header\'s alone - tests/mergeRound.test.ts)', () => {
   it('the link details and the shared-link views never call merge', () => {
-    for (const file of ['app/(app)/items/[itemId]/ItemDetailContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx', 'app/(app)/collections/[collectionId]/CloneCollectionDialog.tsx']) {
+    for (const file of ['app/(app)/items/[itemId]/ItemDetailContent.tsx', 'app/(app)/collections/[collectionId]/items/[itemId]/SharedItemContent.tsx', 'app/(app)/collections/[collectionId]/clone/CloneCollectionView.tsx']) {
       assert.doesNotMatch(source(file), /mergePath|\/merge|mergeWithOther/, file);
     }
   });
