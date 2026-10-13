@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useItemsChanged } from '../useItemsChanged';
+import { affectsList, removesFromList } from '../../../lib/itemChanges';
 import {
   ARCHIVE_SEARCH_DEBOUNCE_MS,
   ARCHIVE_SECTIONS_PATH,
@@ -91,6 +92,7 @@ export function ArchiveView() {
           loadSections={() => api<{ readonly sections: readonly DateSection[] }>({ path: ARCHIVE_SECTIONS_PATH }).then(result => result.sections)}
           locale={locale}
           onSessionLost={onSessionLost}
+          scope={{ kind: 'personal' }}
           viewMode={viewMode}
         />
       )}
@@ -126,8 +128,19 @@ function ArchiveFlat({
 }) {
   const [state, setState] = useState<{ readonly kind: 'loading' } | { readonly kind: 'failed' } | ({ readonly kind: 'loaded' } & PagedState<LinkView>)>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
-  // A link was deleted / edited in the Quick Detail sheet over this page: read the list again, in place.
-  useItemsChanged(() => setReloadToken(token => token + 1));
+  // A link was deleted / edited in the Quick Detail sheet over this page. A deletion takes it out of the loaded list at once (the
+  // pages already loaded stay - no reset to the first page); an edit reads the list again, in place.
+  useItemsChanged(change => {
+    const scope = { kind: 'personal' } as const;
+    if (!affectsList(change, scope)) {
+      return;
+    }
+    if (removesFromList(change, scope)) {
+      setState(current => (current.kind === 'loaded' ? { ...current, items: current.items.filter(link => link.id !== change.itemId) } : current));
+      return;
+    }
+    setReloadToken(token => token + 1);
+  });
 
   useEffect(() => {
     let ignore = false;

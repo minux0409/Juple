@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppDictionary } from '../../../../lib/appI18n';
 import { isSessionLost } from '../../../../lib/authSession';
 import { collectionTile, type CollectionSummary } from '../../../../lib/collectionsView';
@@ -43,12 +43,15 @@ export function ItemDetailContent({
   lockedBy,
   fromCollectionId,
   onLeave,
+  onGone,
 }: {
   readonly itemIdParam: string;
   readonly lockedBy: number | null;
   readonly fromCollectionId: number | null;
   /** After a successful 삭제 / 컬렉션에서 삭제: close the sheet, or leave the page. */
   readonly onLeave: () => void;
+  /** The sheet only: the link turned out to be gone (404) - close instead of leaving an empty sheet. The standalone page keeps its message. */
+  readonly onGone?: () => void;
 }) {
   const { api, dictionary, locale, onSessionLost } = useSignedInApp();
   const itemId = parseRouteId(itemIdParam);
@@ -58,6 +61,18 @@ export function ItemDetailContent({
   const [actionError, setActionError] = useState<string | null>(null);
   const [destination, setDestination] = useState<'replicate' | 'move' | null>(null);
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
+
+  // A confirmed 404 (deleted elsewhere / in another tab): the card that opened this is stale. The lists read themselves again (the
+  // server decides what is really gone) and the sheet closes. Only a real 404 gets here - 401 / 403 / network are `failed`.
+  const gone = state.kind === 'notFound' && itemId !== null;
+  useEffect(() => {
+    if (gone && itemId !== null) {
+      notifyItemsChanged({ kind: 'updated', itemId });
+      onGone?.();
+    }
+    // `onGone` is a fresh closure per render; the transition into notFound is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gone, itemId]);
 
   if (state.kind === 'notFound') {
     return <Notice message={dictionary.itemLoadFailed} />;
@@ -107,7 +122,7 @@ export function ItemDetailContent({
     const result = await api<ReplicateResult>({ method: 'POST', path: replicatePath(itemId), body: { collectionIds: picked.map(entry => entry.collection.id), unlockTokens } });
     setLinkNotice(replicateResultMessage(result, dictionary));
     reloadCollections();
-    notifyItemsChanged();
+    notifyItemsChanged({ kind: 'updated', itemId });
   };
 
   /**
@@ -132,7 +147,8 @@ export function ItemDetailContent({
       await api<unknown>({ method: 'PUT', path: membershipPath(target.collection.id, itemId), headers: grantHeaders(target.unlockToken) });
       await api<void>({ method: 'DELETE', path: membershipPath(fromCollectionId as number, itemId), headers: unlockHeaders(fromCollectionId as number) });
     }
-    notifyItemsChanged();
+    // Only this Collection's membership went (the atomic transfer or the add + remove): the link stays in 보관함 / Home.
+    notifyItemsChanged({ kind: 'removedFromCollection', itemId, collectionId: fromCollectionId as number });
     onLeave();
   };
 
@@ -148,7 +164,10 @@ export function ItemDetailContent({
     request.then(
       () => {
         setConfirming(false);
-        notifyItemsChanged();
+        // Two different facts: the link is gone everywhere, or only this Collection's membership went.
+        notifyItemsChanged(
+          fromCollectionId !== null ? { kind: 'removedFromCollection', itemId, collectionId: fromCollectionId } : { kind: 'deleted', itemId },
+        );
         onLeave();
       },
       caught => {

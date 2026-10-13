@@ -60,6 +60,7 @@ import { CollectionHeaderSkeleton, SavedLinkSkeleton } from '../../Skeletons';
 import { SavedLinkList } from '../../SavedLinkList';
 import { SortChips } from '../../SortChips';
 import { useItemsChanged } from '../../useItemsChanged';
+import { affectsList, removesFromList } from '../../../../lib/itemChanges';
 import { useStoredChoice } from '../../useStoredChoice';
 import { ViewModeToggle } from '../../ViewModeToggle';
 import { BackRow } from '../../PageHeader';
@@ -83,8 +84,24 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [gate, setGate] = useState<'lock' | 'sharePassword' | null>(null);
   // Bumped after an unlock: the links are read again (with the grant), showing skeletons meanwhile.
   const [contentToken, setContentToken] = useState(0);
-  // A link was deleted / removed / edited in the Quick Detail sheet over this page: the header count and the links are read again.
-  useItemsChanged(() => {
+  // A link was deleted / removed / edited in the Quick Detail sheet over this page. A deletion or this Collection's membership removal
+  // is taken out of the lists by the lists themselves (DateSections / CollectionByName); here the header count follows at once and is
+  // then read again. An edit reads the header and the links again. A membership removed from ANOTHER Collection changes nothing here.
+  useItemsChanged(change => {
+    if (collectionId === null) {
+      return;
+    }
+    const scope = { kind: 'collection', collectionId } as const;
+    if (!affectsList(change, scope)) {
+      return;
+    }
+    if (removesFromList(change, scope)) {
+      setHeader(current =>
+        current.kind === 'loaded' ? { kind: 'loaded', collection: { ...current.collection, itemCount: Math.max(0, current.collection.itemCount - 1) } } : current,
+      );
+      setReloadToken(token => token + 1);
+      return;
+    }
     setReloadToken(token => token + 1);
     setContentToken(token => token + 1);
   });
@@ -406,6 +423,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
               onBlocked={blockedBy}
               onSessionLost={onSessionLost}
               reversed={sort === 'oldest'}
+              scope={{ kind: 'collection', collectionId: collection.id }}
               viewMode={viewMode}
             />
           )}
@@ -533,6 +551,12 @@ function CollectionByName({
 }) {
   const [state, setState] = useState<WholeState>({ kind: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
+  // A deleted / removed link leaves the loaded list at once (no refetch - the whole Collection is already here).
+  useItemsChanged(change => {
+    if (removesFromList(change, { kind: 'collection', collectionId })) {
+      setState(current => (current.kind === 'loaded' ? { kind: 'loaded', items: current.items.filter(entry => entry.itemId !== change.itemId) } : current));
+    }
+  });
 
   useEffect(() => {
     let ignore = false;

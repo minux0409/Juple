@@ -150,7 +150,9 @@ export function ItemEditView({
   // lists under them are told it changed. Opened any other way (the address typed or reloaded) there is nothing to go back to, so the
   // details are opened as a page.
   const goToDetails = () => {
-    notifyItemsChanged();
+    if (itemId !== null) {
+      notifyItemsChanged({ kind: 'updated', itemId });
+    }
     if (takeEditOpenedFromDetails()) {
       router.back();
     } else {

@@ -29,7 +29,7 @@ export function QuickDetailSheet({
   const router = useRouter();
   return (
     <QuickSheetFrame>
-      <ItemDetailContent fromCollectionId={fromCollectionId} itemIdParam={itemIdParam} lockedBy={lockedBy} onLeave={() => router.back()} />
+      <ItemDetailContent fromCollectionId={fromCollectionId} itemIdParam={itemIdParam} lockedBy={lockedBy} onGone={() => router.back()} onLeave={() => router.back()} />
     </QuickSheetFrame>
   );
 }

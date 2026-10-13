@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { formatMessage, type AppDictionary } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
+import { affectsList, removesFromList, type ItemListScope } from '../../lib/itemChanges';
+import { removeItemFromSections } from '../../lib/sectionRemoval';
+import { useItemsChanged } from './useItemsChanged';
 import { appendPage, canLoadMore, failLoadingMore, firstPage, startLoadingMore, type PagedState } from '../../lib/paging';
 import { initialSectionKey, sectionLabel, sectionShowsDate, formatLinkTimestamp, type DateSection, type LinkView, type LinkViewMode } from '../../lib/savedLinks';
 import { Glyph } from './Glyph';
@@ -44,6 +47,7 @@ export function DateSections({
   emptyText,
   onBlocked,
   onSessionLost,
+  scope,
 }: {
   readonly dictionary: AppDictionary;
   readonly locale: string;
@@ -56,6 +60,8 @@ export function DateSections({
   /** A definitive refusal the caller shows instead (a Collection lock): true = handled, nothing is shown here. */
   readonly onBlocked?: (error: unknown) => boolean;
   readonly onSessionLost: () => void;
+  /** Which list this is, so a link deleted / removed from a Collection under the Quick Detail sheet is taken out of it at once. */
+  readonly scope: ItemListScope;
 }) {
   const [sectionsState, setSectionsState] = useState<SectionsState>({ kind: 'loading' });
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -64,6 +70,32 @@ export function DateSections({
 
   const setPage = (key: string, update: (previous: PageState | undefined) => PageState) =>
     setPages(previous => new Map(previous).set(key, update(previous.get(key))));
+
+  // A link changed in the Quick Detail sheet over this page. A deletion / membership removal takes the link out of the loaded page, its
+  // section's count goes down and an emptied section goes away - synchronously, so there is no ghost card to click. Anything else
+  // (an edit, a link this list does not hold) reads the sections again.
+  useItemsChanged(change => {
+    if (!affectsList(change, scope)) {
+      return;
+    }
+    if (removesFromList(change, scope) && sectionsState.kind === 'loaded') {
+      const result = removeItemFromSections<DateSection, PageState>(
+        sectionsState.sections,
+        pages,
+        change.itemId,
+        page => (page.kind === 'loaded' ? page.items : null),
+        (page, itemId) => (page.kind === 'loaded' ? { ...page, items: page.items.filter(link => link.id !== itemId) } : page),
+      );
+      if (result.removed) {
+        setSectionsState({ kind: 'loaded', sections: result.sections });
+        setPages(result.pages);
+        return;
+      }
+    }
+    setPages(new Map());
+    setExpanded(new Set());
+    setReloadToken(token => token + 1);
+  });
 
   const handleFailure = (error: unknown): boolean => {
     if (isSessionLost(error)) {

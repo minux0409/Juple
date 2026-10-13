@@ -37,7 +37,7 @@ export function MergeUndoBanner({ undo, onUndone, onDone }: { readonly undo: Pen
     api<void>({ method: 'POST', path: MERGE_UNDO_PATH, body: { undoOperationId: undo.undoOperationId } }).then(
       () => {
         clearMergeUndo(undo.undoOperationId);
-        notifyItemsChanged();
+        notifyItemsChanged({ kind: 'refresh' });
         onUndone();
         onDone();
       },

@@ -46,7 +46,7 @@ export function MergeCollection({ collection, onClose, onFailed }: { readonly co
         if (result.undoOperationId) {
           rememberMergeUndo({ undoOperationId: result.undoOperationId, sourceCollectionId: collection.id, targetCollectionId: target.collection.id, sourceName: collection.name });
         }
-        notifyItemsChanged();
+        notifyItemsChanged({ kind: 'refresh' });
         onClose();
         router.replace(collectionHref(target.collection.id));
       },

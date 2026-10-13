@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useItemsChanged } from './useItemsChanged';
+import { affectsList, removesFromList } from '../../lib/itemChanges';
 import { formatMessage, type AppDictionary } from '../../lib/appI18n';
 import { isSessionLost } from '../../lib/authSession';
 import type { CollectionsPage, CollectionSummary } from '../../lib/collectionsView';
@@ -48,8 +49,24 @@ export function HomeView() {
   const [state, setState] = useState<HomeState>({ kind: 'loading' });
   // Bumped by 다시 시도 to run the effect again.
   const [reloadToken, setReloadToken] = useState(0);
-  // A link was deleted / edited in the Quick Detail sheet over this page: read the list again, in place (no skeleton, same scroll).
-  useItemsChanged(() => setReloadToken(token => token + 1));
+  // A link was deleted / edited in the Quick Detail sheet over this page. A deletion takes the card (and one from today's count) away
+  // at once, with nothing to click in between; an edit reads the list again, in place (no skeleton, same scroll).
+  useItemsChanged(change => {
+    const scope = { kind: 'personal' } as const;
+    if (!affectsList(change, scope)) {
+      return;
+    }
+    if (removesFromList(change, scope)) {
+      setState(current => {
+        if (current.kind !== 'loaded' || !current.links.some(link => link.id === change.itemId)) {
+          return current;
+        }
+        return { ...current, links: current.links.filter(link => link.id !== change.itemId), count: current.count === null ? null : Math.max(0, current.count - 1) };
+      });
+      return;
+    }
+    setReloadToken(token => token + 1);
+  });
   const [viewMode, setViewMode] = useStoredChoice(VIEW_MODE_STORAGE_KEYS.home, parseViewMode);
   const [summary, setSummary] = useState<Summary | null>(null);
 

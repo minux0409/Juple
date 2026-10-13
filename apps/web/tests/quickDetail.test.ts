@@ -66,12 +66,12 @@ describe('Quick Detail sheet: behaviour', () => {
   });
 
   it('after 삭제 the lists under the sheet read themselves again; 수정 goes back to the details and tells them too', () => {
-    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /setConfirming\(false\);\s*notifyItemsChanged\(\);\s*onLeave\(\);/);
-    for (const file of ['HomeView.tsx', 'archive/ArchiveView.tsx', 'collections/[collectionId]/CollectionDetailsView.tsx']) {
-      assert.match(source(`app/(app)/${file}`), /useItemsChanged\(\(\) =>/, file);
+    assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /setConfirming\(false\);[\s\S]*?notifyItemsChanged\([\s\S]*?\);\s*onLeave\(\);/);
+    for (const file of ['HomeView.tsx', 'archive/ArchiveView.tsx', 'DateSections.tsx', 'collections/[collectionId]/CollectionDetailsView.tsx']) {
+      assert.match(source(`app/(app)/${file}`), /useItemsChanged\(change =>/, file);
     }
     const editor = source('app/(app)/items/[itemId]/edit/ItemEditView.tsx');
-    assert.match(editor, /notifyItemsChanged\(\);\s*if \(takeEditOpenedFromDetails\(\)\) \{\s*router\.back\(\);\s*\} else \{\s*window\.location\.replace\(detailsHref\);/);
+    assert.match(editor, /if \(itemId !== null\) \{\s*notifyItemsChanged\(\{ kind: 'updated', itemId \}\);\s*\}\s*if \(takeEditOpenedFromDetails\(\)\) \{\s*router\.back\(\);\s*\} else \{\s*window\.location\.replace\(detailsHref\);/);
     assert.match(source('app/(app)/items/[itemId]/ItemDetailContent.tsx'), /markEditOpenedFromDetails\(\);/);
   });
 
@@ -79,9 +79,9 @@ describe('Quick Detail sheet: behaviour', () => {
     const changes = await import('../lib/itemChanges.ts');
     let heard = 0;
     const off = changes.subscribeItemsChanged(() => void (heard += 1));
-    changes.notifyItemsChanged();
+    changes.notifyItemsChanged({ kind: 'updated', itemId: 1 });
     off();
-    changes.notifyItemsChanged();
+    changes.notifyItemsChanged({ kind: 'updated', itemId: 1 });
     assert.equal(heard, 1);
     const overlay = await import('../lib/itemOverlay.ts');
     assert.equal(overlay.isItemOverlayOpen(), false);
