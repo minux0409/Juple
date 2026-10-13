@@ -171,9 +171,11 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // (a later, purely additive nullable column - AddCollectionIconImage) and reads the later
         // CollectionSharePasswords (AddCollectionSharePasswords) and CollectionLinkSubmissions
         // (AddCollectionLinkSubmissions - the Owner's 승인 대기 count) tables, and Notifications.CollectionId
-        // (a later nullable column - the caller's unread 새 링크 count on each card): all are added here the
-        // way those migrations add them and given back before the real migrations run in step 10.
+        // (a later nullable column - the caller's unread 새 링크 count on each card), and Users.ProfileImageBlobName
+        // (a later nullable column - AddUserProfileImage - the photos of the people a card previews): all are added here
+        // the way those migrations add them and given back before the real migrations run in step 10.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] ADD [IconImageBlobName] nvarchar(400) NULL");
+        await ExecuteAsync("ALTER TABLE [users].[Users] ADD [ProfileImageBlobName] nvarchar(400) NULL");
         await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] ADD [IsPublic] bit NOT NULL CONSTRAINT [DF_RollingDeploy_IsPublic] DEFAULT CAST(1 AS bit)");
         await ExecuteAsync("ALTER TABLE [notifications].[Notifications] ADD [CollectionId] bigint NULL");
         await ExecuteAsync(
@@ -237,6 +239,7 @@ public sealed class CollectionCollaborationRollingDeployIntegrationTests : IAsyn
         // legacy column (the stale backfilled row of the un-starred Collection goes, the
         // legacy-only star gets its row) and leaves the Contributor's row alone.
         await ExecuteAsync("ALTER TABLE [collections].[Collections] DROP COLUMN [IconImageBlobName]");
+        await ExecuteAsync("ALTER TABLE [users].[Users] DROP COLUMN [ProfileImageBlobName]");
         await ExecuteAsync("ALTER TABLE [collections].[CollectionShares] DROP CONSTRAINT [DF_RollingDeploy_IsPublic]; ALTER TABLE [collections].[CollectionShares] DROP COLUMN [IsPublic]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionSharePasswords]");
         await ExecuteAsync("DROP TABLE [collections].[CollectionLinkSubmissions]");
