@@ -13,6 +13,32 @@ public sealed class RequestSqlTiming
     private int _commands;
     private double _totalMs;
     private double _maxMs;
+    private int _connectionOpens;
+    private double _connectionOpenTotalMs;
+    private double _connectionOpenMaxMs;
+
+    /// <summary>One database connection open (a pooled one included - what it really took, usually ~0), failed or not.</summary>
+    public void RecordConnectionOpen(TimeSpan duration)
+    {
+        var ms = duration.TotalMilliseconds;
+        lock (_gate)
+        {
+            _connectionOpens++;
+            _connectionOpenTotalMs += ms;
+            if (ms > _connectionOpenMaxMs)
+            {
+                _connectionOpenMaxMs = ms;
+            }
+        }
+    }
+
+    public (int Opens, double TotalMs, double MaxMs) ConnectionSnapshot()
+    {
+        lock (_gate)
+        {
+            return (_connectionOpens, _connectionOpenTotalMs, _connectionOpenMaxMs);
+        }
+    }
 
     public void Record(TimeSpan duration)
     {
@@ -109,4 +135,31 @@ public sealed class RequestSqlTimingInterceptor : DbCommandInterceptor
     }
 
     private static void Record(CommandExecutedEventData eventData) => RequestSqlTimingScope.Current?.Record(eventData.Duration);
+}
+
+/// <summary>
+/// Adds each database connection open of the current request - how long <c>Open</c> really took, including the time a request waits for
+/// a pooled connection or for a new physical connection to be established and logged in - to its <see cref="RequestSqlTiming"/>.
+/// A failed open counts too (its duration is what the caller waited). Only numbers: never the connection string, server, database or
+/// credentials. With no request being timed it is one null check.
+/// </summary>
+public sealed class RequestConnectionTimingInterceptor : DbConnectionInterceptor
+{
+    public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData) =>
+        RequestSqlTimingScope.Current?.RecordConnectionOpen(eventData.Duration);
+
+    public override Task ConnectionOpenedAsync(DbConnection connection, ConnectionEndEventData eventData, CancellationToken cancellationToken = default)
+    {
+        RequestSqlTimingScope.Current?.RecordConnectionOpen(eventData.Duration);
+        return Task.CompletedTask;
+    }
+
+    public override void ConnectionFailed(DbConnection connection, ConnectionErrorEventData eventData) =>
+        RequestSqlTimingScope.Current?.RecordConnectionOpen(eventData.Duration);
+
+    public override Task ConnectionFailedAsync(DbConnection connection, ConnectionErrorEventData eventData, CancellationToken cancellationToken = default)
+    {
+        RequestSqlTimingScope.Current?.RecordConnectionOpen(eventData.Duration);
+        return Task.CompletedTask;
+    }
 }

@@ -453,14 +453,26 @@ if (app.Environment.IsDevelopment())
 }
 
 // Outermost, so authentication and CORS time is part of the measured request. Only when RequestTiming:Enabled (Dev diagnostics).
-if (builder.Configuration.GetValue<bool>($"{RequestTimingOptions.SectionName}:Enabled"))
+var requestTimingEnabled = builder.Configuration.GetValue<bool>($"{RequestTimingOptions.SectionName}:Enabled");
+if (requestTimingEnabled)
 {
     app.UseMiddleware<RequestTimingMiddleware>();
 }
 
 app.UseHttpsRedirection();
 app.UseCors();
+// Two clock reads around authentication (RequestTimingMarks) - they never run it and change nothing about it.
+if (requestTimingEnabled)
+{
+    app.Use(RequestTimingMarks.BeforeAuthentication);
+}
+
 app.UseAuthentication();
+if (requestTimingEnabled)
+{
+    app.Use(RequestTimingMarks.AfterAuthentication);
+}
+
 app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
