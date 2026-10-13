@@ -39,6 +39,11 @@ COPY --from=builder /app/.next/static ./.next/static
 # sign-in page and the side bar show through next/image) only once it is copied next to server.js -
 # `public` and `.next/static` are never copied automatically (see the standalone output doc).
 COPY --from=builder /app/public ./public
+# The copies above are root-owned, so the non-root server below could not create .next/cache, where the
+# image optimizer (next/image) keeps its resized images ("EACCES: mkdir '/app/.next/cache'"): every image
+# was resized again on every request. Only that one directory is handed to "node" - the app's own files
+# stay root-owned and read-only to the server process.
+RUN mkdir -p .next/cache && chown node:node .next/cache
 
 # node:alpine already ships a non-root "node" user/group - the same reason
 # backend/src/Juple.Api/Dockerfile switches off root for the API image.

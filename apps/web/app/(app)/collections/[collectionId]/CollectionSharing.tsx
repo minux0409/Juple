@@ -17,15 +17,15 @@ import {
   type PublicSharePermission,
 } from '../../../../lib/collectionSharing';
 import {
-  INVITATION_ROLE_RANK,
   PUBLIC_PERMISSIONS,
-  ROLES,
   countBelowMinimum,
   invitationRoleOf,
   isPermissionMismatch,
   isValidSharePassword,
+  minimumRoleForPublicPermission,
   permissionBody,
   publicPermissionDescription,
+  raiseToMinimum,
   roleOptionLabel,
   shareActionErrorMessage,
   shareManagementErrorMessage,
@@ -40,7 +40,18 @@ import {
 import type { CollectionDetail } from '../../../../lib/collectionDetails';
 import { isCollectionLocked } from '../../../../lib/collectionsView';
 import { unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
-import { unavailableFriends } from '../../../../lib/collectionInvite';
+import {
+  JUPLE_ID_LOOKUP_PATH,
+  idInviteBody,
+  idInviteUnavailable,
+  idInviteUnavailableMessage,
+  invitationsPath,
+  inviteErrorMessage,
+  selectableRoles,
+  unavailableFriends,
+  type IdInviteUnavailable,
+} from '../../../../lib/collectionInvite';
+import { lookupFailure, normalizeTypedJupleId, type JupleIdLookup } from '../../../../lib/settings';
 import { useSignedInApp } from '../../AppRoot';
 import { Avatar } from '../../Avatar';
 import { ConfirmDialog } from '../../ConfirmDialog';
@@ -91,12 +102,15 @@ export function ParticipantIdentity({
   person,
   dictionary,
   caption,
+  pending = false,
   trailing,
 }: {
   readonly person: { readonly jupleId: string; readonly displayName?: string | null; readonly role: string; readonly isMe?: boolean; readonly profileImageUrl?: string | null };
   readonly dictionary: AppDictionary;
   /** Replaces the Juple ID line (a pending invitation says it is waiting). */
   readonly caption?: string;
+  /** An invitation still waiting: the Juple ID stays, and "수락 대기" is a line of its own under it. */
+  readonly pending?: boolean;
   readonly trailing?: ReactNode;
 }) {
   const isOwner = person.role === 'owner';
@@ -118,6 +132,7 @@ export function ParticipantIdentity({
         <span className={styles.profileId} dir="ltr">
           {caption ?? `@${formatJupleId(person.jupleId)}`}
         </span>
+        {pending ? <span className={styles.pendingCaption}>{dictionary.participantsPendingStatus}</span> : null}
       </span>
       {trailing ?? (role ? <span className={isOwner ? styles.roleBadgeOwner : styles.roleBadge}>{role}</span> : null)}
     </>
@@ -218,6 +233,9 @@ export function SharePanel({
   const [passwordText, setPasswordText] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [revealed, setRevealed] = useState<string | null>(null);
+  const [inviteMode, setInviteMode] = useState<'friends' | 'id'>('friends');
+  // The row whose role is being changed, and the role asked for - shown at once, kept until the list is read again (or put back).
+  const [roleChange, setRoleChange] = useState<{ readonly key: string; readonly role: InvitationRole; readonly source: CollectionParticipants | null } | null>(null);
   const canManage = participants?.canManage === true && !member;
 
   const failure = useCallback(
@@ -311,6 +329,8 @@ export function SharePanel({
   const share = state.kind === 'owner' ? state.share : null;
   const isPublic = share !== null && share.isPublic !== false;
   const currentPermission: PublicSharePermission = share?.permission ?? 'read';
+  // While the Collection is public nobody is invited or kept below the link's own level (mobile minimumRole).
+  const minimumRole = isPublic ? minimumRoleForPublicPermission(currentPermission) : null;
   const url = state.kind === 'owner' ? state.share.shareUrl : state.kind === 'member' ? state.url : null;
   const canSystemShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const legacy = passwordStatus !== null && passwordStatus !== 'failed' && passwordStatus.mode === 'legacyCommonLock';
@@ -386,17 +406,37 @@ export function SharePanel({
     }
   };
 
+  /**
+   * A role change shows the chosen role at once (with the row busy); the list read again afterwards is the truth. A refusal puts the
+   * role the server still has back and says why. Never below the public link's level (mobile changeRole).
+   */
+  const changeRole = (key: string, role: InvitationRole, path: string) => {
+    if (raiseToMinimum(role, minimumRole) !== role) {
+      setMessage({ text: dictionary.belowPublicPermission, error: true });
+      return;
+    }
+    setRoleChange({ key, role, source: participants });
+    void run(
+      async () => {
+        await api<unknown>({ method: 'PUT', path, body: { role }, headers: unlockHeaders(collection.id) });
+        onParticipantsChanged();
+      },
+      caught => {
+        setRoleChange(null);
+        return actionWords(caught);
+      },
+    );
+  };
+
   const changeMemberRole = (person: CollectionParticipant, role: InvitationRole) =>
-    run(async () => {
-      await api<unknown>({ method: 'PUT', path: sharePaths.collaboratorRole(collection.id, person.jupleId), body: { role }, headers: unlockHeaders(collection.id) });
-      onParticipantsChanged();
-    }, actionWords);
+    changeRole(`member-${person.jupleId}`, role, sharePaths.collaboratorRole(collection.id, person.jupleId));
 
   const changeInvitationRole = (invitation: CollectionPendingInvitation, role: InvitationRole) =>
-    run(async () => {
-      await api<unknown>({ method: 'PUT', path: sharePaths.invitationRole(collection.id, invitation.invitationId), body: { role }, headers: unlockHeaders(collection.id) });
-      onParticipantsChanged();
-    }, actionWords);
+    changeRole(`invitation-${invitation.invitationId}`, role, sharePaths.invitationRole(collection.id, invitation.invitationId));
+
+  /** The role a row shows: the one just asked for while that change is on its way (until the list is read again), else the server's. */
+  const shownRole = (key: string, serverRole: string): InvitationRole =>
+    roleChange !== null && roleChange.key === key && roleChange.source === participants ? roleChange.role : invitationRoleOf(serverRole);
 
   const removeMember = (person: CollectionParticipant) =>
     run(async () => {
@@ -633,7 +673,7 @@ export function SharePanel({
         ) : null}
 
         {canManage ? (
-          <section className={styles.shareSection}>
+          <section className={styles.shareSection} data-invite>
             <div className={styles.shareSectionHead}>
               <span className={styles.shareSectionIcon} aria-hidden>
                 <Glyph name="Plus" size={20} />
@@ -642,10 +682,30 @@ export function SharePanel({
                 <h3 className={styles.shareSectionTitle}>{dictionary.friendInviteTitle}</h3>
               </span>
             </div>
-            <button className={styles.primaryAction} disabled={legacy} onClick={() => setPickerOpen(true)} type="button">
-              <Glyph name="People" size={18} />
-              {dictionary.chooseFriends}
-            </button>
+            {/* Mobile's two ways in one place: [친구] picks accepted friends, [ID] finds one exact Juple ID. Both send the same invitation. */}
+            <div aria-label={dictionary.friendInviteTitle} className={styles.filterTabs} role="tablist">
+              {(['friends', 'id'] as const).map(mode => (
+                <button
+                  aria-selected={inviteMode === mode}
+                  className={inviteMode === mode ? styles.filterTabSelected : styles.filterTab}
+                  data-invite-mode={mode}
+                  key={mode}
+                  onClick={() => setInviteMode(mode)}
+                  role="tab"
+                  type="button"
+                >
+                  {mode === 'friends' ? dictionary.inviteTabFriends : dictionary.inviteTabId}
+                </button>
+              ))}
+            </div>
+            {inviteMode === 'friends' ? (
+              <button className={styles.primaryAction} disabled={legacy} onClick={() => setPickerOpen(true)} type="button">
+                <Glyph name="People" size={18} />
+                {dictionary.chooseFriends}
+              </button>
+            ) : (
+              <IdInvite collectionId={collection.id} disabled={legacy} minimumRole={minimumRole} onInvited={onParticipantsChanged} participants={participants} />
+            )}
           </section>
         ) : null}
 
@@ -661,22 +721,39 @@ export function SharePanel({
         {participantsFailed && !participants ? <p className={styles.formError}>{dictionary.participantsLoadFallback}</p> : null}
         {!participants && !participantsFailed ? <SettingsRowSkeleton count={3} /> : null}
         {participants ? (
-          <>
+          <div className={styles.shareRailScroll}>
             <p className={styles.settingsHeading}>{formatMessage(dictionary.participantsMembersTab, { count: participants.participants.length })}</p>
-            <ul className={styles.personList}>
+            <ul className={styles.personCards} data-members>
               {participants.participants.map(person => {
                 const editable = canManage && person.role !== 'owner' && !person.isMe;
+                const key = `member-${person.jupleId}`;
                 return (
-                  <li className={styles.personRow} key={person.jupleId}>
+                  <li className={styles.personCard} data-person-row="member" key={person.jupleId}>
                     <ParticipantIdentity
                       dictionary={dictionary}
                       person={person}
                       trailing={
                         editable ? (
-                          <span className={styles.rowActions}>
-                            <RoleSelect busy={busy} dictionary={dictionary} onChange={role => void changeMemberRole(person, role)} value={invitationRoleOf(person.role)} />
-                            <button aria-label={`${dictionary.removeMember} ${participantName(person, dictionary)}`} className={styles.iconButtonDanger} disabled={busy} onClick={() => setConfirmation({ kind: 'removeMember', person })} title={dictionary.removeMember} type="button">
-                              <Glyph name="Close" size={18} />
+                          <span className={styles.personCardActions}>
+                            <RoleSelect
+                              busy={busy}
+                              changing={busy && roleChange?.key === key}
+                              dictionary={dictionary}
+                              minimumRole={minimumRole}
+                              name={participantName(person, dictionary)}
+                              onChange={role => changeMemberRole(person, role)}
+                              value={shownRole(key, person.role)}
+                            />
+                            <button
+                              aria-label={`${dictionary.removeMember} ${participantName(person, dictionary)}`}
+                              className={styles.rowDanger}
+                              data-destructive
+                              disabled={busy}
+                              onClick={() => setConfirmation({ kind: 'removeMember', person })}
+                              title={dictionary.removeMember}
+                              type="button"
+                            >
+                              <Glyph name="Trash" size={18} />
                             </button>
                           </span>
                         ) : undefined
@@ -689,36 +766,57 @@ export function SharePanel({
             {participants.pendingInvitations.length > 0 ? (
               <>
                 <p className={styles.settingsHeading}>{formatMessage(dictionary.participantsPendingTab, { count: participants.pendingInvitations.length })}</p>
-                <ul className={styles.personList}>
-                  {participants.pendingInvitations.map(invitation => (
-                    <li className={styles.personRow} key={invitation.invitationId}>
-                      <ParticipantIdentity
-                        caption={dictionary.participantsPendingStatus}
-                        dictionary={dictionary}
-                        person={invitation}
-                        trailing={
-                          canManage ? (
-                            <span className={styles.rowActions}>
-                              <RoleSelect busy={busy} dictionary={dictionary} onChange={role => void changeInvitationRole(invitation, role)} value={invitationRoleOf(invitation.role)} />
-                              <button aria-label={`${dictionary.cancelInvitation} ${participantName(invitation, dictionary)}`} className={styles.iconButtonDanger} disabled={busy} onClick={() => setConfirmation({ kind: 'cancelInvitation', invitation })} title={dictionary.cancelInvitation} type="button">
-                                <Glyph name="Close" size={18} />
-                              </button>
-                            </span>
-                          ) : undefined
-                        }
-                      />
-                    </li>
-                  ))}
+                <ul className={styles.personCards} data-pending>
+                  {participants.pendingInvitations.map(invitation => {
+                    const key = `invitation-${invitation.invitationId}`;
+                    return (
+                      <li className={`${styles.personCard} ${styles.personCardPending}`} data-person-row="pending" key={invitation.invitationId}>
+                        <ParticipantIdentity
+                          dictionary={dictionary}
+                          pending
+                          person={invitation}
+                          trailing={
+                            canManage ? (
+                              <span className={styles.personCardActions}>
+                                <RoleSelect
+                                  busy={busy}
+                                  changing={busy && roleChange?.key === key}
+                                  dictionary={dictionary}
+                                  minimumRole={minimumRole}
+                                  name={participantName(invitation, dictionary)}
+                                  onChange={role => changeInvitationRole(invitation, role)}
+                                  value={shownRole(key, invitation.role)}
+                                />
+                                <button
+                                  aria-label={`${dictionary.cancelInvitation} ${participantName(invitation, dictionary)}`}
+                                  className={styles.rowDanger}
+                                  data-destructive
+                                  disabled={busy}
+                                  onClick={() => setConfirmation({ kind: 'cancelInvitation', invitation })}
+                                  title={dictionary.cancelInvitation}
+                                  type="button"
+                                >
+                                  <Glyph name="Close" size={18} />
+                                </button>
+                              </span>
+                            ) : (
+                              <span className={styles.roleBadge}>{roleLabel(invitation.role, dictionary)}</span>
+                            )
+                          }
+                        />
+                      </li>
+                    );
+                  })}
                 </ul>
               </>
             ) : null}
-          </>
+          </div>
         ) : null}
       </aside>
 
       <FriendPicker
         collectionId={collection.id}
-        minimumRole={isPublic ? (currentPermission === 'write' ? 'contributor' : currentPermission === 'submit' ? 'submitter' : null) : null}
+        minimumRole={minimumRole}
         onClose={() => setPickerOpen(false)}
         onInvited={onParticipantsChanged}
         open={pickerOpen}
@@ -783,21 +881,210 @@ export function SharePanel({
   );
 }
 
-/** A role (or invitation role) chooser: the three real levels, lowest first. */
-function RoleSelect({ value, onChange, busy, dictionary }: { readonly value: InvitationRole; readonly onChange: (role: InvitationRole) => void; readonly busy: boolean; readonly dictionary: AppDictionary }) {
+/**
+ * A member's (or invitation's) role, drawn as its badge with a chevron - a native select underneath, so the keyboard, screen readers and
+ * the platform's own list all work. Only the real levels (읽기 전용 / 승인 후 추가 / 링크 추가), lowest first, none below the public link's
+ * level; the Owner never has one (their row shows the 소유자 badge). One fixed width, so a longer label or the busy state never moves the
+ * row. While a change is on its way the row is busy; a refusal puts the server's role back (SharePanel.changeRole).
+ */
+function RoleSelect({
+  value,
+  onChange,
+  busy,
+  changing,
+  minimumRole,
+  name,
+  dictionary,
+}: {
+  readonly value: InvitationRole;
+  readonly onChange: (role: InvitationRole) => void;
+  readonly busy: boolean;
+  readonly changing: boolean;
+  readonly minimumRole: InvitationRole | null;
+  readonly name: string;
+  readonly dictionary: AppDictionary;
+}) {
+  // The current role always stays listed (an older one below the link's level is shown as it is, not silently changed).
+  const roles = selectableRoles(minimumRole);
+  const options = roles.includes(value) ? roles : [value, ...roles];
   return (
-    <select
-      aria-label={dictionary.sharePermissionLabel}
-      className={styles.roleSelect}
-      disabled={busy}
-      onChange={event => onChange(event.target.value as InvitationRole)}
-      value={value}
-    >
-      {[...ROLES].sort((a, b) => INVITATION_ROLE_RANK[a] - INVITATION_ROLE_RANK[b]).map(role => (
-        <option key={role} value={role}>
-          {roleOptionLabel(role, dictionary)}
-        </option>
-      ))}
-    </select>
+    <span aria-busy={changing} className={changing ? `${styles.roleControl} ${styles.roleControlBusy}` : styles.roleControl} data-role-control>
+      <select
+        aria-label={formatMessage(dictionary.permissionA11y, { name })}
+        className={styles.roleSelect}
+        disabled={busy}
+        onChange={event => onChange(event.target.value as InvitationRole)}
+        value={value}
+      >
+        {options.map(role => (
+          <option key={role} value={role}>
+            {roleOptionLabel(role, dictionary)}
+          </option>
+        ))}
+      </select>
+      <Glyph className={styles.roleControlChevron} name="Chevron" size={14} />
+    </span>
+  );
+}
+
+type IdLookupState =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'searching' }
+  | { readonly kind: 'error'; readonly message: string }
+  | { readonly kind: 'found'; readonly person: JupleIdLookup; readonly unavailable: IdInviteUnavailable | null };
+
+/**
+ * ID로 초대 (mobile CollectionShareScreen's ID tab): type one exact Juple ID, 찾기 looks it up (only then - never while typing), the
+ * person shows with their photo, name and @ID, and - unless it is me, they are already in or already invited (each said plainly) -
+ * a role and 초대 보내기. The same invitation as from the friend list (POST .../invitations { jupleId, role }), never below the public
+ * link's level; once sent the person appears under 초대 대기 and the field is ready for the next ID.
+ */
+function IdInvite({
+  collectionId,
+  participants,
+  minimumRole,
+  disabled,
+  onInvited,
+}: {
+  readonly collectionId: number;
+  readonly participants: CollectionParticipants | null;
+  readonly minimumRole: InvitationRole | null;
+  readonly disabled: boolean;
+  readonly onInvited: () => void;
+}) {
+  const { api, dictionary, onSessionLost } = useSignedInApp();
+  const [typed, setTyped] = useState('');
+  const [lookup, setLookup] = useState<IdLookupState>({ kind: 'idle' });
+  const [chosenRole, setChosenRole] = useState<InvitationRole>('viewer');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const role = raiseToMinimum(chosenRole, minimumRole);
+  // A person found before the list changed (someone accepted, an invitation was sent elsewhere) is judged against the current list.
+  const unavailable = lookup.kind === 'found' ? (idInviteUnavailable(lookup.person, participants) ?? lookup.unavailable) : null;
+
+  const lost = (caught: unknown) => {
+    if (isSessionLost(caught)) {
+      onSessionLost();
+      return true;
+    }
+    return false;
+  };
+
+  const find = (event: React.FormEvent) => {
+    event.preventDefault();
+    const jupleId = normalizeTypedJupleId(typed);
+    if (!jupleId || lookup.kind === 'searching' || disabled) {
+      return;
+    }
+    setLookup({ kind: 'searching' });
+    setSendError(null);
+    api<JupleIdLookup>({ method: 'POST', path: JUPLE_ID_LOOKUP_PATH, body: { jupleId } }).then(
+      person => setLookup({ kind: 'found', person, unavailable: idInviteUnavailable(person, participants) }),
+      caught => {
+        if (!lost(caught)) {
+          setLookup({ kind: 'error', message: lookupFailure(caught, dictionary) });
+        }
+      },
+    );
+  };
+
+  const send = () => {
+    if (lookup.kind !== 'found' || unavailable !== null || sending) {
+      return;
+    }
+    setSending(true);
+    setSendError(null);
+    api<unknown>({ method: 'POST', path: invitationsPath(collectionId), body: idInviteBody(lookup.person.jupleId, role, minimumRole), headers: unlockHeaders(collectionId) }).then(
+      () => {
+        setSending(false);
+        setTyped('');
+        setChosenRole('viewer');
+        setLookup({ kind: 'idle' });
+        onInvited();
+      },
+      caught => {
+        setSending(false);
+        if (!lost(caught)) {
+          setSendError(inviteErrorMessage(caught, dictionary));
+        }
+      },
+    );
+  };
+
+  return (
+    <div className={styles.idInvite} data-id-invite>
+      <form className={styles.idInviteForm} onSubmit={find}>
+        <input
+          aria-label={dictionary.idInviteTitle}
+          autoCapitalize="characters"
+          autoComplete="off"
+          className={styles.textInput}
+          dir="ltr"
+          disabled={disabled}
+          onChange={event => {
+            setTyped(event.target.value);
+            if (lookup.kind !== 'idle' && lookup.kind !== 'searching') {
+              setLookup({ kind: 'idle' });
+            }
+          }}
+          placeholder={dictionary.inviteIdPlaceholder}
+          spellCheck={false}
+          value={typed}
+        />
+        <button className={styles.settingsAction} disabled={disabled || !normalizeTypedJupleId(typed) || lookup.kind === 'searching'} type="submit">
+          {lookup.kind === 'searching' ? '…' : dictionary.inviteFind}
+        </button>
+      </form>
+      {lookup.kind === 'error' ? (
+        <p className={styles.fieldError} data-id-invite-state="error" role="alert">
+          {lookup.message}
+        </p>
+      ) : null}
+      {lookup.kind === 'found' ? (
+        <div className={styles.idInviteResult} data-id-invite-state={unavailable ?? 'available'}>
+          <div className={styles.idInvitePerson}>
+            <Avatar person={{ displayName: lookup.person.displayName, profileImageUrl: lookup.person.profileImageUrl }} size={40} />
+            <span className={styles.personText}>
+              <span className={styles.settingsValueStart} dir="auto">
+                {lookup.person.displayName?.trim() || formatJupleId(lookup.person.jupleId)}
+              </span>
+              <span className={styles.profileId} dir="ltr">
+                @{formatJupleId(lookup.person.jupleId)}
+              </span>
+            </span>
+          </div>
+          {unavailable !== null ? (
+            <p className={styles.stateMessage} role="status">
+              {idInviteUnavailableMessage(unavailable, dictionary)}
+            </p>
+          ) : (
+            <>
+              <div aria-label={dictionary.sharePermissionLabel} className={styles.filterTabs} role="group">
+                {selectableRoles(null).map(option => (
+                  <button
+                    aria-pressed={role === option}
+                    className={role === option ? styles.filterTabSelected : styles.filterTab}
+                    disabled={sending || raiseToMinimum(option, minimumRole) !== option}
+                    key={option}
+                    onClick={() => setChosenRole(option)}
+                    type="button"
+                  >
+                    {roleOptionLabel(option, dictionary)}
+                  </button>
+                ))}
+              </div>
+              <button className={styles.primaryAction} disabled={sending} onClick={send} type="button">
+                {sending ? dictionary.processing : dictionary.sendInvitations}
+              </button>
+            </>
+          )}
+          {sendError ? (
+            <p className={styles.fieldError} role="alert">
+              {sendError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -30,14 +30,20 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--text);
-  /* Latin first (unchanged), then each platform's own CJK families - system fonts only, nothing downloaded. Without them a
-     character the first CJK font lacks (a Japanese kana next to Korean / Han text) fell to whatever the OS had, e.g. Arial Unicode MS
-     on Windows, which has no bold face: a synthesized bold glyph mixed into a bold title. Korean keeps the platform's usual font
-     (Apple SD Gothic Neo / Noto Sans KR / Malgun Gothic); kana come from Hiragino / Yu Gothic / Noto with real bold faces. */
+  /* Latin first (unchanged), then each script's own system fonts - nothing downloaded, no brand font - in this order: Korean
+     (Pretendard only if the person installed it; it carries Hangul, not Han), Japanese (kana have real bold faces there, so a kana is
+     never a synthesized-bold glyph from Arial Unicode MS), Simplified, then Traditional Chinese; Noto CJK last (Linux). A Han
+     character takes the first of these that has it. Noto Sans KR (where installed) comes before Malgun Gothic: it has a real 600
+     face, Malgun only 400 / 700, so a 600 title would otherwise be drawn in Malgun's heavier bold. */
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic',
-    'Hiragino Sans', 'Yu Gothic UI', Meiryo, 'Noto Sans JP', 'PingFang SC', 'PingFang TC', 'Microsoft YaHei UI', 'Microsoft JhengHei UI',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic',
+    'Hiragino Sans', 'Yu Gothic UI', Meiryo, 'Noto Sans JP',
+    'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC',
+    'PingFang TC', 'Microsoft JhengHei UI', 'Microsoft JhengHei', 'Noto Sans TC',
     'Noto Sans CJK KR', 'Noto Sans CJK JP', 'Noto Sans CJK SC', 'Noto Sans CJK TC', sans-serif;
+  /* Never a synthesized bold: a face without bold shows its own regular face instead of smeared strokes. */
+  font-synthesis-weight: none;
 }
 
 a {

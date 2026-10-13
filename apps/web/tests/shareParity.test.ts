@@ -163,8 +163,10 @@ describe('Web parity: Collection sharing', () => {
   });
 
   it('members and invitations: change role, remove a member, cancel an invitation - each asks first and uses the mobile endpoints', () => {
-    assert.match(sharing, /method: 'PUT', path: sharePaths\.collaboratorRole\(collection\.id, person\.jupleId\), body: \{ role \}/);
-    assert.match(sharing, /method: 'PUT', path: sharePaths\.invitationRole\(collection\.id, invitation\.invitationId\), body: \{ role \}/);
+    // One role-change path for both (it also shows the asked role at once and puts the server's back on a refusal).
+    assert.match(sharing, /await api<unknown>\(\{ method: 'PUT', path, body: \{ role \}, headers: unlockHeaders\(collection\.id\) \}\);/);
+    assert.match(sharing, /changeRole\(`member-\$\{person\.jupleId\}`, role, sharePaths\.collaboratorRole\(collection\.id, person\.jupleId\)\)/);
+    assert.match(sharing, /changeRole\(`invitation-\$\{invitation\.invitationId\}`, role, sharePaths\.invitationRole\(collection\.id, invitation\.invitationId\)\)/);
     assert.match(sharing, /setConfirmation\(\{ kind: 'removeMember', person \}\)/);
     assert.match(sharing, /setConfirmation\(\{ kind: 'cancelInvitation', invitation \}\)/);
     assert.match(sharing, /method: 'DELETE', path: sharePaths\.invitation\(collection\.id, invitation\.invitationId\)/);

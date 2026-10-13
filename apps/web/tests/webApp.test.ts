@@ -734,4 +734,17 @@ describe('production image', () => {
     assert.match(runner, /^COPY --from=builder \/app\/public \.\/public$/m);
     assert.match(readFileSync(new URL('../app/(app)/BrandIcon.tsx', import.meta.url), 'utf8'), /src="\/brand\/juple-app-icon-256\.png"/);
   });
+
+  it('the non-root server can write the image cache (.next/cache) - and only that; it never runs as root', () => {
+    const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    const runner = dockerfile.slice(dockerfile.lastIndexOf('AS runner'));
+    const cacheSetup = runner.search(/^RUN mkdir -p \.next\/cache && chown node:node \.next\/cache$/m);
+    assert.ok(cacheSetup > 0, 'the image cache directory is created for "node"');
+    // After every copy (a later COPY would create it root-owned again), before switching to the server's user.
+    assert.ok(cacheSetup > runner.lastIndexOf('COPY --from=builder'));
+    assert.ok(cacheSetup < runner.indexOf('USER node'));
+    const users = [...runner.matchAll(/^USER (\S+)$/gm)].map(match => match[1]);
+    assert.deepEqual(users, ['node']);
+    assert.doesNotMatch(runner, /chmod|777|chown -R|--chown/);
+  });
 });

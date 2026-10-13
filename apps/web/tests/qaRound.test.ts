@@ -105,7 +105,7 @@ describe('5. titles people wrote, in Han / Kanji', () => {
   it('the font stack keeps Latin first and adds each platform\'s CJK system fonts (no web font, nothing downloaded)', () => {
     const globals = source('app/globals.css');
     const stack = globals.slice(globals.indexOf('font-family:'), globals.indexOf(';', globals.indexOf('font-family:')));
-    assert.match(stack, /^font-family:\s*-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, /);
+    assert.match(stack, /^font-family:\s*-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,\s/);
     for (const family of ["'Apple SD Gothic Neo'", "'Noto Sans KR'", "'Malgun Gothic'", "'Hiragino Sans'", "'Yu Gothic UI'", "'PingFang SC'", "'Microsoft YaHei UI'", "'Microsoft JhengHei UI'", "'Noto Sans CJK JP'"]) {
       assert.ok(stack.includes(family), family);
     }
