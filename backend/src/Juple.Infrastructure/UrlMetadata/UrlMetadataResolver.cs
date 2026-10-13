@@ -61,6 +61,7 @@ public sealed class UrlMetadataResolver(
         var lastAttemptedHost = initialUri.Host;
         UrlMetadataImageSource? imageSourceForDiagnostics = null;
         string? youTubeImageVariantForDiagnostics = null;
+        string? tikTokOutcomeForDiagnostics = null;
 
         using var budgetCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budgetCts.CancelAfter(TotalRequestBudget);
@@ -101,6 +102,19 @@ public sealed class UrlMetadataResolver(
                 }
 
                 lastAttemptedHost = currentUri.Host;
+
+                // A TikTok post (shared directly, or reached through a vm./vt.tiktok.com short link's
+                // redirect hops above): its HTML page is only TikTok's app shell, so the metadata comes
+                // from TikTok's official oEmbed endpoint instead - title and thumbnail only, fail-open
+                // (see TikTokOEmbedResolver). The page itself is never fetched.
+                if (TikTokOEmbedResolver.TryGetCanonicalPostUrl(currentUri, out var tikTokPostUri))
+                {
+                    var tikTok = await TikTokOEmbedResolver.ResolveAsync(httpClient, tikTokPostUri!, budgetCts.Token);
+                    result = new UrlMetadataResult(
+                        tikTok.Title, tikTok.Title is null ? null : UrlMetadataSource.TikTokOEmbed, tikTok.ThumbnailUrl);
+                    tikTokOutcomeForDiagnostics = tikTok.Outcome;
+                    break;
+                }
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, currentUri);
                 var cookieHeader = cookieContainer.GetCookieHeader(currentUri);
@@ -284,6 +298,15 @@ public sealed class UrlMetadataResolver(
         }
 
         var elapsedMs = timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
+        if (tikTokOutcomeForDiagnostics is not null)
+        {
+            // Fixed outcome categories only (ok / no_metadata / rate_limited / http_status_N / timeout /
+            // invalid_json / network_error) - never the post URL, handle, id, title or thumbnail URL.
+            logger.LogInformation(
+                "URL metadata TikTok oEmbed. Outcome={TikTokOutcome} TitleFound={TitleFound} ImageFound={ImageFound} RedirectCount={RedirectCount}",
+                tikTokOutcomeForDiagnostics, result.Title is not null, result.PreviewImageUrl is not null, redirectCount);
+        }
+
         LogOutcome(
             lastAttemptedHost, result, imageSourceForDiagnostics, youTubeImageVariantForDiagnostics,
             failureCategory, redirectCount, elapsedMs);

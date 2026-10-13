@@ -289,6 +289,13 @@ public static partial class HtmlTitleExtractor
     /// </summary>
     private static bool IsKnownPlaceholderTitle(string host, string normalizedTitle)
     {
+        // TikTok's app shell ("TikTok - Make Your Day") - what a TikTok page that is not a post (or a
+        // post page fetched as HTML) says about itself; never a title of the shared content.
+        if (TikTokOEmbedResolver.IsTikTokHost(host))
+        {
+            return TikTokOEmbedResolver.IsKnownPlaceholderTitle(normalizedTitle);
+        }
+
         if (!YouTubeThumbnailResolver.IsYouTubeHost(host))
         {
             return false;

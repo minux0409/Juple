@@ -7,4 +7,7 @@ public enum UrlMetadataSource
     Twitter,
     HtmlTitle,
     YouTubeOEmbed,
+
+    /// <summary>TikTok's official oEmbed endpoint (a TikTok post URL - see TikTokOEmbedResolver).</summary>
+    TikTokOEmbed,
 }
