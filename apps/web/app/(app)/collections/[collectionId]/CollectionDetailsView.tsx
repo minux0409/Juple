@@ -31,6 +31,11 @@ import { collectionNewLinksReadPath, type NotificationReadResult } from '../../.
 import { CollectionTileView } from '../CollectionsView';
 import { Modal } from '../../Modal';
 import { ParticipantsPanel, ParticipantStack, SharePanel } from './CollectionSharing';
+import { CloneCollectionDialog } from './CloneCollectionDialog';
+import { MergeCollection } from './MergeCollection';
+import { MergeUndoBanner } from './MergeUndoBanner';
+import { canMergeCollection, peekMergeUndo } from '../../../../lib/collectionOperations';
+import { ActionMenu, type MenuAction } from '../../Popover';
 import { UnlockPanel } from './UnlockPanel';
 import {
   appendUnique,
@@ -90,7 +95,11 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [participantsFailed, setParticipantsFailed] = useState(false);
   const [participantsToken, setParticipantsToken] = useState(0);
   const [memberShareUrl, setMemberShareUrl] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'share' | 'participants' | null>(null);
+  const [panel, setPanel] = useState<'share' | 'participants' | 'clone' | 'merge' | null>(null);
+  // Arrived here from 다른 컬렉션과 병합: 되돌리기 is offered for a moment (in memory only; see MergeUndoBanner).
+  const [mergeUndo, setMergeUndo] = useState(() => (collectionId === null ? null : peekMergeUndo(collectionId)));
+  const [mergeFailure, setMergeFailure] = useState<string | null>(null);
+  const closeMergeUndo = useCallback(() => setMergeUndo(null), []);
 
   // The content is really open (its links were read, past the lock / share-password gate): that is reading its 새 링크 notifications,
   // as on mobile - once per visit (and again after an unlock), best effort; the bell takes the server's new total. Its 승인 대기 count is
@@ -281,6 +290,15 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
         isTogglingFavorite={isTogglingFavorite}
         memberShareUrl={memberShareUrl}
         onOpenParticipants={() => setPanel('participants')}
+        menuActions={
+          // A Collection shared with me, its content open: 내 컬렉션으로 복제. My own, nobody else in it, its content open: 다른 컬렉션과
+          // 병합 (the server refuses anything else too). The two never appear together.
+          isSharedWithMe(collection) && !gate
+            ? [{ key: 'clone', label: dictionary.cloneToMine, icon: 'Copy', onSelect: () => setPanel('clone') }]
+            : canMergeCollection(collection, !gate && (!isCollectionLocked(collection) || unlockTokenFor(collection.id) !== null))
+              ? [{ key: 'merge', label: dictionary.mergeWithOther, icon: 'Move', onSelect: () => setPanel('merge') }]
+              : []
+        }
         onOpenShare={() => setPanel('share')}
         onToggleFavorite={toggleFavorite}
         participants={participants}
@@ -295,6 +313,19 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           participantsFailed={participantsFailed}
         />
       </Modal>
+      {panel === 'clone' ? <CloneCollectionDialog collection={collection} onClose={() => setPanel(null)} /> : null}
+      {panel === 'merge' ? <MergeCollection collection={collection} onClose={() => setPanel(null)} onFailed={setMergeFailure} /> : null}
+      {mergeUndo ? (
+        <MergeUndoBanner
+          onDone={closeMergeUndo}
+          onUndone={() => {
+            setReloadToken(token => token + 1);
+            setContentToken(token => token + 1);
+          }}
+          undo={mergeUndo}
+        />
+      ) : null}
+      {mergeFailure ? <p className={styles.fieldError} data-merge-failed role="alert">{mergeFailure}</p> : null}
       <Modal closeLabel={dictionary.close} onClose={() => setPanel(null)} open={panel === 'participants'} title={dictionary.participantsTitle}>
         <ParticipantsPanel data={participants} dictionary={dictionary} failed={participantsFailed} />
       </Modal>
@@ -389,6 +420,7 @@ function CollectionHeader({
   participantsFailed,
   memberShareUrl,
   onOpenShare,
+  menuActions,
   onOpenParticipants,
 }: {
   readonly collection: CollectionDetail;
@@ -399,6 +431,7 @@ function CollectionHeader({
   readonly participantsFailed: boolean;
   readonly memberShareUrl: string | null;
   readonly onOpenShare: () => void;
+  readonly menuActions: readonly MenuAction[];
   readonly onOpenParticipants: () => void;
 }) {
   // Mobile: the circles exist whenever someone else is in it (the Collection says how many); the full list replaces the
@@ -456,6 +489,7 @@ function CollectionHeader({
             {dictionary.collectionEdit}
           </Link>
         ) : null}
+        <ActionMenu actions={menuActions} label={dictionary.manageAction} />
       </div>
     </div>
   );

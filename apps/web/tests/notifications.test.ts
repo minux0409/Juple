@@ -139,7 +139,9 @@ describe('the bell and its panel', () => {
     const css = read('app/(app)/app.module.css');
     assert.match(css, /grid-template-areas:\s*'side main';/);
     assert.doesNotMatch(css, /utility/);
-    assert.doesNotMatch(css, /position: fixed/, 'never fixed to the window');
+    // The bell never floats: the one fixed rule is the pill / ⋯ menu panel (it escapes a scrolling list).
+    const fixedRules = [...css.matchAll(/([^{}]+)\{[^{}]*position: fixed/g)].map(match => match[1].trim().split('\n').pop());
+    assert.deepEqual(fixedRules, ['.floatingPanel'], 'never fixed to the window');
   });
 
   it('the button: named with the count, a badge only when unread, expanded state, a dialog panel', () => {

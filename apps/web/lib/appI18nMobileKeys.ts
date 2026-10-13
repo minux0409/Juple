@@ -515,6 +515,38 @@ export const MOBILE_STRING_KEYS = {
   reactionMineA11y: 'reactions.mineA11y',
   reactionChipA11y: 'reactions.chipA11y',
   reactionMoreKindsA11y: 'reactions.moreKindsA11y',
+  // 고객센터 (mobile CustomerCenterScreen)
+  customerCenterTitle: 'customerCenter.title',
+  customerCenterTerms: 'customerCenter.terms',
+  customerCenterPrivacy: 'customerCenter.privacy',
+  customerCenterInquiry: 'inquiry.title',
+  // moving / copying links (mobile CollectionDetailsScreen link + Collection menus)
+  manageAction: 'collections.manageAction',
+  copyToMine: 'collections.copyToMine',
+  addToOther: 'collections.addToOther',
+  moveToOther: 'collections.moveToOther',
+  copyResultAll: 'collections.copyResultAll',
+  copyResultPartial: 'collections.copyResultPartial',
+  copyResultSkipped: 'collections.copyResultSkipped',
+  copyResultUnavailable: 'collections.copyResultUnavailable',
+  replicateResultNone: 'collections.replicateResultNone',
+  replicateResultAll: 'collections.replicateResultAll',
+  replicateResultPartial: 'collections.replicateResultPartial',
+  copyError: 'collections.copyError',
+  moveError: 'collections.moveError',
+  replicateError: 'collections.replicateError',
+  moveSuccess: 'toast.moveSuccess',
+  destinationsEmpty: 'collections.addModalEmpty',
+  destinationsLoadFailed: 'collections.errorTargetLoadFallback',
+  copyDestinationsFailed: 'collections.copyDestinationsFailed',
+  // 다른 컬렉션과 병합 (mobile confirmMergeAction)
+  mergeWithOther: 'collections.mergeWithOther',
+  mergeTitle: 'collections.mergeTitle',
+  mergeAction: 'collections.mergeAction',
+  mergeError: 'collections.mergeError',
+  mergeSuccess: 'toast.collectionMergeSuccess',
+  undoAction: 'toast.undoAction',
+  undoMergeError: 'toast.undoCollectionMergeError',
 } as const;
 
 export type MobileStringKey = keyof typeof MOBILE_STRING_KEYS;

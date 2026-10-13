@@ -1,7 +1,7 @@
 'use client';
 
 import { adderLabel } from '../../../../../../lib/itemDetails';
-import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl } from '../../../../../../lib/savedLinks';
+import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Glyph } from '../../../../Glyph';
 import { BackButton, LoadFailed, Notice } from '../../../../PageStates';
@@ -9,7 +9,8 @@ import { ItemDetailSkeleton } from '../../../../Skeletons';
 import { linkTitleText } from '../../../../SavedLinkList';
 import { ItemPhoto, OpenLinkButton, SourceRow } from '../../../../ItemParts';
 import { ItemCollaboration } from '../../../../ItemCollaboration';
-import { adderText, useSharedItem } from './SharedItemContent';
+import { adderText, useCopyToMine, useSharedItem } from './SharedItemContent';
+import { ActionMenu } from '../../../../Popover';
 import styles from '../../../../app.module.css';
 
 /**
@@ -20,6 +21,7 @@ import styles from '../../../../app.module.css';
 export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly collectionIdParam: string; readonly itemIdParam: string }) {
   const { dictionary, locale } = useSignedInApp();
   const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
+  const copy = useCopyToMine(collectionId, parseRouteId(itemIdParam));
 
   const back = <BackButton dictionary={dictionary} fallbackHref={collectionId === null ? '/collections' : collectionHref(collectionId)} />;
 
@@ -83,7 +85,12 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
             </div>
           </dl>
           <p className={styles.readOnlyNote}>{dictionary.sharedItemReadOnly}</p>
-          <OpenLinkButton dictionary={dictionary} url={item.url} />
+          <div className={styles.formActions}>
+            <OpenLinkButton dictionary={dictionary} url={item.url} />
+            <ActionMenu actions={copy.actions} label={dictionary.linkActionsLabel} />
+          </div>
+          {copy.notice}
+          {copy.dialog}
         </div>
       </article>
       {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}

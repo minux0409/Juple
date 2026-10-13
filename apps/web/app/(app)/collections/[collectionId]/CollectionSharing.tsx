@@ -56,6 +56,7 @@ import { useSignedInApp } from '../../AppRoot';
 import { Avatar } from '../../Avatar';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { Glyph } from '../../Glyph';
+import { PillListbox } from '../../Popover';
 import { SettingsRowSkeleton } from '../../Skeletons';
 import { FriendPicker } from './FriendPicker';
 import styles from '../../app.module.css';
@@ -770,7 +771,7 @@ export function SharePanel({
                   {participants.pendingInvitations.map(invitation => {
                     const key = `invitation-${invitation.invitationId}`;
                     return (
-                      <li className={`${styles.personCard} ${styles.personCardPending}`} data-person-row="pending" key={invitation.invitationId}>
+                      <li className={styles.personCard} data-person-row="pending" key={invitation.invitationId}>
                         <ParticipantIdentity
                           dictionary={dictionary}
                           pending
@@ -882,8 +883,8 @@ export function SharePanel({
 }
 
 /**
- * A member's (or invitation's) role, drawn as its badge with a chevron - a native select underneath, so the keyboard, screen readers and
- * the platform's own list all work. Only the real levels (읽기 전용 / 승인 후 추가 / 링크 추가), lowest first, none below the public link's
+ * The one role selector of members AND invitations: its pill with a chevron opening a panel in the same look (PillListbox - a real
+ * button + listbox, never the platform's own square menu). Only the real levels (읽기 전용 / 승인 후 추가 / 링크 추가), lowest first, none below the public link's
  * level; the Owner never has one (their row shows the 소유자 badge). One fixed width, so a longer label or the busy state never moves the
  * row. While a change is on its way the row is busy; a refusal puts the server's role back (SharePanel.changeRole).
  */
@@ -908,22 +909,14 @@ function RoleSelect({
   const roles = selectableRoles(minimumRole);
   const options = roles.includes(value) ? roles : [value, ...roles];
   return (
-    <span aria-busy={changing} className={changing ? `${styles.roleControl} ${styles.roleControlBusy}` : styles.roleControl} data-role-control>
-      <select
-        aria-label={formatMessage(dictionary.permissionA11y, { name })}
-        className={styles.roleSelect}
-        disabled={busy}
-        onChange={event => onChange(event.target.value as InvitationRole)}
-        value={value}
-      >
-        {options.map(role => (
-          <option key={role} value={role}>
-            {roleOptionLabel(role, dictionary)}
-          </option>
-        ))}
-      </select>
-      <Glyph className={styles.roleControlChevron} name="Chevron" size={14} />
-    </span>
+    <PillListbox
+      busy={changing}
+      disabled={busy}
+      label={formatMessage(dictionary.permissionA11y, { name })}
+      onChange={onChange}
+      options={options.map(role => ({ value: role, label: roleOptionLabel(role, dictionary) }))}
+      value={value}
+    />
   );
 }
 

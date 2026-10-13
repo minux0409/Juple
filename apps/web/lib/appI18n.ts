@@ -131,6 +131,21 @@ export interface WebOnlyStrings {
   readonly notificationsAppOnly: string;
   readonly notificationsReadAllFailed: string;
   readonly removeFromCollectionAction: string;
+  /** 구독: the Web never sells - starting a subscription and its payment are the app's. */
+  readonly subscriptionWebAppOnly: string;
+  /** the ⋯ menu of a link (move / copy) */
+  readonly linkActionsLabel: string;
+  /** a Collection shared with me -> a new one of mine */
+  readonly cloneToMine: string;
+  readonly cloneHint: string;
+  readonly cloneSubmit: string;
+  readonly cloneOpen: string;
+  readonly clonePartialFailure: string;
+  readonly confirmMove: string;
+  readonly confirmCopy: string;
+  /** 다른 컬렉션과 병합 - the confirmation before anything happens */
+  readonly mergeConfirmTitle: string;
+  readonly mergeConfirmBody: string;
 }
 
 export type AppDictionary = WebOnlyStrings & Readonly<Record<MobileStringKey, string>>;

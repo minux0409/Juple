@@ -11,7 +11,8 @@ export const MY_PAGE_SECTION_IDS = { subscription: 'subscription', account: 'acc
 
 /**
  * 구독, read-only: the ONE status the server reported (bootstrap entitlement + storeSubscription) with only the dates it sent, and
- * Google Play's own page to manage a Play subscription. Buying, restoring and the price stay in the Android app; the Web does not sell.
+ * Google Play's own page to manage a Play subscription. Buying, restoring and the price stay in the app; the Web does not sell, and
+ * says so to everyone (subscriptionWebAppOnly).
  */
 export function SubscriptionSection({ showTitle = true }: { readonly showTitle?: boolean } = {}) {
   const { dictionary, locale, entitlement, storeSubscription } = useSignedInApp();
@@ -75,14 +76,20 @@ export function SubscriptionSection({ showTitle = true }: { readonly showTitle?:
             </div>
           ))}
         {note ? <p className={styles.settingsNote}>{note}</p> : null}
+        {/* A Play subscriber keeps Google Play's OWN page (cancel / payment method, as the app opens it) - never a checkout of ours. */}
         {subscribedOnPlay ? (
-          <a className={styles.settingsLinkRow} href={PLAY_SUBSCRIPTIONS_URL} rel="noopener noreferrer" target="_blank">
-            <span className={styles.settingsLinkLabel}>{dictionary.subscriptionManage}</span>
-            <Glyph className={styles.settingsRowIcon} name="ExternalLink" size={16} />
-          </a>
-        ) : (
-          <p className={styles.settingsNote}>{dictionary.subscriptionUnavailablePlatform}</p>
-        )}
+          <>
+            <p className={styles.settingsNote}>{dictionary.subscriptionInfoStoreBody}</p>
+            <a className={`${styles.settingsRow} ${styles.settingsRowAction}`} href={PLAY_SUBSCRIPTIONS_URL} rel="noopener noreferrer" target="_blank">
+              <span className={styles.settingsLabel}>{dictionary.subscriptionManage}</span>
+              <Glyph className={styles.settingsRowIcon} name="ExternalLink" size={16} />
+            </a>
+          </>
+        ) : null}
+        {/* The Web never sells: no price, plan or purchase here - starting a subscription and paying are the app's. */}
+        <p className={styles.settingsNote} data-subscription-app-only>
+          {dictionary.subscriptionWebAppOnly}
+        </p>
       </div>
     </section>
   );

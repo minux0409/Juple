@@ -5,7 +5,8 @@ import { useState } from 'react';
 import type { AppDictionary } from '../../../../lib/appI18n';
 import { isSessionLost } from '../../../../lib/authSession';
 import { collectionTile, type CollectionSummary } from '../../../../lib/collectionsView';
-import { unlockHeaders } from '../../../../lib/collectionUnlock';
+import { unlockHeaders, unlockTokenFor } from '../../../../lib/collectionUnlock';
+import { grantHeaders, isCollaborationActive, membershipPath, moveStrategy, replicatePath, replicateResultMessage, transferPath, type ReplicateResult } from '../../../../lib/collectionOperations';
 import { representativePhotoUrl, type ItemImage } from '../../../../lib/itemDetails';
 import { itemContextSearch, itemDeleteErrorMessage, itemEditHref, membershipErrorMessage } from '../../../../lib/itemEdit';
 import { notifyItemsChanged } from '../../../../lib/itemChanges';
@@ -14,6 +15,8 @@ import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, par
 import { useSignedInApp } from '../../AppRoot';
 import { ItemCollaboration } from '../../ItemCollaboration';
 import { ConfirmDialog } from '../../ConfirmDialog';
+import { DestinationDialog, type PickedDestination } from '../../DestinationDialog';
+import { ActionMenu } from '../../Popover';
 import { CollectionGlyph, Glyph } from '../../Glyph';
 import { LinkImage } from '../../LinkImage';
 import { LoadFailed, Notice } from '../../PageStates';
@@ -53,6 +56,8 @@ export function ItemDetailContent({
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [destination, setDestination] = useState<'replicate' | 'move' | null>(null);
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
 
   if (state.kind === 'notFound') {
     return <Notice message={dictionary.itemLoadFailed} />;
@@ -90,6 +95,46 @@ export function ItemDetailContent({
   const hasImage = photoUrl !== null;
   const search = itemContextSearch({ lockedBy, fromCollectionId });
   const removeFromCollection = fromCollectionId !== null;
+
+  /** 다른 컬렉션에 복제: more memberships of this one Item in one request (never a copy of it); what was already there is skipped. */
+  const replicateTo = async (picked: readonly PickedDestination[]) => {
+    const unlockTokens: Record<number, string> = {};
+    for (const entry of picked) {
+      if (entry.unlockToken) {
+        unlockTokens[entry.collection.id] = entry.unlockToken;
+      }
+    }
+    const result = await api<ReplicateResult>({ method: 'POST', path: replicatePath(itemId), body: { collectionIds: picked.map(entry => entry.collection.id), unlockTokens } });
+    setLinkNotice(replicateResultMessage(result, dictionary));
+    reloadCollections();
+    notifyItemsChanged();
+  };
+
+  /**
+   * 다른 컬렉션으로 이동 (mobile moveItemTo): the server's one atomic move between two Collections nobody else is in; otherwise - or when
+   * the server still sees collaboration (a pending invitation) - add to the destination FIRST, then take it out of here, so a failure in
+   * between leaves the link in both, never in neither. The link is no longer in this Collection afterwards: its details close.
+   */
+  const moveTo = async (target: PickedDestination) => {
+    const source = collections.kind === 'loaded' ? collections.items.find(entry => entry.id === fromCollectionId) : undefined;
+    let moved = false;
+    if (source && moveStrategy(source, target.collection) === 'atomic') {
+      try {
+        await api<unknown>({ method: 'POST', path: transferPath(fromCollectionId as number, itemId), body: { targetCollectionId: target.collection.id }, headers: grantHeaders(unlockTokenFor(fromCollectionId as number), target.unlockToken) });
+        moved = true;
+      } catch (caught) {
+        if (!isCollaborationActive(caught)) {
+          throw caught;
+        }
+      }
+    }
+    if (!moved) {
+      await api<unknown>({ method: 'PUT', path: membershipPath(target.collection.id, itemId), headers: grantHeaders(target.unlockToken) });
+      await api<void>({ method: 'DELETE', path: membershipPath(fromCollectionId as number, itemId), headers: unlockHeaders(fromCollectionId as number) });
+    }
+    notifyItemsChanged();
+    onLeave();
+  };
 
   const run = () => {
     if (busy) {
@@ -151,6 +196,17 @@ export function ItemDetailContent({
           >
             <Glyph name="Edit" size={20} />
           </Link>
+          {/* Opened IN a Collection: 다른 컬렉션에 복제 / 이동 behind one ⋯ (the column never grows a row per action). */}
+          {removeFromCollection ? (
+            <ActionMenu
+              actions={[
+                { key: 'replicate', label: dictionary.addToOther, icon: 'Copy', onSelect: () => setDestination('replicate') },
+                { key: 'move', label: dictionary.moveToOther, icon: 'Move', onSelect: () => setDestination('move') },
+              ]}
+              className={styles.quickActionButton}
+              label={dictionary.linkActionsLabel}
+            />
+          ) : null}
           <button
             aria-label={removeFromCollection ? dictionary.removeFromCollectionAction : dictionary.delete}
             className={styles.quickActionDanger}
@@ -202,6 +258,23 @@ export function ItemDetailContent({
         <p className={styles.fieldError} role="alert">
           {actionError}
         </p>
+      ) : null}
+      {linkNotice ? (
+        <p className={styles.formNotice} role="status">
+          {linkNotice}
+        </p>
+      ) : null}
+      {destination !== null && fromCollectionId !== null ? (
+        <DestinationDialog
+          confirmLabel={destination === 'move' ? dictionary.confirmMove : dictionary.cloneSubmit}
+          contained={destination === 'replicate' && collections.kind === 'loaded' ? collections.items.map(entry => entry.id) : []}
+          errorMessage={() => (destination === 'move' ? dictionary.moveError : dictionary.replicateError)}
+          excluded={destination === 'move' ? [fromCollectionId] : []}
+          onClose={() => setDestination(null)}
+          onSubmit={picked => (destination === 'move' ? moveTo(picked[0]) : replicateTo(picked))}
+          selection={destination === 'move' ? 'single' : 'multiple'}
+          title={destination === 'move' ? dictionary.moveToOther : dictionary.addToOther}
+        />
       ) : null}
       {/* Opened from a Collection that has other people in it: that Collection's reactions and comments on this link (mobile
           ItemDetails' collaboration hand-off). Never for a link opened from Home / 보관함 - it is not IN a Collection there. */}

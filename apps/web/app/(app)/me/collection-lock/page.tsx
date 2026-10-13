@@ -172,8 +172,9 @@ export default function CollectionLockPage() {
           {form === null ? (
             status.isConfigured ? (
               <>
-                <button className={styles.settingsLinkRow} onClick={() => setForm('change')} type="button">
-                  <span className={styles.settingsLinkLabel}>{dictionary.collectionLockChangePassword}</span>
+                {/* The same row and words as 상태 above (settingsRow + settingsLabel); the chevron, pointer and hover say it is an action. */}
+                <button className={`${styles.settingsRow} ${styles.settingsRowAction}`} onClick={() => setForm('change')} type="button">
+                  <span className={styles.settingsLabel}>{dictionary.collectionLockChangePassword}</span>
                   <Glyph className={styles.settingsChevron} name="Chevron" size={16} />
                 </button>
                 <div className={styles.settingsBlock}>

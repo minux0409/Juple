@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { AppDictionary } from '../../../../../../lib/appI18n';
+import { formatMessage, type AppDictionary } from '../../../../../../lib/appI18n';
 import { isSessionLost } from '../../../../../../lib/authSession';
 import { contentGateOf, isNotFound } from '../../../../../../lib/collectionDetails';
 import { adderLabel, sharedItemPath, type SharedCollectionItem } from '../../../../../../lib/itemDetails';
-import { unlockHeaders } from '../../../../../../lib/collectionUnlock';
+import { unlockHeaders, unlockTokenFor } from '../../../../../../lib/collectionUnlock';
+import { addCopyResults, copyItemsPath, copyResultMessage, grantHeaders, NO_COPY, type CopyResult } from '../../../../../../lib/collectionOperations';
 import { displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../../../lib/savedLinks';
 import { useSignedInApp } from '../../../../AppRoot';
 import { Glyph } from '../../../../Glyph';
@@ -14,6 +15,8 @@ import { linkTitleText } from '../../../../SavedLinkList';
 import { SiteIcon } from '../../../../SiteIcon';
 import { QuickThumb } from '../../../../items/[itemId]/ItemDetailContent';
 import { ItemCollaboration } from '../../../../ItemCollaboration';
+import { DestinationDialog, type PickedDestination } from '../../../../DestinationDialog';
+import { ActionMenu, type MenuAction } from '../../../../Popover';
 import styles from '../../../../app.module.css';
 
 export type SharedItemState =
@@ -70,6 +73,65 @@ export function useSharedItem(collectionIdParam: string, itemIdParam: string) {
   return { collectionId, state, reload };
 }
 
+/**
+ * 내 컬렉션으로 복사 of another member's link (mobile openSingleCopyPicker): into any of MY Collections, one request per destination,
+ * one after the other. The server makes my own new Item of the URL, title and automatic preview only - never their memo, photos, who
+ * added it, comments or reactions - and skips a URL the destination already has. Nothing copied anywhere rejects (the dialog stays,
+ * with the reason); a partial result says what was and was not copied.
+ */
+export function useCopyToMine(collectionId: number | null, itemId: number | null) {
+  const { api, dictionary } = useSignedInApp();
+  const [open, setOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const copyTo = async (picked: readonly PickedDestination[]) => {
+    if (collectionId === null || itemId === null) {
+      return;
+    }
+    let total = NO_COPY;
+    let failed = 0;
+    let firstFailure: unknown = null;
+    for (const destination of picked) {
+      try {
+        const result = await api<CopyResult>({
+          method: 'POST',
+          path: copyItemsPath(collectionId),
+          body: { destinationCollectionId: destination.collection.id, itemIds: [itemId] },
+          headers: grantHeaders(unlockTokenFor(collectionId), destination.unlockToken),
+        });
+        total = addCopyResults(total, result);
+      } catch (caught) {
+        firstFailure ??= caught;
+        failed += 1;
+      }
+    }
+    if (failed === picked.length) {
+      throw firstFailure;
+    }
+    setNotice(failed > 0 ? `${copyResultMessage(total, dictionary)} ${formatMessage(dictionary.copyDestinationsFailed, { count: failed })}` : copyResultMessage(total, dictionary));
+  };
+
+  const actions: readonly MenuAction[] = collectionId === null || itemId === null ? [] : [{ key: 'copyToMine', label: dictionary.copyToMine, icon: 'Copy', onSelect: () => setOpen(true) }];
+  const dialog =
+    open && collectionId !== null ? (
+      <DestinationDialog
+        confirmLabel={dictionary.confirmCopy}
+        errorMessage={() => dictionary.copyError}
+        excluded={[collectionId]}
+        onClose={() => setOpen(false)}
+        onSubmit={copyTo}
+        selection="multiple"
+        title={dictionary.copyToMine}
+      />
+    ) : null;
+  const noticeLine = notice ? (
+    <p className={styles.formNotice} role="status">
+      {notice}
+    </p>
+  ) : null;
+  return { actions, dialog, notice: noticeLine } as const;
+}
+
 export function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dictionary: AppDictionary): string {
   return adder.kind === 'me' ? dictionary.addedByMe : adder.kind === 'publicLink' ? dictionary.addedViaPublicLink : adder.name;
 }
@@ -83,6 +145,7 @@ export function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dic
 export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { readonly collectionIdParam: string; readonly itemIdParam: string }) {
   const { dictionary, locale } = useSignedInApp();
   const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
+  const copy = useCopyToMine(collectionId, parseRouteId(itemIdParam));
 
   if (state.kind === 'loading') {
     return (
@@ -127,13 +190,15 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
             <span>{site}</span>
           </p>
         </div>
-        {isSafeHttpUrl(item.url) ? (
-          <div className={styles.quickActions}>
+        <div className={styles.quickActions}>
+          {isSafeHttpUrl(item.url) ? (
             <a aria-label={dictionary.openLink} className={styles.quickActionButton} href={item.url} rel="noopener noreferrer" target="_blank" title={dictionary.openLink}>
               <Glyph name="ExternalLink" size={20} />
             </a>
-          </div>
-        ) : null}
+          ) : null}
+          {/* Not mine: never moved or edited here - only 내 컬렉션으로 복사 (a new link of my own). */}
+          <ActionMenu actions={copy.actions} className={styles.quickActionButton} label={dictionary.linkActionsLabel} />
+        </div>
       </div>
 
       <dl className={styles.quickGroups}>
@@ -159,6 +224,8 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
         </div>
       </dl>
       <p className={styles.readOnlyNote}>{dictionary.sharedItemReadOnly}</p>
+      {copy.notice}
+      {copy.dialog}
       {/* Read-only means not theirs to edit or delete - any member may still react and comment (mobile CollectionSharedItemScreen). */}
       {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}
     </article>

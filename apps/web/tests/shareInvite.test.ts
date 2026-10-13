@@ -132,11 +132,12 @@ describe('participants and invitations: rows, roles, destructive actions', () =>
     assert.match(css, /\.rowDanger:hover:not\(:disabled\),\n\.rowDanger:focus-visible \{\s*background: var\(--danger-soft\);/);
   });
 
-  it('participants and invitations are separate card lists; an invitation is dashed and says 수락 대기 under its @ID', () => {
+  it('participants and invitations are separate card lists on ONE surface; an invitation says 수락 대기 under its @ID', () => {
     assert.match(sharing, /<ul className=\{styles\.personCards\} data-members>/);
     assert.match(sharing, /<ul className=\{styles\.personCards\} data-pending>/);
     assert.match(sharing, /\{pending \? <span className=\{styles\.pendingCaption\}>\{dictionary\.participantsPendingStatus\}<\/span> : null\}/);
-    assert.match(rule('.personCardPending'), /border-style: dashed;/);
+    // Same card as a participant: the section and 수락 대기 already say it is waiting (no dashed or tinted card).
+    assert.doesNotMatch(sharing + css, /personCardPending|border-style: dashed/);
   });
 
   it('the role badge has one fixed width, so changing it never moves the row', () => {

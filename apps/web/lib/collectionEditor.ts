@@ -84,7 +84,7 @@ export interface CollectionDraft {
 }
 
 /** Mobile getCreateErrorMessage / getRenameErrorMessage: 409 = the name is taken, 400 = the name was refused. */
-function nameSaveError(error: unknown, dictionary: AppDictionary, fallback: string): string {
+export function nameSaveError(error: unknown, dictionary: AppDictionary, fallback: string): string {
   if (error instanceof ApiHttpError) {
     if (error.status === 409) {
       return dictionary.errorNameConflict;
