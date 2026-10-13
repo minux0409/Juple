@@ -73,6 +73,14 @@ param legalEffectiveDate string = ''
 param legalSupportEmail string = ''
 param legalPrivacyEmail string = ''
 
+@description('The signed-in Juple Web app (apps/web/app/(app) - see apps/web/lib/webAppConfig.ts): its Entra External ID sign-in (authority, tenant, the Web SPA app registration\'s client id, the Juple API scope), its own origin (the MSAL redirect bridge /auth/callback and the sign-out return) and the host of this environment\'s canonical Collection share links. Public identifiers, never secrets (a browser app has no client secret). Plain runtime env, never NEXT_PUBLIC_*. Empty (default) = the env var is not emitted at all, exactly like the legal values below: an environment that sets none (Production today) keeps exactly the env it has now and serves only the public pages; the signed-in pages then say sign-in is not configured instead of guessing a tenant.')
+param signedInWebEntraAuthority string = ''
+param signedInWebEntraTenantId string = ''
+param signedInWebEntraClientId string = ''
+param signedInWebEntraApiScope string = ''
+param signedInWebBaseUrl string = ''
+param signedInWebPublicHost string = ''
+
 @description('Launch gate. false (default - no behavior change for any existing environment): the optional settings above and below may stay empty. true: the deployment fails during validation unless every setting a public Production launch cannot go without is non-empty - the custom domain and its certificate, the Google Play URL, the Android assetlinks fingerprints and the operator\'s legal details (see launch-settings-guard.bicep). Production states it explicitly in prod.bicepparam (no default there), so a launch-ready web can never be deployed - or an incomplete one mistaken for launch-ready - by omission.')
 param launchSettingsRequired bool = false
 
@@ -96,6 +104,21 @@ var legalEnvEntries = {
 }
 // Only non-empty values become env vars (an empty one would mean the same as absent to the app).
 var legalEnv = map(filter(items(legalEnvEntries), entry => !empty(entry.value)), entry => {
+  name: entry.key
+  value: entry.value
+})
+
+// The signed-in Web app's runtime config (see the signedInWeb* params): only non-empty values become env vars, so an environment that
+// sets none keeps exactly the env it has today - no empty or placeholder sign-in values.
+var signedInWebEnvEntries = {
+  JUPLE_ENTRA_AUTHORITY: signedInWebEntraAuthority
+  JUPLE_ENTRA_TENANT_ID: signedInWebEntraTenantId
+  JUPLE_ENTRA_WEB_CLIENT_ID: signedInWebEntraClientId
+  JUPLE_ENTRA_API_SCOPE: signedInWebEntraApiScope
+  JUPLE_WEB_BASE_URL: signedInWebBaseUrl
+  JUPLE_PUBLIC_WEB_HOST: signedInWebPublicHost
+}
+var signedInWebEnv = map(filter(items(signedInWebEnvEntries), entry => !empty(entry.value)), entry => {
   name: entry.key
   value: entry.value
 })
@@ -238,7 +261,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ANDROID_ASSETLINKS_SHA256_FINGERPRINTS'
               value: androidAssetlinksSha256Fingerprints
             }
-          ], legalEnv)
+          ], legalEnv, signedInWebEnv)
           probes: [
             {
               // /robots.txt (app/robots.ts) is a static, always-200 route that touches neither the

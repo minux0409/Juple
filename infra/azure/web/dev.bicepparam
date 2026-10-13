@@ -69,6 +69,17 @@ param managedCertificateName = 'mc-cae-juple-dev-dev-juple-co-kr-6698'
 // value, not the other way around - never guess or regenerate one from an unrelated keystore.
 param androidAssetlinksSha256Fingerprints = '2C:5D:24:99:C2:D5:F6:5C:31:C4:73:20:C4:57:C7:DC:77:C4:A8:CB:B4:46:D0:84:77:E4:12:A4:82:92:A9:29,D8:10:EE:BB:B3:C6:90:3E:61:8F:77:5C:AB:37:14:90:C9:77:2F:72:82:C6:04:D0:F2:F8:0F:62:3C:FA:F1:2E,D5:2E:DD:99:E9:EC:7B:7F:38:12:9C:A9:1A:0F:12:9D:FE:CA:A0:6E:65:AF:F1:1B:D0:74:0B:4E:3C:F9:AB:D6'
 
+// The signed-in Juple Web app (apps/web/app/(app)) on Dev: the Dev External ID tenant and its "Juple Web (DEV)" SPA app registration
+// (whose SPA redirect URIs include https://dev.juple.co.kr/auth/callback), the Dev API scope, this site's own origin and the host of
+// Dev's Collection share links. Public identifiers of the Dev environment - the same values ../app/dev.bicepparam already states for the
+// API and apps/web/.env.local uses locally - never secrets (a browser app has no client secret).
+param signedInWebEntraAuthority = 'https://jupledev.ciamlogin.com'
+param signedInWebEntraTenantId = 'd2e79a05-cf5f-43ab-86d2-717e025a74b1'
+param signedInWebEntraClientId = 'd70ac03c-811e-4535-868e-9cb94d66db64'
+param signedInWebEntraApiScope = 'api://14bcc3b7-7b37-4051-9e40-63cc2a5ffc8b/access_as_user'
+param signedInWebBaseUrl = 'https://dev.juple.co.kr'
+param signedInWebPublicHost = 'dev.juple.co.kr'
+
 // Live Foundation/deploy-time values - see the file header comment above. Set the matching
 // environment variable in the deploying shell before running `az deployment group create` with
 // this file; never hardcode a real value on these lines.

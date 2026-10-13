@@ -99,10 +99,10 @@ param minReplicas = 1
 // commits), not a value that changes on an ordinary redeploy the way imageTag does.
 param publicWebBaseUrl = 'https://dev.juple.co.kr'
 
-// Browser origins of the signed-in Web app allowed to call the Dev API (AuthenticatedWeb:AllowedOrigins): the local Web dev
-// server only, which signs in with Dev Entra and must see the same Dev data as the Dev/dogfood mobile app. Add the real Dev
-// Web host here once the signed-in Web app is deployed on one.
-param authenticatedWebAllowedOrigins = ['http://localhost:3000']
+// Browser origins of the signed-in Web app allowed to call the Dev API (AuthenticatedWeb:AllowedOrigins): the deployed Dev Web
+// (https://dev.juple.co.kr, ../web/dev.bicepparam's signedInWeb* values) and the local Web dev server - both sign in with Dev Entra and
+// see the same Dev data as the Dev/dogfood mobile app.
+param authenticatedWebAllowedOrigins = ['http://localhost:3000', 'https://dev.juple.co.kr']
 
 // Live Foundation/deploy-time values and secrets - see the file header comment above. Set the
 // matching environment variable in the deploying shell before running `az deployment group
