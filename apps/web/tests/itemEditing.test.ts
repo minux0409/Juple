@@ -14,7 +14,8 @@ import { createPickerUnlockSession, unlockTokensFor } from '../lib/pickerUnlockS
 import { historyLinkView, inCollectionContext, collectionLinkView, type ItemHistoryEntry } from '../lib/savedLinks.ts';
 
 const ko = getAppDictionary('ko');
-const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+// Line endings normalized: a Windows checkout (core.autocrlf) has CRLF, and the block lookups below search for '\n'.
+const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const later = () => new Date(Date.now() + 10 * 60_000).toISOString();
 const collection = (id: number, extra: Partial<CollectionSummary> = {}): CollectionSummary => ({ id, name: `C${id}`, icon: 'Folder', color: null, itemCount: 0, isFavorite: false, ...extra });
 
