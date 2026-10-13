@@ -35,9 +35,10 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-# No `public/` directory exists in this app yet (confirmed - apps/web has none today); add
-# `COPY --from=builder /app/public ./public` here if one is introduced later (see the standalone
-# output doc's own note that `public`/`.next/static` are not copied automatically).
+# The standalone server serves `public/` (e.g. the brand icon /brand/juple-app-icon-256.png that the
+# sign-in page and the side bar show through next/image) only once it is copied next to server.js -
+# `public` and `.next/static` are never copied automatically (see the standalone output doc).
+COPY --from=builder /app/public ./public
 
 # node:alpine already ships a non-root "node" user/group - the same reason
 # backend/src/Juple.Api/Dockerfile switches off root for the API image.

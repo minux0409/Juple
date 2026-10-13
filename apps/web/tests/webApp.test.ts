@@ -725,3 +725,13 @@ describe('API call timing (development measurement)', () => {
     assert.match(readFileSync(new URL('../app/(app)/AppRoot.tsx', import.meta.url), 'utf8'), /process\.env\.NODE_ENV !== 'production'\s*\?\s*timing =>/);
   });
 });
+
+describe('production image', () => {
+  it('ships public/ next to the standalone server (the brand icon and any other static asset are served from there)', () => {
+    const dockerfile = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
+    assert.ok(existsSync(new URL('../public/brand/juple-app-icon-256.png', import.meta.url)), 'the brand icon BrandIcon shows');
+    const runner = dockerfile.slice(dockerfile.lastIndexOf('AS runner'));
+    assert.match(runner, /^COPY --from=builder \/app\/public \.\/public$/m);
+    assert.match(readFileSync(new URL('../app/(app)/BrandIcon.tsx', import.meta.url), 'utf8'), /src="\/brand\/juple-app-icon-256\.png"/);
+  });
+});
