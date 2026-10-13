@@ -137,8 +137,10 @@ export function AccountSection({ showTitle = true }: { readonly showTitle?: bool
           </div>
         ) : null}
         {method === 'email' ? (
-          <button className={styles.settingsLinkRow} onClick={() => reauthenticate('passwordReset')} type="button">
-            <span className={styles.settingsLinkLabel}>{dictionary.accountPasswordReset}</span>
+          // The same row and words as 로그인 방식 / 이메일 above (settingsRow + settingsLabel); only the chevron, the pointer and the
+          // hover say it is an action.
+          <button className={`${styles.settingsRow} ${styles.settingsRowAction}`} onClick={() => reauthenticate('passwordReset')} type="button">
+            <span className={styles.settingsLabel}>{dictionary.accountPasswordReset}</span>
             <Glyph className={styles.settingsChevron} name="Chevron" size={16} />
           </button>
         ) : null}

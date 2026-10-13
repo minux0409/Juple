@@ -1,5 +1,6 @@
 import { formatJupleId } from './accountDisplay.ts';
 import type { CollectionSummary } from './collectionsView.ts';
+import type { ReactionCount } from './itemCollaboration.ts';
 import { isSafeHttpUrl, type CollectionItemAdder, type ImageRef } from './savedLinks.ts';
 
 /**
@@ -39,6 +40,9 @@ export interface SharedCollectionItem {
   readonly addedAtUtc: string;
   readonly isMine: boolean;
   readonly addedBy?: CollectionItemAdder | null;
+  /** The link's emoji reactions IN this Collection: counts per catalog key and the caller's own - never who (itemCollaboration.ts). */
+  readonly reactions?: readonly ReactionCount[] | null;
+  readonly myReaction?: string | null;
 }
 
 export function itemPath(itemId: number): string {

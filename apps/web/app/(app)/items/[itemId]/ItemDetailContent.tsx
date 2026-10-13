@@ -12,6 +12,7 @@ import { notifyItemsChanged } from '../../../../lib/itemChanges';
 import { markEditOpenedFromDetails } from '../../../../lib/itemOverlay';
 import { collectionHref, displayTitleOf, formatLinkTimestamp, isSafeHttpUrl, parseRouteId, siteIdOf, siteOf } from '../../../../lib/savedLinks';
 import { useSignedInApp } from '../../AppRoot';
+import { ItemCollaboration } from '../../ItemCollaboration';
 import { ConfirmDialog } from '../../ConfirmDialog';
 import { CollectionGlyph, Glyph } from '../../Glyph';
 import { LinkImage } from '../../LinkImage';
@@ -202,6 +203,9 @@ export function ItemDetailContent({
           {actionError}
         </p>
       ) : null}
+      {/* Opened from a Collection that has other people in it: that Collection's reactions and comments on this link (mobile
+          ItemDetails' collaboration hand-off). Never for a link opened from Home / 보관함 - it is not IN a Collection there. */}
+      {fromCollectionId !== null ? <ItemCollaboration collectionId={fromCollectionId} itemId={itemId} /> : null}
       <ConfirmDialog
         busy={busy}
         cancelLabel={dictionary.cancel}

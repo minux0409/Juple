@@ -264,8 +264,12 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
+  box-sizing: border-box;
   min-height: 36px;
   padding: 0 16px;
+  /* ONE border for both states - selected changes only its colour. Declaring it only on .filterTab left a selected chip on the
+     browser's own button border (2px outset): a two-tone bevel, and 1px more on every side that moved its text. */
+  border: 1px solid transparent;
   border-radius: calc(var(--radius-md) - 3px);
   font: inherit;
   font-weight: 600;
@@ -275,7 +279,6 @@
 }
 
 .filterTab {
-  border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
 }
@@ -296,8 +299,16 @@
   color: var(--brand);
 }
 
-.sortArrow {
+.sortArrow,
+.sortArrowHidden {
+  display: inline-block;
+  width: 1em;
   font-size: 13px;
+  text-align: center;
+}
+
+.sortArrowHidden {
+  visibility: hidden;
 }
 
 /* the List / Grid / Image switch (mobile ViewModeToggle) */
@@ -1075,7 +1086,7 @@ a.imageBody:hover .imageTile img {
 .itemTitle {
   margin: 0;
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -2988,7 +2999,7 @@ a.imageBody:hover .imageTile img {
 }
 
 .notificationBodyUnread {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .notificationMeta {
@@ -5415,7 +5426,7 @@ ul.friendGrid > * + * {
   margin: 0;
   overflow: hidden;
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -5633,4 +5644,467 @@ ul.friendGrid > * + * {
   .quickPageCard {
     padding: var(--space-4);
   }
+}
+
+/* ======================================================================================================================
+   A link's collaboration IN a Collection (mobile useItemCollaboration): reaction chips, the comments and the composer - under the
+   link's details, in the sheet's own scrolling body (its bar with 닫기 and the action column stay where they are).
+   ==================================================================================================================== */
+.collab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--app-divider);
+}
+
+/* Mobile ReactionChips: compact chips that wrap rather than clip; the caller's own is a ring and a faint tint, never a loud fill. */
+.reactionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) 6px;
+}
+
+.reactionChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+span.reactionChip {
+  cursor: default;
+}
+
+button.reactionChip:hover {
+  border-color: var(--border);
+}
+
+.reactionChipMine,
+button.reactionChipMine:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.reactionEmoji {
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Mobile ReactionPickerDialog: centred, capped, its body scrolls; six per row. */
+.reactionPicker {
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(80vh, 640px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-floating);
+}
+
+.reactionPicker[open] {
+  display: flex;
+}
+
+.reactionPicker::backdrop {
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.reactionPickerPanel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.reactionPickerHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.reactionPickerHeader .dialogTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.reactionPickerBody {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.reactionPickerSection {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pickerGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.pickerCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pickerCell:hover {
+  background: var(--app-surface-muted);
+}
+
+.pickerCellMine,
+.pickerCellMine:hover {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* Mobile CommentList / CommentRow: lines of a conversation, no card around each. */
+.commentSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.commentTitle {
+  margin: var(--space-2) 0 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.commentState {
+  margin: var(--space-2) 0;
+  color: var(--app-text-secondary);
+  font-size: 13.5px;
+}
+
+.commentList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commentTextAction {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.commentTextAction:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.commentFailedAction {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* Replies of every depth sit under the top-level comment at this ONE indent (the avatar column plus its gap). */
+.commentThreadAction,
+.commentReplies {
+  margin-inline-start: 36px;
+}
+
+.commentReplies {
+  display: flex;
+  flex-direction: column;
+}
+
+.commentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-top: 6px;
+}
+
+.commentRowEditing .commentBody {
+  color: var(--app-text-secondary);
+}
+
+.commentMain {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.commentMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  margin: 0;
+}
+
+.commentCrown {
+  display: inline-flex;
+  color: var(--warning);
+}
+
+.commentName {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commentTime {
+  flex: 0 0 auto;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+/* Plain text exactly as written: line breaks kept, a long unbroken word wraps instead of overflowing. */
+.commentBody {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.commentMention {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.commentActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+}
+
+.commentAction {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.commentAction:hover {
+  color: var(--text);
+}
+
+.commentActionDanger:hover {
+  color: var(--danger);
+}
+
+/* The heart's own narrow column on the right edge: the text wraps before it and it never decides the row's height. */
+.commentHeart {
+  display: inline-flex;
+  flex: 0 0 44px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.commentHeartOn {
+  color: var(--danger);
+}
+
+.commentDeleted {
+  margin: 0;
+  padding: var(--space-2) 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.collabNotice {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13.5px;
+}
+
+/* Mobile CommentComposer, kept in reach at the bottom of the scrolling body while the conversation is on screen. */
+.commentComposer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(-1 * var(--space-1));
+  padding: var(--space-2) var(--space-1);
+  border-top: 1px solid var(--app-divider);
+  background: var(--app-surface);
+}
+
+.composerMode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding-inline-start: var(--space-3);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--app-surface-muted);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.composerMode > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composerModeClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+}
+
+.composerBar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+/* About four lines before it scrolls instead of growing. */
+.composerInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  max-height: calc(20px * 4 + 2 * 12px);
+  padding: 12px var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--app-surface-muted);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  resize: none;
+  field-sizing: content;
+}
+
+.composerInput:focus-visible {
+  border-color: var(--brand);
+  outline: none;
+}
+
+.composerSend {
+  flex: 0 0 auto;
+  min-width: 60px;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.composerSend:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 559px) {
+  .commentThreadAction,
+  .commentReplies {
+    margin-inline-start: var(--space-5);
+  }
+
+  .pickerCell {
+    height: 44px;
+    font-size: 24px;
+  }
+}
+
+/* ======================================================================================================================
+   Titles and words people wrote (a link's name, a notification about it) - not the app's own headings: 600, never heavier, so dense Han /
+   Kanji strokes (繋, 體, 鏡) stay apart; and never a synthesized bold - a fallback font without a bold face then shows its own regular
+   face instead of smeared strokes. The app's headings (.pageTitle and the like) keep their weight.
+   ==================================================================================================================== */
+.quickTitle,
+.itemTitle,
+.linkTitle,
+.notificationBody,
+.notificationBodyUnread {
+  font-synthesis-weight: none;
+}
+
+/* A settings row that is an action (계정 > 비밀번호 재설정): the info row's own box and words (.settingsRow + .settingsLabel), so it
+   reads exactly like 로그인 방식 / 이메일 beside it - only the button reset, the pointer and the hover are added. */
+.settingsRowAction {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.settingsRowAction:hover {
+  background: var(--app-surface-hover);
+}
+
+/* ... and keeps the card's divider above it (the button reset above would otherwise remove it). */
+.settingsCard > * + .settingsRowAction {
+  border-top: 1px solid var(--app-divider);
 }

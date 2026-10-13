@@ -30,7 +30,14 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Latin first (unchanged), then each platform's own CJK families - system fonts only, nothing downloaded. Without them a
+     character the first CJK font lacks (a Japanese kana next to Korean / Han text) fell to whatever the OS had, e.g. Arial Unicode MS
+     on Windows, which has no bold face: a synthesized bold glyph mixed into a bold title. Korean keeps the platform's usual font
+     (Apple SD Gothic Neo / Noto Sans KR / Malgun Gothic); kana come from Hiragino / Yu Gothic / Noto with real bold faces. */
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic',
+    'Hiragino Sans', 'Yu Gothic UI', Meiryo, 'Noto Sans JP', 'PingFang SC', 'PingFang TC', 'Microsoft YaHei UI', 'Microsoft JhengHei UI',
+    'Noto Sans CJK KR', 'Noto Sans CJK JP', 'Noto Sans CJK SC', 'Noto Sans CJK TC', sans-serif;
 }
 
 a {

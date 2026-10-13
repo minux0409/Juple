@@ -265,7 +265,7 @@ describe('where a notification leads (the server\'s target -> a Web page)', () =
   it('a link in a Collection is opened through the Collection: the link only when its content is open, else the Collection (its gate)', () => {
     const mine = { kind: 'collectionLink', collectionId: 5, itemId: 9, mine: true } as const;
     const theirs = { ...mine, mine: false } as const;
-    assert.equal(collectionLinkHref(mine, 'open'), '/items/9');
+    assert.equal(collectionLinkHref(mine, 'open'), '/items/9?collectionId=5', 'my link keeps its Collection: its comments and reactions are there');
     assert.equal(collectionLinkHref(theirs, 'open'), '/collections/5/items/9');
     for (const probe of ['gated', 'missing', 'failed'] as const) {
       assert.equal(collectionLinkHref(mine, probe), '/collections/5', probe);

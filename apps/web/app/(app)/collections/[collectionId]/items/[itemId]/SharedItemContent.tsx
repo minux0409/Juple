@@ -13,6 +13,7 @@ import { LoadFailed, Notice } from '../../../../PageStates';
 import { linkTitleText } from '../../../../SavedLinkList';
 import { SiteIcon } from '../../../../SiteIcon';
 import { QuickThumb } from '../../../../items/[itemId]/ItemDetailContent';
+import { ItemCollaboration } from '../../../../ItemCollaboration';
 import styles from '../../../../app.module.css';
 
 export type SharedItemState =
@@ -76,11 +77,12 @@ export function adderText(adder: NonNullable<ReturnType<typeof adderLabel>>, dic
 /**
  * Another member's link as Quick Detail content (the sheet over the Collection the person is in): the same look as their own link's
  * details - picture, name, site, the action column - but only what the Collection shares and read-only: 링크 열기 is its one action
- * (no 수정 / 삭제 - it is not theirs), then who added it and when. Never that person's memo or photos.
+ * (no 수정 / 삭제 - it is not theirs), then who added it and when, then the Collection's reactions and comments on it. Never that
+ * person's memo or photos.
  */
 export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { readonly collectionIdParam: string; readonly itemIdParam: string }) {
   const { dictionary, locale } = useSignedInApp();
-  const { state, reload } = useSharedItem(collectionIdParam, itemIdParam);
+  const { collectionId, state, reload } = useSharedItem(collectionIdParam, itemIdParam);
 
   if (state.kind === 'loading') {
     return (
@@ -157,6 +159,8 @@ export function SharedItemQuickContent({ collectionIdParam, itemIdParam }: { rea
         </div>
       </dl>
       <p className={styles.readOnlyNote}>{dictionary.sharedItemReadOnly}</p>
+      {/* Read-only means not theirs to edit or delete - any member may still react and comment (mobile CollectionSharedItemScreen). */}
+      {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}
     </article>
   );
 }

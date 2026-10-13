@@ -152,7 +152,8 @@ export function DateSections({
   };
 
   if (sectionsState.kind === 'loading') {
-    return <SavedLinkSkeleton count={4} mode="list" />;
+    // The chosen view's shape (as 이름순's whole-Collection load shows it), not always the list.
+    return <SavedLinkSkeleton count={4} mode={viewMode} />;
   }
   if (sectionsState.kind === 'failed') {
     return (

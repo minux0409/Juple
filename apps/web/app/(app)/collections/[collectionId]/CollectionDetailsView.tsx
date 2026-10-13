@@ -85,7 +85,7 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
   const [tooLargeForName, setTooLargeForName] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  // Who is in it (collaborative Collections only) and a member's pass-on link - loaded with the Collection, as on mobile.
+  // Who is in it (see the participants effect below) and a member's pass-on link - loaded with the Collection, as on mobile.
   const [participants, setParticipants] = useState<CollectionParticipants | null>(null);
   const [participantsFailed, setParticipantsFailed] = useState(false);
   const [participantsToken, setParticipantsToken] = useState(0);
@@ -122,21 +122,6 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
           return;
         }
         setHeader({ kind: 'loaded', collection });
-        if (isCollaborative(collection)) {
-          api<CollectionParticipants>({ path: `${collectionPath(collection.id)}/participants` }).then(
-            loaded => {
-              if (!ignore) {
-                setParticipants(loaded);
-                setParticipantsFailed(false);
-              }
-            },
-            () => {
-              if (!ignore) {
-                setParticipantsFailed(true);
-              }
-            },
-          );
-        }
         if (isSharedWithMe(collection)) {
           api<{ readonly isShared: boolean; readonly shareUrl: string | null }>({ path: `${collectionPath(collection.id)}/share/link` }).then(
             result => {
@@ -168,6 +153,41 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
     };
   }, [api, collectionId, onSessionLost, reloadToken, participantsToken]);
 
+  // Who is in it: with a collaborative Collection's header (its avatar stack), and - for ANY Collection, mine alone included - whenever
+  // the share screen is open, which needs them for its people list and for whether the caller may manage (invite, settings). Mobile's
+  // share screen always reads them with the share state; reading them only for collaborative Collections left a solo Owner's share
+  // screen waiting forever (no request, no answer, no failure).
+  const loadedCollection = header.kind === 'loaded' ? header.collection : null;
+  const loadedCollectionId = loadedCollection?.id ?? null;
+  const wantsParticipants = loadedCollection !== null && (isCollaborative(loadedCollection) || panel === 'share');
+  useEffect(() => {
+    if (!wantsParticipants || loadedCollectionId === null) {
+      return undefined;
+    }
+    let ignore = false;
+    api<CollectionParticipants>({ path: `${collectionPath(loadedCollectionId)}/participants` }).then(
+      loaded => {
+        if (!ignore) {
+          setParticipants(loaded);
+          setParticipantsFailed(false);
+        }
+      },
+      error => {
+        if (ignore) {
+          return;
+        }
+        if (isSessionLost(error)) {
+          onSessionLost();
+          return;
+        }
+        setParticipantsFailed(true);
+      },
+    );
+    return () => {
+      ignore = true;
+    };
+  }, [api, loadedCollectionId, onSessionLost, participantsToken, reloadToken, wantsParticipants]);
+
   const back = (
     <BackRow>
       <BackButton dictionary={dictionary} fallbackHref="/collections" />
@@ -187,7 +207,8 @@ export function CollectionDetailsView({ collectionIdParam }: { readonly collecti
       <section aria-busy className={styles.page}>
         {back}
         <CollectionHeaderSkeleton />
-        <SavedLinkSkeleton count={4} mode="list" />
+        {/* Shaped like the links about to appear - in the chosen view, whichever sort is chosen. */}
+        <SavedLinkSkeleton count={4} mode={viewMode} />
       </section>
     );
   }

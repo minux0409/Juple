@@ -192,13 +192,17 @@ export function webDestinationOf(target: NotificationTarget): WebDestination {
 export type CollectionLinkProbe = 'open' | 'gated' | 'missing' | 'failed';
 
 /**
- * A link in a Collection, through the Collection as on mobile: when its content is open the link itself (mine → my Item page, someone
- * else's → the read-only shared view in the Collection); behind a lock / share password - or gone, or not readable now - the Collection's
+ * A link in a Collection, through the Collection as on mobile: when its content is open the link itself (mine → my Item page IN that
+ * Collection, someone else's → the read-only shared view in the Collection); behind a lock / share password - or gone, or not readable now - the Collection's
  * own page, which asks for the password (or says what is wrong). A notification never skips a Collection's gate.
  */
 export function collectionLinkHref(destination: Extract<WebDestination, { kind: 'collectionLink' }>, probe: CollectionLinkProbe): string {
   if (probe === 'open') {
-    return destination.mine ? `/items/${destination.itemId}` : `/collections/${destination.collectionId}/items/${destination.itemId}`;
+    // My own link keeps its Collection (mobile: ItemDetails with that collectionContext) - so its reactions and comments, the reason
+    // for most of these notifications, are there, and 삭제 is that Collection's 컬렉션에서 제거 as anywhere else inside it.
+    return destination.mine
+      ? `/items/${destination.itemId}?collectionId=${destination.collectionId}`
+      : `/collections/${destination.collectionId}/items/${destination.itemId}`;
   }
   return `/collections/${destination.collectionId}`;
 }

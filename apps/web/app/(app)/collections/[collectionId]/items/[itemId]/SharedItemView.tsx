@@ -8,13 +8,14 @@ import { BackButton, LoadFailed, Notice } from '../../../../PageStates';
 import { ItemDetailSkeleton } from '../../../../Skeletons';
 import { linkTitleText } from '../../../../SavedLinkList';
 import { ItemPhoto, OpenLinkButton, SourceRow } from '../../../../ItemParts';
+import { ItemCollaboration } from '../../../../ItemCollaboration';
 import { adderText, useSharedItem } from './SharedItemContent';
 import styles from '../../../../app.module.css';
 
 /**
  * Another member's link in a shared Collection - the mobile CollectionSharedItemScreen: only what the Collection shares (title, link,
- * automatic preview image, when it was added and who added it), read-only. Never that person's memo or photos. Reactions and
- * comments are not part of this Web round.
+ * automatic preview image, when it was added and who added it), read-only - then, as on mobile, the Collection's reactions and
+ * comments on it (read-only means not theirs to edit or delete; any member may react and comment). Never that person's memo or photos.
  */
 export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly collectionIdParam: string; readonly itemIdParam: string }) {
   const { dictionary, locale } = useSignedInApp();
@@ -85,6 +86,7 @@ export function SharedItemView({ collectionIdParam, itemIdParam }: { readonly co
           <OpenLinkButton dictionary={dictionary} url={item.url} />
         </div>
       </article>
+      {collectionId !== null ? <ItemCollaboration always collectionId={collectionId} itemId={item.itemId} row={item} /> : null}
     </section>
   );
 }
